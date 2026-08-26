@@ -84,14 +84,24 @@
 
         <DataTemplate x:Key="CardTemplate" DataType="{x:Type vm:WorkstreamCardViewModel}">
             <Border CornerRadius="8" Margin="0,0,0,8" MinHeight="96"
-                    Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
                     ToolTip="{Binding Workstream.WorkingDirectory}"
                     MouseLeftButtonUp="OnCardClicked">
+                <!--
+                    A card with no session takes the lane's own fill and sinks into the board; a
+                    running one stays raised above it. Neither hue nor the border is available to say
+                    this: the stripe is the workstream's permanent tab colour, and the border already
+                    means selected.
+                -->
                 <Border.Style>
                     <Style TargetType="Border">
+                        <Setter Property="Background" Value="{DynamicResource LayerFillColorDefaultBrush}" />
                         <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
                         <Setter Property="BorderThickness" Value="1" />
                         <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsLive}" Value="True">
+                                <Setter Property="Background"
+                                        Value="{DynamicResource CardBackgroundFillColorDefaultBrush}" />
+                            </DataTrigger>
                             <DataTrigger Binding="{Binding IsSelected}" Value="True">
                                 <Setter Property="BorderBrush"
                                         Value="{DynamicResource AccentFillColorDefaultBrush}" />
@@ -102,12 +112,23 @@
                 </Border.Style>
                 <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="4" />
+                        <ColumnDefinition Width="6" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
 
                     <Border Grid.Column="0" CornerRadius="8,0,0,8"
-                            Background="{Binding ColorHex, Converter={StaticResource HexToBrush}}" />
+                            Background="{Binding ColorHex, Converter={StaticResource HexToBrush}}">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Opacity" Value="0.4" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsLive}" Value="True">
+                                        <Setter Property="Opacity" Value="1" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                    </Border>
 
                     <StackPanel Grid.Column="1" Margin="12,10,12,10">
                         <Grid>
@@ -131,8 +152,21 @@
                                         Command="{Binding DataContext.FocusCardCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                         CommandParameter="{Binding}" />
                                 <TextBlock Text="{Binding Lifecycle, Converter={StaticResource LifecycleGlyph}}"
-                                           FontSize="14" VerticalAlignment="Center"
-                                           Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+                                           FontSize="16" VerticalAlignment="Center"
+                                           ToolTip="{Binding StatusLine}">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground"
+                                                    Value="{DynamicResource TextFillColorTertiaryBrush}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsLive}" Value="True">
+                                                    <Setter Property="Foreground"
+                                                            Value="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
                             </StackPanel>
                         </Grid>
 
