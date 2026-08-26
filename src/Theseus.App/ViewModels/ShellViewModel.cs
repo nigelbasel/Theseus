@@ -18,6 +18,7 @@ public sealed class ShellViewModel : ObservableObject
     private readonly ITabColourAllocator _colours;
     private readonly PullRequestResolver _pullRequests;
     private readonly SessionStopper _stopper;
+    private readonly IRunLog _runs;
     private AppTheme _theme;
     private string _notice = string.Empty;
     private bool _isSessionsPanelOpen;
@@ -33,6 +34,7 @@ public sealed class ShellViewModel : ObservableObject
         ITabColourAllocator colours)
     {
         Board = board;
+        _runs = runs;
         Sessions = sessions;
         _settings = settings;
         _launcher = launcher;
@@ -255,15 +257,19 @@ public sealed class ShellViewModel : ObservableObject
         }
     }
 
-    /// <summary>Marks every card whose workstream has a session running right now.</summary>
+    /// <summary>Brings every card's state into line with what is running and what ran today.</summary>
     public void SyncLifecycles()
     {
+        var runs = _runs.Read();
+        var now = DateTimeOffset.Now;
+
         foreach (var card in Board.Columns.SelectMany(column => column.Cards))
         {
-            var session = Sessions.Find(card.Workstream.LastSessionId);
+            var live = Sessions.Find(card.Workstream.LastSessionId) is not null;
+            var state = CardLifecycle.For(card.Key, live, runs, now);
 
-            card.Lifecycle = session is null ? SessionLifecycle.NotStarted : SessionLifecycle.Running;
-            card.LifecycleSinceUtc = null;
+            card.Lifecycle = state.Lifecycle;
+            card.LifecycleSinceUtc = state.Since;
         }
     }
 
