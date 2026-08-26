@@ -26,6 +26,7 @@ public partial class MainWindow : Window
         AddHandler(PreviewMouseMoveEvent, new MouseEventHandler(OnPreviewMouseMove), handledEventsToo: true);
 
         DataContextChanged += (_, _) => WatchSettings();
+        Activated += (_, _) => (DataContext as ShellViewModel)?.SyncAccount();
     }
 
     private BoardViewModel? Board => (DataContext as ShellViewModel)?.Board;

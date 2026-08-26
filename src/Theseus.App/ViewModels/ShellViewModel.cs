@@ -22,6 +22,7 @@ public sealed class ShellViewModel : ObservableObject
     private readonly SessionStopper _stopper;
     private readonly IRunLog _runs;
     private readonly ISessionTodoReader _todos;
+    private readonly ClaudeAccountSource _account = new();
     private AppTheme _theme;
     private string _notice = string.Empty;
     private bool _isSessionsPanelOpen;
@@ -194,9 +195,10 @@ public sealed class ShellViewModel : ObservableObject
 
     /// <summary>
     /// Which Claude account the sessions run as. A machine signs in once, so this is the board's
-    /// account rather than any one session's, and it is read once because it changes only at sign-in.
+    /// account rather than any one session's. Signing out and in as another account changes it
+    /// under a running Theseus, so it is re-read rather than remembered from startup.
     /// </summary>
-    public string Account { get; } = new ClaudeAccountReader().Read().Describe;
+    public string Account => _account.Current.Describe;
 
     /// <summary>Shows a standing warning about the environment Theseus is running in.</summary>
     public void Warn(string warning) => Notice = warning;
@@ -212,6 +214,25 @@ public sealed class ShellViewModel : ObservableObject
         SyncLifecycles();
         SyncPullRequests();
         WireAdoption();
+        SyncAccount();
+    }
+
+    /// <summary>
+    /// <para>Cheap enough to call whenever the window is looked at: two file timestamps unless something changed.</para>
+    /// Notices a switch to the other account. The usage shown beside it belongs to whichever account
+    /// was signed in when it was read, so it is thrown away rather than left to describe the account
+    /// just left behind - which is the one reading that would send you back to the exhausted one.
+    /// </summary>
+    public void SyncAccount()
+    {
+        if (!_account.Refresh())
+        {
+            return;
+        }
+
+        Raise(nameof(Account));
+        Notice = $"Signed in as {_account.Current.Describe}.";
+        Usage?.RefreshCommand.Execute(null);
     }
 
     private IReadOnlyDictionary<string, string> SessionNames() =>
