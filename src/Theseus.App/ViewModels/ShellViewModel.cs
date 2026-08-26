@@ -22,6 +22,8 @@ public sealed class ShellViewModel : ObservableObject
     private readonly List<StopStep> _stopQueue = [];
     private readonly IRunLog _runs;
     private readonly ISessionTodoReader _todos;
+    private readonly IWorkflowActivityReader _activity =
+        new WorkflowActivityReader(WorkflowRunReader.DefaultDirectory);
     private readonly ClaudeAccountSource _account = new();
     private AppTheme _theme;
     private string _notice = string.Empty;
@@ -307,6 +309,20 @@ public sealed class ShellViewModel : ObservableObject
         ];
     }
 
+    /// <summary>
+    /// What a session is doing, in one line. A workflow under way outranks the todo list: it is the
+    /// larger fact about a session, and a session driving thirty agents commonly keeps no list at all.
+    /// </summary>
+    private string Doing(string? sessionId)
+    {
+        if (_activity.Read(sessionId) is { InFlight: true } workflow)
+        {
+            return workflow.Describe;
+        }
+
+        return TodoProgress.Of(_todos.Read(sessionId)).Summary;
+    }
+
     /// <summary>Finds the pull requests each workstream mentions and where they live.</summary>
     public void SyncPullRequests()
     {
@@ -329,9 +345,7 @@ public sealed class ShellViewModel : ObservableObject
 
             card.Lifecycle = state.Lifecycle;
             card.LifecycleSinceUtc = state.Since;
-            card.TodoSummary = live
-                ? TodoProgress.Of(_todos.Read(card.Workstream.LastSessionId)).Summary
-                : string.Empty;
+            card.TodoSummary = live ? Doing(card.Workstream.LastSessionId) : string.Empty;
         }
     }
 
