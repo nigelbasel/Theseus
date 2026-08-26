@@ -187,7 +187,21 @@
                                   Drop="OnColumnDrop"
                                   DragOver="OnColumnDragOver"
                                   Background="Transparent"
-                                  MinHeight="120">
+                                  MinHeight="120"
+                                  VirtualizingStackPanel.IsVirtualizing="True"
+                                  VirtualizingStackPanel.VirtualizationMode="Recycling">
+                        <ItemsControl.Template>
+                            <ControlTemplate TargetType="ItemsControl">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Disabled"
+                                              CanContentScroll="True"
+                                              Focusable="False"
+                                              Padding="0,0,2,0"
+                                              Background="{TemplateBinding Background}">
+                                    <ItemsPresenter />
+                                </ScrollViewer>
+                            </ControlTemplate>
+                        </ItemsControl.Template>
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <VirtualizingStackPanel />
