@@ -92,7 +92,7 @@
                          VerticalScrollBarVisibility="Auto"
                          FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12" />
                 <TextBlock Style="{StaticResource FieldHint}"
-                           Text="Sent to a session when you press Stop. Use {handoff} for the file it should write." />
+                           Text="Put on the clipboard when you press Stop, for you to paste into the session. Use {handoff} for the file it should write." />
             </StackPanel>
         </ScrollViewer>
     </DockPanel>

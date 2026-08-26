@@ -19,7 +19,7 @@ public sealed class ShellViewModel : ObservableObject
     private readonly IPlanStore _plans;
     private readonly ITabColourAllocator _colours;
     private readonly PullRequestResolver _pullRequests;
-    private readonly SessionStopper _stopper;
+    private readonly List<StopStep> _stopQueue = [];
     private readonly IRunLog _runs;
     private readonly ISessionTodoReader _todos;
     private readonly ClaudeAccountSource _account = new();
@@ -47,7 +47,6 @@ public sealed class ShellViewModel : ObservableObject
         _plans = plans;
         _colours = colours;
         _pullRequests = new PullRequestResolver(new GitRemoteReader());
-        _stopper = new SessionStopper(new ClaudeLocator(settings.Read().ClaudeExecutablePath));
         _theme = settings.Read().Theme;
         _isSessionsPanelOpen = !settings.Read().SessionsPanelCollapsed;
 
@@ -61,9 +60,9 @@ public sealed class ShellViewModel : ObservableObject
         StartBoardCommand = new RelayCommand(_ => StartMany(BoardSelection()), _ => BoardSelection().Count > 0);
         SelectCardCommand = new RelayCommand(ShowCard);
         ToggleSessionsPanelCommand = new RelayCommand(_ => IsSessionsPanelOpen = !IsSessionsPanelOpen);
-        StopCardCommand = new RelayCommand(parameter => _ = StopAsync(CardTargets(parameter)),
-            parameter => CardTargets(parameter).Count > 0);
-        StopBoardCommand = new RelayCommand(_ => _ = StopAsync(BoardTargets()), _ => BoardTargets().Count > 0);
+        StopCardCommand = new RelayCommand(parameter => BeginStop(CardSteps(parameter)),
+            parameter => CardSteps(parameter).Count > 0);
+        StopBoardCommand = new RelayCommand(_ => BeginStop(BoardSteps()), _ => BoardSteps().Count > 0);
 
         Drawer = new DetailDrawerViewModel(plans, runs, new WorkflowRunReader(WorkflowRunReader.DefaultDirectory), card =>
         {
@@ -240,44 +239,72 @@ public sealed class ShellViewModel : ObservableObject
             .GroupBy(session => session.SessionId, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(group => group.Key, group => group.First().Name, StringComparer.OrdinalIgnoreCase);
 
-    private IReadOnlyList<StopTarget> CardTargets(object? parameter) =>
-        parameter is WorkstreamCardViewModel card
-            ? StopSelection.ForWorkstream(card.Workstream, Sessions.Snapshot, SessionNames())
-            : [];
+    private IReadOnlyList<StopStep> CardSteps(object? parameter) =>
+        parameter is WorkstreamCardViewModel card ? StepsFor([card]) : [];
 
-    private IReadOnlyList<StopTarget> BoardTargets() =>
-        StopSelection.ForBoard(Workstreams(), Sessions.Snapshot, SessionNames());
+    private IReadOnlyList<StopStep> BoardSteps() =>
+        StepsFor(Board.Columns.SelectMany(column => column.Cards));
 
     /// <summary>
-    /// Asks the named sessions to write a handoff and exit. Nothing is killed: a session that will
-    /// not stop is reported as still running, because the point of stopping is the handoff it
-    /// writes on the way out and a killed process writes nothing.
+    /// Prepares a stop request and puts it in front of the user, one session at a time: the tab is
+    /// brought to the front and the request goes on the clipboard, ready to paste and send.
+    ///
+    /// Theseus does not deliver it. A session takes its instructions from its user and refuses to
+    /// let a peer override them, which is right - a peer that could say "stop and exit" could say
+    /// anything - so a request carried by another session is declined however it is worded. Going
+    /// through the session's own prompt makes it the user's instruction, which is what it is.
+    ///
+    /// Nothing is killed either way. The point of stopping is the handoff written on the way out,
+    /// and a killed process writes nothing.
     /// </summary>
-    private async Task StopAsync(IReadOnlyList<StopTarget> targets)
+    private void BeginStop(IReadOnlyList<StopStep> steps)
     {
-        if (targets.Count == 0)
+        _stopQueue.Clear();
+        _stopQueue.AddRange(steps);
+
+        AdvanceStop();
+    }
+
+    private void AdvanceStop()
+    {
+        if (_stopQueue.Count == 0)
         {
             return;
         }
 
-        Notice = targets.Count == 1
-            ? $"Asking {targets[0].SessionName} to write a handoff and exit..."
-            : $"Asking {targets.Count} sessions to write a handoff and exit...";
+        var step = _stopQueue[0];
+        _stopQueue.RemoveAt(0);
 
-        var asked = await _stopper.RequestAsync(_settings.Read().StopPrompt, targets, CancellationToken.None);
-
-        if (asked is null)
+        if (!ClipboardText.TryCopy(step.Text))
         {
-            Notice = "The stop request could not be sent. The log has the reason.";
+            Notice = "The stop request could not be put on the clipboard. The log has the reason.";
 
             return;
         }
 
-        Notice = asked == 1
-            ? $"Asked {targets[0].SessionName} to stop. It will exit once it has written its handoff."
-            : $"Asked {asked} sessions to stop. They will exit once they have written their handoffs.";
+        TerminalFocus.FocusSession(step.Pid, step.SessionName);
 
-        Refresh();
+        Notice = _stopQueue.Count == 0
+            ? $"Paste into {step.Title} and press Enter to stop it."
+            : $"Paste into {step.Title} and press Enter, then Stop all again for the next {_stopQueue.Count}.";
+    }
+
+    private IReadOnlyList<StopStep> StepsFor(IEnumerable<WorkstreamCardViewModel> cards)
+    {
+        var prompt = _settings.Read().StopPrompt;
+        var names = SessionNames();
+
+        return
+        [
+            .. cards.SelectMany(card => StopSelection
+                .ForWorkstream(card.Workstream, Sessions.Snapshot, names)
+                .Where(_ => Sessions.Find(card.Workstream.LastSessionId) is not null)
+                .Select(target => new StopStep(
+                    card.Title,
+                    target.SessionName,
+                    Sessions.Find(card.Workstream.LastSessionId)!.Pid,
+                    StopRequest.For(prompt, target))))
+        ];
     }
 
     /// <summary>Finds the pull requests each workstream mentions and where they live.</summary>
