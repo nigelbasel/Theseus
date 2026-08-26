@@ -440,9 +440,45 @@ public sealed class ShellViewModel : ObservableObject
     /// here means a target already knows both halves of the pairing, so the menu item is one click
     /// with nothing selected beforehand.
     /// </summary>
+    /// <summary>
+    /// Offers back a session running for a workstream the board stopped following. Restarting a
+    /// session outside Theseus gives it a new identifier, and the card then reads as finished
+    /// indefinitely — the one state a card can be plainly wrong in. Nothing is reattached without
+    /// being asked: the offer is made on the card and taken by a click.
+    /// </summary>
+    private void OfferLostSessions(IReadOnlyList<WorkstreamCardViewModel> cards)
+    {
+        var lost = LostSessions.Find(Workstreams(), Sessions.Snapshot.Live)
+            .ToDictionary(entry => entry.WorkstreamKey, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var card in cards)
+        {
+            if (!lost.TryGetValue(card.Key, out var found))
+            {
+                card.LostSessionName = string.Empty;
+                card.AdoptLostCommand = null;
+
+                continue;
+            }
+
+            var target = card;
+
+            card.LostSessionName = found.SessionName;
+            card.AdoptLostCommand = new RelayCommand(_ =>
+            {
+                if (Sessions.Find(found.SessionId) is { } session)
+                {
+                    Adopt(session, target);
+                }
+            });
+        }
+    }
+
     private void WireAdoption()
     {
         var cards = Board.Columns.SelectMany(column => column.Cards).ToList();
+
+        OfferLostSessions(cards);
 
         foreach (var session in Sessions.Sessions)
         {

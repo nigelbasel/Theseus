@@ -62,9 +62,5 @@ public static class BoardLanes
     }
 
     /// <summary>Whether two lane names mean the same lane, ignoring case and punctuation.</summary>
-    public static bool Same(string lane, string? other) =>
-        other is not null && string.Equals(Key(lane), Key(other), StringComparison.OrdinalIgnoreCase);
-
-    private static string Key(string lane) =>
-        string.Concat(lane.Where(char.IsLetterOrDigit));
+    public static bool Same(string lane, string? other) => LooseName.Same(lane, other);
 }

@@ -9,6 +9,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     private SessionLifecycle _lifecycle = SessionLifecycle.NotStarted;
     private string _todoSummary = string.Empty;
     private bool _motionAllowed = true;
+    private string _lostSessionName = string.Empty;
     private bool _isSelected;
     private IReadOnlyList<PullRequestLink> _pullRequests = [];
     private DateTimeOffset? _lifecycleSinceUtc;
@@ -107,6 +108,20 @@ public sealed class WorkstreamCardViewModel : ObservableObject
             }
         }
     }
+
+    /// <summary>
+    /// The name of a session running for this workstream that the board is not following, when there
+    /// is one. A workstream whose session was restarted outside Theseus reads as finished otherwise,
+    /// which is the one case where a card is wrong rather than merely quiet.
+    /// </summary>
+    public string LostSessionName
+    {
+        get => _lostSessionName;
+        set => Set(ref _lostSessionName, value);
+    }
+
+    /// <summary>Attaches this workstream to the session running unattached for it.</summary>
+    public RelayCommand? AdoptLostCommand { get; set; }
 
     /// <summary>Whether a session is running, which is what disables Restart in favour of Focus.</summary>
     public bool IsLive => Lifecycle

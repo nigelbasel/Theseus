@@ -197,6 +197,13 @@
                         <TextBlock FontSize="12"
                                    Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                    Text="{Binding StatusLine}" />
+
+                        <Button Margin="0,6,0,0" HorizontalAlignment="Left" FontSize="11" Padding="8,2"
+                                Content="{Binding LostSessionName, StringFormat=Adopt the running &quot;{0}&quot;}"
+                                ToolTip="This workstream's session was restarted outside Theseus, so the board stopped following it"
+                                Command="{Binding AdoptLostCommand}"
+                                Visibility="{Binding LostSessionName,
+                                             Converter={StaticResource NotEmptyToVisibility}}" />
                     </StackPanel>
                 </Grid>
             </Border>
