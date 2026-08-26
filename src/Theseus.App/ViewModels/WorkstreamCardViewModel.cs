@@ -8,6 +8,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     private Workstream _workstream;
     private SessionLifecycle _lifecycle = SessionLifecycle.NotStarted;
     private bool _isSelected;
+    private IReadOnlyList<PullRequestLink> _pullRequests = [];
     private DateTimeOffset? _lifecycleSinceUtc;
 
     /// <summary>Creates a card over a workstream.</summary>
@@ -42,6 +43,13 @@ public sealed class WorkstreamCardViewModel : ObservableObject
 
     /// <summary>Every Jira issue this workstream touches.</summary>
     public IReadOnlyList<string> JiraKeys => _workstream.JiraKeys;
+
+    /// <summary>The pull requests this workstream mentions, with somewhere to open them.</summary>
+    public IReadOnlyList<PullRequestLink> PullRequests
+    {
+        get => _pullRequests;
+        set => Set(ref _pullRequests, value);
+    }
 
     /// <summary>Whether the work is blocked, shown as a flag rather than a column.</summary>
     public bool IsBlocked => _workstream.IsBlocked;

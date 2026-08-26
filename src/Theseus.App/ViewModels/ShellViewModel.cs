@@ -15,6 +15,7 @@ public sealed class ShellViewModel : ObservableObject
     private readonly LaunchCoordinator _launcher;
     private readonly IPlanStore _plans;
     private readonly ITabColourAllocator _colours;
+    private readonly PullRequestResolver _pullRequests;
     private AppTheme _theme;
     private string _notice = string.Empty;
 
@@ -34,12 +35,15 @@ public sealed class ShellViewModel : ObservableObject
         _launcher = launcher;
         _plans = plans;
         _colours = colours;
+        _pullRequests = new PullRequestResolver(new GitRemoteReader());
         _theme = settings.Read().Theme;
 
         RefreshCommand = new RelayCommand(_ => Refresh());
         FocusCardCommand = new RelayCommand(FocusCard, CanFocusCard);
         OpenJiraCommand = new RelayCommand(OpenJira,
             parameter => parameter is string key && JiraSite.IssueUrl(_settings.Read().JiraBaseUrl, key) is not null);
+        OpenPullRequestCommand = new RelayCommand(OpenPullRequest,
+            parameter => parameter is PullRequestLink { Url: not null });
 
         StartCardCommand = new RelayCommand(StartCard, CanStartCard);
         StartBoardCommand = new RelayCommand(_ => StartMany(BoardSelection()), _ => BoardSelection().Count > 0);
@@ -101,6 +105,9 @@ public sealed class ShellViewModel : ObservableObject
     /// <summary>Opens a Jira issue in the browser.</summary>
     public RelayCommand OpenJiraCommand { get; }
 
+    /// <summary>Opens a pull request in the browser.</summary>
+    public RelayCommand OpenPullRequestCommand { get; }
+
     /// <summary>Starts one workstream.</summary>
     public RelayCommand StartCardCommand { get; }
 
@@ -151,7 +158,17 @@ public sealed class ShellViewModel : ObservableObject
         Board.Refresh();
         Sessions.Refresh();
         SyncLifecycles();
+        SyncPullRequests();
         WireAdoption();
+    }
+
+    /// <summary>Finds the pull requests each workstream mentions and where they live.</summary>
+    public void SyncPullRequests()
+    {
+        foreach (var card in Board.Columns.SelectMany(column => column.Cards))
+        {
+            card.PullRequests = _pullRequests.Resolve(card.Workstream);
+        }
     }
 
     /// <summary>Marks every card whose workstream has a session running right now.</summary>
@@ -337,6 +354,14 @@ public sealed class ShellViewModel : ObservableObject
             $"Found the terminal, but not which tab {title} is in — only sessions Theseus started can be pinpointed.",
         _ => $"No terminal window found for {title}.",
     };
+
+    private static void OpenPullRequest(object? parameter)
+    {
+        if (parameter is PullRequestLink { Url: { } url })
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+    }
 
     private void OpenJira(object? parameter)
     {
