@@ -154,6 +154,12 @@
                             </ItemsControl.ItemsPanel>
                         </ItemsControl>
 
+                        <TextBlock FontSize="12" TextTrimming="CharacterEllipsis"
+                                   Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
+                                   ToolTip="{Binding TodoSummary}"
+                                   Text="{Binding TodoSummary}"
+                                   Visibility="{Binding TodoSummary, Converter={StaticResource NotEmptyToVisibility}}" />
+
                         <TextBlock FontSize="12"
                                    Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                    Text="{Binding StatusLine}" />

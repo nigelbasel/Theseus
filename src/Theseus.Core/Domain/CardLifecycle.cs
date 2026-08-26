@@ -11,6 +11,10 @@ public static class CardLifecycle
     /// The state of one workstream's card. A live session outranks the history; otherwise the run
     /// log decides, because the registry entry is deleted the moment a session exits cleanly and
     /// nothing else on disk remembers that the workstream ran at all.
+    /// <para>
+    /// The moment of ending is often unknown: the run log is append-only, so a run whose ending was
+    /// never recorded has none, and the card is told nothing rather than told the start time.
+    /// </para>
     /// </summary>
     public static CardState For(
         string workstreamKey,
@@ -29,7 +33,7 @@ public static class CardLifecycle
 
         return latest is null
             ? new CardState(SessionLifecycle.NotStarted, null)
-            : new CardState(SessionLifecycle.Ended, latest.EndedUtc ?? latest.StartedUtc);
+            : new CardState(SessionLifecycle.Ended, latest.EndedUtc);
     }
 
     private static SessionRun? LatestToday(

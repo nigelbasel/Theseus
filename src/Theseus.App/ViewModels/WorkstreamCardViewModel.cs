@@ -7,6 +7,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject
 {
     private Workstream _workstream;
     private SessionLifecycle _lifecycle = SessionLifecycle.NotStarted;
+    private string _todoSummary = string.Empty;
     private bool _isSelected;
     private IReadOnlyList<PullRequestLink> _pullRequests = [];
     private DateTimeOffset? _lifecycleSinceUtc;
@@ -97,6 +98,17 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     {
         get => _isSelected;
         set => Set(ref _isSelected, value);
+    }
+
+    /// <summary>
+    /// What the session says it is working on, taken from the list it keeps for itself. Busy and
+    /// idle say whether a session is thinking; this says what about, which is what decides whether
+    /// a tab is worth opening.
+    /// </summary>
+    public string TodoSummary
+    {
+        get => _todoSummary;
+        set => Set(ref _todoSummary, value);
     }
 
     /// <summary>The card third line: what the session is doing, and for how long.</summary>

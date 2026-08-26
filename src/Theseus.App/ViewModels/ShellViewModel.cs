@@ -4,6 +4,7 @@ using Theseus.Core.Abstractions;
 using Theseus.Core.Domain;
 using Theseus.Core.Colour;
 using Theseus.Core.Launching;
+using Theseus.Core.Sessions;
 using Theseus.Core.Settings;
 using Theseus.Core.Stopping;
 
@@ -19,6 +20,7 @@ public sealed class ShellViewModel : ObservableObject
     private readonly PullRequestResolver _pullRequests;
     private readonly SessionStopper _stopper;
     private readonly IRunLog _runs;
+    private readonly ISessionTodoReader _todos;
     private AppTheme _theme;
     private string _notice = string.Empty;
     private bool _isSessionsPanelOpen;
@@ -31,10 +33,12 @@ public sealed class ShellViewModel : ObservableObject
         LaunchCoordinator launcher,
         IPlanStore plans,
         IRunLog runs,
+        ISessionTodoReader todos,
         ITabColourAllocator colours)
     {
         Board = board;
         _runs = runs;
+        _todos = todos;
         Sessions = sessions;
         _settings = settings;
         _launcher = launcher;
@@ -270,6 +274,9 @@ public sealed class ShellViewModel : ObservableObject
 
             card.Lifecycle = state.Lifecycle;
             card.LifecycleSinceUtc = state.Since;
+            card.TodoSummary = live
+                ? TodoProgress.Of(_todos.Read(card.Workstream.LastSessionId)).Summary
+                : string.Empty;
         }
     }
 

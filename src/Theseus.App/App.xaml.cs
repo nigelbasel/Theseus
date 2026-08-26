@@ -74,7 +74,8 @@ public partial class App : Application
             settings,
             sink.Expect);
 
-        var shell = new ShellViewModel(board, sessions, settings, _launcher, plans, runs, new TabColourAllocator());
+        var shell = new ShellViewModel(board, sessions, settings, _launcher, plans, runs,
+            new SessionTodoReader(SessionTodoReader.DefaultDirectory), new TabColourAllocator());
 
         if (ChildSessionCheck.Warning() is { } warning)
         {

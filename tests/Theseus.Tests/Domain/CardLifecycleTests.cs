@@ -65,22 +65,27 @@ public class CardLifecycleTests
     }
 
     [Test]
-    public void For_FallsBackToTheStartWhenNobodyRecordedTheEnding()
+    public void For_SaysNothingAboutWhenARunEndedIfNobodyRecordedIt()
     {
-        var started = Now.AddHours(-2);
+        var state = CardLifecycle.For("tailhawk", isLive: false, [Run("tailhawk", Now.AddHours(-2))], Now);
 
-        Assert.That(CardLifecycle.For("tailhawk", isLive: false, [Run("tailhawk", started)], Now).Since,
-            Is.EqualTo(started));
+        Assert.That(state.Lifecycle, Is.EqualTo(SessionLifecycle.Ended));
+        Assert.That(state.Since, Is.Null,
+            "the start is not the ending, and a card that reports one as the other is lying");
     }
 
     [Test]
     public void For_TakesTheMostRecentOfSeveralRunsToday()
     {
-        var latest = Now.AddMinutes(-10);
+        var ended = Now.AddMinutes(-9);
         IReadOnlyList<SessionRun> runs =
-            [Run("tailhawk", Now.AddHours(-6)), Run("tailhawk", latest), Run("tailhawk", Now.AddHours(-3))];
+        [
+            Run("tailhawk", Now.AddHours(-6)) with { EndedUtc = Now.AddHours(-5) },
+            Run("tailhawk", Now.AddMinutes(-10)) with { EndedUtc = ended },
+            Run("tailhawk", Now.AddHours(-3)) with { EndedUtc = Now.AddHours(-2) },
+        ];
 
-        Assert.That(CardLifecycle.For("tailhawk", isLive: false, runs, Now).Since, Is.EqualTo(latest));
+        Assert.That(CardLifecycle.For("tailhawk", isLive: false, runs, Now).Since, Is.EqualTo(ended));
     }
 
     [Test]
