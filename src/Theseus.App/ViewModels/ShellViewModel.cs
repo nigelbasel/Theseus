@@ -7,6 +7,7 @@ using Theseus.Core.Launching;
 using Theseus.Core.Sessions;
 using Theseus.Core.Settings;
 using Theseus.Core.Stopping;
+using Theseus.Core.Usage;
 
 namespace Theseus.App.ViewModels;
 
@@ -190,6 +191,12 @@ public sealed class ShellViewModel : ObservableObject
             _settings.Write(_settings.Read() with { Theme = value });
         }
     }
+
+    /// <summary>
+    /// Which Claude account the sessions run as. A machine signs in once, so this is the board's
+    /// account rather than any one session's, and it is read once because it changes only at sign-in.
+    /// </summary>
+    public string Account { get; } = new ClaudeAccountReader().Read().Describe;
 
     /// <summary>Shows a standing warning about the environment Theseus is running in.</summary>
     public void Warn(string warning) => Notice = warning;
