@@ -63,7 +63,7 @@ public sealed class ShellViewModel : ObservableObject
             parameter => CardTargets(parameter).Count > 0);
         StopBoardCommand = new RelayCommand(_ => _ = StopAsync(BoardTargets()), _ => BoardTargets().Count > 0);
 
-        Drawer = new DetailDrawerViewModel(plans, runs, card =>
+        Drawer = new DetailDrawerViewModel(plans, runs, new WorkflowRunReader(WorkflowRunReader.DefaultDirectory), card =>
         {
             Board.Persist(card);
             Refresh();

@@ -536,6 +536,29 @@
                                        FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"
                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
 
+                            <TextBlock Text="Workflows" Style="{StaticResource FieldLabel}"
+                                       Visibility="{Binding Drawer.Workflows.Count,
+                                                    Converter={StaticResource CountToVisibility}}" />
+                            <ItemsControl ItemsSource="{Binding Drawer.Workflows}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Margin="0,0,0,8" ToolTip="{Binding Summary}">
+                                            <TextBlock Text="{Binding Headline}" FontSize="12"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                            <TextBlock Text="{Binding Phases}" FontSize="11"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Visibility="{Binding Phases,
+                                                                    Converter={StaticResource NotEmptyToVisibility}}"
+                                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                                            <TextBlock FontSize="11"
+                                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                                       Text="{Binding Timestamp, Converter={StaticResource RelativeTime}}" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
                             <TextBlock Text="Runs" Style="{StaticResource FieldLabel}" />
                             <ItemsControl ItemsSource="{Binding Drawer.Runs}">
                                 <ItemsControl.ItemTemplate>

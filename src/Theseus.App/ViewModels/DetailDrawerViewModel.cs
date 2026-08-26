@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using Theseus.Core.Abstractions;
 using Theseus.Core.Domain;
+using Theseus.Core.Sessions;
 using Theseus.Core.Stopping;
 
 namespace Theseus.App.ViewModels;
@@ -16,6 +17,7 @@ public sealed class DetailDrawerViewModel : ObservableObject
 {
     private readonly IPlanStore _plans;
     private readonly IRunLog _runs;
+    private readonly IWorkflowRunReader _workflows;
     private readonly Action<WorkstreamCardViewModel> _saved;
 
     private WorkstreamCardViewModel? _card;
@@ -31,10 +33,12 @@ public sealed class DetailDrawerViewModel : ObservableObject
     private bool _isOpen;
 
     /// <summary>Creates the drawer over the stores it reads and writes.</summary>
-    public DetailDrawerViewModel(IPlanStore plans, IRunLog runs, Action<WorkstreamCardViewModel> saved)
+    public DetailDrawerViewModel(IPlanStore plans, IRunLog runs, IWorkflowRunReader workflows,
+        Action<WorkstreamCardViewModel> saved)
     {
         _plans = plans;
         _runs = runs;
+        _workflows = workflows;
         _saved = saved;
 
         CloseCommand = new RelayCommand(_ => IsOpen = false);
@@ -80,6 +84,9 @@ public sealed class DetailDrawerViewModel : ObservableObject
 
     /// <summary>This workstream's past launches, newest first.</summary>
     public ObservableCollection<RunHistoryEntryViewModel> Runs { get; } = [];
+
+    /// <summary>The workflows this workstream's last session ran, newest first.</summary>
+    public ObservableCollection<WorkflowRunViewModel> Workflows { get; } = [];
 
     /// <summary>Whether the drawer is showing.</summary>
     public bool IsOpen
@@ -259,6 +266,12 @@ public sealed class DetailDrawerViewModel : ObservableObject
                      .OrderByDescending(run => run.StartedUtc))
         {
             Runs.Add(new RunHistoryEntryViewModel(run));
+        }
+
+        Workflows.Clear();
+        foreach (var workflow in _workflows.Read(workstream.LastSessionId))
+        {
+            Workflows.Add(new WorkflowRunViewModel(workflow));
         }
 
         Raise(nameof(Key));
