@@ -118,12 +118,33 @@
 
                     <Border Grid.Column="0" CornerRadius="8,0,0,8"
                             Background="{Binding ColorHex, Converter={StaticResource HexToBrush}}">
+                        <!--
+                            Only a session that is working moves. A session waiting for a reply is
+                            the one thing on the board asking for a person, and it stands out by
+                            being still among its moving neighbours. Motion that marked every live
+                            session would decorate the board rather than tell you anything.
+                        -->
                         <Border.Style>
                             <Style TargetType="Border">
                                 <Setter Property="Opacity" Value="0.4" />
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsLive}" Value="True">
                                         <Setter Property="Opacity" Value="1" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsWorking}" Value="True">
+                                        <DataTrigger.EnterActions>
+                                            <BeginStoryboard Name="Working">
+                                                <Storyboard>
+                                                    <DoubleAnimation
+                                                        Storyboard.TargetProperty="Opacity"
+                                                        From="1.0" To="0.35" Duration="0:0:1.1"
+                                                        AutoReverse="True" RepeatBehavior="Forever" />
+                                                </Storyboard>
+                                            </BeginStoryboard>
+                                        </DataTrigger.EnterActions>
+                                        <DataTrigger.ExitActions>
+                                            <StopStoryboard BeginStoryboardName="Working" />
+                                        </DataTrigger.ExitActions>
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>

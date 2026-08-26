@@ -57,6 +57,9 @@ public sealed class LiveSessionViewModel : ObservableObject
     public string RegistryName =>
         string.IsNullOrWhiteSpace(_session.Name) ? _session.SessionId[..8] : _session.Name;
 
+    /// <summary>What the session reports it is doing, as the registry has it.</summary>
+    public string? Status => _session.Status;
+
     /// <summary>Where the session is working.</summary>
     public string WorkingDirectory => _session.Cwd ?? string.Empty;
 

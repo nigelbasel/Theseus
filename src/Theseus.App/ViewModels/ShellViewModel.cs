@@ -28,6 +28,7 @@ public sealed class ShellViewModel : ObservableObject
     private AppTheme _theme;
     private string _notice = string.Empty;
     private bool _isSessionsPanelOpen;
+    private bool _motionAllowed = true;
 
     /// <summary>Creates the shell over everything the window drives.</summary>
     public ShellViewModel(
@@ -332,6 +333,24 @@ public sealed class ShellViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Whether cards may move. A board that is not being looked at should not keep the render thread
+    /// awake, and a machine where animation has been switched off system-wide should be obeyed.
+    /// </summary>
+    public bool IsMotionAllowed
+    {
+        get => _motionAllowed;
+        set
+        {
+            _motionAllowed = value;
+
+            foreach (var card in Board.Columns.SelectMany(column => column.Cards))
+            {
+                card.MotionAllowed = value;
+            }
+        }
+    }
+
     /// <summary>Brings every card's state into line with what is running and what ran today.</summary>
     public void SyncLifecycles()
     {
@@ -340,9 +359,11 @@ public sealed class ShellViewModel : ObservableObject
 
         foreach (var card in Board.Columns.SelectMany(column => column.Cards))
         {
-            var live = Sessions.Find(card.Workstream.LastSessionId) is not null;
-            var state = CardLifecycle.For(card.Key, live, runs, now);
+            var session = Sessions.Find(card.Workstream.LastSessionId);
+            var live = session is not null;
+            var state = CardLifecycle.For(card.Key, session?.Status, live, runs, now);
 
+            card.MotionAllowed = _motionAllowed;
             card.Lifecycle = state.Lifecycle;
             card.LifecycleSinceUtc = state.Since;
             card.TodoSummary = live ? Doing(card.Workstream.LastSessionId) : string.Empty;

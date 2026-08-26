@@ -8,6 +8,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     private Workstream _workstream;
     private SessionLifecycle _lifecycle = SessionLifecycle.NotStarted;
     private string _todoSummary = string.Empty;
+    private bool _motionAllowed = true;
     private bool _isSelected;
     private IReadOnlyList<PullRequestLink> _pullRequests = [];
     private DateTimeOffset? _lifecycleSinceUtc;
@@ -68,6 +69,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject
             {
                 Raise(nameof(PrimaryAction));
                 Raise(nameof(IsLive));
+                Raise(nameof(IsWorking));
                 Raise(nameof(StatusLine));
             }
         }
@@ -82,6 +84,26 @@ public sealed class WorkstreamCardViewModel : ObservableObject
             if (Set(ref _lifecycleSinceUtc, value))
             {
                 Raise(nameof(StatusLine));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Whether this card should show movement: a session that is working, when movement is wanted at
+    /// all. Held here rather than read from the system so that a board out of focus, or a machine
+    /// where animation is switched off, simply stops moving.
+    /// </summary>
+    public bool IsWorking => _motionAllowed && Lifecycle == SessionLifecycle.Running;
+
+    /// <summary>Whether movement is wanted at all right now.</summary>
+    public bool MotionAllowed
+    {
+        get => _motionAllowed;
+        set
+        {
+            if (Set(ref _motionAllowed, value))
+            {
+                Raise(nameof(IsWorking));
             }
         }
     }

@@ -1,3 +1,5 @@
+using Theseus.Core.Sessions;
+
 namespace Theseus.Core.Domain;
 
 /// <summary>
@@ -16,8 +18,12 @@ public static class CardLifecycle
     /// never recorded has none, and the card is told nothing rather than told the start time.
     /// </para>
     /// </summary>
+    /// <param name="reportedStatus">
+    /// What a live session says it is doing, from the registry. Null when nothing is running.
+    /// </param>
     public static CardState For(
         string workstreamKey,
+        string? reportedStatus,
         bool isLive,
         IReadOnlyList<SessionRun> runs,
         DateTimeOffset now)
@@ -26,7 +32,7 @@ public static class CardLifecycle
 
         if (isLive)
         {
-            return new CardState(SessionLifecycle.Running, null);
+            return new CardState(SessionActivity.For(reportedStatus), null);
         }
 
         var latest = LatestToday(workstreamKey, runs, now);

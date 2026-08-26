@@ -26,10 +26,28 @@ public partial class MainWindow : Window
         AddHandler(PreviewMouseMoveEvent, new MouseEventHandler(OnPreviewMouseMove), handledEventsToo: true);
 
         DataContextChanged += (_, _) => WatchSettings();
-        Activated += (_, _) => (DataContext as ShellViewModel)?.SyncAccount();
+        Activated += (_, _) =>
+        {
+            (DataContext as ShellViewModel)?.SyncAccount();
+            AllowMotion(true);
+        };
+
+        Deactivated += (_, _) => AllowMotion(false);
     }
 
     private BoardViewModel? Board => (DataContext as ShellViewModel)?.Board;
+
+    /// <summary>
+    /// Lets the cards move, or stops them. A board nobody is looking at should not hold the render
+    /// thread awake, and a machine where animation has been turned off system-wide is saying not to.
+    /// </summary>
+    private void AllowMotion(bool active)
+    {
+        if (DataContext is ShellViewModel shell)
+        {
+            shell.IsMotionAllowed = active && SystemParameters.ClientAreaAnimation;
+        }
+    }
 
     private void WatchSettings()
     {
