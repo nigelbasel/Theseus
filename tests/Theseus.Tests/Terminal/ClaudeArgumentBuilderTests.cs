@@ -10,10 +10,10 @@ public class ClaudeArgumentBuilderTests
 
     private static LaunchSpec Spec(
         LaunchMode mode = LaunchMode.FirstRun,
-        string name = "GDPR MCP contact forms",
+        string name = "Contact form validation",
         string prompt = "Pick up where we left off.",
         IReadOnlyList<string>? addDirectories = null) =>
-        new(SessionId, mode, @"C:\Users\nigel\AppData\Roaming\npm\claude.cmd", @"C:\dev\tfsgit",
+        new(SessionId, mode, @"C:\Users\dev\AppData\Roaming\npm\claude.cmd", @"C:\work\repo",
             name, prompt, addDirectories ?? []);
 
     [Test]
@@ -39,14 +39,14 @@ public class ClaudeArgumentBuilderTests
     {
         var argv = ClaudeArgumentBuilder.Build(Spec()).ToList();
 
-        Assert.That(argv[argv.IndexOf("-n") + 1], Is.EqualTo("GDPR MCP contact forms"));
+        Assert.That(argv[argv.IndexOf("-n") + 1], Is.EqualTo("Contact form validation"));
     }
 
     [Test]
     public void Build_PutsThePromptBeforeAddDirBecauseAddDirIsVariadic()
     {
         var argv = ClaudeArgumentBuilder.Build(
-            Spec(addDirectories: [@"C:\dev\tfsgit\Core", @"C:\dev\tfsgit\Nexus"])).ToList();
+            Spec(addDirectories: [@"C:\work\repo\Core", @"C:\work\repo\Nexus"])).ToList();
 
         Assert.That(argv.IndexOf("Pick up where we left off."),
             Is.LessThan(argv.IndexOf("--add-dir")));
@@ -56,11 +56,11 @@ public class ClaudeArgumentBuilderTests
     public void Build_PlacesEveryExtraDirectoryAfterASingleAddDirFlag()
     {
         var argv = ClaudeArgumentBuilder.Build(
-            Spec(addDirectories: [@"C:\dev\tfsgit\Core", @"C:\dev\tfsgit\Nexus"])).ToList();
+            Spec(addDirectories: [@"C:\work\repo\Core", @"C:\work\repo\Nexus"])).ToList();
 
         Assert.That(argv.Count(a => a == "--add-dir"), Is.EqualTo(1));
-        Assert.That(argv[^2], Is.EqualTo(@"C:\dev\tfsgit\Core"));
-        Assert.That(argv[^1], Is.EqualTo(@"C:\dev\tfsgit\Nexus"));
+        Assert.That(argv[^2], Is.EqualTo(@"C:\work\repo\Core"));
+        Assert.That(argv[^1], Is.EqualTo(@"C:\work\repo\Nexus"));
     }
 
     [Test]

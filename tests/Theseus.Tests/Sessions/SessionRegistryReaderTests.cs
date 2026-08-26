@@ -35,7 +35,7 @@ public class SessionRegistryReaderTests
         {
             pid,
             sessionId,
-            cwd = @"C:\dev\tfsgit",
+            cwd = @"C:\work\repo",
             startedAt = 1787689133099L,
             procStart,
             version = "2.1.245",

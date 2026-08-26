@@ -5,9 +5,9 @@ namespace Theseus.Tests.Terminal;
 [TestFixture]
 public class WtCommandBuilderTests
 {
-    private static TerminalTabRequest Request(string title = "GDPR MCP contact forms",
-        string workingDirectory = @"C:\dev\tfsgit") =>
-        new("nigel-orchestrator", title, "#208DD7", workingDirectory,
+    private static TerminalTabRequest Request(string title = "Contact form validation",
+        string workingDirectory = @"C:\work\repo") =>
+        new("theseus", title, "#208DD7", workingDirectory,
             @"C:\dev\git\Theseus\Theseus.Launcher.exe",
             ["--pipe", "Theseus.Launch", "--ticket", "a1b2c3"]);
 
@@ -17,7 +17,7 @@ public class WtCommandBuilderTests
         var argv = WtCommandBuilder.Build(Request()).ToList();
 
         Assert.That(argv[0], Is.EqualTo("-w"));
-        Assert.That(argv[1], Is.EqualTo("nigel-orchestrator"));
+        Assert.That(argv[1], Is.EqualTo("theseus"));
         Assert.That(argv[2], Is.EqualTo("new-tab"));
     }
 
@@ -27,9 +27,9 @@ public class WtCommandBuilderTests
         var argv = WtCommandBuilder.Build(Request()).ToList();
 
         Assert.That(argv, Does.Contain("--title"));
-        Assert.That(argv[argv.IndexOf("--title") + 1], Is.EqualTo("GDPR MCP contact forms"));
+        Assert.That(argv[argv.IndexOf("--title") + 1], Is.EqualTo("Contact form validation"));
         Assert.That(argv[argv.IndexOf("--tabColor") + 1], Is.EqualTo("#208DD7"));
-        Assert.That(argv[argv.IndexOf("-d") + 1], Is.EqualTo(@"C:\dev\tfsgit"));
+        Assert.That(argv[argv.IndexOf("-d") + 1], Is.EqualTo(@"C:\work\repo"));
     }
 
     [Test]
@@ -63,9 +63,9 @@ public class WtCommandBuilderTests
     [Test]
     public void Build_LeavesOrdinaryTextUntouched()
     {
-        var argv = WtCommandBuilder.Build(Request(title: "Legacy job migration")).ToList();
+        var argv = WtCommandBuilder.Build(Request(title: "Job queue migration")).ToList();
 
-        Assert.That(argv[argv.IndexOf("--title") + 1], Is.EqualTo("Legacy job migration"));
+        Assert.That(argv[argv.IndexOf("--title") + 1], Is.EqualTo("Job queue migration"));
     }
 
     [Test]

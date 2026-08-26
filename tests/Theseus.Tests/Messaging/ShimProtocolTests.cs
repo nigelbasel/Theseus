@@ -65,14 +65,14 @@ public class ShimProtocolTests
     [Test]
     public void RoundTrip_CarriesALaunchSpecIncludingItsModeAndDirectories()
     {
-        var spec = new LaunchSpec(SessionId, LaunchMode.Resume, @"C:\claude.cmd", @"C:\dev\tfsgit",
-            "GDPR MCP contact forms", "Carry on; then stop.", [@"C:\dev\tfsgit\Core"]);
+        var spec = new LaunchSpec(SessionId, LaunchMode.Resume, @"C:\claude.cmd", @"C:\work\repo",
+            "Contact form validation", "Carry on; then stop.", [@"C:\work\repo\Core"]);
 
         var payload = RoundTrip<LaunchSpec>(ShimMessageKind.LaunchSpec, spec);
 
         Assert.That(payload!.Mode, Is.EqualTo(LaunchMode.Resume));
         Assert.That(payload.Prompt, Is.EqualTo("Carry on; then stop."));
-        Assert.That(payload.AddDirectories, Is.EqualTo(new[] { @"C:\dev\tfsgit\Core" }));
+        Assert.That(payload.AddDirectories, Is.EqualTo(new[] { @"C:\work\repo\Core" }));
     }
 
     [Test]

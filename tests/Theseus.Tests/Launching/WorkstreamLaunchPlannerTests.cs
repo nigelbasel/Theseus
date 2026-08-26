@@ -44,9 +44,9 @@ public class WorkstreamLaunchPlannerTests
     {
         var argv = Plan().TerminalArguments.ToList();
 
-        Assert.That(argv[argv.IndexOf("-w") + 1], Is.EqualTo("nigel-theseus"));
+        Assert.That(argv[argv.IndexOf("-w") + 1], Is.EqualTo("theseus"));
         Assert.That(argv[argv.IndexOf("--tabColor") + 1], Is.EqualTo("#C0392B"));
-        Assert.That(argv[argv.IndexOf("-d") + 1], Is.EqualTo(@"C:\dev\tfsgit"));
+        Assert.That(argv[argv.IndexOf("-d") + 1], Is.EqualTo(@"C:\work\repo"));
     }
 
     [Test]
@@ -69,7 +69,7 @@ public class WorkstreamLaunchPlannerTests
     [Test]
     public void Plan_TiesTheTicketToTheWorkstreamSoAReportCanBeAttributed()
     {
-        Assert.That(Plan().Ticket.WorkstreamKey, Is.EqualTo("gdpr-mcp"));
+        Assert.That(Plan().Ticket.WorkstreamKey, Is.EqualTo("contact-forms"));
         Assert.That(Plan().Ticket.ExpiresUtc, Is.EqualTo(Expiry));
     }
 
@@ -77,24 +77,24 @@ public class WorkstreamLaunchPlannerTests
     public void Plan_PassesTheWorkstreamsExtraDirectoriesThroughToTheSession()
     {
         Assert.That(Plan().Ticket.Spec.AddDirectories,
-            Is.EqualTo(new[] { @"C:\dev\tfsgit\features\apps-2170" }));
+            Is.EqualTo(new[] { @"C:\work\repo\features\contact-forms" }));
     }
 
     private static WorkstreamLaunchPlan Plan(
-        string title = "GDPR MCP contact forms",
+        string title = "Contact form validation",
         string prompt = "Carry on.",
         LaunchMode mode = LaunchMode.FirstRun)
     {
-        var workstream = new Workstream("gdpr-mcp", title, "#C0392B", ColorIsManual: true,
-            @"C:\dev\tfsgit", [@"C:\dev\tfsgit\features\apps-2170"], prompt, 1, BoardColumn.Today,
+        var workstream = new Workstream("contact-forms", title, "#C0392B", ColorIsManual: true,
+            @"C:\work\repo", [@"C:\work\repo\features\contact-forms"], prompt, 1, BoardColumn.Today,
             IsBlocked: false, ReopenTomorrow: true, IsArchived: false, LastSessionId: null,
             [], null, DateTimeOffset.UtcNow);
 
         var request = new WorkstreamLaunchRequest(workstream, "abc123", "session-1", mode,
-            @"C:\Users\nigel\.local\bin\claude.exe",
+            @"C:\Users\dev\.local\bin\claude.exe",
             @"C:\Program Files\WindowsApps\WindowsTerminal.exe",
             @"C:\dev\git\Theseus\Theseus.Launcher.exe",
-            "Theseus.Launch", "nigel-theseus");
+            "Theseus.Launch", "theseus");
 
         return WorkstreamLaunchPlanner.Plan(request, Expiry);
     }

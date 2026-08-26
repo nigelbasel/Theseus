@@ -7,7 +7,7 @@ public class TerminalSelectorTests
 {
     private const string Stable = @"C:\Program Files\WindowsApps\Microsoft.WindowsTerminal_1.24\WindowsTerminal.exe";
     private const string Preview = @"C:\Program Files\WindowsApps\Microsoft.WindowsTerminalPreview_1.25\WindowsTerminal.exe";
-    private const string Alias = @"C:\Users\nigel\AppData\Local\Microsoft\WindowsApps\wt.exe";
+    private const string Alias = @"C:\Users\dev\AppData\Local\Microsoft\WindowsApps\wt.exe";
 
     [Test]
     public void Choose_PrefersTheExecutableHostingTheMostWindows()

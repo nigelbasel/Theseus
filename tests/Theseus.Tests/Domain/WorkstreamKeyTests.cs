@@ -8,13 +8,13 @@ public class WorkstreamKeyTests
     [Test]
     public void FromTitle_MakesAKebabCaseKey()
     {
-        Assert.That(WorkstreamKey.FromTitle("GDPR MCP contact forms"), Is.EqualTo("gdpr-mcp-contact-forms"));
+        Assert.That(WorkstreamKey.FromTitle("Contact form validation"), Is.EqualTo("contact-form-validation"));
     }
 
     [Test]
     public void FromTitle_DropsPunctuationRatherThanPuttingItInAFilename()
     {
-        Assert.That(WorkstreamKey.FromTitle("Robocop → Nexus (phase 2)"), Is.EqualTo("robocop-nexus-phase-2"));
+        Assert.That(WorkstreamKey.FromTitle("Search → Index (phase 2)"), Is.EqualTo("search-index-phase-2"));
     }
 
     [Test]
@@ -26,13 +26,13 @@ public class WorkstreamKeyTests
     [Test]
     public void FromTitle_DoesNotLeaveALeadingOrTrailingSeparator()
     {
-        Assert.That(WorkstreamKey.FromTitle("  -- Identity admin --  "), Is.EqualTo("identity-admin"));
+        Assert.That(WorkstreamKey.FromTitle("  -- Admin console --  "), Is.EqualTo("admin-console"));
     }
 
     [Test]
     public void FromTitle_KeepsDigits()
     {
-        Assert.That(WorkstreamKey.FromTitle("APPS-2170 GDPR"), Is.EqualTo("apps-2170-gdpr"));
+        Assert.That(WorkstreamKey.FromTitle("PROJ-101 forms"), Is.EqualTo("proj-101-forms"));
     }
 
     [TestCase("")]

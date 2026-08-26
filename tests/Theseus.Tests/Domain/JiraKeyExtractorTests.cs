@@ -9,26 +9,26 @@ public class JiraKeyExtractorTests
     public void Extract_FindsTheKeysInTheRealGdprPrompt()
     {
         var keys = JiraKeyExtractor.Extract(
-            "Pick up the GDPR link-not-data work for the MCP server (APPS-2170 / NDC-202).");
+            "Pick up the GDPR link-not-data work for the MCP server (PROJ-101 / API-202).");
 
-        Assert.That(keys, Is.EqualTo(new[] { "APPS-2170", "NDC-202" }));
+        Assert.That(keys, Is.EqualTo(new[] { "PROJ-101", "API-202" }));
     }
 
     [Test]
     public void Extract_FindsSeveralKeysBecauseAWorkstreamRoutinelySpansThem()
     {
-        var keys = JiraKeyExtractor.Extract("Migrate the legacy jobs (APPS-1776 and APPS-1778, plus INT-376).");
+        var keys = JiraKeyExtractor.Extract("Migrate the legacy jobs (PROJ-201 and PROJ-202, plus OPS-376).");
 
-        Assert.That(keys, Is.EqualTo(new[] { "APPS-1776", "APPS-1778", "INT-376" }));
+        Assert.That(keys, Is.EqualTo(new[] { "PROJ-201", "PROJ-202", "OPS-376" }));
     }
 
     [Test]
     public void Extract_IgnoresStatusDocumentFilenamesThatMerelyLookLikeKeys()
     {
         var keys = JiraKeyExtractor.Extract(
-            "Read SESSION-STATUS-2026-08-21-identity-admin.md first (APPS-2122).");
+            "Read SESSION-STATUS-2026-08-21-admin-console.md first (PROJ-102).");
 
-        Assert.That(keys, Is.EqualTo(new[] { "APPS-2122" }));
+        Assert.That(keys, Is.EqualTo(new[] { "PROJ-102" }));
     }
 
     [Test]
@@ -40,23 +40,23 @@ public class JiraKeyExtractorTests
     [Test]
     public void Extract_ReportsEachKeyOnceHoweverOftenThePromptRepeatsIt()
     {
-        var keys = JiraKeyExtractor.Extract("APPS-2170 blocks APPS-2170 which blocks APPS-2170.");
+        var keys = JiraKeyExtractor.Extract("PROJ-101 blocks PROJ-101 which blocks PROJ-101.");
 
-        Assert.That(keys, Is.EqualTo(new[] { "APPS-2170" }));
+        Assert.That(keys, Is.EqualTo(new[] { "PROJ-101" }));
     }
 
     [Test]
     public void Extract_KeepsTheOrderTheKeysFirstAppearIn()
     {
-        var keys = JiraKeyExtractor.Extract("NDC-202 came before APPS-2170.");
+        var keys = JiraKeyExtractor.Extract("API-202 came before PROJ-101.");
 
-        Assert.That(keys, Is.EqualTo(new[] { "NDC-202", "APPS-2170" }));
+        Assert.That(keys, Is.EqualTo(new[] { "API-202", "PROJ-101" }));
     }
 
     [Test]
     public void Extract_IgnoresLowerCaseWordsThatHappenToBeHyphenated()
     {
-        Assert.That(JiraKeyExtractor.Extract("apps-2170 and branch nigel/apps-2122-identity"), Is.Empty);
+        Assert.That(JiraKeyExtractor.Extract("proj-101 and branch dev/proj-102-admin"), Is.Empty);
     }
 
     [TestCase("")]

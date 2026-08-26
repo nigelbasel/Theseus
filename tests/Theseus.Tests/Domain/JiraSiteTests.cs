@@ -10,22 +10,22 @@ public class JiraSiteTests
     [Test]
     public void IssueUrl_LinksAKeyToTheConfiguredInstance()
     {
-        Assert.That(JiraSite.IssueUrl(Site, "APPS-2170"),
-            Is.EqualTo("https://example.atlassian.net/browse/APPS-2170"));
+        Assert.That(JiraSite.IssueUrl(Site, "PROJ-101"),
+            Is.EqualTo("https://example.atlassian.net/browse/PROJ-101"));
     }
 
     [Test]
     public void IssueUrl_ToleratesATrailingSlashOnTheConfiguredInstance()
     {
-        Assert.That(JiraSite.IssueUrl(Site + "/", "APPS-2170"),
-            Is.EqualTo("https://example.atlassian.net/browse/APPS-2170"));
+        Assert.That(JiraSite.IssueUrl(Site + "/", "PROJ-101"),
+            Is.EqualTo("https://example.atlassian.net/browse/PROJ-101"));
     }
 
     [Test]
     public void IssueUrl_TrimsSurroundingSpaceRatherThanBuildingABrokenLink()
     {
-        Assert.That(JiraSite.IssueUrl("  " + Site + "  ", " APPS-2170 "),
-            Is.EqualTo("https://example.atlassian.net/browse/APPS-2170"));
+        Assert.That(JiraSite.IssueUrl("  " + Site + "  ", " PROJ-101 "),
+            Is.EqualTo("https://example.atlassian.net/browse/PROJ-101"));
     }
 
     [TestCase("")]
@@ -33,7 +33,7 @@ public class JiraSiteTests
     [TestCase(null)]
     public void IssueUrl_GivesNoLinkWhenNoInstanceIsConfigured(string? site)
     {
-        Assert.That(JiraSite.IssueUrl(site, "APPS-2170"), Is.Null);
+        Assert.That(JiraSite.IssueUrl(site, "PROJ-101"), Is.Null);
     }
 
     [Test]
@@ -53,6 +53,6 @@ public class JiraSiteTests
     [TestCase("javascript:alert(1)")]
     public void IssueUrl_RefusesAnInstanceThatIsNotAWebAddress(string site)
     {
-        Assert.That(JiraSite.IssueUrl(site, "APPS-2170"), Is.Null);
+        Assert.That(JiraSite.IssueUrl(site, "PROJ-101"), Is.Null);
     }
 }

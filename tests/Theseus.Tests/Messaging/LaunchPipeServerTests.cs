@@ -42,7 +42,7 @@ public class LaunchPipeServerTests
         Assert.That(spec, Is.Not.Null);
         Assert.That(spec!.SessionId, Is.EqualTo(SessionId));
         Assert.That(spec.Prompt, Is.EqualTo("Carry on; then stop."));
-        Assert.That(spec.AddDirectories, Is.EqualTo(new[] { @"C:\dev\tfsgit\Core" }));
+        Assert.That(spec.AddDirectories, Is.EqualTo(new[] { @"C:\work\repo\Core" }));
     }
 
     [Test]
@@ -139,9 +139,9 @@ public class LaunchPipeServerTests
     private LauncherPipeClient Connect() => LauncherPipeClient.Connect(_pipeName, Patience);
 
     private static LaunchTicket Ticket(string ticket) =>
-        new(ticket, "gdpr-mcp-contact-forms",
-            new LaunchSpec(SessionId, LaunchMode.FirstRun, @"C:\claude.cmd", @"C:\dev\tfsgit",
-                "GDPR MCP contact forms", "Carry on; then stop.", [@"C:\dev\tfsgit\Core"]),
+        new(ticket, "contact-forms-contact-forms",
+            new LaunchSpec(SessionId, LaunchMode.FirstRun, @"C:\claude.cmd", @"C:\work\repo",
+                "Contact form validation", "Carry on; then stop.", [@"C:\work\repo\Core"]),
             new DateTimeOffset(2026, 8, 26, 9, 2, 0, TimeSpan.Zero));
 
     private static bool WaitFor(Func<bool> condition)

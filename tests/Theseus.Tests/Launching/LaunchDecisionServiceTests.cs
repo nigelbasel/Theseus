@@ -17,7 +17,7 @@ public class LaunchDecisionServiceTests
     private static SessionRegistrySnapshot NothingLive() => SessionRegistrySnapshot.Empty;
 
     private static SessionRegistrySnapshot Live(string sessionId, int pid = 40000) =>
-        new([new LiveSession(pid, sessionId, @"C:\dev\tfsgit", "name", "busy", "cli", DateTimeOffset.UtcNow)], 0, 0);
+        new([new LiveSession(pid, sessionId, @"C:\work\repo", "name", "busy", "cli", DateTimeOffset.UtcNow)], 0, 0);
 
     [Test]
     public void Decide_RefusesToResumeASessionThatIsStillRunning()

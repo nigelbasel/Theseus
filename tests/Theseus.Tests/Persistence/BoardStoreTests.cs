@@ -31,19 +31,19 @@ public class BoardStoreTests
     [Test]
     public void Write_RoundTripsEverySidecarFieldIncludingSeveralJiraKeys()
     {
-        var sidecar = Sidecar("gdpr-mcp") with { JiraKeys = ["APPS-2170", "NDC-202"] };
+        var sidecar = Sidecar("contact-forms") with { JiraKeys = ["PROJ-101", "API-202"] };
 
         _store.Write([sidecar]);
 
         var read = _store.Read().Single();
         Assert.That(read with { JiraKeys = [] }, Is.EqualTo(sidecar with { JiraKeys = [] }));
-        Assert.That(read.JiraKeys, Is.EqualTo(new[] { "APPS-2170", "NDC-202" }));
+        Assert.That(read.JiraKeys, Is.EqualTo(new[] { "PROJ-101", "API-202" }));
     }
 
     [Test]
     public void Write_StoresColumnsByNameSoTheFileSurvivesReorderingTheEnum()
     {
-        _store.Write([Sidecar("gdpr-mcp") with { Column = BoardColumn.Parked }]);
+        _store.Write([Sidecar("contact-forms") with { Column = BoardColumn.Parked }]);
 
         Assert.That(File.ReadAllText(_path), Does.Contain("Parked"));
     }
@@ -51,16 +51,16 @@ public class BoardStoreTests
     [Test]
     public void Write_ReplacesTheWholeFileRatherThanMergingIntoIt()
     {
-        _store.Write([Sidecar("gdpr-mcp"), Sidecar("legacy-jobs")]);
-        _store.Write([Sidecar("gdpr-mcp")]);
+        _store.Write([Sidecar("contact-forms"), Sidecar("job-queue")]);
+        _store.Write([Sidecar("contact-forms")]);
 
-        Assert.That(_store.Read().Select(s => s.Key), Is.EqualTo(new[] { "gdpr-mcp" }));
+        Assert.That(_store.Read().Select(s => s.Key), Is.EqualTo(new[] { "contact-forms" }));
     }
 
     [Test]
     public void Write_LeavesNoTemporaryFileBehind()
     {
-        _store.Write([Sidecar("gdpr-mcp")]);
+        _store.Write([Sidecar("contact-forms")]);
 
         Assert.That(Directory.GetFiles(_directory, "*.tmp"), Is.Empty);
     }
@@ -77,14 +77,14 @@ public class BoardStoreTests
     public void Write_CreatesTheDirectoryOnFirstUse()
     {
         var nested = Path.Combine(_directory, "Theseus", "board.json");
-        new BoardStore(nested).Write([Sidecar("gdpr-mcp")]);
+        new BoardStore(nested).Write([Sidecar("contact-forms")]);
 
         Assert.That(File.Exists(nested), Is.True);
     }
 
     private static WorkstreamSidecar Sidecar(string key) =>
         new(key, BoardColumn.Today, IsBlocked: false, IsArchived: false, ColorIsManual: true,
-            ReopenTomorrow: true, ["APPS-2170"], @"C:\dev\tfsgit\SESSION-STATUS-gdpr-mcp.md",
+            ReopenTomorrow: true, ["PROJ-101"], @"C:\work\repo\SESSION-STATUS-contact-forms.md",
             "3f2b1c40-9d5e-4a10-8b77-2c9e1d4a55aa",
             new DateTimeOffset(2026, 8, 26, 9, 0, 0, TimeSpan.Zero),
             new DateTimeOffset(2026, 8, 26, 9, 30, 0, TimeSpan.Zero));

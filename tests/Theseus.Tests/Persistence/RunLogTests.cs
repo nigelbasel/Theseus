@@ -31,7 +31,7 @@ public class RunLogTests
     [Test]
     public void Append_RoundTripsARunThroughDisk()
     {
-        var run = Run("gdpr-mcp");
+        var run = Run("contact-forms");
 
         _log.Append(run);
 
@@ -41,19 +41,19 @@ public class RunLogTests
     [Test]
     public void Append_KeepsHistoryInTheOrderItHappened()
     {
-        _log.Append(Run("gdpr-mcp"));
-        _log.Append(Run("legacy-jobs"));
-        _log.Append(Run("identity-admin"));
+        _log.Append(Run("contact-forms"));
+        _log.Append(Run("job-queue"));
+        _log.Append(Run("admin-console"));
 
         Assert.That(_log.Read().Select(r => r.WorkstreamKey),
-            Is.EqualTo(new[] { "gdpr-mcp", "legacy-jobs", "identity-admin" }));
+            Is.EqualTo(new[] { "contact-forms", "job-queue", "admin-console" }));
     }
 
     [Test]
     public void Append_WritesOneLinePerRunSoTheFileStaysAppendOnly()
     {
-        _log.Append(Run("gdpr-mcp"));
-        _log.Append(Run("legacy-jobs"));
+        _log.Append(Run("contact-forms"));
+        _log.Append(Run("job-queue"));
 
         Assert.That(File.ReadAllLines(_path), Has.Length.EqualTo(2));
     }
@@ -61,10 +61,10 @@ public class RunLogTests
     [Test]
     public void Append_NeverRewritesWhatIsAlreadyOnDisk()
     {
-        _log.Append(Run("gdpr-mcp"));
+        _log.Append(Run("contact-forms"));
         var first = File.ReadAllLines(_path)[0];
 
-        _log.Append(Run("legacy-jobs"));
+        _log.Append(Run("job-queue"));
 
         Assert.That(File.ReadAllLines(_path)[0], Is.EqualTo(first));
     }
@@ -72,18 +72,18 @@ public class RunLogTests
     [Test]
     public void Read_SkipsALineItCannotUnderstandRatherThanLosingTheWholeHistory()
     {
-        _log.Append(Run("gdpr-mcp"));
+        _log.Append(Run("contact-forms"));
         File.AppendAllText(_path, "{ not a run" + Environment.NewLine);
-        _log.Append(Run("legacy-jobs"));
+        _log.Append(Run("job-queue"));
 
         Assert.That(_log.Read().Select(r => r.WorkstreamKey),
-            Is.EqualTo(new[] { "gdpr-mcp", "legacy-jobs" }));
+            Is.EqualTo(new[] { "contact-forms", "job-queue" }));
     }
 
     [Test]
     public void Read_CarriesTheOutcomeFieldsARestartDecisionDependsOn()
     {
-        _log.Append(Run("gdpr-mcp") with
+        _log.Append(Run("contact-forms") with
         {
             LaunchMode = SessionLaunchMode.RemintedAfterResumeFailure,
             ExitReason = SessionExitReason.CrashedOrKilled,
@@ -101,24 +101,24 @@ public class RunLogTests
     [Test]
     public void Append_KeepsTheWorkingDirectoryOfEachRunBecauseResumeIsScopedToIt()
     {
-        _log.Append(Run("gdpr-mcp") with { WorkingDirectory = @"C:\dev\tfsgit\features\apps-2170" });
+        _log.Append(Run("contact-forms") with { WorkingDirectory = @"C:\work\repo\features\contact-forms" });
 
-        Assert.That(_log.Read().Single().WorkingDirectory, Is.EqualTo(@"C:\dev\tfsgit\features\apps-2170"));
+        Assert.That(_log.Read().Single().WorkingDirectory, Is.EqualTo(@"C:\work\repo\features\contact-forms"));
     }
 
     [Test]
     public void Append_CreatesTheDirectoryOnFirstUse()
     {
         var nested = Path.Combine(_directory, "Theseus", "runs.jsonl");
-        new RunLog(nested).Append(Run("gdpr-mcp"));
+        new RunLog(nested).Append(Run("contact-forms"));
 
         Assert.That(File.Exists(nested), Is.True);
     }
 
     private static SessionRun Run(string key) =>
-        new(Guid.NewGuid(), "3f2b1c40-9d5e-4a10-8b77-2c9e1d4a55aa", key, @"C:\dev\tfsgit",
-            @"C:\Users\nigel\.claude\projects\C--dev-tfsgit\3f2b1c40.jsonl",
-            SessionLaunchMode.FirstRun, "Carry on.", "GDPR MCP contact forms", "#208DD7",
+        new(Guid.NewGuid(), "3f2b1c40-9d5e-4a10-8b77-2c9e1d4a55aa", key, @"C:\work\repo",
+            @"C:\Users\dev\.claude\projects\C--work-repo\3f2b1c40.jsonl",
+            SessionLaunchMode.FirstRun, "Carry on.", "Contact form validation", "#208DD7",
             new DateTimeOffset(2026, 8, 26, 9, 0, 0, TimeSpan.Zero), null, 4242, 8080, null,
             SessionExitReason.Unknown);
 }

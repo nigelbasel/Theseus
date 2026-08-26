@@ -8,11 +8,11 @@ public class WorkstreamAssemblerTests
     [Test]
     public void Assemble_TakesTitleColourAndPromptFromThePlanBecauseTheSessionJustWroteIt()
     {
-        var workstream = Single(Plan(title: "GDPR MCP contact forms", color: "#C0392B"), sidecar: null);
+        var workstream = Single(Plan(title: "Contact form validation", color: "#C0392B"), sidecar: null);
 
-        Assert.That(workstream.Title, Is.EqualTo("GDPR MCP contact forms"));
+        Assert.That(workstream.Title, Is.EqualTo("Contact form validation"));
         Assert.That(workstream.ColorHex, Is.EqualTo("#C0392B"));
-        Assert.That(workstream.Prompt, Does.Contain("APPS-2170"));
+        Assert.That(workstream.Prompt, Does.Contain("PROJ-101"));
     }
 
     [Test]
@@ -40,27 +40,27 @@ public class WorkstreamAssemblerTests
             Column = BoardColumn.Parked,
             IsBlocked = true,
             ReopenTomorrow = false,
-            StatusDocumentPath = @"C:\dev\SESSION-STATUS-gdpr-mcp.md",
+            StatusDocumentPath = @"C:\dev\SESSION-STATUS-contact-forms.md",
         });
 
         Assert.That(workstream.Column, Is.EqualTo(BoardColumn.Parked));
         Assert.That(workstream.IsBlocked, Is.True);
         Assert.That(workstream.ReopenTomorrow, Is.False);
-        Assert.That(workstream.StatusDocumentPath, Is.EqualTo(@"C:\dev\SESSION-STATUS-gdpr-mcp.md"));
+        Assert.That(workstream.StatusDocumentPath, Is.EqualTo(@"C:\dev\SESSION-STATUS-contact-forms.md"));
     }
 
     [Test]
     public void Assemble_HarvestsEveryJiraKeyFromThePromptWhenTheSidecarHasNone()
     {
-        Assert.That(Single(Plan(), sidecar: null).JiraKeys, Is.EqualTo(new[] { "APPS-2170", "NDC-202" }));
+        Assert.That(Single(Plan(), sidecar: null).JiraKeys, Is.EqualTo(new[] { "PROJ-101", "API-202" }));
     }
 
     [Test]
     public void Assemble_KeepsConfirmedJiraKeysRatherThanReharvestingThemEveryRead()
     {
-        var workstream = Single(Plan(), Sidecar() with { JiraKeys = ["APPS-9999"] });
+        var workstream = Single(Plan(), Sidecar() with { JiraKeys = ["PROJ-999"] });
 
-        Assert.That(workstream.JiraKeys, Is.EqualTo(new[] { "APPS-9999" }));
+        Assert.That(workstream.JiraKeys, Is.EqualTo(new[] { "PROJ-999" }));
     }
 
     [Test]
@@ -86,21 +86,21 @@ public class WorkstreamAssemblerTests
     {
         var plans = new Dictionary<string, SessionPlan>
         {
-            ["identity-admin"] = Plan() with { Order = 4 },
-            ["gdpr-mcp"] = Plan() with { Order = 1 },
-            ["legacy-jobs"] = Plan() with { Order = 2 },
+            ["admin-console"] = Plan() with { Order = 4 },
+            ["contact-forms"] = Plan() with { Order = 1 },
+            ["job-queue"] = Plan() with { Order = 2 },
         };
 
-        var sidecars = new[] { Sidecar() with { Key = "gdpr-mcp", Column = BoardColumn.Done } };
+        var sidecars = new[] { Sidecar() with { Key = "contact-forms", Column = BoardColumn.Done } };
 
         Assert.That(WorkstreamAssembler.Assemble(plans, sidecars).Select(w => w.Key),
-            Is.EqualTo(new[] { "legacy-jobs", "identity-admin", "gdpr-mcp" }));
+            Is.EqualTo(new[] { "job-queue", "admin-console", "contact-forms" }));
     }
 
     [Test]
     public void Assemble_MatchesSidecarsToPlansCaseInsensitivelyLikeTheFileSystemDoes()
     {
-        var workstream = Single(Plan(), Sidecar() with { Key = "GDPR-MCP", Column = BoardColumn.Done });
+        var workstream = Single(Plan(), Sidecar() with { Key = "CONTACT-FORMS", Column = BoardColumn.Done });
 
         Assert.That(workstream.Column, Is.EqualTo(BoardColumn.Done));
     }
@@ -134,15 +134,15 @@ public class WorkstreamAssemblerTests
 
     private static Workstream Single(SessionPlan plan, WorkstreamSidecar? sidecar) =>
         WorkstreamAssembler.Assemble(
-            new Dictionary<string, SessionPlan> { ["gdpr-mcp"] = plan },
+            new Dictionary<string, SessionPlan> { ["contact-forms"] = plan },
             sidecar is null ? [] : [sidecar]).Single();
 
-    private static SessionPlan Plan(string title = "GDPR MCP contact forms", string color = "#C0392B") =>
-        new(1, title, color, @"C:\dev\tfsgit", [@"C:\dev\tfsgit\features\apps-2170"], null,
-            "2026-08-25T21:20:33", "Pick up the GDPR work (APPS-2170 / NDC-202). APPS-2170 again.");
+    private static SessionPlan Plan(string title = "Contact form validation", string color = "#C0392B") =>
+        new(1, title, color, @"C:\work\repo", [@"C:\work\repo\features\contact-forms"], null,
+            "2026-08-25T21:20:33", "Pick up the GDPR work (PROJ-101 / API-202). PROJ-101 again.");
 
     private static WorkstreamSidecar Sidecar() =>
-        new("gdpr-mcp", BoardColumn.Today, IsBlocked: false, IsArchived: false, ColorIsManual: true,
+        new("contact-forms", BoardColumn.Today, IsBlocked: false, IsArchived: false, ColorIsManual: true,
             ReopenTomorrow: true, [], null, null,
             new DateTimeOffset(2026, 8, 26, 9, 0, 0, TimeSpan.Zero),
             new DateTimeOffset(2026, 8, 26, 9, 0, 0, TimeSpan.Zero));

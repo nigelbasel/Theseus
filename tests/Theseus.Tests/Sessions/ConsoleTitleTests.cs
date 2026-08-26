@@ -8,20 +8,20 @@ public class ConsoleTitleTests
     [Test]
     public void Clean_StripsTheActivityGlyphASessionAnimatesWhileItWorks()
     {
-        Assert.That(ConsoleTitle.Clean("◐ MCP GDPR fixes"), Is.EqualTo("MCP GDPR fixes"));
+        Assert.That(ConsoleTitle.Clean("◐ Contact form fixes"), Is.EqualTo("Contact form fixes"));
     }
 
     [Test]
     public void Clean_GivesTheSameAnswerWhicheverFrameTheGlyphIsOn()
     {
-        Assert.That(ConsoleTitle.Clean("◑ MCP GDPR fixes"),
-            Is.EqualTo(ConsoleTitle.Clean("◐ MCP GDPR fixes")));
+        Assert.That(ConsoleTitle.Clean("◑ Contact form fixes"),
+            Is.EqualTo(ConsoleTitle.Clean("◐ Contact form fixes")));
     }
 
     [Test]
     public void Clean_LeavesATitleThatNeverHadAGlyphAlone()
     {
-        Assert.That(ConsoleTitle.Clean("Legacy job migration"), Is.EqualTo("Legacy job migration"));
+        Assert.That(ConsoleTitle.Clean("Job queue migration"), Is.EqualTo("Job queue migration"));
     }
 
     [Test]
@@ -47,13 +47,13 @@ public class ConsoleTitleTests
     [Test]
     public void Matches_PairsAConsoleTitleWithTheTabShowingIt()
     {
-        Assert.That(ConsoleTitle.Matches("◐ MCP GDPR fixes", "MCP GDPR fixes"), Is.True);
+        Assert.That(ConsoleTitle.Matches("◐ Contact form fixes", "Contact form fixes"), Is.True);
     }
 
     [Test]
     public void Matches_IgnoresCaseBecauseNeitherSideOwnsTheCasing()
     {
-        Assert.That(ConsoleTitle.Matches("◐ mcp gdpr fixes", "MCP GDPR fixes"), Is.True);
+        Assert.That(ConsoleTitle.Matches("◐ contact form fixes", "Contact form fixes"), Is.True);
     }
 
     [Test]
@@ -62,8 +62,8 @@ public class ConsoleTitleTests
         Assert.That(ConsoleTitle.Matches("◑ Session recovery after shutdown", "Tailhawk"), Is.False);
     }
 
-    [TestCase(null, "MCP GDPR fixes")]
-    [TestCase("◐ MCP GDPR fixes", null)]
+    [TestCase(null, "Contact form fixes")]
+    [TestCase("◐ Contact form fixes", null)]
     [TestCase("", "")]
     public void Matches_RefusesToPairWhenEitherSideIsMissing(string? console, string? tab)
     {

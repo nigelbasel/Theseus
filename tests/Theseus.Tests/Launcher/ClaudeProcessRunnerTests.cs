@@ -14,15 +14,15 @@ public class ClaudeProcessRunnerTests
     public void Run_StartsClaudeWithTheArgumentVectorTheSpecDescribes()
     {
         var launcher = new FakeProcessLauncher(exitCodes: [0]);
-        Run(launcher, Spec(addDirectories: [@"C:\dev\tfsgit\Core"]));
+        Run(launcher, Spec(addDirectories: [@"C:\work\repo\Core"]));
 
         var request = launcher.Requests.Single();
         Assert.That(request.ExecutablePath, Is.EqualTo(@"C:\claude.cmd"));
-        Assert.That(request.WorkingDirectory, Is.EqualTo(@"C:\dev\tfsgit"));
+        Assert.That(request.WorkingDirectory, Is.EqualTo(@"C:\work\repo"));
         Assert.That(request.Arguments, Is.EqualTo(new[]
         {
-            "--session-id", SessionId, "-n", "GDPR MCP contact forms",
-            "Carry on.", "--add-dir", @"C:\dev\tfsgit\Core",
+            "--session-id", SessionId, "-n", "Contact form validation",
+            "Carry on.", "--add-dir", @"C:\work\repo\Core",
         }));
     }
 
@@ -139,7 +139,7 @@ public class ClaudeProcessRunnerTests
     private static LaunchSpec Spec(
         LaunchMode mode = LaunchMode.FirstRun,
         IReadOnlyList<string>? addDirectories = null) =>
-        new(SessionId, mode, @"C:\claude.cmd", @"C:\dev\tfsgit", "GDPR MCP contact forms",
+        new(SessionId, mode, @"C:\claude.cmd", @"C:\work\repo", "Contact form validation",
             "Carry on.", addDirectories ?? []);
 
     private sealed class FakeProcessLauncher : IProcessLauncher
