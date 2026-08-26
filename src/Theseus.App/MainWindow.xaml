@@ -241,11 +241,24 @@
 
     <DockPanel>
         <Grid DockPanel.Dock="Top" Margin="16,12,16,4">
-            <StackPanel VerticalAlignment="Center">
-                <TextBlock Text="{Binding Board.Status}" FontSize="12"
-                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                <TextBlock Text="{Binding Notice}" FontSize="12" Margin="0,2,0,0"
-                           Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <Button Padding="8,3" Margin="0,0,12,0" VerticalAlignment="Center"
+                        ToolTip="Show or hide the live sessions panel"
+                        Command="{Binding ToggleSessionsPanelCommand}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE700;" FontFamily="Segoe MDL2 Assets" FontSize="12"
+                                   VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding Sessions.Status}" FontSize="12" Margin="8,0,0,0"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+
+                <StackPanel>
+                    <TextBlock Text="{Binding Board.Status}" FontSize="12"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                    <TextBlock Text="{Binding Notice}" FontSize="12" Margin="0,2,0,0"
+                               Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+                </StackPanel>
             </StackPanel>
 
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
@@ -265,7 +278,8 @@
             </StackPanel>
         </Grid>
 
-        <Border DockPanel.Dock="Right" Width="280" Margin="0,8,16,16" CornerRadius="10" Padding="10"
+        <Border DockPanel.Dock="Left" Width="280" Margin="16,8,0,16" CornerRadius="10" Padding="10"
+                Visibility="{Binding IsSessionsPanelOpen, Converter={StaticResource BoolToVisibility}}"
                 Background="{DynamicResource LayerFillColorDefaultBrush}"
                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                 BorderThickness="1">
@@ -273,8 +287,13 @@
                 <Grid DockPanel.Dock="Top" Margin="4,2,4,10">
                     <TextBlock Text="Live sessions" FontSize="13" FontWeight="SemiBold"
                                Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                    <TextBlock Text="{Binding Sessions.Status}" HorizontalAlignment="Right" FontSize="12"
-                               Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <TextBlock Text="{Binding Sessions.Status}" FontSize="12" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                        <Button Content="&#xE76B;" FontFamily="Segoe MDL2 Assets" FontSize="10"
+                                Padding="6,2" Margin="8,0,0,0" ToolTip="Hide the live sessions panel"
+                                Command="{Binding ToggleSessionsPanelCommand}" />
+                    </StackPanel>
                 </Grid>
 
                 <ScrollViewer VerticalScrollBarVisibility="Auto">

@@ -31,7 +31,8 @@ public class SettingsStoreTests
     public void Write_RoundTripsEveryField()
     {
         var settings = new TheseusSettings(@"C:\work\plans", "my-window", @"C:\wt.exe",
-            @"C:\claude.exe", "https://example.atlassian.net", "Read the notes first.", AppTheme.Dark);
+            @"C:\claude.exe", "https://example.atlassian.net", "Read the notes first.",
+            SessionsPanelCollapsed: true, AppTheme.Dark);
 
         _store.Write(settings);
 
@@ -57,6 +58,24 @@ public class SettingsStoreTests
         Assert.That(settings.Theme, Is.EqualTo(AppTheme.Dark));
         Assert.That(settings.JiraBaseUrl, Is.Empty);
         Assert.That(settings.SessionPreamble, Is.Empty);
+    }
+
+    [Test]
+    public void Read_LeavesThePanelOpenWhenTheSettingPredatesIt()
+    {
+        File.WriteAllText(_path, """
+            {"planDirectory":"C:\\work\\plans","terminalWindowName":"theseus","theme":"System"}
+            """);
+
+        Assert.That(_store.Read().SessionsPanelCollapsed, Is.False);
+    }
+
+    [Test]
+    public void Write_RemembersThatThePanelWasFoldedAway()
+    {
+        _store.Write(TheseusSettings.Default with { SessionsPanelCollapsed = true });
+
+        Assert.That(_store.Read().SessionsPanelCollapsed, Is.True);
     }
 
     [Test]

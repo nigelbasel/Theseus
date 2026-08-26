@@ -18,6 +18,7 @@ public sealed class ShellViewModel : ObservableObject
     private readonly PullRequestResolver _pullRequests;
     private AppTheme _theme;
     private string _notice = string.Empty;
+    private bool _isSessionsPanelOpen;
 
     /// <summary>Creates the shell over everything the window drives.</summary>
     public ShellViewModel(
@@ -37,6 +38,7 @@ public sealed class ShellViewModel : ObservableObject
         _colours = colours;
         _pullRequests = new PullRequestResolver(new GitRemoteReader());
         _theme = settings.Read().Theme;
+        _isSessionsPanelOpen = !settings.Read().SessionsPanelCollapsed;
 
         RefreshCommand = new RelayCommand(_ => Refresh());
         FocusCardCommand = new RelayCommand(FocusCard, CanFocusCard);
@@ -48,6 +50,7 @@ public sealed class ShellViewModel : ObservableObject
         StartCardCommand = new RelayCommand(StartCard, CanStartCard);
         StartBoardCommand = new RelayCommand(_ => StartMany(BoardSelection()), _ => BoardSelection().Count > 0);
         SelectCardCommand = new RelayCommand(ShowCard);
+        ToggleSessionsPanelCommand = new RelayCommand(_ => IsSessionsPanelOpen = !IsSessionsPanelOpen);
 
         Drawer = new DetailDrawerViewModel(plans, runs, card =>
         {
@@ -125,6 +128,22 @@ public sealed class ShellViewModel : ObservableObject
 
     /// <summary>The composer for a workstream that does not exist yet.</summary>
     public NewWorkstreamViewModel NewWorkstream { get; }
+
+    /// <summary>Folds the live sessions panel away, or brings it back.</summary>
+    public RelayCommand ToggleSessionsPanelCommand { get; }
+
+    /// <summary>Whether the live sessions panel is showing. Remembered between runs.</summary>
+    public bool IsSessionsPanelOpen
+    {
+        get => _isSessionsPanelOpen;
+        set
+        {
+            if (Set(ref _isSessionsPanelOpen, value))
+            {
+                _settings.Write(_settings.Read() with { SessionsPanelCollapsed = !value });
+            }
+        }
+    }
 
     /// <summary>What the last action did, shown under the title bar.</summary>
     public string Notice

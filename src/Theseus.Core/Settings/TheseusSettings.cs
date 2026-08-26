@@ -18,6 +18,10 @@ namespace Theseus.Core.Settings;
 /// Standing instructions put in front of every workstream's own opening prompt. Composed at launch,
 /// so changing it changes every future session without rewriting any plan file.
 /// </param>
+/// <param name="SessionsPanelCollapsed">
+/// Whether the live sessions panel is folded away. Named for the collapsed state rather than the
+/// open one so that a settings file written before this existed reads as open, which is the default.
+/// </param>
 /// <param name="Theme">Which theme to paint in.</param>
 public sealed record TheseusSettings(
     string PlanDirectory,
@@ -26,6 +30,7 @@ public sealed record TheseusSettings(
     string ClaudeExecutablePath,
     string JiraBaseUrl,
     string SessionPreamble,
+    bool SessionsPanelCollapsed,
     AppTheme Theme)
 {
     /// <summary>Where workstreams are kept until the user points Theseus somewhere of their own.</summary>
@@ -41,5 +46,6 @@ public sealed record TheseusSettings(
         string.Empty,
         string.Empty,
         string.Empty,
+        false,
         AppTheme.System);
 }
