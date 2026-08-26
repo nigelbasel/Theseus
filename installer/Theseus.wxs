@@ -19,6 +19,14 @@
     <MajorUpgrade AllowSameVersionUpgrades="yes"
                   DowngradeErrorMessage="A newer version of Theseus is already installed." />
 
+    <!--
+      Restart Manager would close whatever holds a file being replaced. Theseus.Launcher.exe is the
+      root process of every terminal tab, so that means closing the tabs, and a closing tab takes the
+      Claude Code session in it with no chance to write anything down. An upgrade must never cost the
+      user their running work: better to ask, or to require a reboot, than to silently end sessions.
+    -->
+    <Property Id="MSIRESTARTMANAGERCONTROL" Value="Disable" />
+
     <MediaTemplate EmbedCab="yes" />
 
     <Icon Id="TheseusIcon" SourceFile="$(var.IconPath)" />

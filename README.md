@@ -31,11 +31,18 @@ yesterday's work.
 
 ## Installing
 
-Download the `.msi` from the releases page, or build one:
+Download the `.msi` from the releases page, or build and install from source in one step:
 
 ```powershell
-.\scripts\Build-Installer.ps1
+.\install.ps1
 ```
+
+That packages what is in the working tree and installs it, asking for elevation only for the install
+itself. Sessions running in terminal tabs are holding files the installer replaces, so it warns
+before closing them; stop them from Theseus first, or pass `-Force`.
+
+To produce the `.msi` without installing it, add `-BuildOnly`, or call
+`.\scripts\Build-Installer.ps1` directly.
 
 For a fast inner loop while developing, copy a build straight into Program Files instead — this one
 needs an elevated terminal:
