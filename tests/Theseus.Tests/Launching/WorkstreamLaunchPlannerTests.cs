@@ -24,7 +24,7 @@ public class WorkstreamLaunchPlannerTests
     [Test]
     public void Plan_CarriesThePromptInTheTicketWhereTheTerminalCannotMangleIt()
     {
-        var plan = Plan(prompt: "Resolve the conflicts; then stop.");
+        var plan = Plan(opening: "Resolve the conflicts; then stop.");
 
         Assert.That(plan.Ticket.Spec.Prompt, Is.EqualTo("Resolve the conflicts; then stop."));
         Assert.That(plan.TerminalArguments, Has.None.Contains("Resolve"));
@@ -84,7 +84,7 @@ public class WorkstreamLaunchPlannerTests
         string title = "Contact form validation",
         string prompt = "Carry on.",
         LaunchMode mode = LaunchMode.FirstRun,
-        string preamble = "")
+        string opening = "Carry on.")
     {
         var workstream = new Workstream("contact-forms", title, "#C0392B", ColorIsManual: true,
             @"C:\work\repo", [@"C:\work\repo\features\contact-forms"], prompt, 1, BoardColumn.Today,
@@ -95,22 +95,15 @@ public class WorkstreamLaunchPlannerTests
             @"C:\Users\dev\.local\bin\claude.exe",
             @"C:\Program Files\WindowsApps\WindowsTerminal.exe",
             @"C:\dev\git\Theseus\Theseus.Launcher.exe",
-            "Theseus.Launch", "theseus", preamble);
+            "Theseus.Launch", "theseus", opening);
 
         return WorkstreamLaunchPlanner.Plan(request, Expiry);
     }
     [Test]
-    public void Plan_PutsTheStandingPreambleInFrontOfTheWorkstreamOwnPrompt()
+    public void Plan_CarriesTheOpeningItWasGivenWithoutRewritingIt()
     {
-        var plan = Plan(prompt: "Carry on.", preamble: "Read the handover notes first.");
+        var opening = $"House rules.{Environment.NewLine}{Environment.NewLine}Carry on.";
 
-        Assert.That(plan.Ticket.Spec.Prompt,
-            Is.EqualTo($"Read the handover notes first.{Environment.NewLine}{Environment.NewLine}Carry on."));
-    }
-
-    [Test]
-    public void Plan_LeavesThePromptAloneWhenNoPreambleIsConfigured()
-    {
-        Assert.That(Plan(prompt: "Carry on.").Ticket.Spec.Prompt, Is.EqualTo("Carry on."));
+        Assert.That(Plan(opening: opening).Ticket.Spec.Prompt, Is.EqualTo(opening));
     }
 }

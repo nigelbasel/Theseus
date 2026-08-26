@@ -68,6 +68,12 @@ public partial class App : Application
             sink.Expect);
 
         var shell = new ShellViewModel(board, sessions, settings, _launcher, plans, runs, new TabColourAllocator());
+
+        if (ChildSessionCheck.Warning() is { } warning)
+        {
+            TheseusLog.Warning("{Warning}", warning);
+            shell.Warn(warning);
+        }
         shell.Refresh();
         shell.ApplyTheme();
 

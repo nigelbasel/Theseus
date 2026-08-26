@@ -81,12 +81,35 @@ public partial class MainWindow : Window
         menu.IsOpen = true;
     }
 
+    /// <summary>
+    /// Opens a card in the drawer, unless the click landed on a control of its own. A disabled
+    /// button does not swallow the click, so without this a chip that cannot act silently opens the
+    /// drawer instead, which reads as the wrong thing happening rather than as nothing happening.
+    /// </summary>
     private void OnCardClicked(object sender, MouseButtonEventArgs e)
     {
-        if (sender is FrameworkElement { DataContext: WorkstreamCardViewModel card })
+        if (sender is not FrameworkElement { DataContext: WorkstreamCardViewModel card }
+            || IsWithinAControl(e.OriginalSource as DependencyObject))
         {
-            (DataContext as ShellViewModel)?.SelectCardCommand.Execute(card);
+            return;
         }
+
+        (DataContext as ShellViewModel)?.SelectCardCommand.Execute(card);
+    }
+
+    private static bool IsWithinAControl(DependencyObject? source)
+    {
+        while (source is not null)
+        {
+            if (source is System.Windows.Controls.Primitives.ButtonBase)
+            {
+                return true;
+            }
+
+            source = System.Windows.Media.VisualTreeHelper.GetParent(source);
+        }
+
+        return false;
     }
 
     private void OnColumnDragOver(object sender, DragEventArgs e)

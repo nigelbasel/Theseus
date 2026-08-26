@@ -53,6 +53,7 @@ public sealed class SettingsStore : ISettingsStore
         ClaudeExecutablePath = settings.ClaudeExecutablePath ?? string.Empty,
         JiraBaseUrl = settings.JiraBaseUrl ?? string.Empty,
         SessionPreamble = settings.SessionPreamble ?? string.Empty,
+        ContinuePrompt = settings.ContinuePrompt ?? string.Empty,
     };
 
     private static string Fallback(string? value, string fallback) =>

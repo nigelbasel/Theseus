@@ -5,6 +5,7 @@ using Theseus.Core.Domain;
 using Theseus.Core.Launching;
 using Theseus.Core.Messaging;
 using Theseus.Core.Settings;
+using Theseus.Core.Stopping;
 using Theseus.Core.Terminal;
 
 namespace Theseus.App.Services;
@@ -98,10 +99,18 @@ public sealed class LaunchCoordinator : IAsyncDisposable
         var sessionId = resume ? workstream.LastSessionId! : _sessionIds.Create();
 
         var settings = _settings.Read();
+        var handoff = HandoffPath.For(workstream);
+        var opening = SessionOpening.For(
+            settings.SessionPreamble,
+            settings.ContinuePrompt,
+            workstream,
+            SessionOpening.HasHistory(workstream, File.Exists(handoff)),
+            handoff);
+
 
         var request = new WorkstreamLaunchRequest(workstream, Guid.NewGuid().ToString("N"), sessionId,
             mode, claudePath, terminal.ExecutablePath, _launcherPath, _pipeName,
-            settings.TerminalWindowName, settings.SessionPreamble);
+            settings.TerminalWindowName, opening);
 
         var plan = WorkstreamLaunchPlanner.Plan(request, DateTimeOffset.UtcNow.AddMinutes(2));
 

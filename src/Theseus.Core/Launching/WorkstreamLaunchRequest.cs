@@ -12,7 +12,7 @@ namespace Theseus.Core.Launching;
 /// <param name="LauncherPath">The launcher shim the terminal starts in the tab.</param>
 /// <param name="PipeName">The launch pipe the shim connects back on.</param>
 /// <param name="TerminalWindowName">The named terminal window the tab joins.</param>
-/// <param name="Preamble">Standing instructions put in front of the workstream own prompt.</param>
+/// <param name="Opening">The prompt the session opens with, already composed.</param>
 public sealed record WorkstreamLaunchRequest(
     Workstream Workstream,
     string Ticket,
@@ -23,4 +23,4 @@ public sealed record WorkstreamLaunchRequest(
     string LauncherPath,
     string PipeName,
     string TerminalWindowName,
-    string Preamble = "");
+    string Opening = "");

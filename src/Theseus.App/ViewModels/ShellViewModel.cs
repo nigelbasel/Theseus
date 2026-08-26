@@ -42,8 +42,7 @@ public sealed class ShellViewModel : ObservableObject
 
         RefreshCommand = new RelayCommand(_ => Refresh());
         FocusCardCommand = new RelayCommand(FocusCard, CanFocusCard);
-        OpenJiraCommand = new RelayCommand(OpenJira,
-            parameter => parameter is string key && JiraSite.IssueUrl(_settings.Read().JiraBaseUrl, key) is not null);
+        OpenJiraCommand = new RelayCommand(OpenJira, parameter => parameter is string);
         OpenPullRequestCommand = new RelayCommand(OpenPullRequest,
             parameter => parameter is PullRequestLink { Url: not null });
 
@@ -167,6 +166,9 @@ public sealed class ShellViewModel : ObservableObject
             _settings.Write(_settings.Read() with { Theme = value });
         }
     }
+
+    /// <summary>Shows a standing warning about the environment Theseus is running in.</summary>
+    public void Warn(string warning) => Notice = warning;
 
     /// <summary>Applies the remembered theme at startup.</summary>
     public void ApplyTheme() => ThemeApplier.Apply(_theme);
@@ -384,12 +386,20 @@ public sealed class ShellViewModel : ObservableObject
 
     private void OpenJira(object? parameter)
     {
-        if (parameter is not string key
-            || JiraSite.IssueUrl(_settings.Read().JiraBaseUrl, key) is not { } url)
+        if (parameter is not string key)
         {
             return;
         }
 
-        Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        if (JiraSite.IssueUrl(_settings.Read().JiraBaseUrl, key) is { } url)
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+
+            return;
+        }
+
+        Notice = string.IsNullOrWhiteSpace(_settings.Read().JiraBaseUrl)
+            ? $"Set your Jira address in Settings to open {key}."
+            : $"{key} does not look like an issue in the configured Jira.";
     }
 }

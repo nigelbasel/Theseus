@@ -18,6 +18,10 @@ namespace Theseus.Core.Settings;
 /// Standing instructions put in front of every workstream's own opening prompt. Composed at launch,
 /// so changing it changes every future session without rewriting any plan file.
 /// </param>
+/// <param name="ContinuePrompt">
+/// What a workstream that has run before is told when it opens again, instead of its original
+/// prompt. Use {handoff} for the path to its handover notes.
+/// </param>
 /// <param name="SessionsPanelCollapsed">
 /// Whether the live sessions panel is folded away. Named for the collapsed state rather than the
 /// open one so that a settings file written before this existed reads as open, which is the default.
@@ -30,6 +34,7 @@ public sealed record TheseusSettings(
     string ClaudeExecutablePath,
     string JiraBaseUrl,
     string SessionPreamble,
+    string ContinuePrompt,
     bool SessionsPanelCollapsed,
     AppTheme Theme)
 {
@@ -42,6 +47,7 @@ public sealed record TheseusSettings(
     public static TheseusSettings Default { get; } = new(
         DefaultPlanDirectory,
         "theseus",
+        string.Empty,
         string.Empty,
         string.Empty,
         string.Empty,

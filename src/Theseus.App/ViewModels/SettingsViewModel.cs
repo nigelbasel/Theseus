@@ -21,6 +21,7 @@ public sealed class SettingsViewModel : ObservableObject
     private string _claudeExecutablePath = string.Empty;
     private string _jiraBaseUrl = string.Empty;
     private string _sessionPreamble = string.Empty;
+    private string _continuePrompt = string.Empty;
     private bool _isOpen;
 
     /// <summary>Creates the panel over the settings file.</summary>
@@ -160,6 +161,24 @@ public sealed class SettingsViewModel : ObservableObject
         ? "sessions open with the workstream prompt alone"
         : $"{_sessionPreamble.Trim().Length} characters, ahead of every workstream prompt";
 
+    /// <summary>What a workstream that has run before is told when it opens again.</summary>
+    public string ContinuePrompt
+    {
+        get => _continuePrompt;
+        set
+        {
+            if (Set(ref _continuePrompt, value))
+            {
+                Raise(nameof(ContinuePromptState));
+            }
+        }
+    }
+
+    /// <summary>Whether the default continuation is in force.</summary>
+    public string ContinuePromptState => string.IsNullOrWhiteSpace(_continuePrompt)
+        ? "using the built-in continuation"
+        : "custom continuation";
+
     private void Open()
     {
         Load(_store.Read());
@@ -174,6 +193,7 @@ public sealed class SettingsViewModel : ObservableObject
         ClaudeExecutablePath = settings.ClaudeExecutablePath;
         JiraBaseUrl = settings.JiraBaseUrl;
         SessionPreamble = settings.SessionPreamble;
+        ContinuePrompt = settings.ContinuePrompt;
     }
 
     private void Save()
@@ -186,6 +206,7 @@ public sealed class SettingsViewModel : ObservableObject
             ClaudeExecutablePath = ClaudeExecutablePath,
             JiraBaseUrl = JiraBaseUrl,
             SessionPreamble = SessionPreamble,
+            ContinuePrompt = ContinuePrompt,
         });
 
         IsOpen = false;
