@@ -99,12 +99,24 @@ public sealed class WorkflowActivityReader : IWorkflowActivityReader
             return null;
         }
 
-        return started == 0
-            ? null
-            : new WorkflowActivity(
-                Path.GetFileName(Path.GetDirectoryName(journal.FullName))!,
-                started,
-                finished,
-                journal.LastWriteTimeUtc);
+        if (started == 0)
+        {
+            return null;
+        }
+
+        var runId = Path.GetFileName(Path.GetDirectoryName(journal.FullName))!;
+
+        return new WorkflowActivity(runId, started, finished, journal.LastWriteTimeUtc, HasSummary(journal, runId));
+    }
+
+    /// <summary>
+    /// Whether the run wrote the summary it writes when it ends. The summary sits beside the
+    /// session's transcript rather than with the journal, so a finished run is legible from either.
+    /// </summary>
+    private static bool HasSummary(FileInfo journal, string runId)
+    {
+        var session = journal.Directory?.Parent?.Parent?.Parent;
+
+        return session is not null && File.Exists(Path.Combine(session.FullName, "workflows", $"{runId}.json"));
     }
 }

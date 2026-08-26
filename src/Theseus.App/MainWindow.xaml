@@ -116,35 +116,14 @@
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
 
-                    <Border Grid.Column="0" CornerRadius="8,0,0,8"
+                    <Border x:Name="Stripe" Grid.Column="0" CornerRadius="8,0,0,8"
                             Background="{Binding ColorHex, Converter={StaticResource HexToBrush}}">
-                        <!--
-                            Only a session that is working moves. A session waiting for a reply is
-                            the one thing on the board asking for a person, and it stands out by
-                            being still among its moving neighbours. Motion that marked every live
-                            session would decorate the board rather than tell you anything.
-                        -->
                         <Border.Style>
                             <Style TargetType="Border">
                                 <Setter Property="Opacity" Value="0.4" />
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsLive}" Value="True">
                                         <Setter Property="Opacity" Value="1" />
-                                    </DataTrigger>
-                                    <DataTrigger Binding="{Binding IsWorking}" Value="True">
-                                        <DataTrigger.EnterActions>
-                                            <BeginStoryboard Name="Working">
-                                                <Storyboard>
-                                                    <DoubleAnimation
-                                                        Storyboard.TargetProperty="Opacity"
-                                                        From="1.0" To="0.35" Duration="0:0:1.1"
-                                                        AutoReverse="True" RepeatBehavior="Forever" />
-                                                </Storyboard>
-                                            </BeginStoryboard>
-                                        </DataTrigger.EnterActions>
-                                        <DataTrigger.ExitActions>
-                                            <StopStoryboard BeginStoryboardName="Working" />
-                                        </DataTrigger.ExitActions>
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
@@ -221,6 +200,34 @@
                     </StackPanel>
                 </Grid>
             </Border>
+
+            <!--
+                Only a session that is working moves. A session waiting for a reply is the one thing
+                on the board asking for a person, and it stands out by being still among its moving
+                neighbours.
+
+                The trigger belongs to the template rather than to the stripe's style: an inline
+                style is one object shared by every card, so a storyboard named inside it is shared
+                too, and starting it for one card while stopping it for another leaves the movement
+                on whichever card last held it. A template gets a name scope per card.
+            -->
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding IsWorking}" Value="True">
+                    <DataTrigger.EnterActions>
+                        <BeginStoryboard x:Name="Working">
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetName="Stripe"
+                                                 Storyboard.TargetProperty="Opacity"
+                                                 From="1.0" To="0.3" Duration="0:0:1.1"
+                                                 AutoReverse="True" RepeatBehavior="Forever" />
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </DataTrigger.EnterActions>
+                    <DataTrigger.ExitActions>
+                        <StopStoryboard BeginStoryboardName="Working" />
+                    </DataTrigger.ExitActions>
+                </DataTrigger>
+            </DataTemplate.Triggers>
         </DataTemplate>
 
         <DataTemplate x:Key="ColumnTemplate" DataType="{x:Type vm:ColumnViewModel}">
@@ -249,9 +256,7 @@
                                   Drop="OnColumnDrop"
                                   DragOver="OnColumnDragOver"
                                   Background="Transparent"
-                                  MinHeight="120"
-                                  VirtualizingStackPanel.IsVirtualizing="True"
-                                  VirtualizingStackPanel.VirtualizationMode="Recycling">
+                                  MinHeight="120">
                         <ItemsControl.Template>
                             <ControlTemplate TargetType="ItemsControl">
                                 <ScrollViewer VerticalScrollBarVisibility="Auto"

@@ -115,4 +115,51 @@ public class WorkflowActivityReaderTests
 
         return string.Join(Environment.NewLine, lines) + Environment.NewLine;
     }
+
+    [Test]
+    public void IsRunning_IsFalseForARunThatWroteItsSummaryAndIsOver()
+    {
+        Journal("wf_over", started: 10, finished: 9);
+        Summary("wf_over");
+
+        var activity = _reader.Read(SessionId)!;
+
+        Assert.That(activity.InFlight, Is.True, "the gap outlives the run that left it");
+        Assert.That(activity.IsRunning(DateTimeOffset.UtcNow), Is.False,
+            "a run killed with an agent outstanding would otherwise claim to be going for ever");
+    }
+
+    [Test]
+    public void IsRunning_IsFalseOnceTheJournalHasStoppedGrowing()
+    {
+        Journal("wf_stalled", started: 33, finished: 12,
+            written: DateTimeOffset.UtcNow - WorkflowActivity.Patience.Add(TimeSpan.FromMinutes(1)));
+
+        Assert.That(_reader.Read(SessionId)!.IsRunning(DateTimeOffset.UtcNow), Is.False,
+            "no summary is written when a session is killed outright, so silence is the other tell");
+    }
+
+    [Test]
+    public void IsRunning_IsTrueWhileAgentsAreOutAndTheJournalIsStillMoving()
+    {
+        Journal("wf_live", started: 33, finished: 12, written: DateTimeOffset.UtcNow);
+
+        Assert.That(_reader.Read(SessionId)!.IsRunning(DateTimeOffset.UtcNow), Is.True);
+    }
+
+    [Test]
+    public void IsRunning_IsFalseWhenEveryAgentHasComeBack()
+    {
+        Journal("wf_done", started: 5, finished: 5, written: DateTimeOffset.UtcNow);
+
+        Assert.That(_reader.Read(SessionId)!.IsRunning(DateTimeOffset.UtcNow), Is.False);
+    }
+
+    private void Summary(string runId)
+    {
+        var session = Path.Combine(_root, "C--dev-tfsgit", SessionId);
+
+        Directory.CreateDirectory(Path.Combine(session, "workflows"));
+        File.WriteAllText(Path.Combine(session, "workflows", $"{runId}.json"), """{"status":"killed"}""");
+    }
 }

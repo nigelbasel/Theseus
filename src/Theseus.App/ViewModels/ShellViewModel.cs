@@ -316,7 +316,7 @@ public sealed class ShellViewModel : ObservableObject
     /// </summary>
     private string Doing(string? sessionId)
     {
-        if (_activity.Read(sessionId) is { InFlight: true } workflow)
+        if (_activity.Read(sessionId) is { } workflow && workflow.IsRunning(DateTimeOffset.UtcNow))
         {
             return workflow.Describe;
         }

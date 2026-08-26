@@ -9,10 +9,28 @@ namespace Theseus.Core.Sessions;
 /// <param name="Started">How many agents have been dispatched.</param>
 /// <param name="Finished">How many have returned a result.</param>
 /// <param name="LastActivityUtc">When the journal last grew.</param>
-public sealed record WorkflowActivity(string RunId, int Started, int Finished, DateTimeOffset LastActivityUtc)
+/// <param name="HasEnded">Whether the run wrote the summary it writes when it finishes.</param>
+public sealed record WorkflowActivity(
+    string RunId,
+    int Started,
+    int Finished,
+    DateTimeOffset LastActivityUtc,
+    bool HasEnded)
 {
-    /// <summary>Whether the run has anything left outstanding.</summary>
+    /// <summary>How long a run may go without a journal line before it is presumed over.</summary>
+    public static readonly TimeSpan Patience = TimeSpan.FromMinutes(15);
+
+    /// <summary>Whether the run has agents outstanding. True of a killed run for ever after.</summary>
     public bool InFlight => Started > Finished;
+
+    /// <summary>
+    /// Whether this workflow is actually going, rather than merely having agents it never accounted
+    /// for. A run killed with one agent outstanding leaves that gap in its journal permanently, so
+    /// the gap alone says nothing: what settles it is the summary a finished run writes, and failing
+    /// that a journal which has stopped growing.
+    /// </summary>
+    public bool IsRunning(DateTimeOffset now) =>
+        InFlight && !HasEnded && Silence(now) < Patience;
 
     /// <summary>
     /// How long the run has been silent. A run whose agents are all outstanding looks identical to
