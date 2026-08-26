@@ -482,15 +482,17 @@
                                 </StackPanel>
                             </Grid>
 
-                            <Grid Margin="0,14,0,0"
-                                  Visibility="{Binding Drawer.StatusDocumentPath, Converter={StaticResource NotEmptyToVisibility}}">
-                                <TextBlock Text="{Binding Drawer.StatusDocumentPath}" FontSize="11"
-                                           VerticalAlignment="Center" Margin="0,0,70,0"
-                                           TextTrimming="CharacterEllipsis"
-                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            <TextBlock Text="Handover notes" Style="{StaticResource FieldLabel}" />
+                            <Grid>
+                                <TextBox Text="{Binding Drawer.StatusDocumentPath, UpdateSourceTrigger=PropertyChanged}"
+                                         Margin="0,0,70,0" />
                                 <Button Content="Open" FontSize="11" Padding="10,2" HorizontalAlignment="Right"
+                                        VerticalAlignment="Center"
                                         Command="{Binding Drawer.OpenStatusDocumentCommand}" />
                             </Grid>
+                            <TextBlock Text="{Binding Drawer.HandoffDestination, StringFormat=Leave empty to use {0}}"
+                                       FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
 
                             <TextBlock Text="Runs" Style="{StaticResource FieldLabel}" />
                             <ItemsControl ItemsSource="{Binding Drawer.Runs}">

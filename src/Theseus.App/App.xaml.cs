@@ -34,6 +34,13 @@ public partial class App : Application
         Directory.CreateDirectory(DataDirectory);
         TheseusLog.Start(Path.Combine(DataDirectory, "logs"));
 
+        if (FocusRequest.SessionIdIn(e.Args) is { } wanted)
+        {
+            Focus(wanted);
+            Shutdown();
+            return;
+        }
+
         DispatcherUnhandledException += (_, args) =>
         {
             TheseusLog.Error(args.Exception, "An unhandled exception reached the dispatcher");
@@ -90,8 +97,32 @@ public partial class App : Application
 
         shell.Usage = _usage;
 
+        SessionJumpList.Show(this, sessions.Snapshot.Live);
+        sessions.Sessions.CollectionChanged += (_, _) =>
+            SessionJumpList.Show(this, sessions.Snapshot.Live);
+
         MainWindow = new MainWindow { DataContext = shell };
         MainWindow.Show();
+    }
+
+    /// <summary>
+    /// Serves a taskbar menu request. Bringing a tab to the front is a window-manager operation, so
+    /// this copy of Theseus can do it alone rather than finding the running one and asking it to.
+    /// </summary>
+    private static void Focus(string sessionId)
+    {
+        var registry = new SessionRegistryReader(SessionRegistryReader.DefaultDirectory, new ProcessProbe());
+        var session = registry.Read().WithSessionId(sessionId).FirstOrDefault();
+
+        if (session is null)
+        {
+            TheseusLog.Warning("The taskbar asked for session {SessionId}, which is no longer running", sessionId);
+            return;
+        }
+
+        var outcome = TerminalFocus.FocusSession(session.Pid, new ConsoleTitleReader().Read(session.Pid));
+
+        TheseusLog.Information("The taskbar asked for session {SessionId}: {Outcome}", sessionId, outcome);
     }
 
     /// <inheritdoc />

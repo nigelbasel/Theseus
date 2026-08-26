@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using Theseus.Core.Abstractions;
 using Theseus.Core.Domain;
+using Theseus.Core.Stopping;
 
 namespace Theseus.App.ViewModels;
 
@@ -22,6 +23,7 @@ public sealed class DetailDrawerViewModel : ObservableObject
     private string _workingDirectory = string.Empty;
     private string _prompt = string.Empty;
     private string _newDirectory = string.Empty;
+    private string _statusDocumentPath = string.Empty;
     private int _boardOrder;
     private bool _isBlocked;
     private bool _reopenTomorrow;
@@ -39,7 +41,7 @@ public sealed class DetailDrawerViewModel : ObservableObject
         AddDirectoryCommand = new RelayCommand(_ => AddDirectory(), _ => CanAddDirectory);
         RemoveDirectoryCommand = new RelayCommand(RemoveDirectory, parameter => parameter is string);
         OpenWorkingDirectoryCommand = new RelayCommand(_ => Reveal(WorkingDirectory), _ => Directory.Exists(WorkingDirectory));
-        OpenStatusDocumentCommand = new RelayCommand(_ => Reveal(StatusDocumentPath), _ => File.Exists(StatusDocumentPath));
+        OpenStatusDocumentCommand = new RelayCommand(_ => Reveal(HandoffDestination), _ => File.Exists(HandoffDestination));
     }
 
     /// <summary>Hides the drawer, discarding unsaved edits.</summary>
@@ -85,8 +87,27 @@ public sealed class DetailDrawerViewModel : ObservableObject
     /// <summary>Every Jira issue this workstream touches.</summary>
     public IReadOnlyList<string> JiraKeys => _card?.JiraKeys ?? [];
 
-    /// <summary>The handover document the sessions maintain.</summary>
-    public string StatusDocumentPath => _card?.Workstream.StatusDocumentPath ?? string.Empty;
+    /// <summary>
+    /// The handover document, when the usual one is not the right one. Empty means Theseus looks for
+    /// the notes the sessions have been keeping, which is right often enough that this is an override
+    /// rather than something to fill in.
+    /// </summary>
+    public string StatusDocumentPath
+    {
+        get => _statusDocumentPath;
+        set
+        {
+            if (Set(ref _statusDocumentPath, value))
+            {
+                Raise(nameof(HandoffDestination));
+            }
+        }
+    }
+
+    /// <summary>The file a stop request will actually name, whether chosen or found.</summary>
+    public string HandoffDestination => _card is null
+        ? string.Empty
+        : HandoffPath.For(_card.Workstream with { StatusDocumentPath = Blank(_statusDocumentPath) });
 
     /// <summary>The tab title and card heading.</summary>
     public string Title
@@ -168,6 +189,7 @@ public sealed class DetailDrawerViewModel : ObservableObject
         Title = workstream.Title;
         WorkingDirectory = workstream.WorkingDirectory;
         Prompt = workstream.Prompt;
+        StatusDocumentPath = workstream.StatusDocumentPath ?? string.Empty;
         BoardOrder = workstream.BoardOrder;
         IsBlocked = workstream.IsBlocked;
         ReopenTomorrow = workstream.ReopenTomorrow;
@@ -191,7 +213,7 @@ public sealed class DetailDrawerViewModel : ObservableObject
         Raise(nameof(PlanPath));
         Raise(nameof(ColorHex));
         Raise(nameof(JiraKeys));
-        Raise(nameof(StatusDocumentPath));
+        Raise(nameof(HandoffDestination));
 
         IsOpen = true;
     }
@@ -238,11 +260,14 @@ public sealed class DetailDrawerViewModel : ObservableObject
         {
             IsBlocked = IsBlocked,
             ReopenTomorrow = ReopenTomorrow,
+            StatusDocumentPath = Blank(StatusDocumentPath),
         };
 
         IsOpen = false;
         _saved(_card);
     }
+
+    private static string? Blank(string value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private static void Reveal(string path)
     {

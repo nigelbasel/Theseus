@@ -149,6 +149,7 @@ public sealed class BoardViewModel : ObservableObject
                   Column = card.Column,
                   IsBlocked = card.Workstream.IsBlocked,
                   ReopenTomorrow = card.Workstream.ReopenTomorrow,
+                  StatusDocumentPath = card.Workstream.StatusDocumentPath,
                   LastSessionId = card.Workstream.LastSessionId,
                   UpdatedUtc = now,
               }
