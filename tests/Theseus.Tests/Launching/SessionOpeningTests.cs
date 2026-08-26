@@ -12,7 +12,7 @@ public class SessionOpeningTests
     [Test]
     public void For_GivesAWorkstreamItsOwnPromptTheFirstTime()
     {
-        Assert.That(For(hasHistory: false), Is.EqualTo(Original));
+        Assert.That(For(hasHistory: false), Does.Contain(Original));
     }
 
     [Test]
@@ -39,7 +39,7 @@ public class SessionOpeningTests
         var opening = For(hasHistory: true,
             continuePrompt: "Resume. Notes are in " + SessionOpening.HandoffPlaceholder + ".");
 
-        Assert.That(opening, Is.EqualTo($"Resume. Notes are in {Handoff}."));
+        Assert.That(opening, Does.Contain($"Resume. Notes are in {Handoff}."));
     }
 
     [Test]
@@ -49,10 +49,22 @@ public class SessionOpeningTests
     }
 
     [Test]
-    public void For_KeepsTheStandingPreambleInFrontOfEitherKind()
+    public void For_KeepsTheStandingPreambleAheadOfEitherKindOfPrompt()
     {
-        Assert.That(For(hasHistory: false, preamble: "House rules."), Does.StartWith("House rules."));
-        Assert.That(For(hasHistory: true, preamble: "House rules."), Does.StartWith("House rules."));
+        var first = For(hasHistory: false, preamble: "House rules.");
+        var returning = For(hasHistory: true, preamble: "House rules.");
+
+        Assert.That(first.IndexOf("House rules.", StringComparison.Ordinal),
+            Is.LessThan(first.IndexOf(Original, StringComparison.Ordinal)));
+        Assert.That(returning, Does.Contain("House rules."));
+    }
+
+    [Test]
+    public void For_OpensBySayingWhichWorkstreamTheSessionIs()
+    {
+        Assert.That(For(hasHistory: false), Does.StartWith("You are the"),
+            "scope cannot be inferred from a directory several workstreams share");
+        Assert.That(For(hasHistory: true), Does.StartWith("You are the"));
     }
 
     [Test]

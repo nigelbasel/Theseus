@@ -52,9 +52,11 @@ public static class SessionOpening
     {
         ArgumentNullException.ThrowIfNull(workstream);
 
+        var identity = WorkstreamIdentity.For(workstream, handoffPath);
+
         if (!hasHistory)
         {
-            return SessionPrompt.Compose(preamble, workstream.Prompt);
+            return SessionPrompt.Compose(identity, SessionPrompt.Compose(preamble, workstream.Prompt));
         }
 
         var body = string.IsNullOrWhiteSpace(continuePrompt)
@@ -68,6 +70,6 @@ public static class SessionOpening
             continuation = $"{continuation}{Environment.NewLine}{Environment.NewLine}{MissingHandoffNote}";
         }
 
-        return SessionPrompt.Compose(preamble, continuation);
+        return SessionPrompt.Compose(identity, SessionPrompt.Compose(preamble, continuation));
     }
 }

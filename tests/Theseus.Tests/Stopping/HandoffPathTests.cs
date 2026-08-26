@@ -71,7 +71,7 @@ public class HandoffPathTests
         Write("SESSION-STATUS-2026-08-25-someone-elses-work.md", DateTimeOffset.UtcNow);
         Write("SESSION-STATUS-2026-08-25-a-third-workstream.md", DateTimeOffset.UtcNow.AddDays(-1));
 
-        Assert.That(HandoffPath.For(Workstream()), Is.EqualTo(Path.Combine(_root, "HANDOFF-contact-forms.md")),
+        Assert.That(HandoffPath.For(Workstream()), Is.EqualTo(Proposed()),
             "the most recently written belongs to the busiest workstream, never to the one asking");
     }
 
@@ -107,13 +107,13 @@ public class HandoffPathTests
         Write(Path.Combine("node_modules", "HANDOFF.md"));
         Write(Path.Combine("obj", "HANDOFF.md"));
 
-        Assert.That(HandoffPath.For(Workstream()), Is.EqualTo(Path.Combine(_root, "HANDOFF-contact-forms.md")));
+        Assert.That(HandoffPath.For(Workstream()), Is.EqualTo(Proposed()));
     }
 
     [Test]
     public void For_FallsBackToAConventionalNameWhenNobodyHasWrittenNotesYet()
     {
-        Assert.That(HandoffPath.For(Workstream()), Is.EqualTo(Path.Combine(_root, "HANDOFF-contact-forms.md")));
+        Assert.That(HandoffPath.For(Workstream()), Is.EqualTo(Proposed()));
     }
 
     [Test]
@@ -121,7 +121,7 @@ public class HandoffPathTests
     {
         Write(Path.Combine("one", "two", "HANDOFF.md"));
 
-        Assert.That(HandoffPath.For(Workstream()), Is.EqualTo(Path.Combine(_root, "HANDOFF-contact-forms.md")));
+        Assert.That(HandoffPath.For(Workstream()), Is.EqualTo(Proposed()));
     }
 
     [Test]
@@ -144,6 +144,9 @@ public class HandoffPathTests
 
         return path;
     }
+
+    private string Proposed() =>
+        Path.Combine(_root, $"SESSION-STATUS-{DateTimeOffset.Now:yyyy-MM-dd}-contact-forms.md");
 
     private Workstream Workstream(string? cwd = null, string? status = null,
         IReadOnlyList<string>? addDirectories = null) =>
