@@ -24,6 +24,7 @@ public sealed class DetailDrawerViewModel : ObservableObject
     private string _prompt = string.Empty;
     private string _newDirectory = string.Empty;
     private string _statusDocumentPath = string.Empty;
+    private string _newJiraKey = string.Empty;
     private int _boardOrder;
     private bool _isBlocked;
     private bool _reopenTomorrow;
@@ -42,6 +43,9 @@ public sealed class DetailDrawerViewModel : ObservableObject
         RemoveDirectoryCommand = new RelayCommand(RemoveDirectory, parameter => parameter is string);
         OpenWorkingDirectoryCommand = new RelayCommand(_ => Reveal(WorkingDirectory), _ => Directory.Exists(WorkingDirectory));
         OpenStatusDocumentCommand = new RelayCommand(_ => Reveal(HandoffDestination), _ => File.Exists(HandoffDestination));
+        AddJiraKeyCommand = new RelayCommand(_ => AddJiraKey(), _ => CanAddJiraKey);
+        RemoveJiraKeyCommand = new RelayCommand(RemoveJiraKey, parameter => parameter is string);
+        RescanPromptCommand = new RelayCommand(_ => RescanPrompt(), _ => UnclaimedKeys.Count > 0);
     }
 
     /// <summary>Hides the drawer, discarding unsaved edits.</summary>
@@ -61,6 +65,15 @@ public sealed class DetailDrawerViewModel : ObservableObject
 
     /// <summary>Opens the handover document.</summary>
     public RelayCommand OpenStatusDocumentCommand { get; }
+
+    /// <summary>Adds the typed Jira key to the workstream.</summary>
+    public RelayCommand AddJiraKeyCommand { get; }
+
+    /// <summary>Removes one Jira key from the workstream.</summary>
+    public RelayCommand RemoveJiraKeyCommand { get; }
+
+    /// <summary>Adds every key the prompt mentions that the workstream does not already have.</summary>
+    public RelayCommand RescanPromptCommand { get; }
 
     /// <summary>The extra directories added to each session's scope.</summary>
     public ObservableCollection<string> AddDirectories { get; } = [];
@@ -84,8 +97,33 @@ public sealed class DetailDrawerViewModel : ObservableObject
     /// <summary>The workstream's colour, which is permanent and applies from the next launch.</summary>
     public string ColorHex => _card?.ColorHex ?? "#000000";
 
-    /// <summary>Every Jira issue this workstream touches.</summary>
-    public IReadOnlyList<string> JiraKeys => _card?.JiraKeys ?? [];
+    /// <summary>
+    /// Every Jira issue this workstream touches. Read from the prompt to begin with, and editable
+    /// afterwards: prompts name requirement numbers and build identifiers that read like keys, and
+    /// issues move between projects long after the prompt that named them was written.
+    /// </summary>
+    public ObservableCollection<string> JiraKeys { get; } = [];
+
+    /// <summary>A key being typed, before it is added.</summary>
+    public string NewJiraKey
+    {
+        get => _newJiraKey;
+        set
+        {
+            if (Set(ref _newJiraKey, value))
+            {
+                Raise(nameof(CanAddJiraKey));
+            }
+        }
+    }
+
+    /// <summary>Whether what has been typed is a key this workstream does not already have.</summary>
+    public bool CanAddJiraKey =>
+        JiraKeyExtractor.Normalise(_newJiraKey) is { } key && !JiraKeys.Contains(key, StringComparer.Ordinal);
+
+    /// <summary>The keys the prompt mentions that the workstream is not already carrying.</summary>
+    public IReadOnlyList<string> UnclaimedKeys =>
+        [.. JiraKeyExtractor.Extract(Prompt).Where(key => !JiraKeys.Contains(key, StringComparer.Ordinal))];
 
     /// <summary>
     /// The handover document, when the usual one is not the right one. Empty means Theseus looks for
@@ -136,7 +174,13 @@ public sealed class DetailDrawerViewModel : ObservableObject
     public string Prompt
     {
         get => _prompt;
-        set => Set(ref _prompt, value);
+        set
+        {
+            if (Set(ref _prompt, value))
+            {
+                Raise(nameof(UnclaimedKeys));
+            }
+        }
     }
 
     /// <summary>A directory being typed, before it is added.</summary>
@@ -201,6 +245,14 @@ public sealed class DetailDrawerViewModel : ObservableObject
             AddDirectories.Add(directory);
         }
 
+        JiraKeys.Clear();
+        foreach (var key in workstream.JiraKeys)
+        {
+            JiraKeys.Add(key);
+        }
+
+        NewJiraKey = string.Empty;
+
         Runs.Clear();
         foreach (var run in _runs.Read()
                      .Where(run => string.Equals(run.WorkstreamKey, card.Key, StringComparison.OrdinalIgnoreCase))
@@ -212,10 +264,37 @@ public sealed class DetailDrawerViewModel : ObservableObject
         Raise(nameof(Key));
         Raise(nameof(PlanPath));
         Raise(nameof(ColorHex));
-        Raise(nameof(JiraKeys));
+        Raise(nameof(UnclaimedKeys));
         Raise(nameof(HandoffDestination));
 
         IsOpen = true;
+    }
+
+    private void AddJiraKey()
+    {
+        JiraKeys.Add(JiraKeyExtractor.Normalise(NewJiraKey)!);
+        NewJiraKey = string.Empty;
+        Raise(nameof(UnclaimedKeys));
+    }
+
+    private void RemoveJiraKey(object? parameter)
+    {
+        if (parameter is string key)
+        {
+            JiraKeys.Remove(key);
+            Raise(nameof(CanAddJiraKey));
+            Raise(nameof(UnclaimedKeys));
+        }
+    }
+
+    private void RescanPrompt()
+    {
+        foreach (var key in UnclaimedKeys)
+        {
+            JiraKeys.Add(key);
+        }
+
+        Raise(nameof(UnclaimedKeys));
     }
 
     private void AddDirectory()
@@ -261,6 +340,7 @@ public sealed class DetailDrawerViewModel : ObservableObject
             IsBlocked = IsBlocked,
             ReopenTomorrow = ReopenTomorrow,
             StatusDocumentPath = Blank(StatusDocumentPath),
+            JiraKeys = [.. JiraKeys],
         };
 
         IsOpen = false;

@@ -11,6 +11,7 @@
             <converters:NotBoolToVisibilityConverter x:Key="NotBoolToVisibility" />
             <converters:NotEmptyToVisibilityConverter x:Key="NotEmptyToVisibility" />
             <converters:ZeroToVisibilityConverter x:Key="ZeroToVisibility" />
+            <converters:CountToVisibilityConverter x:Key="CountToVisibility" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

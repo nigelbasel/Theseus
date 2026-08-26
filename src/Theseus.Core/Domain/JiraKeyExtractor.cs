@@ -23,6 +23,24 @@ public static partial class JiraKeyExtractor
             .ToList();
     }
 
+    /// <summary>
+    /// A typed key in the form the rest of the application uses, or null when what was typed is not
+    /// a key at all. Keys are conventionally upper case and are routinely typed otherwise.
+    /// </summary>
+    public static string? Normalise(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return null;
+        }
+
+        var candidate = text.Trim().ToUpperInvariant();
+
+        return Extract(candidate) is [var only] && string.Equals(only, candidate, StringComparison.Ordinal)
+            ? only
+            : null;
+    }
+
     private static bool LooksLikeAYear(string number) =>
         number.Length == 4 && number.StartsWith("20", StringComparison.Ordinal);
 

@@ -66,4 +66,36 @@ public class JiraKeyExtractorTests
     {
         Assert.That(JiraKeyExtractor.Extract(prompt), Is.Empty);
     }
+
+    [Test]
+    public void Normalise_AcceptsAKeyTypedInLowerCase()
+    {
+        Assert.That(JiraKeyExtractor.Normalise("ndc-620"), Is.EqualTo("NDC-620"));
+    }
+
+    [Test]
+    public void Normalise_IgnoresTheSpaceAroundATypedKey()
+    {
+        Assert.That(JiraKeyExtractor.Normalise("  APPS-1776 "), Is.EqualTo("APPS-1776"));
+    }
+
+    [Test]
+    public void Normalise_RefusesASentenceThatMerelyContainsAKey()
+    {
+        Assert.That(JiraKeyExtractor.Normalise("see APPS-1776 for detail"), Is.Null);
+    }
+
+    [Test]
+    public void Normalise_RefusesWhatIsNotAKeyAtAll()
+    {
+        Assert.That(JiraKeyExtractor.Normalise("not a key"), Is.Null);
+        Assert.That(JiraKeyExtractor.Normalise(string.Empty), Is.Null);
+        Assert.That(JiraKeyExtractor.Normalise(null), Is.Null);
+    }
+
+    [Test]
+    public void Normalise_RefusesTheDateInASessionStatusFilename()
+    {
+        Assert.That(JiraKeyExtractor.Normalise("STATUS-2026"), Is.Null);
+    }
 }

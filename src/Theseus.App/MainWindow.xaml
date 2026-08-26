@@ -405,14 +405,35 @@
                             <TextBlock Text="Title" Style="{StaticResource FieldLabel}" />
                             <TextBox Text="{Binding Drawer.Title, UpdateSourceTrigger=PropertyChanged}" />
 
-                            <ItemsControl ItemsSource="{Binding Drawer.JiraKeys}" Margin="0,10,0,0"
-                                          ItemTemplate="{StaticResource JiraKeyTemplate}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <WrapPanel />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
+                            <TextBlock Text="Jira issues" Style="{StaticResource FieldLabel}" />
+                            <ItemsControl ItemsSource="{Binding Drawer.JiraKeys}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,0,0,4">
+                                            <TextBlock Text="{Binding}" FontSize="12" Margin="0,0,70,0"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                            <Button Content="Remove" FontSize="11" Padding="8,1"
+                                                    HorizontalAlignment="Right"
+                                                    Command="{Binding DataContext.Drawer.RemoveJiraKeyCommand,
+                                                              RelativeSource={RelativeSource AncestorType=Window}}"
+                                                    CommandParameter="{Binding}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
                             </ItemsControl>
+                            <Grid Margin="0,4,0,0">
+                                <TextBox Text="{Binding Drawer.NewJiraKey, UpdateSourceTrigger=PropertyChanged}"
+                                         Margin="0,0,60,0" />
+                                <Button Content="Add" HorizontalAlignment="Right" Padding="12,3"
+                                        Command="{Binding Drawer.AddJiraKeyCommand}" />
+                            </Grid>
+                            <Button Content="{Binding Drawer.UnclaimedKeys.Count,
+                                              StringFormat=Take {0} more from the prompt}"
+                                    HorizontalAlignment="Left" Margin="0,6,0,0" Padding="10,3" FontSize="11"
+                                    Command="{Binding Drawer.RescanPromptCommand}"
+                                    Visibility="{Binding Drawer.UnclaimedKeys.Count,
+                                                 Converter={StaticResource CountToVisibility}}" />
 
                             <TextBlock Text="Working directory" Style="{StaticResource FieldLabel}" />
                             <Grid>
