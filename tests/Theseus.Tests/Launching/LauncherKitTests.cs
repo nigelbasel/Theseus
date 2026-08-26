@@ -128,4 +128,54 @@ public class LauncherKitTests
 
         return launcher;
     }
+
+    [Test]
+    public void Prepare_LeavesTheKitOfABuildASessionIsStillRunningFrom()
+    {
+        var first = LauncherKit.Prepare(Installed(), _kits);
+        var directory = Path.GetDirectoryName(first)!;
+
+        Upgrade();
+
+        LauncherKit.Prepare(Installed(version: "2026.08.27.1"), _kits, () => [first]);
+
+        Assert.That(File.Exists(Path.Combine(directory, "Theseus.Core.dll")), Is.True,
+            "a recursive delete guts a kit in use rather than skipping it, and the session then dies");
+        Assert.That(Directory.GetFiles(directory), Has.Length.GreaterThan(1));
+    }
+
+    [Test]
+    public void Prepare_ClearsAwayAKitOnceNothingIsRunningFromIt()
+    {
+        var first = LauncherKit.Prepare(Installed(), _kits);
+
+        Upgrade();
+
+        LauncherKit.Prepare(Installed(version: "2026.08.27.1"), _kits, () => []);
+
+        Assert.That(Directory.Exists(Path.GetDirectoryName(first)!), Is.False);
+    }
+
+    [Test]
+    public void Prepare_LeavesAKitWholeWhenAFileInItCannotEvenBeMoved()
+    {
+        var first = LauncherKit.Prepare(Installed(), _kits);
+        var directory = Path.GetDirectoryName(first)!;
+        var held = Path.Combine(directory, "Theseus.Core.dll");
+
+        using var _ = new FileStream(held, FileMode.Open, FileAccess.Read, FileShare.Read);
+
+        Upgrade();
+
+        LauncherKit.Prepare(Installed(version: "2026.08.27.1"), _kits, () => []);
+
+        Assert.That(File.Exists(held), Is.True,
+            "renaming a directory holding an open file fails, which is the point: nothing is deleted");
+    }
+
+    private void Upgrade()
+    {
+        Directory.Delete(_installation, recursive: true);
+        Directory.CreateDirectory(_installation);
+    }
 }

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Theseus.Core.Terminal;
 using Theseus.Core.Diagnostics;
 
 namespace Theseus.Core.Launching;
@@ -19,7 +20,14 @@ public static class LauncherKit
     /// already been done for this build. The installed launcher is returned unchanged if the copy
     /// cannot be made: holding a file open is a smaller problem than having no launcher at all.
     /// </summary>
-    public static string Prepare(string installedLauncherPath, string root)
+    /// <param name="runningLaunchers">
+    /// Where launchers are running from, so their kits are left alone. The running processes when
+    /// nothing else is said.
+    /// </param>
+    public static string Prepare(
+        string installedLauncherPath,
+        string root,
+        Func<IReadOnlyCollection<string>>? runningLaunchers = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(installedLauncherPath);
         ArgumentException.ThrowIfNullOrWhiteSpace(root);
@@ -38,7 +46,7 @@ public static class LauncherKit
 
             if (File.Exists(Path.Combine(destination, CompletionMarker)) && File.Exists(copied))
             {
-                Discard(root, destination);
+                Discard(root, destination, (runningLaunchers ?? RunningLaunchers)());
                 return copied;
             }
 
@@ -47,7 +55,7 @@ public static class LauncherKit
 
             TheseusLog.Information("Sessions will run the launcher copied to {Path}", copied);
 
-            Discard(root, destination);
+            Discard(root, destination, (runningLaunchers ?? RunningLaunchers)());
 
             return copied;
         }
@@ -58,6 +66,58 @@ public static class LauncherKit
 
             return installedLauncherPath;
         }
+    }
+
+    private static void Remove(string kit)
+    {
+        var aside = $"{kit}.{Guid.NewGuid():N}.discarding";
+
+        try
+        {
+            Directory.Move(kit, aside);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            TheseusLog.Debug("Left {Path} whole: something still holds a file in it", kit);
+
+            return;
+        }
+
+        try
+        {
+            Directory.Delete(aside, recursive: true);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            TheseusLog.Debug("Moved {Path} aside but could not delete it: {Reason}", kit, exception.Message);
+        }
+    }
+
+    private static bool IsInside(string path, string directory)
+    {
+        var full = Path.GetFullPath(directory).TrimEnd(Path.DirectorySeparatorChar);
+
+        return Path.GetFullPath(path)
+            .StartsWith(full + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>Where every running launcher is running from.</summary>
+    private static IReadOnlyCollection<string> RunningLaunchers()
+    {
+        var paths = new List<string>();
+
+        foreach (var process in Process.GetProcessesByName("Theseus.Launcher"))
+        {
+            using (process)
+            {
+                if (ProcessImagePath.For(process.Id) is { } path)
+                {
+                    paths.Add(path);
+                }
+            }
+        }
+
+        return paths;
     }
 
     private static string Build(string launcherPath)
@@ -84,19 +144,32 @@ public static class LauncherKit
         }
     }
 
-    private static void Discard(string root, string current)
+    /// <summary>
+    /// Clears away the kits of builds nothing is running any more.
+    ///
+    /// A kit in use must be left whole. Deleting one directly does not do that: a recursive delete
+    /// removes every file it can and fails only on the ones Windows has locked, so a kit a session is
+    /// running from is not skipped but gutted - and the session then dies the next time it needs an
+    /// assembly it had not yet loaded. This is the same fault as an installer replacing files under a
+    /// running session, which is what the kits exist to avoid, so it is worth two defences.
+    ///
+    /// The first is to skip any kit a launcher process is running from. The second is to rename a
+    /// kit before deleting it: a directory holding an open file cannot be renamed, so anything still
+    /// in use fails at the rename, with nothing deleted, whether or not its process could be found.
+    /// </summary>
+    private static void Discard(string root, string current, IReadOnlyCollection<string> inUse)
     {
         foreach (var stale in Directory.EnumerateDirectories(root)
                      .Where(directory => !string.Equals(directory, current, StringComparison.OrdinalIgnoreCase)))
         {
-            try
+            if (inUse.Any(path => IsInside(path, stale)))
             {
-                Directory.Delete(stale, recursive: true);
+                TheseusLog.Debug("Left {Path} alone: a session is running from it", stale);
+
+                continue;
             }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-            {
-                TheseusLog.Debug("Left {Path} alone: a session is still running it", stale);
-            }
+
+            Remove(stale);
         }
     }
 }
