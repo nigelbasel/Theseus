@@ -1,0 +1,15 @@
+﻿<Application x:Class="Theseus.App.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="clr-namespace:Theseus.App.Converters">
+    <Application.Resources>
+        <ResourceDictionary>
+            <converters:HexToBrushConverter x:Key="HexToBrush" />
+            <converters:RelativeTimeConverter x:Key="RelativeTime" />
+            <converters:LifecycleGlyphConverter x:Key="LifecycleGlyph" />
+            <converters:BoolToVisibilityConverter x:Key="BoolToVisibility" />
+            <converters:NotEmptyToVisibilityConverter x:Key="NotEmptyToVisibility" />
+            <converters:ZeroToVisibilityConverter x:Key="ZeroToVisibility" />
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

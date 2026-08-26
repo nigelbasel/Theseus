@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>Theseus.App</RootNamespace>
+    <AssemblyName>Theseus</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <NoWarn>$(NoWarn);WPF0001</NoWarn>
+    <ApplicationIcon>Assets\theseus.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\theseus.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Theseus.Core\Theseus.Core.csproj" />
+    <ProjectReference Include="..\Theseus.Launcher\Theseus.Launcher.csproj" />
+  </ItemGroup>
+
+  <!--
+    The shim is a separate executable that Windows Terminal starts in each tab, so it must sit next
+    to the application. A project reference alone copies only the managed assembly, not the apphost.
+  -->
+  <Target Name="CopyLauncherHost" AfterTargets="Build">
+    <ItemGroup>
+      <LauncherHost Include="$(MSBuildThisFileDirectory)..\Theseus.Launcher\bin\$(Configuration)\net10.0\Theseus.Launcher.exe" />
+    </ItemGroup>
+    <Copy SourceFiles="@(LauncherHost)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" Condition="Exists('%(LauncherHost.FullPath)')" />
+  </Target>
+
+</Project>

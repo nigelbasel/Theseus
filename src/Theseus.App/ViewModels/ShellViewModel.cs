@@ -1,0 +1,351 @@
+using System.Diagnostics;
+using Theseus.App.Services;
+using Theseus.Core.Abstractions;
+using Theseus.Core.Domain;
+using Theseus.Core.Colour;
+using Theseus.Core.Launching;
+using Theseus.Core.Settings;
+
+namespace Theseus.App.ViewModels;
+
+/// <summary>The window's own state: what it shows, what it can start, and how it is painted.</summary>
+public sealed class ShellViewModel : ObservableObject
+{
+    private readonly ISettingsStore _settings;
+    private readonly LaunchCoordinator _launcher;
+    private readonly IPlanStore _plans;
+    private readonly ITabColourAllocator _colours;
+    private AppTheme _theme;
+    private string _notice = string.Empty;
+
+    /// <summary>Creates the shell over everything the window drives.</summary>
+    public ShellViewModel(
+        BoardViewModel board,
+        SessionsViewModel sessions,
+        ISettingsStore settings,
+        LaunchCoordinator launcher,
+        IPlanStore plans,
+        IRunLog runs,
+        ITabColourAllocator colours)
+    {
+        Board = board;
+        Sessions = sessions;
+        _settings = settings;
+        _launcher = launcher;
+        _plans = plans;
+        _colours = colours;
+        _theme = settings.Read().Theme;
+
+        RefreshCommand = new RelayCommand(_ => Refresh());
+        FocusCardCommand = new RelayCommand(FocusCard, CanFocusCard);
+        OpenJiraCommand = new RelayCommand(OpenJira,
+            parameter => parameter is string key && JiraSite.IssueUrl(_settings.Read().JiraBaseUrl, key) is not null);
+
+        StartCardCommand = new RelayCommand(StartCard, CanStartCard);
+        StartBoardCommand = new RelayCommand(_ => StartMany(BoardSelection()), _ => BoardSelection().Count > 0);
+        SelectCardCommand = new RelayCommand(ShowCard);
+
+        Drawer = new DetailDrawerViewModel(plans, runs, card =>
+        {
+            Board.Persist(card);
+            Refresh();
+        });
+
+        Settings = new SettingsViewModel(settings, Refresh);
+
+        NewWorkstream = new NewWorkstreamViewModel(plans, colours, (key, startNow) =>
+        {
+            Refresh();
+
+            if (Board.Card(key) is not { } card)
+            {
+                Notice = "The workstream was created but is not on the board yet.";
+
+                return;
+            }
+
+            if (startNow)
+            {
+                StartMany([card.Workstream]);
+
+                return;
+            }
+
+            Notice = $"Created {card.Title}.";
+        });
+
+        foreach (var column in Board.Columns)
+        {
+            var captured = column;
+            captured.StartAllCommand = new RelayCommand(
+                _ => StartMany(ColumnSelection(captured.Column)),
+                _ => ColumnSelection(captured.Column).Count > 0);
+        }
+    }
+
+    /// <summary>The board this window shows.</summary>
+    public BoardViewModel Board { get; }
+
+    /// <summary>The sessions running right now.</summary>
+    public SessionsViewModel Sessions { get; }
+
+    /// <summary>The account usage shown in the status bar.</summary>
+    public UsageViewModel? Usage { get; set; }
+
+    /// <summary>Re-reads everything on disk.</summary>
+    public RelayCommand RefreshCommand { get; }
+
+    /// <summary>Brings a card's session to the front.</summary>
+    public RelayCommand FocusCardCommand { get; }
+
+    /// <summary>Opens a Jira issue in the browser.</summary>
+    public RelayCommand OpenJiraCommand { get; }
+
+    /// <summary>Starts one workstream.</summary>
+    public RelayCommand StartCardCommand { get; }
+
+    /// <summary>Starts every lane except the last, which is where finished work lives.</summary>
+    public RelayCommand StartBoardCommand { get; }
+
+    /// <summary>Opens a card in the detail drawer.</summary>
+    public RelayCommand SelectCardCommand { get; }
+
+    /// <summary>The editor for the card being looked at.</summary>
+    public DetailDrawerViewModel Drawer { get; }
+
+    /// <summary>The settings panel.</summary>
+    public SettingsViewModel Settings { get; }
+
+    /// <summary>The composer for a workstream that does not exist yet.</summary>
+    public NewWorkstreamViewModel NewWorkstream { get; }
+
+    /// <summary>What the last action did, shown under the title bar.</summary>
+    public string Notice
+    {
+        get => _notice;
+        private set => Set(ref _notice, value);
+    }
+
+    /// <summary>Which theme is in force. Applied immediately and remembered for next time.</summary>
+    public AppTheme Theme
+    {
+        get => _theme;
+        set
+        {
+            if (!Set(ref _theme, value))
+            {
+                return;
+            }
+
+            ThemeApplier.Apply(value);
+            _settings.Write(_settings.Read() with { Theme = value });
+        }
+    }
+
+    /// <summary>Applies the remembered theme at startup.</summary>
+    public void ApplyTheme() => ThemeApplier.Apply(_theme);
+
+    /// <summary>Re-reads the plans, the board and the live sessions.</summary>
+    public void Refresh()
+    {
+        Board.Refresh();
+        Sessions.Refresh();
+        SyncLifecycles();
+        WireAdoption();
+    }
+
+    /// <summary>Marks every card whose workstream has a session running right now.</summary>
+    public void SyncLifecycles()
+    {
+        foreach (var card in Board.Columns.SelectMany(column => column.Cards))
+        {
+            var session = Sessions.Find(card.Workstream.LastSessionId);
+
+            card.Lifecycle = session is null ? SessionLifecycle.NotStarted : SessionLifecycle.Running;
+            card.LifecycleSinceUtc = null;
+        }
+    }
+
+    private IReadOnlyList<Workstream> BoardSelection() =>
+        StartSelection.ForBoard(Workstreams(), [.. Board.Columns.Select(column => column.Column)],
+            Sessions.Snapshot);
+
+    private IReadOnlyList<Workstream> ColumnSelection(BoardColumn column) =>
+        StartSelection.ForColumn(Workstreams(), column, Sessions.Snapshot);
+
+    private IReadOnlyList<Workstream> Workstreams() =>
+        [.. Board.Columns.SelectMany(column => column.Cards).Select(card => card.Workstream)];
+
+    private bool CanStartCard(object? parameter) =>
+        parameter is WorkstreamCardViewModel card
+        && _launcher.CanLaunch
+        && StartSelection.IsEligible(card.Workstream, Sessions.Snapshot);
+
+    private void StartCard(object? parameter)
+    {
+        if (parameter is WorkstreamCardViewModel card)
+        {
+            StartMany([card.Workstream]);
+        }
+    }
+
+    private void StartMany(IReadOnlyList<Workstream> workstreams)
+    {
+        if (_launcher.Impediment is { } impediment)
+        {
+            Notice = impediment;
+
+            return;
+        }
+
+        var started = 0;
+
+        foreach (var workstream in workstreams)
+        {
+            if (_launcher.Launch(workstream) is not { } sessionId)
+            {
+                continue;
+            }
+
+            Remember(workstream, sessionId);
+            started++;
+        }
+
+        Notice = started switch
+        {
+            0 => "Nothing was started.",
+            1 => $"Started {workstreams[0].Title}.",
+            _ => $"Started {started} sessions.",
+        };
+
+        Refresh();
+    }
+
+    private void Remember(Workstream workstream, string sessionId)
+    {
+        Board.RememberSession(workstream.Key, sessionId);
+
+        if (_plans.TryRead(workstream.Key) is { } plan)
+        {
+            _plans.Write(workstream.Key, plan with { ResumeSessionId = sessionId });
+        }
+    }
+
+    /// <summary>
+    /// Offers every workstream as an adoption target on every live session. Building the commands
+    /// here means a target already knows both halves of the pairing, so the menu item is one click
+    /// with nothing selected beforehand.
+    /// </summary>
+    private void WireAdoption()
+    {
+        var cards = Board.Columns.SelectMany(column => column.Cards).ToList();
+
+        foreach (var session in Sessions.Sessions)
+        {
+            session.AdoptTargets.Clear();
+            session.IsAdopted = cards.Any(card => string.Equals(
+                card.Workstream.LastSessionId, session.SessionId, StringComparison.OrdinalIgnoreCase));
+
+            var running = session;
+
+            session.AdoptTargets.Add(new AdoptTarget(
+                "New workstream from this session",
+                new RelayCommand(_ => CreateFrom(running))));
+
+            foreach (var card in cards)
+            {
+                var target = card;
+
+                session.AdoptTargets.Add(new AdoptTarget(
+                    card.Title,
+                    new RelayCommand(_ => Adopt(running, target))));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Creates a workstream around a session that is already running, and adopts it. The colour is
+    /// allocated rather than chosen: it is the first colour this application has ever picked, since
+    /// every workstream so far arrived with one from its plan file.
+    /// </summary>
+    private void CreateFrom(LiveSessionViewModel session)
+    {
+        var taken = _plans.Keys();
+        var key = WorkstreamKey.Unique(session.Name, taken);
+
+        var inUse = taken
+            .Select(existing => _plans.TryRead(existing)?.Color)
+            .Where(colour => !string.IsNullOrWhiteSpace(colour))
+            .Select(colour => colour!)
+            .ToList();
+
+        var colour = _colours.Allocate(new ColourAllocationState(inUse, []));
+
+        var order = taken.Count + 1;
+        var plan = new SessionPlan(order, session.Name, colour, session.WorkingDirectory, [],
+            session.SessionId, DateTimeOffset.Now.ToString("s"),
+            $"Continue the {session.Name} work. Read the session's own notes before changing anything.");
+
+        _plans.Write(key, plan);
+
+        Refresh();
+
+        Notice = $"Created {session.Name} and adopted the running session.";
+    }
+
+    private void Adopt(LiveSessionViewModel session, WorkstreamCardViewModel card)
+    {
+        Remember(card.Workstream, session.SessionId);
+        Notice = $"{card.Title} now follows {session.Name} (pid {session.Pid}).";
+        Refresh();
+    }
+
+    private void ShowCard(object? parameter)
+    {
+        if (parameter is not WorkstreamCardViewModel card)
+        {
+            return;
+        }
+
+        Board.Select(card);
+        Drawer.Show(card);
+    }
+
+    private bool CanFocusCard(object? parameter) =>
+        parameter is WorkstreamCardViewModel card && Sessions.Find(card.Workstream.LastSessionId) is not null;
+
+    private void FocusCard(object? parameter)
+    {
+        if (parameter is not WorkstreamCardViewModel card
+            || Sessions.Find(card.Workstream.LastSessionId) is not { } session)
+        {
+            return;
+        }
+
+        Notice = Describe(TerminalFocus.FocusSession(session.Pid, session.Name), card.Title);
+    }
+
+    /// <summary>
+    /// Says what the focus actually achieved. Landing on the window but not the tab is the normal
+    /// outcome for a session Theseus did not launch, and saying so beats leaving the operator to
+    /// wonder why the wrong tab is showing.
+    /// </summary>
+    private static string Describe(FocusOutcome outcome, string title) => outcome switch
+    {
+        FocusOutcome.TabSelected => $"Focused {title}.",
+        FocusOutcome.WindowOnly =>
+            $"Found the terminal, but not which tab {title} is in — only sessions Theseus started can be pinpointed.",
+        _ => $"No terminal window found for {title}.",
+    };
+
+    private void OpenJira(object? parameter)
+    {
+        if (parameter is not string key
+            || JiraSite.IssueUrl(_settings.Read().JiraBaseUrl, key) is not { } url)
+        {
+            return;
+        }
+
+        Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+    }
+}

@@ -1,0 +1,23 @@
+# Build output
+bin/
+obj/
+dist/
+
+# Visual Studio / Rider
+.vs/
+.idea/
+*.user
+*.suo
+
+# Test and coverage output
+TestResults/
+coverage*.xml
+coverage*.json
+
+# WiX intermediate output
+*.wixpdb
+*.wixobj
+
+# Design notes that reference internal work and must not be published
+docs/private/
+*-spec.md

@@ -1,0 +1,60 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+
+  <!--
+    ProductVersion carries only the date. Windows Installer ignores the fourth field entirely when
+    deciding whether one package supersedes another, and caps the first two at 255, so the build's
+    full 2026.08.26.17248 stamp cannot go here. AllowSameVersionUpgrades covers the rest: several
+    builds a day are normal, and each must replace the last rather than refuse to install.
+    The executable still carries the full stamp, which is what Explorer and the log report.
+  -->
+  <Package Name="Theseus"
+           Manufacturer="Nigel Basel"
+           Version="$(var.ProductVersion)"
+           UpgradeCode="71CE1AEF-4CEE-48B0-9BE8-906A7B7C60CA"
+           Scope="perMachine"
+           Compressed="yes">
+
+    <SummaryInformation Description="Theseus - Claude Code session orchestrator" />
+
+    <MajorUpgrade AllowSameVersionUpgrades="yes"
+                  DowngradeErrorMessage="A newer version of Theseus is already installed." />
+
+    <MediaTemplate EmbedCab="yes" />
+
+    <Icon Id="TheseusIcon" SourceFile="$(var.IconPath)" />
+    <Property Id="ARPPRODUCTICON" Value="TheseusIcon" />
+    <Property Id="ARPNOREPAIR" Value="1" />
+
+    <StandardDirectory Id="ProgramFiles6432Folder">
+      <Directory Id="INSTALLFOLDER" Name="Theseus" />
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ShortcutFolder" Name="Theseus" />
+    </StandardDirectory>
+
+    <Feature Id="Main" Title="Theseus" Level="1">
+      <ComponentGroupRef Id="ApplicationFiles" />
+      <ComponentGroupRef Id="ApplicationShortcuts" />
+    </Feature>
+
+    <ComponentGroup Id="ApplicationFiles" Directory="INSTALLFOLDER">
+      <Files Include="$(var.PublishDir)\**" />
+    </ComponentGroup>
+
+    <ComponentGroup Id="ApplicationShortcuts">
+      <Component Directory="ShortcutFolder" Guid="8A0B1C2D-3E4F-4A5B-8C9D-0E1F2A3B4C5D">
+        <Shortcut Id="StartMenuShortcut"
+                  Name="Theseus"
+                  Description="Claude Code session orchestrator"
+                  Target="[INSTALLFOLDER]Theseus.exe"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Icon="TheseusIcon" />
+        <RemoveFolder Id="RemoveShortcutFolder" Directory="ShortcutFolder" On="uninstall" />
+        <RegistryValue Root="HKCU" Key="Software\Nigel Basel\Theseus"
+                       Name="installed" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+  </Package>
+</Wix>

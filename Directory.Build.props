@@ -1,0 +1,46 @@
+<Project>
+
+  <!--
+    Version stamping, matching the scheme used across these products: the UTC date in the first
+    three fields and a unique integer in the fourth, so any two builds are ordered and a deployed
+    copy can be identified from Explorer alone.
+
+    The fourth field is seconds-since-midnight DIVIDED BY TWO. Every field of a Windows version
+    resource is a 16-bit integer, so it tops out at 65535, and there are 86400 seconds in a day: a
+    raw second count overflows for anything built after 18:12. Halving fits the whole day into
+    0..43199 at two-second resolution, which is the same convention MSBuild's own auto-revision uses.
+
+    Only Release builds are stamped. Recomputing the version on every Debug build changes the
+    generated assembly attributes every time, which defeats incremental compilation for no gain —
+    the version only has to be unique on the builds that leave the machine.
+  -->
+
+  <PropertyGroup>
+    <Company>Nigel Basel</Company>
+    <Product>Theseus</Product>
+    <Copyright>Nigel Basel</Copyright>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release' or '$(TheseusStampVersion)' == 'true'">
+    <_StampYear>$([System.DateTime]::UtcNow.ToString("yyyy"))</_StampYear>
+    <_StampMonth>$([System.DateTime]::UtcNow.ToString("MM"))</_StampMonth>
+    <_StampDay>$([System.DateTime]::UtcNow.ToString("dd"))</_StampDay>
+    <_StampHour>$([System.DateTime]::UtcNow.ToString("HH"))</_StampHour>
+    <_StampMinute>$([System.DateTime]::UtcNow.ToString("mm"))</_StampMinute>
+    <_StampSecond>$([System.DateTime]::UtcNow.ToString("ss"))</_StampSecond>
+
+    <_StampSecondsToday>$([MSBuild]::Add(
+      $([MSBuild]::Add(
+        $([MSBuild]::Multiply($(_StampHour), 3600)),
+        $([MSBuild]::Multiply($(_StampMinute), 60)))),
+      $(_StampSecond)))</_StampSecondsToday>
+
+    <_StampRevision>$([System.Convert]::ToInt32($([MSBuild]::Divide($(_StampSecondsToday), 2))))</_StampRevision>
+
+    <Version>$(_StampYear).$(_StampMonth).$(_StampDay).$(_StampRevision)</Version>
+    <FileVersion>$(Version)</FileVersion>
+    <AssemblyVersion>$(Version)</AssemblyVersion>
+    <InformationalVersion>$(Version)</InformationalVersion>
+  </PropertyGroup>
+
+</Project>

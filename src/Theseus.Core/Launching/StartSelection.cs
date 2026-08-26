@@ -1,0 +1,72 @@
+using Theseus.Core.Domain;
+using Theseus.Core.Sessions;
+
+namespace Theseus.Core.Launching;
+
+/// <summary>
+/// Decides which workstreams a Start action actually starts. Starting everything is the one gesture
+/// with real cost, so the rules are here, in one tested place, rather than spread across the board.
+/// </summary>
+public static class StartSelection
+{
+    /// <summary>
+    /// The workstreams a whole-board Start should launch: every lane except the last, which is
+    /// where finished work lives and must never be restarted by a single click.
+    /// </summary>
+    public static IReadOnlyList<Workstream> ForBoard(
+        IReadOnlyList<Workstream> workstreams,
+        IReadOnlyList<BoardColumn> columns,
+        SessionRegistrySnapshot live)
+    {
+        ArgumentNullException.ThrowIfNull(workstreams);
+        ArgumentNullException.ThrowIfNull(columns);
+
+        if (columns.Count == 0)
+        {
+            return [];
+        }
+
+        var startable = columns.Take(columns.Count - 1).ToHashSet();
+
+        return Eligible(workstreams.Where(workstream => startable.Contains(workstream.Column)), live);
+    }
+
+    /// <summary>The workstreams a single lane's Start should launch.</summary>
+    public static IReadOnlyList<Workstream> ForColumn(
+        IReadOnlyList<Workstream> workstreams,
+        BoardColumn column,
+        SessionRegistrySnapshot live)
+    {
+        ArgumentNullException.ThrowIfNull(workstreams);
+
+        return Eligible(workstreams.Where(workstream => workstream.Column == column), live);
+    }
+
+    /// <summary>Whether one workstream can be started right now.</summary>
+    public static bool IsEligible(Workstream workstream, SessionRegistrySnapshot live)
+    {
+        ArgumentNullException.ThrowIfNull(workstream);
+        ArgumentNullException.ThrowIfNull(live);
+
+        if (workstream.IsArchived || string.IsNullOrWhiteSpace(workstream.Prompt))
+        {
+            return false;
+        }
+
+        return string.IsNullOrWhiteSpace(workstream.LastSessionId)
+               || live.WithSessionId(workstream.LastSessionId).Count == 0;
+    }
+
+    private static IReadOnlyList<Workstream> Eligible(
+        IEnumerable<Workstream> workstreams,
+        SessionRegistrySnapshot live)
+    {
+        ArgumentNullException.ThrowIfNull(live);
+
+        return workstreams
+            .Where(workstream => IsEligible(workstream, live))
+            .OrderBy(workstream => workstream.Column)
+            .ThenBy(workstream => workstream.BoardOrder)
+            .ToList();
+    }
+}
