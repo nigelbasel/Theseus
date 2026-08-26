@@ -37,15 +37,41 @@ public static class HandoffPath
     {
         ArgumentNullException.ThrowIfNull(workstream);
 
-        return Roots(workstream)
+        var candidates = Roots(workstream)
             .SelectMany(SearchedDirectories)
             .SelectMany(CandidatesIn)
             .DistinctBy(file => file.FullName, StringComparer.OrdinalIgnoreCase)
-            .OrderByDescending(file => Mentions(file.Name, workstream.Key))
-            .ThenByDescending(file => file.LastWriteTimeUtc)
-            .Select(file => file.FullName)
-            .FirstOrDefault();
+            .ToList();
+
+        var named = candidates
+            .Where(file => Names(file.Name, workstream))
+            .OrderByDescending(file => file.LastWriteTimeUtc)
+            .ToList();
+
+        if (named.Count > 0)
+        {
+            return named[0].FullName;
+        }
+
+        return candidates.Count == 1 ? candidates[0].FullName : null;
     }
+
+    /// <summary>
+    /// Whether a file is this workstream's notes rather than notes that merely lie nearby.
+    ///
+    /// Workstreams routinely share a working directory, so it holds one of these per workstream, and
+    /// the most recently written of them belongs to whichever workstream is busiest rather than to
+    /// the one asking. Handing a session another workstream's handoff sets it to work on the wrong
+    /// thing, so where several notes could be meant, only one that names this workstream will do.
+    /// A single candidate is unambiguous and needs no name.
+    /// </summary>
+    private static bool Names(string fileName, Workstream workstream) =>
+        Mentions(fileName, workstream.Key) || Mentions(fileName, Slug(workstream.Title));
+
+    private static string Slug(string? title) =>
+        string.IsNullOrWhiteSpace(title)
+            ? string.Empty
+            : string.Concat(title.Select(character => char.IsLetterOrDigit(character) ? character : '-'));
 
     private static IEnumerable<string> Roots(Workstream workstream) =>
         new[] { RootOf(workstream) }.Concat(workstream.AddDirectories)
@@ -105,5 +131,5 @@ public static class HandoffPath
     }
 
     private static bool Mentions(string fileName, string key) =>
-        fileName.Contains(key, StringComparison.OrdinalIgnoreCase);
+        !string.IsNullOrWhiteSpace(key) && fileName.Contains(key, StringComparison.OrdinalIgnoreCase);
 }

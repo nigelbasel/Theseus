@@ -66,12 +66,39 @@ public class HandoffPathTests
     }
 
     [Test]
-    public void For_PrefersTheMostRecentlyWrittenOfSeveralUnnamedCandidates()
+    public void For_RefusesToGuessBetweenSeveralWorkstreamsNotesInASharedDirectory()
     {
-        Write("HANDOFF.md", DateTimeOffset.UtcNow.AddDays(-3));
-        var newest = Write("SESSION-STATUS.md", DateTimeOffset.UtcNow);
+        Write("SESSION-STATUS-2026-08-25-someone-elses-work.md", DateTimeOffset.UtcNow);
+        Write("SESSION-STATUS-2026-08-25-a-third-workstream.md", DateTimeOffset.UtcNow.AddDays(-1));
+
+        Assert.That(HandoffPath.For(Workstream()), Is.EqualTo(Path.Combine(_root, "HANDOFF-contact-forms.md")),
+            "the most recently written belongs to the busiest workstream, never to the one asking");
+    }
+
+    [Test]
+    public void For_TakesTheOnlyNotesThereAreEvenThoughTheyNameNobody()
+    {
+        var notes = Write("HANDOFF.md");
+
+        Assert.That(HandoffPath.For(Workstream()), Is.EqualTo(notes),
+            "one candidate is unambiguous; a workstream alone in its directory need not label its notes");
+    }
+
+    [Test]
+    public void For_TakesTheMostRecentOfSeveralThatDoNameIt()
+    {
+        Write("HANDOFF-contact-forms.md", DateTimeOffset.UtcNow.AddDays(-3));
+        var newest = Write("SESSION-STATUS-2026-08-25-contact-forms.md", DateTimeOffset.UtcNow);
 
         Assert.That(HandoffPath.For(Workstream()), Is.EqualTo(newest));
+    }
+
+    [Test]
+    public void For_AcceptsNotesNamedForTheWorkstreamsTitleRatherThanItsKey()
+    {
+        var notes = Write("SESSION-STATUS-Contact-form-validation.md");
+
+        Assert.That(HandoffPath.For(Workstream()), Is.EqualTo(notes));
     }
 
     [Test]
