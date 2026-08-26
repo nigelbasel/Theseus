@@ -147,6 +147,7 @@ public partial class App : Application
     /// </summary>
     private const string ClaudeCodeVersion = "2.1.246";
 
-    private static string LauncherPath =>
-        Path.Combine(AppContext.BaseDirectory, "Theseus.Launcher.exe");
+    private static string LauncherPath => LauncherKit.Prepare(
+        Path.Combine(AppContext.BaseDirectory, "Theseus.Launcher.exe"),
+        Path.Combine(DataDirectory, "launcher"));
 }
