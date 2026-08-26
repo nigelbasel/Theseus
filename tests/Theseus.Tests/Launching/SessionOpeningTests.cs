@@ -74,11 +74,27 @@ public class SessionOpeningTests
         Assert.That(SessionOpening.HasHistory(Workstream(null), handoffExists: false), Is.False);
     }
 
-    private static string For(bool hasHistory, string? preamble = null, string? continuePrompt = null) =>
-        SessionOpening.For(preamble, continuePrompt, Workstream("session-1"), hasHistory, Handoff);
+    private static string For(bool hasHistory, string? preamble = null, string? continuePrompt = null,
+        bool handoffExists = true) =>
+        SessionOpening.For(preamble, continuePrompt, Workstream("session-1"), hasHistory, Handoff, handoffExists);
 
     private static Workstream Workstream(string? sessionId) =>
         new("contact-forms", "Contact form validation", "#208DD7", ColorIsManual: true,
             @"C:\work\repo", [], Original, 1, BoardColumn.Today, IsBlocked: false,
             ReopenTomorrow: true, IsArchived: false, sessionId, [], null, DateTimeOffset.UtcNow);
+    [Test]
+    public void For_SaysSoWhenTheHandoffItNamesIsNotThere()
+    {
+        var opening = For(hasHistory: true, handoffExists: false);
+
+        Assert.That(opening, Does.Contain(Handoff));
+        Assert.That(opening, Does.Contain("does not exist"));
+        Assert.That(opening, Does.Contain("recent commits"));
+    }
+
+    [Test]
+    public void For_DoesNotSecondGuessAHandoffThatIsThere()
+    {
+        Assert.That(For(hasHistory: true), Does.Not.Contain("does not exist"));
+    }
 }

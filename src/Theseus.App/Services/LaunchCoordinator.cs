@@ -105,7 +105,8 @@ public sealed class LaunchCoordinator : IAsyncDisposable
             settings.ContinuePrompt,
             workstream,
             SessionOpening.HasHistory(workstream, File.Exists(handoff)),
-            handoff);
+            handoff,
+            File.Exists(handoff));
 
 
         var request = new WorkstreamLaunchRequest(workstream, Guid.NewGuid().ToString("N"), sessionId,

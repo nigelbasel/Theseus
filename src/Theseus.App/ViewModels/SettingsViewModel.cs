@@ -22,6 +22,7 @@ public sealed class SettingsViewModel : ObservableObject
     private string _jiraBaseUrl = string.Empty;
     private string _sessionPreamble = string.Empty;
     private string _continuePrompt = string.Empty;
+    private string _stopPrompt = string.Empty;
     private bool _isOpen;
 
     /// <summary>Creates the panel over the settings file.</summary>
@@ -179,6 +180,13 @@ public sealed class SettingsViewModel : ObservableObject
         ? "using the built-in continuation"
         : "custom continuation";
 
+    /// <summary>What a session is told when it is asked to stop.</summary>
+    public string StopPrompt
+    {
+        get => _stopPrompt;
+        set => Set(ref _stopPrompt, value);
+    }
+
     private void Open()
     {
         Load(_store.Read());
@@ -194,6 +202,7 @@ public sealed class SettingsViewModel : ObservableObject
         JiraBaseUrl = settings.JiraBaseUrl;
         SessionPreamble = settings.SessionPreamble;
         ContinuePrompt = settings.ContinuePrompt;
+        StopPrompt = settings.StopPrompt;
     }
 
     private void Save()
@@ -207,6 +216,7 @@ public sealed class SettingsViewModel : ObservableObject
             JiraBaseUrl = JiraBaseUrl,
             SessionPreamble = SessionPreamble,
             ContinuePrompt = ContinuePrompt,
+            StopPrompt = StopPrompt,
         });
 
         IsOpen = false;

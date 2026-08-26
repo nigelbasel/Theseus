@@ -32,7 +32,8 @@ public class SettingsStoreTests
     {
         var settings = new TheseusSettings(@"C:\work\plans", "my-window", @"C:\wt.exe",
             @"C:\claude.exe", "https://example.atlassian.net", "Read the notes first.",
-            "Carry on from the handoff.", SessionsPanelCollapsed: true, Theme: AppTheme.Dark);
+            "Carry on from the handoff.", "Write a handoff and stop.",
+            SessionsPanelCollapsed: true, Theme: AppTheme.Dark);
 
         _store.Write(settings);
 

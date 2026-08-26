@@ -5,6 +5,7 @@ using Theseus.Core.Domain;
 using Theseus.Core.Colour;
 using Theseus.Core.Launching;
 using Theseus.Core.Settings;
+using Theseus.Core.Stopping;
 
 namespace Theseus.App.ViewModels;
 
@@ -16,6 +17,7 @@ public sealed class ShellViewModel : ObservableObject
     private readonly IPlanStore _plans;
     private readonly ITabColourAllocator _colours;
     private readonly PullRequestResolver _pullRequests;
+    private readonly SessionStopper _stopper;
     private AppTheme _theme;
     private string _notice = string.Empty;
     private bool _isSessionsPanelOpen;
@@ -37,6 +39,7 @@ public sealed class ShellViewModel : ObservableObject
         _plans = plans;
         _colours = colours;
         _pullRequests = new PullRequestResolver(new GitRemoteReader());
+        _stopper = new SessionStopper(new ClaudeLocator(settings.Read().ClaudeExecutablePath));
         _theme = settings.Read().Theme;
         _isSessionsPanelOpen = !settings.Read().SessionsPanelCollapsed;
 
@@ -50,6 +53,9 @@ public sealed class ShellViewModel : ObservableObject
         StartBoardCommand = new RelayCommand(_ => StartMany(BoardSelection()), _ => BoardSelection().Count > 0);
         SelectCardCommand = new RelayCommand(ShowCard);
         ToggleSessionsPanelCommand = new RelayCommand(_ => IsSessionsPanelOpen = !IsSessionsPanelOpen);
+        StopCardCommand = new RelayCommand(parameter => _ = StopAsync(CardTargets(parameter)),
+            parameter => CardTargets(parameter).Count > 0);
+        StopBoardCommand = new RelayCommand(_ => _ = StopAsync(BoardTargets()), _ => BoardTargets().Count > 0);
 
         Drawer = new DetailDrawerViewModel(plans, runs, card =>
         {
@@ -128,6 +134,12 @@ public sealed class ShellViewModel : ObservableObject
     /// <summary>The composer for a workstream that does not exist yet.</summary>
     public NewWorkstreamViewModel NewWorkstream { get; }
 
+    /// <summary>Asks one workstream session to write a handoff and exit.</summary>
+    public RelayCommand StopCardCommand { get; }
+
+    /// <summary>Asks every running workstream session to write a handoff and exit.</summary>
+    public RelayCommand StopBoardCommand { get; }
+
     /// <summary>Folds the live sessions panel away, or brings it back.</summary>
     public RelayCommand ToggleSessionsPanelCommand { get; }
 
@@ -181,6 +193,51 @@ public sealed class ShellViewModel : ObservableObject
         SyncLifecycles();
         SyncPullRequests();
         WireAdoption();
+    }
+
+    private IReadOnlyDictionary<string, string> SessionNames() =>
+        Sessions.Sessions
+            .GroupBy(session => session.SessionId, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First().Name, StringComparer.OrdinalIgnoreCase);
+
+    private IReadOnlyList<StopTarget> CardTargets(object? parameter) =>
+        parameter is WorkstreamCardViewModel card
+            ? StopSelection.ForWorkstream(card.Workstream, Sessions.Snapshot, SessionNames())
+            : [];
+
+    private IReadOnlyList<StopTarget> BoardTargets() =>
+        StopSelection.ForBoard(Workstreams(), Sessions.Snapshot, SessionNames());
+
+    /// <summary>
+    /// Asks the named sessions to write a handoff and exit. Nothing is killed: a session that will
+    /// not stop is reported as still running, because the point of stopping is the handoff it
+    /// writes on the way out and a killed process writes nothing.
+    /// </summary>
+    private async Task StopAsync(IReadOnlyList<StopTarget> targets)
+    {
+        if (targets.Count == 0)
+        {
+            return;
+        }
+
+        Notice = targets.Count == 1
+            ? $"Asking {targets[0].SessionName} to write a handoff and exit..."
+            : $"Asking {targets.Count} sessions to write a handoff and exit...";
+
+        var asked = await _stopper.RequestAsync(_settings.Read().StopPrompt, targets, CancellationToken.None);
+
+        if (asked is null)
+        {
+            Notice = "The stop request could not be sent. The log has the reason.";
+
+            return;
+        }
+
+        Notice = asked == 1
+            ? $"Asked {targets[0].SessionName} to stop. It will exit once it has written its handoff."
+            : $"Asked {asked} sessions to stop. They will exit once they have written their handoffs.";
+
+        Refresh();
     }
 
     /// <summary>Finds the pull requests each workstream mentions and where they live.</summary>

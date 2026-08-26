@@ -116,8 +116,14 @@
                                        Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
                                 <Button Content="Start" FontSize="11" Padding="8,1" Margin="0,0,4,0"
+                                        Visibility="{Binding IsLive, Converter={StaticResource NotBoolToVisibility}}"
                                         ToolTip="Open a tab for this workstream"
                                         Command="{Binding DataContext.StartCardCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                        CommandParameter="{Binding}" />
+                                <Button Content="Stop" FontSize="11" Padding="8,1" Margin="0,0,4,0"
+                                        Visibility="{Binding IsLive, Converter={StaticResource BoolToVisibility}}"
+                                        ToolTip="Ask this session to write a handoff and exit"
+                                        Command="{Binding DataContext.StopCardCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                         CommandParameter="{Binding}" />
                                 <Button Content="Focus" FontSize="11" Padding="8,1" Margin="0,0,6,0"
                                         ToolTip="Bring this session's tab to the front"
@@ -265,9 +271,12 @@
                 <Button Content="New workstream" Padding="14,4" Margin="0,0,8,0"
                         ToolTip="Create a workstream and open a session for it"
                         Command="{Binding NewWorkstream.OpenCommand}" />
-                <Button Content="Start all" Padding="14,4" Margin="0,0,16,0"
+                <Button Content="Start all" Padding="14,4" Margin="0,0,8,0"
                         ToolTip="Start every lane except the last"
                         Command="{Binding StartBoardCommand}" />
+                <Button Content="Stop all" Padding="14,4" Margin="0,0,16,0"
+                        ToolTip="Ask every running session to write a handoff and exit"
+                        Command="{Binding StopBoardCommand}" />
                 <TextBlock Text="Theme" VerticalAlignment="Center" FontSize="12" Margin="0,0,8,0"
                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                 <ComboBox ItemsSource="{Binding Source={StaticResource ThemeValues}}"
@@ -621,6 +630,14 @@
                         <TextBlock Style="{StaticResource FieldHint}"
                                    Text="Replaces the workstream's own prompt once it has run before. Use {handoff} for its notes." />
                         <TextBlock Text="{Binding Settings.ContinuePromptState}" Style="{StaticResource FieldHint}" />
+
+                        <TextBlock Text="Stopping a session" Style="{StaticResource FieldLabel}" />
+                        <TextBox Text="{Binding Settings.StopPrompt, UpdateSourceTrigger=PropertyChanged}"
+                                 AcceptsReturn="True" TextWrapping="Wrap" MinHeight="90"
+                                 VerticalScrollBarVisibility="Auto"
+                                 FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12" />
+                        <TextBlock Style="{StaticResource FieldHint}"
+                                   Text="Sent to a session when you press Stop. Use {handoff} for the file it should write." />
 
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
                             <Button Content="Cancel" Padding="18,5" Margin="0,0,8,0"

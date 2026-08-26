@@ -54,6 +54,7 @@ public sealed class SettingsStore : ISettingsStore
         JiraBaseUrl = settings.JiraBaseUrl ?? string.Empty,
         SessionPreamble = settings.SessionPreamble ?? string.Empty,
         ContinuePrompt = settings.ContinuePrompt ?? string.Empty,
+        StopPrompt = settings.StopPrompt ?? string.Empty,
     };
 
     private static string Fallback(string? value, string fallback) =>

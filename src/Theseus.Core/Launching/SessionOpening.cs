@@ -32,13 +32,23 @@ public static class SessionOpening
         return handoffExists || !string.IsNullOrWhiteSpace(workstream.LastSessionId);
     }
 
+    /// <summary>Said when the handoff a continuation points at is not on disk.</summary>
+    public const string MissingHandoffNote =
+        "That file does not exist, so no handover notes were left. Work out where things stand from "
+        + "the working directory and the recent commits before changing anything.";
+
     /// <summary>The prompt a session should open with.</summary>
+    /// <param name="handoffExists">
+    /// Whether the handoff is actually on disk. A continuation that names a file which is not there
+    /// sends the session looking for something that was never written, so it is told so plainly.
+    /// </param>
     public static string For(
         string? preamble,
         string? continuePrompt,
         Workstream workstream,
         bool hasHistory,
-        string handoffPath)
+        string handoffPath,
+        bool handoffExists)
     {
         ArgumentNullException.ThrowIfNull(workstream);
 
@@ -51,8 +61,13 @@ public static class SessionOpening
             ? DefaultContinuePrompt
             : continuePrompt.Trim();
 
-        return SessionPrompt.Compose(
-            preamble,
-            body.Replace(HandoffPlaceholder, handoffPath, StringComparison.Ordinal));
+        var continuation = body.Replace(HandoffPlaceholder, handoffPath, StringComparison.Ordinal);
+
+        if (!handoffExists)
+        {
+            continuation = $"{continuation}{Environment.NewLine}{Environment.NewLine}{MissingHandoffNote}";
+        }
+
+        return SessionPrompt.Compose(preamble, continuation);
     }
 }

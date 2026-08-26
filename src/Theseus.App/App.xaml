@@ -8,6 +8,7 @@
             <converters:RelativeTimeConverter x:Key="RelativeTime" />
             <converters:LifecycleGlyphConverter x:Key="LifecycleGlyph" />
             <converters:BoolToVisibilityConverter x:Key="BoolToVisibility" />
+            <converters:NotBoolToVisibilityConverter x:Key="NotBoolToVisibility" />
             <converters:NotEmptyToVisibilityConverter x:Key="NotEmptyToVisibility" />
             <converters:ZeroToVisibilityConverter x:Key="ZeroToVisibility" />
         </ResourceDictionary>

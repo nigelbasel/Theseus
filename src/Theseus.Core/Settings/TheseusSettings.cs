@@ -18,6 +18,9 @@ namespace Theseus.Core.Settings;
 /// Standing instructions put in front of every workstream's own opening prompt. Composed at launch,
 /// so changing it changes every future session without rewriting any plan file.
 /// </param>
+/// <param name="StopPrompt">
+/// What a session is told when it is asked to stop. Use {handoff} for the file it should write.
+/// </param>
 /// <param name="ContinuePrompt">
 /// What a workstream that has run before is told when it opens again, instead of its original
 /// prompt. Use {handoff} for the path to its handover notes.
@@ -35,6 +38,7 @@ public sealed record TheseusSettings(
     string JiraBaseUrl,
     string SessionPreamble,
     string ContinuePrompt,
+    string StopPrompt,
     bool SessionsPanelCollapsed,
     AppTheme Theme)
 {
@@ -47,6 +51,7 @@ public sealed record TheseusSettings(
     public static TheseusSettings Default { get; } = new(
         DefaultPlanDirectory,
         "theseus",
+        string.Empty,
         string.Empty,
         string.Empty,
         string.Empty,
