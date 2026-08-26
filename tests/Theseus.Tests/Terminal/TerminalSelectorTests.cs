@@ -78,4 +78,24 @@ public class TerminalSelectorTests
         Assert.That(resolution.ExecutablePath, Is.EqualTo(Stable));
         Assert.That(resolution.DistinctRunningPackages, Is.EqualTo(1));
     }
+
+    [Test]
+    public void Choose_PrefersTheStablePackageWhenOneOfEachIsRunning()
+    {
+        Assert.That(TerminalSelector.Choose([Preview, Stable], null).ExecutablePath, Is.EqualTo(Stable),
+            "preview installs alongside the stable one; a tie decided alphabetically hands it to preview");
+    }
+
+    [Test]
+    public void Choose_StillFollowsPreviewWhenThatIsWhereTheUserIsWorking()
+    {
+        Assert.That(TerminalSelector.Choose([Preview], null).ExecutablePath, Is.EqualTo(Preview));
+    }
+
+    [Test]
+    public void Choose_LetsWeightOfNumbersBeatThePreferenceForStable()
+    {
+        Assert.That(TerminalSelector.Choose([Preview, Preview, Stable], null).ExecutablePath,
+            Is.EqualTo(Preview), "three windows open in preview is where the work is, whatever the default");
+    }
 }

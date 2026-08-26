@@ -20,6 +20,7 @@ public static class TerminalSelector
             .GroupBy(path => path, StringComparer.OrdinalIgnoreCase)
             .Select(group => new { Path = group.Key, Count = group.Count() })
             .OrderByDescending(group => group.Count)
+            .ThenBy(group => IsPreview(group.Path))
             .ThenBy(group => group.Path, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
@@ -35,4 +36,14 @@ public static class TerminalSelector
 
         return new TerminalResolution(string.Empty, TerminalSource.None, 0);
     }
+
+    /// <summary>
+    /// Whether a path is the preview package. It loses a tie: preview installs alongside the stable
+    /// one rather than replacing it, so a machine running both is a machine whose owner works in the
+    /// stable one and has preview open besides. Deciding this alphabetically, as it once was, hands
+    /// it to preview - "TerminalPreview" sorts before "Terminal_" - which is a coin toss dressed up
+    /// as a rule.
+    /// </summary>
+    private static bool IsPreview(string path) =>
+        path.Contains("WindowsTerminalPreview", StringComparison.OrdinalIgnoreCase);
 }

@@ -39,20 +39,13 @@ public sealed class TerminalResolver : ITerminalResolver
         {
             using (process)
             {
-                try
+                if (ProcessImagePath.For(process.Id) is { } fileName)
                 {
-                    if (process.MainModule?.FileName is { } fileName)
-                    {
-                        paths.Add(fileName);
-                    }
+                    paths.Add(fileName);
                 }
-                catch (InvalidOperationException)
+                else
                 {
-                    TheseusLog.Debug("A terminal process exited while it was being inspected");
-                }
-                catch (System.ComponentModel.Win32Exception exception)
-                {
-                    TheseusLog.Debug("Could not read a terminal process image path: {Reason}", exception.Message);
+                    TheseusLog.Debug("Could not read the image path of terminal process {Pid}", process.Id);
                 }
             }
         }
