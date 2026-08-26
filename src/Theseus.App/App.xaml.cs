@@ -64,7 +64,7 @@ public partial class App : Application
             new SystemClock(),
             ShimProtocol.DefaultPipeName,
             LauncherPath,
-            current.TerminalWindowName,
+            settings,
             sink.Expect);
 
         var shell = new ShellViewModel(board, sessions, settings, _launcher, plans, runs, new TabColourAllocator());

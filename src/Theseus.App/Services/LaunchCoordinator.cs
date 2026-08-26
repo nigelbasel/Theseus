@@ -4,6 +4,7 @@ using Theseus.Core.Abstractions;
 using Theseus.Core.Domain;
 using Theseus.Core.Launching;
 using Theseus.Core.Messaging;
+using Theseus.Core.Settings;
 using Theseus.Core.Terminal;
 
 namespace Theseus.App.Services;
@@ -22,7 +23,7 @@ public sealed class LaunchCoordinator : IAsyncDisposable
     private readonly IRunLog _runs;
     private readonly string _pipeName;
     private readonly string _launcherPath;
-    private readonly string _windowName;
+    private readonly ISettingsStore _settings;
     private readonly Action<string, string>? _ticketIssued;
 
     /// <summary>Creates the coordinator and starts listening for shims.</summary>
@@ -35,7 +36,7 @@ public sealed class LaunchCoordinator : IAsyncDisposable
         ISystemClock clock,
         string pipeName,
         string launcherPath,
-        string windowName,
+        ISettingsStore settings,
         Action<string, string>? ticketIssued = null)
     {
         _sink = sink;
@@ -45,7 +46,7 @@ public sealed class LaunchCoordinator : IAsyncDisposable
         _runs = runs;
         _pipeName = pipeName;
         _launcherPath = launcherPath;
-        _windowName = windowName;
+        _settings = settings;
         _ticketIssued = ticketIssued;
 
         _pipe = new LaunchPipeServer(pipeName, sink, clock);
@@ -96,8 +97,11 @@ public sealed class LaunchCoordinator : IAsyncDisposable
         var mode = resume ? LaunchMode.Resume : LaunchMode.FirstRun;
         var sessionId = resume ? workstream.LastSessionId! : _sessionIds.Create();
 
+        var settings = _settings.Read();
+
         var request = new WorkstreamLaunchRequest(workstream, Guid.NewGuid().ToString("N"), sessionId,
-            mode, claudePath, terminal.ExecutablePath, _launcherPath, _pipeName, _windowName);
+            mode, claudePath, terminal.ExecutablePath, _launcherPath, _pipeName,
+            settings.TerminalWindowName, settings.SessionPreamble);
 
         var plan = WorkstreamLaunchPlanner.Plan(request, DateTimeOffset.UtcNow.AddMinutes(2));
 

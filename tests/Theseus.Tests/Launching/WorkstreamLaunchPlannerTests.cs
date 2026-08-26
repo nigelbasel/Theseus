@@ -83,7 +83,8 @@ public class WorkstreamLaunchPlannerTests
     private static WorkstreamLaunchPlan Plan(
         string title = "Contact form validation",
         string prompt = "Carry on.",
-        LaunchMode mode = LaunchMode.FirstRun)
+        LaunchMode mode = LaunchMode.FirstRun,
+        string preamble = "")
     {
         var workstream = new Workstream("contact-forms", title, "#C0392B", ColorIsManual: true,
             @"C:\work\repo", [@"C:\work\repo\features\contact-forms"], prompt, 1, BoardColumn.Today,
@@ -94,8 +95,22 @@ public class WorkstreamLaunchPlannerTests
             @"C:\Users\dev\.local\bin\claude.exe",
             @"C:\Program Files\WindowsApps\WindowsTerminal.exe",
             @"C:\dev\git\Theseus\Theseus.Launcher.exe",
-            "Theseus.Launch", "theseus");
+            "Theseus.Launch", "theseus", preamble);
 
         return WorkstreamLaunchPlanner.Plan(request, Expiry);
+    }
+    [Test]
+    public void Plan_PutsTheStandingPreambleInFrontOfTheWorkstreamOwnPrompt()
+    {
+        var plan = Plan(prompt: "Carry on.", preamble: "Read the handover notes first.");
+
+        Assert.That(plan.Ticket.Spec.Prompt,
+            Is.EqualTo($"Read the handover notes first.{Environment.NewLine}{Environment.NewLine}Carry on."));
+    }
+
+    [Test]
+    public void Plan_LeavesThePromptAloneWhenNoPreambleIsConfigured()
+    {
+        Assert.That(Plan(prompt: "Carry on.").Ticket.Spec.Prompt, Is.EqualTo("Carry on."));
     }
 }

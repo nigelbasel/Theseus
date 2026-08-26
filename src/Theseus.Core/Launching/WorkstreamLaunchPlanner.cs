@@ -19,7 +19,7 @@ public static class WorkstreamLaunchPlanner
             request.ClaudeExecutablePath,
             workstream.WorkingDirectory,
             workstream.Title,
-            workstream.Prompt,
+            SessionPrompt.Compose(request.Preamble, workstream.Prompt),
             workstream.AddDirectories);
 
         var tab = new TerminalTabRequest(

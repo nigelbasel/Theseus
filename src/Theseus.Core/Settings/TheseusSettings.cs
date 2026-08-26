@@ -14,6 +14,10 @@ namespace Theseus.Core.Settings;
 /// The Jira instance issue keys link to, for example <c>https://example.atlassian.net</c>. Empty
 /// means keys are still shown on cards but are not links.
 /// </param>
+/// <param name="SessionPreamble">
+/// Standing instructions put in front of every workstream's own opening prompt. Composed at launch,
+/// so changing it changes every future session without rewriting any plan file.
+/// </param>
 /// <param name="Theme">Which theme to paint in.</param>
 public sealed record TheseusSettings(
     string PlanDirectory,
@@ -21,6 +25,7 @@ public sealed record TheseusSettings(
     string TerminalExecutablePath,
     string ClaudeExecutablePath,
     string JiraBaseUrl,
+    string SessionPreamble,
     AppTheme Theme)
 {
     /// <summary>Where workstreams are kept until the user points Theseus somewhere of their own.</summary>
@@ -32,6 +37,7 @@ public sealed record TheseusSettings(
     public static TheseusSettings Default { get; } = new(
         DefaultPlanDirectory,
         "theseus",
+        string.Empty,
         string.Empty,
         string.Empty,
         string.Empty,

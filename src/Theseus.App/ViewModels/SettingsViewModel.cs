@@ -20,6 +20,7 @@ public sealed class SettingsViewModel : ObservableObject
     private string _terminalExecutablePath = string.Empty;
     private string _claudeExecutablePath = string.Empty;
     private string _jiraBaseUrl = string.Empty;
+    private string _sessionPreamble = string.Empty;
     private bool _isOpen;
 
     /// <summary>Creates the panel over the settings file.</summary>
@@ -141,6 +142,24 @@ public sealed class SettingsViewModel : ObservableObject
     public string JiraState =>
         JiraSite.IssueUrl(_jiraBaseUrl, "ABC-123") ?? "keys will not be links";
 
+    /// <summary>Standing instructions put in front of every workstream own opening prompt.</summary>
+    public string SessionPreamble
+    {
+        get => _sessionPreamble;
+        set
+        {
+            if (Set(ref _sessionPreamble, value))
+            {
+                Raise(nameof(SessionPreambleState));
+            }
+        }
+    }
+
+    /// <summary>Whether the preamble is in force, and how long it is.</summary>
+    public string SessionPreambleState => string.IsNullOrWhiteSpace(_sessionPreamble)
+        ? "sessions open with the workstream prompt alone"
+        : $"{_sessionPreamble.Trim().Length} characters, ahead of every workstream prompt";
+
     private void Open()
     {
         Load(_store.Read());
@@ -154,6 +173,7 @@ public sealed class SettingsViewModel : ObservableObject
         TerminalExecutablePath = settings.TerminalExecutablePath;
         ClaudeExecutablePath = settings.ClaudeExecutablePath;
         JiraBaseUrl = settings.JiraBaseUrl;
+        SessionPreamble = settings.SessionPreamble;
     }
 
     private void Save()
@@ -165,6 +185,7 @@ public sealed class SettingsViewModel : ObservableObject
             TerminalExecutablePath = TerminalExecutablePath,
             ClaudeExecutablePath = ClaudeExecutablePath,
             JiraBaseUrl = JiraBaseUrl,
+            SessionPreamble = SessionPreamble,
         });
 
         IsOpen = false;

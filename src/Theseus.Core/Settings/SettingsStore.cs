@@ -52,6 +52,7 @@ public sealed class SettingsStore : ISettingsStore
         TerminalExecutablePath = settings.TerminalExecutablePath ?? string.Empty,
         ClaudeExecutablePath = settings.ClaudeExecutablePath ?? string.Empty,
         JiraBaseUrl = settings.JiraBaseUrl ?? string.Empty,
+        SessionPreamble = settings.SessionPreamble ?? string.Empty,
     };
 
     private static string Fallback(string? value, string fallback) =>
