@@ -87,7 +87,7 @@ public class WorkstreamLaunchPlannerTests
         string opening = "Carry on.")
     {
         var workstream = new Workstream("contact-forms", title, "#C0392B", ColorIsManual: true,
-            @"C:\work\repo", [@"C:\work\repo\features\contact-forms"], prompt, 1, BoardColumn.Today,
+            @"C:\work\repo", [@"C:\work\repo\features\contact-forms"], prompt, 1, "Today",
             IsBlocked: false, ReopenTomorrow: true, IsArchived: false, LastSessionId: null,
             [], null, DateTimeOffset.UtcNow);
 

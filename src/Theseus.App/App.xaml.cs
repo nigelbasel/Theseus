@@ -53,7 +53,7 @@ public partial class App : Application
         Directory.CreateDirectory(current.PlanDirectory);
 
         var plans = new PlanStore(current.PlanDirectory);
-        var board = new BoardViewModel(plans, new BoardStore(Path.Combine(DataDirectory, "board.json")));
+        var board = new BoardViewModel(plans, new BoardStore(Path.Combine(DataDirectory, "board.json")), settings);
         var sessions = new SessionsViewModel(
             new SessionRegistryReader(SessionRegistryReader.DefaultDirectory, new ProcessProbe()),
             new ConsoleTitleReader());

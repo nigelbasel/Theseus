@@ -23,6 +23,7 @@ public sealed class SettingsViewModel : ObservableObject
     private string _sessionPreamble = string.Empty;
     private string _continuePrompt = string.Empty;
     private string _stopPrompt = string.Empty;
+    private string _laneList = string.Empty;
     private bool _isOpen;
 
     /// <summary>Creates the panel over the settings file.</summary>
@@ -187,6 +188,37 @@ public sealed class SettingsViewModel : ObservableObject
         set => Set(ref _stopPrompt, value);
     }
 
+    /// <summary>The board's lanes, one per line, in the order they are shown.</summary>
+    public string LaneList
+    {
+        get => _laneList;
+        set
+        {
+            if (Set(ref _laneList, value))
+            {
+                Raise(nameof(LaneListState));
+            }
+        }
+    }
+
+    /// <summary>
+    /// What the typed lanes come to, and which of them a whole-board Start will leave alone. The
+    /// last lane is protected, so which lane that is has to be visible while the list is being edited.
+    /// </summary>
+    public string LaneListState
+    {
+        get
+        {
+            var lanes = Lanes;
+
+            return $"{lanes.Count} lanes. \"{lanes[^1]}\" is last, so Start all leaves it alone. "
+                   + "Cards in a lane you remove move to the first lane.";
+        }
+    }
+
+    private IReadOnlyList<string> Lanes =>
+        BoardLanes.Sanitise(_laneList.Split('\n', StringSplitOptions.RemoveEmptyEntries));
+
     private void Open()
     {
         Load(_store.Read());
@@ -203,6 +235,7 @@ public sealed class SettingsViewModel : ObservableObject
         SessionPreamble = settings.SessionPreamble;
         ContinuePrompt = settings.ContinuePrompt;
         StopPrompt = settings.StopPrompt;
+        LaneList = string.Join(Environment.NewLine, settings.Lanes);
     }
 
     private void Save()
@@ -217,6 +250,7 @@ public sealed class SettingsViewModel : ObservableObject
             SessionPreamble = SessionPreamble,
             ContinuePrompt = ContinuePrompt,
             StopPrompt = StopPrompt,
+            Lanes = Lanes,
         });
 
         IsOpen = false;

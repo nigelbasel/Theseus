@@ -11,7 +11,7 @@ namespace Theseus.Core.Domain;
 /// <param name="AddDirectories">Extra directories added to each session's scope.</param>
 /// <param name="Prompt">The opening prompt written by the last session that ran.</param>
 /// <param name="BoardOrder">Position within its column.</param>
-/// <param name="Column">Which column the card sits in.</param>
+/// <param name="Column">The lane the card sits in, by name.</param>
 /// <param name="IsBlocked">A modifier on in-flight work, deliberately not a column of its own.</param>
 /// <param name="ReopenTomorrow">Whether the morning ritual should start this workstream.</param>
 /// <param name="IsArchived">Whether the workstream is retired and its colour returned to the pool.</param>
@@ -28,7 +28,7 @@ public sealed record Workstream(
     IReadOnlyList<string> AddDirectories,
     string Prompt,
     int BoardOrder,
-    BoardColumn Column,
+    string Column,
     bool IsBlocked,
     bool ReopenTomorrow,
     bool IsArchived,

@@ -55,7 +55,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     public bool IsBlocked => _workstream.IsBlocked;
 
     /// <summary>Which column the card belongs to.</summary>
-    public BoardColumn Column => _workstream.Column;
+    public string Column => _workstream.Column;
 
     /// <summary>What the session is doing right now.</summary>
     public SessionLifecycle Lifecycle

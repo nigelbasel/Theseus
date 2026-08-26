@@ -33,11 +33,15 @@ public class SettingsStoreTests
         var settings = new TheseusSettings(@"C:\work\plans", "my-window", @"C:\wt.exe",
             @"C:\claude.exe", "https://example.atlassian.net", "Read the notes first.",
             "Carry on from the handoff.", "Write a handoff and stop.",
-            SessionsPanelCollapsed: true, Theme: AppTheme.Dark);
+            SessionsPanelCollapsed: true, Lanes: ["Now", "Later"], Theme: AppTheme.Dark);
 
         _store.Write(settings);
 
-        Assert.That(_store.Read(), Is.EqualTo(settings));
+        var read = _store.Read();
+
+        Assert.That(read.Lanes, Is.EqualTo(settings.Lanes));
+        Assert.That(read with { Lanes = settings.Lanes }, Is.EqualTo(settings),
+            "a record holding a list compares it by reference, so the lanes are checked separately");
     }
 
     [Test]

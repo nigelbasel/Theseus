@@ -1,0 +1,99 @@
+﻿<Window x:Class="Theseus.App.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Theseus settings"
+        Width="620"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        ResizeMode="CanResize"
+        Background="{DynamicResource SolidBackgroundFillColorSecondaryBrush}">
+    <Window.Resources>
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Margin" Value="0,14,0,4" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+        </Style>
+
+        <Style x:Key="FieldHint" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Margin" Value="0,4,0,0" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorTertiaryBrush}" />
+        </Style>
+    </Window.Resources>
+
+    <DockPanel>
+        <!--
+            The footer sits outside the scroll region deliberately. Save and Cancel were unreachable
+            when the settings were taller than the window, and a dialog whose confirm button can be
+            pushed off the bottom is a dialog that cannot be used at all.
+        -->
+        <Border DockPanel.Dock="Bottom" Padding="22,14"
+                Background="{DynamicResource LayerFillColorDefaultBrush}"
+                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                BorderThickness="0,1,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="Cancel" Padding="18,5" Margin="0,0,8,0" IsCancel="True"
+                        Command="{Binding CloseCommand}" />
+                <Button Content="Save" Padding="18,5" IsDefault="True"
+                        Command="{Binding SaveCommand}" />
+            </StackPanel>
+        </Border>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="22,18">
+            <StackPanel>
+                <TextBlock Text="Plan directory" Style="{StaticResource FieldLabel}" Margin="0,0,0,4" />
+                <TextBox Text="{Binding PlanDirectory, UpdateSourceTrigger=PropertyChanged}" />
+                <TextBlock Text="{Binding PlanDirectoryState}" Style="{StaticResource FieldHint}" />
+
+                <TextBlock Text="Board lanes" Style="{StaticResource FieldLabel}" />
+                <TextBox Text="{Binding LaneList, UpdateSourceTrigger=PropertyChanged}"
+                         AcceptsReturn="True" MinHeight="96" VerticalScrollBarVisibility="Auto"
+                         FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12" />
+                <TextBlock Text="{Binding LaneListState}" Style="{StaticResource FieldHint}" />
+
+                <TextBlock Text="Terminal window name" Style="{StaticResource FieldLabel}" />
+                <TextBox Text="{Binding TerminalWindowName, UpdateSourceTrigger=PropertyChanged}" />
+                <TextBlock Style="{StaticResource FieldHint}"
+                           Text="Every tab Theseus opens joins this named window." />
+
+                <TextBlock Text="Windows Terminal" Style="{StaticResource FieldLabel}" />
+                <TextBox Text="{Binding TerminalExecutablePath, UpdateSourceTrigger=PropertyChanged}" />
+                <TextBlock Text="{Binding TerminalState}" Style="{StaticResource FieldHint}" />
+
+                <TextBlock Text="Claude Code" Style="{StaticResource FieldLabel}" />
+                <TextBox Text="{Binding ClaudeExecutablePath, UpdateSourceTrigger=PropertyChanged}" />
+                <TextBlock Text="{Binding ClaudeState}" Style="{StaticResource FieldHint}" />
+
+                <TextBlock Text="Jira" Style="{StaticResource FieldLabel}" />
+                <TextBox Text="{Binding JiraBaseUrl, UpdateSourceTrigger=PropertyChanged}" />
+                <TextBlock Text="{Binding JiraState}" Style="{StaticResource FieldHint}" />
+
+                <TextBlock Text="Standing prompt" Style="{StaticResource FieldLabel}" />
+                <TextBox Text="{Binding SessionPreamble, UpdateSourceTrigger=PropertyChanged}"
+                         AcceptsReturn="True" TextWrapping="Wrap" MinHeight="90"
+                         VerticalScrollBarVisibility="Auto"
+                         FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12" />
+                <TextBlock Text="{Binding SessionPreambleState}" Style="{StaticResource FieldHint}" />
+
+                <TextBlock Text="Continuing a workstream" Style="{StaticResource FieldLabel}" />
+                <TextBox Text="{Binding ContinuePrompt, UpdateSourceTrigger=PropertyChanged}"
+                         AcceptsReturn="True" TextWrapping="Wrap" MinHeight="90"
+                         VerticalScrollBarVisibility="Auto"
+                         FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12" />
+                <TextBlock Style="{StaticResource FieldHint}"
+                           Text="Replaces the workstream's own prompt once it has run before. Use {handoff} for its notes." />
+                <TextBlock Text="{Binding ContinuePromptState}" Style="{StaticResource FieldHint}" />
+
+                <TextBlock Text="Stopping a session" Style="{StaticResource FieldLabel}" />
+                <TextBox Text="{Binding StopPrompt, UpdateSourceTrigger=PropertyChanged}"
+                         AcceptsReturn="True" TextWrapping="Wrap" MinHeight="90"
+                         VerticalScrollBarVisibility="Auto"
+                         FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12" />
+                <TextBlock Style="{StaticResource FieldHint}"
+                           Text="Sent to a session when you press Stop. Use {handoff} for the file it should write." />
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

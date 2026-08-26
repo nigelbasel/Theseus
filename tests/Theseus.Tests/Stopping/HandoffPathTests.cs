@@ -121,7 +121,7 @@ public class HandoffPathTests
     private Workstream Workstream(string? cwd = null, string? status = null,
         IReadOnlyList<string>? addDirectories = null) =>
         new("contact-forms", "Contact form validation", "#208DD7", ColorIsManual: true,
-            cwd ?? _root, addDirectories ?? [], "Add validation.", 1, BoardColumn.Today,
+            cwd ?? _root, addDirectories ?? [], "Add validation.", 1, "Today",
             IsBlocked: false, ReopenTomorrow: true, IsArchived: false, "session-1", [], status,
             DateTimeOffset.UtcNow);
 }

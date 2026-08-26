@@ -29,6 +29,10 @@ namespace Theseus.Core.Settings;
 /// Whether the live sessions panel is folded away. Named for the collapsed state rather than the
 /// open one so that a settings file written before this existed reads as open, which is the default.
 /// </param>
+/// <param name="Lanes">
+/// The board's columns, in order. The last is where finished work goes and is the one lane a
+/// whole-board Start leaves alone, so the order carries meaning and is not merely cosmetic.
+/// </param>
 /// <param name="Theme">Which theme to paint in.</param>
 public sealed record TheseusSettings(
     string PlanDirectory,
@@ -40,6 +44,7 @@ public sealed record TheseusSettings(
     string ContinuePrompt,
     string StopPrompt,
     bool SessionsPanelCollapsed,
+    IReadOnlyList<string> Lanes,
     AppTheme Theme)
 {
     /// <summary>Where workstreams are kept until the user points Theseus somewhere of their own.</summary>
@@ -58,5 +63,6 @@ public sealed record TheseusSettings(
         string.Empty,
         string.Empty,
         false,
+        Domain.BoardLanes.Default,
         AppTheme.System);
 }

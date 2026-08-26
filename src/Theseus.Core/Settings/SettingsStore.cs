@@ -55,6 +55,7 @@ public sealed class SettingsStore : ISettingsStore
         SessionPreamble = settings.SessionPreamble ?? string.Empty,
         ContinuePrompt = settings.ContinuePrompt ?? string.Empty,
         StopPrompt = settings.StopPrompt ?? string.Empty,
+        Lanes = Domain.BoardLanes.Sanitise(settings.Lanes),
     };
 
     private static string Fallback(string? value, string fallback) =>

@@ -43,7 +43,7 @@ public class BoardStoreTests
     [Test]
     public void Write_StoresColumnsByNameSoTheFileSurvivesReorderingTheEnum()
     {
-        _store.Write([Sidecar("contact-forms") with { Column = BoardColumn.Parked }]);
+        _store.Write([Sidecar("contact-forms") with { Column = "Parked" }]);
 
         Assert.That(File.ReadAllText(_path), Does.Contain("Parked"));
     }
@@ -83,7 +83,7 @@ public class BoardStoreTests
     }
 
     private static WorkstreamSidecar Sidecar(string key) =>
-        new(key, BoardColumn.Today, IsBlocked: false, IsArchived: false, ColorIsManual: true,
+        new(key, "Today", IsBlocked: false, IsArchived: false, ColorIsManual: true,
             ReopenTomorrow: true, ["PROJ-101"], @"C:\work\repo\SESSION-STATUS-contact-forms.md",
             "3f2b1c40-9d5e-4a10-8b77-2c9e1d4a55aa",
             new DateTimeOffset(2026, 8, 26, 9, 0, 0, TimeSpan.Zero),

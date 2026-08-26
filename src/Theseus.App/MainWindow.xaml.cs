@@ -12,6 +12,7 @@ namespace Theseus.App;
 public partial class MainWindow : Window
 {
     private Point? _dragOrigin;
+    private SettingsWindow? _settings;
 
     /// <summary>Creates the window.</summary>
     public MainWindow()
@@ -23,9 +24,54 @@ public partial class MainWindow : Window
         AddHandler(PreviewMouseLeftButtonDownEvent, new MouseButtonEventHandler(OnPreviewMouseDown), handledEventsToo: true);
         AddHandler(PreviewMouseLeftButtonUpEvent, new MouseButtonEventHandler(OnPreviewMouseUp), handledEventsToo: true);
         AddHandler(PreviewMouseMoveEvent, new MouseEventHandler(OnPreviewMouseMove), handledEventsToo: true);
+
+        DataContextChanged += (_, _) => WatchSettings();
     }
 
     private BoardViewModel? Board => (DataContext as ShellViewModel)?.Board;
+
+    private void WatchSettings()
+    {
+        if ((DataContext as ShellViewModel)?.Settings is not { } settings)
+        {
+            return;
+        }
+
+        settings.PropertyChanged += (_, changed) =>
+        {
+            if (changed.PropertyName == nameof(SettingsViewModel.IsOpen))
+            {
+                ShowSettings(settings);
+            }
+        };
+    }
+
+    private void ShowSettings(SettingsViewModel settings)
+    {
+        if (_settings is not null)
+        {
+            if (!settings.IsOpen)
+            {
+                _settings.Close();
+            }
+
+            return;
+        }
+
+        if (!settings.IsOpen)
+        {
+            return;
+        }
+
+        _settings = new SettingsWindow { Owner = this, DataContext = settings };
+        _settings.Closed += (_, _) =>
+        {
+            _settings = null;
+            settings.IsOpen = false;
+        };
+
+        _settings.ShowDialog();
+    }
 
     /// <summary>
     /// Sizes the window to what the display can actually show. A fixed default is wrong on a scaled

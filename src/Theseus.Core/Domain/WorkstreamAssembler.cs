@@ -21,8 +21,7 @@ public static class WorkstreamAssembler
 
         return plans
             .Select(entry => Build(entry.Key, entry.Value, byKey.GetValueOrDefault(entry.Key)))
-            .OrderBy(workstream => workstream.Column)
-            .ThenBy(workstream => workstream.BoardOrder)
+            .OrderBy(workstream => workstream.BoardOrder)
             .ThenBy(workstream => workstream.Key, StringComparer.OrdinalIgnoreCase)
             .ToList();
     }
@@ -49,7 +48,7 @@ public static class WorkstreamAssembler
             AddDirectories: plan.AddDirs,
             Prompt: plan.Prompt,
             BoardOrder: plan.Order,
-            Column: sidecar?.Column ?? BoardColumn.Today,
+            Column: sidecar?.Column ?? string.Empty,
             IsBlocked: sidecar?.IsBlocked ?? false,
             ReopenTomorrow: sidecar?.ReopenTomorrow ?? true,
             IsArchived: sidecar?.IsArchived ?? false,

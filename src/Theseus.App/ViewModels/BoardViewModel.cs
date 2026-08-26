@@ -1,36 +1,36 @@
 using System.Collections.ObjectModel;
 using Theseus.Core.Abstractions;
 using Theseus.Core.Domain;
+using Theseus.Core.Settings;
 
 namespace Theseus.App.ViewModels;
 
-/// <summary>The board: four columns of cards, rebuilt from the plans on disk.</summary>
+/// <summary>The board: lanes of cards, rebuilt from the plans on disk.</summary>
 public sealed class BoardViewModel : ObservableObject
 {
     private readonly IPlanStore _plans;
     private readonly IBoardStore _board;
+    private readonly ISettingsStore _settings;
     private string _status = string.Empty;
     private WorkstreamCardViewModel? _selectedCard;
 
-    /// <summary>Creates the board over its two stores.</summary>
-    public BoardViewModel(IPlanStore plans, IBoardStore board)
+    /// <summary>Creates the board over its stores.</summary>
+    public BoardViewModel(IPlanStore plans, IBoardStore board, ISettingsStore settings)
     {
         _plans = plans;
         _board = board;
+        _settings = settings;
 
-        Columns =
-        [
-            new ColumnViewModel(BoardColumn.Today, "Today"),
-            new ColumnViewModel(BoardColumn.InFlight, "In flight"),
-            new ColumnViewModel(BoardColumn.Parked, "Parked"),
-            new ColumnViewModel(BoardColumn.Done, "Done"),
-        ];
+        Columns = [.. Lanes().Select(lane => new ColumnViewModel(lane))];
 
         RefreshCommand = new RelayCommand(_ => Refresh());
     }
 
-    /// <summary>The four columns, fixed in this version.</summary>
+    /// <summary>The lanes, as configured. Rebuilt when the configured lanes change.</summary>
     public ObservableCollection<ColumnViewModel> Columns { get; }
+
+    /// <summary>Raised when the lanes themselves have changed, not merely the cards in them.</summary>
+    public event EventHandler? LanesChanged;
 
     /// <summary>Re-reads the plans and rebuilds every column.</summary>
     public RelayCommand RefreshCommand { get; }
@@ -64,14 +64,19 @@ public sealed class BoardViewModel : ObservableObject
             .Where(workstream => !workstream.IsArchived)
             .ToList();
 
+        var lanes = SyncLanes();
+
         foreach (var column in Columns)
         {
             column.Cards.Clear();
+        }
 
-            foreach (var workstream in workstreams.Where(w => w.Column == column.Column))
-            {
-                column.Cards.Add(new WorkstreamCardViewModel(workstream));
-            }
+        foreach (var workstream in workstreams)
+        {
+            var lane = BoardLanes.Resolve(workstream.Column, lanes);
+
+            Columns.First(column => column.Column == lane)
+                .Cards.Add(new WorkstreamCardViewModel(workstream with { Column = lane }));
         }
 
         Status = unreadable == 0
@@ -79,8 +84,37 @@ public sealed class BoardViewModel : ObservableObject
             : $"{workstreams.Count} workstreams · {unreadable} plan file(s) unreadable";
     }
 
-    /// <summary>Moves a card to another column and persists the change.</summary>
-    public void Move(string key, BoardColumn destination)
+    /// <summary>The configured lanes, cleaned up.</summary>
+    private IReadOnlyList<string> Lanes() => BoardLanes.Sanitise(_settings.Read().Lanes);
+
+    /// <summary>
+    /// Brings the lanes into line with the settings, rebuilding them only when they have actually
+    /// changed. A rebuild replaces every lane object, so doing it on every refresh would throw away
+    /// each lane's Start command and scroll position for nothing.
+    /// </summary>
+    private IReadOnlyList<string> SyncLanes()
+    {
+        var lanes = Lanes();
+
+        if (Columns.Select(column => column.Column).SequenceEqual(lanes, StringComparer.Ordinal))
+        {
+            return lanes;
+        }
+
+        Columns.Clear();
+
+        foreach (var lane in lanes)
+        {
+            Columns.Add(new ColumnViewModel(lane));
+        }
+
+        LanesChanged?.Invoke(this, EventArgs.Empty);
+
+        return lanes;
+    }
+
+    /// <summary>Moves a card to another lane and persists the change.</summary>
+    public void Move(string key, string destination)
     {
         var card = Card(key);
 

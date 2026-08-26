@@ -80,7 +80,7 @@ public class SessionOpeningTests
 
     private static Workstream Workstream(string? sessionId) =>
         new("contact-forms", "Contact form validation", "#208DD7", ColorIsManual: true,
-            @"C:\work\repo", [], Original, 1, BoardColumn.Today, IsBlocked: false,
+            @"C:\work\repo", [], Original, 1, "Today", IsBlocked: false,
             ReopenTomorrow: true, IsArchived: false, sessionId, [], null, DateTimeOffset.UtcNow);
     [Test]
     public void For_SaysSoWhenTheHandoffItNamesIsNotThere()

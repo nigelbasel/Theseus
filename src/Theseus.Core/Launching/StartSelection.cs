@@ -15,31 +15,35 @@ public static class StartSelection
     /// </summary>
     public static IReadOnlyList<Workstream> ForBoard(
         IReadOnlyList<Workstream> workstreams,
-        IReadOnlyList<BoardColumn> columns,
+        IReadOnlyList<string> lanes,
         SessionRegistrySnapshot live)
     {
         ArgumentNullException.ThrowIfNull(workstreams);
-        ArgumentNullException.ThrowIfNull(columns);
+        ArgumentNullException.ThrowIfNull(lanes);
 
-        if (columns.Count == 0)
+        if (lanes.Count == 0)
         {
             return [];
         }
 
-        var startable = columns.Take(columns.Count - 1).ToHashSet();
-
-        return Eligible(workstreams.Where(workstream => startable.Contains(workstream.Column)), live);
+        return Eligible(
+            workstreams.Where(workstream => !BoardLanes.IsLast(workstream.Column, lanes)),
+            lanes,
+            live);
     }
 
     /// <summary>The workstreams a single lane's Start should launch.</summary>
     public static IReadOnlyList<Workstream> ForColumn(
         IReadOnlyList<Workstream> workstreams,
-        BoardColumn column,
+        string lane,
         SessionRegistrySnapshot live)
     {
         ArgumentNullException.ThrowIfNull(workstreams);
 
-        return Eligible(workstreams.Where(workstream => workstream.Column == column), live);
+        return Eligible(
+            workstreams.Where(workstream => BoardLanes.Same(lane, workstream.Column)),
+            [lane],
+            live);
     }
 
     /// <summary>Whether one workstream can be started right now.</summary>
@@ -59,14 +63,23 @@ public static class StartSelection
 
     private static IReadOnlyList<Workstream> Eligible(
         IEnumerable<Workstream> workstreams,
+        IReadOnlyList<string> lanes,
         SessionRegistrySnapshot live)
     {
         ArgumentNullException.ThrowIfNull(live);
 
         return workstreams
             .Where(workstream => IsEligible(workstream, live))
-            .OrderBy(workstream => workstream.Column)
+            .OrderBy(workstream => LanePosition(workstream.Column, lanes))
             .ThenBy(workstream => workstream.BoardOrder)
             .ToList();
+    }
+
+    private static int LanePosition(string? column, IReadOnlyList<string> lanes)
+    {
+        var resolved = BoardLanes.Resolve(column, lanes);
+        var index = lanes.ToList().FindIndex(lane => string.Equals(lane, resolved, StringComparison.Ordinal));
+
+        return index < 0 ? lanes.Count : index;
     }
 }

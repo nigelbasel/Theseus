@@ -86,6 +86,12 @@ public sealed class ShellViewModel : ObservableObject
             Notice = $"Created {card.Title}.";
         });
 
+        WireLanes();
+        Board.LanesChanged += (_, _) => WireLanes();
+    }
+
+    private void WireLanes()
+    {
         foreach (var column in Board.Columns)
         {
             var captured = column;
@@ -265,7 +271,7 @@ public sealed class ShellViewModel : ObservableObject
         StartSelection.ForBoard(Workstreams(), [.. Board.Columns.Select(column => column.Column)],
             Sessions.Snapshot);
 
-    private IReadOnlyList<Workstream> ColumnSelection(BoardColumn column) =>
+    private IReadOnlyList<Workstream> ColumnSelection(string column) =>
         StartSelection.ForColumn(Workstreams(), column, Sessions.Snapshot);
 
     private IReadOnlyList<Workstream> Workstreams() =>

@@ -5,7 +5,7 @@ namespace Theseus.Core.Domain;
 /// for. Keyed to the plan file, so a plan can be hand-edited or hand-written without losing it.
 /// </summary>
 /// <param name="Key">The workstream's key, matching its plan file's basename.</param>
-/// <param name="Column">Which column the card sits in.</param>
+/// <param name="Column">The lane the card sits in, by name.</param>
 /// <param name="IsBlocked">Whether the work is blocked.</param>
 /// <param name="IsArchived">Whether the workstream is retired.</param>
 /// <param name="ColorIsManual">Whether the colour was chosen by hand.</param>
@@ -17,7 +17,7 @@ namespace Theseus.Core.Domain;
 /// <param name="UpdatedUtc">When the sidecar last changed.</param>
 public sealed record WorkstreamSidecar(
     string Key,
-    BoardColumn Column,
+    string Column,
     bool IsBlocked,
     bool IsArchived,
     bool ColorIsManual,

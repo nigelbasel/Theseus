@@ -22,11 +22,14 @@ public class WorkstreamAssemblerTests
     }
 
     [Test]
-    public void Assemble_StartsAWorkstreamWithNoSidecarInTodayAndOpeningTomorrow()
+    public void Assemble_StartsAWorkstreamWithNoSidecarInNoLaneAtAllAndOpeningTomorrow()
     {
         var workstream = Single(Plan(), sidecar: null);
 
-        Assert.That(workstream.Column, Is.EqualTo(BoardColumn.Today));
+        Assert.That(workstream.Column, Is.Empty,
+            "the lanes are the user's to name, so a card with no lane recorded is placed by the board");
+        Assert.That(BoardLanes.Resolve(workstream.Column, BoardLanes.Default),
+            Is.EqualTo(BoardLanes.Default[0]));
         Assert.That(workstream.ReopenTomorrow, Is.True);
         Assert.That(workstream.IsArchived, Is.False);
         Assert.That(workstream.IsBlocked, Is.False);
@@ -37,13 +40,13 @@ public class WorkstreamAssemblerTests
     {
         var workstream = Single(Plan(), Sidecar() with
         {
-            Column = BoardColumn.Parked,
+            Column = "Parked",
             IsBlocked = true,
             ReopenTomorrow = false,
             StatusDocumentPath = @"C:\dev\SESSION-STATUS-contact-forms.md",
         });
 
-        Assert.That(workstream.Column, Is.EqualTo(BoardColumn.Parked));
+        Assert.That(workstream.Column, Is.EqualTo("Parked"));
         Assert.That(workstream.IsBlocked, Is.True);
         Assert.That(workstream.ReopenTomorrow, Is.False);
         Assert.That(workstream.StatusDocumentPath, Is.EqualTo(@"C:\dev\SESSION-STATUS-contact-forms.md"));
@@ -82,7 +85,7 @@ public class WorkstreamAssemblerTests
     }
 
     [Test]
-    public void Assemble_OrdersByColumnThenByThePlansOwnLaunchOrder()
+    public void Assemble_OrdersByThePlansOwnLaunchOrder()
     {
         var plans = new Dictionary<string, SessionPlan>
         {
@@ -91,18 +94,19 @@ public class WorkstreamAssemblerTests
             ["job-queue"] = Plan() with { Order = 2 },
         };
 
-        var sidecars = new[] { Sidecar() with { Key = "contact-forms", Column = BoardColumn.Done } };
+        var sidecars = new[] { Sidecar() with { Key = "contact-forms", Column = "Done" } };
 
         Assert.That(WorkstreamAssembler.Assemble(plans, sidecars).Select(w => w.Key),
-            Is.EqualTo(new[] { "job-queue", "admin-console", "contact-forms" }));
+            Is.EqualTo(new[] { "contact-forms", "job-queue", "admin-console" }),
+            "lanes are named by the user and carry no order of their own, so the board groups them");
     }
 
     [Test]
     public void Assemble_MatchesSidecarsToPlansCaseInsensitivelyLikeTheFileSystemDoes()
     {
-        var workstream = Single(Plan(), Sidecar() with { Key = "CONTACT-FORMS", Column = BoardColumn.Done });
+        var workstream = Single(Plan(), Sidecar() with { Key = "CONTACT-FORMS", Column = "Done" });
 
-        Assert.That(workstream.Column, Is.EqualTo(BoardColumn.Done));
+        Assert.That(workstream.Column, Is.EqualTo("Done"));
     }
 
     [Test]
@@ -142,7 +146,7 @@ public class WorkstreamAssemblerTests
             "2026-08-25T21:20:33", "Pick up the GDPR work (PROJ-101 / API-202). PROJ-101 again.");
 
     private static WorkstreamSidecar Sidecar() =>
-        new("contact-forms", BoardColumn.Today, IsBlocked: false, IsArchived: false, ColorIsManual: true,
+        new("contact-forms", "Today", IsBlocked: false, IsArchived: false, ColorIsManual: true,
             ReopenTomorrow: true, [], null, null,
             new DateTimeOffset(2026, 8, 26, 9, 0, 0, TimeSpan.Zero),
             new DateTimeOffset(2026, 8, 26, 9, 0, 0, TimeSpan.Zero));

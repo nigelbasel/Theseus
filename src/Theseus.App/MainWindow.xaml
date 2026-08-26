@@ -66,7 +66,7 @@
             <Button Style="{StaticResource ChipButton}"
                     Command="{Binding DataContext.OpenJiraCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                     CommandParameter="{Binding}"
-                    ToolTip="Open in Jira">
+                    ToolTip="{Binding StringFormat=Open {0} in Jira}">
                 <TextBlock Text="{Binding}" FontSize="11"
                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
             </Button>
@@ -113,6 +113,7 @@
                         <Grid>
                             <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="SemiBold"
                                        TextTrimming="CharacterEllipsis" Margin="0,0,124,0"
+                                       ToolTip="{Binding Title}"
                                        Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
                                 <Button Content="Start" FontSize="11" Padding="8,1" Margin="0,0,4,0"
@@ -620,70 +621,6 @@
                 </Border>
             </Border>
 
-            <Border Background="#99000000"
-                    Visibility="{Binding Settings.IsOpen, Converter={StaticResource BoolToVisibility}}">
-                <Border Width="560" VerticalAlignment="Center" HorizontalAlignment="Center"
-                        CornerRadius="10" Padding="22"
-                        Background="{DynamicResource SolidBackgroundFillColorSecondaryBrush}"
-                        BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
-                        BorderThickness="1">
-                    <StackPanel>
-                        <TextBlock Text="Settings" FontSize="17" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-
-                        <TextBlock Text="Plan directory" Style="{StaticResource FieldLabel}" />
-                        <TextBox Text="{Binding Settings.PlanDirectory, UpdateSourceTrigger=PropertyChanged}" />
-                        <TextBlock Text="{Binding Settings.PlanDirectoryState}" Style="{StaticResource FieldHint}" />
-
-                        <TextBlock Text="Terminal window name" Style="{StaticResource FieldLabel}" />
-                        <TextBox Text="{Binding Settings.TerminalWindowName, UpdateSourceTrigger=PropertyChanged}" />
-                        <TextBlock Style="{StaticResource FieldHint}"
-                                   Text="Every tab Theseus opens joins this named window." />
-
-                        <TextBlock Text="Windows Terminal" Style="{StaticResource FieldLabel}" />
-                        <TextBox Text="{Binding Settings.TerminalExecutablePath, UpdateSourceTrigger=PropertyChanged}" />
-                        <TextBlock Text="{Binding Settings.TerminalState}" Style="{StaticResource FieldHint}" />
-
-                        <TextBlock Text="Claude Code" Style="{StaticResource FieldLabel}" />
-                        <TextBox Text="{Binding Settings.ClaudeExecutablePath, UpdateSourceTrigger=PropertyChanged}" />
-                        <TextBlock Text="{Binding Settings.ClaudeState}" Style="{StaticResource FieldHint}" />
-
-                        <TextBlock Text="Jira" Style="{StaticResource FieldLabel}" />
-                        <TextBox Text="{Binding Settings.JiraBaseUrl, UpdateSourceTrigger=PropertyChanged}" />
-                        <TextBlock Text="{Binding Settings.JiraState}" Style="{StaticResource FieldHint}" />
-
-                        <TextBlock Text="Standing prompt" Style="{StaticResource FieldLabel}" />
-                        <TextBox Text="{Binding Settings.SessionPreamble, UpdateSourceTrigger=PropertyChanged}"
-                                 AcceptsReturn="True" TextWrapping="Wrap" MinHeight="90"
-                                 VerticalScrollBarVisibility="Auto"
-                                 FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12" />
-                        <TextBlock Text="{Binding Settings.SessionPreambleState}" Style="{StaticResource FieldHint}" />
-
-                        <TextBlock Text="Continuing a workstream" Style="{StaticResource FieldLabel}" />
-                        <TextBox Text="{Binding Settings.ContinuePrompt, UpdateSourceTrigger=PropertyChanged}"
-                                 AcceptsReturn="True" TextWrapping="Wrap" MinHeight="90"
-                                 VerticalScrollBarVisibility="Auto"
-                                 FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12" />
-                        <TextBlock Style="{StaticResource FieldHint}"
-                                   Text="Replaces the workstream's own prompt once it has run before. Use {handoff} for its notes." />
-                        <TextBlock Text="{Binding Settings.ContinuePromptState}" Style="{StaticResource FieldHint}" />
-
-                        <TextBlock Text="Stopping a session" Style="{StaticResource FieldLabel}" />
-                        <TextBox Text="{Binding Settings.StopPrompt, UpdateSourceTrigger=PropertyChanged}"
-                                 AcceptsReturn="True" TextWrapping="Wrap" MinHeight="90"
-                                 VerticalScrollBarVisibility="Auto"
-                                 FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12" />
-                        <TextBlock Style="{StaticResource FieldHint}"
-                                   Text="Sent to a session when you press Stop. Use {handoff} for the file it should write." />
-
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
-                            <Button Content="Cancel" Padding="18,5" Margin="0,0,8,0"
-                                    Command="{Binding Settings.CloseCommand}" />
-                            <Button Content="Save" Padding="18,5" Command="{Binding Settings.SaveCommand}" />
-                        </StackPanel>
-                    </StackPanel>
-                </Border>
-            </Border>
         </Grid>
     </DockPanel>
 </Window>

@@ -3,22 +3,21 @@ using Theseus.Core.Domain;
 
 namespace Theseus.App.ViewModels;
 
-/// <summary>One column of the board.</summary>
+/// <summary>One lane of the board.</summary>
 public sealed class ColumnViewModel : ObservableObject
 {
     /// <summary>Creates a column.</summary>
-    public ColumnViewModel(BoardColumn column, string heading)
+    public ColumnViewModel(string column)
     {
         Column = column;
-        Heading = heading;
         Cards.CollectionChanged += (_, _) => Raise(nameof(Count));
     }
 
-    /// <summary>Which column this is.</summary>
-    public BoardColumn Column { get; }
+    /// <summary>Which lane this is, by name.</summary>
+    public string Column { get; }
 
-    /// <summary>The column's heading.</summary>
-    public string Heading { get; }
+    /// <summary>The lane's heading, which is its name.</summary>
+    public string Heading => Column;
 
     /// <summary>Starts every workstream in this lane that is not already running.</summary>
     public RelayCommand? StartAllCommand { get; set; }

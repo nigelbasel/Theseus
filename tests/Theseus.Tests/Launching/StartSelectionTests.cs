@@ -7,8 +7,8 @@ namespace Theseus.Tests.Launching;
 [TestFixture]
 public class StartSelectionTests
 {
-    private static readonly BoardColumn[] Columns =
-        [BoardColumn.Today, BoardColumn.InFlight, BoardColumn.Parked, BoardColumn.Done];
+    private static readonly string[] Columns =
+        ["Today", "In flight", "Parked", "Done"];
 
     private const string SessionId = "3f2b1c40-9d5e-4a10-8b77-2c9e1d4a55aa";
 
@@ -17,10 +17,10 @@ public class StartSelectionTests
     {
         var workstreams = new[]
         {
-            Workstream("contact-forms", BoardColumn.Today),
-            Workstream("job-queue", BoardColumn.InFlight),
-            Workstream("nexus", BoardColumn.Parked),
-            Workstream("finished", BoardColumn.Done),
+            Workstream("contact-forms", "Today"),
+            Workstream("job-queue", "In flight"),
+            Workstream("nexus", "Parked"),
+            Workstream("finished", "Done"),
         };
 
         var selected = StartSelection.ForBoard(workstreams, Columns, SessionRegistrySnapshot.Empty);
@@ -34,9 +34,9 @@ public class StartSelectionTests
     {
         var workstreams = new[]
         {
-            Workstream("second", BoardColumn.Today, order: 2),
-            Workstream("third", BoardColumn.InFlight, order: 1),
-            Workstream("first", BoardColumn.Today, order: 1),
+            Workstream("second", "Today", order: 2),
+            Workstream("third", "In flight", order: 1),
+            Workstream("first", "Today", order: 1),
         };
 
         Assert.That(
@@ -49,8 +49,8 @@ public class StartSelectionTests
     {
         var workstreams = new[]
         {
-            Workstream("contact-forms", BoardColumn.Today) with { LastSessionId = SessionId },
-            Workstream("job-queue", BoardColumn.Today),
+            Workstream("contact-forms", "Today") with { LastSessionId = SessionId },
+            Workstream("job-queue", "Today"),
         };
 
         var selected = StartSelection.ForBoard(workstreams, Columns, Live(SessionId));
@@ -61,7 +61,7 @@ public class StartSelectionTests
     [Test]
     public void ForBoard_StartsAWorkstreamWhoseLastSessionHasSinceEnded()
     {
-        var workstreams = new[] { Workstream("contact-forms", BoardColumn.Today) with { LastSessionId = SessionId } };
+        var workstreams = new[] { Workstream("contact-forms", "Today") with { LastSessionId = SessionId } };
 
         Assert.That(StartSelection.ForBoard(workstreams, Columns, SessionRegistrySnapshot.Empty), Has.Count.EqualTo(1));
     }
@@ -69,7 +69,7 @@ public class StartSelectionTests
     [Test]
     public void ForBoard_SkipsArchivedWorkstreams()
     {
-        var workstreams = new[] { Workstream("retired", BoardColumn.Today) with { IsArchived = true } };
+        var workstreams = new[] { Workstream("retired", "Today") with { IsArchived = true } };
 
         Assert.That(StartSelection.ForBoard(workstreams, Columns, SessionRegistrySnapshot.Empty), Is.Empty);
     }
@@ -77,7 +77,7 @@ public class StartSelectionTests
     [Test]
     public void ForBoard_SkipsAWorkstreamWithNoPromptBecauseThereIsNothingToOpenWith()
     {
-        var workstreams = new[] { Workstream("empty", BoardColumn.Today) with { Prompt = "  " } };
+        var workstreams = new[] { Workstream("empty", "Today") with { Prompt = "  " } };
 
         Assert.That(StartSelection.ForBoard(workstreams, Columns, SessionRegistrySnapshot.Empty), Is.Empty);
     }
@@ -86,7 +86,7 @@ public class StartSelectionTests
     public void ForBoard_StartsNothingWhenThereAreNoColumns()
     {
         Assert.That(
-            StartSelection.ForBoard([Workstream("contact-forms", BoardColumn.Today)], [], SessionRegistrySnapshot.Empty),
+            StartSelection.ForBoard([Workstream("contact-forms", "Today")], [], SessionRegistrySnapshot.Empty),
             Is.Empty);
     }
 
@@ -94,7 +94,7 @@ public class StartSelectionTests
     public void ForBoard_StartsNothingWhenTheOnlyLaneIsTheLastOne()
     {
         Assert.That(
-            StartSelection.ForBoard([Workstream("only", BoardColumn.Today)], [BoardColumn.Today],
+            StartSelection.ForBoard([Workstream("only", "Today")], ["Today"],
                 SessionRegistrySnapshot.Empty),
             Is.Empty);
     }
@@ -104,12 +104,12 @@ public class StartSelectionTests
     {
         var workstreams = new[]
         {
-            Workstream("contact-forms", BoardColumn.Today),
-            Workstream("job-queue", BoardColumn.InFlight),
+            Workstream("contact-forms", "Today"),
+            Workstream("job-queue", "In flight"),
         };
 
         Assert.That(
-            StartSelection.ForColumn(workstreams, BoardColumn.InFlight, SessionRegistrySnapshot.Empty)
+            StartSelection.ForColumn(workstreams, "In flight", SessionRegistrySnapshot.Empty)
                 .Select(w => w.Key),
             Is.EqualTo(new[] { "job-queue" }));
     }
@@ -117,17 +117,17 @@ public class StartSelectionTests
     [Test]
     public void ForColumn_WillStartTheLastLaneWhenThatLaneIsAskedForDirectly()
     {
-        var workstreams = new[] { Workstream("finished", BoardColumn.Done) };
+        var workstreams = new[] { Workstream("finished", "Done") };
 
         Assert.That(
-            StartSelection.ForColumn(workstreams, BoardColumn.Done, SessionRegistrySnapshot.Empty),
+            StartSelection.ForColumn(workstreams, "Done", SessionRegistrySnapshot.Empty),
             Has.Count.EqualTo(1));
     }
 
     [Test]
     public void IsEligible_RefusesAWorkstreamThatIsAlreadyLive()
     {
-        var workstream = Workstream("contact-forms", BoardColumn.Today) with { LastSessionId = SessionId };
+        var workstream = Workstream("contact-forms", "Today") with { LastSessionId = SessionId };
 
         Assert.That(StartSelection.IsEligible(workstream, Live(SessionId)), Is.False);
     }
@@ -135,7 +135,7 @@ public class StartSelectionTests
     private static SessionRegistrySnapshot Live(string sessionId) =>
         new([new LiveSession(4242, sessionId, @"C:\work\repo", "name", "busy", "cli", DateTimeOffset.UtcNow)], 0, 0);
 
-    private static Workstream Workstream(string key, BoardColumn column, int order = 1) =>
+    private static Workstream Workstream(string key, string column, int order = 1) =>
         new(key, key, "#208DD7", ColorIsManual: true, @"C:\work\repo", [], "Carry on.", order,
             column, IsBlocked: false, ReopenTomorrow: true, IsArchived: false, LastSessionId: null,
             [], null, DateTimeOffset.UtcNow);

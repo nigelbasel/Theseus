@@ -117,6 +117,6 @@ public class StopSelectionTests
 
     private static Workstream Workstream(string key, string? sessionId) =>
         new(key, key, "#208DD7", ColorIsManual: true, @"C:\work\repo", [], "Carry on.", 1,
-            BoardColumn.Today, IsBlocked: false, ReopenTomorrow: true, IsArchived: false,
+            "Today", IsBlocked: false, ReopenTomorrow: true, IsArchived: false,
             sessionId, [], null, DateTimeOffset.UtcNow);
 }
