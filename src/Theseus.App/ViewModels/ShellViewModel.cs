@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO;
 using Theseus.App.Services;
 using Theseus.Core.Abstractions;
 using Theseus.Core.Domain;
@@ -20,6 +21,7 @@ public sealed class ShellViewModel : ObservableObject
     private readonly ITabColourAllocator _colours;
     private readonly PullRequestResolver _pullRequests;
     private readonly List<StopStep> _stopQueue = [];
+    private readonly IStopRequestStore _stopRequests = new StopRequestStore(StopRequestRoot.Default);
     private readonly IRunLog _runs;
     private readonly ISessionTodoReader _todos;
     private readonly RunEndings _endings;
@@ -263,12 +265,98 @@ public sealed class ShellViewModel : ObservableObject
     /// Nothing is killed either way. The point of stopping is the handoff written on the way out,
     /// and a killed process writes nothing.
     /// </summary>
+    /// <summary>
+    /// How long a stop request stays worth delivering. Long enough to survive a session deep in a
+    /// slow turn, short enough that one made this evening cannot interrupt tomorrow morning.
+    /// </summary>
+    private static readonly TimeSpan StopRequestLife = TimeSpan.FromHours(4);
+
     private void BeginStop(IReadOnlyList<StopStep> steps)
     {
         _stopQueue.Clear();
-        _stopQueue.AddRange(steps);
 
-        AdvanceStop();
+        if (steps.Count == 0)
+        {
+            return;
+        }
+
+        var installed = HookInstallation.IsInstalled(SettingsFile());
+        var asked = 0;
+        var waiting = 0;
+
+        foreach (var step in steps)
+        {
+            switch (StopRouting.For(step.Lifecycle, installed))
+            {
+                case StopRoute.WaitForTurnEnd:
+                case StopRoute.Nudge:
+                    Ask(step);
+                    asked++;
+                    break;
+
+                case StopRoute.AnswerItFirst:
+                    Ask(step);
+                    TerminalFocus.FocusSession(step.Pid, step.SessionName);
+                    waiting++;
+                    break;
+
+                case StopRoute.PasteYourself:
+                    _stopQueue.Add(step);
+                    break;
+            }
+        }
+
+        if (_stopQueue.Count > 0)
+        {
+            AdvanceStop();
+
+            return;
+        }
+
+        Notice = Describe(asked, waiting);
+    }
+
+    /// <summary>
+    /// What was actually set in motion. A session that has been asked has not yet been told: the
+    /// request waits until its next turn ends, so saying it has stopped would be ahead of the facts.
+    /// </summary>
+    private static string Describe(int asked, int waiting)
+    {
+        if (asked == 0)
+        {
+            return "Nothing to stop.";
+        }
+
+        var told = asked == 1
+            ? "One session will be asked to write its handoff and exit when its turn ends."
+            : $"{asked} sessions will be asked to write their handoffs and exit as their turns end.";
+
+        return waiting == 0
+            ? told
+            : $"{told} {waiting} of them is waiting on you first, and is now in front.";
+    }
+
+    private void Ask(StopStep step) =>
+        _stopRequests.Write(new PendingStopRequest(
+            step.SessionId,
+            step.WorkstreamKey,
+            step.Title,
+            step.Text,
+            DateTimeOffset.UtcNow,
+            DateTimeOffset.UtcNow.Add(StopRequestLife)));
+
+    private static string? SettingsFile()
+    {
+        try
+        {
+            return File.Exists(HookInstallation.SettingsPath)
+                ? File.ReadAllText(HookInstallation.SettingsPath)
+                : null;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
     }
 
     private void AdvanceStop()
@@ -307,8 +395,11 @@ public sealed class ShellViewModel : ObservableObject
                 .Where(_ => Sessions.Find(card.Workstream.LastSessionId) is not null)
                 .Select(target => new StopStep(
                     card.Title,
+                    card.Key,
+                    card.Workstream.LastSessionId!,
                     target.SessionName,
                     Sessions.Find(card.Workstream.LastSessionId)!.Pid,
+                    card.Lifecycle,
                     StopRequest.For(prompt, target))))
         ];
     }

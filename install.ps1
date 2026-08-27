@@ -116,3 +116,40 @@ Write-Host '  C:\Program Files\Theseus\Theseus.exe'
 Write-Host '  Start Menu > Theseus'
 Write-Host ''
 Write-Host 'The board, runs, settings and logs in %LOCALAPPDATA%\Theseus were left alone.'
+
+# The stop hook is registered in the user's own Claude Code settings, and this script does not write
+# it. That file governs what runs inside every session on the machine and is hand-edited; an
+# installer merging itself into it silently is not a thing its owner can reason about. So: report,
+# and hand over the text.
+$hook = 'C:\Program Files\Theseus\Theseus.Hook.exe'
+$claudeSettings = Join-Path $env:USERPROFILE '.claude\settings.json'
+$configured = $false
+
+if (Test-Path $claudeSettings) {
+    $configured = (Get-Content $claudeSettings -Raw) -match 'Theseus\.Hook'
+}
+
+Write-Host ''
+
+if ($configured) {
+    Write-Host 'The stop hook is registered. Stopping a session is a button.' -ForegroundColor Green
+} elseif (Test-Path $hook) {
+    Write-Host 'One step left: register the stop hook.' -ForegroundColor Yellow
+    Write-Host "Without it, Stop can only put the request on your clipboard for you to paste."
+    Write-Host ''
+    Write-Host "Merge this into $claudeSettings" -ForegroundColor Cyan
+    Write-Host ''
+    Write-Host '  {'
+    Write-Host '    "hooks": {'
+    Write-Host '      "Stop": ['
+    Write-Host '        { "hooks": [ { "type": "command", "command": "C:\\Program Files\\Theseus\\Theseus.Hook.exe" } ] }'
+    Write-Host '      ],'
+    Write-Host '      "UserPromptSubmit": ['
+    Write-Host '        { "hooks": [ { "type": "command", "command": "C:\\Program Files\\Theseus\\Theseus.Hook.exe" } ] }'
+    Write-Host '      ]'
+    Write-Host '    }'
+    Write-Host '  }'
+    Write-Host ''
+    Write-Host 'It runs once per turn in every session on this machine, and is silent unless Theseus'
+    Write-Host 'has asked that session to stop.'
+}

@@ -1,8 +1,20 @@
+using Theseus.Core.Domain;
+
 namespace Theseus.App.ViewModels;
 
-/// <summary>One session waiting to be stopped, and what to say to it.</summary>
-/// <param name="Title">The workstream's title, for saying which tab to look at.</param>
+/// <summary>One session to be stopped, and everything the route to it needs.</summary>
+/// <param name="Title">The workstream's title, for saying which session is meant.</param>
+/// <param name="WorkstreamKey">The workstream asking, recorded with the request.</param>
+/// <param name="SessionId">The session the request is addressed to, which is how a hook finds it.</param>
 /// <param name="SessionName">The session's name, which is how its tab is found.</param>
 /// <param name="Pid">The Claude Code process, which is how its tab is found.</param>
-/// <param name="Text">The request, ready for the user to send.</param>
-public sealed record StopStep(string Title, string SessionName, int Pid, string Text);
+/// <param name="Lifecycle">What the session is doing, which decides how the request reaches it.</param>
+/// <param name="Text">The request itself, with its handoff path already filled in.</param>
+public sealed record StopStep(
+    string Title,
+    string WorkstreamKey,
+    string SessionId,
+    string SessionName,
+    int Pid,
+    SessionLifecycle Lifecycle,
+    string Text);

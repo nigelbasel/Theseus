@@ -73,6 +73,9 @@ $shim = Join-Path $staging 'Theseus.Launcher.exe'
 if (-not (Test-Path $application)) { throw "The publish produced no Theseus.exe in $staging." }
 if (-not (Test-Path $shim)) { throw 'The publish produced no Theseus.Launcher.exe. Every Start button would be dead.' }
 
+$hook = Join-Path $staging 'Theseus.Hook.exe'
+if (-not (Test-Path $hook)) { throw 'The publish produced no Theseus.Hook.exe. Stop could only ever use the clipboard.' }
+
 # The full stamp identifies the build; the MSI gets only the date, which is all it can carry.
 $stamp = (Get-Item $application).VersionInfo.FileVersion
 $parts = $stamp.Split('.')

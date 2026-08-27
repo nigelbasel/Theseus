@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Theseus.Core\Theseus.Core.csproj" />
     <ProjectReference Include="..\Theseus.Launcher\Theseus.Launcher.csproj" />
+    <ProjectReference Include="..\Theseus.Hook\Theseus.Hook.csproj" />
   </ItemGroup>
 
   <!--
@@ -30,6 +31,7 @@
   <Target Name="CopyLauncherHost" AfterTargets="Build">
     <ItemGroup>
       <LauncherHost Include="$(MSBuildThisFileDirectory)..\Theseus.Launcher\bin\$(Configuration)\net10.0\Theseus.Launcher.exe" />
+      <LauncherHost Include="$(MSBuildThisFileDirectory)..\Theseus.Hook\bin\$(Configuration)\net10.0\Theseus.Hook.exe" />
     </ItemGroup>
     <Copy SourceFiles="@(LauncherHost)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" Condition="Exists('%(LauncherHost.FullPath)')" />
   </Target>
