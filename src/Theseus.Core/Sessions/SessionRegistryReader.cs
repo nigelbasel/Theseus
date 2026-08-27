@@ -67,11 +67,20 @@ public sealed class SessionRegistryReader : ISessionRegistryReader
                 entry.Name,
                 entry.Status,
                 entry.Entrypoint,
-                DateTimeOffset.FromUnixTimeMilliseconds(entry.StartedAt)));
+                DateTimeOffset.FromUnixTimeMilliseconds(entry.StartedAt),
+                Moment(entry.UpdatedAt),
+                Moment(entry.StatusUpdatedAt)));
         }
 
         return new SessionRegistrySnapshot(live, corpses, unreadable);
     }
+
+    /// <summary>
+    /// A timestamp an older Claude Code may not have written. Zero means absent rather than 1970, and
+    /// a caller must be able to tell "not recorded" from a real moment.
+    /// </summary>
+    private static DateTimeOffset? Moment(long milliseconds) =>
+        milliseconds > 0 ? DateTimeOffset.FromUnixTimeMilliseconds(milliseconds) : null;
 
     private bool IsAlive(SessionRegistryEntry entry)
     {

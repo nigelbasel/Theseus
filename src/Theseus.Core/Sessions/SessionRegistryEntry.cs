@@ -44,4 +44,18 @@ public sealed record SessionRegistryEntry
 
     /// <summary>When the session started, in milliseconds since the Unix epoch.</summary>
     public long StartedAt { get; init; }
+
+    /// <summary>
+    /// When the entry was last written, in milliseconds since the Unix epoch. A session rewrites its
+    /// entry as it works, so this is the last moment it was known to be alive - which is the only
+    /// evidence available about a session that was killed without writing anything further.
+    /// </summary>
+    public long UpdatedAt { get; init; }
+
+    /// <summary>
+    /// When <see cref="Status"/> last changed, in milliseconds since the Unix epoch. A status change
+    /// is dated by the session that made it rather than by the moment a watcher noticed, which
+    /// matters because the watcher is debounced and only runs while this application does.
+    /// </summary>
+    public long StatusUpdatedAt { get; init; }
 }

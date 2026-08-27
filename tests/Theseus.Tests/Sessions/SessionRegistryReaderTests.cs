@@ -29,7 +29,7 @@ public class SessionRegistryReaderTests
     private SessionRegistryReader Reader() => new(_directory, _probe);
 
     private void WriteEntry(int pid, string sessionId, string procStart, string entrypoint = "cli",
-        string status = "idle", string? name = null)
+        string status = "idle", string? name = null, long updatedAt = 0, long statusUpdatedAt = 0)
     {
         var entry = new
         {
@@ -43,6 +43,8 @@ public class SessionRegistryReaderTests
             entrypoint,
             name = name ?? $"session-{pid}",
             status,
+            updatedAt,
+            statusUpdatedAt,
         };
 
         File.WriteAllText(Path.Combine(_directory, $"{pid}.json"), JsonSerializer.Serialize(entry));
@@ -165,5 +167,39 @@ public class SessionRegistryReaderTests
         public Dictionary<int, string> Alive { get; } = [];
 
         public string? GetStartFileTime(int pid) => Alive.TryGetValue(pid, out var value) ? value : null;
+    }
+
+    [Test]
+    public void Read_KeepsTheMomentTheEntryWasLastWritten()
+    {
+        WriteEntry(40000, "abc", "134321627304177336", updatedAt: 1787778152116L);
+        _probe.Alive[40000] = "134321627304177336";
+
+        Assert.That(Reader().Read().Live.Single().LastSeenUtc,
+            Is.EqualTo(DateTimeOffset.FromUnixTimeMilliseconds(1787778152116L)),
+            "the last moment a session was known to be alive is the only evidence about one that was killed");
+    }
+
+    [Test]
+    public void Read_KeepsTheMomentTheStatusLastChanged()
+    {
+        WriteEntry(40000, "abc", "134321627304177336", statusUpdatedAt: 1787778152116L);
+        _probe.Alive[40000] = "134321627304177336";
+
+        Assert.That(Reader().Read().Live.Single().StatusSinceUtc,
+            Is.EqualTo(DateTimeOffset.FromUnixTimeMilliseconds(1787778152116L)),
+            "dated by the session that changed it, not by the debounced watcher that noticed");
+    }
+
+    [Test]
+    public void Read_LeavesTheTimestampsUnsetWhenAnOlderBuildDidNotWriteThem()
+    {
+        WriteEntry(40000, "abc", "134321627304177336");
+        _probe.Alive[40000] = "134321627304177336";
+
+        var session = Reader().Read().Live.Single();
+
+        Assert.That(session.LastSeenUtc, Is.Null, "absent must not read as 1970");
+        Assert.That(session.StatusSinceUtc, Is.Null);
     }
 }

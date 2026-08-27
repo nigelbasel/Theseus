@@ -8,6 +8,15 @@ namespace Theseus.Core.Sessions;
 /// <param name="Status">The raw activity string from the registry.</param>
 /// <param name="Entrypoint">How the session was started.</param>
 /// <param name="StartedUtc">When the session started.</param>
+/// <param name="LastSeenUtc">
+/// When the entry was last written. A session rewrites it as it works, so this is the last moment it
+/// was known to be alive - the only evidence there is about one that was killed without a word.
+/// </param>
+/// <param name="StatusSinceUtc">
+/// When the reported status last changed, as dated by the session rather than by the moment a
+/// watcher noticed. The watcher is debounced and only runs while this application does, so its own
+/// clock is the worse of the two.
+/// </param>
 public sealed record LiveSession(
     int Pid,
     string SessionId,
@@ -15,7 +24,9 @@ public sealed record LiveSession(
     string? Name,
     string? Status,
     string? Entrypoint,
-    DateTimeOffset StartedUtc)
+    DateTimeOffset StartedUtc,
+    DateTimeOffset? LastSeenUtc = null,
+    DateTimeOffset? StatusSinceUtc = null)
 {
     /// <summary>
     /// Whether this session is a real terminal session a workstream could adopt, as opposed to a
