@@ -314,6 +314,7 @@
                                 CommandParameter="{Binding}" />
                         <Button x:Name="AdoptButton" Content="Adopt into…" FontSize="11" Padding="10,2"
                                 ToolTip="Make a workstream follow this running session"
+                                Visibility="{Binding IsAdopted, Converter={StaticResource NotBoolToVisibility}}"
                                 Click="OnAdoptClicked">
                             <Button.ContextMenu>
                                 <ContextMenu ItemsSource="{Binding AdoptTargets}">
