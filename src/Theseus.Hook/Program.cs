@@ -1,5 +1,3 @@
-using System.Text.Json;
-using Theseus.Core.Persistence;
 using Theseus.Core.Stopping;
 
 // This runs on every turn of every Claude Code session on the machine, including sessions that have
@@ -9,7 +7,7 @@ using Theseus.Core.Stopping;
 // always zero - a Stop hook that exits non-zero blocks the turn it was supposed to be extending.
 try
 {
-    var input = JsonSerializer.Deserialize<StopHookInput>(Console.In.ReadToEnd(), TheseusJson.Compact);
+    var input = StopHookInput.Parse(Console.In.ReadToEnd());
 
     if (input?.SessionId is not { } sessionId)
     {

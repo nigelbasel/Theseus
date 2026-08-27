@@ -45,4 +45,27 @@ public class StopHookInputTests
 
         Assert.That(JsonSerializer.Deserialize<StopHookInput>(json, TheseusJson.Compact)!.StopHookActive, Is.True);
     }
+
+    [Test]
+    public void Parse_ToleratesAByteOrderMarkOnStandardInput()
+    {
+        var input = StopHookInput.Parse("﻿" + Real);
+
+        Assert.That(input?.SessionId, Is.EqualTo("11111111-2222-3333-4444-555555555555"),
+            "a hook that silently does nothing when fed a mark gives no clue why; this already cost a session");
+    }
+
+    [Test]
+    public void Parse_ReadsOrdinaryInput()
+    {
+        Assert.That(StopHookInput.Parse(Real)?.HookEventName, Is.EqualTo("Stop"));
+    }
+
+    [Test]
+    public void Parse_ReturnsNothingRatherThanThrowingOnRubbish()
+    {
+        Assert.That(StopHookInput.Parse("{ half a message"), Is.Null);
+        Assert.That(StopHookInput.Parse(string.Empty), Is.Null);
+        Assert.That(StopHookInput.Parse(null), Is.Null);
+    }
 }

@@ -1,4 +1,6 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
+using Theseus.Core.Persistence;
 
 namespace Theseus.Core.Stopping;
 
@@ -20,4 +22,30 @@ public sealed record StopHookInput(
     [property: JsonPropertyName("session_id")] string? SessionId,
     [property: JsonPropertyName("hook_event_name")] string? HookEventName,
     [property: JsonPropertyName("stop_hook_active")] bool StopHookActive = false,
-    [property: JsonPropertyName("agent_id")] string? AgentId = null);
+    [property: JsonPropertyName("agent_id")] string? AgentId = null)
+{
+    /// <summary>
+    /// Reads what arrived on standard input, or nothing when it cannot be understood.
+    ///
+    /// A byte-order mark is tolerated. Nothing in the contract puts one there, but the hook reads
+    /// from outside itself and a mark is exactly the sort of thing that turns up: refusing one costs
+    /// a silent hook that does nothing and says nothing about why, which has already wasted a
+    /// session once.
+    /// </summary>
+    public static StopHookInput? Parse(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<StopHookInput>(text.TrimStart('﻿', '​').Trim(), TheseusJson.Compact);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+}
