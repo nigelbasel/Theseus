@@ -284,6 +284,7 @@ public sealed class ShellViewModel : ObservableObject
         var asked = 0;
         var waiting = 0;
         var unreached = 0;
+        var blocked = 0;
 
         foreach (var step in steps)
         {
@@ -297,14 +298,19 @@ public sealed class ShellViewModel : ObservableObject
                 case StopRoute.Nudge:
                     Ask(step);
 
-                    if (TabNudge.Nudge(step.Pid, step.SessionName, StopRouting.NudgeMarker)
-                        is NudgeOutcome.Sent)
+                    switch (TabNudge.Nudge(step.Pid, step.SessionName, StopRouting.NudgeMarker))
                     {
-                        asked++;
-                    }
-                    else
-                    {
-                        unreached++;
+                        case NudgeOutcome.Sent:
+                            asked++;
+                            break;
+
+                        case NudgeOutcome.BlockedByElevation:
+                            blocked++;
+                            break;
+
+                        default:
+                            unreached++;
+                            break;
                     }
 
                     break;
@@ -328,16 +334,16 @@ public sealed class ShellViewModel : ObservableObject
             return;
         }
 
-        Notice = Describe(asked, waiting, unreached);
+        Notice = Describe(asked, waiting, unreached, blocked);
     }
 
     /// <summary>
     /// What was actually set in motion. A session that has been asked has not yet been told: the
     /// request waits until its next turn ends, so saying it has stopped would be ahead of the facts.
     /// </summary>
-    private static string Describe(int asked, int waiting, int unreached)
+    private static string Describe(int asked, int waiting, int unreached, int blocked)
     {
-        if (asked == 0 && unreached == 0)
+        if (asked == 0 && unreached == 0 && blocked == 0)
         {
             return "Nothing to stop.";
         }
@@ -362,6 +368,12 @@ public sealed class ShellViewModel : ObservableObject
         {
             said.Add($"{unreached} idle session(s) could not be typed into, so nothing has started their "
                      + "turn. The request is written and waiting: open the tab and press Enter.");
+        }
+
+        if (blocked > 0)
+        {
+            said.Add($"{blocked} idle session(s) are in a terminal running as administrator, which Windows "
+                     + "will not let Theseus type into. The request is written: open the tab and press Enter.");
         }
 
         return string.Join(" ", said);

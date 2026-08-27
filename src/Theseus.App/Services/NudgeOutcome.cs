@@ -12,6 +12,13 @@ public enum NudgeOutcome
     /// <summary>Windows would not accept the input.</summary>
     Refused,
 
+    /// <summary>
+    /// The terminal runs at a higher integrity level than Theseus, so Windows refuses the input
+    /// outright. Nothing in this application can get round that, and it is worth saying rather than
+    /// reporting a bare refusal nobody can act on.
+    /// </summary>
+    BlockedByElevation,
+
     /// <summary>The keystrokes were sent to the confirmed tab.</summary>
     Sent,
 }

@@ -144,7 +144,7 @@
                                         CommandParameter="{Binding}" />
                                 <Button Content="Stop" FontSize="11" Padding="8,1" Margin="0,0,4,0"
                                         Visibility="{Binding IsLive, Converter={StaticResource BoolToVisibility}}"
-                                        ToolTip="Bring this session forward with a stop request ready to paste"
+                                        ToolTip="Ask this session to write a handoff and exit when its turn ends"
                                         Command="{Binding DataContext.StopCardCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                         CommandParameter="{Binding}" />
                                 <Button Content="Focus" FontSize="11" Padding="8,1" Margin="0,0,6,0"
@@ -364,7 +364,7 @@
                         ToolTip="Start every lane except the last"
                         Command="{Binding StartBoardCommand}" />
                 <Button Content="Stop all" Padding="14,4" Margin="0,0,16,0"
-                        ToolTip="Work through the running sessions, one stop request at a time"
+                        ToolTip="Ask every running session to write a handoff and exit"
                         Command="{Binding StopBoardCommand}" />
                 <TextBlock Text="Theme" VerticalAlignment="Center" FontSize="12" Margin="0,0,8,0"
                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />

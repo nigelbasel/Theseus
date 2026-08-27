@@ -24,6 +24,7 @@ public static class TabNudge
     private const uint KeyUp = 0x0002;
     private const uint Unicode = 0x0004;
     private const ushort Return = 0x0D;
+    private const int AccessDenied = 5;
 
     /// <summary>Types the marker and Enter into one session's tab, if it can be confirmed.</summary>
     public static NudgeOutcome Nudge(int claudeProcessId, string? tabTitle, string marker)
@@ -42,7 +43,7 @@ public static class TabNudge
             return NudgeOutcome.FocusLost;
         }
 
-        return Send(marker) ? NudgeOutcome.Sent : NudgeOutcome.Refused;
+        return Send(marker);
     }
 
     /// <summary>
@@ -64,7 +65,7 @@ public static class TabNudge
                && string.Equals(name.ToString(), TerminalWindowClass, StringComparison.Ordinal);
     }
 
-    private static bool Send(string marker)
+    private static NudgeOutcome Send(string marker)
     {
         var inputs = new List<Input>();
 
@@ -81,12 +82,22 @@ public static class TabNudge
 
         if (sent == inputs.Count)
         {
-            return true;
+            return NudgeOutcome.Sent;
+        }
+
+        // Windows refuses input from a process to a window of higher integrity, and says so with
+        // access denied. A terminal started as administrator is out of reach of a Theseus that was
+        // not, and no amount of retrying changes that.
+        if (Marshal.GetLastWin32Error() == AccessDenied)
+        {
+            TheseusLog.Warning("The terminal runs elevated and Theseus does not, so Windows refused the keystrokes");
+
+            return NudgeOutcome.BlockedByElevation;
         }
 
         TheseusLog.Warning("Windows accepted {Sent} of {Total} keystrokes", sent, inputs.Count);
 
-        return false;
+        return NudgeOutcome.Refused;
     }
 
     private static Input Character(char character, bool up) => new()
