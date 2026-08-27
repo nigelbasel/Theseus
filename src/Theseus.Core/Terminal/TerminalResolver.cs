@@ -28,7 +28,7 @@ public sealed class TerminalResolver : ITerminalResolver
 
         var alias = File.Exists(AliasPath) ? AliasPath : null;
 
-        return TerminalSelector.Choose(RunningTerminalPaths(), alias);
+        return TerminalSelector.Choose(RunningTerminalPaths(), alias, InstalledTerminals.Paths());
     }
 
     private static List<string> RunningTerminalPaths()

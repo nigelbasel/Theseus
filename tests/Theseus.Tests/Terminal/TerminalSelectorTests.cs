@@ -98,4 +98,32 @@ public class TerminalSelectorTests
         Assert.That(TerminalSelector.Choose([Preview, Preview, Stable], null).ExecutablePath,
             Is.EqualTo(Preview), "three windows open in preview is where the work is, whatever the default");
     }
+
+    [Test]
+    public void Choose_PrefersAnInstalledStableTerminalOverTheAliasWhenNothingIsRunning()
+    {
+        var resolution = TerminalSelector.Choose([], Alias, [Stable, Preview]);
+
+        Assert.That(resolution.ExecutablePath, Is.EqualTo(Stable),
+            "both packages claim the alias, so on the first launch after a restart it opens preview");
+    }
+
+    [Test]
+    public void Choose_FallsBackToTheAliasWhenNothingIsRunningAndNothingIsInstalled()
+    {
+        Assert.That(TerminalSelector.Choose([], Alias, []).ExecutablePath, Is.EqualTo(Alias));
+    }
+
+    [Test]
+    public void Choose_StillFollowsWhateverIsRunningAheadOfWhatIsMerelyInstalled()
+    {
+        Assert.That(TerminalSelector.Choose([Preview], Alias, [Stable]).ExecutablePath, Is.EqualTo(Preview),
+            "a running terminal is where the work is, and only it can host a named window");
+    }
+
+    [Test]
+    public void Choose_TakesTheOnlyInstalledTerminalEvenWhenItIsThePreview()
+    {
+        Assert.That(TerminalSelector.Choose([], Alias, [Preview]).ExecutablePath, Is.EqualTo(Preview));
+    }
 }

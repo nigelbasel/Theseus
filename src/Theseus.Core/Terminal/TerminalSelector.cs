@@ -11,9 +11,18 @@ public static class TerminalSelector
     /// <summary>Picks a terminal from what is running, falling back to the execution alias.</summary>
     /// <param name="runningExecutablePaths">The image path of every running terminal process.</param>
     /// <param name="aliasPath">The <c>wt.exe</c> alias, if it is present on disk.</param>
-    public static TerminalResolution Choose(IReadOnlyList<string> runningExecutablePaths, string? aliasPath)
+    /// <param name="installed">
+    /// Every terminal installed, stable first, for when nothing is running to follow. Preferred over
+    /// the alias because both packages claim the alias and it opens the preview where one exists.
+    /// </param>
+    public static TerminalResolution Choose(
+        IReadOnlyList<string> runningExecutablePaths,
+        string? aliasPath,
+        IReadOnlyList<string>? installed = null)
     {
         ArgumentNullException.ThrowIfNull(runningExecutablePaths);
+
+        installed ??= [];
 
         var groups = runningExecutablePaths
             .Where(path => !string.IsNullOrWhiteSpace(path))
@@ -27,6 +36,11 @@ public static class TerminalSelector
         if (groups.Count > 0)
         {
             return new TerminalResolution(groups[0].Path, TerminalSource.RunningInstance, groups.Count);
+        }
+
+        if (installed.Count > 0)
+        {
+            return new TerminalResolution(installed[0], TerminalSource.RunningInstance, 0);
         }
 
         if (!string.IsNullOrWhiteSpace(aliasPath))
@@ -44,6 +58,6 @@ public static class TerminalSelector
     /// it to preview - "TerminalPreview" sorts before "Terminal_" - which is a coin toss dressed up
     /// as a rule.
     /// </summary>
-    private static bool IsPreview(string path) =>
+    public static bool IsPreview(string path) =>
         path.Contains("WindowsTerminalPreview", StringComparison.OrdinalIgnoreCase);
 }
