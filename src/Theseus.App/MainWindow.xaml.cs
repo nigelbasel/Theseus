@@ -188,14 +188,39 @@ public partial class MainWindow : Window
 
     private void OnColumnDrop(object sender, DragEventArgs e)
     {
-        if (sender is not ItemsControl { DataContext: ColumnViewModel column }
+        if (sender is not ItemsControl { DataContext: ColumnViewModel column } lane
             || e.Data.GetData(DataFormats.StringFormat) is not string key)
         {
             return;
         }
 
-        Board?.Move(key, column.Column);
+        Board?.Move(key, column.Column, DropIndex(lane, column, e.GetPosition(lane)));
         e.Handled = true;
+    }
+
+    /// <summary>
+    /// Where in the lane a drop landed. A card is displaced by one that lands on its upper half and
+    /// keeps its place against one that lands on its lower half, which is what makes dropping onto a
+    /// boundary do the thing the pointer is nearest to rather than the thing it is over.
+    /// </summary>
+    private static int DropIndex(ItemsControl lane, ColumnViewModel column, Point position)
+    {
+        for (var index = 0; index < column.Cards.Count; index++)
+        {
+            if (lane.ItemContainerGenerator.ContainerFromIndex(index) is not FrameworkElement container)
+            {
+                continue;
+            }
+
+            var top = container.TranslatePoint(new Point(0, 0), lane).Y;
+
+            if (position.Y < top + (container.ActualHeight / 2))
+            {
+                return index;
+            }
+        }
+
+        return column.Cards.Count;
     }
 
     private static WorkstreamCardViewModel? FindCard(DependencyObject? source)

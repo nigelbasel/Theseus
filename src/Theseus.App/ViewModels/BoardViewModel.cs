@@ -114,24 +114,69 @@ public sealed class BoardViewModel : ObservableObject
     }
 
     /// <summary>Moves a card to another lane and persists the change.</summary>
-    public void Move(string key, string destination)
+    /// <param name="index">
+    /// Where in the lane to put it, or null for the end. Position is not decoration: a lane's order
+    /// is the order its tabs open in when the lane or the board is started, so dragging a card up
+    /// the lane brings its session forward in the morning.
+    /// </param>
+    public void Move(string key, string destination, int? index = null)
     {
         var card = Card(key);
+        var lane = Columns.FirstOrDefault(column => column.Column == destination);
 
-        if (card is null || card.Column == destination)
+        if (card is null || lane is null)
         {
             return;
         }
+
+        var cameFrom = lane.Cards.IndexOf(card) is var found && found >= 0 ? found : (int?)null;
 
         foreach (var column in Columns)
         {
             column.Cards.Remove(card);
         }
 
+        var at = LaneInsertion.At(index ?? lane.Cards.Count + 1, cameFrom, lane.Cards.Count);
+
+        if (cameFrom == at && card.Column == destination)
+        {
+            lane.Cards.Insert(at, card);
+
+            return;
+        }
+
         card.Workstream = card.Workstream with { Column = destination };
-        Columns.First(column => column.Column == destination).Cards.Add(card);
+        lane.Cards.Insert(at, card);
 
         Persist(card);
+        Renumber(lane);
+    }
+
+    /// <summary>
+    /// Writes each card's position in the lane back to its plan file, so the order survives a
+    /// restart and the morning's tabs open in it. Only the cards whose number actually changed are
+    /// written: these files are authored by the sessions themselves, and rewriting one that did not
+    /// move would put Theseus in a session's file for no reason.
+    /// </summary>
+    private void Renumber(ColumnViewModel lane)
+    {
+        for (var position = 0; position < lane.Cards.Count; position++)
+        {
+            var card = lane.Cards[position];
+            var order = position + 1;
+
+            if (card.Workstream.BoardOrder == order)
+            {
+                continue;
+            }
+
+            card.Workstream = card.Workstream with { BoardOrder = order };
+
+            if (_plans.TryRead(card.Key) is { } plan)
+            {
+                _plans.Write(card.Key, plan with { Order = order });
+            }
+        }
     }
 
     /// <summary>The card the next Adopt will attach a session to.</summary>
