@@ -86,7 +86,8 @@ public class HookInstallationTests
             .GetProperty("hooks")[0]
             .GetProperty("command").GetString();
 
-        Assert.That(command, Is.EqualTo(path),
-            "a Windows path is full of the one character JSON treats as an escape");
+        Assert.That(command, Is.EqualTo($"\"{path}\""),
+            "the command is run through a shell, where an unquoted Program Files is two words");
     }
+
 }

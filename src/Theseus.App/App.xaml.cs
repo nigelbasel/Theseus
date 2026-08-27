@@ -42,6 +42,13 @@ public partial class App : Application
             return;
         }
 
+        if (!SingleInstance.Claim())
+        {
+            Shutdown();
+
+            return;
+        }
+
         DispatcherUnhandledException += (_, args) =>
         {
             TheseusLog.Error(args.Exception, "An unhandled exception reached the dispatcher");

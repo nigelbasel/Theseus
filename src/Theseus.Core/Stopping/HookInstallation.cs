@@ -45,15 +45,24 @@ public static class HookInstallation
         }
     }
 
-    /// <summary>The configuration to add, ready to be shown to the user.</summary>
+    /// <summary>
+    /// The configuration to add, ready to be shown to the user.
+    ///
+    /// The path is quoted inside the command, which matters more than it looks: the command is run
+    /// through a shell, and an unquoted <c>C:\Program Files\...</c> is two words to a shell. It fails
+    /// as "C:Program: command not found", from inside somebody else's session, where nothing connects
+    /// it to Theseus.
+    /// </summary>
     public static string Snippet(string hookExecutablePath)
     {
+        var quoted = JsonSerializer.Serialize($"\"{hookExecutablePath}\"");
+
         var events = Events.Select(name =>
             $$"""
                   "{{name}}": [
                     {
                       "hooks": [
-                        { "type": "command", "command": {{JsonSerializer.Serialize(hookExecutablePath)}} }
+                        { "type": "command", "command": {{quoted}} }
                       ]
                     }
                   ]
