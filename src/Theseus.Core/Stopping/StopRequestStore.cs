@@ -96,6 +96,10 @@ public sealed class StopRequestStore : IStopRequestStore
     }
 
     /// <inheritdoc />
+    public PendingStopRequest? Waiting(string sessionId) =>
+        StopRequestPath.For(_root, sessionId) is { } path ? Parse(path) : null;
+
+    /// <inheritdoc />
     public IReadOnlyList<PendingStopRequest> Pending()
     {
         var directory = Path.Combine(_root, StopRequestPath.PendingFolder);

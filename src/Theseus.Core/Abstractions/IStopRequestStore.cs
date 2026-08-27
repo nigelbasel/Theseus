@@ -16,6 +16,9 @@ public interface IStopRequestStore
     /// </summary>
     PendingStopRequest? Claim(string sessionId);
 
+    /// <summary>The request waiting for one session, without taking it.</summary>
+    PendingStopRequest? Waiting(string sessionId);
+
     /// <summary>Every request still waiting.</summary>
     IReadOnlyList<PendingStopRequest> Pending();
 }

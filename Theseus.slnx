@@ -2,6 +2,7 @@
   <Folder Name="/src/">
     <Project Path="src/Theseus.App/Theseus.App.csproj" />
     <Project Path="src/Theseus.Core/Theseus.Core.csproj" />
+    <Project Path="src/Theseus.Hook/Theseus.Hook.csproj" />
     <Project Path="src/Theseus.Launcher/Theseus.Launcher.csproj" />
   </Folder>
   <Folder Name="/tests/">

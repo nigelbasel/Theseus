@@ -106,4 +106,29 @@ public class StopRequestStoreTests
     private static PendingStopRequest Request() =>
         new(SessionId, "contact-forms", "Contact forms", "Write a handoff and stop.",
             DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(2));
+
+    [Test]
+    public void Waiting_LooksWithoutTaking()
+    {
+        _store.Write(Request());
+
+        Assert.That(_store.Waiting(SessionId), Is.Not.Null);
+        Assert.That(_store.Claim(SessionId), Is.Not.Null,
+            "a hook must be able to decide before it claims, or a turn it declines eats the request");
+    }
+
+    [Test]
+    public void Waiting_FindsNothingOnceTheRequestHasBeenTaken()
+    {
+        _store.Write(Request());
+        _store.Claim(SessionId);
+
+        Assert.That(_store.Waiting(SessionId), Is.Null);
+    }
+
+    [Test]
+    public void Waiting_RefusesAnIdentifierThatIsNotASessionId()
+    {
+        Assert.That(_store.Waiting(@"..\..\windows"), Is.Null);
+    }
 }

@@ -1,3 +1,4 @@
+using System.Text;
 using Theseus.Core.Stopping;
 
 // This runs on every turn of every Claude Code session on the machine, including sessions that have
@@ -7,17 +8,37 @@ using Theseus.Core.Stopping;
 // always zero - a Stop hook that exits non-zero blocks the turn it was supposed to be extending.
 try
 {
-    var input = StopHookInput.Parse(Console.In.ReadToEnd());
+    // Decode the bytes as UTF-8 and drop any preamble, rather than taking Console.In, whose decoding
+    // follows the console's code page: a byte-order mark arrives as three mojibake characters that
+    // way, which no amount of trimming for the one character it should have been will remove.
+    using var standardInput = Console.OpenStandardInput();
+    using var received = new MemoryStream();
+
+    standardInput.CopyTo(received);
+
+    var bytes = new ReadOnlySpan<byte>(received.GetBuffer(), 0, (int)received.Length);
+    var preamble = Encoding.UTF8.Preamble;
+
+    if (bytes.StartsWith(preamble))
+    {
+        bytes = bytes[preamble.Length..];
+    }
+
+    var input = StopHookInput.Parse(Encoding.UTF8.GetString(bytes));
 
     if (input?.SessionId is not { } sessionId)
     {
         return 0;
     }
 
+    // Decide before claiming. Claiming is what makes a request undeliverable to anyone else, so
+    // claiming first and then declining - on a subagent's turn, or one a stop hook already extended
+    // - would consume the request and leave the session that was meant to have it none the wiser.
     var store = new StopRequestStore(StopRequestRoot.Default);
-    var waiting = store.Claim(sessionId);
+    var waiting = store.Waiting(sessionId);
 
-    if (StopHookDecision.Deliver(input, waiting, DateTimeOffset.UtcNow) is not { } request)
+    if (StopHookDecision.Deliver(input, waiting, DateTimeOffset.UtcNow) is null
+        || store.Claim(sessionId) is not { } request)
     {
         return 0;
     }
