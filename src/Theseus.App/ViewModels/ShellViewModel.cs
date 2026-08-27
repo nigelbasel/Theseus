@@ -283,15 +283,30 @@ public sealed class ShellViewModel : ObservableObject
         var installed = HookInstallation.IsInstalled(SettingsFile());
         var asked = 0;
         var waiting = 0;
+        var unreached = 0;
 
         foreach (var step in steps)
         {
             switch (StopRouting.For(step.Lifecycle, installed))
             {
                 case StopRoute.WaitForTurnEnd:
-                case StopRoute.Nudge:
                     Ask(step);
                     asked++;
+                    break;
+
+                case StopRoute.Nudge:
+                    Ask(step);
+
+                    if (TabNudge.Nudge(step.Pid, step.SessionName, StopRouting.NudgeMarker)
+                        is NudgeOutcome.Sent)
+                    {
+                        asked++;
+                    }
+                    else
+                    {
+                        unreached++;
+                    }
+
                     break;
 
                 case StopRoute.AnswerItFirst:
@@ -313,27 +328,43 @@ public sealed class ShellViewModel : ObservableObject
             return;
         }
 
-        Notice = Describe(asked, waiting);
+        Notice = Describe(asked, waiting, unreached);
     }
 
     /// <summary>
     /// What was actually set in motion. A session that has been asked has not yet been told: the
     /// request waits until its next turn ends, so saying it has stopped would be ahead of the facts.
     /// </summary>
-    private static string Describe(int asked, int waiting)
+    private static string Describe(int asked, int waiting, int unreached)
     {
-        if (asked == 0)
+        if (asked == 0 && unreached == 0)
         {
             return "Nothing to stop.";
         }
 
-        var told = asked == 1
-            ? "One session will be asked to write its handoff and exit when its turn ends."
-            : $"{asked} sessions will be asked to write their handoffs and exit as their turns end.";
+        var said = new List<string>();
 
-        return waiting == 0
-            ? told
-            : $"{told} {waiting} of them is waiting on you first, and is now in front.";
+        if (asked == 1)
+        {
+            said.Add("One session will be asked to write its handoff and exit when its turn ends.");
+        }
+        else if (asked > 1)
+        {
+            said.Add($"{asked} sessions will be asked to write their handoffs and exit as their turns end.");
+        }
+
+        if (waiting > 0)
+        {
+            said.Add($"{waiting} of them is waiting on you first, and is now in front.");
+        }
+
+        if (unreached > 0)
+        {
+            said.Add($"{unreached} idle session(s) could not be typed into, so nothing has started their "
+                     + "turn. The request is written and waiting: open the tab and press Enter.");
+        }
+
+        return string.Join(" ", said);
     }
 
     private void Ask(StopStep step) =>

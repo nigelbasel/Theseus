@@ -59,4 +59,13 @@ public class StopRoutingTests
         Assert.That(StopRouting.For(SessionLifecycle.Launching, hookInstalled: true),
             Is.EqualTo(StopRoute.WaitForTurnEnd));
     }
+
+    [Test]
+    public void NudgeMarker_IsOneHarmlessWordAndNotTheRequest()
+    {
+        Assert.That(StopRouting.NudgeMarker, Does.Not.Contain(" "),
+            "a keystroke landing somewhere unintended should leave one word, not a paragraph");
+        Assert.That(StopRouting.NudgeMarker, Does.Contain("theseus"),
+            "whoever finds it in a transcript or a shell should be able to tell where it came from");
+    }
 }
