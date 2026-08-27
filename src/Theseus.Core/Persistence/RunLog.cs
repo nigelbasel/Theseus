@@ -25,16 +25,15 @@ public sealed class RunLog : IRunLog
     {
         ArgumentNullException.ThrowIfNull(run);
 
-        var directory = Path.GetDirectoryName(_path);
-        if (!string.IsNullOrEmpty(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
+        Write(JsonSerializer.Serialize(run, TheseusJson.Compact));
+    }
 
-        lock (_gate)
-        {
-            File.AppendAllText(_path, JsonSerializer.Serialize(run, TheseusJson.Compact) + Environment.NewLine, Encoding);
-        }
+    /// <inheritdoc />
+    public void AppendEnd(RunEnd end)
+    {
+        ArgumentNullException.ThrowIfNull(end);
+
+        Write(JsonSerializer.Serialize(end, TheseusJson.Compact));
     }
 
     /// <inheritdoc />
@@ -47,6 +46,7 @@ public sealed class RunLog : IRunLog
         }
 
         var runs = new List<SessionRun>();
+        var endings = new Dictionary<Guid, RunEnd>();
 
         foreach (var line in text.Split('\n'))
         {
@@ -56,19 +56,65 @@ public sealed class RunLog : IRunLog
                 continue;
             }
 
-            try
-            {
-                if (JsonSerializer.Deserialize<SessionRun>(trimmed, TheseusJson.Compact) is { } run)
-                {
-                    runs.Add(run);
-                }
-            }
-            catch (JsonException exception)
-            {
-                TheseusLog.Warning("Skipped an unreadable line in {Path}: {Reason}", _path, exception.Message);
-            }
+            Take(trimmed, runs, endings);
         }
 
-        return runs;
+        return [.. runs.Select(run => Apply(run, endings))];
+    }
+
+    /// <summary>
+    /// Reads one line as whichever shape it is. The two are told apart by <c>runId</c>, which only an
+    /// ending carries: a discriminator field written beside the data could contradict it, whereas a
+    /// property that is either there or not cannot.
+    /// </summary>
+    private void Take(string line, List<SessionRun> runs, Dictionary<Guid, RunEnd> endings)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(line);
+
+            if (document.RootElement.TryGetProperty("runId", out _))
+            {
+                if (JsonSerializer.Deserialize<RunEnd>(line, TheseusJson.Compact) is { } end)
+                {
+                    endings.TryAdd(end.RunId, end);
+                }
+
+                return;
+            }
+
+            if (JsonSerializer.Deserialize<SessionRun>(line, TheseusJson.Compact) is { Id: var id } run
+                && id != Guid.Empty)
+            {
+                runs.Add(run);
+
+                return;
+            }
+
+            TheseusLog.Warning("Skipped a line in {Path} that is neither a run nor an ending", _path);
+        }
+        catch (JsonException exception)
+        {
+            TheseusLog.Warning("Skipped an unreadable line in {Path}: {Reason}", _path, exception.Message);
+        }
+    }
+
+    private static SessionRun Apply(SessionRun run, Dictionary<Guid, RunEnd> endings) =>
+        endings.TryGetValue(run.Id, out var end)
+            ? run with { EndedUtc = end.EndedUtc, ExitCode = end.ExitCode, ExitReason = end.Reason }
+            : run;
+
+    private void Write(string line)
+    {
+        var directory = Path.GetDirectoryName(_path);
+        if (!string.IsNullOrEmpty(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        lock (_gate)
+        {
+            File.AppendAllText(_path, line + Environment.NewLine, Encoding);
+        }
     }
 }

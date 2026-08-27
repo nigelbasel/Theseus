@@ -22,6 +22,7 @@ public sealed class ShellViewModel : ObservableObject
     private readonly List<StopStep> _stopQueue = [];
     private readonly IRunLog _runs;
     private readonly ISessionTodoReader _todos;
+    private readonly RunEndings _endings;
     private readonly IWorkflowActivityReader _activity =
         new WorkflowActivityReader(WorkflowRunReader.DefaultDirectory);
     private readonly ClaudeAccountSource _account = new();
@@ -39,11 +40,13 @@ public sealed class ShellViewModel : ObservableObject
         IPlanStore plans,
         IRunLog runs,
         ISessionTodoReader todos,
-        ITabColourAllocator colours)
+        ITabColourAllocator colours,
+        RunEndings endings)
     {
         Board = board;
         _runs = runs;
         _todos = todos;
+        _endings = endings;
         Sessions = sessions;
         _settings = settings;
         _launcher = launcher;
@@ -354,8 +357,8 @@ public sealed class ShellViewModel : ObservableObject
     /// <summary>Brings every card's state into line with what is running and what ran today.</summary>
     public void SyncLifecycles()
     {
-        var runs = _runs.Read();
         var now = DateTimeOffset.Now;
+        var runs = _endings.Reconcile(_runs, Sessions.Snapshot.Live, DateTimeOffset.UtcNow);
 
         foreach (var card in Board.Columns.SelectMany(column => column.Cards))
         {

@@ -25,7 +25,7 @@ public sealed class LaunchCoordinator : IAsyncDisposable
     private readonly string _pipeName;
     private readonly string _launcherPath;
     private readonly ISettingsStore _settings;
-    private readonly Action<string, string>? _ticketIssued;
+    private readonly Action<string, string, Guid>? _ticketIssued;
 
     /// <summary>Creates the coordinator and starts listening for shims.</summary>
     public LaunchCoordinator(
@@ -38,7 +38,7 @@ public sealed class LaunchCoordinator : IAsyncDisposable
         string pipeName,
         string launcherPath,
         ISettingsStore settings,
-        Action<string, string>? ticketIssued = null)
+        Action<string, string, Guid>? ticketIssued = null)
     {
         _sink = sink;
         _terminals = terminals;
@@ -115,7 +115,9 @@ public sealed class LaunchCoordinator : IAsyncDisposable
 
         var plan = WorkstreamLaunchPlanner.Plan(request, DateTimeOffset.UtcNow.AddMinutes(2));
 
-        _ticketIssued?.Invoke(plan.Ticket.Ticket, workstream.Key);
+        var runId = Guid.NewGuid();
+
+        _ticketIssued?.Invoke(plan.Ticket.Ticket, workstream.Key, runId);
         _pipe.Register(plan.Ticket);
 
         try
@@ -129,7 +131,7 @@ public sealed class LaunchCoordinator : IAsyncDisposable
             return null;
         }
 
-        _runs.Append(new SessionRun(Guid.NewGuid(), sessionId, workstream.Key, workstream.WorkingDirectory,
+        _runs.Append(new SessionRun(runId, sessionId, workstream.Key, workstream.WorkingDirectory,
             null, resume ? SessionLaunchMode.Resume : SessionLaunchMode.FirstRun, workstream.Prompt,
             workstream.Title, workstream.ColorHex, DateTimeOffset.UtcNow, null, null, null, null,
             SessionExitReason.Unknown));

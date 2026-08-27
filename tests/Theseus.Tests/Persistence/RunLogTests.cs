@@ -115,10 +115,117 @@ public class RunLogTests
         Assert.That(File.Exists(nested), Is.True);
     }
 
-    private static SessionRun Run(string key) =>
+    private static SessionRun Run(string key = "contact-forms") =>
         new(Guid.NewGuid(), "3f2b1c40-9d5e-4a10-8b77-2c9e1d4a55aa", key, @"C:\work\repo",
             @"C:\Users\dev\.claude\projects\C--work-repo\3f2b1c40.jsonl",
             SessionLaunchMode.FirstRun, "Carry on.", "Contact form validation", "#208DD7",
             new DateTimeOffset(2026, 8, 26, 9, 0, 0, TimeSpan.Zero), null, 4242, 8080, null,
             SessionExitReason.Unknown);
+
+    [Test]
+    public void AppendEnd_LeavesTheStartLineExactlyAsItWasWritten()
+    {
+        var run = Run();
+        _log.Append(run);
+
+        var afterStart = File.ReadAllLines(_path)[0];
+
+        _log.AppendEnd(new RunEnd(run.Id, DateTimeOffset.UtcNow, 0, SessionExitReason.ClosedCleanly));
+
+        Assert.That(File.ReadAllLines(_path)[0], Is.EqualTo(afterStart),
+            "recording an ending must never touch a byte already on disk");
+    }
+
+    [Test]
+    public void Read_FoldsAnEndingOntoTheRunItBelongsTo()
+    {
+        var run = Run();
+        var ended = DateTimeOffset.UtcNow;
+
+        _log.Append(run);
+        _log.AppendEnd(new RunEnd(run.Id, ended, 0, SessionExitReason.ClosedCleanly));
+
+        var read = _log.Read().Single();
+
+        Assert.That(read.EndedUtc, Is.EqualTo(ended));
+        Assert.That(read.ExitCode, Is.Zero);
+        Assert.That(read.ExitReason, Is.EqualTo(SessionExitReason.ClosedCleanly));
+        Assert.That(read.HasEnded, Is.True);
+    }
+
+    [Test]
+    public void Read_KeepsTheFirstEndingWhenARunIsEndedTwice()
+    {
+        var run = Run();
+        _log.Append(run);
+        _log.AppendEnd(new RunEnd(run.Id, DateTimeOffset.UtcNow, 0, SessionExitReason.ClosedCleanly));
+        _log.AppendEnd(new RunEnd(run.Id, DateTimeOffset.UtcNow, null, SessionExitReason.CrashedOrKilled));
+
+        Assert.That(_log.Read().Single().ExitReason, Is.EqualTo(SessionExitReason.ClosedCleanly),
+            "a later, worse observation must not overwrite the closest one");
+    }
+
+    [Test]
+    public void Read_FoldsAnEndingThatWasWrittenBeforeItsStartLine()
+    {
+        var run = Run();
+
+        _log.AppendEnd(new RunEnd(run.Id, DateTimeOffset.UtcNow, 0, SessionExitReason.ClosedCleanly));
+        _log.Append(run);
+
+        Assert.That(_log.Read().Single().HasEnded, Is.True, "the join is by id, not by position");
+    }
+
+    [Test]
+    public void Read_LeavesARunWithNoEndingUnfinished()
+    {
+        _log.Append(Run());
+
+        var read = _log.Read().Single();
+
+        Assert.That(read.HasEnded, Is.False);
+        Assert.That(read.Duration, Is.Null);
+    }
+
+    [Test]
+    public void Read_ReportsARunEndedWhileTheseusWasDownAsFinishedWithNoDuration()
+    {
+        var run = Run();
+        _log.Append(run);
+        _log.AppendEnd(new RunEnd(run.Id, null, null, SessionExitReason.TheseusWasDown));
+
+        var read = _log.Read().Single();
+
+        Assert.That(read.HasEnded, Is.True, "it must not be mistaken for a run still going");
+        Assert.That(read.EndedUtc, Is.Null, "no time was observed, so none is invented");
+        Assert.That(read.Duration, Is.Null, "and it can never enter a measurement");
+    }
+
+    [Test]
+    public void Read_StillReadsTheRunsWrittenBeforeEndingsExisted()
+    {
+        _log.Append(Run());
+
+        Assert.That(_log.Read(), Has.Count.EqualTo(1),
+            "a line with no ending folds to itself, so existing records survive the format change");
+    }
+
+    [Test]
+    public void Read_IgnoresAnEndingWhoseRunIsNotInTheLog()
+    {
+        _log.Append(Run());
+        _log.AppendEnd(new RunEnd(Guid.NewGuid(), DateTimeOffset.UtcNow, 0, SessionExitReason.ClosedCleanly));
+
+        Assert.That(_log.Read(), Has.Count.EqualTo(1), "an orphaned ending never fabricates a run");
+    }
+
+    [Test]
+    public void Read_SkipsALineThatParsesAsJsonButCarriesNoRunIdentity()
+    {
+        _log.Append(Run());
+        File.AppendAllText(_path, """{"something":"else"}""" + Environment.NewLine);
+
+        Assert.That(_log.Read(), Has.Count.EqualTo(1),
+            "valid JSON that is not a run must not deserialise into a record full of defaults");
+    }
 }

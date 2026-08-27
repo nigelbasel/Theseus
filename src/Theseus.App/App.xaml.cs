@@ -4,6 +4,7 @@ using Theseus.App.Services;
 using Theseus.App.ViewModels;
 using Theseus.Core.Abstractions;
 using Theseus.Core.Colour;
+using Theseus.Core.Domain;
 using Theseus.Core.Diagnostics;
 using Theseus.Core.Launching;
 using Theseus.Core.Messaging;
@@ -58,9 +59,8 @@ public partial class App : Application
             new SessionRegistryReader(SessionRegistryReader.DefaultDirectory, new ProcessProbe()),
             new ConsoleTitleReader());
 
-        var sink = new BoardLaunchEventSink(board, Dispatcher);
-
         var runs = new RunLog(Path.Combine(DataDirectory, "runs.jsonl"));
+        var sink = new BoardLaunchEventSink(board, Dispatcher, runs);
 
         _launcher = new LaunchCoordinator(
             sink,
@@ -75,7 +75,8 @@ public partial class App : Application
             sink.Expect);
 
         var shell = new ShellViewModel(board, sessions, settings, _launcher, plans, runs,
-            new SessionTodoReader(SessionTodoReader.DefaultDirectory), new TabColourAllocator());
+            new SessionTodoReader(SessionTodoReader.DefaultDirectory), new TabColourAllocator(),
+            new RunEndings(DateTimeOffset.UtcNow));
 
         if (ChildSessionCheck.Warning() is { } warning)
         {

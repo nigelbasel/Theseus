@@ -19,17 +19,21 @@ public sealed class RunHistoryEntryViewModel
     /// <summary>When the run started, in local time.</summary>
     public string Started => _run.StartedUtc.ToLocalTime().ToString("ddd d MMM HH:mm");
 
-    /// <summary>How long the run lasted, or how long ago it started if it has not ended.</summary>
+    /// <summary>
+    /// How long the run lasted, how long ago it started if it is still going, or nothing measurable.
+    /// A run that ended unwatched has no ending moment, and reading that as "still running" would
+    /// describe an afternoon-old run as work in progress.
+    /// </summary>
     public string Duration
     {
         get
         {
-            if (_run.EndedUtc is not { } ended)
+            if (_run.Duration is not { } elapsed)
             {
-                return $"started {RelativeTimeConverter.Format(_run.StartedUtc, DateTimeOffset.UtcNow)} ago";
+                return _run.HasEnded
+                    ? "length unknown"
+                    : $"started {RelativeTimeConverter.Format(_run.StartedUtc, DateTimeOffset.UtcNow)} ago";
             }
-
-            var elapsed = ended - _run.StartedUtc;
 
             return elapsed.TotalHours >= 1
                 ? $"{(int)elapsed.TotalHours}h {elapsed.Minutes}m"
@@ -51,7 +55,7 @@ public sealed class RunHistoryEntryViewModel
     private string Ending => _run.ExitReason switch
     {
         SessionExitReason.ClosedCleanly => "closed cleanly",
-        SessionExitReason.CrashedOrKilled => $"exit {_run.ExitCode}",
+        SessionExitReason.CrashedOrKilled => _run.ExitCode is { } code ? $"exit {code}" : "killed",
         SessionExitReason.NeverStarted => "never started",
         SessionExitReason.TheseusWasDown => "outcome unknown",
         _ => _run.EndedUtc is null ? "running" : "ended",
