@@ -48,11 +48,12 @@ public static class SessionOpening
         Workstream workstream,
         bool hasHistory,
         string handoffPath,
-        bool handoffExists)
+        bool handoffExists,
+        string? planPath = null)
     {
         ArgumentNullException.ThrowIfNull(workstream);
 
-        var identity = WorkstreamIdentity.For(workstream, handoffPath);
+        var identity = WorkstreamIdentity.For(workstream, handoffPath, planPath);
 
         if (!hasHistory)
         {

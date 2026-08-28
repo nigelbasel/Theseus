@@ -125,7 +125,7 @@ public class PlanStoreTests
 
         var read = _store.TryRead("job-queue");
         Assert.That(read, Is.Not.Null);
-        Assert.That(read! with { AddDirs = [] }, Is.EqualTo(plan with { AddDirs = [] }));
+        Assert.That(read! with { AddDirs = [], JiraKeys = [] }, Is.EqualTo(plan with { AddDirs = [], JiraKeys = [] }));
         Assert.That(read.AddDirs, Is.EqualTo(plan.AddDirs));
     }
 
@@ -157,4 +157,27 @@ public class PlanStoreTests
 
     private void Write(string key, string contents) =>
         File.WriteAllText(Path.Combine(_directory, $"{key}.json"), contents);
+
+    [Test]
+    public void TryRead_ReadsJiraKeysASessionAddedToItsOwnPlan()
+    {
+        Write("contact-forms", """
+            {
+                "order": 1, "title": "Contact forms", "color": "#C0392B", "cwd": "C:\\work\\repo",
+                "addDirs": [], "resumeSessionId": null, "writtenAt": "2026-08-28T09:00:00",
+                "prompt": "Pick up the support case.", "jiraKeys": ["NDC-742"]
+            }
+            """);
+
+        Assert.That(_store.TryRead("contact-forms")!.JiraKeys, Is.EqualTo(new[] { "NDC-742" }));
+    }
+
+    [Test]
+    public void TryRead_StillReadsAPlanWrittenBeforeJiraKeysExisted()
+    {
+        Write("contact-forms", RealPlan);
+
+        Assert.That(_store.TryRead("contact-forms")!.JiraKeys, Is.Empty,
+            "these files are written by the sessions, so a missing field cannot be an error");
+    }
 }

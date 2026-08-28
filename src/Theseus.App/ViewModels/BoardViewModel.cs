@@ -249,13 +249,17 @@ public sealed class BoardViewModel : ObservableObject
                   IsBlocked = card.Workstream.IsBlocked,
                   ReopenTomorrow = card.Workstream.ReopenTomorrow,
                   JiraKeys = card.JiraKeys,
+                  RemovedJiraKeys = card.Workstream.RemovedJiraKeys,
                   StatusDocumentPath = card.Workstream.StatusDocumentPath,
                   LastSessionId = card.Workstream.LastSessionId,
                   UpdatedUtc = now,
               }
             : new WorkstreamSidecar(card.Key, card.Column, card.Workstream.IsBlocked, IsArchived: false,
                 ColorIsManual: true, card.Workstream.ReopenTomorrow, card.JiraKeys,
-                card.Workstream.StatusDocumentPath, card.Workstream.LastSessionId, now, now);
+                card.Workstream.StatusDocumentPath, card.Workstream.LastSessionId, now, now)
+              {
+                  RemovedJiraKeys = card.Workstream.RemovedJiraKeys,
+              };
 
         if (index >= 0)
         {

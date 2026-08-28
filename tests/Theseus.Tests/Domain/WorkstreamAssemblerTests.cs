@@ -59,11 +59,32 @@ public class WorkstreamAssemblerTests
     }
 
     [Test]
-    public void Assemble_KeepsConfirmedJiraKeysRatherThanReharvestingThemEveryRead()
+    public void Assemble_ShowsKeysAddedByHandAlongsideTheOnesTheWorkWasStartedFrom()
     {
         var workstream = Single(Plan(), Sidecar() with { JiraKeys = ["PROJ-999"] });
 
-        Assert.That(workstream.JiraKeys, Is.EqualTo(new[] { "PROJ-999" }));
+        Assert.That(workstream.JiraKeys, Is.EquivalentTo(new[] { "PROJ-101", "API-202", "PROJ-999" }));
+    }
+
+    [Test]
+    public void Assemble_ShowsAnIssueTheSessionRecordedInItsOwnPlan()
+    {
+        var workstream = Single(Plan() with { JiraKeys = ["NDC-742"] }, Sidecar());
+
+        Assert.That(workstream.JiraKeys, Does.Contain("NDC-742"),
+            "an issue raised mid-session is in neither the prompt nor the board");
+    }
+
+    [Test]
+    public void Assemble_LeavesOffAKeyThatWasTakenOffTheCard()
+    {
+        var workstream = Single(
+            Plan() with { JiraKeys = ["NDC-742"] },
+            Sidecar() with { RemovedJiraKeys = ["NDC-742"] });
+
+        Assert.That(workstream.JiraKeys, Does.Not.Contain("NDC-742"));
+        Assert.That(workstream.RemovedJiraKeys, Is.EqualTo(new[] { "NDC-742" }),
+            "the removal has to survive the read that would otherwise re-harvest it");
     }
 
     [Test]

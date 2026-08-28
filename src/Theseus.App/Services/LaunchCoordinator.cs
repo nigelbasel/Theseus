@@ -82,7 +82,7 @@ public sealed class LaunchCoordinator : IAsyncDisposable
 
     /// <summary>Opens a tab for one workstream and records the attempt.</summary>
     /// <returns>The session identifier the tab was started under, or null if it could not start.</returns>
-    public string? Launch(Workstream workstream)
+    public string? Launch(Workstream workstream, string? planPath = null)
     {
         ArgumentNullException.ThrowIfNull(workstream);
 
@@ -106,7 +106,8 @@ public sealed class LaunchCoordinator : IAsyncDisposable
             workstream,
             SessionOpening.HasHistory(workstream, File.Exists(handoff)),
             handoff,
-            File.Exists(handoff));
+            File.Exists(handoff),
+            planPath);
 
 
         var request = new WorkstreamLaunchRequest(workstream, Guid.NewGuid().ToString("N"), sessionId,

@@ -549,7 +549,7 @@ public sealed class ShellViewModel : ObservableObject
         {
             var workstream = Board.Pin(candidate);
 
-            if (_launcher.Launch(workstream) is not { } sessionId)
+            if (_launcher.Launch(workstream, _plans.PathFor(workstream.Key)) is not { } sessionId)
             {
                 continue;
             }

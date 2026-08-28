@@ -123,6 +123,13 @@ public static class HelpBook
                     "No run of this workstream was under way at any point today. A session left"
                     + " working overnight counts as today's, whatever day it was started on."),
                 new HelpEntry(
+                    "Jira keys",
+                    "Three places name them and all three are shown: the opening prompt, the card"
+                    + " itself where you can type one in, and the session, which records an issue it"
+                    + " raises in its own plan file. That last one is how an issue created an hour"
+                    + " into a session reaches the board without anybody retyping it. Taking a key"
+                    + " off a card is remembered, so it stays off until you add it back."),
+                new HelpEntry(
                     "Restarted outside Theseus",
                     "A session is running in this workstream's working directory that the board is not"
                     + " following. Adopt it."),

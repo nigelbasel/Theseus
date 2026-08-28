@@ -26,4 +26,12 @@ public sealed record WorkstreamSidecar(
     string? StatusDocumentPath,
     string? LastSessionId,
     DateTimeOffset CreatedUtc,
-    DateTimeOffset UpdatedUtc);
+    DateTimeOffset UpdatedUtc)
+{
+    /// <summary>
+    /// The keys taken off this card by hand. Kept so that removing one means something lasting: the
+    /// prompt and the session both go on naming keys every time the board is read, and without a
+    /// record of what was dismissed there would be no way to be rid of one.
+    /// </summary>
+    public IReadOnlyList<string> RemovedJiraKeys { get; init; } = [];
+}

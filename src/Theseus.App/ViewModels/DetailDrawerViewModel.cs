@@ -354,6 +354,8 @@ public sealed class DetailDrawerViewModel : ObservableObject
             ReopenTomorrow = ReopenTomorrow,
             StatusDocumentPath = Blank(StatusDocumentPath),
             JiraKeys = [.. JiraKeys],
+            RemovedJiraKeys = JiraKeySelection.Removed(
+                _card.Workstream.JiraKeys, JiraKeys, _card.Workstream.RemovedJiraKeys),
         };
 
         IsOpen = false;

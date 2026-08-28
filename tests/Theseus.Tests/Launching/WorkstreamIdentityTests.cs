@@ -45,4 +45,20 @@ public class WorkstreamIdentityTests
         new("contact-forms", "Contact form validation", "#208DD7", ColorIsManual: true,
             @"C:\dev\tfsgit", [], "Add validation.", 1, "Today", IsBlocked: false,
             ReopenTomorrow: true, IsArchived: false, "session-1", [], null, DateTimeOffset.UtcNow);
+
+    [Test]
+    public void For_TellsASessionWhereToRecordAnIssueItRaises()
+    {
+        var identity = WorkstreamIdentity.For(Workstream(), Handoff, @"C:\plans\contact-forms.json");
+
+        Assert.That(identity, Does.Contain(@"C:\plans\contact-forms.json"));
+        Assert.That(identity, Does.Contain("jiraKeys"));
+    }
+
+    [Test]
+    public void For_SaysNothingAboutAPlanFileItWasNotGiven()
+    {
+        Assert.That(WorkstreamIdentity.For(Workstream(), Handoff), Does.Not.Contain("jiraKeys"),
+            "a session sent to edit a file nobody named would go looking for one");
+    }
 }

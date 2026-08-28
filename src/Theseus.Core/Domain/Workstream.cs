@@ -35,4 +35,8 @@ public sealed record Workstream(
     string? LastSessionId,
     IReadOnlyList<string> JiraKeys,
     string? StatusDocumentPath,
-    DateTimeOffset PlanWrittenUtc);
+    DateTimeOffset PlanWrittenUtc)
+{
+    /// <summary>The keys taken off this card by hand, which stay off until they are added again.</summary>
+    public IReadOnlyList<string> RemovedJiraKeys { get; init; } = [];
+}

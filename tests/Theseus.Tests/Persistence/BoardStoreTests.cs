@@ -36,7 +36,8 @@ public class BoardStoreTests
         _store.Write([sidecar]);
 
         var read = _store.Read().Single();
-        Assert.That(read with { JiraKeys = [] }, Is.EqualTo(sidecar with { JiraKeys = [] }));
+        Assert.That(read with { JiraKeys = [], RemovedJiraKeys = [] },
+            Is.EqualTo(sidecar with { JiraKeys = [], RemovedJiraKeys = [] }));
         Assert.That(read.JiraKeys, Is.EqualTo(new[] { "PROJ-101", "API-202" }));
     }
 

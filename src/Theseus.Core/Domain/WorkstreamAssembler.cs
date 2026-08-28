@@ -53,7 +53,11 @@ public static class WorkstreamAssembler
             ReopenTomorrow: sidecar?.ReopenTomorrow ?? true,
             IsArchived: sidecar?.IsArchived ?? false,
             LastSessionId: plan.ResumeSessionId ?? sidecar?.LastSessionId,
-            JiraKeys: sidecar?.JiraKeys.Count > 0 ? sidecar.JiraKeys : JiraKeyExtractor.Extract(plan.Prompt),
+            JiraKeys: JiraKeySelection.Visible(
+                plan.JiraKeys, plan.Prompt, sidecar?.JiraKeys, sidecar?.RemovedJiraKeys),
             StatusDocumentPath: sidecar?.StatusDocumentPath,
-            PlanWrittenUtc: ParseWrittenAt(plan.WrittenAt));
+            PlanWrittenUtc: ParseWrittenAt(plan.WrittenAt))
+        {
+            RemovedJiraKeys = sidecar?.RemovedJiraKeys ?? [],
+        };
 }

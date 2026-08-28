@@ -21,4 +21,15 @@ public sealed record SessionPlan(
     IReadOnlyList<string> AddDirs,
     string? ResumeSessionId,
     string WrittenAt,
-    string Prompt);
+    string Prompt)
+{
+    /// <summary>
+    /// The Jira issues this workstream is working on, as its own session recorded them.
+    ///
+    /// Written by the session rather than by Theseus, because an issue raised in the middle of a
+    /// session exists nowhere the board can see: not in the opening prompt, which was composed before
+    /// it, and not on the card, where nobody has typed it. The session is the only party that knows.
+    /// Absent from plans written before this existed, and from any a session chooses not to fill in.
+    /// </summary>
+    public IReadOnlyList<string> JiraKeys { get; init; } = [];
+}
