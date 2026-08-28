@@ -85,17 +85,23 @@ public static class TabNudge
             return NudgeOutcome.Sent;
         }
 
+        var error = Marshal.GetLastWin32Error();
+
         // Windows refuses input from a process to a window of higher integrity, and says so with
         // access denied. A terminal started as administrator is out of reach of a Theseus that was
         // not, and no amount of retrying changes that.
-        if (Marshal.GetLastWin32Error() == AccessDenied)
+        if (error == AccessDenied)
         {
             TheseusLog.Warning("The terminal runs elevated and Theseus does not, so Windows refused the keystrokes");
 
             return NudgeOutcome.BlockedByElevation;
         }
 
-        TheseusLog.Warning("Windows accepted {Sent} of {Total} keystrokes", sent, inputs.Count);
+        // The number matters. Every refusal reads the same from the outside - nothing is typed and
+        // the session sits there - and only the code tells a locked-out desktop from a structure
+        // Windows would not accept, which is what this turned out to be the first time.
+        TheseusLog.Warning("Windows accepted {Sent} of {Total} keystrokes and reported error {Error}",
+            sent, inputs.Count, error);
 
         return NudgeOutcome.Refused;
     }
@@ -133,7 +139,17 @@ public static class TabNudge
         public InputData Data;
     }
 
-    [StructLayout(LayoutKind.Explicit)]
+    /// <summary>
+    /// The union inside INPUT, sized to the largest member Windows knows about rather than to the
+    /// only one declared here.
+    ///
+    /// Declaring just the keyboard member makes it 24 bytes, and INPUT 32 rather than the 40 an
+    /// x64 Windows expects. SendInput checks the size it is handed against its own and does nothing
+    /// at all when they disagree - no exception, no access denied, just zero events accepted. It
+    /// looked exactly like a permissions problem and was not one: nothing was ever typed into any
+    /// session, on any machine, by any build.
+    /// </summary>
+    [StructLayout(LayoutKind.Explicit, Size = 32)]
     private struct InputData
     {
         [FieldOffset(0)]
