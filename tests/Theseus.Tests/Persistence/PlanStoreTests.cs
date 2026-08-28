@@ -180,4 +180,21 @@ public class PlanStoreTests
         Assert.That(_store.TryRead("contact-forms")!.JiraKeys, Is.Empty,
             "these files are written by the sessions, so a missing field cannot be an error");
     }
+
+    [Test]
+    public void Delete_RemovesThePlanFile()
+    {
+        Write("contact-forms", RealPlan);
+
+        _store.Delete("contact-forms");
+
+        Assert.That(_store.TryRead("contact-forms"), Is.Null);
+        Assert.That(_store.Keys(), Does.Not.Contain("contact-forms"));
+    }
+
+    [Test]
+    public void Delete_SaysNothingAboutAPlanThatWasNotThere()
+    {
+        Assert.DoesNotThrow(() => _store.Delete("never-existed"));
+    }
 }

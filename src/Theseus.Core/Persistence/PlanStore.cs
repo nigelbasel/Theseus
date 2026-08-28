@@ -93,6 +93,19 @@ public sealed class PlanStore : IPlanStore
         AtomicFile.WriteAllText(PathFor(key), JsonSerializer.Serialize(plan, TheseusJson.Readable));
     }
 
+    /// <inheritdoc />
+    public void Delete(string key)
+    {
+        try
+        {
+            File.Delete(PathFor(key));
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            TheseusLog.Warning(exception, "Plan {Key} could not be deleted", key);
+        }
+    }
+
     private static bool IsUsable(SessionPlan plan) =>
         !string.IsNullOrWhiteSpace(plan.Prompt)
         && !string.IsNullOrWhiteSpace(plan.Cwd)

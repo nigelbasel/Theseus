@@ -107,6 +107,20 @@ public static class HelpBook
                 new HelpEntry("Start board", "Starts every lane except the last, which is where finished work lives."),
                 new HelpEntry("Stop all", "Asks every running session to hand over, one request each."),
                 new HelpEntry("Refresh", "Re-reads the plans, the run log and the session registry. Nothing is cached that this will not correct."),
+                new HelpEntry(
+                    "Archive",
+                    "In a card's details. Takes a workstream off the board without losing anything -"
+                    + " its plan, its notes and its history all stay. Archived at the top shows what"
+                    + " has been put away, and the same button there says Restore."),
+                new HelpEntry(
+                    "Delete",
+                    "Also in a card's details, and it asks first. It destroys the plan file, which is"
+                    + " the only copy of the prompt and of what the board knows. The handover notes"
+                    + " and the work itself are not Theseus's files and are left where they are."),
+                new HelpEntry(
+                    "Neither will touch a running workstream",
+                    "Both are refused while a session is live: the tab would go on working for a card"
+                    + " that no longer exists. Stop it first."),
             ]),
 
         new HelpSection(

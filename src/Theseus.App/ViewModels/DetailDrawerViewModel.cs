@@ -19,6 +19,9 @@ public sealed class DetailDrawerViewModel : ObservableObject
     private readonly IRunLog _runs;
     private readonly IWorkflowRunReader _workflows;
     private readonly Action<WorkstreamCardViewModel> _saved;
+    private readonly Action<WorkstreamCardViewModel, bool>? _archived;
+    private readonly Action<WorkstreamCardViewModel>? _removed;
+    private bool _isConfirmingDelete;
 
     private WorkstreamCardViewModel? _card;
     private string _title = string.Empty;
@@ -33,13 +36,24 @@ public sealed class DetailDrawerViewModel : ObservableObject
     private bool _isOpen;
 
     /// <summary>Creates the drawer over the stores it reads and writes.</summary>
+    /// <param name="archived">Puts the workstream away, or brings it back.</param>
+    /// <param name="removed">Destroys the workstream.</param>
     public DetailDrawerViewModel(IPlanStore plans, IRunLog runs, IWorkflowRunReader workflows,
-        Action<WorkstreamCardViewModel> saved)
+        Action<WorkstreamCardViewModel> saved,
+        Action<WorkstreamCardViewModel, bool>? archived = null,
+        Action<WorkstreamCardViewModel>? removed = null)
     {
         _plans = plans;
         _runs = runs;
         _workflows = workflows;
         _saved = saved;
+        _archived = archived;
+        _removed = removed;
+
+        ArchiveCommand = new RelayCommand(_ => Archive(), _ => _card is not null && !IsLive);
+        DeleteCommand = new RelayCommand(_ => IsConfirmingDelete = true, _ => _card is not null && !IsLive);
+        CancelDeleteCommand = new RelayCommand(_ => IsConfirmingDelete = false);
+        ConfirmDeleteCommand = new RelayCommand(_ => Delete(), _ => _card is not null && !IsLive);
 
         CloseCommand = new RelayCommand(_ => IsOpen = false);
         SaveCommand = new RelayCommand(_ => Save(), _ => _card is not null);
@@ -51,6 +65,40 @@ public sealed class DetailDrawerViewModel : ObservableObject
         RemoveJiraKeyCommand = new RelayCommand(RemoveJiraKey, parameter => parameter is string);
         RescanPromptCommand = new RelayCommand(_ => RescanPrompt(), _ => UnclaimedKeys.Count > 0);
     }
+
+    /// <summary>Puts this workstream away, or brings it back when it is already away.</summary>
+    public RelayCommand ArchiveCommand { get; }
+
+    /// <summary>Asks whether this workstream should really be destroyed.</summary>
+    public RelayCommand DeleteCommand { get; }
+
+    /// <summary>Destroys it.</summary>
+    public RelayCommand ConfirmDeleteCommand { get; }
+
+    /// <summary>Thinks better of it.</summary>
+    public RelayCommand CancelDeleteCommand { get; }
+
+    /// <summary>Whether the delete confirmation is showing.</summary>
+    public bool IsConfirmingDelete
+    {
+        get => _isConfirmingDelete;
+        private set => Set(ref _isConfirmingDelete, value);
+    }
+
+    /// <summary>Whether this workstream is put away.</summary>
+    public bool IsArchived => _card?.Workstream.IsArchived ?? false;
+
+    /// <summary>What the archive button says, which is the opposite thing when it is already away.</summary>
+    public string ArchiveLabel => IsArchived ? "Restore" : "Archive";
+
+    /// <summary>Whether a session is running, which is what stops either from being possible.</summary>
+    public bool IsLive => _card?.IsLive ?? false;
+
+    /// <summary>Why neither can be done, or empty when both can.</summary>
+    public string RemovalRefusal => WorkstreamRemoval.RefusalToArchive(IsLive) ?? string.Empty;
+
+    /// <summary>What deleting will destroy, said before it is done.</summary>
+    public string DeleteConsequence => WorkstreamRemoval.Consequence(Key);
 
     /// <summary>Hides the drawer, discarding unsaved edits.</summary>
     public RelayCommand CloseCommand { get; }
@@ -259,6 +307,13 @@ public sealed class DetailDrawerViewModel : ObservableObject
         }
 
         NewJiraKey = string.Empty;
+        IsConfirmingDelete = false;
+
+        Raise(nameof(IsArchived));
+        Raise(nameof(ArchiveLabel));
+        Raise(nameof(IsLive));
+        Raise(nameof(RemovalRefusal));
+        Raise(nameof(DeleteConsequence));
 
         Runs.Clear();
         foreach (var run in _runs.Read()
@@ -360,6 +415,31 @@ public sealed class DetailDrawerViewModel : ObservableObject
 
         IsOpen = false;
         _saved(_card);
+    }
+
+    private void Archive()
+    {
+        if (_card is not { } card)
+        {
+            return;
+        }
+
+        var archived = !IsArchived;
+
+        IsOpen = false;
+        _archived?.Invoke(card, archived);
+    }
+
+    private void Delete()
+    {
+        if (_card is not { } card)
+        {
+            return;
+        }
+
+        IsConfirmingDelete = false;
+        IsOpen = false;
+        _removed?.Invoke(card);
     }
 
     private static string? Blank(string value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();

@@ -20,4 +20,7 @@ public interface IPlanStore
 
     /// <summary>Writes a plan atomically.</summary>
     void Write(string key, SessionPlan plan);
+
+    /// <summary>Removes a plan file for good. Silent when there was nothing there to remove.</summary>
+    void Delete(string key);
 }

@@ -14,6 +14,7 @@ public sealed class BoardViewModel : ObservableObject
     private readonly ISettingsStore _settings;
     private string _status = string.Empty;
     private WorkstreamCardViewModel? _selectedCard;
+    private bool _showArchived;
 
     /// <summary>Creates the board over its stores.</summary>
     public BoardViewModel(IPlanStore plans, IBoardStore board, ISettingsStore settings)
@@ -62,7 +63,7 @@ public sealed class BoardViewModel : ObservableObject
         }
 
         var workstreams = WorkstreamAssembler.Assemble(plans, _board.Read())
-            .Where(workstream => !workstream.IsArchived)
+            .Where(workstream => workstream.IsArchived == ShowArchived)
             .ToList();
 
         var lanes = SyncLanes();
@@ -209,6 +210,65 @@ public sealed class BoardViewModel : ObservableObject
 
         card.Workstream = card.Workstream with { LastSessionId = sessionId };
         Persist(card);
+    }
+
+    /// <summary>
+    /// Whether the board is showing what has been put away instead of what is being worked on. The
+    /// two are shown apart rather than together: an archived workstream is one somebody decided to
+    /// stop looking at, and a board that keeps showing it greyed out has not done what was asked.
+    /// </summary>
+    public bool ShowArchived
+    {
+        get => _showArchived;
+        set
+        {
+            if (Set(ref _showArchived, value))
+            {
+                Refresh();
+            }
+        }
+    }
+
+    /// <summary>Puts a workstream away, or brings it back.</summary>
+    public void SetArchived(WorkstreamCardViewModel card, bool archived)
+    {
+        card.Workstream = card.Workstream with { IsArchived = archived };
+        PersistArchived(card, archived);
+        Refresh();
+    }
+
+    /// <summary>
+    /// Destroys a workstream: its plan file, which is the only copy of what its sessions were told,
+    /// and its entry on the board. Its handover notes and its work are somebody else's files and are
+    /// left where they are.
+    /// </summary>
+    public void Remove(WorkstreamCardViewModel card)
+    {
+        _plans.Delete(card.Key);
+        _board.Write([.. _board.Read().Where(sidecar =>
+            !string.Equals(sidecar.Key, card.Key, StringComparison.OrdinalIgnoreCase))]);
+
+        Refresh();
+    }
+
+    private void PersistArchived(WorkstreamCardViewModel card, bool archived)
+    {
+        var sidecars = _board.Read().ToList();
+        var index = sidecars.FindIndex(s => string.Equals(s.Key, card.Key, StringComparison.OrdinalIgnoreCase));
+        var now = DateTimeOffset.UtcNow;
+
+        if (index >= 0)
+        {
+            sidecars[index] = sidecars[index] with { IsArchived = archived, UpdatedUtc = now };
+        }
+        else
+        {
+            sidecars.Add(new WorkstreamSidecar(card.Key, card.Column, card.Workstream.IsBlocked, archived,
+                ColorIsManual: true, card.Workstream.ReopenTomorrow, card.JiraKeys,
+                card.Workstream.StatusDocumentPath, card.Workstream.LastSessionId, now, now));
+        }
+
+        _board.Write(sidecars);
     }
 
     /// <summary>

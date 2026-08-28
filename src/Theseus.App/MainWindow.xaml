@@ -371,6 +371,9 @@
                 <ComboBox ItemsSource="{Binding Source={StaticResource ThemeValues}}"
                           SelectedItem="{Binding Theme, Mode=TwoWay}"
                           Width="110" Margin="0,0,12,0" />
+                <ToggleButton Content="Archived" Padding="14,4" Margin="0,0,8,0"
+                              IsChecked="{Binding Board.ShowArchived, Mode=TwoWay}"
+                              ToolTip="Show what has been put away instead of what is being worked on" />
                 <Button Content="Refresh" Padding="14,4" Margin="0,0,8,0" Command="{Binding RefreshCommand}" />
                 <Button Content="Settings" Padding="14,4" Margin="0,0,8,0" Command="{Binding Settings.OpenCommand}" />
                 <Button Content="?" Padding="12,4" Command="{Binding Help.OpenCommand}"
@@ -487,14 +490,51 @@
                                 Command="{Binding Drawer.CloseCommand}" />
                     </Grid>
 
-                    <Grid DockPanel.Dock="Bottom" Margin="0,12,0,0">
-                        <TextBlock Text="{Binding Drawer.PlanPath}" FontSize="10" VerticalAlignment="Center"
-                                   TextTrimming="CharacterEllipsis" Margin="0,0,120,0"
+                    <StackPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
+                        <!--
+                            Deleting asks in place rather than in a message box: the question names
+                            what goes and what stays, which is more than a title bar and two buttons
+                            can say, and the answer is one click from the thing it is about.
+                        -->
+                        <Border Visibility="{Binding Drawer.IsConfirmingDelete, Converter={StaticResource BoolToVisibility}}"
+                                Padding="10" CornerRadius="6" Margin="0,0,0,8"
+                                Background="{DynamicResource LayerFillColorDefaultBrush}"
+                                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1">
+                            <StackPanel>
+                                <TextBlock Text="{Binding Drawer.DeleteConsequence}" TextWrapping="Wrap" FontSize="11.5" />
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+                                    <Button Content="Keep it" Padding="12,3" Margin="0,0,8,0"
+                                            Command="{Binding Drawer.CancelDeleteCommand}" />
+                                    <Button Content="Delete for good" Padding="12,3"
+                                            Command="{Binding Drawer.ConfirmDeleteCommand}" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock Text="{Binding Drawer.RemovalRefusal}" TextWrapping="Wrap" FontSize="11"
+                                   Margin="0,0,0,6"
+                                   Visibility="{Binding Drawer.IsLive, Converter={StaticResource BoolToVisibility}}"
+                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+
+                        <Grid>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                                <Button Content="{Binding Drawer.ArchiveLabel}" Padding="12,4" Margin="0,0,8,0"
+                                        Command="{Binding Drawer.ArchiveCommand}"
+                                        ToolTip="Hide this workstream without losing it. Restore it from Archived." />
+                                <Button Content="Delete" Padding="12,4"
+                                        Command="{Binding Drawer.DeleteCommand}"
+                                        ToolTip="Destroy this workstream and its plan file. Its notes and its work are left alone." />
+                            </StackPanel>
+                            <Button Content="Save" HorizontalAlignment="Right" Padding="20,4"
+                                    Command="{Binding Drawer.SaveCommand}" />
+                        </Grid>
+
+                        <TextBlock Text="{Binding Drawer.PlanPath}" FontSize="10" Margin="0,8,0,0"
+                                   TextTrimming="CharacterEllipsis"
                                    ToolTip="{Binding Drawer.PlanPath}"
                                    Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
-                        <Button Content="Save" HorizontalAlignment="Right" Padding="20,4"
-                                Command="{Binding Drawer.SaveCommand}" />
-                    </Grid>
+                    </StackPanel>
 
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel>

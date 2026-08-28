@@ -72,11 +72,28 @@ public sealed class ShellViewModel : ObservableObject
             parameter => CardSteps(parameter).Count > 0);
         StopBoardCommand = new RelayCommand(_ => BeginStop(BoardSteps()), _ => BoardSteps().Count > 0);
 
-        Drawer = new DetailDrawerViewModel(plans, runs, new WorkflowRunReader(WorkflowRunReader.DefaultDirectory), card =>
-        {
-            Board.Persist(card);
-            Refresh();
-        });
+        Drawer = new DetailDrawerViewModel(plans, runs, new WorkflowRunReader(WorkflowRunReader.DefaultDirectory),
+            card =>
+            {
+                Board.Persist(card);
+                Refresh();
+            },
+            (card, archived) =>
+            {
+                Board.SetArchived(card, archived);
+                Refresh();
+                Notice = archived
+                    ? $"Archived {card.Title}. It is under Archived until you restore it."
+                    : $"Restored {card.Title}.";
+            },
+            card =>
+            {
+                var title = card.Title;
+
+                Board.Remove(card);
+                Refresh();
+                Notice = $"Deleted {title}.";
+            });
 
         Settings = new SettingsViewModel(settings, Refresh);
 
