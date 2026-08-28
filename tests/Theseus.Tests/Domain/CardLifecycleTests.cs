@@ -116,4 +116,43 @@ public class CardLifecycleTests
 
         Assert.That(state.Lifecycle, Is.EqualTo(SessionLifecycle.NotStarted));
     }
+
+    [Test]
+    public void For_CountsASessionThatRanOvernightAndFinishedThisMorning()
+    {
+        var ended = Now.AddHours(-4);
+        var overnight = Run("tailhawk", Now.AddDays(-1).AddHours(-2)) with { EndedUtc = ended };
+
+        var state = CardLifecycle.For("tailhawk", "busy", isLive: false, [overnight], Now);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(state.Lifecycle, Is.EqualTo(SessionLifecycle.Ended),
+                "it was working this morning, whatever day it was started on");
+            Assert.That(state.Since, Is.EqualTo(ended));
+        });
+    }
+
+    [Test]
+    public void For_StillIgnoresARunThatWasOverBeforeTodayBegan()
+    {
+        var yesterday = Run("tailhawk", Now.AddDays(-1).AddHours(-2))
+            with { EndedUtc = Now.AddDays(-1), ExitReason = SessionExitReason.ClosedCleanly };
+
+        Assert.That(CardLifecycle.For("tailhawk", "busy", isLive: false, [yesterday], Now).Lifecycle,
+            Is.EqualTo(SessionLifecycle.NotStarted));
+    }
+
+    [Test]
+    public void For_PrefersTodaysOwnRunToAnOvernightOneThatOutlastedIt()
+    {
+        var ended = Now.AddMinutes(-20);
+        IReadOnlyList<SessionRun> runs =
+        [
+            Run("tailhawk", Now.AddDays(-1)) with { EndedUtc = Now.AddHours(-6) },
+            Run("tailhawk", Now.AddHours(-1)) with { EndedUtc = ended },
+        ];
+
+        Assert.That(CardLifecycle.For("tailhawk", "busy", isLive: false, runs, Now).Since, Is.EqualTo(ended));
+    }
 }

@@ -48,8 +48,24 @@ public static class CardLifecycle
         DateTimeOffset now) =>
         runs
             .Where(run => string.Equals(run.WorkstreamKey, workstreamKey, StringComparison.OrdinalIgnoreCase))
-            .Where(run => IsToday(run.StartedUtc, now))
+            .Where(run => RanToday(run, now))
             .MaxBy(run => run.StartedUtc);
+
+    /// <summary>
+    /// Whether a run was under way at some point today, which is not the same as having begun today.
+    /// A session left working overnight belongs to this morning as much as to last night, and a card
+    /// that asks only when the run started calls that workstream untouched while its notes from a few
+    /// hours ago sit on disk.
+    ///
+    /// A run that ended without its moment being observed cannot answer the question, so it falls
+    /// back to when it started rather than claiming a day it may have had nothing to do with. A run
+    /// still going is not this method's business: a live session is settled before the history is
+    /// consulted at all, and one that died unobserved is given an ending by the endings sweep, which
+    /// has already run by the time a card is asked what to say.
+    /// </summary>
+    private static bool RanToday(SessionRun run, DateTimeOffset now) =>
+        IsToday(run.StartedUtc, now)
+        || (run.EndedUtc is { } ended && ended.ToLocalTime().Date >= now.ToLocalTime().Date);
 
     private static bool IsToday(DateTimeOffset moment, DateTimeOffset now) =>
         moment.ToLocalTime().Date == now.ToLocalTime().Date;
