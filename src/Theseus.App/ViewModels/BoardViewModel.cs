@@ -22,6 +22,7 @@ public sealed class BoardViewModel : ObservableObject
         _plans = plans;
         _board = board;
         _settings = settings;
+        _showArchived = settings.Read().ShowArchived;
 
         Columns = [.. Lanes().Select(lane => new ColumnViewModel(lane))];
 
@@ -224,6 +225,7 @@ public sealed class BoardViewModel : ObservableObject
         {
             if (Set(ref _showArchived, value))
             {
+                _settings.Write(_settings.Read() with { ShowArchived = value });
                 Refresh();
             }
         }

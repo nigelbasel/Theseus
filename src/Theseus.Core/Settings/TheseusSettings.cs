@@ -47,6 +47,12 @@ public sealed record TheseusSettings(
     IReadOnlyList<string> Lanes,
     AppTheme Theme)
 {
+    /// <summary>
+    /// Whether the board was last left showing what has been archived. Remembered so that going
+    /// through what was put away survives a restart, the way the rest of the board's arrangement does.
+    /// </summary>
+    public bool ShowArchived { get; init; }
+
     /// <summary>Where workstreams are kept until the user points Theseus somewhere of their own.</summary>
     public static string DefaultPlanDirectory { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),

@@ -33,7 +33,10 @@ public class SettingsStoreTests
         var settings = new TheseusSettings(@"C:\work\plans", "my-window", @"C:\wt.exe",
             @"C:\claude.exe", "https://example.atlassian.net", "Read the notes first.",
             "Carry on from the handoff.", "Write a handoff and stop.",
-            SessionsPanelCollapsed: true, Lanes: ["Now", "Later"], Theme: AppTheme.Dark);
+            SessionsPanelCollapsed: true, Lanes: ["Now", "Later"], Theme: AppTheme.Dark)
+        {
+            ShowArchived = true,
+        };
 
         _store.Write(settings);
 
@@ -124,5 +127,12 @@ public class SettingsStoreTests
         _store.Write(TheseusSettings.Default with { Theme = AppTheme.Light });
 
         Assert.That(File.ReadAllText(_path), Does.Contain("Light"));
+    }
+
+    [Test]
+    public void Read_ShowsTheWorkingBoardWhenTheSettingPredatesIt()
+    {
+        Assert.That(TheseusSettings.Default.ShowArchived, Is.False,
+            "a board that opened onto what had been put away would look empty for no reason");
     }
 }
