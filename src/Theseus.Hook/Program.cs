@@ -4,8 +4,9 @@ using Theseus.Core.Stopping;
 // This runs on every turn of every Claude Code session on the machine, including sessions that have
 // nothing to do with Theseus. It must be quick, and it must be silent about everything except a
 // request genuinely waiting: a session should never learn from its own hooks that Theseus is
-// installed, let alone installed badly. Every failure is therefore swallowed, and the exit status is
-// always zero - a Stop hook that exits non-zero blocks the turn it was supposed to be extending.
+// installed, let alone installed badly. Every failure is therefore swallowed and reported as
+// nothing to say. Delivering is the one case that speaks, and on a Stop event speaking means exiting
+// 2: the session is refused its ending, and reads standard error as what to do instead.
 try
 {
     // Decode the bytes as UTF-8 and drop any preamble, rather than taking Console.In, whose decoding
@@ -43,7 +44,12 @@ try
         return 0;
     }
 
-    Console.Out.Write(StopHookReply.For(input.HookEventName ?? "Stop", request.Text));
+    var delivery = StopHookDelivery.For(input.HookEventName, request.Text);
+
+    Console.Out.Write(delivery.StandardOutput);
+    Console.Error.Write(delivery.StandardError);
+
+    return delivery.ExitCode;
 }
 catch (Exception)
 {
