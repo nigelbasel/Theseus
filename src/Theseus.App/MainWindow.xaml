@@ -372,7 +372,9 @@
                           SelectedItem="{Binding Theme, Mode=TwoWay}"
                           Width="110" Margin="0,0,12,0" />
                 <Button Content="Refresh" Padding="14,4" Margin="0,0,8,0" Command="{Binding RefreshCommand}" />
-                <Button Content="Settings" Padding="14,4" Command="{Binding Settings.OpenCommand}" />
+                <Button Content="Settings" Padding="14,4" Margin="0,0,8,0" Command="{Binding Settings.OpenCommand}" />
+                <Button Content="?" Padding="12,4" Command="{Binding Help.OpenCommand}"
+                        ToolTip="What the buttons do, how starting and stopping work, and what to look at when one of them does nothing" />
             </StackPanel>
         </Grid>
 

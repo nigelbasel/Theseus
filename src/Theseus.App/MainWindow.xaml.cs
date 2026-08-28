@@ -13,6 +13,7 @@ public partial class MainWindow : Window
 {
     private Point? _dragOrigin;
     private SettingsWindow? _settings;
+    private HelpWindow? _help;
 
     /// <summary>Creates the window.</summary>
     public MainWindow()
@@ -25,7 +26,11 @@ public partial class MainWindow : Window
         AddHandler(PreviewMouseLeftButtonUpEvent, new MouseButtonEventHandler(OnPreviewMouseUp), handledEventsToo: true);
         AddHandler(PreviewMouseMoveEvent, new MouseEventHandler(OnPreviewMouseMove), handledEventsToo: true);
 
-        DataContextChanged += (_, _) => WatchSettings();
+        DataContextChanged += (_, _) =>
+        {
+            WatchSettings();
+            WatchHelp();
+        };
         Activated += (_, _) =>
         {
             (DataContext as ShellViewModel)?.SyncAccount();
@@ -90,6 +95,57 @@ public partial class MainWindow : Window
         };
 
         _settings.ShowDialog();
+    }
+
+    private void WatchHelp()
+    {
+        if ((DataContext as ShellViewModel)?.Help is not { } help)
+        {
+            return;
+        }
+
+        help.PropertyChanged += (_, changed) =>
+        {
+            if (changed.PropertyName == nameof(HelpViewModel.IsOpen))
+            {
+                ShowHelp(help);
+            }
+        };
+    }
+
+    /// <summary>
+    /// Shows the help beside the board rather than over it, and without holding it. Somebody reads
+    /// this while pressing the button it describes, so it must not be a dialog.
+    /// </summary>
+    private void ShowHelp(HelpViewModel help)
+    {
+        if (_help is not null)
+        {
+            if (help.IsOpen)
+            {
+                _help.Activate();
+            }
+            else
+            {
+                _help.Close();
+            }
+
+            return;
+        }
+
+        if (!help.IsOpen)
+        {
+            return;
+        }
+
+        _help = new HelpWindow { Owner = this, DataContext = help };
+        _help.Closed += (_, _) =>
+        {
+            _help = null;
+            help.IsOpen = false;
+        };
+
+        _help.Show();
     }
 
     /// <summary>

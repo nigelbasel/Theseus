@@ -152,6 +152,9 @@ public sealed class ShellViewModel : ObservableObject
     /// <summary>The settings panel.</summary>
     public SettingsViewModel Settings { get; }
 
+    /// <summary>What the buttons do, and what to look at when one of them does nothing.</summary>
+    public HelpViewModel Help { get; } = new();
+
     /// <summary>The composer for a workstream that does not exist yet.</summary>
     public NewWorkstreamViewModel NewWorkstream { get; }
 
