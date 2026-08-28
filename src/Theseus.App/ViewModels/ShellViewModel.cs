@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using Theseus.App.Services;
 using Theseus.Core.Abstractions;
+using Theseus.Core.Diagnostics;
 using Theseus.Core.Domain;
 using Theseus.Core.Colour;
 using Theseus.Core.Launching;
@@ -319,7 +320,13 @@ public sealed class ShellViewModel : ObservableObject
                 case StopRoute.Nudge:
                     Ask(step);
 
-                    switch (TabNudge.Nudge(step.Pid, step.SessionName, StopRouting.NudgeMarker))
+                    var nudge = TabNudge.Nudge(step.Pid, step.SessionName, StopRouting.NudgeMarker);
+
+                    TheseusLog.Information(
+                        "Nudged {Workstream}, which was idle and would otherwise never take another turn: {Outcome}",
+                        step.WorkstreamKey, nudge);
+
+                    switch (nudge)
                     {
                         case NudgeOutcome.Sent:
                             asked++;
@@ -400,7 +407,8 @@ public sealed class ShellViewModel : ObservableObject
         return string.Join(" ", said);
     }
 
-    private void Ask(StopStep step) =>
+    private void Ask(StopStep step)
+    {
         _stopRequests.Write(new PendingStopRequest(
             step.SessionId,
             step.WorkstreamKey,
@@ -408,6 +416,9 @@ public sealed class ShellViewModel : ObservableObject
             step.Text,
             DateTimeOffset.UtcNow,
             DateTimeOffset.UtcNow.Add(StopRequestLife)));
+
+        TheseusLog.Information("Asked {Workstream} ({SessionId}) to stop", step.WorkstreamKey, step.SessionId);
+    }
 
     private static string? SettingsFile()
     {
@@ -569,6 +580,16 @@ public sealed class ShellViewModel : ObservableObject
             if (_launcher.Launch(workstream, _plans.PathFor(workstream.Key)) is not { } sessionId)
             {
                 continue;
+            }
+
+            // Starting a workstream withdraws any request to stop it. A resumed session keeps its
+            // identifier, so a request nobody collected outlives the session it was meant for and is
+            // handed to the next one on its opening prompt - told to write a handoff and exit before
+            // it has done anything at all.
+            if (_stopRequests.Cancel(sessionId))
+            {
+                TheseusLog.Information(
+                    "Withdrew the stop request for {Workstream}, which is being started again", workstream.Key);
             }
 
             Remember(workstream, sessionId);
