@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using Theseus.Core.Abstractions;
 using Theseus.Core.Domain;
 using Theseus.Core.Settings;
+using Theseus.Core.Stopping;
 
 namespace Theseus.App.ViewModels;
 
@@ -208,6 +209,25 @@ public sealed class BoardViewModel : ObservableObject
 
         card.Workstream = card.Workstream with { LastSessionId = sessionId };
         Persist(card);
+    }
+
+    /// <summary>
+    /// Settles where a workstream's handover notes go and writes that down, so every later launch
+    /// and every stop names the same file rather than working one out again.
+    /// </summary>
+    public Workstream Pin(Workstream workstream)
+    {
+        var pinned = HandoffPin.Pin(workstream);
+
+        if (ReferenceEquals(pinned, workstream) || Card(workstream.Key) is not { } card)
+        {
+            return pinned;
+        }
+
+        card.Workstream = pinned;
+        Persist(card);
+
+        return pinned;
     }
 
     /// <summary>Finds a card by its workstream key.</summary>

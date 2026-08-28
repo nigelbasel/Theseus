@@ -24,7 +24,12 @@ public static class WorkstreamIdentity
 
         return string.Join(Environment.NewLine,
             $"You are the \"{title}\" workstream ({workstream.Key}), one of several on this board.",
-            $"Your handover notes are {handoffPath}.",
+            $"Your handover notes are {handoffPath}. Whenever you are asked to stop, wrap up, hand"
+            + " over or leave things for the next session - however it is worded, and whether or not"
+            + " the file is named - bring that document up to date and write it there, rather than"
+            + " starting notes of your own somewhere else. Say what you did, what is unfinished, and"
+            + " what someone resuming should do next. It is the only thing your next session is"
+            + " given, so anything not in it is lost.",
             "Other workstreams keep their own notes beside yours and their work in the same"
             + " directories. Do not take up work belonging to another one: if what you find is"
             + " theirs, say so rather than doing it.");

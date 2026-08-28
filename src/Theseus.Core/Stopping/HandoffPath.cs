@@ -16,10 +16,7 @@ public static class HandoffPath
     /// name beside the working directory. A stop request has to name a specific file: told merely to
     /// "write a handoff", each session would choose its own place and the next morning would be a search.
     /// </summary>
-    /// <param name="today">
-    /// The date a name is proposed for, when no notes exist yet. Today unless a test says otherwise.
-    /// </param>
-    public static string For(Workstream workstream, DateTimeOffset? today = null)
+    public static string For(Workstream workstream)
     {
         ArgumentNullException.ThrowIfNull(workstream);
 
@@ -28,21 +25,21 @@ public static class HandoffPath
             return workstream.StatusDocumentPath;
         }
 
-        return Discover(workstream) ?? Path.Combine(RootOf(workstream), Proposed(workstream, today));
+        return Discover(workstream) ?? Path.Combine(RootOf(workstream), Proposed(workstream));
     }
 
     /// <summary>
-    /// What to call notes nobody has written yet: <c>SESSION-STATUS-yyyy-MM-dd-slug.md</c>, dated and
-    /// named for the workstream.
+    /// What to call notes nobody has written yet: <c>HANDOFF-slug.md</c>, named for the workstream
+    /// and for nothing else.
     ///
-    /// The name matters more than it looks. A session told to read a file that does not exist
-    /// concludes no notes were left, and a name invented here that nobody else writes guarantees
-    /// that: the notes will be under the name the sessions actually use, and a search for the
-    /// invented one finds nothing. This is the form the notes are already found by, and it carries
-    /// the workstream's own name so that several workstreams sharing a directory stay distinct.
+    /// Undated, deliberately. A date in the name makes the path a different string every morning, so
+    /// the file a session was told to write on Tuesday is not the file the next one is sent to read
+    /// on Wednesday - which reads, from inside that session, as no notes having been left at all.
+    /// One workstream keeps one document and revises it; the dates belong in what it says.
+    ///
+    /// The workstream's own name is in there so that several sharing a directory stay distinct.
     /// </summary>
-    private static string Proposed(Workstream workstream, DateTimeOffset? today) =>
-        $"SESSION-STATUS-{(today ?? DateTimeOffset.Now):yyyy-MM-dd}-{workstream.Key}.md";
+    private static string Proposed(Workstream workstream) => $"HANDOFF-{workstream.Key}.md";
 
     /// <summary>
     /// The handover document the sessions have actually been writing, if one is already on disk.

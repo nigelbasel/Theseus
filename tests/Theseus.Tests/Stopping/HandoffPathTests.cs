@@ -146,7 +146,7 @@ public class HandoffPathTests
     }
 
     private string Proposed() =>
-        Path.Combine(_root, $"SESSION-STATUS-{DateTimeOffset.Now:yyyy-MM-dd}-contact-forms.md");
+        Path.Combine(_root, "HANDOFF-contact-forms.md");
 
     private Workstream Workstream(string? cwd = null, string? status = null,
         IReadOnlyList<string>? addDirectories = null) =>

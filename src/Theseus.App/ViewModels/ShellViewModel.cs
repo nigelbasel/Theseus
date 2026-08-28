@@ -542,8 +542,10 @@ public sealed class ShellViewModel : ObservableObject
 
         var started = 0;
 
-        foreach (var workstream in workstreams)
+        foreach (var candidate in workstreams)
         {
+            var workstream = Board.Pin(candidate);
+
             if (_launcher.Launch(workstream) is not { } sessionId)
             {
                 continue;

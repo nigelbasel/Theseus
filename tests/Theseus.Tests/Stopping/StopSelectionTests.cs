@@ -43,9 +43,8 @@ public class StopSelectionTests
         var targets = StopSelection.ForWorkstream(
             Workstream("contact-forms", SessionA), Live(SessionA), Names);
 
-        Assert.That(targets[0].HandoffPath,
-            Is.EqualTo($@"C:\work\repo\SESSION-STATUS-{DateTimeOffset.Now:yyyy-MM-dd}-contact-forms.md"),
-            "a name nobody else writes guarantees the session finds nothing under it");
+        Assert.That(targets[0].HandoffPath, Is.EqualTo(@"C:\work\repo\HANDOFF-contact-forms.md"),
+            "undated, so tomorrow's session is sent to the file today's session was told to write");
     }
 
     [Test]
