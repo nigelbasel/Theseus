@@ -85,6 +85,7 @@ public static class TerminalFocus
                     && pattern is SelectionItemPattern selection)
                 {
                     selection.Select();
+                    FocusContent(window, title);
 
                     return true;
                 }
@@ -104,6 +105,74 @@ public static class TerminalFocus
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Puts keyboard focus on the terminal's text, which selecting a tab does not do.
+    ///
+    /// Selecting through UI Automation moves focus onto the tab in the strip: the right tab is
+    /// showing, the window is in front, and anything typed goes to the tab header, where it is
+    /// discarded. For a person reaching for the mouse this is invisible, because their next click
+    /// lands in the text. For keystrokes synthesised straight afterwards it is the whole difference
+    /// between a session that hears and one that does not - and it looks exactly like nothing having
+    /// been sent at all.
+    /// </summary>
+    private static void FocusContent(IntPtr window, string title)
+    {
+        try
+        {
+            if (AutomationElement.FromHandle(window) is not { } root)
+            {
+                return;
+            }
+
+            var panes = root.FindAll(
+                TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Document));
+
+            AutomationElement? fallback = null;
+
+            foreach (AutomationElement pane in panes)
+            {
+                fallback ??= pane;
+
+                if (ConsoleTitle.Matches(title, pane.Current.Name))
+                {
+                    pane.SetFocus();
+
+                    return;
+                }
+            }
+
+            fallback?.SetFocus();
+        }
+        catch (Exception exception)
+            when (exception is ElementNotAvailableException or InvalidOperationException or COMException)
+        {
+            TheseusLog.Debug("Could not put focus on the terminal's text: {Reason}", exception.Message);
+        }
+    }
+
+    /// <summary>
+    /// What currently has keyboard focus, named for the log. Synthesised keystrokes go wherever this
+    /// is, and when they vanish it is the only thing worth knowing.
+    /// </summary>
+    public static string FocusedElement()
+    {
+        try
+        {
+            if (AutomationElement.FocusedElement is not { } focused)
+            {
+                return "nothing";
+            }
+
+            return $"{focused.Current.ControlType.ProgrammaticName} \"{focused.Current.Name}\"";
+        }
+        catch (Exception exception)
+            when (exception is ElementNotAvailableException or InvalidOperationException or COMException)
+        {
+            return $"unreadable ({exception.Message})";
+        }
     }
 
     private static IntPtr? FindWindow(int processId)

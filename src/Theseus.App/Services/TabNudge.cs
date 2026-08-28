@@ -43,6 +43,12 @@ public static class TabNudge
             return NudgeOutcome.FocusLost;
         }
 
+        // Where the keystrokes are about to go. Windows reporting that it accepted them says only
+        // that they were injected, never that anything read them, and the difference is invisible
+        // afterwards: a session that was never typed into looks the same as one that was typed into
+        // somewhere nobody was listening.
+        TheseusLog.Information("Typing into whatever has focus, which is {Focused}", TerminalFocus.FocusedElement());
+
         return Send(marker);
     }
 
