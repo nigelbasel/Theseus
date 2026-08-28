@@ -131,4 +131,29 @@ public class StopRequestStoreTests
     {
         Assert.That(_store.Waiting(@"..\..\windows"), Is.Null);
     }
+
+    [Test]
+    public void Sweep_DiscardsARequestNothingEverCameBackFor()
+    {
+        _store.Write(Request() with { ExpiresUtc = DateTimeOffset.UtcNow.AddMinutes(-1) });
+
+        Assert.That(_store.Sweep(DateTimeOffset.UtcNow), Is.EqualTo(1));
+        Assert.That(_store.Pending(), Is.Empty,
+            "a request the hook will refuse to deliver would otherwise sit there for ever");
+    }
+
+    [Test]
+    public void Sweep_LeavesARequestThatIsStillWorthDelivering()
+    {
+        _store.Write(Request());
+
+        Assert.That(_store.Sweep(DateTimeOffset.UtcNow), Is.Zero);
+        Assert.That(_store.Pending(), Has.Count.EqualTo(1));
+    }
+
+    [Test]
+    public void Sweep_CopesWithNothingHavingBeenAskedAtAll()
+    {
+        Assert.That(_store.Sweep(DateTimeOffset.UtcNow), Is.Zero);
+    }
 }

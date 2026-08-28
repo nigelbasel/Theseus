@@ -21,4 +21,7 @@ public interface IStopRequestStore
 
     /// <summary>Every request still waiting.</summary>
     IReadOnlyList<PendingStopRequest> Pending();
+
+    /// <summary>Discards requests too old to be worth delivering, and says how many went.</summary>
+    int Sweep(DateTimeOffset now);
 }

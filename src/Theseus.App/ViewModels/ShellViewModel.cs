@@ -222,6 +222,7 @@ public sealed class ShellViewModel : ObservableObject
         SyncPullRequests();
         WireAdoption();
         SyncAccount();
+        _stopRequests.Sweep(DateTimeOffset.UtcNow);
     }
 
     /// <summary>

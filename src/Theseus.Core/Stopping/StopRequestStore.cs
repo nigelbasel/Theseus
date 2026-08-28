@@ -121,6 +121,27 @@ public sealed class StopRequestStore : IStopRequestStore
         }
     }
 
+    /// <inheritdoc />
+    public int Sweep(DateTimeOffset now)
+    {
+        var gone = 0;
+
+        foreach (var stale in Pending().Where(request => request.ExpiresUtc <= now))
+        {
+            if (Cancel(stale.SessionId))
+            {
+                gone++;
+            }
+        }
+
+        if (gone > 0)
+        {
+            TheseusLog.Debug("Discarded {Count} stop request(s) nothing had come back for", gone);
+        }
+
+        return gone;
+    }
+
     private static PendingStopRequest? Parse(string path)
     {
         try
