@@ -26,6 +26,18 @@ public enum StopRoute
     AnswerItFirst,
 
     /// <summary>
+    /// The session was already asked and is still working, and whoever asked has asked again. The
+    /// turn is cut short the way a person cuts one short - Escape - and a keystroke then starts the
+    /// turn that carries the request.
+    /// <para>
+    /// This is not the first thing tried, because a turn ended on purpose leaves the work in a state
+    /// its handoff can describe, and a turn cut in half may not. Asking twice is how somebody says
+    /// they would rather have the session back than have it finish.
+    /// </para>
+    /// </summary>
+    Interrupt,
+
+    /// <summary>
     /// No hook is installed, so nothing will deliver the request whatever the session is doing. The
     /// request goes on the clipboard and the tab comes forward.
     /// </summary>

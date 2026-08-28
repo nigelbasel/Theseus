@@ -68,4 +68,41 @@ public class StopRoutingTests
         Assert.That(StopRouting.NudgeMarker, Does.Contain("theseus"),
             "whoever finds it in a transcript or a shell should be able to tell where it came from");
     }
+
+    [Test]
+    public void For_CutsInWhenAWorkingSessionHasAlreadyBeenAskedOnce()
+    {
+        Assert.That(StopRouting.For(SessionLifecycle.Running, hookInstalled: true, alreadyAsked: true),
+            Is.EqualTo(StopRoute.Interrupt),
+            "asking twice is how somebody says they would rather have the session back than have it finish");
+    }
+
+    [Test]
+    public void For_WaitsForTheTurnTheFirstTimeAWorkingSessionIsAsked()
+    {
+        Assert.That(StopRouting.For(SessionLifecycle.Running, hookInstalled: true, alreadyAsked: false),
+            Is.EqualTo(StopRoute.WaitForTurnEnd));
+    }
+
+    [Test]
+    public void For_StillOnlyNudgesAnIdleSessionAskedTwice()
+    {
+        Assert.That(StopRouting.For(SessionLifecycle.Idle, hookInstalled: true, alreadyAsked: true),
+            Is.EqualTo(StopRoute.Nudge),
+            "there is no turn to cut short; the keystroke that starts one is the whole job");
+    }
+
+    [Test]
+    public void For_StillLeavesASessionWaitingOnItsUserAlone()
+    {
+        Assert.That(StopRouting.For(SessionLifecycle.NeedsAttention, hookInstalled: true, alreadyAsked: true),
+            Is.EqualTo(StopRoute.AnswerItFirst));
+    }
+
+    [Test]
+    public void For_NeedsAHookBeforeAskingTwiceMeansAnything()
+    {
+        Assert.That(StopRouting.For(SessionLifecycle.Running, hookInstalled: false, alreadyAsked: true),
+            Is.EqualTo(StopRoute.PasteYourself));
+    }
 }

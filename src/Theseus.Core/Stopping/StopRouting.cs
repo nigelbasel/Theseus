@@ -21,7 +21,12 @@ public static class StopRouting
     public const string NudgeMarker = "theseus-stop";
 
     /// <summary>The route for one session, given what it reports and whether a hook is installed.</summary>
-    public static StopRoute For(SessionLifecycle lifecycle, bool hookInstalled)
+    /// <param name="alreadyAsked">
+    /// Whether a request for this session is still waiting to be collected. Asking a second time
+    /// while the first has not landed is how somebody says they would rather have the session back
+    /// than have it finish, so the second ask cuts the turn short where the first waited for it.
+    /// </param>
+    public static StopRoute For(SessionLifecycle lifecycle, bool hookInstalled, bool alreadyAsked = false)
     {
         if (lifecycle is not (SessionLifecycle.Running or SessionLifecycle.Idle
             or SessionLifecycle.NeedsAttention or SessionLifecycle.Launching))
@@ -38,6 +43,7 @@ public static class StopRouting
         {
             SessionLifecycle.NeedsAttention => StopRoute.AnswerItFirst,
             SessionLifecycle.Idle => StopRoute.Nudge,
+            _ when alreadyAsked => StopRoute.Interrupt,
             _ => StopRoute.WaitForTurnEnd,
         };
     }

@@ -173,6 +173,12 @@ public sealed class ShellViewModel : ObservableObject
     /// <summary>What the buttons do, and what to look at when one of them does nothing.</summary>
     public HelpViewModel Help { get; } = new();
 
+    /// <summary>Which build is running, shown so an installed copy can be told from the last one.</summary>
+    public string Version => AppVersion.Current;
+
+    /// <summary>The same, with the build time spelled out.</summary>
+    public string VersionDescribed => AppVersion.Described;
+
     /// <summary>The composer for a workstream that does not exist yet.</summary>
     public NewWorkstreamViewModel NewWorkstream { get; }
 
@@ -307,27 +313,39 @@ public sealed class ShellViewModel : ObservableObject
         var waiting = 0;
         var unreached = 0;
         var blocked = 0;
+        var interrupted = 0;
 
         foreach (var step in steps)
         {
-            switch (StopRouting.For(step.Lifecycle, installed))
+            var alreadyAsked = _stopRequests.Waiting(step.SessionId) is not null;
+
+            switch (StopRouting.For(step.Lifecycle, installed, alreadyAsked))
             {
                 case StopRoute.WaitForTurnEnd:
                     Ask(step);
                     asked++;
                     break;
 
+                case StopRoute.Interrupt:
                 case StopRoute.Nudge:
+                    var cutIn = StopRouting.For(step.Lifecycle, installed, alreadyAsked) == StopRoute.Interrupt;
+
                     Ask(step);
 
-                    var nudge = TabNudge.Nudge(step.Pid, step.SessionName, StopRouting.NudgeMarker);
+                    var nudge = TabNudge.Nudge(step.Pid, step.SessionName, StopRouting.NudgeMarker, cutIn);
 
                     TheseusLog.Information(
-                        "Nudged {Workstream}, which was idle and would otherwise never take another turn: {Outcome}",
+                        cutIn
+                            ? "Interrupted {Workstream}, which had been asked once and was still working: {Outcome}"
+                            : "Nudged {Workstream}, which was idle and would otherwise never take another turn: {Outcome}",
                         step.WorkstreamKey, nudge);
 
                     switch (nudge)
                     {
+                        case NudgeOutcome.Sent when cutIn:
+                            interrupted++;
+                            break;
+
                         case NudgeOutcome.Sent:
                             asked++;
                             break;
@@ -362,21 +380,31 @@ public sealed class ShellViewModel : ObservableObject
             return;
         }
 
-        Notice = Describe(asked, waiting, unreached, blocked);
+        Refresh();
+        Notice = Describe(asked, waiting, unreached, blocked, interrupted);
     }
 
     /// <summary>
     /// What was actually set in motion. A session that has been asked has not yet been told: the
     /// request waits until its next turn ends, so saying it has stopped would be ahead of the facts.
     /// </summary>
-    private static string Describe(int asked, int waiting, int unreached, int blocked)
+    private static string Describe(int asked, int waiting, int unreached, int blocked, int interrupted)
     {
-        if (asked == 0 && unreached == 0 && blocked == 0)
+        if (asked == 0 && unreached == 0 && blocked == 0 && interrupted == 0)
         {
             return "Nothing to stop.";
         }
 
         var said = new List<string>();
+
+        if (interrupted == 1)
+        {
+            said.Add("One session was interrupted mid-turn and handed the request.");
+        }
+        else if (interrupted > 1)
+        {
+            said.Add($"{interrupted} sessions were interrupted mid-turn and handed the request.");
+        }
 
         if (asked == 1)
         {
@@ -536,6 +564,11 @@ public sealed class ShellViewModel : ObservableObject
             card.Lifecycle = state.Lifecycle;
             card.LifecycleSinceUtc = state.Since;
             card.TodoSummary = live ? Doing(card.Workstream.LastSessionId) : string.Empty;
+
+            // A request that has been written but not yet collected is otherwise invisible, and the
+            // wait can be several minutes on a long turn. Without this the board looks identical
+            // whether Stop was pressed or not, which reads as the button having done nothing.
+            card.StopPending = live && _stopRequests.Waiting(card.Workstream.LastSessionId) is not null;
         }
     }
 

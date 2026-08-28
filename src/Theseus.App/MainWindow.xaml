@@ -443,6 +443,11 @@
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Version}" FontSize="11" Margin="0,0,14,0"
+                               VerticalAlignment="Center"
+                               ToolTip="{Binding VersionDescribed}"
+                               Visibility="{Binding Version, Converter={StaticResource NotEmptyToVisibility}}"
+                               Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
                     <TextBlock Text="{Binding Account}" FontSize="11" Margin="0,0,14,0"
                                VerticalAlignment="Center"
                                ToolTip="The Claude account every session on this machine runs as"

@@ -56,6 +56,8 @@
                 BorderThickness="0,0,0,1">
             <StackPanel>
                 <TextBlock Text="On this machine" FontWeight="SemiBold" FontSize="12.5" />
+                <TextBlock Text="{Binding Version}" Style="{StaticResource Explanation}"
+                           Visibility="{Binding Version, Converter={StaticResource NotEmptyToVisibility}}" />
                 <TextBlock Text="{Binding HookStatus}" Style="{StaticResource Explanation}" />
                 <TextBlock Text="{Binding SettingsPath}" FontSize="11" Margin="0,6,0,0"
                            TextTrimming="CharacterEllipsis"

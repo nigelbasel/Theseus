@@ -77,11 +77,29 @@ public sealed class LauncherPipeClient : ILaunchReporter, IDisposable
         Send(ShimMessageKind.Exited, new ExitedPayload(sessionId, exitCode, durationMs));
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Disposing a writer flushes it, and flushing a pipe whose far end has gone throws. By the time
+    /// a session ends, Theseus being closed is entirely ordinary - it is a board, not a supervisor -
+    /// and a report nobody is listening for is nothing to fail over. Left unhandled it printed a
+    /// stack trace into the tab as the session exited, which reads as the session having crashed.
+    /// </remarks>
     public void Dispose()
     {
-        _reader.Dispose();
-        _writer.Dispose();
-        _pipe.Dispose();
+        Quietly(_reader.Dispose);
+        Quietly(_writer.Dispose);
+        Quietly(_pipe.Dispose);
+    }
+
+    private static void Quietly(Action dispose)
+    {
+        try
+        {
+            dispose();
+        }
+        catch (Exception exception) when (exception is IOException or ObjectDisposedException)
+        {
+            TheseusLog.Debug("The connection to Theseus was already gone: {Reason}", exception.Message);
+        }
     }
 
     private void Send<TPayload>(ShimMessageKind kind, TPayload payload)

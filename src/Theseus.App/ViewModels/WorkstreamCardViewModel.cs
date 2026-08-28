@@ -8,6 +8,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     private Workstream _workstream;
     private SessionLifecycle _lifecycle = SessionLifecycle.NotStarted;
     private string _todoSummary = string.Empty;
+    private bool _stopPending;
     private bool _motionAllowed = true;
     private string _lostSessionName = string.Empty;
     private bool _isSelected;
@@ -148,9 +149,35 @@ public sealed class WorkstreamCardViewModel : ObservableObject
         set => Set(ref _todoSummary, value);
     }
 
-    /// <summary>The card third line: what the session is doing, and for how long.</summary>
-    public string StatusLine => Lifecycle switch
+    /// <summary>
+    /// Whether a stop request for this session is written and not yet collected.
+    ///
+    /// It is shown because the wait is otherwise invisible and can run to minutes: a working session
+    /// is handed its request when its turn ends, and until then a board that has been asked looks
+    /// exactly like one that has not.
+    /// </summary>
+    public bool StopPending
     {
+        get => _stopPending;
+        set
+        {
+            if (Set(ref _stopPending, value))
+            {
+                Raise(nameof(StatusLine));
+            }
+        }
+    }
+
+    /// <summary>The card third line: what the session is doing, and for how long.</summary>
+    public string StatusLine => StopPending
+        ? Lifecycle switch
+        {
+            SessionLifecycle.Idle => "stopping — waiting for the turn it was given to end",
+            SessionLifecycle.NeedsAttention => "stopping — answer it first",
+            _ => "stopping when this turn ends — press Stop again to cut in",
+        }
+        : Lifecycle switch
+        {
         SessionLifecycle.NotStarted => "not started today",
         SessionLifecycle.Launching => "launching",
         SessionLifecycle.Running => Since("busy"),

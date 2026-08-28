@@ -24,10 +24,19 @@ public static class TabNudge
     private const uint KeyUp = 0x0002;
     private const uint Unicode = 0x0004;
     private const ushort Return = 0x0D;
+    private const ushort Escape = 0x1B;
     private const int AccessDenied = 5;
 
+    private static readonly TimeSpan SettlingTime = TimeSpan.FromMilliseconds(200);
+
     /// <summary>Types the marker and Enter into one session's tab, if it can be confirmed.</summary>
-    public static NudgeOutcome Nudge(int claudeProcessId, string? tabTitle, string marker)
+    /// <param name="interruptFirst">
+    /// Whether to cut the current turn short before typing, the way a person would. A working
+    /// session is not going to read a prompt until it stops working, and an interrupted turn does
+    /// not end in the way that fires the stop hook - so the two go together or neither is any use.
+    /// </param>
+    public static NudgeOutcome Nudge(int claudeProcessId, string? tabTitle, string marker,
+        bool interruptFirst = false)
     {
         if (TerminalFocus.FocusSession(claudeProcessId, tabTitle) is not FocusOutcome.TabSelected)
         {
@@ -49,6 +58,11 @@ public static class TabNudge
         // somewhere nobody was listening.
         TheseusLog.Information("Typing into whatever has focus, which is {Focused}", TerminalFocus.FocusedElement());
 
+        if (interruptFirst && !Interrupt())
+        {
+            return NudgeOutcome.Refused;
+        }
+
         return Send(marker);
     }
 
@@ -69,6 +83,31 @@ public static class TabNudge
 
         return GetClassName(foreground, name, name.Capacity) > 0
                && string.Equals(name.ToString(), TerminalWindowClass, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Presses Escape, which is what stops a session mid-turn, and waits for it to take effect.
+    ///
+    /// The pause is not decoration. The marker typed straight afterwards has to arrive at a prompt
+    /// that is accepting one, and a session still unwinding its turn will swallow it or, worse,
+    /// take it as an answer to something. A fifth of a second is what a person's hand takes anyway.
+    /// </summary>
+    private static bool Interrupt()
+    {
+        var inputs = new List<Input> { Key(Escape, up: false), Key(Escape, up: true) };
+        var sent = SendInput((uint)inputs.Count, [.. inputs], Marshal.SizeOf<Input>());
+
+        if (sent != inputs.Count)
+        {
+            TheseusLog.Warning("The turn could not be interrupted: Windows reported error {Error}",
+                Marshal.GetLastWin32Error());
+
+            return false;
+        }
+
+        Thread.Sleep(SettlingTime);
+
+        return true;
     }
 
     private static NudgeOutcome Send(string marker)
