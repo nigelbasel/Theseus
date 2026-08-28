@@ -228,4 +228,25 @@ public class RunLogTests
         Assert.That(_log.Read(), Has.Count.EqualTo(1),
             "valid JSON that is not a run must not deserialise into a record full of defaults");
     }
+
+    [Test]
+    public void Append_KeepsWritingWhileSomethingElseHasTheFileOpenForReading()
+    {
+        _log.Append(Run());
+
+        using var reader = new FileStream(_path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+
+        Assert.DoesNotThrow(() => _log.Append(Run()),
+            "an append that throws on the dispatcher thread takes the window down with it");
+        Assert.That(_log.Read(), Has.Count.EqualTo(2));
+    }
+
+    [Test]
+    public void Append_DropsTheLineRatherThanTheWindowWhenTheFileCannotBeWrittenAtAll()
+    {
+        using var holder = new FileStream(Path.Combine(_directory, "held"), FileMode.Create,
+            FileAccess.Write, FileShare.None);
+
+        Assert.DoesNotThrow(() => new RunLog(Path.Combine(_directory, "held")).Append(Run()));
+    }
 }

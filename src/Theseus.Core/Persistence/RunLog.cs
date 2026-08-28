@@ -114,7 +114,47 @@ public sealed class RunLog : IRunLog
 
         lock (_gate)
         {
-            File.AppendAllText(_path, line + Environment.NewLine, Encoding);
+            Append(line + Environment.NewLine);
         }
     }
+
+    /// <summary>
+    /// Appends one line, sharing the file and giving way to whoever else has it.
+    ///
+    /// The lock guards this process; nothing guards the file. Another Theseus, a text editor with
+    /// it open, or this application's own reader can hold it for the moment the append wants it,
+    /// and an append that throws on the dispatcher thread takes the whole window down - which is
+    /// what it did, in the middle of a refresh, from a line nobody would miss.
+    ///
+    /// So: share the file, wait briefly for whoever has it, and in the end drop the line rather
+    /// than the window. The log is a record of runs, not the runs themselves.
+    /// </summary>
+    private void Append(string text)
+    {
+        for (var attempt = 0; attempt < Attempts; attempt++)
+        {
+            try
+            {
+                using var file = new FileStream(_path, FileMode.Append, FileAccess.Write,
+                    FileShare.ReadWrite | FileShare.Delete);
+                using var writer = new StreamWriter(file, Encoding);
+
+                writer.Write(text);
+
+                return;
+            }
+            catch (IOException) when (attempt < Attempts - 1)
+            {
+                Thread.Sleep(RetryDelay);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                TheseusLog.Warning(exception, "A run log line was dropped: {Path} could not be appended to", _path);
+            }
+        }
+    }
+
+    private const int Attempts = 4;
+
+    private static readonly TimeSpan RetryDelay = TimeSpan.FromMilliseconds(40);
 }
