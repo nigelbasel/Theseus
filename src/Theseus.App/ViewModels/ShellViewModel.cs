@@ -173,6 +173,9 @@ public sealed class ShellViewModel : ObservableObject
     /// <summary>What the buttons do, and what to look at when one of them does nothing.</summary>
     public HelpViewModel Help { get; } = new();
 
+    /// <summary>Grouping and placing the terminal windows on the desktop.</summary>
+    public ArrangeViewModel Arrange { get; } = new();
+
     /// <summary>Which build is running, shown so an installed copy can be told from the last one.</summary>
     public string Version => AppVersion.Current;
 

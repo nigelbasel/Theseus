@@ -14,6 +14,7 @@ public partial class MainWindow : Window
     private Point? _dragOrigin;
     private SettingsWindow? _settings;
     private HelpWindow? _help;
+    private ArrangeWindow? _arrange;
 
     /// <summary>Creates the window.</summary>
     public MainWindow()
@@ -30,6 +31,7 @@ public partial class MainWindow : Window
         {
             WatchSettings();
             WatchHelp();
+            WatchArrange();
         };
         Activated += (_, _) =>
         {
@@ -146,6 +148,57 @@ public partial class MainWindow : Window
         };
 
         _help.Show();
+    }
+
+    private void WatchArrange()
+    {
+        if ((DataContext as ShellViewModel)?.Arrange is not { } arrange)
+        {
+            return;
+        }
+
+        arrange.PropertyChanged += (_, changed) =>
+        {
+            if (changed.PropertyName == nameof(ArrangeViewModel.IsOpen))
+            {
+                ShowArrange(arrange);
+            }
+        };
+    }
+
+    /// <summary>
+    /// Shows the arranger, and never as a dialog. Windows move around underneath it while it is
+    /// open, and the whole point is to look at what happened and try something else.
+    /// </summary>
+    private void ShowArrange(ArrangeViewModel arrange)
+    {
+        if (_arrange is not null)
+        {
+            if (arrange.IsOpen)
+            {
+                _arrange.Activate();
+            }
+            else
+            {
+                _arrange.Close();
+            }
+
+            return;
+        }
+
+        if (!arrange.IsOpen)
+        {
+            return;
+        }
+
+        _arrange = new ArrangeWindow { Owner = this, DataContext = arrange };
+        _arrange.Closed += (_, _) =>
+        {
+            _arrange = null;
+            arrange.IsOpen = false;
+        };
+
+        _arrange.Show();
     }
 
     /// <summary>
