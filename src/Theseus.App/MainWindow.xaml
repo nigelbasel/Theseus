@@ -336,7 +336,12 @@
 
     <DockPanel>
         <Grid DockPanel.Dock="Top" Margin="16,12,16,4">
-            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                 <Button Padding="8,3" Margin="0,0,12,0" VerticalAlignment="Center"
                         ToolTip="Show or hide the live sessions panel"
                         Command="{Binding ToggleSessionsPanelCommand}">
@@ -348,15 +353,23 @@
                     </StackPanel>
                 </Button>
 
+                <!--
+                    The notice is a sentence, not a label - "3 sessions were interrupted mid-turn
+                    and handed the request" - so it is trimmed and carries its own tooltip rather
+                    than pushing the buttons off the edge or running underneath them.
+                -->
                 <StackPanel>
                     <TextBlock Text="{Binding Board.Status}" FontSize="12"
+                               TextTrimming="CharacterEllipsis"
                                Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                     <TextBlock Text="{Binding Notice}" FontSize="12" Margin="0,2,0,0"
+                               TextTrimming="CharacterEllipsis" ToolTip="{Binding Notice}"
                                Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" />
                 </StackPanel>
             </StackPanel>
 
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right"
+                        VerticalAlignment="Center">
                 <Button Content="New workstream" Padding="14,4" Margin="0,0,8,0"
                         ToolTip="Create a workstream and open a session for it"
                         Command="{Binding NewWorkstream.OpenCommand}" />
@@ -410,8 +423,21 @@
                 Background="{DynamicResource LayerFillColorDefaultBrush}"
                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                 BorderThickness="0,1,0,0">
+            <!--
+                Two columns, because these two halves were sharing one cell and drawing over each
+                other. Left-aligned content growing rightwards and right-aligned content growing
+                leftwards meet in the middle and neither yields: the usage figures were being
+                overwritten by whatever the right-hand side had grown to. A column apiece makes the
+                right side take what it needs and the left side live in the remainder.
+            -->
             <Grid>
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center"
+                            ClipToBounds="True"
                             Visibility="{Binding Usage.HasReading, Converter={StaticResource BoolToVisibility}}">
                     <TextBlock Text="{Binding Usage.SessionText}" FontSize="12"
                                Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
@@ -438,12 +464,14 @@
                     </TextBlock>
                 </StackPanel>
 
-                <TextBlock Text="{Binding Usage.Problem}" FontSize="12" VerticalAlignment="Center"
+                <TextBlock Grid.Column="0" Text="{Binding Usage.Problem}" FontSize="12"
+                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                            Visibility="{Binding Usage.Problem, Converter={StaticResource NotEmptyToVisibility}}"
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
 
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding Version}" FontSize="11" Margin="0,0,14,0"
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right"
+                            VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Version}" FontSize="11" Margin="12,0,14,0"
                                VerticalAlignment="Center"
                                ToolTip="{Binding VersionDescribed}"
                                Visibility="{Binding Version, Converter={StaticResource NotEmptyToVisibility}}"
