@@ -7,18 +7,18 @@ namespace Theseus.Tests.Terminal;
 public class WindowGroupNameTests
 {
     [Test]
-    public void For_PutsEverythingInOneWindowUnlessAskedOtherwise()
+    public void For_GivesEachLaneAWindowOfItsOwn()
     {
-        Assert.That(WindowGroupName.For(WindowGrouping.OneWindow, "theseus", Workstream("In flight")),
-            Is.EqualTo("theseus"),
-            "what Theseus has always done, and what it keeps doing for anyone who has not asked");
+        Assert.That(WindowGroupName.For("theseus", Workstream("In flight")),
+            Is.EqualTo("theseus-in-flight"),
+            "the lanes are already the board's grouping of the work, so the screen mirrors them");
     }
 
     [Test]
-    public void For_GivesEachLaneAWindowOfItsOwnWhenAsked()
+    public void For_PutsTwoWorkstreamsInTheSameLaneInTheSameWindow()
     {
-        Assert.That(WindowGroupName.For(WindowGrouping.WindowPerLane, "theseus", Workstream("In flight")),
-            Is.EqualTo("theseus-in-flight"));
+        Assert.That(WindowGroupName.For("theseus", Workstream("Today")),
+            Is.EqualTo(WindowGroupName.For("theseus", Workstream("Today") with { Key = "another" })));
     }
 
     [Test]
@@ -26,39 +26,36 @@ public class WindowGroupNameTests
     {
         var workstream = Workstream("In flight") with { WindowGroup = "Side by side" };
 
-        Assert.That(WindowGroupName.For(WindowGrouping.WindowPerLane, "theseus", workstream),
-            Is.EqualTo("side-by-side"));
-    }
-
-    [Test]
-    public void For_HonoursAnOverrideEvenWhenLanesAreNotGrouping()
-    {
-        var workstream = Workstream("In flight") with { WindowGroup = "watching" };
-
-        Assert.That(WindowGroupName.For(WindowGrouping.OneWindow, "theseus", workstream),
-            Is.EqualTo("watching"),
-            "naming a window is asking for one, whatever the general setting says");
+        Assert.That(WindowGroupName.For("theseus", workstream), Is.EqualTo("side-by-side"),
+            "naming a window is asking for one, and beats what the lane would have said");
     }
 
     [Test]
     public void For_FallsBackWhenThereIsNoConfiguredName()
     {
-        Assert.That(WindowGroupName.For(WindowGrouping.OneWindow, "   ", Workstream("Today")),
-            Is.EqualTo("theseus"));
+        Assert.That(WindowGroupName.For("   ", Workstream("Today")), Is.EqualTo("theseus-today"));
     }
 
     [Test]
     public void For_FallsBackWhenALaneNameSurvivesSanitisingAsNothing()
     {
-        Assert.That(WindowGroupName.For(WindowGrouping.WindowPerLane, "theseus", Workstream("···")),
-            Is.EqualTo("theseus"),
-            "a window named for nothing is worse than one window");
+        Assert.That(WindowGroupName.For("theseus", Workstream("···")), Is.EqualTo("theseus"),
+            "a window named for nothing is worse than everything landing together");
+    }
+
+    [Test]
+    public void For_FallsBackWhenAnOverrideSurvivesSanitisingAsNothing()
+    {
+        var workstream = Workstream("Today") with { WindowGroup = "///" };
+
+        Assert.That(WindowGroupName.For("theseus", workstream), Is.EqualTo("theseus"));
     }
 
     [TestCase("In flight", "in-flight")]
     [TestCase("To Do / Next", "to-do-next")]
     [TestCase("  Today  ", "today")]
     [TestCase("Done!!", "done")]
+    [TestCase("Side Project", "side-project")]
     [TestCase("", "")]
     public void Sanitise_ReducesALaneNameToSomethingSafeToPass(string given, string expected)
     {

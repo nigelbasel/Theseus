@@ -56,13 +56,7 @@
                 <TextBlock Text="Terminal window name" Style="{StaticResource FieldLabel}" />
                 <TextBox Text="{Binding TerminalWindowName, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock Style="{StaticResource FieldHint}"
-                           Text="Every tab Theseus opens joins this named window." />
-
-                <TextBlock Text="Windows" Style="{StaticResource FieldLabel}" />
-                <ComboBox ItemsSource="{Binding WindowGroupings}"
-                          SelectedItem="{Binding WindowGrouping, Mode=TwoWay}" />
-                <TextBlock Style="{StaticResource FieldHint}"
-                           Text="A window per lane gives each lane its own terminal window, which Arrange can then tile against the others. Sessions already running stay where they are — this decides where the next ones start." />
+                           Text="Each lane gets a window of its own, named after this: theseus-in-flight, theseus-today. Arrange can then tile them against one another." />
 
                 <TextBlock Text="Windows Terminal" Style="{StaticResource FieldLabel}" />
                 <TextBox Text="{Binding TerminalExecutablePath, UpdateSourceTrigger=PropertyChanged}" />

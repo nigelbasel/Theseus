@@ -9,17 +9,16 @@ namespace Theseus.Core.Terminal;
 /// name are the same window, and a name nothing is using yet makes a new one. Nothing else needs to
 /// exist for sessions to be grouped.
 ///
-/// A workstream may name its own, for the case where the lane is not the right answer — two
-/// workstreams that have to be watched side by side, say. Otherwise the lane decides, and if the
-/// setting says one window then everything shares the configured name as it always has.
+/// The lane decides, because the lanes are already the board's own grouping of the work and the
+/// screen may as well mirror it. A workstream may name its own window instead, for the case where
+/// the lane is not the right answer — two workstreams that have to be watched side by side, say.
 /// </summary>
 public static class WindowGroupName
 {
     /// <summary>The window name for one workstream at the moment it is started.</summary>
-    /// <param name="grouping">Whether lanes get windows of their own.</param>
-    /// <param name="configured">The single window name, used when they do not.</param>
+    /// <param name="configured">The base name, which every window is named after.</param>
     /// <param name="workstream">The workstream being started, for its lane and any override.</param>
-    public static string For(WindowGrouping grouping, string? configured, Workstream workstream)
+    public static string For(string? configured, Workstream workstream)
     {
         ArgumentNullException.ThrowIfNull(workstream);
 
@@ -30,11 +29,8 @@ public static class WindowGroupName
             return Sanitise(workstream.WindowGroup!) is { Length: > 0 } chosen ? chosen : fallback;
         }
 
-        if (grouping is not WindowGrouping.WindowPerLane)
-        {
-            return fallback;
-        }
-
+        // A lane whose name survives sanitising as nothing gets the base name rather than a window
+        // called nothing, which is the one case where everything lands together.
         return Sanitise(workstream.Column) is { Length: > 0 } lane ? $"{fallback}-{lane}" : fallback;
     }
 

@@ -53,12 +53,6 @@ public sealed record TheseusSettings(
     /// </summary>
     public bool ShowArchived { get; init; }
 
-    /// <summary>
-    /// Whether each lane gets a terminal window of its own when its sessions start. One window is
-    /// what Theseus has always done, and stays the default: grouping only becomes worth having
-    /// alongside arranging, and neither should start happening to somebody who has not asked.
-    /// </summary>
-    public Terminal.WindowGrouping WindowGrouping { get; init; }
 
     /// <summary>Where workstreams are kept until the user points Theseus somewhere of their own.</summary>
     public static string DefaultPlanDirectory { get; } = Path.Combine(
