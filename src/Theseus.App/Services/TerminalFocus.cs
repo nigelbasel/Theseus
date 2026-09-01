@@ -3,13 +3,17 @@ using System.Text;
 using System.Windows.Automation;
 using Theseus.Core.Diagnostics;
 using Theseus.Core.Sessions;
+using Theseus.Core.Terminal;
 
 namespace Theseus.App.Services;
 
 /// <summary>
-/// Brings the terminal window hosting a session to the front. The window is found by class name and
-/// owning process, never through <c>MainWindowHandle</c>: one <c>WindowsTerminal.exe</c> process
-/// hosts every window, so that property names an arbitrary one of them.
+/// Brings the terminal window hosting a session to the front.
+///
+/// The window is found by the tab it contains. Ownership is no help and neither is
+/// <c>MainWindowHandle</c>: one <c>WindowsTerminal.exe</c> process hosts every window, so anything
+/// that asks which window belongs to a process gets an arbitrary one. That is correct exactly while
+/// there is one window, which is why it stood for so long, and wrong from the moment there are two.
 /// </summary>
 public static class TerminalFocus
 {
@@ -31,25 +35,32 @@ public static class TerminalFocus
     public static FocusOutcome FocusSession(int claudeProcessId, string? tabTitle = null)
     {
         var snapshot = ProcessSnapshot.Capture();
+        var terminal = ProcessAncestry.TerminalOf(snapshot, claudeProcessId);
+        var likeliest = terminal is { } processId ? FindWindow(processId) : null;
 
-        if (ProcessAncestry.TerminalOf(snapshot, claudeProcessId) is not { } terminalProcessId)
+        // Search by what a window contains rather than by whose process it belongs to. One terminal
+        // process hosts every window, so the process points at an arbitrary one - right while there
+        // is only one window, and wrong the moment somebody opens a second. The window it points at
+        // is tried first, so the ordinary case still costs one look.
+        if (!string.IsNullOrWhiteSpace(tabTitle))
         {
-            return FocusOutcome.NotFound;
+            foreach (var candidate in WindowSearchOrder.PreferringFirst(likeliest, Terminals()))
+            {
+                if (SelectTab(candidate, tabTitle!) && Raise(candidate))
+                {
+                    return FocusOutcome.TabSelected;
+                }
+            }
         }
 
-        if (FindWindow(terminalProcessId) is not { } window)
+        // No tab of that name anywhere, or no name to look for. Raising the window the process
+        // points at is the most that can honestly be done, and the caller is told it is only that.
+        if (likeliest is { } window && Raise(window))
         {
-            return FocusOutcome.NotFound;
+            return FocusOutcome.WindowOnly;
         }
 
-        var selected = !string.IsNullOrWhiteSpace(tabTitle) && SelectTab(window, tabTitle!);
-
-        if (!Raise(window))
-        {
-            return FocusOutcome.NotFound;
-        }
-
-        return selected ? FocusOutcome.TabSelected : FocusOutcome.WindowOnly;
+        return FocusOutcome.NotFound;
     }
 
     /// <summary>Brings a specific terminal process's window to the front.</summary>
@@ -173,6 +184,27 @@ public static class TerminalFocus
         {
             return $"unreadable ({exception.Message})";
         }
+    }
+
+    /// <summary>
+    /// Every visible terminal window on the desktop, whichever process owns it. Ownership is not a
+    /// useful filter here: they nearly all share one.
+    /// </summary>
+    private static IReadOnlyList<nint> Terminals()
+    {
+        var found = new List<nint>();
+
+        EnumWindows((handle, _) =>
+        {
+            if (IsWindowVisible(handle) && ClassNameOf(handle) == TerminalWindowClass)
+            {
+                found.Add(handle);
+            }
+
+            return true;
+        }, IntPtr.Zero);
+
+        return found;
     }
 
     private static IntPtr? FindWindow(int processId)
