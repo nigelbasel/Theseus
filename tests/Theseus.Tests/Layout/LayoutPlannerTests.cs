@@ -105,9 +105,9 @@ public class LayoutPlannerTests
     {
         Assert.Multiple(() =>
         {
-            Assert.That(LayoutPlanner.Plan(LayoutKind.Tile, Area, 2)[1].X, Is.EqualTo(1728));
-            Assert.That(LayoutPlanner.Plan(LayoutKind.Cascade, Area, 2)[1].X, Is.EqualTo(48));
-            Assert.That(LayoutPlanner.Plan(LayoutKind.Stack, Area, 2)[1], Is.EqualTo(Area));
+            Assert.That(LayoutPlanner.Plan(ArrangementKind.Tile, Area, 2)[1].X, Is.EqualTo(1728));
+            Assert.That(LayoutPlanner.Plan(ArrangementKind.Cascade, Area, 2)[1].X, Is.EqualTo(48));
+            Assert.That(LayoutPlanner.Plan(ArrangementKind.Stack, Area, 2)[1], Is.EqualTo(Area));
         });
     }
 }

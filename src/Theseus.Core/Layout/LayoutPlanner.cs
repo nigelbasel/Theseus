@@ -13,10 +13,10 @@ public static class LayoutPlanner
     /// <param name="gap">Space left between tiles, and around them. Ignored by the other kinds.</param>
     /// <param name="step">How far each cascaded window is offset from the one before.</param>
     public static IReadOnlyList<LayoutRect> Plan(
-        LayoutKind kind, LayoutRect area, int count, int gap = 0, int step = 48) => kind switch
+        ArrangementKind kind, LayoutRect area, int count, int gap = 0, int step = 48) => kind switch
     {
-        LayoutKind.Tile => Tile(area, count, gap),
-        LayoutKind.Cascade => Cascade(area, count, step),
+        ArrangementKind.Tile => Tile(area, count, gap),
+        ArrangementKind.Cascade => Cascade(area, count, step),
         _ => Stack(area, count),
     };
 

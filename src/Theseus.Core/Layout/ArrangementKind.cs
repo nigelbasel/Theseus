@@ -1,7 +1,7 @@
 namespace Theseus.Core.Layout;
 
 /// <summary>How a set of windows should be placed.</summary>
-public enum LayoutKind
+public enum ArrangementKind
 {
     /// <summary>Side by side in a grid, none overlapping, filling the area.</summary>
     Tile,
