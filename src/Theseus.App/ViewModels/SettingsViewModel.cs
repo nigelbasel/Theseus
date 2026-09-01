@@ -17,6 +17,7 @@ public sealed class SettingsViewModel : ObservableObject
 
     private string _planDirectory = string.Empty;
     private string _terminalWindowName = string.Empty;
+    private WindowGrouping _windowGrouping;
     private string _terminalExecutablePath = string.Empty;
     private string _claudeExecutablePath = string.Empty;
     private string _jiraBaseUrl = string.Empty;
@@ -79,6 +80,16 @@ public sealed class SettingsViewModel : ObservableObject
         get => _terminalWindowName;
         set => Set(ref _terminalWindowName, value);
     }
+
+    /// <summary>Whether each lane gets a terminal window of its own when its sessions start.</summary>
+    public WindowGrouping WindowGrouping
+    {
+        get => _windowGrouping;
+        set => Set(ref _windowGrouping, value);
+    }
+
+    /// <summary>Every way of spreading sessions across windows, for the chooser to offer.</summary>
+    public static IReadOnlyList<WindowGrouping> WindowGroupings { get; } = [.. Enum.GetValues<WindowGrouping>()];
 
     /// <summary>A terminal chosen by hand. Blank resolves from whatever is running.</summary>
     public string TerminalExecutablePath
@@ -229,6 +240,7 @@ public sealed class SettingsViewModel : ObservableObject
     {
         PlanDirectory = settings.PlanDirectory;
         TerminalWindowName = settings.TerminalWindowName;
+        WindowGrouping = settings.WindowGrouping;
         TerminalExecutablePath = settings.TerminalExecutablePath;
         ClaudeExecutablePath = settings.ClaudeExecutablePath;
         JiraBaseUrl = settings.JiraBaseUrl;
@@ -244,6 +256,7 @@ public sealed class SettingsViewModel : ObservableObject
         {
             PlanDirectory = PlanDirectory,
             TerminalWindowName = TerminalWindowName,
+            WindowGrouping = WindowGrouping,
             TerminalExecutablePath = TerminalExecutablePath,
             ClaudeExecutablePath = ClaudeExecutablePath,
             JiraBaseUrl = JiraBaseUrl,

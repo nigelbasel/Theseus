@@ -39,4 +39,10 @@ public sealed record Workstream(
 {
     /// <summary>The keys taken off this card by hand, which stay off until they are added again.</summary>
     public IReadOnlyList<string> RemovedJiraKeys { get; init; } = [];
+
+    /// <summary>
+    /// The terminal window this workstream's sessions start in, when it is not the one its lane
+    /// implies. Empty means the lane decides, or the single window does when lanes are not grouping.
+    /// </summary>
+    public string? WindowGroup { get; init; }
 }

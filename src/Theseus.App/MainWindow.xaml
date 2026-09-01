@@ -687,6 +687,12 @@
                                        FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"
                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
 
+                            <TextBlock Text="Terminal window" Style="{StaticResource FieldLabel}" />
+                            <TextBox Text="{Binding Drawer.WindowGroup, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBlock FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                       Text="Leave empty to follow the lane. Name a window here to put this workstream beside another one whatever lane it is in. It applies from the next launch — a running session stays in the window it started in." />
+
                             <TextBlock Text="Workflows" Style="{StaticResource FieldLabel}"
                                        Visibility="{Binding Drawer.Workflows.Count,
                                                     Converter={StaticResource CountToVisibility}}" />

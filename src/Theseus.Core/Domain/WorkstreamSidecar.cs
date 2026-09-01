@@ -34,4 +34,7 @@ public sealed record WorkstreamSidecar(
     /// record of what was dismissed there would be no way to be rid of one.
     /// </summary>
     public IReadOnlyList<string> RemovedJiraKeys { get; init; } = [];
+
+    /// <summary>The terminal window this workstream's sessions start in, if not the one its lane implies.</summary>
+    public string? WindowGroup { get; init; }
 }

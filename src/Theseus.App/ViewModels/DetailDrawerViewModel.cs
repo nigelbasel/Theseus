@@ -30,6 +30,7 @@ public sealed class DetailDrawerViewModel : ObservableObject
     private string _newDirectory = string.Empty;
     private string _statusDocumentPath = string.Empty;
     private string _newJiraKey = string.Empty;
+    private string _windowGroup = string.Empty;
     private int _boardOrder;
     private bool _isBlocked;
     private bool _reopenTomorrow;
@@ -83,6 +84,16 @@ public sealed class DetailDrawerViewModel : ObservableObject
     {
         get => _isConfirmingDelete;
         private set => Set(ref _isConfirmingDelete, value);
+    }
+
+    /// <summary>
+    /// The terminal window this workstream's sessions start in, when the lane is not the right
+    /// answer. Blank means the lane decides.
+    /// </summary>
+    public string WindowGroup
+    {
+        get => _windowGroup;
+        set => Set(ref _windowGroup, value);
     }
 
     /// <summary>Whether this workstream is put away.</summary>
@@ -289,6 +300,7 @@ public sealed class DetailDrawerViewModel : ObservableObject
         WorkingDirectory = workstream.WorkingDirectory;
         Prompt = workstream.Prompt;
         StatusDocumentPath = workstream.StatusDocumentPath ?? string.Empty;
+        WindowGroup = workstream.WindowGroup ?? string.Empty;
         BoardOrder = workstream.BoardOrder;
         IsBlocked = workstream.IsBlocked;
         ReopenTomorrow = workstream.ReopenTomorrow;
@@ -408,6 +420,7 @@ public sealed class DetailDrawerViewModel : ObservableObject
             IsBlocked = IsBlocked,
             ReopenTomorrow = ReopenTomorrow,
             StatusDocumentPath = Blank(StatusDocumentPath),
+            WindowGroup = Blank(WindowGroup),
             JiraKeys = [.. JiraKeys],
             RemovedJiraKeys = JiraKeySelection.Removed(
                 _card.Workstream.JiraKeys, JiraKeys, _card.Workstream.RemovedJiraKeys),

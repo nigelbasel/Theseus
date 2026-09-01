@@ -58,6 +58,12 @@
                 <TextBlock Style="{StaticResource FieldHint}"
                            Text="Every tab Theseus opens joins this named window." />
 
+                <TextBlock Text="Windows" Style="{StaticResource FieldLabel}" />
+                <ComboBox ItemsSource="{Binding WindowGroupings}"
+                          SelectedItem="{Binding WindowGrouping, Mode=TwoWay}" />
+                <TextBlock Style="{StaticResource FieldHint}"
+                           Text="A window per lane gives each lane its own terminal window, which Arrange can then tile against the others. Sessions already running stay where they are — this decides where the next ones start." />
+
                 <TextBlock Text="Windows Terminal" Style="{StaticResource FieldLabel}" />
                 <TextBox Text="{Binding TerminalExecutablePath, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock Text="{Binding TerminalState}" Style="{StaticResource FieldHint}" />

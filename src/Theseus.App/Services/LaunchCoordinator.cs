@@ -110,9 +110,14 @@ public sealed class LaunchCoordinator : IAsyncDisposable
             planPath);
 
 
+        // Which window this tab joins is the whole of grouping: same name, same window; a name
+        // nothing is using yet makes a new one. Nothing else has to exist for sessions to be grouped.
+        var windowName = WindowGroupName.For(
+            settings.WindowGrouping, settings.TerminalWindowName, workstream);
+
         var request = new WorkstreamLaunchRequest(workstream, Guid.NewGuid().ToString("N"), sessionId,
             mode, claudePath, terminal.ExecutablePath, _launcherPath, _pipeName,
-            settings.TerminalWindowName, opening);
+            windowName, opening);
 
         var plan = WorkstreamLaunchPlanner.Plan(request, DateTimeOffset.UtcNow.AddMinutes(2));
 

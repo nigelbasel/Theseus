@@ -59,5 +59,6 @@ public static class WorkstreamAssembler
             PlanWrittenUtc: ParseWrittenAt(plan.WrittenAt))
         {
             RemovedJiraKeys = sidecar?.RemovedJiraKeys ?? [],
+            WindowGroup = sidecar?.WindowGroup,
         };
 }
