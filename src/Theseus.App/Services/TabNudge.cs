@@ -45,6 +45,16 @@ public static class TabNudge
             return NudgeOutcome.TabNotConfirmed;
         }
 
+        // Let the window settle after being raised before typing into it. Raising is asynchronous:
+        // the call returns before the window has taken keyboard focus, and keystrokes sent into that
+        // gap go nowhere.
+        //
+        // This was being paid for by accident. The line below that reads the focused element costs a
+        // UI Automation round trip, and that delay - not the code that was supposed to be doing the
+        // work - is the likeliest reason the first successful nudge succeeded. A diagnostic that
+        // load-bears is a diagnostic somebody deletes.
+        Thread.Sleep(SettlingTime);
+
         if (!TerminalIsInFront())
         {
             TheseusLog.Warning("Nothing was typed: the terminal was not in front when the moment came");

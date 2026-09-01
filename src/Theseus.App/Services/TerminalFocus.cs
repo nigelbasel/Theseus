@@ -127,6 +127,11 @@ public static class TerminalFocus
     /// lands in the text. For keystrokes synthesised straight afterwards it is the whole difference
     /// between a session that hears and one that does not - and it looks exactly like nothing having
     /// been sent at all.
+    ///
+    /// The buffer is a <c>Text</c> element. It was written against <c>Document</c>, which is what a
+    /// text surface usually is and is not what this one is: a survey of every element a terminal
+    /// window exposes found TabItem, Text, ScrollBar, Pane and no Document at all. This method
+    /// therefore did nothing whatever until that was found.
     /// </summary>
     private static void FocusContent(IntPtr window, string title)
     {
@@ -139,7 +144,7 @@ public static class TerminalFocus
 
             var panes = root.FindAll(
                 TreeScope.Descendants,
-                new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Document));
+                new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Text));
 
             AutomationElement? fallback = null;
 
