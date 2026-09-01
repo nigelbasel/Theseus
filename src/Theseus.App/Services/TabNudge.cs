@@ -55,6 +55,8 @@ public static class TabNudge
         // load-bears is a diagnostic somebody deletes.
         Thread.Sleep(SettlingTime);
 
+        var foreground = GetForegroundWindow();
+
         if (!TerminalIsInFront())
         {
             TheseusLog.Warning("Nothing was typed: the terminal was not in front when the moment came");
@@ -62,11 +64,24 @@ public static class TabNudge
             return NudgeOutcome.FocusLost;
         }
 
+        // Selecting a tab leaves focus on the tab strip, where every keystroke is silently
+        // discarded, so focus is moved into the buffer here rather than hoped for. It happens after
+        // the settle, not before: the newly selected tab's control does not exist until the terminal
+        // has drawn it, and there is nothing to focus until it does.
+        TerminalFocus.FocusContent(foreground);
+
         // Where the keystrokes are about to go. Windows reporting that it accepted them says only
         // that they were injected, never that anything read them, and the difference is invisible
         // afterwards: a session that was never typed into looks the same as one that was typed into
         // somewhere nobody was listening.
         TheseusLog.Information("Typing into whatever has focus, which is {Focused}", TerminalFocus.FocusedElement());
+
+        if (!TerminalFocus.FocusIsInTerminal())
+        {
+            TheseusLog.Warning("Nothing was typed: focus is not in a terminal buffer, so it would be discarded");
+
+            return NudgeOutcome.FocusLost;
+        }
 
         if (interruptFirst && !Interrupt())
         {

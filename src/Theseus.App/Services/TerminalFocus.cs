@@ -18,6 +18,10 @@ namespace Theseus.App.Services;
 public static class TerminalFocus
 {
     private const string TerminalWindowClass = "CASCADIA_HOSTING_WINDOW_CLASS";
+
+    /// <summary>The class of the element that holds a session's text, and the only one that takes focus.</summary>
+    private const string TerminalControlClass = "TermControl";
+
     private const int SwRestore = 9;
 
     /// <summary>
@@ -96,7 +100,6 @@ public static class TerminalFocus
                     && pattern is SelectionItemPattern selection)
                 {
                     selection.Select();
-                    FocusContent(window, title);
 
                     return true;
                 }
@@ -128,44 +131,67 @@ public static class TerminalFocus
     /// between a session that hears and one that does not - and it looks exactly like nothing having
     /// been sent at all.
     ///
-    /// The buffer is a <c>Text</c> element. It was written against <c>Document</c>, which is what a
-    /// text surface usually is and is not what this one is: a survey of every element a terminal
-    /// window exposes found TabItem, Text, ScrollBar, Pane and no Document at all. This method
-    /// therefore did nothing whatever until that was found.
+    /// The buffer is a <c>Text</c> element whose class is <c>TermControl</c>, and it is found by that
+    /// class and by asking whether it will take focus - not by its name, which is the profile's
+    /// ("Default"), and not by its control type alone, which several unfocusable labels share.
+    ///
+    /// Both previous attempts guessed. The first searched for <c>Document</c>, which a terminal
+    /// window does not expose at all. The second searched Text elements for one named after the tab,
+    /// found none, and fell back to the first Text in the tree, which refused with "target element
+    /// cannot receive focus". Asking the tree which elements are focusable answered it in a minute.
     /// </summary>
-    private static void FocusContent(IntPtr window, string title)
+    /// <returns>Whether focus is now in a terminal buffer.</returns>
+    public static bool FocusContent(nint window)
     {
         try
         {
             if (AutomationElement.FromHandle(window) is not { } root)
             {
-                return;
+                return false;
             }
 
-            var panes = root.FindAll(
+            var candidates = root.FindAll(
                 TreeScope.Descendants,
                 new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Text));
 
-            AutomationElement? fallback = null;
-
-            foreach (AutomationElement pane in panes)
+            foreach (AutomationElement candidate in candidates)
             {
-                fallback ??= pane;
-
-                if (ConsoleTitle.Matches(title, pane.Current.Name))
+                if (candidate.Current is { IsKeyboardFocusable: true, ClassName: TerminalControlClass })
                 {
-                    pane.SetFocus();
+                    candidate.SetFocus();
 
-                    return;
+                    return true;
                 }
             }
 
-            fallback?.SetFocus();
+            TheseusLog.Warning("No terminal buffer in window {Window} would take focus", window);
+
+            return false;
         }
         catch (Exception exception)
             when (exception is ElementNotAvailableException or InvalidOperationException or COMException)
         {
             TheseusLog.Debug("Could not put focus on the terminal's text: {Reason}", exception.Message);
+
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Whether keyboard focus is in a terminal buffer rather than on the tab strip. Selecting a tab
+    /// leaves focus on the tab, where every keystroke is silently discarded, so this is the question
+    /// worth asking before typing anything.
+    /// </summary>
+    public static bool FocusIsInTerminal()
+    {
+        try
+        {
+            return AutomationElement.FocusedElement?.Current.ClassName == TerminalControlClass;
+        }
+        catch (Exception exception)
+            when (exception is ElementNotAvailableException or InvalidOperationException or COMException)
+        {
+            return false;
         }
     }
 
