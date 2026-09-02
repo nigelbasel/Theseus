@@ -121,11 +121,60 @@ public sealed class StopRequestStore : IStopRequestStore
         }
     }
 
+    /// <summary>Every request that has been handed to a session and not yet finished with.</summary>
+    private IReadOnlyList<PendingStopRequest> Handed()
+    {
+        var directory = Path.Combine(_root, StopRequestPath.DeliveredFolder);
+
+        if (!Directory.Exists(directory))
+        {
+            return [];
+        }
+
+        try
+        {
+            return [.. Directory.EnumerateFiles(directory, "*.json").Select(Parse).OfType<PendingStopRequest>()];
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            TheseusLog.Warning(exception, "The delivered stop requests could not be listed");
+
+            return [];
+        }
+    }
+
     /// <inheritdoc />
     public PendingStopRequest? Delivered(string? sessionId) =>
         StopRequestPath.For(_root, sessionId, StopRequestPath.DeliveredFolder) is { } path
             ? Parse(path)
             : null;
+
+    /// <inheritdoc />
+    public bool Retire(string? sessionId)
+    {
+        if (StopRequestPath.For(_root, sessionId, StopRequestPath.DeliveredFolder) is not { } path)
+        {
+            return false;
+        }
+
+        try
+        {
+            if (!File.Exists(path))
+            {
+                return false;
+            }
+
+            File.Delete(path);
+
+            return true;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            TheseusLog.Warning(exception, "A finished stop request could not be retired from {Path}", path);
+
+            return false;
+        }
+    }
 
     /// <inheritdoc />
     public int Sweep(DateTimeOffset now)
@@ -135,6 +184,17 @@ public sealed class StopRequestStore : IStopRequestStore
         foreach (var stale in Pending().Where(request => request.ExpiresUtc <= now))
         {
             if (Cancel(stale.SessionId))
+            {
+                gone++;
+            }
+        }
+
+        // Delivered requests expire too. Sweeping only the waiting ones left them on disk
+        // indefinitely - one here was five days old and still armed - so a session that was never
+        // successfully told to exit stayed a target for every Theseus that started afterwards.
+        foreach (var stale in Handed().Where(request => request.ExpiresUtc <= now))
+        {
+            if (Retire(stale.SessionId))
             {
                 gone++;
             }

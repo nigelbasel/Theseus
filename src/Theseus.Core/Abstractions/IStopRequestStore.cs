@@ -27,4 +27,14 @@ public interface IStopRequestStore
 
     /// <summary>The request this session was handed, if it has been handed one.</summary>
     PendingStopRequest? Delivered(string? sessionId);
+
+    /// <summary>
+    /// Finishes with a delivered request, once the session it named has been told to exit.
+    ///
+    /// A request that is not retired is acted on again by the next Theseus to start, because the
+    /// only thing stopping a second <c>/exit</c> was a set held in memory that dies with the process.
+    /// On 2026-09-02 that typed <c>/exit</c> into sessions hours after they were asked to stop, and
+    /// into ones that had since been resumed - closing the same window twice.
+    /// </summary>
+    bool Retire(string? sessionId);
 }

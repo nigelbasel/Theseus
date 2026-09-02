@@ -719,6 +719,19 @@ public sealed class ShellViewModel : ObservableObject
 
             var outcome = TabNudge.Nudge(session.Pid, session.Name, SessionClosing.ExitCommand);
 
+            // The request is finished with the moment the exit is typed, and is taken off disk here
+            // rather than left to expire. `_closed` above only stops a second attempt inside this
+            // process; it is empty again in the next one, so a request left lying about was acted on
+            // by every Theseus that started for the next four hours. On 2026-09-02 that closed this
+            // very session twice, hours apart, the second time long after it had been resumed.
+            //
+            // A request whose keystrokes never landed is deliberately left alone: nothing was told to
+            // exit, so there is still something to do, and Sweep expires it if that never happens.
+            if (outcome == NudgeOutcome.Sent)
+            {
+                _stopRequests.Retire(sessionId);
+            }
+
             TheseusLog.Information(
                 "Closing {Workstream}, which was asked to stop and has handed over: {Outcome}",
                 card.Key, outcome);
