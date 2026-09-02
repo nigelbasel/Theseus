@@ -165,11 +165,27 @@ public sealed class ShellViewModel : ObservableObject
         StartSelection.ForCards(
             [.. cell.Cards.Select(card => card.Workstream)], [.. Board.Stages], Sessions.Snapshot);
 
-    private IReadOnlyList<Workstream> RowSelection(BoardRowViewModel row) =>
-        StartSelection.ForCards(
-            [.. row.Cells.SelectMany(cell => cell.Cards).Select(card => card.Workstream)],
-            [.. Board.Stages],
+    /// <summary>
+    /// What starting a whole row would launch, which is everything in that area except whatever is
+    /// in the last stage.
+    ///
+    /// The board's own Start has always left the last column alone, because finished work must never
+    /// be restarted by a single click. A row spans that column too, so it needs the same protection —
+    /// without it the narrow gesture would be more dangerous than the broad one, which is exactly
+    /// backwards.
+    /// </summary>
+    private IReadOnlyList<Workstream> RowSelection(BoardRowViewModel row)
+    {
+        IReadOnlyList<string> stages = [.. Board.Stages];
+
+        return StartSelection.ForCards(
+            [.. row.Cells
+                .Where(cell => !BoardLanes.IsLast(cell.Column, stages))
+                .SelectMany(cell => cell.Cards)
+                .Select(card => card.Workstream)],
+            stages,
             Sessions.Snapshot);
+    }
 
     /// <summary>The board this window shows.</summary>
     public BoardViewModel Board { get; }

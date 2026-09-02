@@ -109,8 +109,15 @@ public static class HelpBook
                     "Makes a card follow a session again after that session was restarted outside"
                     + " Theseus. Until it does, the card is looking for a session identifier nothing"
                     + " answers to, so Stop and Focus have nothing to act on."),
-                new HelpEntry("Start lane", "Starts every workstream in the lane that is not already running."),
-                new HelpEntry("Start board", "Starts every lane except the last, which is where finished work lives."),
+                new HelpEntry(
+                    "Start",
+                    "In a cell: starts that area's work at that one stage, and nothing else."),
+                new HelpEntry(
+                    "Start row",
+                    "In a row's header: starts that area's work wherever it has got to. Like the board's"
+                    + " own Start it leaves the last column alone, so finished work is never restarted"
+                    + " by one click."),
+                new HelpEntry("Start all", "Starts every stage except the last, across every area."),
                 new HelpEntry("Stop all", "Asks every running session to hand over, one request each."),
                 new HelpEntry("Refresh", "Re-reads the plans, the run log and the session registry. Nothing is cached that this will not correct."),
                 new HelpEntry(
