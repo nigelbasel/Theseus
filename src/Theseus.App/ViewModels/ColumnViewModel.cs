@@ -26,9 +26,6 @@ public sealed class ColumnViewModel : ObservableObject
     /// <summary>The lane's heading, which is its name.</summary>
     public string Heading => Column;
 
-    /// <summary>Starts every workstream in this lane that is not already running.</summary>
-    public RelayCommand? StartAllCommand { get; set; }
-
     /// <summary>The cards in this column, in board order.</summary>
     public ObservableCollection<WorkstreamCardViewModel> Cards { get; } = [];
 

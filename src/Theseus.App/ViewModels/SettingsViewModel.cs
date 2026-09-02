@@ -213,8 +213,9 @@ public sealed class SettingsViewModel : ObservableObject
         {
             var lanes = Lanes;
 
-            return $"{lanes.Count} lanes. \"{lanes[^1]}\" is last, so Start all leaves it alone. "
-                   + "Cards in a lane you remove move to the first lane.";
+            return $"{lanes.Count} lanes. Cards in a lane you remove move to the first lane. "
+                   + "No lane is treated as special: what a bulk Start or Stop acts on is what you "
+                   + "tick on the cards.";
         }
     }
 

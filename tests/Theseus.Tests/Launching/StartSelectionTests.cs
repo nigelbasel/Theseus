@@ -4,130 +4,130 @@ using Theseus.Core.Sessions;
 
 namespace Theseus.Tests.Launching;
 
+/// <summary>
+/// What a bulk Start launches, now that it launches what the user ticked.
+///
+/// It used to work that out from where a card sat: every lane except the last, on the reasoning that
+/// the last lane holds finished work. That is a rule about position, and it broke on a board with
+/// four stages. `New / In progress / Paused / Done` puts `Paused` second-from-last, so one click
+/// restarted everything its owner had deliberately paused — see `Selects_...` below, which is the
+/// regression that rule would fail.
+///
+/// Reading the column's *name* instead would have been worse. The columns are the user's to name, in
+/// any words and any language, so matching "Paused" or "Parked" is a guess about English dressed up
+/// as a rule.
+/// </summary>
 [TestFixture]
 public class StartSelectionTests
 {
     private static readonly string[] Columns =
-        ["Today", "In flight", "Parked", "Done"];
+        ["New", "In progress", "Paused", "Done"];
 
     private const string SessionId = "3f2b1c40-9d5e-4a10-8b77-2c9e1d4a55aa";
 
     [Test]
-    public void ForBoard_NeverStartsTheLastLaneBecauseThatIsWhereFinishedWorkLives()
+    public void ForCards_StartsNothingThatWasNotChosen()
     {
-        var workstreams = new[]
-        {
-            Workstream("contact-forms", "Today"),
-            Workstream("job-queue", "In flight"),
-            Workstream("nexus", "Parked"),
-            Workstream("finished", "Done"),
-        };
+        var paused = Workstream("nexus", "Paused");
 
-        var selected = StartSelection.ForBoard(workstreams, Columns, SessionRegistrySnapshot.Empty);
+        Assert.That(
+            StartSelection.ForCards([Workstream("job-queue", "In progress")], Columns,
+                SessionRegistrySnapshot.Empty).Select(w => w.Key),
+            Is.EqualTo(new[] { "job-queue" }),
+            "the paused card was not passed in, so nothing has to know that Paused means paused");
 
-        Assert.That(selected.Select(w => w.Key),
-            Is.EqualTo(new[] { "contact-forms", "job-queue", "nexus" }));
+        Assert.That(paused.Column, Is.EqualTo("Paused"), "and its column decides nothing either way");
     }
 
     [Test]
-    public void ForBoard_StartsInLaneOrderThenBoardOrderSoTabsOpenInTheOrderYouWorkThem()
+    public void ForCards_StartsACardInTheLastLaneWhenThatIsWhatWasChosen()
+    {
+        // The old rule refused this outright. Restarting finished work is unusual, not forbidden,
+        // and a card the user has ticked is not something to second-guess.
+        Assert.That(
+            StartSelection.ForCards([Workstream("finished", "Done")], Columns,
+                SessionRegistrySnapshot.Empty),
+            Has.Count.EqualTo(1));
+    }
+
+    [Test]
+    public void ForCards_StartsInLaneOrderThenBoardOrderSoTabsOpenInTheOrderYouWorkThem()
     {
         var workstreams = new[]
         {
-            Workstream("second", "Today", order: 2),
-            Workstream("third", "In flight", order: 1),
-            Workstream("first", "Today", order: 1),
+            Workstream("second", "New", order: 2),
+            Workstream("third", "In progress", order: 1),
+            Workstream("first", "New", order: 1),
         };
 
         Assert.That(
-            StartSelection.ForBoard(workstreams, Columns, SessionRegistrySnapshot.Empty).Select(w => w.Key),
+            StartSelection.ForCards(workstreams, Columns, SessionRegistrySnapshot.Empty).Select(w => w.Key),
             Is.EqualTo(new[] { "first", "second", "third" }));
     }
 
     [Test]
-    public void ForBoard_SkipsAWorkstreamWhoseSessionIsAlreadyRunning()
+    public void ForCards_SkipsAWorkstreamWhoseSessionIsAlreadyRunning()
     {
         var workstreams = new[]
         {
-            Workstream("contact-forms", "Today") with { LastSessionId = SessionId },
-            Workstream("job-queue", "Today"),
-        };
-
-        var selected = StartSelection.ForBoard(workstreams, Columns, Live(SessionId));
-
-        Assert.That(selected.Select(w => w.Key), Is.EqualTo(new[] { "job-queue" }));
-    }
-
-    [Test]
-    public void ForBoard_StartsAWorkstreamWhoseLastSessionHasSinceEnded()
-    {
-        var workstreams = new[] { Workstream("contact-forms", "Today") with { LastSessionId = SessionId } };
-
-        Assert.That(StartSelection.ForBoard(workstreams, Columns, SessionRegistrySnapshot.Empty), Has.Count.EqualTo(1));
-    }
-
-    [Test]
-    public void ForBoard_SkipsArchivedWorkstreams()
-    {
-        var workstreams = new[] { Workstream("retired", "Today") with { IsArchived = true } };
-
-        Assert.That(StartSelection.ForBoard(workstreams, Columns, SessionRegistrySnapshot.Empty), Is.Empty);
-    }
-
-    [Test]
-    public void ForBoard_SkipsAWorkstreamWithNoPromptBecauseThereIsNothingToOpenWith()
-    {
-        var workstreams = new[] { Workstream("empty", "Today") with { Prompt = "  " } };
-
-        Assert.That(StartSelection.ForBoard(workstreams, Columns, SessionRegistrySnapshot.Empty), Is.Empty);
-    }
-
-    [Test]
-    public void ForBoard_StartsNothingWhenThereAreNoColumns()
-    {
-        Assert.That(
-            StartSelection.ForBoard([Workstream("contact-forms", "Today")], [], SessionRegistrySnapshot.Empty),
-            Is.Empty);
-    }
-
-    [Test]
-    public void ForBoard_StartsNothingWhenTheOnlyLaneIsTheLastOne()
-    {
-        Assert.That(
-            StartSelection.ForBoard([Workstream("only", "Today")], ["Today"],
-                SessionRegistrySnapshot.Empty),
-            Is.Empty);
-    }
-
-    [Test]
-    public void ForColumn_StartsOnlyThatLane()
-    {
-        var workstreams = new[]
-        {
-            Workstream("contact-forms", "Today"),
-            Workstream("job-queue", "In flight"),
+            Workstream("contact-forms", "New") with { LastSessionId = SessionId },
+            Workstream("job-queue", "New"),
         };
 
         Assert.That(
-            StartSelection.ForColumn(workstreams, "In flight", SessionRegistrySnapshot.Empty)
-                .Select(w => w.Key),
-            Is.EqualTo(new[] { "job-queue" }));
+            StartSelection.ForCards(workstreams, Columns, Live(SessionId)).Select(w => w.Key),
+            Is.EqualTo(new[] { "job-queue" }),
+            "ticking a running card is not a request to open a second session for it");
     }
 
     [Test]
-    public void ForColumn_WillStartTheLastLaneWhenThatLaneIsAskedForDirectly()
+    public void ForCards_StartsAWorkstreamWhoseLastSessionHasSinceEnded()
     {
-        var workstreams = new[] { Workstream("finished", "Done") };
+        var workstreams = new[] { Workstream("contact-forms", "New") with { LastSessionId = SessionId } };
 
         Assert.That(
-            StartSelection.ForColumn(workstreams, "Done", SessionRegistrySnapshot.Empty),
+            StartSelection.ForCards(workstreams, Columns, SessionRegistrySnapshot.Empty),
             Has.Count.EqualTo(1));
+    }
+
+    [Test]
+    public void ForCards_SkipsArchivedWorkstreams()
+    {
+        var workstreams = new[] { Workstream("retired", "New") with { IsArchived = true } };
+
+        Assert.That(
+            StartSelection.ForCards(workstreams, Columns, SessionRegistrySnapshot.Empty), Is.Empty);
+    }
+
+    [Test]
+    public void ForCards_SkipsAWorkstreamWithNoPromptBecauseThereIsNothingToOpenWith()
+    {
+        var workstreams = new[] { Workstream("empty", "New") with { Prompt = "  " } };
+
+        Assert.That(
+            StartSelection.ForCards(workstreams, Columns, SessionRegistrySnapshot.Empty), Is.Empty);
+    }
+
+    [Test]
+    public void ForCards_StartsNothingWhenNothingWasChosen()
+    {
+        Assert.That(StartSelection.ForCards([], Columns, SessionRegistrySnapshot.Empty), Is.Empty);
+    }
+
+    [Test]
+    public void ForCards_StillStartsWhatItWasGivenWhenTheBoardHasNoColumnsToOrderBy()
+    {
+        Assert.That(
+            StartSelection.ForCards([Workstream("job-queue", "In progress")], [],
+                SessionRegistrySnapshot.Empty),
+            Has.Count.EqualTo(1),
+            "the columns only decide the order; an unrecognised one must not silently drop a card");
     }
 
     [Test]
     public void IsEligible_RefusesAWorkstreamThatIsAlreadyLive()
     {
-        var workstream = Workstream("contact-forms", "Today") with { LastSessionId = SessionId };
+        var workstream = Workstream("contact-forms", "New") with { LastSessionId = SessionId };
 
         Assert.That(StartSelection.IsEligible(workstream, Live(SessionId)), Is.False);
     }

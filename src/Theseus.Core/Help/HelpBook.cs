@@ -110,15 +110,20 @@ public static class HelpBook
                     + " Theseus. Until it does, the card is looking for a session identifier nothing"
                     + " answers to, so Stop and Focus have nothing to act on."),
                 new HelpEntry(
-                    "Start",
-                    "In a cell: starts that area's work at that one stage, and nothing else."),
+                    "The tick on a card",
+                    "Chooses that card for Start selected and Stop selected. Nothing else decides what"
+                    + " those act on: not which column a card is in, and not what the column is called."),
                 new HelpEntry(
-                    "Start row",
-                    "In a row's header: starts that area's work wherever it has got to. Like the board's"
-                    + " own Start it leaves the last column alone, so finished work is never restarted"
-                    + " by one click."),
-                new HelpEntry("Start all", "Starts every stage except the last, across every area."),
-                new HelpEntry("Stop all", "Asks every running session to hand over, one request each."),
+                    "Start selected",
+                    "Starts the ticked cards that are not already running. A card already running is"
+                    + " skipped rather than opened twice."),
+                new HelpEntry(
+                    "Stop selected",
+                    "Asks the ticked cards' running sessions to hand over, one request each."),
+                new HelpEntry(
+                    "Select all and Clear",
+                    "Tick or untick every card, including anything in the last column. Nothing is held"
+                    + " back: a tick you can see and remove is honest where a silent exclusion is not."),
                 new HelpEntry("Refresh", "Re-reads the plans, the run log and the session registry. Nothing is cached that this will not correct."),
                 new HelpEntry(
                     "Archive",

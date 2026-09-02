@@ -41,20 +41,6 @@ public class BoardLanesTests
     }
 
     [Test]
-    public void IsLast_NamesTheLaneAWholeBoardStartLeavesAlone()
-    {
-        Assert.That(BoardLanes.IsLast("Done", Lanes), Is.True);
-        Assert.That(BoardLanes.IsLast("Today", Lanes), Is.False);
-    }
-
-    [Test]
-    public void IsLast_FollowsTheOrderRatherThanTheNameSoAnyLaneCanBeLast()
-    {
-        Assert.That(BoardLanes.IsLast("Today", ["Done", "Today"]), Is.True);
-        Assert.That(BoardLanes.IsLast("Done", ["Done", "Today"]), Is.False);
-    }
-
-    [Test]
     public void Sanitise_DropsTheBlankLinesLeftBehindWhileTyping()
     {
         Assert.That(BoardLanes.Sanitise(["Today", "   ", "Done"]), Is.EqualTo(new[] { "Today", "Done" }));

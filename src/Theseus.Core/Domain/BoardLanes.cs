@@ -27,17 +27,6 @@ public static class BoardLanes
     }
 
     /// <summary>
-    /// Whether a lane is the one a whole-board start leaves alone. Starting everything is the one
-    /// gesture with real cost, and the last lane is where finished work goes.
-    /// </summary>
-    public static bool IsLast(string? lane, IReadOnlyList<string> lanes)
-    {
-        ArgumentNullException.ThrowIfNull(lanes);
-
-        return lanes.Count > 0 && Same(lanes[^1], lane);
-    }
-
-    /// <summary>
     /// The lanes as they will be used: blanks dropped, duplicates dropped, and the defaults when
     /// nothing usable is left. A board with no lanes has nowhere to put a card.
     /// </summary>

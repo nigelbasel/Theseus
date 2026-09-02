@@ -72,12 +72,17 @@ public sealed class ShellViewModel : ObservableObject
             parameter => parameter is PullRequestLink { Url: not null });
 
         StartCardCommand = new RelayCommand(StartCard, CanStartCard);
-        StartBoardCommand = new RelayCommand(_ => StartMany(BoardSelection()), _ => BoardSelection().Count > 0);
         SelectCardCommand = new RelayCommand(ShowCard);
         ToggleSessionsPanelCommand = new RelayCommand(_ => IsSessionsPanelOpen = !IsSessionsPanelOpen);
         StopCardCommand = new RelayCommand(parameter => BeginStop(CardSteps(parameter)),
             parameter => CardSteps(parameter).Count > 0);
-        StopBoardCommand = new RelayCommand(_ => BeginStop(BoardSteps()), _ => BoardSteps().Count > 0);
+
+        StartSelectedCommand = new RelayCommand(_ => StartMany(ChosenToStart()),
+            _ => ChosenToStart().Count > 0);
+        StopSelectedCommand = new RelayCommand(_ => BeginStop(ChosenSteps()),
+            _ => ChosenSteps().Count > 0);
+        SelectAllCommand = new RelayCommand(_ => ChooseAll(true), _ => Board.Cards.Any(card => !card.IsSelected));
+        ClearSelectionCommand = new RelayCommand(_ => ChooseAll(false), _ => Board.Cards.Any(card => card.IsSelected));
 
         // Archive is on the card as well as in the details; deleting is not. One is reversible and
         // the everyday way to clear finished work off the board, and the other destroys a plan file
@@ -140,55 +145,23 @@ public sealed class ShellViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Gives every cell and every row its own Start, since a rebuild replaces them all. A cell
-    /// starts one area's work at one stage; a row starts an area's work wherever it has got to,
-    /// which is usually what somebody means by "start the research".
+    /// Reconnects what a rebuild replaces: every card tells the shell when it is ticked, and every
+    /// row keeps its collapse button.
     /// </summary>
     private void WireLanes()
     {
-        foreach (var cell in Board.Cells)
+        foreach (var card in Board.Cards)
         {
-            var captured = cell;
-            captured.StartAllCommand = new RelayCommand(
-                _ => StartMany(CellSelection(captured)),
-                _ => CellSelection(captured).Count > 0);
+            card.SelectionChanged = SelectionMoved;
         }
 
         foreach (var row in Board.Rows)
         {
             var captured = row;
-            captured.StartAllCommand = new RelayCommand(
-                _ => StartMany(RowSelection(captured)),
-                _ => RowSelection(captured).Count > 0);
             captured.ToggleCommand = new RelayCommand(_ => Board.ToggleRow(captured));
         }
     }
 
-    private IReadOnlyList<Workstream> CellSelection(ColumnViewModel cell) =>
-        StartSelection.ForCards(
-            [.. cell.Cards.Select(card => card.Workstream)], [.. Board.Stages], Sessions.Snapshot);
-
-    /// <summary>
-    /// What starting a whole row would launch, which is everything in that area except whatever is
-    /// in the last stage.
-    ///
-    /// The board's own Start has always left the last column alone, because finished work must never
-    /// be restarted by a single click. A row spans that column too, so it needs the same protection —
-    /// without it the narrow gesture would be more dangerous than the broad one, which is exactly
-    /// backwards.
-    /// </summary>
-    private IReadOnlyList<Workstream> RowSelection(BoardRowViewModel row)
-    {
-        IReadOnlyList<string> stages = [.. Board.Stages];
-
-        return StartSelection.ForCards(
-            [.. row.Cells
-                .Where(cell => !BoardLanes.IsLast(cell.Column, stages))
-                .SelectMany(cell => cell.Cards)
-                .Select(card => card.Workstream)],
-            stages,
-            Sessions.Snapshot);
-    }
 
     /// <summary>The board this window shows.</summary>
     public BoardViewModel Board { get; }
@@ -214,8 +187,19 @@ public sealed class ShellViewModel : ObservableObject
     /// <summary>Starts one workstream.</summary>
     public RelayCommand StartCardCommand { get; }
 
-    /// <summary>Starts every lane except the last, which is where finished work lives.</summary>
-    public RelayCommand StartBoardCommand { get; }
+    /// <summary>Starts the ticked cards that can be started.</summary>
+    public RelayCommand StartSelectedCommand { get; }
+
+    /// <summary>Ticks every card on the board.</summary>
+    public RelayCommand SelectAllCommand { get; }
+
+    /// <summary>Unticks every card.</summary>
+    public RelayCommand ClearSelectionCommand { get; }
+
+    /// <summary>How many cards are ticked, so the buttons can say what they would act on.</summary>
+    public string SelectionSummary => Board.Cards.Count(card => card.IsSelected) is var count && count > 0
+        ? $"{count} selected"
+        : "none selected";
 
     /// <summary>Opens a card in the detail drawer.</summary>
     public RelayCommand SelectCardCommand { get; }
@@ -253,8 +237,8 @@ public sealed class ShellViewModel : ObservableObject
     /// <summary>Asks one workstream session to write a handoff and exit.</summary>
     public RelayCommand StopCardCommand { get; }
 
-    /// <summary>Asks every running workstream session to write a handoff and exit.</summary>
-    public RelayCommand StopBoardCommand { get; }
+    /// <summary>Asks the ticked cards' running sessions to write a handoff and exit.</summary>
+    public RelayCommand StopSelectedCommand { get; }
 
     /// <summary>Folds the live sessions panel away, or brings it back.</summary>
     public RelayCommand ToggleSessionsPanelCommand { get; }
@@ -312,6 +296,11 @@ public sealed class ShellViewModel : ObservableObject
     public void Refresh()
     {
         Board.Refresh();
+
+        // A refresh replaces every card, so the new ones need telling where to report a tick. Wiring
+        // this only when the grid changes left the selection count frozen at whatever it said before
+        // the last refresh.
+        WireLanes();
         Sessions.Refresh();
         SyncLifecycles();
         SyncPullRequests();
@@ -346,8 +335,34 @@ public sealed class ShellViewModel : ObservableObject
     private IReadOnlyList<StopStep> CardSteps(object? parameter) =>
         parameter is WorkstreamCardViewModel card ? StepsFor([card]) : [];
 
-    private IReadOnlyList<StopStep> BoardSteps() =>
-        StepsFor(Board.Cards);
+    private IReadOnlyList<StopStep> ChosenSteps() =>
+        StepsFor(Chosen());
+
+    /// <summary>
+    /// Ticks or unticks every card, including the ones in the last column. Nothing is held back:
+    /// hiding a card from Select all would be the same guess about the board's shape that this
+    /// replaced, and a tick the user can see and remove is honest where a silent exclusion is not.
+    /// </summary>
+    private void ChooseAll(bool chosen)
+    {
+        foreach (var card in Board.Cards)
+        {
+            card.IsSelected = chosen;
+        }
+
+        SelectionMoved();
+    }
+
+    /// <summary>
+    /// Tells the buttons that act on a selection to look again. They are enabled by what is ticked,
+    /// and WPF has no way of knowing that a property on a card changes what a command on the shell
+    /// can do.
+    /// </summary>
+    private void SelectionMoved()
+    {
+        Raise(nameof(SelectionSummary));
+        System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+    }
 
     /// <summary>
     /// Prepares a stop request and puts it in front of the user, one session at a time: the tab is
@@ -760,12 +775,16 @@ public sealed class ShellViewModel : ObservableObject
         }
     }
 
-    private IReadOnlyList<Workstream> BoardSelection() =>
-        StartSelection.ForBoard(Workstreams(), [.. Board.Stages],
-            Sessions.Snapshot);
+    /// <summary>
+    /// The cards the user has ticked. This is the only thing a bulk Start or Stop looks at: there is
+    /// no rule about which column is safe, because there is nothing left to guess.
+    /// </summary>
+    private IReadOnlyList<WorkstreamCardViewModel> Chosen() =>
+        [.. Board.Cards.Where(card => card.IsSelected)];
 
-    private IReadOnlyList<Workstream> ColumnSelection(string column) =>
-        StartSelection.ForColumn(Workstreams(), column, Sessions.Snapshot);
+    private IReadOnlyList<Workstream> ChosenToStart() =>
+        StartSelection.ForCards(
+            [.. Chosen().Select(card => card.Workstream)], [.. Board.Stages], Sessions.Snapshot);
 
     private IReadOnlyList<Workstream> Workstreams() =>
         [.. Board.Cards.Select(card => card.Workstream)];

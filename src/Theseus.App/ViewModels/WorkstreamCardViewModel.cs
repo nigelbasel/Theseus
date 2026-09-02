@@ -15,6 +15,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     private bool _motionAllowed = true;
     private string _lostSessionName = string.Empty;
     private bool _isSelected;
+    private bool _isAdoptTarget;
     private IReadOnlyList<PullRequestLink> _pullRequests = [];
     private DateTimeOffset? _lifecycleSinceUtc;
 
@@ -158,11 +159,37 @@ public sealed class WorkstreamCardViewModel : ObservableObject
         or SessionLifecycle.NeedsAttention;
 
     /// <summary>Whether this card is the one the next Adopt will attach a session to.</summary>
+    public bool IsAdoptTarget
+    {
+        get => _isAdoptTarget;
+        set => Set(ref _isAdoptTarget, value);
+    }
+
+    /// <summary>
+    /// Whether the user has ticked this card for a bulk Start or Stop.
+    ///
+    /// This is the whole of how Theseus decides what "start these" means. It replaced a rule that
+    /// worked out which cards to start from which column they were in, which was a guess about the
+    /// board's shape and got it wrong for any board whose last column was not the only one to leave
+    /// alone.
+    /// </summary>
     public bool IsSelected
     {
         get => _isSelected;
-        set => Set(ref _isSelected, value);
+        set
+        {
+            if (Set(ref _isSelected, value))
+            {
+                SelectionChanged?.Invoke();
+            }
+        }
     }
+
+    /// <summary>
+    /// Raised when this card is ticked or unticked, so the buttons that act on a selection can say
+    /// how many they would affect and refuse when that is none.
+    /// </summary>
+    public Action? SelectionChanged { get; set; }
 
     /// <summary>
     /// What the session says it is working on, taken from the list it keeps for itself. Busy and

@@ -79,6 +79,13 @@ public sealed class BoardViewModel : ObservableObject
 
         var (lanes, areas) = SyncGrid();
 
+        // Which cards were ticked, before the rebuild throws every card away and makes new ones.
+        // A refresh runs on a timer and after every start, stop and archive, so without this a
+        // selection would quietly empty itself between choosing the cards and pressing the button.
+        var chosen = new HashSet<string>(
+            Cards.Where(card => card.IsSelected).Select(card => card.Key),
+            StringComparer.OrdinalIgnoreCase);
+
         foreach (var cell in Cells)
         {
             cell.Cards.Clear();
@@ -90,7 +97,10 @@ public sealed class BoardViewModel : ObservableObject
             var area = BoardAreas.Resolve(workstream.Area, areas);
 
             Cells.First(cell => cell.Column == lane && cell.Area == area)
-                .Cards.Add(new WorkstreamCardViewModel(workstream with { Column = lane, Area = area }));
+                .Cards.Add(new WorkstreamCardViewModel(workstream with { Column = lane, Area = area })
+                {
+                    IsSelected = chosen.Contains(workstream.Key),
+                });
         }
 
         foreach (var row in Rows)
@@ -263,7 +273,7 @@ public sealed class BoardViewModel : ObservableObject
     {
         foreach (var other in Cards)
         {
-            other.IsSelected = ReferenceEquals(other, card);
+            other.IsAdoptTarget = ReferenceEquals(other, card);
         }
 
         SelectedCard = card;

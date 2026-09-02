@@ -27,9 +27,6 @@ public sealed class BoardRowViewModel : ObservableObject
     /// <summary>The cells across the row, one per stage, in stage order.</summary>
     public ObservableCollection<ColumnViewModel> Cells { get; } = [];
 
-    /// <summary>Starts every workstream in this row that is not already running.</summary>
-    public RelayCommand? StartAllCommand { get; set; }
-
     /// <summary>Folds the row away, or opens it again.</summary>
     public RelayCommand? ToggleCommand { get; set; }
 

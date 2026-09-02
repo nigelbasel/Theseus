@@ -120,7 +120,7 @@
                                 <Setter Property="Background"
                                         Value="{DynamicResource CardBackgroundFillColorDefaultBrush}" />
                             </DataTrigger>
-                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                            <DataTrigger Binding="{Binding IsAdoptTarget}" Value="True">
                                 <Setter Property="BorderBrush"
                                         Value="{DynamicResource AccentFillColorDefaultBrush}" />
                                 <Setter Property="BorderThickness" Value="2" />
@@ -164,16 +164,26 @@
                         -->
                         <Grid>
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
 
-                            <TextBlock Grid.Column="0" Text="{Binding Title}" FontSize="15"
+                            <!--
+                                The tick is what a bulk Start or Stop acts on. It sits with the title
+                                rather than with the buttons because it says what this card *is* to
+                                the next gesture, not what to do with it now.
+                            -->
+                            <CheckBox Grid.Column="0" VerticalAlignment="Center" Margin="0,0,8,0"
+                                      IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                      ToolTip="Include this card in Start selected and Stop selected" />
+
+                            <TextBlock Grid.Column="1" Text="{Binding Title}" FontSize="15"
                                        FontWeight="SemiBold" VerticalAlignment="Center"
                                        TextTrimming="CharacterEllipsis" Margin="0,0,8,0"
                                        ToolTip="{Binding Title}"
                                        Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                            <TextBlock Grid.Column="1" VerticalAlignment="Center"
+                            <TextBlock Grid.Column="2" VerticalAlignment="Center"
                                        Text="{Binding Lifecycle, Converter={StaticResource LifecycleGlyph}}"
                                        FontSize="16" ToolTip="{Binding StatusLine}">
                                 <TextBlock.Style>
@@ -336,9 +346,6 @@
                           Visibility="{Binding Count, Converter={StaticResource CountToVisibility}}">
                         <TextBlock Text="{Binding Count}" FontSize="11" VerticalAlignment="Center"
                                    Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
-                        <Button Content="Start" FontSize="11" Padding="6,0" HorizontalAlignment="Right"
-                                ToolTip="Start everything in this cell that is not already running"
-                                Command="{Binding StartAllCommand}" />
                     </Grid>
 
                     <ItemsControl ItemsSource="{Binding Cards}"
@@ -409,10 +416,6 @@
                                    TextWrapping="Wrap" Margin="0,6,0,0"
                                    ToolTip="{Binding Area}"
                                    Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                        <Button Content="Start row" FontSize="11" Padding="6,1" Margin="0,6,0,0"
-                                HorizontalAlignment="Left"
-                                ToolTip="Start every workstream in this area that is not already running"
-                                Command="{Binding StartAllCommand}" />
                     </StackPanel>
 
                     <TextBlock Text="{Binding Summary}" FontSize="12" Margin="8,0,0,0"
@@ -534,26 +537,42 @@
                     </StackPanel>
                 </Button>
 
-                <!-- The two that act on every lane at once, grouped so they read as a pair. -->
+                <!--
+                    Everything bulk goes through the ticks on the cards. There is no Start all, and
+                    no Start for a row or a cell: those worked out what to start from where a card
+                    sat, which is a guess about the board's shape, and it started paused work on any
+                    board whose last column was not the only one to leave alone.
+                -->
+                <TextBlock Text="{Binding SelectionSummary}" FontSize="12" VerticalAlignment="Center"
+                           Margin="0,0,10,0"
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+
+                <Button Content="Select all" Padding="11,4" Margin="0,0,4,0"
+                        ToolTip="Tick every card on the board"
+                        Command="{Binding SelectAllCommand}" />
+                <Button Content="Clear" Padding="11,4" Margin="0,0,12,0"
+                        ToolTip="Untick everything"
+                        Command="{Binding ClearSelectionCommand}" />
+
                 <Border CornerRadius="4" Margin="0,0,12,0" Padding="2"
                         Background="{DynamicResource LayerFillColorDefaultBrush}"
                         BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                         BorderThickness="1">
                     <StackPanel Orientation="Horizontal">
                         <Button Padding="11,3" Margin="0,0,2,0"
-                                ToolTip="Start every lane except the last"
-                                Command="{Binding StartBoardCommand}">
+                                ToolTip="Start the ticked cards that are not already running"
+                                Command="{Binding StartSelectedCommand}">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="&#xE768;" Style="{StaticResource CommandGlyph}" />
-                                <TextBlock Text="Start all" VerticalAlignment="Center" />
+                                <TextBlock Text="Start selected" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
                         <Button Padding="11,3"
-                                ToolTip="Ask every running session to write a handoff and exit"
-                                Command="{Binding StopBoardCommand}">
+                                ToolTip="Ask the ticked cards' running sessions to write a handoff and exit"
+                                Command="{Binding StopSelectedCommand}">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="&#xE71A;" Style="{StaticResource CommandGlyph}" />
-                                <TextBlock Text="Stop all" VerticalAlignment="Center" />
+                                <TextBlock Text="Stop selected" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
                     </StackPanel>
