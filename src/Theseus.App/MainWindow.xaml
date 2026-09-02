@@ -134,6 +134,49 @@
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
 
+                    <!--
+                        A working session flies a banner: the whole card takes its own tab colour,
+                        and a band of light travels across it.
+
+                        It replaced a stripe that faded from full to a third and back. That was the
+                        only sign a session was working, it moved six pixels of a card, and it was
+                        easy to miss across a full board.
+
+                        The banner shows whenever the session is running; only the band's movement is
+                        held back when the window is not in front or the machine has animation turned
+                        off. A card that has stopped moving because you looked away must not also stop
+                        looking busy.
+
+                        It is declared first so it paints beneath the stripe and the text, and it is
+                        in the template rather than in a shared style: a template gets a name scope
+                        per card, so each card sweeps on its own clock.
+                    -->
+                    <Border x:Name="Banner" Grid.ColumnSpan="2" CornerRadius="8" ClipToBounds="True"
+                            Visibility="{Binding IsRunning, Converter={StaticResource BoolToVisibility}}">
+                        <Grid>
+                            <!--
+                                The tint carries its opacity on itself and not on the banner. Dimming
+                                the banner would dim the band travelling over it in the same measure,
+                                and the whole effect with it.
+                            -->
+                            <Rectangle Opacity="0.22"
+                                       Fill="{Binding ColorHex, Converter={StaticResource HexToBrush}}" />
+
+                            <Rectangle x:Name="Sheen" Width="180" HorizontalAlignment="Left">
+                                <Rectangle.Fill>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                        <GradientStop Color="#00FFFFFF" Offset="0" />
+                                        <GradientStop Color="#66FFFFFF" Offset="0.5" />
+                                        <GradientStop Color="#00FFFFFF" Offset="1" />
+                                    </LinearGradientBrush>
+                                </Rectangle.Fill>
+                                <Rectangle.RenderTransform>
+                                    <TranslateTransform x:Name="Sweep" X="-180" />
+                                </Rectangle.RenderTransform>
+                            </Rectangle>
+                        </Grid>
+                    </Border>
+
                     <Border x:Name="Stripe" Grid.Column="0" CornerRadius="8,0,0,8"
                             Background="{Binding ColorHex, Converter={StaticResource HexToBrush}}">
                         <Border.Style>
@@ -317,10 +360,17 @@
                     <DataTrigger.EnterActions>
                         <BeginStoryboard x:Name="Working">
                             <Storyboard>
-                                <DoubleAnimation Storyboard.TargetName="Stripe"
-                                                 Storyboard.TargetProperty="Opacity"
-                                                 From="1.0" To="0.3" Duration="0:0:1.1"
-                                                 AutoReverse="True" RepeatBehavior="Forever" />
+                                <!--
+                                    The band starts off the left edge and travels past the right. It
+                                    runs to 560 rather than to the card's width because a card in a
+                                    grid cell has no fixed width; the overshoot is clipped, and the
+                                    quiet moment it leaves before the next pass is what makes this
+                                    read as a ripple rather than a scanner.
+                                -->
+                                <DoubleAnimation Storyboard.TargetName="Sweep"
+                                                 Storyboard.TargetProperty="X"
+                                                 From="-180" To="560" Duration="0:0:2.6"
+                                                 RepeatBehavior="Forever" />
                             </Storyboard>
                         </BeginStoryboard>
                     </DataTrigger.EnterActions>

@@ -99,6 +99,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject
                 Raise(nameof(PrimaryAction));
                 Raise(nameof(IsLive));
                 Raise(nameof(IsWorking));
+                Raise(nameof(IsRunning));
                 Raise(nameof(StatusLine));
             }
         }
@@ -123,6 +124,15 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     /// where animation is switched off, simply stops moving.
     /// </summary>
     public bool IsWorking => _motionAllowed && Lifecycle == SessionLifecycle.Running;
+
+    /// <summary>
+    /// Whether a session is working, whatever the board is doing about movement.
+    ///
+    /// Separate from <see cref="IsWorking"/> because the two answer different questions. The banner
+    /// says a session is running and must stay put when the window loses focus or the machine has
+    /// animation switched off; only the movement across it is a matter of taste and battery.
+    /// </summary>
+    public bool IsRunning => Lifecycle == SessionLifecycle.Running;
 
     /// <summary>Whether movement is wanted at all right now.</summary>
     public bool MotionAllowed
