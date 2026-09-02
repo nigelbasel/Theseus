@@ -121,8 +121,8 @@ public sealed class StopRequestStore : IStopRequestStore
         }
     }
 
-    /// <summary>Every request that has been handed to a session and not yet finished with.</summary>
-    private IReadOnlyList<PendingStopRequest> Handed()
+    /// <inheritdoc />
+    public IReadOnlyList<PendingStopRequest> Handed()
     {
         var directory = Path.Combine(_root, StopRequestPath.DeliveredFolder);
 

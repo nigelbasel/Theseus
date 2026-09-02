@@ -81,24 +81,33 @@
                                     BorderThickness="1" />
 
                             <!--
-                                The accent goes on as an overlay rather than as the fill. Filling the
-                                button outright would put the label on a saturated blue, which is
-                                legible in the dark theme and poor in the light one; a wash over the
-                                ordinary fill is as obvious and leaves the text where it was.
+                                Hover fills the button with the accent outright. A wash over the
+                                ordinary fill was tried first and Nigel still called it faint: on a
+                                dark board a partly transparent tint is a change of shade, and a
+                                change of shade is what he was complaining about in the first place.
+                                The label turns white with it, which is what keeps it readable on a
+                                saturated fill whatever the theme.
                             -->
                             <Border x:Name="Glow" CornerRadius="4" Opacity="0"
                                     Background="{DynamicResource AccentFillColorDefaultBrush}" />
 
-                            <ContentPresenter Margin="{TemplateBinding Padding}"
+                            <ContentPresenter x:Name="Label" Margin="{TemplateBinding Padding}"
+                                              TextElement.Foreground="{TemplateBinding Foreground}"
                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Glow" Property="Opacity" Value="0.35" />
+                                <Setter TargetName="Glow" Property="Opacity" Value="1" />
+                                <Setter TargetName="Label" Property="TextElement.Foreground" Value="White" />
                             </Trigger>
-                            <!-- Pressed deepens and dips a pixel, so a click reads as going in. -->
+                            <!--
+                                Pressed darkens the accent and drops the button a pixel, so a click
+                                reads as going in rather than merely as another shade of the same.
+                            -->
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Glow" Property="Opacity" Value="0.6" />
+                                <Setter TargetName="Glow" Property="Opacity" Value="1" />
+                                <Setter TargetName="Glow" Property="Background" Value="#FF1F4E7A" />
+                                <Setter TargetName="Label" Property="TextElement.Foreground" Value="White" />
                                 <Setter TargetName="Face" Property="RenderTransform">
                                     <Setter.Value>
                                         <TranslateTransform Y="1" />
@@ -876,6 +885,41 @@
 
         <Grid>
             <DockPanel Margin="8,0,8,8">
+                <!--
+                    Stops asked for before this Theseus opened wait for an answer here.
+
+                    A request survives the board being closed on purpose - the session was asked to
+                    stop, wrote its handoff, and nothing ever typed the exit - but finishing it
+                    silently on the next launch closes sessions within a second of startup. Two of
+                    Nigel's went that way on 2026-09-02, 0.8s after the window appeared.
+
+                    It asks in place rather than in a message box, and names the sessions, which is
+                    the same way deleting asks. Nothing happens until one of the two is pressed, so
+                    the board stays usable and the question cannot fire before it has been read.
+                -->
+                <Border DockPanel.Dock="Top" Margin="4,0,4,8" Padding="12,10" CornerRadius="6"
+                        Background="{DynamicResource LayerFillColorDefaultBrush}"
+                        BorderBrush="{DynamicResource AccentFillColorDefaultBrush}"
+                        BorderThickness="1"
+                        Visibility="{Binding HasUnconfirmedStops, Converter={StaticResource BoolToVisibility}}">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
+                                    VerticalAlignment="Center" Margin="12,0,0,0">
+                            <Button Style="{StaticResource CommandButton}" Content="Close them"
+                                    Margin="0,0,6,0"
+                                    ToolTip="Finish the stop: each session is told to exit"
+                                    Command="{Binding ConfirmStopsCommand}" />
+                            <Button Style="{StaticResource CommandButton}" Content="Leave them running"
+                                    ToolTip="Drop the request and carry on"
+                                    Command="{Binding AbandonStopsCommand}" />
+                        </StackPanel>
+
+                        <TextBlock Text="{Binding UnconfirmedStopsSummary}" FontSize="12.5"
+                                   TextWrapping="Wrap" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                    </DockPanel>
+                </Border>
+
                 <!--
                     The stage headings, written once. The left margin matches the width of a row's
                     header so the headings line up with the cells beneath them; both are fixed, and

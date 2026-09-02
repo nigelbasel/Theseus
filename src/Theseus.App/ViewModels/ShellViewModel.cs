@@ -40,6 +40,17 @@ public sealed class ShellViewModel : ObservableObject
     /// </summary>
     private readonly HashSet<string> _closed = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Stops that were asked for before this Theseus started, and have not been agreed to yet.
+    ///
+    /// A request survives the board being closed on purpose: the session was asked to stop, wrote its
+    /// handoff, and nothing ever typed the exit. But completing it silently on the next launch means
+    /// starting the board kills sessions within a second, with no chance to change your mind — which
+    /// is what happened to two of Nigel's on 2026-09-02, 0.8s after startup. So they wait here until
+    /// he says.
+    /// </summary>
+    private readonly HashSet<string> _unconfirmed = new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>Creates the shell over everything the window drives.</summary>
     public ShellViewModel(
         BoardViewModel board,
@@ -141,6 +152,16 @@ public sealed class ShellViewModel : ObservableObject
         DayReport = new DayReportViewModel(runs, () => Workstreams(),
             sessionId => Sessions.Snapshot.WithSessionId(sessionId).Count > 0);
 
+        // Anything already delivered when the board opens is a stop nobody finished. Held back until
+        // agreed to; anything asked for from now on runs its course as normal.
+        foreach (var request in _stopRequests.Handed())
+        {
+            _unconfirmed.Add(request.SessionId);
+        }
+
+        ConfirmStopsCommand = new RelayCommand(_ => ConfirmStops());
+        AbandonStopsCommand = new RelayCommand(_ => AbandonStops());
+
         WireLanes();
         Board.LanesChanged += (_, _) => WireLanes();
     }
@@ -199,6 +220,35 @@ public sealed class ShellViewModel : ObservableObject
 
     /// <summary>Ticks what is not ticked and unticks what is.</summary>
     public RelayCommand InvertSelectionCommand { get; }
+
+    /// <summary>Goes ahead with the stops that were asked for before the board opened.</summary>
+    public RelayCommand ConfirmStopsCommand { get; }
+
+    /// <summary>Drops them, leaving the sessions running.</summary>
+    public RelayCommand AbandonStopsCommand { get; }
+
+    /// <summary>Whether there are unfinished stops waiting to be agreed to.</summary>
+    public bool HasUnconfirmedStops => UnconfirmedStops().Count > 0;
+
+    /// <summary>What the strip says: how many, and which workstreams they belong to.</summary>
+    public string UnconfirmedStopsSummary
+    {
+        get
+        {
+            var waiting = UnconfirmedStops();
+
+            if (waiting.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            var names = string.Join(" · ", waiting.Select(card => card.Title));
+
+            return waiting.Count == 1
+                ? $"{names} was asked to stop before Theseus last closed."
+                : $"{waiting.Count} sessions were asked to stop before Theseus last closed: {names}.";
+        }
+    }
 
     /// <summary>How many cards are ticked, so the buttons can say what they would act on.</summary>
     public string SelectionSummary => Board.Cards.Count(card => card.IsSelected) is var count && count > 0
@@ -309,6 +359,10 @@ public sealed class ShellViewModel : ObservableObject
         SyncLifecycles();
         SyncPullRequests();
         WireAdoption();
+
+        // The strip is answered by what is on the board and which sessions are alive, and a refresh
+        // changes both. Without this it would still name a session that had gone.
+        StopsChanged();
         SyncAccount();
         _stopRequests.Sweep(DateTimeOffset.UtcNow);
     }
@@ -702,7 +756,8 @@ public sealed class ShellViewModel : ObservableObject
         foreach (var card in Board.Cards)
         {
             if (card.Workstream.LastSessionId is not { } sessionId
-                || Sessions.Find(sessionId) is not { } session)
+                || Sessions.Find(sessionId) is not { } session
+                || _unconfirmed.Contains(sessionId))
             {
                 continue;
             }
@@ -810,6 +865,53 @@ public sealed class ShellViewModel : ObservableObject
     /// The cards the user has ticked. This is the only thing a bulk Start or Stop looks at: there is
     /// no rule about which column is safe, because there is nothing left to guess.
     /// </summary>
+    /// <summary>
+    /// The cards whose unfinished stop is waiting on an answer, and whose session is still there to
+    /// act on. A request for a session that has since gone is not worth asking about.
+    /// </summary>
+    private IReadOnlyList<WorkstreamCardViewModel> UnconfirmedStops() =>
+    [
+        .. Board.Cards.Where(card =>
+            card.Workstream.LastSessionId is { } id
+            && _unconfirmed.Contains(id)
+            && Sessions.Find(id) is not null)
+    ];
+
+    /// <summary>Lets the held-back stops run their course, which closes those sessions.</summary>
+    private void ConfirmStops()
+    {
+        var count = UnconfirmedStops().Count;
+
+        _unconfirmed.Clear();
+        StopsChanged();
+        Notice = count == 1 ? "Closing the session that was asked to stop." : $"Closing {count} sessions.";
+        CloseFinishedSessions();
+    }
+
+    /// <summary>
+    /// Drops the held-back stops. The requests go from disk as well, or the same question would be
+    /// asked again on the next launch and the answer would count for nothing.
+    /// </summary>
+    private void AbandonStops()
+    {
+        var count = UnconfirmedStops().Count;
+
+        foreach (var sessionId in _unconfirmed)
+        {
+            _stopRequests.Retire(sessionId);
+        }
+
+        _unconfirmed.Clear();
+        StopsChanged();
+        Notice = count == 1 ? "Left it running." : $"Left {count} sessions running.";
+    }
+
+    private void StopsChanged()
+    {
+        Raise(nameof(HasUnconfirmedStops));
+        Raise(nameof(UnconfirmedStopsSummary));
+    }
+
     private IReadOnlyList<WorkstreamCardViewModel> Chosen() =>
         [.. Board.Cards.Where(card => card.IsSelected)];
 

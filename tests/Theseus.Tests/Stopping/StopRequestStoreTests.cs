@@ -128,6 +128,49 @@ public class StopRequestStoreTests
             "a request still on disk is one the next process types /exit for all over again");
     }
 
+    /// <summary>
+    /// What the board asks about on startup: stops that were delivered and never finished, because
+    /// Theseus closed before it could type the exit. Left to itself it completes them within a second
+    /// of the next launch, which is how two of Nigel's sessions were closed 0.8s after the window
+    /// appeared on 2026-09-02.
+    /// </summary>
+    [Test]
+    public void Handed_NamesTheStopsNobodyFinished()
+    {
+        _store.Write(Request());
+        _store.Claim(SessionId);
+
+        var handed = _store.Handed();
+
+        Assert.That(handed, Has.Count.EqualTo(1));
+        Assert.That(handed[0].SessionId, Is.EqualTo(SessionId));
+    }
+
+    [Test]
+    public void Handed_IsEmptyWhileARequestIsStillWaitingToBeGiven()
+    {
+        _store.Write(Request());
+
+        Assert.That(_store.Handed(), Is.Empty,
+            "a request nobody has been given is not an unfinished stop, it is a stop that has not started");
+    }
+
+    [Test]
+    public void Handed_ForgetsARequestOnceItHasBeenFinishedWith()
+    {
+        _store.Write(Request());
+        _store.Claim(SessionId);
+        _store.Retire(SessionId);
+
+        Assert.That(_store.Handed(), Is.Empty);
+    }
+
+    [Test]
+    public void Handed_IsEmptyBeforeAnythingHasEverBeenAsked()
+    {
+        Assert.That(_store.Handed(), Is.Empty);
+    }
+
     [Test]
     public void Retire_SaysNoWhenThereWasNothingToFinishWith()
     {

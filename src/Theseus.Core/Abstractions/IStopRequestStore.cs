@@ -22,6 +22,15 @@ public interface IStopRequestStore
     /// <summary>Every request still waiting.</summary>
     IReadOnlyList<PendingStopRequest> Pending();
 
+    /// <summary>
+    /// Every request that has been handed to a session and not yet finished with.
+    ///
+    /// These are the unfinished stops: asked for, delivered, and never completed because Theseus
+    /// closed before it could type the exit. The board asks before finishing them, rather than
+    /// closing sessions within a second of starting up.
+    /// </summary>
+    IReadOnlyList<PendingStopRequest> Handed();
+
     /// <summary>Discards requests too old to be worth delivering, and says how many went.</summary>
     int Sweep(DateTimeOffset now);
 
