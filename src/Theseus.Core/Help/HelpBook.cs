@@ -121,9 +121,11 @@ public static class HelpBook
                     "Stop selected",
                     "Asks the ticked cards' running sessions to hand over, one request each."),
                 new HelpEntry(
-                    "Select all and Clear",
-                    "Tick or untick every card, including anything in the last column. Nothing is held"
-                    + " back: a tick you can see and remove is honest where a silent exclusion is not."),
+                    "Select all, Unselect all and Invert",
+                    "Change what is ticked. Select all takes every card, including anything in the"
+                    + " last column: nothing is held back, because a tick you can see and remove is"
+                    + " honest where a silent exclusion is not. Invert ticks what is not ticked and"
+                    + " unticks what is, which is the quick way to take everything except a few."),
                 new HelpEntry("Refresh", "Re-reads the plans, the run log and the session registry. Nothing is cached that this will not correct."),
                 new HelpEntry(
                     "Archive",

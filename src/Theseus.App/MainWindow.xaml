@@ -597,12 +597,28 @@
                            Margin="0,0,10,0"
                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
 
-                <Button Content="Select all" Padding="11,4" Margin="0,0,4,0"
-                        ToolTip="Tick every card on the board"
-                        Command="{Binding SelectAllCommand}" />
-                <Button Content="Clear" Padding="11,4" Margin="0,0,12,0"
-                        ToolTip="Untick everything"
-                        Command="{Binding ClearSelectionCommand}" />
+                <!--
+                    The three that change what is ticked, grouped the same way as the two that act on
+                    it. "Unselect all" rather than "Clear": it is disabled whenever nothing is ticked,
+                    so a word that does not pair with "Select all" reads as some other, unrelated
+                    thing that happens to be greyed out.
+                -->
+                <Border CornerRadius="4" Margin="0,0,12,0" Padding="2"
+                        Background="{DynamicResource LayerFillColorDefaultBrush}"
+                        BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1">
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Select all" Padding="10,3" Margin="0,0,2,0"
+                                ToolTip="Tick every card on the board"
+                                Command="{Binding SelectAllCommand}" />
+                        <Button Content="Unselect all" Padding="10,3" Margin="0,0,2,0"
+                                ToolTip="Untick everything"
+                                Command="{Binding ClearSelectionCommand}" />
+                        <Button Content="Invert" Padding="10,3"
+                                ToolTip="Tick what is not ticked, and untick what is"
+                                Command="{Binding InvertSelectionCommand}" />
+                    </StackPanel>
+                </Border>
 
                 <Border CornerRadius="4" Margin="0,0,12,0" Padding="2"
                         Background="{DynamicResource LayerFillColorDefaultBrush}"

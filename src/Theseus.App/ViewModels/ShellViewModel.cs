@@ -83,6 +83,7 @@ public sealed class ShellViewModel : ObservableObject
             _ => ChosenSteps().Count > 0);
         SelectAllCommand = new RelayCommand(_ => ChooseAll(true), _ => Board.Cards.Any(card => !card.IsSelected));
         ClearSelectionCommand = new RelayCommand(_ => ChooseAll(false), _ => Board.Cards.Any(card => card.IsSelected));
+        InvertSelectionCommand = new RelayCommand(_ => Invert(), _ => Board.Cards.Any());
 
         // Archive is on the card as well as in the details; deleting is not. One is reversible and
         // the everyday way to clear finished work off the board, and the other destroys a plan file
@@ -195,6 +196,9 @@ public sealed class ShellViewModel : ObservableObject
 
     /// <summary>Unticks every card.</summary>
     public RelayCommand ClearSelectionCommand { get; }
+
+    /// <summary>Ticks what is not ticked and unticks what is.</summary>
+    public RelayCommand InvertSelectionCommand { get; }
 
     /// <summary>How many cards are ticked, so the buttons can say what they would act on.</summary>
     public string SelectionSummary => Board.Cards.Count(card => card.IsSelected) is var count && count > 0
@@ -348,6 +352,20 @@ public sealed class ShellViewModel : ObservableObject
         foreach (var card in Board.Cards)
         {
             card.IsSelected = chosen;
+        }
+
+        SelectionMoved();
+    }
+
+    /// <summary>
+    /// Ticks what is not ticked and unticks what is. Materialised first because the board's cards
+    /// come from a query over the rows, and turning one over while walking it is asking for trouble.
+    /// </summary>
+    private void Invert()
+    {
+        foreach (var card in Board.Cards.ToList())
+        {
+            card.IsSelected = !card.IsSelected;
         }
 
         SelectionMoved();
