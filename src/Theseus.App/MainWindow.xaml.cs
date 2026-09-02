@@ -329,6 +329,45 @@ public partial class MainWindow : Window
         return false;
     }
 
+    /// <summary>
+    /// Lets the wheel through to the board when the cell under the pointer has nowhere to scroll.
+    ///
+    /// A WPF ScrollViewer marks a wheel event handled whether or not it could act on it, so a cell
+    /// holding two cards swallows every scroll over it and the board behind never moves. That is
+    /// harmless while the cells are the thing being scrolled, and became the bug the moment the board
+    /// itself started scrolling underneath them.
+    ///
+    /// A cell that can still scroll in the direction asked for keeps the event, so scrolling a long
+    /// cell still works and only reaches the board once the cell is at its end.
+    /// </summary>
+    private void OnCellMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (sender is not ScrollViewer cell)
+        {
+            return;
+        }
+
+        var canScrollOn = cell.ScrollableHeight > 0
+                          && ((e.Delta < 0 && cell.VerticalOffset < cell.ScrollableHeight)
+                              || (e.Delta > 0 && cell.VerticalOffset > 0));
+
+        if (canScrollOn)
+        {
+            return;
+        }
+
+        e.Handled = true;
+
+        if (cell.Parent is UIElement parent)
+        {
+            parent.RaiseEvent(new MouseWheelEventArgs(e.MouseDevice, e.Timestamp, e.Delta)
+            {
+                RoutedEvent = MouseWheelEvent,
+                Source = cell,
+            });
+        }
+    }
+
     private void OnColumnDragOver(object sender, DragEventArgs e)
     {
         e.Effects = e.Data.GetDataPresent(DataFormats.StringFormat)

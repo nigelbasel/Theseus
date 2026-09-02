@@ -332,11 +332,19 @@
                                   MinHeight="120">
                         <ItemsControl.Template>
                             <ControlTemplate TargetType="ItemsControl">
+                                <!--
+                                    PreviewMouseWheel because a ScrollViewer marks the wheel handled
+                                    whether or not it had anywhere to scroll. A cell that is not full
+                                    would otherwise swallow every turn of the wheel over it, and the
+                                    board behind it would never move - which is what a two-finger
+                                    scroll over a card did.
+                                -->
                                 <ScrollViewer VerticalScrollBarVisibility="Auto"
                                               HorizontalScrollBarVisibility="Disabled"
                                               CanContentScroll="True"
                                               Focusable="False"
                                               Padding="0,0,2,0"
+                                              PreviewMouseWheel="OnCellMouseWheel"
                                               Background="{TemplateBinding Background}">
                                     <ItemsPresenter />
                                 </ScrollViewer>
