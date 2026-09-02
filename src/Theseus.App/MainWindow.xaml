@@ -209,6 +209,17 @@
                                    Text="{Binding RunningAs}"
                                    Visibility="{Binding RunningAs, Converter={StaticResource NotEmptyToVisibility}}" />
 
+                        <!--
+                            Coloured, unlike the other card lines, because this one is not a status:
+                            it is the board saying two workstreams are about to tread on each other,
+                            which nothing else on the card can see.
+                        -->
+                        <TextBlock FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"
+                                   Foreground="#D68910"
+                                   ToolTip="{Binding Clash}"
+                                   Text="{Binding Clash}"
+                                   Visibility="{Binding Clash, Converter={StaticResource NotEmptyToVisibility}}" />
+
                         <Button Margin="0,6,0,0" HorizontalAlignment="Left" FontSize="11" Padding="8,2"
                                 Content="{Binding LostSessionName, StringFormat='Adopt the running &quot;{0}&quot;'}"
                                 ToolTip="This workstream's session was restarted outside Theseus, so the board stopped following it"

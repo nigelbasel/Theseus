@@ -10,6 +10,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     private string _todoSummary = string.Empty;
     private bool _stopPending;
     private string _runningAs = string.Empty;
+    private string _clash = string.Empty;
     private bool _motionAllowed = true;
     private string _lostSessionName = string.Empty;
     private bool _isSelected;
@@ -158,6 +159,16 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     {
         get => _runningAs;
         set => Set(ref _runningAs, value);
+    }
+
+    /// <summary>
+    /// What this workstream shares with another that it probably should not - most importantly a
+    /// handover document, where two sessions will overwrite one another in silence.
+    /// </summary>
+    public string Clash
+    {
+        get => _clash;
+        set => Set(ref _clash, value);
     }
 
     /// <summary>

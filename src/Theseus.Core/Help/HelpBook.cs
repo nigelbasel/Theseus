@@ -144,6 +144,12 @@ public static class HelpBook
                     + " into a session reaches the board without anybody retyping it. Taking a key"
                     + " off a card is remembered, so it stays off until you add it back."),
                 new HelpEntry(
+                    "Two workstreams sharing something",
+                    "A card says so, in amber, when it shares a handover document or a Jira issue"
+                    + " with another. The handover one matters: two sessions told to write the same"
+                    + " file overwrite each other in silence, and neither can see the other. It has"
+                    + " happened. Give one of them a document of its own in its details."),
+                new HelpEntry(
                     "Restarted outside Theseus",
                     "A session is running in this workstream's working directory that the board is not"
                     + " following. Adopt it."),

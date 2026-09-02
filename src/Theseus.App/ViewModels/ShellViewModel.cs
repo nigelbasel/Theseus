@@ -577,6 +577,29 @@ public sealed class ShellViewModel : ObservableObject
             card.StopPending = live && _stopRequests.Waiting(card.Workstream.LastSessionId) is not null;
             card.RunningAs = live ? RunningAs.For(card.Title, session?.Name) : string.Empty;
         }
+
+        SyncClashes();
+    }
+
+    /// <summary>
+    /// Tells each card what it shares with another that it should not.
+    ///
+    /// The handover document is the one that matters. Two workstreams resolving to one file is
+    /// silent, and it has already happened here: both sessions wrote to it, and the only reason
+    /// nothing was lost is that one of them noticed the file changing underneath it. Neither card
+    /// could see past itself, and the board — which can see all of them — was not looking.
+    /// </summary>
+    private void SyncClashes()
+    {
+        var cards = Board.Columns.SelectMany(column => column.Cards).ToList();
+
+        var clashes = WorkstreamOverlap.Find(
+            [.. cards.Select(card => (card.Key, (string?)HandoffPath.For(card.Workstream), card.JiraKeys))]);
+
+        foreach (var card in cards)
+        {
+            card.Clash = WorkstreamOverlap.Describe(card.Key, clashes);
+        }
     }
 
     private IReadOnlyList<Workstream> BoardSelection() =>
