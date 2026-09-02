@@ -54,6 +54,67 @@
             <Setter Property="Foreground" Value="{DynamicResource TextFillColorTertiaryBrush}" />
         </Style>
 
+        <!--
+            The command bar draws its own button rather than taking the theme's.
+
+            The Fluent theme paints hover and pressed through a VisualStateManager inside its
+            template, and in dark mode the difference is a few percent of lightness - Nigel reported
+            the bar as having no feedback at all on hover or on click, which is what that amounts to
+            in practice. A property trigger on the theme's own style would not help either: the
+            template's visual states win over it.
+
+            Disabled is worth as much as the other two here. "Start selected" is disabled until
+            something is ticked, and a button that looks identical either way reads as broken rather
+            than as waiting.
+        -->
+        <Style x:Key="CommandButton" TargetType="Button">
+            <Setter Property="Padding" Value="11,4" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid x:Name="Face">
+                            <Border CornerRadius="4"
+                                    Background="{DynamicResource ControlFillColorDefaultBrush}"
+                                    BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                                    BorderThickness="1" />
+
+                            <!--
+                                The accent goes on as an overlay rather than as the fill. Filling the
+                                button outright would put the label on a saturated blue, which is
+                                legible in the dark theme and poor in the light one; a wash over the
+                                ordinary fill is as obvious and leaves the text where it was.
+                            -->
+                            <Border x:Name="Glow" CornerRadius="4" Opacity="0"
+                                    Background="{DynamicResource AccentFillColorDefaultBrush}" />
+
+                            <ContentPresenter Margin="{TemplateBinding Padding}"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Glow" Property="Opacity" Value="0.35" />
+                            </Trigger>
+                            <!-- Pressed deepens and dips a pixel, so a click reads as going in. -->
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Glow" Property="Opacity" Value="0.6" />
+                                <Setter TargetName="Face" Property="RenderTransform">
+                                    <Setter.Value>
+                                        <TranslateTransform Y="1" />
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Face" Property="Opacity" Value="0.4" />
+                                <Setter Property="Cursor" Value="Arrow" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="ChipButton" TargetType="Button">
             <Setter Property="Padding" Value="0" />
             <Setter Property="Margin" Value="0,0,4,4" />
@@ -543,7 +604,7 @@
             </Grid.ColumnDefinitions>
 
             <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                <Button Padding="8,3" Margin="0,0,12,0" VerticalAlignment="Center"
+                <Button Style="{StaticResource CommandButton}" Padding="8,3" Margin="0,0,12,0" VerticalAlignment="Center"
                         ToolTip="Show or hide the live sessions panel"
                         Command="{Binding ToggleSessionsPanelCommand}">
                     <StackPanel Orientation="Horizontal">
@@ -578,7 +639,7 @@
                     used constantly or is worth the width; the rest is a click away under the overflow,
                     and the next thing added goes there rather than becoming a twelfth button.
                 -->
-                <Button Padding="12,4" Margin="0,0,12,0"
+                <Button Style="{StaticResource CommandButton}" Padding="12,4" Margin="0,0,12,0"
                         ToolTip="Create a workstream and open a session for it"
                         Command="{Binding NewWorkstream.OpenCommand}">
                     <StackPanel Orientation="Horizontal">
@@ -608,13 +669,13 @@
                         BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                         BorderThickness="1">
                     <StackPanel Orientation="Horizontal">
-                        <Button Content="Select all" Padding="10,3" Margin="0,0,2,0"
+                        <Button Style="{StaticResource CommandButton}" Content="Select all" Padding="10,3" Margin="0,0,2,0"
                                 ToolTip="Tick every card on the board"
                                 Command="{Binding SelectAllCommand}" />
-                        <Button Content="Unselect all" Padding="10,3" Margin="0,0,2,0"
+                        <Button Style="{StaticResource CommandButton}" Content="Unselect all" Padding="10,3" Margin="0,0,2,0"
                                 ToolTip="Untick everything"
                                 Command="{Binding ClearSelectionCommand}" />
-                        <Button Content="Invert" Padding="10,3"
+                        <Button Style="{StaticResource CommandButton}" Content="Invert" Padding="10,3"
                                 ToolTip="Tick what is not ticked, and untick what is"
                                 Command="{Binding InvertSelectionCommand}" />
                     </StackPanel>
@@ -625,7 +686,7 @@
                         BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                         BorderThickness="1">
                     <StackPanel Orientation="Horizontal">
-                        <Button Padding="11,3" Margin="0,0,2,0"
+                        <Button Style="{StaticResource CommandButton}" Padding="11,3" Margin="0,0,2,0"
                                 ToolTip="Start the ticked cards that are not already running"
                                 Command="{Binding StartSelectedCommand}">
                             <StackPanel Orientation="Horizontal">
@@ -633,7 +694,7 @@
                                 <TextBlock Text="Start selected" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
-                        <Button Padding="11,3"
+                        <Button Style="{StaticResource CommandButton}" Padding="11,3"
                                 ToolTip="Ask the ticked cards' running sessions to write a handoff and exit"
                                 Command="{Binding StopSelectedCommand}">
                             <StackPanel Orientation="Horizontal">
@@ -651,7 +712,7 @@
                     glyph descended into every item beneath it and rendered their labels as rows of
                     empty squares.
                 -->
-                <Button Padding="10,4" Margin="0,0,12,0"
+                <Button Style="{StaticResource CommandButton}" Padding="10,4" Margin="0,0,12,0"
                         Click="OnOverflowClick"
                         ToolTip="The rest of the board's commands">
                     <!--
@@ -702,15 +763,15 @@
                     Icons, because a refresh arrow and a gear need no label, and three words of chrome
                     were taking the width of a card.
                 -->
-                <Button Content="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="12"
+                <Button Style="{StaticResource CommandButton}" Content="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="12"
                         Padding="9,4" Margin="0,0,4,0"
                         ToolTip="Read the board and the running sessions again"
                         Command="{Binding RefreshCommand}" />
-                <Button Content="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="12"
+                <Button Style="{StaticResource CommandButton}" Content="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="12"
                         Padding="9,4" Margin="0,0,4,0"
                         ToolTip="Settings"
                         Command="{Binding Settings.OpenCommand}" />
-                <Button Content="&#xE897;" FontFamily="Segoe MDL2 Assets" FontSize="12"
+                <Button Style="{StaticResource CommandButton}" Content="&#xE897;" FontFamily="Segoe MDL2 Assets" FontSize="12"
                         Padding="9,4"
                         Command="{Binding Help.OpenCommand}"
                         ToolTip="What the buttons do, how starting and stopping work, and what to look at when one of them does nothing" />
