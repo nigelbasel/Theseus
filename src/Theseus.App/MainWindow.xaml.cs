@@ -390,6 +390,23 @@ public partial class MainWindow : Window
     /// A cell that can still scroll in the direction asked for keeps the event, so scrolling a long
     /// cell still works and only reaches the board once the cell is at its end.
     /// </summary>
+    /// <summary>
+    /// Drops the overflow menu under the button that owns it. A context menu is normally the
+    /// right-click gesture; here it is the whole point of the button, so it opens on a left click and
+    /// below rather than at the pointer.
+    /// </summary>
+    private void OnOverflowClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button button || button.ContextMenu is not { } menu)
+        {
+            return;
+        }
+
+        menu.PlacementTarget = button;
+        menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+        menu.IsOpen = true;
+    }
+
     private void OnCellMouseWheel(object sender, MouseWheelEventArgs e)
     {
         if (sender is not ScrollViewer cell)

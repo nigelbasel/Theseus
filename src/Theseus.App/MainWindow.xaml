@@ -23,6 +23,24 @@
             </ObjectDataProvider.MethodParameters>
         </ObjectDataProvider>
 
+        <!--
+            The icon font is set on the glyph itself and never on anything that contains text.
+            FontFamily inherits, so a command bar carrying its icon on the parent turns every label
+            below it into a row of empty squares.
+        -->
+        <Style x:Key="CommandGlyph" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Margin" Value="0,1,7,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
+        <Style x:Key="MenuGlyph" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
         <Style x:Key="FieldLabel" TargetType="TextBlock">
             <Setter Property="FontSize" Value="12" />
             <Setter Property="Margin" Value="0,14,0,4" />
@@ -507,9 +525,14 @@
                     used constantly or is worth the width; the rest is a click away under the overflow,
                     and the next thing added goes there rather than becoming a twelfth button.
                 -->
-                <Button Content="New workstream" Padding="14,4" Margin="0,0,12,0"
+                <Button Padding="12,4" Margin="0,0,12,0"
                         ToolTip="Create a workstream and open a session for it"
-                        Command="{Binding NewWorkstream.OpenCommand}" />
+                        Command="{Binding NewWorkstream.OpenCommand}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE710;" Style="{StaticResource CommandGlyph}" />
+                        <TextBlock Text="New workstream" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
 
                 <!-- The two that act on every lane at once, grouped so they read as a pair. -->
                 <Border CornerRadius="4" Margin="0,0,12,0" Padding="2"
@@ -517,40 +540,78 @@
                         BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                         BorderThickness="1">
                     <StackPanel Orientation="Horizontal">
-                        <Button Content="Start all" Padding="12,3" Margin="0,0,2,0"
+                        <Button Padding="11,3" Margin="0,0,2,0"
                                 ToolTip="Start every lane except the last"
-                                Command="{Binding StartBoardCommand}" />
-                        <Button Content="Stop all" Padding="12,3"
+                                Command="{Binding StartBoardCommand}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE768;" Style="{StaticResource CommandGlyph}" />
+                                <TextBlock Text="Start all" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Button Padding="11,3"
                                 ToolTip="Ask every running session to write a handoff and exit"
-                                Command="{Binding StopBoardCommand}" />
+                                Command="{Binding StopBoardCommand}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE71A;" Style="{StaticResource CommandGlyph}" />
+                                <TextBlock Text="Stop all" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
                     </StackPanel>
                 </Border>
 
-                <Menu Background="Transparent" VerticalAlignment="Center" Margin="0,0,12,0">
-                    <MenuItem Header="&#xE712;" FontFamily="Segoe MDL2 Assets" FontSize="12"
-                              Padding="10,4"
-                              ToolTip="The rest of the board's commands">
-                        <MenuItem Header="Day report…" Command="{Binding DayReport.OpenCommand}"
-                                  ToolTip="What was worked on today, and which tabs are safe to close" />
-                        <MenuItem Header="Arrange windows…" Command="{Binding Arrange.OpenCommand}"
-                                  ToolTip="Tile, cascade or stack the terminal windows" />
-                        <Separator />
-                        <MenuItem Header="Show archived" IsCheckable="True"
-                                  IsChecked="{Binding Board.ShowArchived, Mode=TwoWay}"
-                                  ToolTip="Show what has been put away instead of what is being worked on" />
-                        <Separator />
-                        <MenuItem StaysOpenOnClick="True">
-                            <MenuItem.Header>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="Theme" VerticalAlignment="Center" Margin="0,0,10,0" />
-                                    <ComboBox ItemsSource="{Binding Source={StaticResource ThemeValues}}"
-                                              SelectedItem="{Binding Theme, Mode=TwoWay}"
-                                              Width="110" />
-                                </StackPanel>
-                            </MenuItem.Header>
-                        </MenuItem>
-                    </MenuItem>
-                </Menu>
+                <!--
+                    A button carrying a context menu rather than a Menu, for two reasons. A bare
+                    MenuItem draws no button chrome, so the overflow read as three loose dots beside
+                    real buttons; and FontFamily inherits, so the icon font it needed for its own
+                    glyph descended into every item beneath it and rendered their labels as rows of
+                    empty squares.
+                -->
+                <Button Padding="10,4" Margin="0,0,12,0"
+                        Click="OnOverflowClick"
+                        ToolTip="The rest of the board's commands">
+                    <!--
+                        The glyph sits in its own TextBlock rather than on the button. A context menu
+                        is a logical child of the element that owns it, so an icon font set on the
+                        button would reach the menu's labels just as surely as one set on a MenuItem.
+                    -->
+                    <TextBlock Text="&#xE712;" FontFamily="Segoe MDL2 Assets" FontSize="12"
+                               VerticalAlignment="Center" />
+                    <Button.ContextMenu>
+                        <ContextMenu DataContext="{Binding PlacementTarget.DataContext,
+                                                  RelativeSource={RelativeSource Self}}">
+                            <MenuItem Header="Day report…" Command="{Binding DayReport.OpenCommand}"
+                                      ToolTip="What was worked on today, and which tabs are safe to close">
+                                <MenuItem.Icon>
+                                    <TextBlock Text="&#xE787;" Style="{StaticResource MenuGlyph}" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="Arrange windows…" Command="{Binding Arrange.OpenCommand}"
+                                      ToolTip="Tile, cascade or stack the terminal windows">
+                                <MenuItem.Icon>
+                                    <TextBlock Text="&#xE8A9;" Style="{StaticResource MenuGlyph}" />
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <Separator />
+                            <MenuItem Header="Show archived" IsCheckable="True"
+                                      IsChecked="{Binding Board.ShowArchived, Mode=TwoWay}"
+                                      ToolTip="Show what has been put away instead of what is being worked on" />
+                            <Separator />
+                            <MenuItem StaysOpenOnClick="True">
+                                <MenuItem.Icon>
+                                    <TextBlock Text="&#xE790;" Style="{StaticResource MenuGlyph}" />
+                                </MenuItem.Icon>
+                                <MenuItem.Header>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Theme" VerticalAlignment="Center" Margin="0,0,10,0" />
+                                        <ComboBox ItemsSource="{Binding Source={StaticResource ThemeValues}}"
+                                                  SelectedItem="{Binding Theme, Mode=TwoWay}"
+                                                  Width="110" />
+                                    </StackPanel>
+                                </MenuItem.Header>
+                            </MenuItem>
+                        </ContextMenu>
+                    </Button.ContextMenu>
+                </Button>
 
                 <!--
                     Icons, because a refresh arrow and a gear need no label, and three words of chrome
