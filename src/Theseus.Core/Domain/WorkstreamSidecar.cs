@@ -35,6 +35,9 @@ public sealed record WorkstreamSidecar(
     /// </summary>
     public IReadOnlyList<string> RemovedJiraKeys { get; init; } = [];
 
-    /// <summary>The terminal window this workstream's sessions start in, if not the one its lane implies.</summary>
+    /// <summary>The row of the board this card sits in: the kind of work, not how far along it is.</summary>
+    public string? Area { get; init; }
+
+    /// <summary>The terminal window this workstream's sessions start in, if not the one its area implies.</summary>
     public string? WindowGroup { get; init; }
 }

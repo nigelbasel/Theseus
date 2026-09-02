@@ -313,6 +313,7 @@ public sealed class BoardViewModel : ObservableObject
                   JiraKeys = card.JiraKeys,
                   RemovedJiraKeys = card.Workstream.RemovedJiraKeys,
                   WindowGroup = card.Workstream.WindowGroup,
+                  Area = card.Workstream.Area,
                   StatusDocumentPath = card.Workstream.StatusDocumentPath,
                   LastSessionId = card.Workstream.LastSessionId,
                   UpdatedUtc = now,
@@ -323,6 +324,7 @@ public sealed class BoardViewModel : ObservableObject
               {
                   RemovedJiraKeys = card.Workstream.RemovedJiraKeys,
                   WindowGroup = card.Workstream.WindowGroup,
+                  Area = card.Workstream.Area,
               };
 
         if (index >= 0)

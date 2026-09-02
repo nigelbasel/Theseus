@@ -15,5 +15,16 @@ public static class LooseName
         && string.Equals(Key(name), Key(other), StringComparison.OrdinalIgnoreCase)
         && Key(name).Length > 0;
 
+    /// <summary>The same comparison, for the places that need to de-duplicate rather than compare.</summary>
+    public static IEqualityComparer<string> Comparer { get; } = new LooseComparer();
+
     private static string Key(string name) => string.Concat(name.Where(char.IsLetterOrDigit));
+
+    private sealed class LooseComparer : IEqualityComparer<string>
+    {
+        public bool Equals(string? name, string? other) => Same(name, other);
+
+        public int GetHashCode(string name) =>
+            StringComparer.OrdinalIgnoreCase.GetHashCode(Key(name));
+    }
 }

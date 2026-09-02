@@ -37,6 +37,9 @@ public sealed record Workstream(
     string? StatusDocumentPath,
     DateTimeOffset PlanWrittenUtc)
 {
+    /// <summary>The row of the board this card sits in: the kind of work, not how far along it is.</summary>
+    public string? Area { get; init; }
+
     /// <summary>The keys taken off this card by hand, which stay off until they are added again.</summary>
     public IReadOnlyList<string> RemovedJiraKeys { get; init; } = [];
 

@@ -66,4 +66,30 @@ public class WindowGroupNameTests
         "contact-forms", "Contact forms", "#336699", ColorIsManual: false, @"C:\work\repo", [],
         "prompt", 1, lane, IsBlocked: false, ReopenTomorrow: false, IsArchived: false,
         LastSessionId: null, [], StatusDocumentPath: null, DateTimeOffset.UtcNow);
+
+    [Test]
+    public void For_NamesTheWindowAfterTheAreaRatherThanTheStage()
+    {
+        var workstream = Workstream("In progress") with { Area = "Research" };
+
+        Assert.That(WindowGroupName.For("theseus", workstream), Is.EqualTo("theseus-research"),
+            "a window named for a stage would want renaming every time the work advanced");
+    }
+
+    [Test]
+    public void For_KeepsTheSameWindowAsWorkMovesAcrossTheBoard()
+    {
+        var research = Workstream("New") with { Area = "Research" };
+
+        Assert.That(WindowGroupName.For("theseus", research),
+            Is.EqualTo(WindowGroupName.For("theseus", research with { Column = "Done" })),
+            "the session cannot move between windows, so the name must not move either");
+    }
+
+    [Test]
+    public void For_FallsBackToTheLaneOnABoardWithNoAreasYet()
+    {
+        Assert.That(WindowGroupName.For("theseus", Workstream("Side Project")),
+            Is.EqualTo("theseus-side-project"));
+    }
 }

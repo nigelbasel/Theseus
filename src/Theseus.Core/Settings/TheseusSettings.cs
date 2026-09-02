@@ -54,6 +54,13 @@ public sealed record TheseusSettings(
     public bool ShowArchived { get; init; }
 
     /// <summary>
+    /// The rows of the board: the kinds of work, as opposed to the lanes, which are how far along it
+    /// is. Empty on a board configured before the grid existed, which is the signal to derive both
+    /// axes from the single row of lanes it had.
+    /// </summary>
+    public IReadOnlyList<string> Areas { get; init; } = [];
+
+    /// <summary>
     /// Where the board window was when it last closed, so it opens where it was left. Checked against
     /// the screens actually attached before it is used: a position saved while docked is a position
     /// on a monitor that may not be there any more.

@@ -36,6 +36,7 @@ public class SettingsStoreTests
             SessionsPanelCollapsed: true, Lanes: ["Now", "Later"], Theme: AppTheme.Dark)
         {
             ShowArchived = true,
+            Areas = ["Research", "Dev"],
         };
 
         _store.Write(settings);
@@ -43,8 +44,9 @@ public class SettingsStoreTests
         var read = _store.Read();
 
         Assert.That(read.Lanes, Is.EqualTo(settings.Lanes));
-        Assert.That(read with { Lanes = settings.Lanes }, Is.EqualTo(settings),
-            "a record holding a list compares it by reference, so the lanes are checked separately");
+        Assert.That(read.Areas, Is.EqualTo(settings.Areas));
+        Assert.That(read with { Lanes = settings.Lanes, Areas = settings.Areas }, Is.EqualTo(settings),
+            "a record holding a list compares it by reference, so the lists are checked separately");
     }
 
     [Test]

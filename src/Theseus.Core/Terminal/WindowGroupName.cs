@@ -29,9 +29,13 @@ public static class WindowGroupName
             return Sanitise(workstream.WindowGroup!) is { Length: > 0 } chosen ? chosen : fallback;
         }
 
-        // A lane whose name survives sanitising as nothing gets the base name rather than a window
-        // called nothing, which is the one case where everything lands together.
-        return Sanitise(workstream.Column) is { Length: > 0 } lane ? $"{fallback}-{lane}" : fallback;
+        // The area names the window, not the stage. A window called after a stage would want
+        // renaming every time work advanced, and a session cannot move between windows once it has
+        // started; the kind of work is the part that stays put. A board with no areas yet falls back
+        // to its lane, which is what it used to do.
+        var row = Sanitise(workstream.Area) is { Length: > 0 } area ? area : Sanitise(workstream.Column);
+
+        return row.Length > 0 ? $"{fallback}-{row}" : fallback;
     }
 
     /// <summary>
