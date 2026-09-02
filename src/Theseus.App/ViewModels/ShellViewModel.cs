@@ -132,6 +132,9 @@ public sealed class ShellViewModel : ObservableObject
             Notice = $"Created {card.Title}.";
         });
 
+        DayReport = new DayReportViewModel(runs, () => Workstreams(),
+            sessionId => Sessions.Snapshot.WithSessionId(sessionId).Count > 0);
+
         WireLanes();
         Board.LanesChanged += (_, _) => WireLanes();
     }
@@ -234,6 +237,9 @@ public sealed class ShellViewModel : ObservableObject
 
     /// <summary>Grouping and placing the terminal windows on the desktop.</summary>
     public ArrangeViewModel Arrange { get; } = new();
+
+    /// <summary>What was worked on today, written to a file and shown.</summary>
+    public DayReportViewModel DayReport { get; }
 
     /// <summary>Which build is running, shown so an installed copy can be told from the last one.</summary>
     public string Version => AppVersion.Current;

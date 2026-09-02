@@ -18,6 +18,7 @@ public partial class MainWindow : Window
     private SettingsWindow? _settings;
     private HelpWindow? _help;
     private ArrangeWindow? _arrange;
+    private DayReportWindow? _report;
 
     /// <summary>Creates the window.</summary>
     public MainWindow()
@@ -39,6 +40,7 @@ public partial class MainWindow : Window
             WatchSettings();
             WatchHelp();
             WatchArrange();
+            WatchDayReport();
         };
         Activated += (_, _) =>
         {
@@ -206,6 +208,53 @@ public partial class MainWindow : Window
         };
 
         _arrange.Show();
+    }
+
+    private void WatchDayReport()
+    {
+        if ((DataContext as ShellViewModel)?.DayReport is not { } report)
+        {
+            return;
+        }
+
+        report.PropertyChanged += (_, changed) =>
+        {
+            if (changed.PropertyName == nameof(DayReportViewModel.IsOpen))
+            {
+                ShowDayReport(report);
+            }
+        };
+    }
+
+    private void ShowDayReport(DayReportViewModel report)
+    {
+        if (_report is not null)
+        {
+            if (report.IsOpen)
+            {
+                _report.Activate();
+            }
+            else
+            {
+                _report.Close();
+            }
+
+            return;
+        }
+
+        if (!report.IsOpen)
+        {
+            return;
+        }
+
+        _report = new DayReportWindow { Owner = this, DataContext = report };
+        _report.Closed += (_, _) =>
+        {
+            _report = null;
+            report.IsOpen = false;
+        };
+
+        _report.Show();
     }
 
     /// <summary>

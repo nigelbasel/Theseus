@@ -514,6 +514,9 @@
                 <ComboBox ItemsSource="{Binding Source={StaticResource ThemeValues}}"
                           SelectedItem="{Binding Theme, Mode=TwoWay}"
                           Width="110" Margin="0,0,12,0" />
+                <Button Content="Day" Padding="14,4" Margin="0,0,8,0"
+                        ToolTip="What was worked on today, and which tabs are safe to close"
+                        Command="{Binding DayReport.OpenCommand}" />
                 <Button Content="Arrange" Padding="14,4" Margin="0,0,8,0"
                         ToolTip="Tile, cascade or stack the terminal windows"
                         Command="{Binding Arrange.OpenCommand}" />

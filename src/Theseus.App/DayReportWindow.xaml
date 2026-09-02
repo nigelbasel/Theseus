@@ -1,0 +1,78 @@
+<Window x:Class="Theseus.App.DayReportWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="The day's work"
+        Width="620"
+        Height="700"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        ResizeMode="CanResize"
+        Background="{DynamicResource SolidBackgroundFillColorSecondaryBrush}">
+    <DockPanel>
+        <Border DockPanel.Dock="Top" Padding="20,14"
+                Background="{DynamicResource LayerFillColorDefaultBrush}"
+                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                BorderThickness="0,0,0,1">
+            <StackPanel>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Column="0" Text="{Binding Day}" FontSize="16" FontWeight="SemiBold"
+                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <Button Content="&#xE76B;" FontFamily="Segoe MDL2 Assets" FontSize="11"
+                                Padding="8,3" Margin="0,0,4,0"
+                                ToolTip="The day before"
+                                Command="{Binding YesterdayCommand}" />
+                        <Button Content="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="11"
+                                Padding="8,3" Margin="0,0,8,0"
+                                ToolTip="The day after"
+                                Command="{Binding TomorrowCommand}" />
+                        <Button Content="Refresh" Padding="12,3"
+                                ToolTip="Build it again — a day still in progress has changed"
+                                Command="{Binding RefreshCommand}" />
+                    </StackPanel>
+                </Grid>
+
+                <TextBlock Text="{Binding Path}" FontSize="10.5" Margin="0,8,0,0"
+                           TextTrimming="CharacterEllipsis"
+                           ToolTip="{Binding Path}"
+                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+            </StackPanel>
+        </Border>
+
+        <Border DockPanel.Dock="Bottom" Padding="20,14"
+                Background="{DynamicResource LayerFillColorDefaultBrush}"
+                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                BorderThickness="0,1,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="Open folder" Padding="14,5" Margin="0,0,8,0"
+                        ToolTip="Every day's report is kept here"
+                        Command="{Binding OpenFolderCommand}" />
+                <Button Content="Close" Padding="18,5" IsCancel="True" IsDefault="True"
+                        Command="{Binding CloseCommand}" />
+            </StackPanel>
+        </Border>
+
+        <!--
+            The markdown as written, selectable, in a monospaced face. It is not rendered because the
+            file is the artefact: what is on screen should be what is in it, ready to be selected and
+            pasted into a worklog.
+        -->
+        <TextBox Text="{Binding Markdown, Mode=OneWay}"
+                 IsReadOnly="True"
+                 TextWrapping="NoWrap"
+                 AcceptsReturn="True"
+                 VerticalScrollBarVisibility="Auto"
+                 HorizontalScrollBarVisibility="Auto"
+                 BorderThickness="0"
+                 Padding="20,14"
+                 FontFamily="Cascadia Mono, Consolas, monospace"
+                 FontSize="12.5"
+                 Background="Transparent" />
+    </DockPanel>
+</Window>
