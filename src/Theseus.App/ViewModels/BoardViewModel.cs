@@ -86,6 +86,12 @@ public sealed class BoardViewModel : ObservableObject
             Cards.Where(card => card.IsSelected).Select(card => card.Key),
             StringComparer.OrdinalIgnoreCase);
 
+        // Folded cards carry across the same way, and for the same reason: a refresh that quietly
+        // unfolded the board would undo the view a moment after it was asked for.
+        var folded = new HashSet<string>(
+            Cards.Where(card => card.IsCollapsed).Select(card => card.Key),
+            StringComparer.OrdinalIgnoreCase);
+
         foreach (var cell in Cells)
         {
             cell.Cards.Clear();
@@ -100,6 +106,7 @@ public sealed class BoardViewModel : ObservableObject
                 .Cards.Add(new WorkstreamCardViewModel(workstream with { Column = lane, Area = area })
                 {
                     IsSelected = chosen.Contains(workstream.Key),
+                    IsCollapsed = folded.Contains(workstream.Key),
                 });
         }
 

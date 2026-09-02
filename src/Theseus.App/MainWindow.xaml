@@ -171,7 +171,11 @@
         </DataTemplate>
 
         <DataTemplate x:Key="CardTemplate" DataType="{x:Type vm:WorkstreamCardViewModel}">
-            <Border CornerRadius="8" Margin="0,0,0,8" MinHeight="96"
+            <!--
+                MinHeight is on the style so a folded card can drop it. Left at 96 the card would
+                keep the height of its full self and fold to nothing worth looking at.
+            -->
+            <Border CornerRadius="8" Margin="0,0,0,8"
                     ToolTip="{Binding Workstream.WorkingDirectory}"
                     MouseLeftButtonUp="OnCardClicked">
                 <!--
@@ -182,10 +186,14 @@
                 -->
                 <Border.Style>
                     <Style TargetType="Border">
+                        <Setter Property="MinHeight" Value="96" />
                         <Setter Property="Background" Value="{DynamicResource LayerFillColorDefaultBrush}" />
                         <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
                         <Setter Property="BorderThickness" Value="1" />
                         <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsCollapsed}" Value="True">
+                                <Setter Property="MinHeight" Value="0" />
+                            </DataTrigger>
                             <DataTrigger Binding="{Binding IsLive}" Value="True">
                                 <Setter Property="Background"
                                         Value="{DynamicResource CardBackgroundFillColorDefaultBrush}" />
@@ -261,7 +269,38 @@
                         </Border.Style>
                     </Border>
 
-                    <StackPanel Grid.Column="1" Margin="12,10,12,10">
+                    <!--
+                        Folded: the title, the tick, and a way back. The tick stays because folding
+                        is how you clear the board down to what is running before starting some of
+                        the rest, and having to unfold a card to choose it would undo the point.
+                    -->
+                    <Grid Grid.Column="1" Margin="12,8,10,8"
+                          Visibility="{Binding IsCollapsed, Converter={StaticResource BoolToVisibility}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <CheckBox Grid.Column="0" VerticalAlignment="Center" Margin="0,0,8,0"
+                                  IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                  ToolTip="Include this card in Start selected and Stop selected" />
+
+                        <TextBlock Grid.Column="1" Text="{Binding Title}" FontSize="13"
+                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                   ToolTip="{Binding Title}"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+
+                        <Button Grid.Column="2" Style="{StaticResource CommandButton}"
+                                Padding="8,2" VerticalAlignment="Center"
+                                ToolTip="Open this card again"
+                                Click="OnExpandCard">
+                            <TextBlock Text="&#xE70D;" FontFamily="Segoe MDL2 Assets" FontSize="10" />
+                        </Button>
+                    </Grid>
+
+                    <StackPanel Grid.Column="1" Margin="12,10,12,10"
+                                Visibility="{Binding IsCollapsed, Converter={StaticResource NotBoolToVisibility}}">
                         <!--
                             The title has the card's full width and the buttons sit beneath it.
 
@@ -687,6 +726,22 @@
                         <Button Style="{StaticResource CommandButton}" Content="Invert" Padding="10,3"
                                 ToolTip="Tick what is not ticked, and untick what is"
                                 Command="{Binding InvertSelectionCommand}" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Folding the board down to what is alive, and opening it again. -->
+                <Border CornerRadius="4" Margin="0,0,12,0" Padding="2"
+                        Background="{DynamicResource LayerFillColorDefaultBrush}"
+                        BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1">
+                    <StackPanel Orientation="Horizontal">
+                        <Button Style="{StaticResource CommandButton}" Content="Collapse inactive"
+                                Padding="10,3" Margin="0,0,2,0"
+                                ToolTip="Fold every card with no session running down to its title"
+                                Command="{Binding CollapseInactiveCommand}" />
+                        <Button Style="{StaticResource CommandButton}" Content="Expand all" Padding="10,3"
+                                ToolTip="Open every card again"
+                                Command="{Binding ExpandAllCommand}" />
                     </StackPanel>
                 </Border>
 

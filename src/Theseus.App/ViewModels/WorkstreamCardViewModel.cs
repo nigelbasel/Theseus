@@ -16,6 +16,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     private string _lostSessionName = string.Empty;
     private bool _isSelected;
     private bool _isAdoptTarget;
+    private bool _isCollapsed;
     private IReadOnlyList<PullRequestLink> _pullRequests = [];
     private DateTimeOffset? _lifecycleSinceUtc;
 
@@ -200,6 +201,19 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     /// how many they would affect and refuse when that is none.
     /// </summary>
     public Action? SelectionChanged { get; set; }
+
+    /// <summary>
+    /// Whether the card is folded down to its title.
+    ///
+    /// Not persisted, and not the same question as whether the row is collapsed. This is a view of
+    /// the board taken on demand — "show me what is running" — and a board that reopened with cards
+    /// folded from yesterday would be hiding work for a reason nobody could remember.
+    /// </summary>
+    public bool IsCollapsed
+    {
+        get => _isCollapsed;
+        set => Set(ref _isCollapsed, value);
+    }
 
     /// <summary>
     /// What the session says it is working on, taken from the list it keeps for itself. Busy and

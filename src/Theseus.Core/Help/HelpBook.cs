@@ -126,6 +126,12 @@ public static class HelpBook
                     + " last column: nothing is held back, because a tick you can see and remove is"
                     + " honest where a silent exclusion is not. Invert ticks what is not ticked and"
                     + " unticks what is, which is the quick way to take everything except a few."),
+                new HelpEntry(
+                    "Collapse inactive and Expand all",
+                    "Folds every card with no session running down to its title, leaving the live work"
+                    + " full size. A folded card keeps its tick, so you can still choose it for a bulk"
+                    + " Start without opening it, and the chevron opens it again. Folding is a view"
+                    + " taken on demand and is not remembered between runs."),
                 new HelpEntry("Refresh", "Re-reads the plans, the run log and the session registry. Nothing is cached that this will not correct."),
                 new HelpEntry(
                     "Archive",

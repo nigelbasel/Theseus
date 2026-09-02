@@ -162,6 +162,11 @@ public sealed class ShellViewModel : ObservableObject
         ConfirmStopsCommand = new RelayCommand(_ => ConfirmStops());
         AbandonStopsCommand = new RelayCommand(_ => AbandonStops());
 
+        CollapseInactiveCommand = new RelayCommand(_ => Collapse(true),
+            _ => Board.Cards.Any(card => !card.IsLive && !card.IsCollapsed));
+        ExpandAllCommand = new RelayCommand(_ => Collapse(false),
+            _ => Board.Cards.Any(card => card.IsCollapsed));
+
         WireLanes();
         Board.LanesChanged += (_, _) => WireLanes();
     }
@@ -220,6 +225,12 @@ public sealed class ShellViewModel : ObservableObject
 
     /// <summary>Ticks what is not ticked and unticks what is.</summary>
     public RelayCommand InvertSelectionCommand { get; }
+
+    /// <summary>Folds every card with no live session down to its title.</summary>
+    public RelayCommand CollapseInactiveCommand { get; }
+
+    /// <summary>Opens every card again.</summary>
+    public RelayCommand ExpandAllCommand { get; }
 
     /// <summary>Goes ahead with the stops that were asked for before the board opened.</summary>
     public RelayCommand ConfirmStopsCommand { get; }
@@ -876,6 +887,23 @@ public sealed class ShellViewModel : ObservableObject
             && _unconfirmed.Contains(id)
             && Sessions.Find(id) is not null)
     ];
+
+    /// <summary>
+    /// Folds the board down to what is alive, or opens all of it again.
+    ///
+    /// Collapsing sets every card at once rather than only the inactive ones, so a live card that was
+    /// folded before it started is opened by the same press. The board then says exactly one thing:
+    /// folded means nothing is running there.
+    /// </summary>
+    private void Collapse(bool inactiveOnly)
+    {
+        foreach (var card in Board.Cards)
+        {
+            card.IsCollapsed = inactiveOnly && !card.IsLive;
+        }
+
+        System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+    }
 
     /// <summary>Lets the held-back stops run their course, which closes those sessions.</summary>
     private void ConfirmStops()

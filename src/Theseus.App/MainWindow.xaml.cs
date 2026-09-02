@@ -395,6 +395,21 @@ public partial class MainWindow : Window
     /// right-click gesture; here it is the whole point of the button, so it opens on a left click and
     /// below rather than at the pointer.
     /// </summary>
+    /// <summary>
+    /// Opens one folded card. Handled here rather than bound to a command because it acts on the card
+    /// it sits in and nothing else, and a command would have to be given the card to act on.
+    /// </summary>
+    private void OnExpandCard(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: WorkstreamCardViewModel card })
+        {
+            card.IsCollapsed = false;
+        }
+
+        // The card is inside a click-to-open-the-drawer surface, so the click stops here.
+        e.Handled = true;
+    }
+
     private void OnOverflowClick(object sender, RoutedEventArgs e)
     {
         if (sender is not Button button || button.ContextMenu is not { } menu)
