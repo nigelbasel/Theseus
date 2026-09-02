@@ -10,30 +10,51 @@ namespace Theseus.App.Services;
 /// and the screens this position is checked against are measured in physical pixels. On this machine
 /// those differ by half again. Setting a position read from one in the units of the other is how a
 /// window lands on the wrong monitor, so the whole round trip stays on one side of that line.
+///
+/// It uses <c>GetWindowPlacement</c> rather than <c>GetWindowRect</c>, which matters for a maximised
+/// window and was got wrong the first time. A maximised window's rectangle *is* the screen, so
+/// remembering it remembers nothing: the window came back maximised and its restore button had only
+/// the full screen to return to. Placement carries both facts separately — whether it was maximised,
+/// and the size it would go back to — which is exactly the pair that has to survive.
 /// </summary>
 public static class OwnWindowPlacement
 {
-    private const int Restore = 9;
-    private const int Maximise = 3;
-    private const uint NoZOrder = 0x0004;
-    private const uint NoActivate = 0x0010;
+    private const int Normal = 1;
+    private const int Maximised = 3;
+    private const int Minimised = 2;
 
     /// <summary>Where the window is now, and whether it is maximised.</summary>
     public static WindowPlacement? Capture(nint window)
     {
-        if (window == nint.Zero || !GetWindowRect(window, out var rect))
+        if (window == nint.Zero)
         {
             return null;
         }
 
+        var placement = new Placement { Length = Marshal.SizeOf<Placement>() };
+
+        if (!GetWindowPlacement(window, ref placement))
+        {
+            return null;
+        }
+
+        var normal = placement.NormalPosition;
+
         return new WindowPlacement(
-            new LayoutRect(rect.Left, rect.Top, rect.Right - rect.Left, rect.Bottom - rect.Top),
-            IsZoomed(window));
+            new LayoutRect(
+                normal.Left,
+                normal.Top,
+                normal.Right - normal.Left,
+                normal.Bottom - normal.Top),
+            placement.ShowCommand == Maximised);
     }
 
     /// <summary>
-    /// Puts the window where the placement says. A maximised window is restored first, so the size
-    /// it would return to is the remembered one rather than whatever it happened to have.
+    /// Puts the window where the placement says, maximised or not, with the size it would return to
+    /// set either way. A window restored from maximised then has somewhere to go back to.
+    ///
+    /// A window saved while minimised is opened normally rather than minimised: an application that
+    /// starts into the taskbar looks like one that failed to start.
     /// </summary>
     public static void Apply(nint window, WindowPlacement placement)
     {
@@ -44,31 +65,39 @@ public static class OwnWindowPlacement
             return;
         }
 
-        ShowWindow(window, Restore);
-
         var bounds = placement.Bounds;
 
-        SetWindowPos(window, nint.Zero, bounds.X, bounds.Y, bounds.Width, bounds.Height,
-            NoZOrder | NoActivate);
-
-        if (placement.IsMaximised)
+        var wanted = new Placement
         {
-            ShowWindow(window, Maximise);
-        }
+            Length = Marshal.SizeOf<Placement>(),
+            ShowCommand = placement.IsMaximised ? Maximised : Normal,
+            NormalPosition = new Rect
+            {
+                Left = bounds.X,
+                Top = bounds.Y,
+                Right = bounds.X + bounds.Width,
+                Bottom = bounds.Y + bounds.Height,
+            },
+        };
+
+        SetWindowPlacement(window, ref wanted);
     }
 
-    [DllImport("user32.dll")]
-    private static extern bool GetWindowRect(nint window, out Rect rect);
+    /// <summary>Whether a window is minimised, which is not a position worth remembering.</summary>
+    public static bool IsMinimised(nint window)
+    {
+        var placement = new Placement { Length = Marshal.SizeOf<Placement>() };
 
-    [DllImport("user32.dll")]
-    private static extern bool IsZoomed(nint window);
-
-    [DllImport("user32.dll")]
-    private static extern bool ShowWindow(nint window, int command);
+        return window != nint.Zero
+               && GetWindowPlacement(window, ref placement)
+               && placement.ShowCommand == Minimised;
+    }
 
     [DllImport("user32.dll", SetLastError = true)]
-    private static extern bool SetWindowPos(nint window, nint after, int x, int y,
-        int width, int height, uint flags);
+    private static extern bool GetWindowPlacement(nint window, ref Placement placement);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool SetWindowPlacement(nint window, ref Placement placement);
 
     [StructLayout(LayoutKind.Sequential)]
     private struct Rect
@@ -77,5 +106,23 @@ public static class OwnWindowPlacement
         public int Top;
         public int Right;
         public int Bottom;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct Point
+    {
+        public int X;
+        public int Y;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct Placement
+    {
+        public int Length;
+        public int Flags;
+        public int ShowCommand;
+        public Point MinimisedPosition;
+        public Point MaximisedPosition;
+        public Rect NormalPosition;
     }
 }

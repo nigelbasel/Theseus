@@ -289,6 +289,55 @@
             </DataTemplate.Triggers>
         </DataTemplate>
 
+        <DataTemplate x:Key="ColumnTemplate" DataType="{x:Type vm:ColumnViewModel}">
+            <Border MinWidth="260" Margin="4" CornerRadius="8" Padding="8"
+                    Background="{DynamicResource LayerFillColorDefaultBrush}"
+                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1">
+                <DockPanel>
+                    <!--
+                        The cell does not repeat the stage name. It is written once across the top of
+                        the board, and printing it again in every row is noise on a grid that already
+                        has too much to say.
+                    -->
+                    <Grid DockPanel.Dock="Top" Margin="2,0,2,6"
+                          Visibility="{Binding Count, Converter={StaticResource CountToVisibility}}">
+                        <TextBlock Text="{Binding Count}" FontSize="11" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                        <Button Content="Start" FontSize="11" Padding="6,0" HorizontalAlignment="Right"
+                                ToolTip="Start everything in this cell that is not already running"
+                                Command="{Binding StartAllCommand}" />
+                    </Grid>
+
+                    <ItemsControl ItemsSource="{Binding Cards}"
+                                  ItemTemplate="{StaticResource CardTemplate}"
+                                  AllowDrop="True"
+                                  Drop="OnColumnDrop"
+                                  DragOver="OnColumnDragOver"
+                                  Background="Transparent"
+                                  MinHeight="120">
+                        <ItemsControl.Template>
+                            <ControlTemplate TargetType="ItemsControl">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Disabled"
+                                              CanContentScroll="True"
+                                              Focusable="False"
+                                              Padding="0,0,2,0"
+                                              Background="{TemplateBinding Background}">
+                                    <ItemsPresenter />
+                                </ScrollViewer>
+                            </ControlTemplate>
+                        </ItemsControl.Template>
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <VirtualizingStackPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                </DockPanel>
+            </Border>
+        </DataTemplate>
+
         <!--
             One row of the board: an area, with a cell per stage.
 
@@ -344,54 +393,6 @@
             </Border>
         </DataTemplate>
 
-        <DataTemplate x:Key="ColumnTemplate" DataType="{x:Type vm:ColumnViewModel}">
-            <Border MinWidth="260" Margin="4" CornerRadius="8" Padding="8"
-                    Background="{DynamicResource LayerFillColorDefaultBrush}"
-                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
-                    BorderThickness="1">
-                <DockPanel>
-                    <!--
-                        The cell does not repeat the stage name. It is written once across the top of
-                        the board, and printing it again in every row is noise on a grid that already
-                        has too much to say.
-                    -->
-                    <Grid DockPanel.Dock="Top" Margin="2,0,2,6"
-                          Visibility="{Binding Count, Converter={StaticResource CountToVisibility}}">
-                        <TextBlock Text="{Binding Count}" FontSize="11" VerticalAlignment="Center"
-                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
-                        <Button Content="Start" FontSize="11" Padding="6,0" HorizontalAlignment="Right"
-                                ToolTip="Start everything in this cell that is not already running"
-                                Command="{Binding StartAllCommand}" />
-                    </Grid>
-
-                    <ItemsControl ItemsSource="{Binding Cards}"
-                                  ItemTemplate="{StaticResource CardTemplate}"
-                                  AllowDrop="True"
-                                  Drop="OnColumnDrop"
-                                  DragOver="OnColumnDragOver"
-                                  Background="Transparent"
-                                  MinHeight="120">
-                        <ItemsControl.Template>
-                            <ControlTemplate TargetType="ItemsControl">
-                                <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                              HorizontalScrollBarVisibility="Disabled"
-                                              CanContentScroll="True"
-                                              Focusable="False"
-                                              Padding="0,0,2,0"
-                                              Background="{TemplateBinding Background}">
-                                    <ItemsPresenter />
-                                </ScrollViewer>
-                            </ControlTemplate>
-                        </ItemsControl.Template>
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <VirtualizingStackPanel />
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                    </ItemsControl>
-                </DockPanel>
-            </Border>
-        </DataTemplate>
 
         <DataTemplate x:Key="LiveSessionTemplate" DataType="{x:Type vm:LiveSessionViewModel}">
             <Border Margin="0,0,0,6" Padding="10,8" CornerRadius="6"

@@ -110,4 +110,22 @@ public class WindowPlacementFitTests
 
     private static WindowPlacement Placement(int x, int y, int width, int height) =>
         new(new LayoutRect(x, y, width, height), IsMaximised: false);
+
+    [Test]
+    public void Onto_RescuesAMaximisedWindowByItsRestoredSizeNotItsScreenSize()
+    {
+        // What is stored for a maximised window is the size it would return to, so the check runs
+        // against that. Storing the maximised rectangle instead would remember nothing: it is
+        // whatever screen it was on, and there would be nothing for Restore to go back to.
+        var saved = new WindowPlacement(new LayoutRect(4000, 200, 1200, 800), IsMaximised: true);
+
+        var fitted = WindowPlacementFit.Onto(saved, [Laptop])!;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(fitted.IsMaximised, Is.True, "it comes back maximised");
+            Assert.That(fitted.Bounds.Width, Is.EqualTo(1200), "and un-maximises to the size it had");
+            Assert.That(WindowPlacementFit.IsReachable(fitted.Bounds, [Laptop]), Is.True);
+        });
+    }
 }
