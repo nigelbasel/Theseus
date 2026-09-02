@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Input;
+using System.Windows.Media;
 using Theseus.App.Services;
 using Theseus.App.ViewModels;
 using Theseus.Core.Layout;
@@ -405,16 +406,34 @@ public partial class MainWindow : Window
             return;
         }
 
-        e.Handled = true;
-
-        if (cell.Parent is UIElement parent)
+        // Scroll the board directly rather than re-raising the event for it to catch.
+        //
+        // The first attempt raised a fresh wheel event on this ScrollViewer's Parent, which is the
+        // textbook trick and did nothing here: a ScrollViewer built from a ControlTemplate has no
+        // logical parent, so there was nothing to raise it on and the gesture still died in the cell.
+        // Walking the visual tree and moving the ancestor by hand depends on no routing at all.
+        if (Ancestor(cell) is not { } board)
         {
-            parent.RaiseEvent(new MouseWheelEventArgs(e.MouseDevice, e.Timestamp, e.Delta)
-            {
-                RoutedEvent = MouseWheelEvent,
-                Source = cell,
-            });
+            return;
         }
+
+        e.Handled = true;
+        board.ScrollToVerticalOffset(board.VerticalOffset - e.Delta);
+    }
+
+    /// <summary>The first ScrollViewer above this one in the visual tree, if there is one.</summary>
+    private static ScrollViewer? Ancestor(DependencyObject from)
+    {
+        for (var node = VisualTreeHelper.GetParent(from); node is not null;
+             node = VisualTreeHelper.GetParent(node))
+        {
+            if (node is ScrollViewer found)
+            {
+                return found;
+            }
+        }
+
+        return null;
     }
 
     private void OnColumnDragOver(object sender, DragEventArgs e)
