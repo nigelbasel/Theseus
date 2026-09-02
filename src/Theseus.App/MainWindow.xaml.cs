@@ -1,7 +1,10 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Interop;
 using System.Windows.Input;
+using Theseus.App.Services;
 using Theseus.App.ViewModels;
+using Theseus.Core.Layout;
 
 namespace Theseus.App;
 
@@ -22,6 +25,10 @@ public partial class MainWindow : Window
         InitializeComponent();
 
         FitToWorkArea();
+
+        // The remembered position is applied once the window has a handle, and saved as it closes.
+        SourceInitialized += (_, _) => RestorePlacement();
+        Closing += (_, _) => SavePlacement();
 
         AddHandler(PreviewMouseLeftButtonDownEvent, new MouseButtonEventHandler(OnPreviewMouseDown), handledEventsToo: true);
         AddHandler(PreviewMouseLeftButtonUpEvent, new MouseButtonEventHandler(OnPreviewMouseUp), handledEventsToo: true);
@@ -204,6 +211,7 @@ public partial class MainWindow : Window
     /// <summary>
     /// Sizes the window to what the display can actually show. A fixed default is wrong on a scaled
     /// screen: the right-hand panel and the header controls end up beyond the edge of the desktop.
+    /// Used only when there is nothing remembered, or when what was remembered is no longer usable.
     /// </summary>
     private void FitToWorkArea()
     {
@@ -213,6 +221,41 @@ public partial class MainWindow : Window
         Height = Math.Min(Height, area.Height - 40);
         Left = area.Left + ((area.Width - Width) / 2);
         Top = area.Top + ((area.Height - Height) / 2);
+    }
+
+    /// <summary>
+    /// Puts the window back where it was left, if that is somewhere it can still be seen.
+    ///
+    /// A saved position is a fact about a desktop that may not exist any more: undock a laptop and
+    /// the second monitor's coordinates become empty space. So it is checked against the screens
+    /// attached now, and brought back onto one when it no longer lands on any. An application that
+    /// skips that check opens where nobody can see it, and there is no way back but the keyboard.
+    /// </summary>
+    private void RestorePlacement()
+    {
+        if ((DataContext as ShellViewModel)?.SettingsStore is not { } store)
+        {
+            return;
+        }
+
+        if (WindowPlacementFit.Onto(store.Read().MainWindow, Displays.WorkAreas()) is not { } placement)
+        {
+            return;
+        }
+
+        OwnWindowPlacement.Apply(new WindowInteropHelper(this).Handle, placement);
+    }
+
+    /// <summary>Remembers where the window is, so the next run opens where this one was left.</summary>
+    private void SavePlacement()
+    {
+        if ((DataContext as ShellViewModel)?.SettingsStore is not { } store
+            || OwnWindowPlacement.Capture(new WindowInteropHelper(this).Handle) is not { } placement)
+        {
+            return;
+        }
+
+        store.Write(store.Read() with { MainWindow = placement });
     }
 
     private void OnPreviewMouseDown(object sender, MouseButtonEventArgs e) =>

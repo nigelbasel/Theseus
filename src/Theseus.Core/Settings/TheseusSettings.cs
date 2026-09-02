@@ -53,6 +53,13 @@ public sealed record TheseusSettings(
     /// </summary>
     public bool ShowArchived { get; init; }
 
+    /// <summary>
+    /// Where the board window was when it last closed, so it opens where it was left. Checked against
+    /// the screens actually attached before it is used: a position saved while docked is a position
+    /// on a monitor that may not be there any more.
+    /// </summary>
+    public Layout.WindowPlacement? MainWindow { get; init; }
+
 
     /// <summary>Where workstreams are kept until the user points Theseus somewhere of their own.</summary>
     public static string DefaultPlanDirectory { get; } = Path.Combine(

@@ -14,6 +14,22 @@ namespace Theseus.Core.Layout;
 /// <param name="Height">Height in pixels.</param>
 public readonly record struct LayoutRect(int X, int Y, int Width, int Height)
 {
+    /// <summary>How much of the desktop this covers.</summary>
+    public long Area => (long)Math.Max(0, Width) * Math.Max(0, Height);
+
+    /// <summary>The part of this rectangle that is also in the other one, which may be nothing.</summary>
+    public LayoutRect Intersect(LayoutRect other)
+    {
+        var left = Math.Max(X, other.X);
+        var top = Math.Max(Y, other.Y);
+        var right = Math.Min(X + Width, other.X + other.Width);
+        var bottom = Math.Min(Y + Height, other.Y + other.Height);
+
+        return right <= left || bottom <= top
+            ? new LayoutRect(left, top, 0, 0)
+            : new LayoutRect(left, top, right - left, bottom - top);
+    }
+
     /// <summary>The rectangle inset on every side, never smaller than nothing.</summary>
     public LayoutRect Inset(int by) => new(
         X + by,

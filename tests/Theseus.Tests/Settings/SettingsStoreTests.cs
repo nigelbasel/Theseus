@@ -135,4 +135,23 @@ public class SettingsStoreTests
         Assert.That(TheseusSettings.Default.ShowArchived, Is.False,
             "a board that opened onto what had been put away would look empty for no reason");
     }
+
+    [Test]
+    public void Write_RoundTripsTheWindowPositionThroughDisk()
+    {
+        var placement = new Theseus.Core.Layout.WindowPlacement(
+            new Theseus.Core.Layout.LayoutRect(120, 80, 1600, 1000), IsMaximised: true);
+
+        _store.Write(TheseusSettings.Default with { MainWindow = placement });
+
+        Assert.That(_store.Read().MainWindow, Is.EqualTo(placement),
+            "a nested record has to survive the file or the window opens somewhere arbitrary");
+    }
+
+    [Test]
+    public void Read_HasNoWindowPositionBeforeOneIsSaved()
+    {
+        Assert.That(TheseusSettings.Default.MainWindow, Is.Null,
+            "a first run has nothing to restore and must fall back to fitting the screen");
+    }
 }

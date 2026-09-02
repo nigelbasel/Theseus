@@ -170,6 +170,9 @@ public sealed class ShellViewModel : ObservableObject
     /// <summary>The settings panel.</summary>
     public SettingsViewModel Settings { get; }
 
+    /// <summary>The settings themselves, for the window position that is not anybody's to edit.</summary>
+    public ISettingsStore SettingsStore => _settings;
+
     /// <summary>What the buttons do, and what to look at when one of them does nothing.</summary>
     public HelpViewModel Help { get; } = new();
 
