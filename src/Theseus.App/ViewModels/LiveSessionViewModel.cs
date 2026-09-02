@@ -60,6 +60,9 @@ public sealed class LiveSessionViewModel : ObservableObject
     /// <summary>What the session reports it is doing, as the registry has it.</summary>
     public string? Status => _session.Status;
 
+    /// <summary>When it last changed to that, where the session recorded it.</summary>
+    public DateTimeOffset? StatusSinceUtc => _session.StatusSinceUtc;
+
     /// <summary>Where the session is working.</summary>
     public string WorkingDirectory => _session.Cwd ?? string.Empty;
 

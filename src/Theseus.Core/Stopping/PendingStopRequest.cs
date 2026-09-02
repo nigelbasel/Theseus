@@ -19,4 +19,12 @@ public sealed record PendingStopRequest(
     string WorkstreamTitle,
     string Text,
     DateTimeOffset RequestedUtc,
-    DateTimeOffset ExpiresUtc);
+    DateTimeOffset ExpiresUtc)
+{
+    /// <summary>
+    /// The handover document the session was told to write, kept as a field rather than left inside
+    /// the request text. Whether the session did as it was asked is decided by looking at that file,
+    /// and reading a path back out of a sentence is not a way to decide anything.
+    /// </summary>
+    public string? HandoffPath { get; init; }
+}

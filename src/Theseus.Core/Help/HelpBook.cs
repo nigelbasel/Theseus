@@ -96,7 +96,13 @@ public static class HelpBook
             "Everything else on a card acts on the session that card is following.",
             [
                 new HelpEntry("Start", "Opens a tab for this workstream."),
-                new HelpEntry("Stop", "Asks this session to write its handover notes and exit when its turn ends."),
+                new HelpEntry(
+                    "Stop",
+                    "Asks this session to write its handover notes when its turn ends. Once the notes"
+                    + " appear and the session has been quiet for a moment, Theseus types /exit into"
+                    + " the tab so it closes itself - the last step of stopping, which no session can"
+                    + " take for itself. Nothing is ever killed: a killed session writes nothing,"
+                    + " which is the whole reason stopping exists."),
                 new HelpEntry("Focus", "Brings this session's tab to the front. The taskbar icon's menu does this too, without the board."),
                 new HelpEntry(
                     "Adopt",

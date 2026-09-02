@@ -34,6 +34,12 @@ public sealed class ShellViewModel : ObservableObject
     private bool _isSessionsPanelOpen;
     private bool _motionAllowed = true;
 
+    /// <summary>
+    /// The sessions already told to exit. Typing it twice would land in a session that had moved on
+    /// to something else, and there is no taking a keystroke back.
+    /// </summary>
+    private readonly HashSet<string> _closed = new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>Creates the shell over everything the window drives.</summary>
     public ShellViewModel(
         BoardViewModel board,
@@ -449,7 +455,10 @@ public sealed class ShellViewModel : ObservableObject
             step.Title,
             step.Text,
             DateTimeOffset.UtcNow,
-            DateTimeOffset.UtcNow.Add(StopRequestLife)));
+            DateTimeOffset.UtcNow.Add(StopRequestLife))
+        {
+            HandoffPath = step.HandoffPath,
+        });
 
         TheseusLog.Information("Asked {Workstream} ({SessionId}) to stop", step.WorkstreamKey, step.SessionId);
     }
@@ -509,7 +518,8 @@ public sealed class ShellViewModel : ObservableObject
                     target.SessionName,
                     Sessions.Find(card.Workstream.LastSessionId)!.Pid,
                     card.Lifecycle,
-                    StopRequest.For(prompt, target))))
+                    StopRequest.For(prompt, target),
+                    target.HandoffPath)))
         ];
     }
 
@@ -579,6 +589,66 @@ public sealed class ShellViewModel : ObservableObject
         }
 
         SyncClashes();
+        CloseFinishedSessions();
+    }
+
+    /// <summary>
+    /// Types /exit into any session that was asked to stop, has written its handover, and has gone
+    /// quiet — the last step of stopping, which no session can take for itself.
+    ///
+    /// Nothing is killed. A killed process writes nothing, which is the whole reason stopping exists;
+    /// this types what a person would type, and the session exits the ordinary way, which lets the
+    /// launcher finish and the tab close on its own. The typing refuses unless focus is in a terminal
+    /// buffer, so a keystroke cannot land somewhere unintended.
+    /// </summary>
+    private void CloseFinishedSessions()
+    {
+        foreach (var card in Board.Columns.SelectMany(column => column.Cards))
+        {
+            if (card.Workstream.LastSessionId is not { } sessionId
+                || Sessions.Find(sessionId) is not { } session)
+            {
+                continue;
+            }
+
+            var delivered = _stopRequests.Delivered(sessionId);
+
+            if (!SessionClosing.ShouldClose(delivered, WrittenUtc(delivered?.HandoffPath), session.Status,
+                    session.StatusSinceUtc, DateTimeOffset.UtcNow, _closed.Contains(sessionId)))
+            {
+                continue;
+            }
+
+            _closed.Add(sessionId);
+
+            var outcome = TabNudge.Nudge(session.Pid, session.Name, SessionClosing.ExitCommand);
+
+            TheseusLog.Information(
+                "Closing {Workstream}, which was asked to stop and has handed over: {Outcome}",
+                card.Key, outcome);
+        }
+    }
+
+    /// <summary>
+    /// When the handover document a stop request named was last written, or null if it is not there.
+    /// The path comes from the request rather than being worked out again, so what is checked is the
+    /// file the session was actually told to write.
+    /// </summary>
+    private static DateTimeOffset? WrittenUtc(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return null;
+        }
+
+        try
+        {
+            return File.Exists(path) ? File.GetLastWriteTimeUtc(path) : null;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
     }
 
     /// <summary>

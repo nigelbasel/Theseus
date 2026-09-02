@@ -122,6 +122,12 @@ public sealed class StopRequestStore : IStopRequestStore
     }
 
     /// <inheritdoc />
+    public PendingStopRequest? Delivered(string? sessionId) =>
+        StopRequestPath.For(_root, sessionId, StopRequestPath.DeliveredFolder) is { } path
+            ? Parse(path)
+            : null;
+
+    /// <inheritdoc />
     public int Sweep(DateTimeOffset now)
     {
         var gone = 0;

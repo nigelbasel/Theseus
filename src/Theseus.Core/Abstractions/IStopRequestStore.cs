@@ -24,4 +24,7 @@ public interface IStopRequestStore
 
     /// <summary>Discards requests too old to be worth delivering, and says how many went.</summary>
     int Sweep(DateTimeOffset now);
+
+    /// <summary>The request this session was handed, if it has been handed one.</summary>
+    PendingStopRequest? Delivered(string? sessionId);
 }

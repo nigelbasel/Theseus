@@ -10,6 +10,7 @@ namespace Theseus.App.ViewModels;
 /// <param name="Pid">The Claude Code process, which is how its tab is found.</param>
 /// <param name="Lifecycle">What the session is doing, which decides how the request reaches it.</param>
 /// <param name="Text">The request itself, with its handoff path already filled in.</param>
+/// <param name="HandoffPath">The document it asks for, kept apart so it can be looked for later.</param>
 public sealed record StopStep(
     string Title,
     string WorkstreamKey,
@@ -17,4 +18,5 @@ public sealed record StopStep(
     string SessionName,
     int Pid,
     SessionLifecycle Lifecycle,
-    string Text);
+    string Text,
+    string HandoffPath);
