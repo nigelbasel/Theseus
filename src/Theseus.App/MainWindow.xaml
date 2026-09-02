@@ -500,32 +500,73 @@
 
             <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right"
                         VerticalAlignment="Center">
-                <Button Content="New workstream" Padding="14,4" Margin="0,0,8,0"
+                <!--
+                    A command bar rather than a row of peers. Eleven controls had grown along the top,
+                    every one of them the same size and weight, so starting every session on the board
+                    read as no more consequential than reloading it. What stays out here is what is
+                    used constantly or is worth the width; the rest is a click away under the overflow,
+                    and the next thing added goes there rather than becoming a twelfth button.
+                -->
+                <Button Content="New workstream" Padding="14,4" Margin="0,0,12,0"
                         ToolTip="Create a workstream and open a session for it"
                         Command="{Binding NewWorkstream.OpenCommand}" />
-                <Button Content="Start all" Padding="14,4" Margin="0,0,8,0"
-                        ToolTip="Start every lane except the last"
-                        Command="{Binding StartBoardCommand}" />
-                <Button Content="Stop all" Padding="14,4" Margin="0,0,16,0"
-                        ToolTip="Ask every running session to write a handoff and exit"
-                        Command="{Binding StopBoardCommand}" />
-                <TextBlock Text="Theme" VerticalAlignment="Center" FontSize="12" Margin="0,0,8,0"
-                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                <ComboBox ItemsSource="{Binding Source={StaticResource ThemeValues}}"
-                          SelectedItem="{Binding Theme, Mode=TwoWay}"
-                          Width="110" Margin="0,0,12,0" />
-                <Button Content="Day" Padding="14,4" Margin="0,0,8,0"
-                        ToolTip="What was worked on today, and which tabs are safe to close"
-                        Command="{Binding DayReport.OpenCommand}" />
-                <Button Content="Arrange" Padding="14,4" Margin="0,0,8,0"
-                        ToolTip="Tile, cascade or stack the terminal windows"
-                        Command="{Binding Arrange.OpenCommand}" />
-                <ToggleButton Content="Archived" Padding="14,4" Margin="0,0,8,0"
-                              IsChecked="{Binding Board.ShowArchived, Mode=TwoWay}"
-                              ToolTip="Show what has been put away instead of what is being worked on" />
-                <Button Content="Refresh" Padding="14,4" Margin="0,0,8,0" Command="{Binding RefreshCommand}" />
-                <Button Content="Settings" Padding="14,4" Margin="0,0,8,0" Command="{Binding Settings.OpenCommand}" />
-                <Button Content="?" Padding="12,4" Command="{Binding Help.OpenCommand}"
+
+                <!-- The two that act on every lane at once, grouped so they read as a pair. -->
+                <Border CornerRadius="4" Margin="0,0,12,0" Padding="2"
+                        Background="{DynamicResource LayerFillColorDefaultBrush}"
+                        BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1">
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Start all" Padding="12,3" Margin="0,0,2,0"
+                                ToolTip="Start every lane except the last"
+                                Command="{Binding StartBoardCommand}" />
+                        <Button Content="Stop all" Padding="12,3"
+                                ToolTip="Ask every running session to write a handoff and exit"
+                                Command="{Binding StopBoardCommand}" />
+                    </StackPanel>
+                </Border>
+
+                <Menu Background="Transparent" VerticalAlignment="Center" Margin="0,0,12,0">
+                    <MenuItem Header="&#xE712;" FontFamily="Segoe MDL2 Assets" FontSize="12"
+                              Padding="10,4"
+                              ToolTip="The rest of the board's commands">
+                        <MenuItem Header="Day report…" Command="{Binding DayReport.OpenCommand}"
+                                  ToolTip="What was worked on today, and which tabs are safe to close" />
+                        <MenuItem Header="Arrange windows…" Command="{Binding Arrange.OpenCommand}"
+                                  ToolTip="Tile, cascade or stack the terminal windows" />
+                        <Separator />
+                        <MenuItem Header="Show archived" IsCheckable="True"
+                                  IsChecked="{Binding Board.ShowArchived, Mode=TwoWay}"
+                                  ToolTip="Show what has been put away instead of what is being worked on" />
+                        <Separator />
+                        <MenuItem StaysOpenOnClick="True">
+                            <MenuItem.Header>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Theme" VerticalAlignment="Center" Margin="0,0,10,0" />
+                                    <ComboBox ItemsSource="{Binding Source={StaticResource ThemeValues}}"
+                                              SelectedItem="{Binding Theme, Mode=TwoWay}"
+                                              Width="110" />
+                                </StackPanel>
+                            </MenuItem.Header>
+                        </MenuItem>
+                    </MenuItem>
+                </Menu>
+
+                <!--
+                    Icons, because a refresh arrow and a gear need no label, and three words of chrome
+                    were taking the width of a card.
+                -->
+                <Button Content="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="12"
+                        Padding="9,4" Margin="0,0,4,0"
+                        ToolTip="Read the board and the running sessions again"
+                        Command="{Binding RefreshCommand}" />
+                <Button Content="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="12"
+                        Padding="9,4" Margin="0,0,4,0"
+                        ToolTip="Settings"
+                        Command="{Binding Settings.OpenCommand}" />
+                <Button Content="&#xE897;" FontFamily="Segoe MDL2 Assets" FontSize="12"
+                        Padding="9,4"
+                        Command="{Binding Help.OpenCommand}"
                         ToolTip="What the buttons do, how starting and stopping work, and what to look at when one of them does nothing" />
             </StackPanel>
         </Grid>
