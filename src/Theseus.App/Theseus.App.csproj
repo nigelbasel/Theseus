@@ -14,6 +14,15 @@
     <ApplicationIcon>Assets\theseus.ico</ApplicationIcon>
   </PropertyGroup>
 
+  <!--
+    The interop structs are internal so their marshalled layout can be asserted. An INPUT that is
+    32 bytes instead of 40 is accepted silently by SendInput and types nothing, which cost this
+    project two wrong diagnoses; a size is the only thing that catches it.
+  -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="Theseus.Tests" />
+  </ItemGroup>
+
   <ItemGroup>
     <Resource Include="Assets\theseus.ico" />
   </ItemGroup>

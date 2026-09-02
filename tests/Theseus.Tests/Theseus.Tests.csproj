@@ -1,7 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!--
+    Windows-targeted so it can reference the application. The interop this covers - the shape of an
+    INPUT, the shape of a WINDOWPLACEMENT - lives in Theseus.App and cannot be reached from a
+    framework-neutral test project. Everything the application does that is pure arithmetic still
+    lives in Theseus.Core and is tested there.
+  -->
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -23,6 +30,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Theseus.Core\Theseus.Core.csproj" />
     <ProjectReference Include="..\..\src\Theseus.Launcher\Theseus.Launcher.csproj" />
+    <ProjectReference Include="..\..\src\Theseus.App\Theseus.App.csproj" />
   </ItemGroup>
 
 </Project>

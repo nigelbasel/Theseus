@@ -203,7 +203,7 @@ public static class TabNudge
     };
 
     [StructLayout(LayoutKind.Sequential)]
-    private struct Input
+    internal struct Input
     {
         public int Type;
         public InputData Data;
@@ -220,14 +220,14 @@ public static class TabNudge
     /// session, on any machine, by any build.
     /// </summary>
     [StructLayout(LayoutKind.Explicit, Size = 32)]
-    private struct InputData
+    internal struct InputData
     {
         [FieldOffset(0)]
         public KeyboardInput Keyboard;
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    private struct KeyboardInput
+    internal struct KeyboardInput
     {
         public ushort VirtualKey;
         public ushort ScanCode;

@@ -100,7 +100,7 @@ public static class OwnWindowPlacement
     private static extern bool SetWindowPlacement(nint window, ref Placement placement);
 
     [StructLayout(LayoutKind.Sequential)]
-    private struct Rect
+    internal struct Rect
     {
         public int Left;
         public int Top;
@@ -109,14 +109,14 @@ public static class OwnWindowPlacement
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    private struct Point
+    internal struct Point
     {
         public int X;
         public int Y;
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    private struct Placement
+    internal struct Placement
     {
         public int Length;
         public int Flags;
