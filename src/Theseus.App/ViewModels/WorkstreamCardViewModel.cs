@@ -9,6 +9,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     private SessionLifecycle _lifecycle = SessionLifecycle.NotStarted;
     private string _todoSummary = string.Empty;
     private bool _stopPending;
+    private string _runningAs = string.Empty;
     private bool _motionAllowed = true;
     private string _lostSessionName = string.Empty;
     private bool _isSelected;
@@ -147,6 +148,16 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     {
         get => _todoSummary;
         set => Set(ref _todoSummary, value);
+    }
+
+    /// <summary>
+    /// What the running session calls itself, when that is no longer what the card calls it. A tab
+    /// cannot be renamed once it is open, so a rename shows here until the session is restarted.
+    /// </summary>
+    public string RunningAs
+    {
+        get => _runningAs;
+        set => Set(ref _runningAs, value);
     }
 
     /// <summary>

@@ -575,6 +575,7 @@ public sealed class ShellViewModel : ObservableObject
             // wait can be several minutes on a long turn. Without this the board looks identical
             // whether Stop was pressed or not, which reads as the button having done nothing.
             card.StopPending = live && _stopRequests.Waiting(card.Workstream.LastSessionId) is not null;
+            card.RunningAs = live ? RunningAs.For(card.Title, session?.Name) : string.Empty;
         }
     }
 

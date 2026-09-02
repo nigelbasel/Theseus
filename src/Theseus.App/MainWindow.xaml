@@ -198,6 +198,17 @@
                                    Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                    Text="{Binding StatusLine}" />
 
+                        <!--
+                            Shown only when the card has been renamed under a running session. A tab
+                            cannot be renamed once it is open, so the two disagree until the session
+                            is restarted, and a discrepancy nobody explains reads as a fault.
+                        -->
+                        <TextBlock FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"
+                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                   ToolTip="{Binding RunningAs}"
+                                   Text="{Binding RunningAs}"
+                                   Visibility="{Binding RunningAs, Converter={StaticResource NotEmptyToVisibility}}" />
+
                         <Button Margin="0,6,0,0" HorizontalAlignment="Left" FontSize="11" Padding="8,2"
                                 Content="{Binding LostSessionName, StringFormat='Adopt the running &quot;{0}&quot;'}"
                                 ToolTip="This workstream's session was restarted outside Theseus, so the board stopped following it"
@@ -576,6 +587,9 @@
                         <StackPanel>
                             <TextBlock Text="Title" Style="{StaticResource FieldLabel}" />
                             <TextBox Text="{Binding Drawer.Title, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBlock FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                       Text="Also the tab title. A tab cannot be renamed once it is open, so a running session keeps the name it started with until it is restarted." />
 
                             <TextBlock Text="Jira issues" Style="{StaticResource FieldLabel}" />
                             <ItemsControl ItemsSource="{Binding Drawer.JiraKeys}">
