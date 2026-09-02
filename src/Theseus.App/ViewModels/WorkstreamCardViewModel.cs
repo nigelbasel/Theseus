@@ -34,6 +34,8 @@ public sealed class WorkstreamCardViewModel : ObservableObject
                 Raise(nameof(JiraKeys));
                 Raise(nameof(IsBlocked));
                 Raise(nameof(Column));
+                Raise(nameof(IsArchived));
+                Raise(nameof(ArchiveLabel));
             }
         }
     }
@@ -62,6 +64,12 @@ public sealed class WorkstreamCardViewModel : ObservableObject
 
     /// <summary>Which column the card belongs to.</summary>
     public string Column => _workstream.Column;
+
+    /// <summary>Whether this workstream has been put away.</summary>
+    public bool IsArchived => _workstream.IsArchived;
+
+    /// <summary>What the archive button says, which is the opposite when it is already away.</summary>
+    public string ArchiveLabel => IsArchived ? "Restore" : "Archive";
 
     /// <summary>What the session is doing right now.</summary>
     public SessionLifecycle Lifecycle

@@ -147,9 +147,19 @@
                                         ToolTip="Ask this session to write a handoff and exit when its turn ends"
                                         Command="{Binding DataContext.StopCardCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                         CommandParameter="{Binding}" />
-                                <Button Content="Focus" FontSize="11" Padding="8,1" Margin="0,0,6,0"
+                                <Button Content="Focus" FontSize="11" Padding="8,1" Margin="0,0,4,0"
                                         ToolTip="Bring this session's tab to the front"
                                         Command="{Binding DataContext.FocusCardCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                        CommandParameter="{Binding}" />
+                                <!--
+                                    Archive is here and deleting is not. This one is reversible and
+                                    is the everyday way to clear finished work off the board; the
+                                    other destroys a plan file with no undo, and a destructive button
+                                    one click from Start is a trap rather than a convenience.
+                                -->
+                                <Button Content="{Binding ArchiveLabel}" FontSize="11" Padding="8,1" Margin="0,0,6,0"
+                                        ToolTip="Take this workstream off the board without losing anything. Restore it from Archived."
+                                        Command="{Binding DataContext.ArchiveCardCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                         CommandParameter="{Binding}" />
                                 <TextBlock Text="{Binding Lifecycle, Converter={StaticResource LifecycleGlyph}}"
                                            FontSize="16" VerticalAlignment="Center"

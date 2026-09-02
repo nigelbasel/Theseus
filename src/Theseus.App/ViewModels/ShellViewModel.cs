@@ -79,6 +79,13 @@ public sealed class ShellViewModel : ObservableObject
             parameter => CardSteps(parameter).Count > 0);
         StopBoardCommand = new RelayCommand(_ => BeginStop(BoardSteps()), _ => BoardSteps().Count > 0);
 
+        // Archive is on the card as well as in the details; deleting is not. One is reversible and
+        // the everyday way to clear finished work off the board, and the other destroys a plan file
+        // with no undo. A destructive button one click from Start, on a card somebody is scanning
+        // past, is not a button - it is a trap.
+        ArchiveCardCommand = new RelayCommand(ArchiveCard,
+            parameter => parameter is WorkstreamCardViewModel { IsLive: false });
+
         Drawer = new DetailDrawerViewModel(plans, runs, new WorkflowRunReader(WorkflowRunReader.DefaultDirectory),
             card =>
             {
@@ -169,6 +176,9 @@ public sealed class ShellViewModel : ObservableObject
 
     /// <summary>Opens a card in the detail drawer.</summary>
     public RelayCommand SelectCardCommand { get; }
+
+    /// <summary>Puts one workstream away from the card itself, or brings it back.</summary>
+    public RelayCommand ArchiveCardCommand { get; }
 
     /// <summary>The editor for the card being looked at.</summary>
     public DetailDrawerViewModel Drawer { get; }
@@ -659,6 +669,24 @@ public sealed class ShellViewModel : ObservableObject
     /// nothing was lost is that one of them noticed the file changing underneath it. Neither card
     /// could see past itself, and the board — which can see all of them — was not looking.
     /// </summary>
+    private void ArchiveCard(object? parameter)
+    {
+        if (parameter is not WorkstreamCardViewModel card)
+        {
+            return;
+        }
+
+        var archived = !card.IsArchived;
+        var title = card.Title;
+
+        Board.SetArchived(card, archived);
+        Refresh();
+
+        Notice = archived
+            ? $"Archived {title}. It is under Archived until you restore it."
+            : $"Restored {title}.";
+    }
+
     private void SyncClashes()
     {
         var cards = Board.Columns.SelectMany(column => column.Cards).ToList();

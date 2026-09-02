@@ -115,7 +115,7 @@ public static class HelpBook
                 new HelpEntry("Refresh", "Re-reads the plans, the run log and the session registry. Nothing is cached that this will not correct."),
                 new HelpEntry(
                     "Archive",
-                    "In a card's details. Takes a workstream off the board without losing anything -"
+                    "On the card, and in its details. Takes a workstream off the board without losing anything -"
                     + " its plan, its notes and its history all stay. Archived at the top shows what"
                     + " has been put away, and the same button there says Restore."),
                 new HelpEntry(
