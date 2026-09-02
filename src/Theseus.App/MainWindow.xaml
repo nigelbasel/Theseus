@@ -269,24 +269,79 @@
             </DataTemplate.Triggers>
         </DataTemplate>
 
-        <DataTemplate x:Key="ColumnTemplate" DataType="{x:Type vm:ColumnViewModel}">
-            <Border MinWidth="300" MaxWidth="360" Margin="8" CornerRadius="10" Padding="10"
+        <!--
+            One row of the board: an area, with a cell per stage.
+
+            Collapsed, it keeps its header and a count per stage rather than disappearing. A row that
+            vanished would hide the very thing somebody folded it away to see past - where the work
+            in that area actually is.
+        -->
+        <DataTemplate x:Key="RowTemplate" DataType="{x:Type vm:BoardRowViewModel}">
+            <Border Margin="0,0,0,6" CornerRadius="10" Padding="4"
                     Background="{DynamicResource LayerFillColorDefaultBrush}"
                     BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                     BorderThickness="1">
                 <DockPanel>
-                    <Grid DockPanel.Dock="Top" Margin="4,2,4,10">
-                        <TextBlock Text="{Binding Heading}" FontSize="13" FontWeight="SemiBold"
-                                   VerticalAlignment="Center"
-                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"
-                                    VerticalAlignment="Center">
-                            <Button Content="Start lane" FontSize="11" Padding="8,1" Margin="0,0,8,0"
-                                    ToolTip="Start every workstream in this lane that is not already running"
-                                    Command="{Binding StartAllCommand}" />
-                            <TextBlock Text="{Binding Count}" FontSize="13" VerticalAlignment="Center"
+                    <!--
+                        The header is on the left and kept narrow. Width is the scarce dimension on
+                        this board - it decides how many columns of text a tiled terminal gets - so
+                        the row label takes as little of it as it can and still be read.
+                    -->
+                    <StackPanel DockPanel.Dock="Left" Width="104" Margin="6,8,4,8">
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="{Binding Glyph}" FontFamily="Segoe MDL2 Assets" FontSize="10"
+                                    Padding="4,0" Margin="0,0,4,0" VerticalAlignment="Center"
+                                    ToolTip="Fold this row away, or open it"
+                                    Command="{Binding ToggleCommand}" />
+                            <TextBlock Text="{Binding Count}" FontSize="12" VerticalAlignment="Center"
                                        Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
                         </StackPanel>
+                        <TextBlock Text="{Binding Area}" FontSize="13" FontWeight="SemiBold"
+                                   TextWrapping="Wrap" Margin="0,6,0,0"
+                                   ToolTip="{Binding Area}"
+                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                        <Button Content="Start row" FontSize="11" Padding="6,1" Margin="0,6,0,0"
+                                HorizontalAlignment="Left"
+                                ToolTip="Start every workstream in this area that is not already running"
+                                Command="{Binding StartAllCommand}" />
+                    </StackPanel>
+
+                    <TextBlock Text="{Binding Summary}" FontSize="12" Margin="8,0,0,0"
+                               VerticalAlignment="Center"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                               Visibility="{Binding IsCollapsed, Converter={StaticResource BoolToVisibility}}" />
+
+                    <ItemsControl ItemsSource="{Binding Cells}"
+                                  ItemTemplate="{StaticResource ColumnTemplate}"
+                                  Visibility="{Binding IsCollapsed, Converter={StaticResource NotBoolToVisibility}}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Rows="1" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                </DockPanel>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="ColumnTemplate" DataType="{x:Type vm:ColumnViewModel}">
+            <Border MinWidth="260" Margin="4" CornerRadius="8" Padding="8"
+                    Background="{DynamicResource LayerFillColorDefaultBrush}"
+                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1">
+                <DockPanel>
+                    <!--
+                        The cell does not repeat the stage name. It is written once across the top of
+                        the board, and printing it again in every row is noise on a grid that already
+                        has too much to say.
+                    -->
+                    <Grid DockPanel.Dock="Top" Margin="2,0,2,6"
+                          Visibility="{Binding Count, Converter={StaticResource CountToVisibility}}">
+                        <TextBlock Text="{Binding Count}" FontSize="11" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                        <Button Content="Start" FontSize="11" Padding="6,0" HorizontalAlignment="Right"
+                                ToolTip="Start everything in this cell that is not already running"
+                                Command="{Binding StartAllCommand}" />
                     </Grid>
 
                     <ItemsControl ItemsSource="{Binding Cards}"
@@ -526,16 +581,40 @@
         </Border>
 
         <Grid>
-            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
-                          Padding="8,0,8,8">
-                <ItemsControl ItemsSource="{Binding Board.Columns}" ItemTemplate="{StaticResource ColumnTemplate}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <StackPanel Orientation="Horizontal" />
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                </ItemsControl>
-            </ScrollViewer>
+            <DockPanel Margin="8,0,8,8">
+                <!--
+                    The stage headings, written once. The left margin matches the width of a row's
+                    header so the headings line up with the cells beneath them; both are fixed, and
+                    they have to stay in step.
+                -->
+                <Grid DockPanel.Dock="Top" Margin="4,0,4,6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="112" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <ItemsControl Grid.Column="1" ItemsSource="{Binding Board.Stages}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Rows="1" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}" FontSize="13" FontWeight="SemiBold"
+                                           Margin="8,0,0,0" TextTrimming="CharacterEllipsis"
+                                           ToolTip="{Binding}"
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Grid>
+
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <ItemsControl ItemsSource="{Binding Board.Rows}"
+                                  ItemTemplate="{StaticResource RowTemplate}" />
+                </ScrollViewer>
+            </DockPanel>
 
             <!-- Detail drawer -->
             <Border HorizontalAlignment="Right" Width="480" Margin="0,0,0,8"

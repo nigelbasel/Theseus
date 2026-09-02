@@ -45,7 +45,7 @@ public class SettingsStoreTests
 
         Assert.That(read.Lanes, Is.EqualTo(settings.Lanes));
         Assert.That(read.Areas, Is.EqualTo(settings.Areas));
-        Assert.That(read with { Lanes = settings.Lanes, Areas = settings.Areas }, Is.EqualTo(settings),
+        Assert.That(read with { Lanes = settings.Lanes, Areas = settings.Areas, CollapsedAreas = settings.CollapsedAreas }, Is.EqualTo(settings),
             "a record holding a list compares it by reference, so the lists are checked separately");
     }
 

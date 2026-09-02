@@ -3,18 +3,25 @@ using Theseus.Core.Domain;
 
 namespace Theseus.App.ViewModels;
 
-/// <summary>One lane of the board.</summary>
+/// <summary>
+/// One cell of the board: a stage of work within one area. On a board with a single area it is a
+/// lane, which is what it used to be, and reads the same.
+/// </summary>
 public sealed class ColumnViewModel : ObservableObject
 {
-    /// <summary>Creates a column.</summary>
-    public ColumnViewModel(string column)
+    /// <summary>Creates a cell.</summary>
+    public ColumnViewModel(string column, string area = "")
     {
         Column = column;
+        Area = area;
         Cards.CollectionChanged += (_, _) => Raise(nameof(Count));
     }
 
-    /// <summary>Which lane this is, by name.</summary>
+    /// <summary>Which stage this is, by name.</summary>
     public string Column { get; }
+
+    /// <summary>Which area this cell belongs to, by name.</summary>
+    public string Area { get; }
 
     /// <summary>The lane's heading, which is its name.</summary>
     public string Heading => Column;

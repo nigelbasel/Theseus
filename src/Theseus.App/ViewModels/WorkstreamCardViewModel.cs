@@ -65,6 +65,9 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     /// <summary>Which column the card belongs to.</summary>
     public string Column => _workstream.Column;
 
+    /// <summary>Which row the card sits in, by name.</summary>
+    public string Area => _workstream.Area ?? string.Empty;
+
     /// <summary>Whether this workstream has been put away.</summary>
     public bool IsArchived => _workstream.IsArchived;
 

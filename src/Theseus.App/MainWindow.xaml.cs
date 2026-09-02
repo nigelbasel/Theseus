@@ -346,7 +346,9 @@ public partial class MainWindow : Window
             return;
         }
 
-        Board?.Move(key, column.Column, DropIndex(lane, column, e.GetPosition(lane)));
+        // The cell carries both axes, so a drop says stage and area at once. Dragging within a row
+        // is the same gesture as dragging across one; only the cell landed in is different.
+        Board?.Move(key, column.Column, column.Area, DropIndex(lane, column, e.GetPosition(lane)));
         e.Handled = true;
     }
 

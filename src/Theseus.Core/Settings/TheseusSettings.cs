@@ -60,6 +60,9 @@ public sealed record TheseusSettings(
     /// </summary>
     public IReadOnlyList<string> Areas { get; init; } = [];
 
+    /// <summary>Which rows were folded away, so a board left tidy opens tidy.</summary>
+    public IReadOnlyList<string> CollapsedAreas { get; init; } = [];
+
     /// <summary>
     /// Where the board window was when it last closed, so it opens where it was left. Checked against
     /// the screens actually attached before it is used: a position saved while docked is a position

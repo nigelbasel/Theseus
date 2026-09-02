@@ -24,6 +24,7 @@ public sealed class SettingsViewModel : ObservableObject
     private string _continuePrompt = string.Empty;
     private string _stopPrompt = string.Empty;
     private string _laneList = string.Empty;
+    private string _areaList = string.Empty;
     private bool _isOpen;
 
     /// <summary>Creates the panel over the settings file.</summary>
@@ -217,8 +218,41 @@ public sealed class SettingsViewModel : ObservableObject
         }
     }
 
+    /// <summary>The board's areas, one per line, in the order the rows are shown.</summary>
+    public string AreaList
+    {
+        get => _areaList;
+        set
+        {
+            if (Set(ref _areaList, value))
+            {
+                Raise(nameof(AreaListState));
+            }
+        }
+    }
+
+    /// <summary>
+    /// What the typed areas come to. The window name is spelled out because an area is not only a
+    /// row: it decides which terminal window that area's sessions start in, and a renamed area means
+    /// the next session starts somewhere new while the ones already running stay where they are.
+    /// </summary>
+    public string AreaListState
+    {
+        get
+        {
+            var areas = Areas;
+
+            return $"{areas.Count} areas. Sessions in \"{areas[0]}\" start in a window called "
+                   + $"\"{WindowGroupName.Sanitise(TerminalWindowName)}-{WindowGroupName.Sanitise(areas[0])}\". "
+                   + "Cards in an area you remove move to the first area.";
+        }
+    }
+
     private IReadOnlyList<string> Lanes =>
         BoardLanes.Sanitise(_laneList.Split('\n', StringSplitOptions.RemoveEmptyEntries));
+
+    private IReadOnlyList<string> Areas =>
+        BoardAreas.Sanitise(_areaList.Split('\n', StringSplitOptions.RemoveEmptyEntries));
 
     private void Open()
     {
@@ -237,6 +271,7 @@ public sealed class SettingsViewModel : ObservableObject
         ContinuePrompt = settings.ContinuePrompt;
         StopPrompt = settings.StopPrompt;
         LaneList = string.Join(Environment.NewLine, settings.Lanes);
+        AreaList = string.Join(Environment.NewLine, settings.Areas);
     }
 
     private void Save()
@@ -252,6 +287,7 @@ public sealed class SettingsViewModel : ObservableObject
             ContinuePrompt = ContinuePrompt,
             StopPrompt = StopPrompt,
             Lanes = Lanes,
+            Areas = Areas,
         });
 
         IsOpen = false;

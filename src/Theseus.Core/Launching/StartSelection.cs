@@ -46,6 +46,22 @@ public static class StartSelection
             live);
     }
 
+    /// <summary>
+    /// The workstreams a Start on some part of the grid should launch, from the cards that part
+    /// holds. A row spans several stages, so the order still runs across the board before down it:
+    /// what is furthest along starts first, which is the order the morning wants.
+    /// </summary>
+    public static IReadOnlyList<Workstream> ForCards(
+        IReadOnlyList<Workstream> workstreams,
+        IReadOnlyList<string> lanes,
+        SessionRegistrySnapshot live)
+    {
+        ArgumentNullException.ThrowIfNull(workstreams);
+        ArgumentNullException.ThrowIfNull(lanes);
+
+        return Eligible(workstreams, lanes, live);
+    }
+
     /// <summary>Whether one workstream can be started right now.</summary>
     public static bool IsEligible(Workstream workstream, SessionRegistrySnapshot live)
     {

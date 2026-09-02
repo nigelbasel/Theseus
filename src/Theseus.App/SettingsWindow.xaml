@@ -47,16 +47,26 @@
                 <TextBox Text="{Binding PlanDirectory, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock Text="{Binding PlanDirectoryState}" Style="{StaticResource FieldHint}" />
 
-                <TextBlock Text="Board lanes" Style="{StaticResource FieldLabel}" />
+                <TextBlock Text="Board stages" Style="{StaticResource FieldLabel}" />
                 <TextBox Text="{Binding LaneList, UpdateSourceTrigger=PropertyChanged}"
                          AcceptsReturn="True" MinHeight="96" VerticalScrollBarVisibility="Auto"
                          FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12" />
                 <TextBlock Text="{Binding LaneListState}" Style="{StaticResource FieldHint}" />
+                <TextBlock Style="{StaticResource FieldHint}"
+                           Text="The columns: how far along the work is. One per line. The last is where finished work lives and a whole-board Start leaves it alone." />
+
+                <TextBlock Text="Board areas" Style="{StaticResource FieldLabel}" />
+                <TextBox Text="{Binding AreaList, UpdateSourceTrigger=PropertyChanged}"
+                         AcceptsReturn="True" MinHeight="80" VerticalScrollBarVisibility="Auto"
+                         FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12" />
+                <TextBlock Text="{Binding AreaListState}" Style="{StaticResource FieldHint}" />
+                <TextBlock Style="{StaticResource FieldHint}"
+                           Text="The rows: what kind of work it is. Each area gets its own terminal window, so this is also what the windows are named after." />
 
                 <TextBlock Text="Terminal window name" Style="{StaticResource FieldLabel}" />
                 <TextBox Text="{Binding TerminalWindowName, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock Style="{StaticResource FieldHint}"
-                           Text="Each lane gets a window of its own, named after this: theseus-in-flight, theseus-today. Arrange can then tile them against one another." />
+                           Text="Each area gets a window of its own, named after this: theseus-research, theseus-dev. Arrange can then tile them against one another." />
 
                 <TextBlock Text="Windows Terminal" Style="{StaticResource FieldLabel}" />
                 <TextBox Text="{Binding TerminalExecutablePath, UpdateSourceTrigger=PropertyChanged}" />

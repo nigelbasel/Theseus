@@ -24,15 +24,25 @@ public sealed class BoardViewModel : ObservableObject
         _settings = settings;
         _showArchived = settings.Read().ShowArchived;
 
-        Columns = [.. Lanes().Select(lane => new ColumnViewModel(lane))];
+        Rebuild(Lanes(), Areas());
 
         RefreshCommand = new RelayCommand(_ => Refresh());
     }
 
-    /// <summary>The lanes, as configured. Rebuilt when the configured lanes change.</summary>
-    public ObservableCollection<ColumnViewModel> Columns { get; }
+    /// <summary>The stages, as configured: the columns of the grid, and its headings.</summary>
+    public ObservableCollection<string> Stages { get; } = [];
 
-    /// <summary>Raised when the lanes themselves have changed, not merely the cards in them.</summary>
+    /// <summary>The areas, as configured: the rows of the grid, each holding a cell per stage.</summary>
+    public ObservableCollection<BoardRowViewModel> Rows { get; } = [];
+
+    /// <summary>Every card on the board, whatever cell it is in.</summary>
+    public IEnumerable<WorkstreamCardViewModel> Cards =>
+        Rows.SelectMany(row => row.Cells).SelectMany(cell => cell.Cards);
+
+    /// <summary>Every cell, in reading order.</summary>
+    public IEnumerable<ColumnViewModel> Cells => Rows.SelectMany(row => row.Cells);
+
+    /// <summary>Raised when the grid itself has changed, not merely the cards in it.</summary>
     public event EventHandler? LanesChanged;
 
     /// <summary>Re-reads the plans and rebuilds every column.</summary>
@@ -67,19 +77,25 @@ public sealed class BoardViewModel : ObservableObject
             .Where(workstream => workstream.IsArchived == ShowArchived)
             .ToList();
 
-        var lanes = SyncLanes();
+        var (lanes, areas) = SyncGrid();
 
-        foreach (var column in Columns)
+        foreach (var cell in Cells)
         {
-            column.Cards.Clear();
+            cell.Cards.Clear();
         }
 
         foreach (var workstream in workstreams)
         {
             var lane = BoardLanes.Resolve(workstream.Column, lanes);
+            var area = BoardAreas.Resolve(workstream.Area, areas);
 
-            Columns.First(column => column.Column == lane)
-                .Cards.Add(new WorkstreamCardViewModel(workstream with { Column = lane }));
+            Cells.First(cell => cell.Column == lane && cell.Area == area)
+                .Cards.Add(new WorkstreamCardViewModel(workstream with { Column = lane, Area = area }));
+        }
+
+        foreach (var row in Rows)
+        {
+            row.RaiseCounts();
         }
 
         Status = unreadable == 0
@@ -87,72 +103,125 @@ public sealed class BoardViewModel : ObservableObject
             : $"{workstreams.Count} workstreams · {unreadable} plan file(s) unreadable";
     }
 
-    /// <summary>The configured lanes, cleaned up.</summary>
+    /// <summary>The configured stages, cleaned up.</summary>
     private IReadOnlyList<string> Lanes() => BoardLanes.Sanitise(_settings.Read().Lanes);
 
+    /// <summary>The configured areas, cleaned up.</summary>
+    private IReadOnlyList<string> Areas() => BoardAreas.Sanitise(_settings.Read().Areas);
+
     /// <summary>
-    /// Brings the lanes into line with the settings, rebuilding them only when they have actually
-    /// changed. A rebuild replaces every lane object, so doing it on every refresh would throw away
-    /// each lane's Start command and scroll position for nothing.
+    /// Brings the grid into line with the settings, rebuilding it only when it has actually changed.
+    /// A rebuild replaces every row and cell, so doing it on every refresh would throw away each
+    /// row's collapsed state, its Start command and its scroll position for nothing.
     /// </summary>
-    private IReadOnlyList<string> SyncLanes()
+    private (IReadOnlyList<string> Lanes, IReadOnlyList<string> Areas) SyncGrid()
     {
         var lanes = Lanes();
+        var areas = Areas();
 
-        if (Columns.Select(column => column.Column).SequenceEqual(lanes, StringComparer.Ordinal))
+        var same = Stages.SequenceEqual(lanes, StringComparer.Ordinal)
+                   && Rows.Select(row => row.Area).SequenceEqual(areas, StringComparer.Ordinal);
+
+        if (!same)
         {
-            return lanes;
+            Rebuild(lanes, areas);
+            LanesChanged?.Invoke(this, EventArgs.Empty);
         }
 
-        Columns.Clear();
+        return (lanes, areas);
+    }
+
+    private void Rebuild(IReadOnlyList<string> lanes, IReadOnlyList<string> areas)
+    {
+        var collapsed = _settings.Read().CollapsedAreas;
+
+        Stages.Clear();
+        Rows.Clear();
 
         foreach (var lane in lanes)
         {
-            Columns.Add(new ColumnViewModel(lane));
+            Stages.Add(lane);
         }
 
-        LanesChanged?.Invoke(this, EventArgs.Empty);
+        foreach (var area in areas)
+        {
+            var row = new BoardRowViewModel(area)
+            {
+                IsCollapsed = collapsed.Any(name => BoardAreas.Same(area, name)),
+            };
 
-        return lanes;
+            foreach (var lane in lanes)
+            {
+                row.Cells.Add(new ColumnViewModel(lane, area));
+            }
+
+            Rows.Add(row);
+        }
     }
 
-    /// <summary>Moves a card to another lane and persists the change.</summary>
-    /// <param name="index">
-    /// Where in the lane to put it, or null for the end. Position is not decoration: a lane's order
-    /// is the order its tabs open in when the lane or the board is started, so dragging a card up
-    /// the lane brings its session forward in the morning.
+    /// <summary>Folds a row away, or opens it, and remembers which way it was left.</summary>
+    public void ToggleRow(BoardRowViewModel row)
+    {
+        ArgumentNullException.ThrowIfNull(row);
+
+        row.IsCollapsed = !row.IsCollapsed;
+
+        _settings.Write(_settings.Read() with
+        {
+            CollapsedAreas = [.. Rows.Where(other => other.IsCollapsed).Select(other => other.Area)],
+        });
+    }
+
+    /// <summary>Moves a card to another cell of the grid and persists the change.</summary>
+    /// <param name="destination">The stage to move it to.</param>
+    /// <param name="area">
+    /// The area to move it to. Null keeps the area it is in, which is what dragging within a row
+    /// means — and what every drop meant before the board had rows.
     /// </param>
-    public void Move(string key, string destination, int? index = null)
+    /// <param name="index">
+    /// Where in the cell to put it, or null for the end. Position is not decoration: a cell's order
+    /// is the order its tabs open in when it is started, so dragging a card up brings its session
+    /// forward in the morning.
+    /// </param>
+    public void Move(string key, string destination, string? area = null, int? index = null)
     {
         var card = Card(key);
-        var lane = Columns.FirstOrDefault(column => column.Column == destination);
 
-        if (card is null || lane is null)
+        if (card is null)
         {
             return;
         }
 
-        var cameFrom = lane.Cards.IndexOf(card) is var found && found >= 0 ? found : (int?)null;
+        var row = area ?? card.Workstream.Area ?? card.Area;
+        var cell = Cells.FirstOrDefault(candidate =>
+            candidate.Column == destination && BoardAreas.Same(candidate.Area, row));
 
-        foreach (var column in Columns)
+        if (cell is null)
         {
-            column.Cards.Remove(card);
-        }
-
-        var at = LaneInsertion.At(index ?? lane.Cards.Count + 1, cameFrom, lane.Cards.Count);
-
-        if (cameFrom == at && card.Column == destination)
-        {
-            lane.Cards.Insert(at, card);
-
             return;
         }
 
-        card.Workstream = card.Workstream with { Column = destination };
-        lane.Cards.Insert(at, card);
+        var cameFrom = cell.Cards.IndexOf(card) is var found && found >= 0 ? found : (int?)null;
+
+        foreach (var other in Cells)
+        {
+            other.Cards.Remove(card);
+        }
+
+        var at = LaneInsertion.At(index ?? cell.Cards.Count + 1, cameFrom, cell.Cards.Count);
+        var stayed = cameFrom == at && card.Column == destination && BoardAreas.Same(cell.Area, card.Area);
+
+        cell.Cards.Insert(at, card);
+
+        if (stayed)
+        {
+            return;
+        }
+
+        card.Workstream = card.Workstream with { Column = destination, Area = cell.Area };
 
         Persist(card);
-        Renumber(lane);
+        Renumber(cell);
     }
 
     /// <summary>
@@ -192,7 +261,7 @@ public sealed class BoardViewModel : ObservableObject
     /// <summary>Selects one card and clears any other selection.</summary>
     public void Select(WorkstreamCardViewModel? card)
     {
-        foreach (var other in Columns.SelectMany(column => column.Cards))
+        foreach (var other in Cards)
         {
             other.IsSelected = ReferenceEquals(other, card);
         }
@@ -294,8 +363,7 @@ public sealed class BoardViewModel : ObservableObject
 
     /// <summary>Finds a card by its workstream key.</summary>
     public WorkstreamCardViewModel? Card(string key) =>
-        Columns.SelectMany(column => column.Cards)
-            .FirstOrDefault(card => string.Equals(card.Key, key, StringComparison.OrdinalIgnoreCase));
+        Cards.FirstOrDefault(card => string.Equals(card.Key, key, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>Writes one card back to the board file.</summary>
     public void Persist(WorkstreamCardViewModel card)

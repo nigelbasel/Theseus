@@ -61,7 +61,12 @@ public partial class App : Application
         Directory.CreateDirectory(current.PlanDirectory);
 
         var plans = new PlanStore(current.PlanDirectory);
-        var board = new BoardViewModel(plans, new BoardStore(Path.Combine(DataDirectory, "board.json")), settings);
+        var boardStore = new BoardStore(Path.Combine(DataDirectory, "board.json"));
+
+        // Before the board is built, not after: it reads the settings this may rewrite.
+        BoardMigration.Run(settings, boardStore, plans);
+
+        var board = new BoardViewModel(plans, boardStore, settings);
         var sessions = new SessionsViewModel(
             new SessionRegistryReader(SessionRegistryReader.DefaultDirectory, new ProcessProbe()),
             new ConsoleTitleReader());

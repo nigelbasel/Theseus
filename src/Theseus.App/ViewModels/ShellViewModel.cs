@@ -136,16 +136,40 @@ public sealed class ShellViewModel : ObservableObject
         Board.LanesChanged += (_, _) => WireLanes();
     }
 
+    /// <summary>
+    /// Gives every cell and every row its own Start, since a rebuild replaces them all. A cell
+    /// starts one area's work at one stage; a row starts an area's work wherever it has got to,
+    /// which is usually what somebody means by "start the research".
+    /// </summary>
     private void WireLanes()
     {
-        foreach (var column in Board.Columns)
+        foreach (var cell in Board.Cells)
         {
-            var captured = column;
+            var captured = cell;
             captured.StartAllCommand = new RelayCommand(
-                _ => StartMany(ColumnSelection(captured.Column)),
-                _ => ColumnSelection(captured.Column).Count > 0);
+                _ => StartMany(CellSelection(captured)),
+                _ => CellSelection(captured).Count > 0);
+        }
+
+        foreach (var row in Board.Rows)
+        {
+            var captured = row;
+            captured.StartAllCommand = new RelayCommand(
+                _ => StartMany(RowSelection(captured)),
+                _ => RowSelection(captured).Count > 0);
+            captured.ToggleCommand = new RelayCommand(_ => Board.ToggleRow(captured));
         }
     }
+
+    private IReadOnlyList<Workstream> CellSelection(ColumnViewModel cell) =>
+        StartSelection.ForCards(
+            [.. cell.Cards.Select(card => card.Workstream)], [.. Board.Stages], Sessions.Snapshot);
+
+    private IReadOnlyList<Workstream> RowSelection(BoardRowViewModel row) =>
+        StartSelection.ForCards(
+            [.. row.Cells.SelectMany(cell => cell.Cards).Select(card => card.Workstream)],
+            [.. Board.Stages],
+            Sessions.Snapshot);
 
     /// <summary>The board this window shows.</summary>
     public BoardViewModel Board { get; }
@@ -301,7 +325,7 @@ public sealed class ShellViewModel : ObservableObject
         parameter is WorkstreamCardViewModel card ? StepsFor([card]) : [];
 
     private IReadOnlyList<StopStep> BoardSteps() =>
-        StepsFor(Board.Columns.SelectMany(column => column.Cards));
+        StepsFor(Board.Cards);
 
     /// <summary>
     /// Prepares a stop request and puts it in front of the user, one session at a time: the tab is
@@ -550,7 +574,7 @@ public sealed class ShellViewModel : ObservableObject
     /// <summary>Finds the pull requests each workstream mentions and where they live.</summary>
     public void SyncPullRequests()
     {
-        foreach (var card in Board.Columns.SelectMany(column => column.Cards))
+        foreach (var card in Board.Cards)
         {
             card.PullRequests = _pullRequests.Resolve(card.Workstream);
         }
@@ -567,7 +591,7 @@ public sealed class ShellViewModel : ObservableObject
         {
             _motionAllowed = value;
 
-            foreach (var card in Board.Columns.SelectMany(column => column.Cards))
+            foreach (var card in Board.Cards)
             {
                 card.MotionAllowed = value;
             }
@@ -580,7 +604,7 @@ public sealed class ShellViewModel : ObservableObject
         var now = DateTimeOffset.Now;
         var runs = _endings.Reconcile(_runs, Sessions.Snapshot.Live, DateTimeOffset.UtcNow);
 
-        foreach (var card in Board.Columns.SelectMany(column => column.Cards))
+        foreach (var card in Board.Cards)
         {
             var session = Sessions.Find(card.Workstream.LastSessionId);
             var live = session is not null;
@@ -613,7 +637,7 @@ public sealed class ShellViewModel : ObservableObject
     /// </summary>
     private void CloseFinishedSessions()
     {
-        foreach (var card in Board.Columns.SelectMany(column => column.Cards))
+        foreach (var card in Board.Cards)
         {
             if (card.Workstream.LastSessionId is not { } sessionId
                 || Sessions.Find(sessionId) is not { } session)
@@ -689,7 +713,7 @@ public sealed class ShellViewModel : ObservableObject
 
     private void SyncClashes()
     {
-        var cards = Board.Columns.SelectMany(column => column.Cards).ToList();
+        var cards = Board.Cards.ToList();
 
         var clashes = WorkstreamOverlap.Find(
             [.. cards.Select(card => (card.Key, (string?)HandoffPath.For(card.Workstream), card.JiraKeys))]);
@@ -701,14 +725,14 @@ public sealed class ShellViewModel : ObservableObject
     }
 
     private IReadOnlyList<Workstream> BoardSelection() =>
-        StartSelection.ForBoard(Workstreams(), [.. Board.Columns.Select(column => column.Column)],
+        StartSelection.ForBoard(Workstreams(), [.. Board.Stages],
             Sessions.Snapshot);
 
     private IReadOnlyList<Workstream> ColumnSelection(string column) =>
         StartSelection.ForColumn(Workstreams(), column, Sessions.Snapshot);
 
     private IReadOnlyList<Workstream> Workstreams() =>
-        [.. Board.Columns.SelectMany(column => column.Cards).Select(card => card.Workstream)];
+        [.. Board.Cards.Select(card => card.Workstream)];
 
     private bool CanStartCard(object? parameter) =>
         parameter is WorkstreamCardViewModel card
@@ -818,7 +842,7 @@ public sealed class ShellViewModel : ObservableObject
 
     private void WireAdoption()
     {
-        var cards = Board.Columns.SelectMany(column => column.Cards).ToList();
+        var cards = Board.Cards.ToList();
 
         OfferLostSessions(cards);
 
