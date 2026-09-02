@@ -717,15 +717,30 @@
                         BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                         BorderThickness="1">
                     <StackPanel Orientation="Horizontal">
-                        <Button Style="{StaticResource CommandButton}" Content="Select all" Padding="10,3" Margin="0,0,2,0"
+                        <Button Style="{StaticResource CommandButton}" Padding="10,3" Margin="0,0,2,0"
                                 ToolTip="Tick every card on the board"
-                                Command="{Binding SelectAllCommand}" />
-                        <Button Style="{StaticResource CommandButton}" Content="Unselect all" Padding="10,3" Margin="0,0,2,0"
+                                Command="{Binding SelectAllCommand}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE73A;" Style="{StaticResource CommandGlyph}" />
+                                <TextBlock Text="Select all" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource CommandButton}" Padding="10,3" Margin="0,0,2,0"
                                 ToolTip="Untick everything"
-                                Command="{Binding ClearSelectionCommand}" />
-                        <Button Style="{StaticResource CommandButton}" Content="Invert" Padding="10,3"
+                                Command="{Binding ClearSelectionCommand}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE739;" Style="{StaticResource CommandGlyph}" />
+                                <TextBlock Text="Unselect all" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource CommandButton}" Padding="10,3"
                                 ToolTip="Tick what is not ticked, and untick what is"
-                                Command="{Binding InvertSelectionCommand}" />
+                                Command="{Binding InvertSelectionCommand}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xEF1F;" Style="{StaticResource CommandGlyph}" />
+                                <TextBlock Text="Invert" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
                     </StackPanel>
                 </Border>
 
@@ -735,13 +750,22 @@
                         BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                         BorderThickness="1">
                     <StackPanel Orientation="Horizontal">
-                        <Button Style="{StaticResource CommandButton}" Content="Collapse inactive"
-                                Padding="10,3" Margin="0,0,2,0"
+                        <Button Style="{StaticResource CommandButton}" Padding="10,3" Margin="0,0,2,0"
                                 ToolTip="Fold every card with no session running down to its title"
-                                Command="{Binding CollapseInactiveCommand}" />
-                        <Button Style="{StaticResource CommandButton}" Content="Expand all" Padding="10,3"
+                                Command="{Binding CollapseInactiveCommand}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE70E;" Style="{StaticResource CommandGlyph}" />
+                                <TextBlock Text="Collapse inactive" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource CommandButton}" Padding="10,3"
                                 ToolTip="Open every card again"
-                                Command="{Binding ExpandAllCommand}" />
+                                Command="{Binding ExpandAllCommand}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE70D;" Style="{StaticResource CommandGlyph}" />
+                                <TextBlock Text="Expand all" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
                     </StackPanel>
                 </Border>
 
