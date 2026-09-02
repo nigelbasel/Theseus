@@ -131,12 +131,49 @@
                     </Border>
 
                     <StackPanel Grid.Column="1" Margin="12,10,12,10">
+                        <!--
+                            The title has the card's full width and the buttons sit beneath it.
+
+                            They shared a line, with the title keeping clear by a fixed margin that
+                            guessed how wide the buttons were. Adding Archive made the guess wrong and
+                            the title ran straight over Start. Widening the guess would only postpone
+                            it, and there is no width that works: the cells of a grid are narrower
+                            than the columns they replaced, and a title long enough to need reading is
+                            exactly the one that gets trimmed to nothing.
+
+                            So the two do not compete. The title is trimmed only by the card, and it
+                            keeps its tooltip for what does not fit.
+                        -->
                         <Grid>
-                            <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="SemiBold"
-                                       TextTrimming="CharacterEllipsis" Margin="0,0,124,0"
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0" Text="{Binding Title}" FontSize="15"
+                                       FontWeight="SemiBold" VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis" Margin="0,0,8,0"
                                        ToolTip="{Binding Title}"
                                        Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
+                            <TextBlock Grid.Column="1" VerticalAlignment="Center"
+                                       Text="{Binding Lifecycle, Converter={StaticResource LifecycleGlyph}}"
+                                       FontSize="16" ToolTip="{Binding StatusLine}">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground"
+                                                Value="{DynamicResource TextFillColorTertiaryBrush}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsLive}" Value="True">
+                                                <Setter Property="Foreground"
+                                                        Value="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Grid>
+
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,6,0,0">
                                 <Button Content="Start" FontSize="11" Padding="8,1" Margin="0,0,4,0"
                                         Visibility="{Binding IsLive, Converter={StaticResource NotBoolToVisibility}}"
                                         ToolTip="Open a tab for this workstream"
@@ -157,28 +194,11 @@
                                     other destroys a plan file with no undo, and a destructive button
                                     one click from Start is a trap rather than a convenience.
                                 -->
-                                <Button Content="{Binding ArchiveLabel}" FontSize="11" Padding="8,1" Margin="0,0,6,0"
+                                <Button Content="{Binding ArchiveLabel}" FontSize="11" Padding="8,1"
                                         ToolTip="Take this workstream off the board without losing anything. Restore it from Archived."
                                         Command="{Binding DataContext.ArchiveCardCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                         CommandParameter="{Binding}" />
-                                <TextBlock Text="{Binding Lifecycle, Converter={StaticResource LifecycleGlyph}}"
-                                           FontSize="16" VerticalAlignment="Center"
-                                           ToolTip="{Binding StatusLine}">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Foreground"
-                                                    Value="{DynamicResource TextFillColorTertiaryBrush}" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsLive}" Value="True">
-                                                    <Setter Property="Foreground"
-                                                            Value="{DynamicResource AccentTextFillColorPrimaryBrush}" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
-                            </StackPanel>
-                        </Grid>
+                        </StackPanel>
 
                         <ItemsControl ItemsSource="{Binding JiraKeys}" Margin="0,8,0,0"
                                       ItemTemplate="{StaticResource JiraKeyTemplate}">
