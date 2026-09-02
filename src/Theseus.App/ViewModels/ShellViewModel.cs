@@ -636,6 +636,13 @@ public sealed class ShellViewModel : ObservableObject
             // whether Stop was pressed or not, which reads as the button having done nothing.
             card.StopPending = live && _stopRequests.Waiting(card.Workstream.LastSessionId) is not null;
             card.RunningAs = live ? RunningAs.For(card.Title, session?.Name) : string.Empty;
+
+            // Only for a card that is offering Restart. Measuring a transcript is a read of a file
+            // that runs to tens of megabytes, and there is nothing to say about a session that is
+            // already running.
+            card.RestartCost = live
+                ? string.Empty
+                : Cost(card.Workstream.LastSessionId);
         }
 
         SyncClashes();
@@ -725,6 +732,13 @@ public sealed class ShellViewModel : ObservableObject
         Notice = archived
             ? $"Archived {title}. It is under Archived until you restore it."
             : $"Restored {title}.";
+    }
+
+    private static string Cost(string? sessionId)
+    {
+        var measured = TranscriptTail.Measure(sessionId);
+
+        return Theseus.Core.Domain.RestartCost.Tooltip(measured.TailBytes, measured.TotalBytes);
     }
 
     private void SyncClashes()

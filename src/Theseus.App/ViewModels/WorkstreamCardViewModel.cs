@@ -11,6 +11,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     private bool _stopPending;
     private string _runningAs = string.Empty;
     private string _clash = string.Empty;
+    private string _restartCost = string.Empty;
     private bool _motionAllowed = true;
     private string _lostSessionName = string.Empty;
     private bool _isSelected;
@@ -232,6 +233,16 @@ public sealed class WorkstreamCardViewModel : ObservableObject
         SessionLifecycle.Ghost => "ended unexpectedly",
         _ => string.Empty,
     };
+
+    /// <summary>
+    /// What resuming this session would cost, for the button that would do it. Empty while the
+    /// session is running, when Restart is not on offer and the number would only be noise.
+    /// </summary>
+    public string RestartCost
+    {
+        get => _restartCost;
+        set => Set(ref _restartCost, value);
+    }
 
     /// <summary>The single button the card offers on hover.</summary>
     public string PrimaryAction => Lifecycle switch
