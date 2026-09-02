@@ -32,6 +32,9 @@ public sealed class WorkstreamCardViewModel : ObservableObject
                 Raise(nameof(Title));
                 Raise(nameof(ColorHex));
                 Raise(nameof(JiraKeys));
+                Raise(nameof(VisibleJiraKeys));
+                Raise(nameof(MoreJiraKeys));
+                Raise(nameof(AllJiraKeys));
                 Raise(nameof(IsBlocked));
                 Raise(nameof(Column));
                 Raise(nameof(IsArchived));
@@ -51,6 +54,15 @@ public sealed class WorkstreamCardViewModel : ObservableObject
 
     /// <summary>Every Jira issue this workstream touches.</summary>
     public IReadOnlyList<string> JiraKeys => _workstream.JiraKeys;
+
+    /// <summary>The ones the card shows, which is the first few of them.</summary>
+    public IReadOnlyList<string> VisibleJiraKeys => JiraKeyDisplay.Visible(JiraKeys);
+
+    /// <summary>What to say about the ones it does not, or nothing when they all fit.</summary>
+    public string MoreJiraKeys => JiraKeyDisplay.More(JiraKeys);
+
+    /// <summary>All of them, so hiding some does not lose them.</summary>
+    public string AllJiraKeys => JiraKeyDisplay.All(JiraKeys);
 
     /// <summary>The pull requests this workstream mentions, with somewhere to open them.</summary>
     public IReadOnlyList<PullRequestLink> PullRequests

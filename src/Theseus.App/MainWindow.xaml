@@ -200,14 +200,28 @@
                                         CommandParameter="{Binding}" />
                         </StackPanel>
 
-                        <ItemsControl ItemsSource="{Binding JiraKeys}" Margin="0,8,0,0"
-                                      ItemTemplate="{StaticResource JiraKeyTemplate}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <WrapPanel />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                        </ItemsControl>
+                        <!--
+                            Only the first few issues. One workstream here spans sixteen, which wraps
+                            to five rows of chips and makes its card taller than everything around it
+                            - and on a grid that pushes the whole row out of shape, so one busy
+                            workstream distorts the board. The rest are counted, and named in the
+                            tooltip, and all of them are in the details where they are edited anyway.
+                        -->
+                        <WrapPanel Margin="0,8,0,0">
+                            <ItemsControl ItemsSource="{Binding VisibleJiraKeys}"
+                                          ItemTemplate="{StaticResource JiraKeyTemplate}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                            </ItemsControl>
+                            <TextBlock Text="{Binding MoreJiraKeys}" FontSize="11" Margin="2,2,0,4"
+                                       VerticalAlignment="Center"
+                                       ToolTip="{Binding AllJiraKeys}"
+                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                       Visibility="{Binding MoreJiraKeys, Converter={StaticResource NotEmptyToVisibility}}" />
+                        </WrapPanel>
 
                         <ItemsControl ItemsSource="{Binding PullRequests}"
                                       ItemTemplate="{StaticResource PullRequestTemplate}">
