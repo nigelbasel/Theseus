@@ -1,4 +1,5 @@
-<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
 
   <!--
     ProductVersion carries only the date. Windows Installer ignores the fourth field entirely when
@@ -30,6 +31,18 @@
     <Icon Id="TheseusIcon" SourceFile="$(var.IconPath)" />
     <Property Id="ARPPRODUCTICON" Value="TheseusIcon" />
     <Property Id="ARPNOREPAIR" Value="1" />
+
+    <!--
+      The smallest dialog set WiX has: one page, progress, finish. Without any UI the install is
+      Windows' bare progress box, which carries the generic Installer icon and nothing of Theseus;
+      the icon above reaches Add/Remove Programs and the Start Menu, but not that box. The two
+      bitmaps are rendered from the icon by scripts\Build-Installer.ps1's neighbour, so the
+      installer looks like the thing it installs.
+    -->
+    <ui:WixUI Id="WixUI_Minimal" />
+    <WixVariable Id="WixUIBannerBmp" Value="$(var.InstallerDir)\banner.bmp" />
+    <WixVariable Id="WixUIDialogBmp" Value="$(var.InstallerDir)\dialog.bmp" />
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.InstallerDir)\licence.rtf" />
 
     <StandardDirectory Id="ProgramFiles6432Folder">
       <Directory Id="INSTALLFOLDER" Name="Theseus" />

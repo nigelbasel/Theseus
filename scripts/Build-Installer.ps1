@@ -32,6 +32,7 @@ $repository = Split-Path -Parent $PSScriptRoot
 $project = Join-Path $repository 'src\Theseus.App\Theseus.App.csproj'
 $source = Join-Path $repository 'installer\Theseus.wxs'
 $icon = Join-Path $repository 'src\Theseus.App\Assets\theseus.ico'
+$installerDir = Join-Path $repository 'installer'
 $staging = Join-Path ([System.IO.Path]::GetTempPath()) ("theseus-msi-" + [Guid]::NewGuid().ToString('N'))
 
 if (-not $OutputDirectory) {
@@ -93,9 +94,11 @@ Write-Host 'Packaging...' -ForegroundColor Cyan
 
 & $wix build $source `
     -arch x64 `
+    -ext WixToolset.UI.wixext `
     -d "PublishDir=$staging" `
     -d "ProductVersion=$productVersion" `
     -d "IconPath=$icon" `
+    -d "InstallerDir=$installerDir" `
     -o $msi
 
 if ($LASTEXITCODE -ne 0) {

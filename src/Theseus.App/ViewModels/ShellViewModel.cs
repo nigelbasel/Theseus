@@ -738,7 +738,9 @@ public sealed class ShellViewModel : ObservableObject
             // A request that has been written but not yet collected is otherwise invisible, and the
             // wait can be several minutes on a long turn. Without this the board looks identical
             // whether Stop was pressed or not, which reads as the button having done nothing.
-            card.StopPending = live && _stopRequests.Waiting(card.Workstream.LastSessionId) is not null;
+            card.StopPending = live
+                               && card.Workstream.LastSessionId is { } pendingFor
+                               && _stopRequests.Waiting(pendingFor) is not null;
             card.RunningAs = live ? RunningAs.For(card.Title, session?.Name) : string.Empty;
 
             // Only for a card that is offering Restart. Measuring a transcript is a read of a file
