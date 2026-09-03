@@ -747,6 +747,11 @@ public sealed class ShellViewModel : ObservableObject
             card.RestartCost = live
                 ? string.Empty
                 : Cost(card.Workstream.LastSessionId);
+
+            // Read for every card with a transcript, live or not: which model a stopped session was
+            // on is worth knowing before restarting it. Cheap when nothing has changed - the reader
+            // remembers its answer against the file's length - and a tail read otherwise.
+            card.Model = TranscriptModel.Read(card.Workstream.LastSessionId);
         }
 
         SyncClashes();

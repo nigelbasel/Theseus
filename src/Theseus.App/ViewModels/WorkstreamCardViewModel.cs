@@ -12,6 +12,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     private string _runningAs = string.Empty;
     private string _clash = string.Empty;
     private string _restartCost = string.Empty;
+    private string _model = string.Empty;
     private bool _motionAllowed = true;
     private string _lostSessionName = string.Empty;
     private bool _isSelected;
@@ -293,6 +294,16 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     {
         get => _restartCost;
         set => Set(ref _restartCost, value);
+    }
+
+    /// <summary>
+    /// Which model the session is running — "Opus 5", "Fable 5.1" — read off the end of its
+    /// transcript, which is the only place it is recorded. Empty when there is no transcript yet.
+    /// </summary>
+    public string Model
+    {
+        get => _model;
+        set => Set(ref _model, value);
     }
 
     /// <summary>The single button the card offers on hover.</summary>

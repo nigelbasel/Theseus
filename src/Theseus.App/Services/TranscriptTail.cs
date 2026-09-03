@@ -92,7 +92,8 @@ public static class TranscriptTail
         return Math.Max(0, length - afterBoundary);
     }
 
-    private static string? Find(string? sessionId)
+    /// <summary>Where a session's transcript is, or null. Shared with the model reader, which wants the same file.</summary>
+    internal static string? Find(string? sessionId)
     {
         if (string.IsNullOrWhiteSpace(sessionId))
         {
