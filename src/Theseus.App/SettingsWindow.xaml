@@ -4,6 +4,7 @@
         Title="Theseus settings"
         Width="620"
         SizeToContent="Height"
+        MaxHeight="{x:Static SystemParameters.MaximizedPrimaryScreenHeight}"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False"
         ResizeMode="CanResize"
@@ -21,8 +22,37 @@
             <Setter Property="TextWrapping" Value="Wrap" />
             <Setter Property="Foreground" Value="{DynamicResource TextFillColorTertiaryBrush}" />
         </Style>
+
+        <!--
+            Ten fields in one column is a page you scroll and hunt through. They fall into three
+            groups on their own, and the prompts - three multi-line boxes - are most of the height,
+            so they start folded: the settings people actually change are then all on one screen.
+        -->
+        <Style x:Key="Section" TargetType="Expander">
+            <Setter Property="Margin" Value="0,0,0,10" />
+            <Setter Property="IsExpanded" Value="True" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+        </Style>
+
+        <Style x:Key="SectionHeading" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+        </Style>
     </Window.Resources>
 
+    <!--
+        MaxHeight is what stops SizeToContent running away.
+
+        Sizing to content with nothing to stop it grew the window taller than the display, and
+        CenterOwner then centred that: the title bar went above the top of the screen, taking its
+        close button with it, and the footer went below the bottom. A window you can neither close
+        nor drag back. The scroll region below could not help, because a window that grows to fit its
+        content never asks it to scroll.
+
+        Capped, SizeToContent still does the right thing for a short page - the dialog is only as
+        tall as it needs to be - and a long one stops at the screen and scrolls instead.
+    -->
     <DockPanel>
         <!--
             The footer sits outside the scroll region deliberately. Save and Cancel were unreachable
@@ -43,6 +73,11 @@
 
         <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="22,18">
             <StackPanel>
+                <Expander Style="{StaticResource Section}">
+                    <Expander.Header>
+                        <TextBlock Text="Board" Style="{StaticResource SectionHeading}" />
+                    </Expander.Header>
+                    <StackPanel Margin="0,4,0,8">
                 <TextBlock Text="Plan directory" Style="{StaticResource FieldLabel}" Margin="0,0,0,4" />
                 <TextBox Text="{Binding PlanDirectory, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock Text="{Binding PlanDirectoryState}" Style="{StaticResource FieldHint}" />
@@ -53,7 +88,7 @@
                          FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12" />
                 <TextBlock Text="{Binding LaneListState}" Style="{StaticResource FieldHint}" />
                 <TextBlock Style="{StaticResource FieldHint}"
-                           Text="The columns: how far along the work is. One per line. The last is where finished work lives and a whole-board Start leaves it alone." />
+                           Text="The columns: how far along the work is, one per line. No column is treated as special — what a bulk Start or Stop acts on is what you tick on the cards." />
 
                 <TextBlock Text="Board areas" Style="{StaticResource FieldLabel}" />
                 <TextBox Text="{Binding AreaList, UpdateSourceTrigger=PropertyChanged}"
@@ -62,8 +97,15 @@
                 <TextBlock Text="{Binding AreaListState}" Style="{StaticResource FieldHint}" />
                 <TextBlock Style="{StaticResource FieldHint}"
                            Text="The rows: what kind of work it is. Each area gets its own terminal window, so this is also what the windows are named after." />
+                    </StackPanel>
+                </Expander>
 
-                <TextBlock Text="Terminal window name" Style="{StaticResource FieldLabel}" />
+                <Expander Style="{StaticResource Section}">
+                    <Expander.Header>
+                        <TextBlock Text="Tools" Style="{StaticResource SectionHeading}" />
+                    </Expander.Header>
+                    <StackPanel Margin="0,4,0,8">
+                <TextBlock Text="Terminal window name" Style="{StaticResource FieldLabel}" Margin="0,0,0,4" />
                 <TextBox Text="{Binding TerminalWindowName, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock Style="{StaticResource FieldHint}"
                            Text="Each area gets a window of its own, named after this: theseus-research, theseus-dev. Arrange can then tile them against one another." />
@@ -79,8 +121,19 @@
                 <TextBlock Text="Jira" Style="{StaticResource FieldLabel}" />
                 <TextBox Text="{Binding JiraBaseUrl, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock Text="{Binding JiraState}" Style="{StaticResource FieldHint}" />
+                    </StackPanel>
+                </Expander>
 
-                <TextBlock Text="Standing prompt" Style="{StaticResource FieldLabel}" />
+                <!--
+                    Folded to start with. These three are multi-line and are most of the page's
+                    height; leaving them open is what made the window outgrow the screen.
+                -->
+                <Expander Style="{StaticResource Section}" IsExpanded="False">
+                    <Expander.Header>
+                        <TextBlock Text="Prompts" Style="{StaticResource SectionHeading}" />
+                    </Expander.Header>
+                    <StackPanel Margin="0,4,0,8">
+                <TextBlock Text="Standing prompt" Style="{StaticResource FieldLabel}" Margin="0,0,0,4" />
                 <TextBox Text="{Binding SessionPreamble, UpdateSourceTrigger=PropertyChanged}"
                          AcceptsReturn="True" TextWrapping="Wrap" MinHeight="90"
                          VerticalScrollBarVisibility="Auto"
@@ -103,6 +156,8 @@
                          FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12" />
                 <TextBlock Style="{StaticResource FieldHint}"
                            Text="Put on the clipboard when you press Stop, for you to paste into the session. Use {handoff} for the file it should write." />
+                    </StackPanel>
+                </Expander>
             </StackPanel>
         </ScrollViewer>
     </DockPanel>
