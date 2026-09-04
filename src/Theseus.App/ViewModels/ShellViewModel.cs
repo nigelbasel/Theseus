@@ -803,6 +803,20 @@ public sealed class ShellViewModel : ObservableObject
             if (outcome == NudgeOutcome.Sent)
             {
                 _stopRequests.Retire(sessionId);
+
+                // The one ending Theseus can be certain of, recorded at the moment it is caused.
+                // Nothing else was recording it: the reconcile only writes an ending when a session
+                // it watched vanishes, and files it as a crash. Of 168 endings in the log, 134 said
+                // CrashedOrKilled and 11 ClosedCleanly, and the six sessions stopped on the evening
+                // of 2026-09-03 had no ending at all - which is what let the day report credit a
+                // resumed session with the days it had been dead.
+                if (_runs.Read()
+                        .Where(run => run.EndedUtc is null
+                                      && string.Equals(run.ClaudeSessionId, sessionId, StringComparison.OrdinalIgnoreCase))
+                        .MaxBy(run => run.StartedUtc) is { } open)
+                {
+                    _runs.AppendEnd(new RunEnd(open.Id, DateTimeOffset.UtcNow, null, SessionExitReason.ClosedCleanly));
+                }
             }
 
             TheseusLog.Information(

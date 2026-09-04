@@ -58,7 +58,7 @@ public static class DayReport
 
         return
         [
-            .. Closed(runs)
+            .. Closed(runs, now.Offset)
                 .Select(run => (run, worked: Overlap(run, from, to, now, isLive)))
                 .Where(pair => pair.worked is null || pair.worked > TimeSpan.Zero)
                 .GroupBy(pair => pair.run.WorkstreamKey, StringComparer.OrdinalIgnoreCase)
@@ -96,17 +96,46 @@ public static class DayReport
     /// time the next began, whether or not anybody recorded it. Without this every one of the six was
     /// treated as running now, and a single workstream was credited with sixty-two hours of one day.
     /// </summary>
-    private static IEnumerable<SessionRun> Closed(IReadOnlyList<SessionRun> runs) =>
+    /// <param name="offset">
+    /// The local offset, because "the same day" is a local question.
+    ///
+    /// A run followed by another under the same identifier has ended - only the latest can still be
+    /// going. If the next began the same day, the earlier one ended when it started. If the next
+    /// began on a later day, the gap between them is not a session but an ending nobody saw, so the
+    /// earlier run is ended at the midnight after it started: the rest of its own day as an upper
+    /// bound, and nothing on any day after. Bounding it at the resume instead credited one day with
+    /// eighteen hours of a session that had been dead for a week; leaving it open was no better,
+    /// because its identifier is the live one and it was then bounded at the present moment.
+    /// </param>
+    private static IEnumerable<SessionRun> Closed(IReadOnlyList<SessionRun> runs, TimeSpan offset) =>
         runs.GroupBy(run => run.ClaudeSessionId, StringComparer.OrdinalIgnoreCase)
             .SelectMany(session =>
             {
                 var ordered = session.OrderBy(run => run.StartedUtc).ToList();
 
                 return ordered.Select((run, index) =>
-                    run.EndedUtc is null && index + 1 < ordered.Count
-                        ? run with { EndedUtc = ordered[index + 1].StartedUtc }
-                        : run);
+                {
+                    if (run.EndedUtc is not null || index + 1 >= ordered.Count)
+                    {
+                        return run;
+                    }
+
+                    var next = ordered[index + 1].StartedUtc;
+
+                    return run with
+                    {
+                        EndedUtc = SameLocalDay(run.StartedUtc, next, offset)
+                            ? next
+                            : MidnightAfter(run.StartedUtc, offset),
+                    };
+                });
             });
+
+    private static bool SameLocalDay(DateTimeOffset first, DateTimeOffset second, TimeSpan offset) =>
+        first.ToOffset(offset).Date == second.ToOffset(offset).Date;
+
+    private static DateTimeOffset MidnightAfter(DateTimeOffset moment, TimeSpan offset) =>
+        new(moment.ToOffset(offset).Date.AddDays(1), offset);
 
     /// <summary>
     /// How much of one run fell inside the day, or null when that cannot be known.

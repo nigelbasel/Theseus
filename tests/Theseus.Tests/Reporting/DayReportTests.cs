@@ -157,6 +157,52 @@ public class DayReportTests
             "a run that had not begun cannot have touched the day, measurable or not");
     }
 
+    /// <summary>
+    /// The real case from Nigel's log, 2026-09-04. A session was closed by Theseus's own /exit on
+    /// 26 August, which recorded no ending, and resumed under the same identifier on 2 September.
+    /// Closing the old run at the new one's start credited 2 September with eighteen hours of a
+    /// session that had been dead for a week: "19h 14m over 2 sessions" for one workstream.
+    ///
+    /// A gap that crosses a day is not a session; it is an ending nobody saw. The old run keeps its
+    /// unknown length and is reported as such, and the day gets only the run that actually happened.
+    /// </summary>
+    [Test]
+    public void For_DoesNotCreditADeadSessionWithTheDaysBeforeItWasResumed()
+    {
+        var resumedOn = At(17, 59);
+        var lastWeek = At(20, 43).AddDays(-7);
+        var runs = new[]
+        {
+            Run("research", lastWeek, ended: null) with { ClaudeSessionId = "same-id" },
+            Run("research", resumedOn, ended: null, live: true) with { ClaudeSessionId = "same-id" },
+        };
+
+        var entries = DayReport.For(Day, runs, Workstreams(), _ => false,
+            id => id == "same-id", new DateTimeOffset(2026, 9, 2, 18, 30, 0, TimeSpan.Zero));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(entries[0].Worked, Is.EqualTo(TimeSpan.FromMinutes(31)),
+                "only the resumed run touched the day; the week-old one contributes nothing to it");
+            Assert.That(entries[0].Sessions, Is.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public void For_StillClosesAnUnendedRunAtTheNextOneWhenBothAreOnTheSameDay()
+    {
+        var runs = new[]
+        {
+            Run("research", At(9), ended: null) with { ClaudeSessionId = "same-id" },
+            Run("research", At(13), At(14)) with { ClaudeSessionId = "same-id" },
+        };
+
+        var entries = Report(runs);
+
+        Assert.That(entries[0].Worked, Is.EqualTo(TimeSpan.FromHours(5)),
+            "a same-day resume still bounds the earlier run at the later one's start: 9-13 plus 13-14");
+    }
+
     [Test]
     public void For_StillMeasuresTheSessionsItCanAlongsideOneItCannot()
     {
