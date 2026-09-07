@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using Theseus.App.Services;
 using Theseus.Core.Sessions;
+using Theseus.Core.Diagnostics;
 
 namespace Theseus.App.ViewModels;
 
@@ -12,6 +13,7 @@ public sealed class SessionsViewModel : ObservableObject
 {
     private readonly ISessionRegistryReader _registry;
     private readonly IConsoleTitleReader _titles;
+    private int _corpses = -1;
     private string _status = string.Empty;
 
     /// <summary>Creates the panel over the session registry.</summary>
@@ -46,6 +48,18 @@ public sealed class SessionsViewModel : ObservableObject
     public void Refresh()
     {
         var snapshot = _registry.Read();
+
+        // Entries whose process has gone. Counted on every read and, until 2026-09-07, thrown away —
+        // which is why "three sessions were resumed into second tabs" took an hour to explain rather
+        // than a minute. Logged when the number changes, not on every poll.
+        if (snapshot.CorpseCount != _corpses)
+        {
+            _corpses = snapshot.CorpseCount;
+
+            TheseusLog.Information(
+                "The session registry holds {Corpses} entry(s) whose process has gone, and {Live} live",
+                snapshot.CorpseCount, snapshot.Live.Count);
+        }
 
         Snapshot = snapshot;
         Sessions.Clear();

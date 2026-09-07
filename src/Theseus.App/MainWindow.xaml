@@ -1012,6 +1012,41 @@
                 </Border>
 
                 <!--
+                    A Start that would open a second tab beside one already there asks first.
+
+                    Sessions left in their tabs over a weekend had their Claude processes exit without
+                    the tabs closing, so Monday's Start found nothing registered, resumed three of them,
+                    and put a new tab beside each stale one with no sign which was which. Nothing was
+                    registered, so every check the board had said go; the tab was the only evidence,
+                    and nothing was looking at it.
+
+                    Asked in place, naming them, like the stop strip above. The workstreams that had no
+                    tab of their own started immediately - only the doubtful ones wait.
+                -->
+                <Border DockPanel.Dock="Top" Margin="4,0,4,8" Padding="12,10" CornerRadius="6"
+                        Background="{DynamicResource LayerFillColorDefaultBrush}"
+                        BorderBrush="{DynamicResource AccentFillColorDefaultBrush}"
+                        BorderThickness="1"
+                        Visibility="{Binding HasHeldForTabs, Converter={StaticResource BoolToVisibility}}">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
+                                    VerticalAlignment="Center" Margin="12,0,0,0">
+                            <Button Style="{StaticResource CommandButton}" Content="Open new tabs"
+                                    Margin="0,0,6,0"
+                                    ToolTip="Start anyway, beside the tabs already open"
+                                    Command="{Binding StartAnywayCommand}" />
+                            <Button Style="{StaticResource CommandButton}" Content="Leave them"
+                                    ToolTip="Do not start these; their existing tabs are yours to deal with"
+                                    Command="{Binding KeepExistingTabsCommand}" />
+                        </StackPanel>
+
+                        <TextBlock Text="{Binding HeldForTabsSummary}" FontSize="12.5"
+                                   TextWrapping="Wrap" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                    </DockPanel>
+                </Border>
+
+                <!--
                     The stage headings, written once. The left margin matches the width of a row's
                     header so the headings line up with the cells beneath them; both are fixed, and
                     they have to stay in step.

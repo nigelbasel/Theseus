@@ -51,6 +51,12 @@ public sealed class ShellViewModel : ObservableObject
     /// </summary>
     private readonly HashSet<string> _unconfirmed = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Workstreams a Start held back because a tab of their own name is already open with nothing
+    /// running in it. They wait for an answer rather than opening a second tab beside the first.
+    /// </summary>
+    private IReadOnlyList<Workstream> _heldForTabs = [];
+
     /// <summary>Creates the shell over everything the window drives.</summary>
     public ShellViewModel(
         BoardViewModel board,
@@ -162,6 +168,24 @@ public sealed class ShellViewModel : ObservableObject
         ConfirmStopsCommand = new RelayCommand(_ => ConfirmStops());
         AbandonStopsCommand = new RelayCommand(_ => AbandonStops());
 
+        StartAnywayCommand = new RelayCommand(_ =>
+        {
+            var held = _heldForTabs;
+
+            _heldForTabs = [];
+            TabsChanged();
+            StartMany(held, evenIfTabsExist: true);
+        });
+
+        KeepExistingTabsCommand = new RelayCommand(_ =>
+        {
+            var count = _heldForTabs.Count;
+
+            _heldForTabs = [];
+            TabsChanged();
+            Notice = count == 1 ? "Left its tab alone." : $"Left {count} tabs alone.";
+        });
+
         CollapseInactiveCommand = new RelayCommand(_ => Collapse(true),
             _ => Board.Cards.Any(card => !card.IsLive && !card.IsCollapsed));
         ExpandAllCommand = new RelayCommand(_ => Collapse(false),
@@ -231,6 +255,33 @@ public sealed class ShellViewModel : ObservableObject
 
     /// <summary>Opens every card again.</summary>
     public RelayCommand ExpandAllCommand { get; }
+
+    /// <summary>Starts the held-back workstreams anyway, opening a second tab for each.</summary>
+    public RelayCommand StartAnywayCommand { get; }
+
+    /// <summary>Drops them, leaving their existing tabs alone.</summary>
+    public RelayCommand KeepExistingTabsCommand { get; }
+
+    /// <summary>Whether a Start is waiting on an answer about tabs already open.</summary>
+    public bool HasHeldForTabs => _heldForTabs.Count > 0;
+
+    /// <summary>What the strip says: which workstreams already have a tab, and how many.</summary>
+    public string HeldForTabsSummary
+    {
+        get
+        {
+            if (_heldForTabs.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            var names = string.Join(" · ", _heldForTabs.Select(workstream => workstream.Title));
+
+            return _heldForTabs.Count == 1
+                ? $"{names} already has a tab open, with no session running in it."
+                : $"{_heldForTabs.Count} workstreams already have a tab open with no session running in it: {names}.";
+        }
+    }
 
     /// <summary>Goes ahead with the stops that were asked for before the board opened.</summary>
     public RelayCommand ConfirmStopsCommand { get; }
@@ -961,6 +1012,37 @@ public sealed class ShellViewModel : ObservableObject
         Raise(nameof(UnconfirmedStopsSummary));
     }
 
+    private void TabsChanged()
+    {
+        Raise(nameof(HasHeldForTabs));
+        Raise(nameof(HeldForTabsSummary));
+    }
+
+    /// <summary>
+    /// Which of these already have a tab of their own name with nothing running in it.
+    ///
+    /// Reading every terminal's tab titles is a UI Automation walk, measured at 120–340ms on Nigel's
+    /// machine — cheap enough for a Start press, and paid once for the whole batch rather than per
+    /// workstream. A terminal running elevated cannot be read at all, so this finds what it can.
+    /// </summary>
+    private IReadOnlyList<Workstream> Abandoned(IReadOnlyList<Workstream> workstreams)
+    {
+        try
+        {
+            var titles = TerminalWindows.All()
+                .SelectMany(window => window.Tabs)
+                .ToList();
+
+            return AbandonedTabs.Among(workstreams, titles, Sessions.Snapshot);
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or System.Runtime.InteropServices.COMException)
+        {
+            TheseusLog.Debug("The terminal's tabs could not be read before starting: {Reason}", exception.Message);
+
+            return [];
+        }
+    }
+
     private IReadOnlyList<WorkstreamCardViewModel> Chosen() =>
         [.. Board.Cards.Where(card => card.IsSelected)];
 
@@ -984,13 +1066,33 @@ public sealed class ShellViewModel : ObservableObject
         }
     }
 
-    private void StartMany(IReadOnlyList<Workstream> workstreams)
+    /// <summary>
+    /// Starts what was asked for, holding back anything that already has a tab of its own name with
+    /// nothing running in it. Those are asked about rather than launched: opening a second tab beside
+    /// an abandoned one is what surprised Nigel on 2026-09-07, and the board gave no sign which tab
+    /// was which.
+    /// </summary>
+    private void StartMany(IReadOnlyList<Workstream> workstreams, bool evenIfTabsExist = false)
     {
         if (_launcher.Impediment is { } impediment)
         {
             Notice = impediment;
 
             return;
+        }
+
+        if (!evenIfTabsExist && Abandoned(workstreams) is { Count: > 0 } held)
+        {
+            // The rest go now; only the ones with a tab already open wait for an answer.
+            _heldForTabs = held;
+            TabsChanged();
+
+            workstreams = [.. workstreams.Except(held)];
+
+            if (workstreams.Count == 0)
+            {
+                return;
+            }
         }
 
         var started = 0;
