@@ -17,6 +17,17 @@ public sealed class LaunchPipeServer : IAsyncDisposable
     private readonly ILaunchEventSink _sink;
     private readonly ISystemClock _clock;
     private readonly ConcurrentDictionary<string, LaunchTicket> _tickets = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Tickets this server has handed out, and to which shim. Kept so a second shim presenting the
+    /// same ticket can be told apart from one presenting a ticket this Theseus never issued — the
+    /// refusal message cannot tell them apart, and they mean opposite things.
+    /// </summary>
+    private readonly ConcurrentDictionary<string, (int ShimProcessId, DateTimeOffset WhenUtc)> _redeemed =
+        new(StringComparer.Ordinal);
+
+    /// <summary>When this server started, so a ticket it never issued can be dated against it.</summary>
+    private readonly DateTimeOffset _startedUtc = DateTimeOffset.UtcNow;
     private readonly CancellationTokenSource _stopping = new();
     private readonly UTF8Encoding _encoding = new(encoderShouldEmitUTF8Identifier: false);
 
@@ -35,6 +46,9 @@ public sealed class LaunchPipeServer : IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(ticket);
         _tickets[ticket.Ticket] = ticket;
+
+        TheseusLog.Debug("Ticket {Ticket} registered for {Workstream}; {Outstanding} now outstanding",
+            ticket.Ticket, ticket.WorkstreamKey, _tickets.Count);
     }
 
     /// <summary>Begins accepting shim connections.</summary>
@@ -140,9 +154,28 @@ public sealed class LaunchPipeServer : IAsyncDisposable
 
         if (!_tickets.TryRemove(hello.Ticket, out var ticket))
         {
+            // "Unknown or already used" is two very different faults wearing one message, and on
+            // 2026-09-08 that cost an investigation: a tab said it, and nothing anywhere recorded
+            // which of the two had happened, who else had redeemed the ticket, or when. A ticket
+            // this server issued and saw redeemed is a duplicate shim; one it never issued belongs
+            // to a Theseus that has since been replaced.
+            var seen = _redeemed.TryGetValue(hello.Ticket, out var already);
+
+            TheseusLog.Warning(
+                seen
+                    ? "Shim {Shim} presented ticket {Ticket}, which shim {First} already redeemed at {When:HH:mm:ss}"
+                    : "Shim {Shim} presented ticket {Ticket}, which this Theseus never issued (first started {When:HH:mm:ss}); {Outstanding} outstanding",
+                hello.ShimProcessId,
+                hello.Ticket,
+                seen ? already.ShimProcessId : _startedUtc,
+                seen ? already.WhenUtc : _startedUtc,
+                _tickets.Count);
+
             await RefuseAsync(writer, hello.Ticket, "That launch ticket is unknown or has already been used.");
             return hello.Ticket;
         }
+
+        _redeemed[hello.Ticket] = (hello.ShimProcessId, _clock.UtcNow);
 
         if (ticket.ExpiresUtc <= _clock.UtcNow)
         {
