@@ -1072,8 +1072,16 @@ public sealed class ShellViewModel : ObservableObject
     /// an abandoned one is what surprised Nigel on 2026-09-07, and the board gave no sign which tab
     /// was which.
     /// </summary>
-    private void StartMany(IReadOnlyList<Workstream> workstreams, bool evenIfTabsExist = false)
+    private void StartMany(IReadOnlyList<Workstream> workstreams, bool evenIfTabsExist = false,
+        [System.Runtime.CompilerServices.CallerMemberName] string trigger = "")
     {
+        // Which gesture asked, recorded before anything can go wrong with it. There are four callers
+        // — a card's own button, Start selected, "Open new tabs", and creating a workstream — and
+        // when one press produced two launches on 2026-09-08 nothing said whether one caller had run
+        // twice or two callers had each run once. Those want different fixes.
+        TheseusLog.Information("{Trigger} asked to start {Count} workstream(s): {Keys}",
+            trigger, workstreams.Count, string.Join(", ", workstreams.Select(workstream => workstream.Key)));
+
         if (_launcher.Impediment is { } impediment)
         {
             Notice = impediment;

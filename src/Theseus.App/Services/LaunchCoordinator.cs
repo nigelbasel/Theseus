@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using Theseus.Core.Abstractions;
+using Theseus.Core.Diagnostics;
 using Theseus.Core.Domain;
 using Theseus.Core.Launching;
 using Theseus.Core.Messaging;
@@ -121,6 +122,14 @@ public sealed class LaunchCoordinator : IAsyncDisposable
         var plan = WorkstreamLaunchPlanner.Plan(request, DateTimeOffset.UtcNow.AddMinutes(2));
 
         var runId = Guid.NewGuid();
+
+        // Every launch, said out loud. The run log records that one happened but not what asked for
+        // it, and on 2026-09-08 one press of Restart produced two launches forty seconds apart with
+        // nothing to show which caller made either. One line here turns that from a mystery into a
+        // reading.
+        TheseusLog.Information(
+            "Launching {Workstream} as {Mode} into window {Window}: ticket {Ticket}, run {Run}, session {Session}",
+            workstream.Key, mode, windowName, plan.Ticket.Ticket, runId, sessionId);
 
         _ticketIssued?.Invoke(plan.Ticket.Ticket, workstream.Key, runId);
         _pipe.Register(plan.Ticket);
