@@ -8,6 +8,9 @@ public static class HandoffPath
 {
     private static readonly string[] NamePatterns = ["HANDOFF*.md", "HANDOVER*.md", "SESSION-STATUS*.md", "NOTES.md"];
 
+    /// <summary>The same names with nothing appended: notes not claimed by any one workstream.</summary>
+    private static readonly string[] GenericNames = ["HANDOFF", "HANDOVER", "SESSION-STATUS", "NOTES"];
+
     private static readonly string[] UninterestingDirectories =
         ["node_modules", "bin", "obj", "dist", "packages", ".git", ".vs"];
 
@@ -66,8 +69,28 @@ public static class HandoffPath
             return named[0].FullName;
         }
 
-        return candidates.Count == 1 ? candidates[0].FullName : null;
+        // A lone candidate is adopted only if its name belongs to nobody in particular.
+        //
+        // "One candidate is unambiguous" was the original rule and it is false: on a machine where
+        // Theseus is new, the first workstream writes HANDOFF-first.md and that file is then the only
+        // candidate every later workstream finds. Nigel hit exactly that on a second computer -
+        // every workstream he created was handed the first one's notes. It never showed here because
+        // this machine's working directory holds dozens of them, so the count is never one.
+        //
+        // A file already carrying somebody's name is somebody's. Only a bare HANDOFF.md, NOTES.md or
+        // the like is a document this workstream can reasonably be said to have been keeping.
+        return candidates.Count == 1 && !CarriesAName(candidates[0].Name)
+            ? candidates[0].FullName
+            : null;
     }
+
+    /// <summary>
+    /// Whether a file name distinguishes one workstream from another — <c>HANDOFF-gdpr-mcp.md</c>
+    /// does, <c>HANDOFF.md</c> does not. Reached only once the name is known not to be this
+    /// workstream's, so a name that belongs to anybody belongs to somebody else.
+    /// </summary>
+    private static bool CarriesAName(string fileName) =>
+        !GenericNames.Contains(Path.GetFileNameWithoutExtension(fileName), StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Whether a file is this workstream's notes rather than notes that merely lie nearby.

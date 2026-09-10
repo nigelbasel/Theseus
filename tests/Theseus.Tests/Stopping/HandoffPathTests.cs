@@ -130,6 +130,60 @@ public class HandoffPathTests
         Assert.That(HandoffPath.Discover(Workstream(cwd: Path.Combine(_root, "never-existed"))), Is.Null);
     }
 
+    /// <summary>
+    /// The bug Nigel hit on a second computer, 2026-09-10: every workstream he created was handed the
+    /// first one's notes.
+    ///
+    /// The rule was "one candidate is unambiguous". On a machine where Theseus is new, the first
+    /// workstream writes HANDOFF-first.md, and that file is then the only candidate every later
+    /// workstream finds. It never showed on his main machine because the working directory there holds
+    /// dozens of them, so the count is never one.
+    /// </summary>
+    [Test]
+    public void Discover_RefusesTheOnlyNotesWhenTheyCarrySomeoneElsesName()
+    {
+        Write("HANDOFF-the-first-workstream-i-made.md");
+
+        Assert.That(HandoffPath.Discover(Workstream()), Is.Null,
+            "a file already carrying a name belongs to whoever is named in it");
+    }
+
+    [Test]
+    public void For_ProposesItsOwnNameRatherThanAdoptingAnothersNotes()
+    {
+        Write("HANDOFF-the-first-workstream-i-made.md");
+
+        Assert.That(HandoffPath.For(Workstream()), Is.EqualTo(Proposed()));
+    }
+
+    [Test]
+    public void Discover_StillAdoptsTheOnlyNotesWhenTheyBelongToNobodyInParticular()
+    {
+        var notes = Write("HANDOFF.md");
+
+        Assert.That(HandoffPath.Discover(Workstream()), Is.EqualTo(notes),
+            "a bare name is a document this workstream may well have been keeping");
+    }
+
+    [TestCase("HANDOVER.md")]
+    [TestCase("NOTES.md")]
+    [TestCase("SESSION-STATUS.md")]
+    public void Discover_TreatsEveryBareNameAsUnclaimed(string fileName)
+    {
+        var notes = Write(fileName);
+
+        Assert.That(HandoffPath.Discover(Workstream()), Is.EqualTo(notes));
+    }
+
+    [Test]
+    public void Discover_StillPrefersNotesThatNameThisWorkstreamOverABareOne()
+    {
+        Write("HANDOFF.md");
+        var mine = Write("HANDOFF-contact-forms.md");
+
+        Assert.That(HandoffPath.Discover(Workstream()), Is.EqualTo(mine));
+    }
+
     private string Write(string relativePath, DateTimeOffset? written = null)
     {
         var path = Path.Combine(_root, relativePath);
