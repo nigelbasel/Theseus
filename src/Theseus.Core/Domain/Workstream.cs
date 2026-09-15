@@ -48,4 +48,11 @@ public sealed record Workstream(
     /// implies. Empty means the lane decides, or the single window does when lanes are not grouping.
     /// </summary>
     public string? WindowGroup { get; init; }
+
+    /// <summary>
+    /// What this workstream's sessions are told every time they start, after everything the board
+    /// says. The opening prompt is used once, and the continuation is the same for every workstream,
+    /// so without this there is nowhere to tell one workstream's sessions something every time.
+    /// </summary>
+    public string? EveryStartPrompt { get; init; }
 }

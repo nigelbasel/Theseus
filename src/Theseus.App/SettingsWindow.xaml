@@ -152,7 +152,22 @@
                         <TextBlock Text="Prompts" Style="{StaticResource SectionHeading}" />
                     </Expander.Header>
                     <StackPanel Margin="0,4,0,8">
-                <TextBlock Text="Standing prompt" Style="{StaticResource FieldLabel}" Margin="0,0,0,4" />
+                <TextBlock Text="Who the session is" Style="{StaticResource FieldLabel}" Margin="0,0,0,4" />
+                <TextBox Text="{Binding IdentityPrompt, UpdateSourceTrigger=PropertyChanged}"
+                         AcceptsReturn="True" TextWrapping="Wrap" MinHeight="120"
+                         VerticalScrollBarVisibility="Auto"
+                         FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12" />
+                <Grid>
+                    <TextBlock Text="{Binding IdentityPromptState}" Style="{StaticResource FieldHint}"
+                               Margin="0,4,150,0" />
+                    <Button Content="Use the built-in wording" HorizontalAlignment="Right" Padding="10,2"
+                            Margin="0,4,0,0" FontSize="11"
+                            Command="{Binding ResetIdentityPromptCommand}" />
+                </Grid>
+                <TextBlock Style="{StaticResource FieldHint}"
+                           Text="Opens every session, before anything else. {title}, {key}, {handoff} and {plan} are filled in; a line naming {plan} is left out when a session has no plan file." />
+
+                <TextBlock Text="Standing prompt" Style="{StaticResource FieldLabel}" />
                 <TextBox Text="{Binding SessionPreamble, UpdateSourceTrigger=PropertyChanged}"
                          AcceptsReturn="True" TextWrapping="Wrap" MinHeight="90"
                          VerticalScrollBarVisibility="Auto"

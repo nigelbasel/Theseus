@@ -61,6 +61,12 @@ public sealed record TheseusSettings(
     public Launching.StartMode DefaultStartMode { get; init; } = Launching.StartMode.Resume;
 
     /// <summary>
+    /// What opens every session: which workstream it is and where its notes go. Empty means the
+    /// built-in text, so a board that never changed it picks up any improvement to that text.
+    /// </summary>
+    public string IdentityPrompt { get; init; } = string.Empty;
+
+    /// <summary>
     /// The rows of the board: the kinds of work, as opposed to the lanes, which are how far along it
     /// is. Empty on a board configured before the grid existed, which is the signal to derive both
     /// axes from the single row of lanes it had.

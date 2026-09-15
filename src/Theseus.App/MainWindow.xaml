@@ -1261,11 +1261,24 @@
                                         Command="{Binding Drawer.AddDirectoryCommand}" />
                             </Grid>
 
-                            <TextBlock Text="Opening prompt" Style="{StaticResource FieldLabel}" />
+                            <TextBlock Text="First run only" Style="{StaticResource FieldLabel}" />
                             <TextBox Text="{Binding Drawer.Prompt, UpdateSourceTrigger=PropertyChanged}"
+                                     IsReadOnly="{Binding Drawer.HasRun}"
                                      AcceptsReturn="True" TextWrapping="Wrap" MinHeight="140"
                                      VerticalScrollBarVisibility="Auto"
                                      FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12" />
+                            <TextBlock Text="{Binding Drawer.FirstRunHint}" FontSize="11" TextWrapping="Wrap"
+                                       Margin="0,4,0,0"
+                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+
+                            <TextBlock Text="Every start" Style="{StaticResource FieldLabel}" />
+                            <TextBox Text="{Binding Drawer.EveryStartPrompt, UpdateSourceTrigger=PropertyChanged}"
+                                     AcceptsReturn="True" TextWrapping="Wrap" MinHeight="90"
+                                     VerticalScrollBarVisibility="Auto"
+                                     FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12" />
+                            <TextBlock FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"
+                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                       Text="Told to this workstream's sessions every time they start, after everything the board says. Use {handoff} for its notes." />
 
                             <Grid Margin="0,14,0,0">
                                 <StackPanel Orientation="Horizontal">

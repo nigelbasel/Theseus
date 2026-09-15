@@ -61,5 +61,6 @@ public static class WorkstreamAssembler
             RemovedJiraKeys = sidecar?.RemovedJiraKeys ?? [],
             WindowGroup = sidecar?.WindowGroup,
             Area = sidecar?.Area,
+            EveryStartPrompt = sidecar?.EveryStartPrompt,
         };
 }

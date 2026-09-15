@@ -112,7 +112,8 @@ public sealed class LaunchCoordinator : IAsyncDisposable
             SessionOpening.HasHistory(workstream, File.Exists(handoff)),
             handoff,
             File.Exists(handoff),
-            planPath);
+            planPath,
+            settings.IdentityPrompt);
 
 
         // Which window this tab joins is the whole of grouping: same name, same window; a name

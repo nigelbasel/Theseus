@@ -49,15 +49,16 @@ public static class SessionOpening
         bool hasHistory,
         string handoffPath,
         bool handoffExists,
-        string? planPath = null)
+        string? planPath = null,
+        string? identityTemplate = null)
     {
         ArgumentNullException.ThrowIfNull(workstream);
 
-        var identity = WorkstreamIdentity.For(workstream, handoffPath, planPath);
+        var identity = WorkstreamIdentity.For(workstream, handoffPath, planPath, identityTemplate);
 
         if (!hasHistory)
         {
-            return SessionPrompt.Compose(identity, SessionPrompt.Compose(preamble, workstream.Prompt));
+            return Compose(identity, preamble, workstream.Prompt, workstream.EveryStartPrompt, handoffPath);
         }
 
         var body = string.IsNullOrWhiteSpace(continuePrompt)
@@ -71,6 +72,18 @@ public static class SessionOpening
             continuation = $"{continuation}{Environment.NewLine}{Environment.NewLine}{MissingHandoffNote}";
         }
 
-        return SessionPrompt.Compose(identity, SessionPrompt.Compose(preamble, continuation));
+        return Compose(identity, preamble, continuation, workstream.EveryStartPrompt, handoffPath);
+    }
+
+    /// <summary>
+    /// Identity, then the board's standing prompt, then what this start is for, then what this one
+    /// workstream asks of every session. Its own instructions come last because they are the most
+    /// specific: nearer the work, and the thing a session should read as having the final word.
+    /// </summary>
+    private static string Compose(string identity, string? preamble, string? body, string? everyStart, string handoffPath)
+    {
+        var own = everyStart?.Replace(HandoffPlaceholder, handoffPath, StringComparison.Ordinal);
+
+        return SessionPrompt.Compose(identity, SessionPrompt.Compose(preamble, SessionPrompt.Compose(body, own)));
     }
 }

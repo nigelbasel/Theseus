@@ -109,4 +109,53 @@ public class SessionOpeningTests
     {
         Assert.That(For(hasHistory: true), Does.Not.Contain("does not exist"));
     }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void For_GivesAWorkstreamsOwnInstructionsOnEveryStart(bool hasHistory)
+    {
+        Assert.That(WithOwnInstructions("Run the tests before committing.", hasHistory),
+            Does.Contain("Run the tests before committing."));
+    }
+
+    [Test]
+    public void For_PutsAWorkstreamsOwnInstructionsAfterEverythingTheBoardSays()
+    {
+        var first = WithOwnInstructions("Own words.", hasHistory: false, preamble: "House rules.");
+        var returning = WithOwnInstructions("Own words.", hasHistory: true, preamble: "House rules.");
+
+        Assert.That(first.IndexOf("Own words.", StringComparison.Ordinal),
+            Is.GreaterThan(first.IndexOf(Original, StringComparison.Ordinal)));
+        Assert.That(returning.IndexOf("Own words.", StringComparison.Ordinal),
+            Is.GreaterThan(returning.IndexOf("Do not start again", StringComparison.Ordinal)));
+        Assert.That(returning.IndexOf("Own words.", StringComparison.Ordinal),
+            Is.GreaterThan(returning.IndexOf("House rules.", StringComparison.Ordinal)));
+    }
+
+    [Test]
+    public void For_FillsInTheHandoffInAWorkstreamsOwnInstructions()
+    {
+        var opening = WithOwnInstructions("Also skim " + SessionOpening.HandoffPlaceholder + ".", hasHistory: true);
+
+        Assert.That(opening, Does.Contain($"Also skim {Handoff}."));
+    }
+
+    [Test]
+    public void For_AddsNothingForAWorkstreamWithNoInstructionsOfItsOwn()
+    {
+        Assert.That(WithOwnInstructions("   ", hasHistory: true), Is.EqualTo(For(hasHistory: true)));
+    }
+
+    [Test]
+    public void For_OpensWithTheIdentityWordingFromSettings()
+    {
+        var opening = SessionOpening.For(null, null, Workstream("session-1"), hasHistory: true, Handoff,
+            handoffExists: true, identityTemplate: "I am {key}.");
+
+        Assert.That(opening, Does.StartWith("I am contact-forms."));
+    }
+
+    private static string WithOwnInstructions(string everyStart, bool hasHistory, string? preamble = null) =>
+        SessionOpening.For(preamble, null, Workstream("session-1") with { EveryStartPrompt = everyStart },
+            hasHistory, Handoff, handoffExists: true);
 }

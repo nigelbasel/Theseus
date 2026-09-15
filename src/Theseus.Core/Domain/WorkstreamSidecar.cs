@@ -40,4 +40,10 @@ public sealed record WorkstreamSidecar(
 
     /// <summary>The terminal window this workstream's sessions start in, if not the one its area implies.</summary>
     public string? WindowGroup { get; init; }
+
+    /// <summary>
+    /// What this workstream's sessions are told on every start. Kept here and not in the plan file,
+    /// because sessions rewrite their plan files and would drop a field they do not know about.
+    /// </summary>
+    public string? EveryStartPrompt { get; init; }
 }

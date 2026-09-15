@@ -24,6 +24,7 @@ public sealed class SettingsViewModel : ObservableObject
     private string _continuePrompt = string.Empty;
     private string _stopPrompt = string.Empty;
     private StartMode _defaultStartMode;
+    private string _identityPrompt = string.Empty;
     private string _laneList = string.Empty;
     private string _areaList = string.Empty;
     private bool _isOpen;
@@ -37,6 +38,8 @@ public sealed class SettingsViewModel : ObservableObject
         OpenCommand = new RelayCommand(_ => Open());
         CloseCommand = new RelayCommand(_ => IsOpen = false);
         SaveCommand = new RelayCommand(_ => Save());
+        ResetIdentityPromptCommand = new RelayCommand(_ => IdentityPrompt = WorkstreamIdentity.DefaultTemplate,
+            _ => IdentityPrompt != WorkstreamIdentity.DefaultTemplate);
 
         Load(store.Read());
     }
@@ -49,6 +52,9 @@ public sealed class SettingsViewModel : ObservableObject
 
     /// <summary>Writes the settings and closes.</summary>
     public RelayCommand SaveCommand { get; }
+
+    /// <summary>Puts the built-in identity wording back.</summary>
+    public RelayCommand ResetIdentityPromptCommand { get; }
 
     /// <summary>Whether the panel is showing.</summary>
     public bool IsOpen
@@ -191,6 +197,30 @@ public sealed class SettingsViewModel : ObservableObject
         set => Set(ref _stopPrompt, value);
     }
 
+    /// <summary>
+    /// What opens every session. Shown filled in with the built-in wording rather than empty, because
+    /// an empty box says nothing about what sessions are actually told.
+    /// </summary>
+    public string IdentityPrompt
+    {
+        get => _identityPrompt;
+        set
+        {
+            if (Set(ref _identityPrompt, value))
+            {
+                Raise(nameof(IdentityPromptState));
+            }
+        }
+    }
+
+    /// <summary>Whether the identity wording is the built-in one, and whether it still says where notes go.</summary>
+    public string IdentityPromptState =>
+        !_identityPrompt.Contains(SessionOpening.HandoffPlaceholder, StringComparison.Ordinal)
+            ? "This never mentions {handoff}, so sessions will not be told where their handover notes belong."
+            : _identityPrompt == WorkstreamIdentity.DefaultTemplate
+                ? "The built-in wording."
+                : "Your own wording, in place of the built-in one.";
+
     /// <summary>Whether Start and Restart reopen a workstream's last conversation.</summary>
     public bool ResumeByDefault
     {
@@ -306,6 +336,9 @@ public sealed class SettingsViewModel : ObservableObject
         ContinuePrompt = settings.ContinuePrompt;
         StopPrompt = settings.StopPrompt;
         SetStartMode(settings.DefaultStartMode);
+        IdentityPrompt = string.IsNullOrWhiteSpace(settings.IdentityPrompt)
+            ? WorkstreamIdentity.DefaultTemplate
+            : settings.IdentityPrompt;
         LaneList = string.Join(Environment.NewLine, settings.Lanes);
         AreaList = string.Join(Environment.NewLine, settings.Areas);
     }
@@ -323,6 +356,7 @@ public sealed class SettingsViewModel : ObservableObject
             ContinuePrompt = ContinuePrompt,
             StopPrompt = StopPrompt,
             DefaultStartMode = _defaultStartMode,
+            IdentityPrompt = IdentityPrompt == WorkstreamIdentity.DefaultTemplate ? string.Empty : IdentityPrompt,
             Lanes = Lanes,
             Areas = Areas,
         });

@@ -445,6 +445,7 @@ public sealed class BoardViewModel : ObservableObject
                   Area = card.Workstream.Area,
                   StatusDocumentPath = card.Workstream.StatusDocumentPath,
                   LastSessionId = card.Workstream.LastSessionId,
+                  EveryStartPrompt = card.Workstream.EveryStartPrompt,
                   UpdatedUtc = now,
               }
             : new WorkstreamSidecar(card.Key, card.Column, card.Workstream.IsBlocked, IsArchived: false,
@@ -454,6 +455,7 @@ public sealed class BoardViewModel : ObservableObject
                   RemovedJiraKeys = card.Workstream.RemovedJiraKeys,
                   WindowGroup = card.Workstream.WindowGroup,
                   Area = card.Workstream.Area,
+                  EveryStartPrompt = card.Workstream.EveryStartPrompt,
               };
 
         if (index >= 0)

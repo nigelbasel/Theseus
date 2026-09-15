@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using Theseus.Core.Abstractions;
 using Theseus.Core.Domain;
+using Theseus.Core.Launching;
 using Theseus.Core.Sessions;
 using Theseus.Core.Stopping;
 
@@ -27,6 +28,7 @@ public sealed class DetailDrawerViewModel : ObservableObject
     private string _title = string.Empty;
     private string _workingDirectory = string.Empty;
     private string _prompt = string.Empty;
+    private string _everyStartPrompt = string.Empty;
     private string _newDirectory = string.Empty;
     private string _statusDocumentPath = string.Empty;
     private string _newJiraKey = string.Empty;
@@ -249,6 +251,25 @@ public sealed class DetailDrawerViewModel : ObservableObject
         }
     }
 
+    /// <summary>What this workstream's sessions are told on every start, after the board's own prompts.</summary>
+    public string EveryStartPrompt
+    {
+        get => _everyStartPrompt;
+        set => Set(ref _everyStartPrompt, value);
+    }
+
+    /// <summary>
+    /// Whether the workstream has run before, which is when its opening prompt stops being sent. Judged
+    /// the way a launch judges it, so the box is locked exactly when the prompt in it would be ignored.
+    /// </summary>
+    public bool HasRun =>
+        _card is not null && SessionOpening.HasHistory(_card.Workstream, File.Exists(HandoffDestination));
+
+    /// <summary>What the opening prompt is for, now.</summary>
+    public string FirstRunHint => HasRun
+        ? "Sent when this workstream first started, and never again. Kept here to read; to tell its sessions something from now on, use Every start."
+        : "Sent once, on this workstream's first start. After that it is replaced by the continuation in Settings.";
+
     /// <summary>A directory being typed, before it is added.</summary>
     public string NewDirectory
     {
@@ -299,6 +320,9 @@ public sealed class DetailDrawerViewModel : ObservableObject
         Title = workstream.Title;
         WorkingDirectory = workstream.WorkingDirectory;
         Prompt = workstream.Prompt;
+        EveryStartPrompt = workstream.EveryStartPrompt ?? string.Empty;
+        Raise(nameof(HasRun));
+        Raise(nameof(FirstRunHint));
         StatusDocumentPath = workstream.StatusDocumentPath ?? string.Empty;
         WindowGroup = workstream.WindowGroup ?? string.Empty;
         BoardOrder = workstream.BoardOrder;
@@ -421,6 +445,7 @@ public sealed class DetailDrawerViewModel : ObservableObject
             ReopenTomorrow = ReopenTomorrow,
             StatusDocumentPath = Blank(StatusDocumentPath),
             WindowGroup = Blank(WindowGroup),
+            EveryStartPrompt = Blank(EveryStartPrompt),
             JiraKeys = [.. JiraKeys],
             RemovedJiraKeys = JiraKeySelection.Removed(
                 _card.Workstream.JiraKeys, JiraKeys, _card.Workstream.RemovedJiraKeys),

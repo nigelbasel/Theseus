@@ -61,4 +61,49 @@ public class WorkstreamIdentityTests
         Assert.That(WorkstreamIdentity.For(Workstream(), Handoff), Does.Not.Contain("jiraKeys"),
             "a session sent to edit a file nobody named would go looking for one");
     }
+
+    [Test]
+    public void For_UsesTheWordingFromSettingsInPlaceOfTheBuiltInText()
+    {
+        var identity = WorkstreamIdentity.For(Workstream(), Handoff, template: "Workstream {title} ({key}); notes at {handoff}.");
+
+        Assert.That(identity, Is.EqualTo($"Workstream Contact form validation (contact-forms); notes at {Handoff}."));
+    }
+
+    [Test]
+    public void For_FillsInThePlanFileWhenThereIsOne()
+    {
+        var identity = WorkstreamIdentity.For(Workstream(), Handoff, @"C:\plans\contact-forms.json", "Card: {plan}");
+
+        Assert.That(identity, Is.EqualTo(@"Card: C:\plans\contact-forms.json"));
+    }
+
+    [Test]
+    public void For_LeavesOutALineNamingThePlanFileWhenThereIsNone()
+    {
+        var identity = WorkstreamIdentity.For(Workstream(), Handoff, template: "Line one.\r\nYour card is {plan}.\nLine three.");
+
+        Assert.That(identity, Is.EqualTo($"Line one.{Environment.NewLine}Line three."));
+    }
+
+    [TestCase("")]
+    [TestCase("   ")]
+    [TestCase(null)]
+    public void For_UsesTheBuiltInTextWhenSettingsLeaveItEmpty(string? template)
+    {
+        Assert.That(WorkstreamIdentity.For(Workstream(), Handoff, @"C:\plans\a.json", template),
+            Is.EqualTo(WorkstreamIdentity.For(Workstream(), Handoff, @"C:\plans\a.json")));
+    }
+
+    [Test]
+    public void DefaultTemplate_LeavesNoPlaceholderUnfilled()
+    {
+        var identity = WorkstreamIdentity.For(Workstream(), Handoff, @"C:\plans\contact-forms.json");
+
+        foreach (var placeholder in new[] { WorkstreamIdentity.TitlePlaceholder, WorkstreamIdentity.KeyPlaceholder,
+                     WorkstreamIdentity.PlanPlaceholder, SessionOpening.HandoffPlaceholder })
+        {
+            Assert.That(identity, Does.Not.Contain(placeholder));
+        }
+    }
 }
