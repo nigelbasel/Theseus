@@ -7,7 +7,7 @@ namespace Theseus.App.ViewModels;
 /// <summary>One Claude Code session that is running right now, whoever started it.</summary>
 public sealed class LiveSessionViewModel : ObservableObject
 {
-    private readonly LiveSession _session;
+    private LiveSession _session;
     private bool _isAdopted;
 
     /// <summary>Creates a row for a live session.</summary>
@@ -18,7 +18,7 @@ public sealed class LiveSessionViewModel : ObservableObject
     }
 
     /// <summary>The title the session has given its own console, which is what its tab shows.</summary>
-    public string ConsoleTitle { get; }
+    public string ConsoleTitle { get; private set; }
 
     /// <summary>
     /// The workstreams this session can be adopted into. Each target carries its own command, so
@@ -31,6 +31,32 @@ public sealed class LiveSessionViewModel : ObservableObject
     {
         get => _isAdopted;
         set => Set(ref _isAdopted, value);
+    }
+
+    /// <summary>
+    /// Brings the row up to date with a fresh read of the same session. The row is kept rather than
+    /// replaced, so a refresh changes the words on screen and not the list around them.
+    /// </summary>
+    public void Update(LiveSession session, string? consoleTitle)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+
+        if (session.Pid != _session.Pid
+            || !string.Equals(session.SessionId, _session.SessionId, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException("A row can only be updated with a fresh read of its own session.", nameof(session));
+        }
+
+        _session = session;
+        ConsoleTitle = consoleTitle ?? string.Empty;
+
+        Raise(nameof(ConsoleTitle));
+        Raise(nameof(Name));
+        Raise(nameof(RegistryName));
+        Raise(nameof(Status));
+        Raise(nameof(StatusSinceUtc));
+        Raise(nameof(WorkingDirectory));
+        Raise(nameof(StatusLine));
     }
 
     /// <summary>The Claude Code process, which is where the walk to its terminal window starts.</summary>

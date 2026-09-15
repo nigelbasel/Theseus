@@ -62,19 +62,73 @@ public sealed class SessionsViewModel : ObservableObject
         }
 
         Snapshot = snapshot;
-        Sessions.Clear();
+
+        // Rows are kept and brought up to date, not cleared and rebuilt. Clearing and refilling the
+        // list on every refresh raised a change for every row each time, and something was listening
+        // to each one: the taskbar jump list was committed on every change, a blocking call into the
+        // shell that froze the board on 2026-09-15. A row is matched on its process as well as its
+        // session, because a forked transcript puts two live processes on one session id.
+        var rows = new List<LiveSessionViewModel>();
 
         foreach (var session in snapshot.Live
                      .Where(session => session.IsAdoptable)
                      .OrderByDescending(session => session.StartedUtc))
         {
-            Sessions.Add(new LiveSessionViewModel(session, _titles.Read(session.Pid)));
+            var title = _titles.Read(session.Pid);
+            var row = Sessions.FirstOrDefault(existing => existing.Pid == session.Pid
+                && string.Equals(existing.SessionId, session.SessionId, StringComparison.OrdinalIgnoreCase));
+
+            if (row is null)
+            {
+                row = new LiveSessionViewModel(session, title);
+            }
+            else
+            {
+                row.Update(session, title);
+            }
+
+            rows.Add(row);
+        }
+
+        for (var index = Sessions.Count - 1; index >= 0; index--)
+        {
+            if (!rows.Contains(Sessions[index]))
+            {
+                Sessions.RemoveAt(index);
+            }
+        }
+
+        for (var index = 0; index < rows.Count; index++)
+        {
+            var current = Sessions.IndexOf(rows[index]);
+
+            if (current == index)
+            {
+                continue;
+            }
+
+            if (current >= 0)
+            {
+                Sessions.Move(current, index);
+            }
+            else
+            {
+                Sessions.Insert(index, rows[index]);
+            }
         }
 
         Status = snapshot.CorpseCount == 0
             ? $"{Sessions.Count} live"
             : $"{Sessions.Count} live · {snapshot.CorpseCount} stale entries";
+
+        Refreshed?.Invoke(this, EventArgs.Empty);
     }
+
+    /// <summary>
+    /// Raised once when a refresh has finished, rather than once for every row it touched. Anything
+    /// expensive that depends on the whole list - the taskbar jump list - belongs here.
+    /// </summary>
+    public event EventHandler? Refreshed;
 
     /// <summary>Finds a live session by its identifier.</summary>
     public LiveSessionViewModel? Find(string? sessionId) =>

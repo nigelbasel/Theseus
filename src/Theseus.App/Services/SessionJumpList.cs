@@ -9,16 +9,28 @@ namespace Theseus.App.Services;
 /// The live sessions, offered on the taskbar button's own menu. Theseus is often behind whichever
 /// terminal is being read at the time, so the shortest route to a session should not begin with
 /// finding Theseus.
+///
+/// The menu is committed only when its entries change. Committing is a blocking call into the shell
+/// on the UI thread, and making it on every refresh froze the board on 2026-09-15.
 /// </summary>
 public static class SessionJumpList
 {
     private const string Category = "Sessions";
 
-    /// <summary>Replaces the taskbar menu with one entry per live session.</summary>
+    private static IReadOnlyList<SessionMenuEntry>? _applied;
+
+    /// <summary>Makes the taskbar menu list the live sessions, if it does not already.</summary>
     public static void Show(Application application, IEnumerable<LiveSession> sessions)
     {
         ArgumentNullException.ThrowIfNull(application);
         ArgumentNullException.ThrowIfNull(sessions);
+
+        var entries = SessionMenu.Entries(sessions);
+
+        if (SessionMenu.Unchanged(_applied, entries))
+        {
+            return;
+        }
 
         if (Environment.ProcessPath is not { } executable)
         {
@@ -28,14 +40,15 @@ public static class SessionJumpList
 
         var list = new JumpList { ShowFrequentCategory = false, ShowRecentCategory = false };
 
-        foreach (var session in sessions.Where(session => session.IsAdoptable))
+        foreach (var entry in entries)
         {
-            list.JumpItems.Add(Task(executable, session));
+            list.JumpItems.Add(Task(executable, entry));
         }
 
         try
         {
             JumpList.SetJumpList(application, list);
+            _applied = entries;
         }
         catch (Exception exception)
         {
@@ -43,13 +56,13 @@ public static class SessionJumpList
         }
     }
 
-    private static JumpTask Task(string executable, LiveSession session) => new()
+    private static JumpTask Task(string executable, SessionMenuEntry entry) => new()
     {
-        Title = SessionLabel.For(session),
-        Description = session.Cwd ?? string.Empty,
+        Title = entry.Title,
+        Description = entry.Description,
         ApplicationPath = executable,
         IconResourcePath = executable,
-        Arguments = FocusRequest.ArgumentsFor(session.SessionId),
+        Arguments = FocusRequest.ArgumentsFor(entry.SessionId),
         CustomCategory = Category,
     };
 }

@@ -119,8 +119,7 @@ public partial class App : Application
         _attention.Start();
 
         SessionJumpList.Show(this, sessions.Snapshot.Live);
-        sessions.Sessions.CollectionChanged += (_, _) =>
-            SessionJumpList.Show(this, sessions.Snapshot.Live);
+        sessions.Refreshed += (_, _) => SessionJumpList.Show(this, sessions.Snapshot.Live);
 
         MainWindow = new MainWindow { DataContext = shell };
         MainWindow.Show();
