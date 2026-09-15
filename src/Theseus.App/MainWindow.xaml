@@ -1185,6 +1185,12 @@
                                     Visibility="{Binding Drawer.UnclaimedKeys.Count,
                                                  Converter={StaticResource CountToVisibility}}" />
 
+                            <Button Content="Instructions and skills…" HorizontalAlignment="Left"
+                                    Margin="0,14,0,0" Padding="10,3" FontSize="11"
+                                    ToolTip="Every CLAUDE.md, rule, skill, command and agent this workstream's sessions get, in the order they are read"
+                                    Command="{Binding Instructions.OpenCommand}"
+                                    CommandParameter="{Binding Drawer}" />
+
                             <TextBlock Text="Working directory" Style="{StaticResource FieldLabel}" />
                             <Grid>
                                 <TextBox Text="{Binding Drawer.WorkingDirectory, UpdateSourceTrigger=PropertyChanged}"

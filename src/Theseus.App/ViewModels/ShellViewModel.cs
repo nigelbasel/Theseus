@@ -155,6 +155,8 @@ public sealed class ShellViewModel : ObservableObject
             Notice = $"Created {card.Title}.";
         });
 
+        Instructions = new InstructionsViewModel();
+
         DayReport = new DayReportViewModel(runs, () => Workstreams(),
             sessionId => Sessions.Snapshot.WithSessionId(sessionId).Count > 0);
 
@@ -340,6 +342,9 @@ public sealed class ShellViewModel : ObservableObject
 
     /// <summary>What was worked on today, written to a file and shown.</summary>
     public DayReportViewModel DayReport { get; }
+
+    /// <summary>What a workstream's sessions read and can run.</summary>
+    public InstructionsViewModel Instructions { get; }
 
     /// <summary>Which build is running, shown so an installed copy can be told from the last one.</summary>
     public string Version => AppVersion.Current;

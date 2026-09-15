@@ -20,6 +20,7 @@ public partial class MainWindow : Window
     private HelpWindow? _help;
     private ArrangeWindow? _arrange;
     private DayReportWindow? _report;
+    private InstructionsWindow? _instructions;
 
     /// <summary>Creates the window.</summary>
     public MainWindow()
@@ -42,6 +43,7 @@ public partial class MainWindow : Window
             WatchHelp();
             WatchArrange();
             WatchDayReport();
+            WatchInstructions();
         };
         Activated += (_, _) =>
         {
@@ -209,6 +211,53 @@ public partial class MainWindow : Window
         };
 
         _arrange.Show();
+    }
+
+    private void WatchInstructions()
+    {
+        if ((DataContext as ShellViewModel)?.Instructions is not { } instructions)
+        {
+            return;
+        }
+
+        instructions.PropertyChanged += (_, changed) =>
+        {
+            if (changed.PropertyName == nameof(InstructionsViewModel.IsOpen))
+            {
+                ShowInstructions(instructions);
+            }
+        };
+    }
+
+    private void ShowInstructions(InstructionsViewModel instructions)
+    {
+        if (_instructions is not null)
+        {
+            if (instructions.IsOpen)
+            {
+                _instructions.Activate();
+            }
+            else
+            {
+                _instructions.Close();
+            }
+
+            return;
+        }
+
+        if (!instructions.IsOpen)
+        {
+            return;
+        }
+
+        _instructions = new InstructionsWindow { Owner = this, DataContext = instructions };
+        _instructions.Closed += (_, _) =>
+        {
+            _instructions = null;
+            instructions.IsOpen = false;
+        };
+
+        _instructions.Show();
     }
 
     private void WatchDayReport()
