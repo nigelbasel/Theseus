@@ -22,6 +22,7 @@ public partial class App : Application
     private LaunchCoordinator? _launcher;
     private SessionRegistryWatcher? _watcher;
     private UsageViewModel? _usage;
+    private AttentionSampler? _attention;
 
     /// <summary>Where Theseus keeps the state the plan files have no room for.</summary>
     public static string DataDirectory { get; } = Path.Combine(
@@ -111,6 +112,12 @@ public partial class App : Application
 
         shell.Usage = _usage;
 
+        _attention = new AttentionSampler(
+            () => [.. shell.Board.Cards.Select(card => card.Workstream)],
+            new SessionRegistryReader(SessionRegistryReader.DefaultDirectory, new ProcessProbe()),
+            new Theseus.Core.Attention.AttentionLog(Path.Combine(DataDirectory, "attention.jsonl")));
+        _attention.Start();
+
         SessionJumpList.Show(this, sessions.Snapshot.Live);
         sessions.Sessions.CollectionChanged += (_, _) =>
             SessionJumpList.Show(this, sessions.Snapshot.Live);
@@ -144,6 +151,7 @@ public partial class App : Application
     {
         TheseusLog.Information("Theseus is closing");
         _usage?.Dispose();
+        _attention?.Dispose();
         _watcher?.Dispose();
 
         if (_launcher is not null)

@@ -104,6 +104,47 @@ public static class TerminalWindows
         }
     }
 
+    /// <summary>
+    /// The title of the tab selected in one terminal window, or null when it cannot be read - an
+    /// elevated window, one that closed mid-walk, or a tab strip with nothing selected.
+    /// </summary>
+    public static string? SelectedTab(nint window)
+    {
+        try
+        {
+            if (AutomationElement.FromHandle(window) is not { } root)
+            {
+                return null;
+            }
+
+            var tabs = root.FindAll(
+                TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.TabItem));
+
+            foreach (AutomationElement tab in tabs)
+            {
+                if (tab.TryGetCurrentPattern(SelectionItemPattern.Pattern, out var pattern)
+                    && pattern is SelectionItemPattern { Current.IsSelected: true })
+                {
+                    return tab.Current.Name;
+                }
+            }
+
+            return null;
+        }
+        catch (Exception exception)
+            when (exception is ElementNotAvailableException or InvalidOperationException or COMException)
+        {
+            TheseusLog.Debug("The selected tab of window {Window} could not be read: {Reason}", window, exception.Message);
+
+            return null;
+        }
+    }
+
+    /// <summary>Whether a window is a terminal window, by its class.</summary>
+    public static bool IsTerminal(nint window) =>
+        window != nint.Zero && ClassNameOf(window) == TerminalWindowClass;
+
     private static string ClassNameOf(nint window)
     {
         var name = new StringBuilder(64);
