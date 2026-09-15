@@ -79,35 +79,79 @@ public sealed class BoardViewModel : ObservableObject
 
         var (lanes, areas) = SyncGrid();
 
-        // Which cards were ticked, before the rebuild throws every card away and makes new ones.
-        // A refresh runs on a timer and after every start, stop and archive, so without this a
-        // selection would quietly empty itself between choosing the cards and pressing the button.
-        var chosen = new HashSet<string>(
-            Cards.Where(card => card.IsSelected).Select(card => card.Key),
-            StringComparer.OrdinalIgnoreCase);
+        // The cards already on the board are kept and brought up to date, not thrown away and made
+        // again. Emptying every cell and refilling it replaced the whole of the window's element
+        // tree on every refresh, and WPF reports each such change to any UI Automation listener on
+        // the machine, waiting while it does. On 2026-09-15 a dump of the frozen board had the UI
+        // thread stuck in exactly that report. Keeping the objects also keeps what the user set on
+        // them - ticks, folds - without having to carry it across by key.
+        var existing = new Dictionary<string, WorkstreamCardViewModel>(StringComparer.OrdinalIgnoreCase);
 
-        // Folded cards carry across the same way, and for the same reason: a refresh that quietly
-        // unfolded the board would undo the view a moment after it was asked for.
-        var folded = new HashSet<string>(
-            Cards.Where(card => card.IsCollapsed).Select(card => card.Key),
-            StringComparer.OrdinalIgnoreCase);
-
-        foreach (var cell in Cells)
+        foreach (var card in Cards)
         {
-            cell.Cards.Clear();
+            existing.TryAdd(card.Key, card);
         }
+
+        var wanted = Cells.ToDictionary(cell => cell, _ => new List<WorkstreamCardViewModel>());
 
         foreach (var workstream in workstreams)
         {
             var lane = BoardLanes.Resolve(workstream.Column, lanes);
             var area = BoardAreas.Resolve(workstream.Area, areas);
+            var placed = workstream with { Column = lane, Area = area };
 
-            Cells.First(cell => cell.Column == lane && cell.Area == area)
-                .Cards.Add(new WorkstreamCardViewModel(workstream with { Column = lane, Area = area })
+            if (existing.TryGetValue(workstream.Key, out var card))
+            {
+                card.Workstream = placed;
+            }
+            else
+            {
+                card = new WorkstreamCardViewModel(placed);
+            }
+
+            wanted[Cells.First(cell => cell.Column == lane && cell.Area == area)].Add(card);
+        }
+
+        // Everything leaving a cell goes before anything arrives, so a card moving between cells is
+        // never in two at once.
+        foreach (var cell in Cells)
+        {
+            for (var index = cell.Cards.Count - 1; index >= 0; index--)
+            {
+                if (!wanted[cell].Contains(cell.Cards[index]))
                 {
-                    IsSelected = chosen.Contains(workstream.Key),
-                    IsCollapsed = folded.Contains(workstream.Key),
-                });
+                    cell.Cards.RemoveAt(index);
+                }
+            }
+        }
+
+        foreach (var cell in Cells)
+        {
+            var order = wanted[cell];
+
+            for (var index = 0; index < order.Count; index++)
+            {
+                var current = cell.Cards.IndexOf(order[index]);
+
+                if (current == index)
+                {
+                    continue;
+                }
+
+                if (current >= 0)
+                {
+                    cell.Cards.Move(current, index);
+                }
+                else
+                {
+                    cell.Cards.Insert(index, order[index]);
+                }
+            }
+        }
+
+        if (SelectedCard is { } selected && !Cards.Contains(selected))
+        {
+            SelectedCard = null;
         }
 
         foreach (var row in Rows)

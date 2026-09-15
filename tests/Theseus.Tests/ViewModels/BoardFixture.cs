@@ -53,6 +53,31 @@ internal sealed class BoardFixture
         return this;
     }
 
+    /// <summary>Gives a workstream's plan a new title, the way a session rewriting its plan would.</summary>
+    public BoardFixture Retitle(string key, string title)
+    {
+        _plans.Add(key, _plans.TryRead(key)! with { Title = title });
+
+        return this;
+    }
+
+    /// <summary>Moves a workstream to another stage in the board file.</summary>
+    public BoardFixture MoveTo(string key, string column)
+    {
+        _board.Write([.. _board.Read().Select(sidecar =>
+            string.Equals(sidecar.Key, key, StringComparison.OrdinalIgnoreCase) ? sidecar with { Column = column } : sidecar)]);
+
+        return this;
+    }
+
+    /// <summary>Deletes a workstream's plan, the way deleting the file by hand would.</summary>
+    public BoardFixture Without(string key)
+    {
+        _plans.Delete(key);
+
+        return this;
+    }
+
     /// <summary>The card for one workstream, or null when the board does not hold it.</summary>
     public WorkstreamCardViewModel? Card(string key) =>
         Board.Cards.FirstOrDefault(card =>
