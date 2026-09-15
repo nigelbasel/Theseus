@@ -83,7 +83,10 @@ public sealed class LaunchCoordinator : IAsyncDisposable
 
     /// <summary>Opens a tab for one workstream and records the attempt.</summary>
     /// <returns>The session identifier the tab was started under, or null if it could not start.</returns>
-    public string? Launch(Workstream workstream, string? planPath = null)
+    /// <param name="startMode">
+    /// Resume the last conversation or start fresh from the handoff. Null means the board's default.
+    /// </param>
+    public string? Launch(Workstream workstream, string? planPath = null, StartMode? startMode = null)
     {
         ArgumentNullException.ThrowIfNull(workstream);
 
@@ -93,13 +96,14 @@ public sealed class LaunchCoordinator : IAsyncDisposable
             return null;
         }
 
-        var resume = !string.IsNullOrWhiteSpace(workstream.LastSessionId)
-                     && TranscriptExists(workstream.LastSessionId);
+        var settings = _settings.Read();
+        var requested = startMode ?? settings.DefaultStartMode;
 
-        var mode = resume ? LaunchMode.Resume : LaunchMode.FirstRun;
+        var mode = StartModeChoice.For(requested,
+            !string.IsNullOrWhiteSpace(workstream.LastSessionId) && TranscriptExists(workstream.LastSessionId));
+        var resume = mode == LaunchMode.Resume;
         var sessionId = resume ? workstream.LastSessionId! : _sessionIds.Create();
 
-        var settings = _settings.Read();
         var handoff = HandoffPath.For(workstream);
         var opening = SessionOpening.For(
             settings.SessionPreamble,
@@ -128,8 +132,8 @@ public sealed class LaunchCoordinator : IAsyncDisposable
         // nothing to show which caller made either. One line here turns that from a mystery into a
         // reading.
         TheseusLog.Information(
-            "Launching {Workstream} as {Mode} into window {Window}: ticket {Ticket}, run {Run}, session {Session}",
-            workstream.Key, mode, windowName, plan.Ticket.Ticket, runId, sessionId);
+            "Launching {Workstream} as {Mode} ({Requested} asked for) into window {Window}: ticket {Ticket}, run {Run}, session {Session}",
+            workstream.Key, mode, requested, windowName, plan.Ticket.Ticket, runId, sessionId);
 
         _ticketIssued?.Invoke(plan.Ticket.Ticket, workstream.Key, runId);
         _pipe.Register(plan.Ticket);

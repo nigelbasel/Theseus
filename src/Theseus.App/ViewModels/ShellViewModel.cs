@@ -57,6 +57,9 @@ public sealed class ShellViewModel : ObservableObject
     /// </summary>
     private IReadOnlyList<Workstream> _heldForTabs = [];
 
+    /// <summary>How the held workstreams were asked to start, so Start anyway honours it.</summary>
+    private StartMode? _heldStartMode;
+
     /// <summary>Creates the shell over everything the window drives.</summary>
     public ShellViewModel(
         BoardViewModel board,
@@ -173,10 +176,11 @@ public sealed class ShellViewModel : ObservableObject
         StartAnywayCommand = new RelayCommand(_ =>
         {
             var held = _heldForTabs;
+            var mode = _heldStartMode;
 
             _heldForTabs = [];
             TabsChanged();
-            StartMany(held, evenIfTabsExist: true);
+            StartMany(held, evenIfTabsExist: true, startMode: mode);
         });
 
         KeepExistingTabsCommand = new RelayCommand(_ =>
@@ -779,6 +783,7 @@ public sealed class ShellViewModel : ObservableObject
     {
         var now = DateTimeOffset.Now;
         var runs = _endings.Reconcile(_runs, Sessions.Snapshot.Live, DateTimeOffset.UtcNow);
+        var preferred = _settings.Read().DefaultStartMode;
 
         foreach (var card in Board.Cards)
         {
@@ -802,9 +807,22 @@ public sealed class ShellViewModel : ObservableObject
             // Only for a card that is offering Restart. Measuring a transcript is a read of a file
             // that runs to tens of megabytes, and there is nothing to say about a session that is
             // already running.
+            var measured = live ? default : TranscriptTail.Measure(card.Workstream.LastSessionId);
+
+            card.CanResume = measured.TotalBytes > 0;
+            card.ResumeTooltip = Theseus.Core.Domain.RestartCost.Tooltip(measured.TailBytes, measured.TotalBytes);
             card.RestartCost = live
                 ? string.Empty
-                : Cost(card.Workstream.LastSessionId);
+                : StartModeChoice.Tooltip(preferred, card.CanResume, card.ResumeTooltip);
+
+            // The other way to start, whichever the board prefers. Named explicitly in the log: the
+            // caller's own name here would be this method's, which says nothing about the gesture.
+            card.ResumeCommand ??= new RelayCommand(
+                _ => StartMany([card.Workstream], startMode: StartMode.Resume, trigger: "ResumeCard"),
+                _ => CanStartCard(card) && card.CanResume);
+            card.StartFreshCommand ??= new RelayCommand(
+                _ => StartMany([card.Workstream], startMode: StartMode.Fresh, trigger: "StartFreshCard"),
+                _ => CanStartCard(card));
 
             // Read for every card with a transcript, live or not: which model a stopped session was
             // on is worth knowing before restarting it. Cheap when nothing has changed - the reader
@@ -927,13 +945,6 @@ public sealed class ShellViewModel : ObservableObject
         Notice = archived
             ? $"Archived {title}. It is under Archived until you restore it."
             : $"Restored {title}.";
-    }
-
-    private static string Cost(string? sessionId)
-    {
-        var measured = TranscriptTail.Measure(sessionId);
-
-        return Theseus.Core.Domain.RestartCost.Tooltip(measured.TailBytes, measured.TotalBytes);
     }
 
     private void SyncClashes()
@@ -1078,14 +1089,15 @@ public sealed class ShellViewModel : ObservableObject
     /// was which.
     /// </summary>
     private void StartMany(IReadOnlyList<Workstream> workstreams, bool evenIfTabsExist = false,
+        StartMode? startMode = null,
         [System.Runtime.CompilerServices.CallerMemberName] string trigger = "")
     {
         // Which gesture asked, recorded before anything can go wrong with it. There are four callers
         // — a card's own button, Start selected, "Open new tabs", and creating a workstream — and
         // when one press produced two launches on 2026-09-08 nothing said whether one caller had run
         // twice or two callers had each run once. Those want different fixes.
-        TheseusLog.Information("{Trigger} asked to start {Count} workstream(s): {Keys}",
-            trigger, workstreams.Count, string.Join(", ", workstreams.Select(workstream => workstream.Key)));
+        TheseusLog.Information("{Trigger} asked to start {Count} workstream(s) ({StartMode}): {Keys}",
+            trigger, workstreams.Count, startMode?.ToString() ?? "board default", string.Join(", ", workstreams.Select(workstream => workstream.Key)));
 
         if (_launcher.Impediment is { } impediment)
         {
@@ -1098,6 +1110,7 @@ public sealed class ShellViewModel : ObservableObject
         {
             // The rest go now; only the ones with a tab already open wait for an answer.
             _heldForTabs = held;
+            _heldStartMode = startMode;
             TabsChanged();
 
             workstreams = [.. workstreams.Except(held)];
@@ -1114,7 +1127,7 @@ public sealed class ShellViewModel : ObservableObject
         {
             var workstream = Board.Pin(candidate);
 
-            if (_launcher.Launch(workstream, _plans.PathFor(workstream.Key)) is not { } sessionId)
+            if (_launcher.Launch(workstream, _plans.PathFor(workstream.Key), startMode) is not { } sessionId)
             {
                 continue;
             }

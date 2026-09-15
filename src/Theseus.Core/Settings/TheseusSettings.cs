@@ -54,6 +54,13 @@ public sealed record TheseusSettings(
     public bool ShowArchived { get; init; }
 
     /// <summary>
+    /// How Start and Restart bring back a workstream that has run before, when nothing more specific
+    /// is asked for. Resume by default, because that is what every earlier build did: changing what a
+    /// button does underneath somebody is worse than leaving the cheaper choice one menu away.
+    /// </summary>
+    public Launching.StartMode DefaultStartMode { get; init; } = Launching.StartMode.Resume;
+
+    /// <summary>
     /// The rows of the board: the kinds of work, as opposed to the lanes, which are how far along it
     /// is. Empty on a board configured before the grid existed, which is the signal to derive both
     /// axes from the single row of lanes it had.

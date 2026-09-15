@@ -23,6 +23,7 @@ public sealed class SettingsViewModel : ObservableObject
     private string _sessionPreamble = string.Empty;
     private string _continuePrompt = string.Empty;
     private string _stopPrompt = string.Empty;
+    private StartMode _defaultStartMode;
     private string _laneList = string.Empty;
     private string _areaList = string.Empty;
     private bool _isOpen;
@@ -190,6 +191,32 @@ public sealed class SettingsViewModel : ObservableObject
         set => Set(ref _stopPrompt, value);
     }
 
+    /// <summary>Whether Start and Restart reopen a workstream's last conversation.</summary>
+    public bool ResumeByDefault
+    {
+        get => _defaultStartMode == StartMode.Resume;
+        set
+        {
+            if (value)
+            {
+                SetStartMode(StartMode.Resume);
+            }
+        }
+    }
+
+    /// <summary>Whether Start and Restart open a new conversation pointed at the handoff.</summary>
+    public bool FreshByDefault
+    {
+        get => _defaultStartMode == StartMode.Fresh;
+        set
+        {
+            if (value)
+            {
+                SetStartMode(StartMode.Fresh);
+            }
+        }
+    }
+
     /// <summary>The board's lanes, one per line, in the order they are shown.</summary>
     public string LaneList
     {
@@ -255,6 +282,13 @@ public sealed class SettingsViewModel : ObservableObject
     private IReadOnlyList<string> Areas =>
         BoardAreas.Sanitise(_areaList.Split('\n', StringSplitOptions.RemoveEmptyEntries));
 
+    private void SetStartMode(StartMode mode)
+    {
+        _defaultStartMode = mode;
+        Raise(nameof(ResumeByDefault));
+        Raise(nameof(FreshByDefault));
+    }
+
     private void Open()
     {
         Load(_store.Read());
@@ -271,6 +305,7 @@ public sealed class SettingsViewModel : ObservableObject
         SessionPreamble = settings.SessionPreamble;
         ContinuePrompt = settings.ContinuePrompt;
         StopPrompt = settings.StopPrompt;
+        SetStartMode(settings.DefaultStartMode);
         LaneList = string.Join(Environment.NewLine, settings.Lanes);
         AreaList = string.Join(Environment.NewLine, settings.Areas);
     }
@@ -287,6 +322,7 @@ public sealed class SettingsViewModel : ObservableObject
             SessionPreamble = SessionPreamble,
             ContinuePrompt = ContinuePrompt,
             StopPrompt = StopPrompt,
+            DefaultStartMode = _defaultStartMode,
             Lanes = Lanes,
             Areas = Areas,
         });

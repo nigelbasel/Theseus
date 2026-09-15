@@ -124,6 +124,25 @@
                     </StackPanel>
                 </Expander>
 
+                <Expander Style="{StaticResource Section}">
+                    <Expander.Header>
+                        <TextBlock Text="Starting sessions" Style="{StaticResource SectionHeading}" />
+                    </Expander.Header>
+                    <StackPanel Margin="0,4,0,8">
+                <TextBlock Text="When a workstream has run before" Style="{StaticResource FieldLabel}" Margin="0,0,0,4" />
+                <RadioButton GroupName="StartMode" Content="Resume its last conversation"
+                             IsChecked="{Binding ResumeByDefault, Mode=TwoWay}" />
+                <TextBlock Style="{StaticResource FieldHint}" Margin="28,0,0,8"
+                           Text="Keeps everything the session knew. Reloads the conversation from its last compaction - often hundreds of thousands of tokens, carried again on every reply." />
+                <RadioButton GroupName="StartMode" Content="Start fresh from its handoff"
+                             IsChecked="{Binding FreshByDefault, Mode=TwoWay}" />
+                <TextBlock Style="{StaticResource FieldHint}" Margin="28,0,0,8"
+                           Text="A new conversation, told to read the handoff. Small and cheap, but it knows only what the handoff says." />
+                <TextBlock Style="{StaticResource FieldHint}"
+                           Text="Either way, the ▾ beside a card's Start or Restart button offers the other." />
+                    </StackPanel>
+                </Expander>
+
                 <!--
                     Folded to start with. These three are multi-line and are most of the page's
                     height; leaving them open is what made the window outgrow the screen.

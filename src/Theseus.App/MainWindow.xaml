@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:Theseus.App.ViewModels"
         xmlns:settings="clr-namespace:Theseus.Core.Settings;assembly=Theseus.Core"
+        xmlns:launching="clr-namespace:Theseus.Core.Launching;assembly=Theseus.Core"
         xmlns:sys="clr-namespace:System;assembly=System.Runtime"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:ShellViewModel}"
@@ -359,6 +360,28 @@
                                         ToolTip="{Binding RestartCost}"
                                         Command="{Binding DataContext.StartCardCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                         CommandParameter="{Binding}" />
+                                <!--
+                                    The other way to start. A context menu is not in the window's
+                                    visual tree, so it cannot reach the window's commands by ancestor;
+                                    the card carries its own, the way it carries Adopt.
+                                -->
+                                <Button Content="▾" FontSize="11" Padding="4,1" Margin="-3,0,4,0"
+                                        Visibility="{Binding IsLive, Converter={StaticResource NotBoolToVisibility}}"
+                                        ToolTip="Resume the last conversation, or start fresh from the handoff"
+                                        Click="OnOverflowClick">
+                                    <Button.ContextMenu>
+                                        <ContextMenu DataContext="{Binding PlacementTarget.DataContext,
+                                                                  RelativeSource={RelativeSource Self}}">
+                                            <MenuItem Header="Resume the last conversation"
+                                                      Command="{Binding ResumeCommand}"
+                                                      ToolTip="{Binding ResumeTooltip}"
+                                                      ToolTipService.ShowOnDisabled="True" />
+                                            <MenuItem Header="Start fresh from the handoff"
+                                                      Command="{Binding StartFreshCommand}"
+                                                      ToolTip="{x:Static launching:StartModeChoice.FreshTooltip}" />
+                                        </ContextMenu>
+                                    </Button.ContextMenu>
+                                </Button>
                                 <Button Content="Stop" FontSize="11" Padding="8,1" Margin="0,0,4,0"
                                         Visibility="{Binding IsLive, Converter={StaticResource BoolToVisibility}}"
                                         ToolTip="Ask this session to write a handoff and exit when its turn ends"

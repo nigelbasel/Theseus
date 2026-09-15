@@ -12,6 +12,9 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     private string _runningAs = string.Empty;
     private string _clash = string.Empty;
     private string _restartCost = string.Empty;
+    private string _resumeTooltip = string.Empty;
+    private RelayCommand? _resumeCommand;
+    private RelayCommand? _startFreshCommand;
     private string _model = string.Empty;
     private bool _motionAllowed = true;
     private string _lostSessionName = string.Empty;
@@ -294,6 +297,30 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     {
         get => _restartCost;
         set => Set(ref _restartCost, value);
+    }
+
+    /// <summary>Whether there is a conversation on disk for Resume to reopen.</summary>
+    public bool CanResume { get; set; }
+
+    /// <summary>What resuming would cost, for the menu entry that would do it.</summary>
+    public string ResumeTooltip
+    {
+        get => _resumeTooltip;
+        set => Set(ref _resumeTooltip, value);
+    }
+
+    /// <summary>Starts this workstream by reopening its last conversation, whatever the board's default.</summary>
+    public RelayCommand? ResumeCommand
+    {
+        get => _resumeCommand;
+        set => Set(ref _resumeCommand, value);
+    }
+
+    /// <summary>Starts this workstream in a new conversation pointed at its handoff, whatever the board's default.</summary>
+    public RelayCommand? StartFreshCommand
+    {
+        get => _startFreshCommand;
+        set => Set(ref _startFreshCommand, value);
     }
 
     /// <summary>
