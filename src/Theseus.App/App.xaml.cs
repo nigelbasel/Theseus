@@ -23,6 +23,7 @@ public partial class App : Application
     private SessionRegistryWatcher? _watcher;
     private UsageViewModel? _usage;
     private AttentionSampler? _attention;
+    private McpHttpServer? _mcp;
 
     /// <summary>Where Theseus keeps the state the plan files have no room for.</summary>
     public static string DataDirectory { get; } = Path.Combine(
@@ -118,6 +119,29 @@ public partial class App : Application
             new Theseus.Core.Attention.AttentionLog(Path.Combine(DataDirectory, "attention.jsonl")));
         _attention.Start();
 
+        // Sessions say what they are working on here; the time comes from the sampler above. The
+        // session a request belongs to is found in the run log, off the UI thread, so a busy board
+        // never keeps a session waiting on a tool call.
+        var attention = new Theseus.Core.Attention.AttentionLog(Path.Combine(DataDirectory, "attention.jsonl"));
+
+        _mcp = new McpHttpServer(
+            new Theseus.Core.Mcp.McpHandler(
+                new Theseus.Core.Attention.WorkLog(Path.Combine(DataDirectory, "work.jsonl")),
+                attention.Read,
+                sessionId => runs.Read()
+                    .Where(run => string.Equals(run.ClaudeSessionId, sessionId, StringComparison.OrdinalIgnoreCase))
+                    .OrderByDescending(run => run.StartedUtc)
+                    .Select(run => new Theseus.Core.Mcp.McpSession(run.ClaudeSessionId, run.WorkstreamKey, run.TabTitle))
+                    .FirstOrDefault(),
+                () => DateTimeOffset.UtcNow),
+            Theseus.Core.Mcp.TheseusMcp.DefaultPort);
+
+        if (_mcp.Start() && _launcher is not null)
+        {
+            var port = _mcp.Port;
+            _launcher.McpConfigFor = sessionId => Theseus.Core.Mcp.TheseusMcp.ConfigJson(port, sessionId);
+        }
+
         SessionJumpList.Show(this, sessions.Snapshot.Live);
         sessions.Refreshed += (_, _) => SessionJumpList.Show(this, sessions.Snapshot.Live);
 
@@ -151,6 +175,11 @@ public partial class App : Application
         TheseusLog.Information("Theseus is closing");
         _usage?.Dispose();
         _attention?.Dispose();
+
+        if (_mcp is not null)
+        {
+            await _mcp.DisposeAsync();
+        }
         _watcher?.Dispose();
 
         if (_launcher is not null)

@@ -20,7 +20,10 @@ public static class WorkstreamLaunchPlanner
             workstream.WorkingDirectory,
             workstream.Title,
             request.Opening,
-            workstream.AddDirectories);
+            workstream.AddDirectories)
+        {
+            McpConfig = request.McpConfig,
+        };
 
         var tab = new TerminalTabRequest(
             request.TerminalWindowName,

@@ -13,6 +13,7 @@ namespace Theseus.Core.Launching;
 /// <param name="PipeName">The launch pipe the shim connects back on.</param>
 /// <param name="TerminalWindowName">The named terminal window the tab joins.</param>
 /// <param name="Opening">The prompt the session opens with, already composed.</param>
+/// <param name="McpConfig">The session time server configuration, or null to start without it.</param>
 public sealed record WorkstreamLaunchRequest(
     Workstream Workstream,
     string Ticket,
@@ -23,4 +24,5 @@ public sealed record WorkstreamLaunchRequest(
     string LauncherPath,
     string PipeName,
     string TerminalWindowName,
-    string Opening = "");
+    string Opening = "",
+    string? McpConfig = null);

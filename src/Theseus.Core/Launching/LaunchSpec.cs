@@ -18,4 +18,11 @@ public sealed record LaunchSpec(
     string WorkingDirectory,
     string SessionName,
     string Prompt,
-    IReadOnlyList<string> AddDirectories);
+    IReadOnlyList<string> AddDirectories)
+{
+    /// <summary>
+    /// The <c>--mcp-config</c> value that connects the session to Theseus's session time server, or
+    /// null when the server is not running and the session should start without it.
+    /// </summary>
+    public string? McpConfig { get; init; }
+}

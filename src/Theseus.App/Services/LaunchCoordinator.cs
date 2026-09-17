@@ -81,6 +81,12 @@ public sealed class LaunchCoordinator : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// Makes the <c>--mcp-config</c> value for a session, once the session time server is listening.
+    /// Null means it is not, and sessions start without it rather than pointed at nothing.
+    /// </summary>
+    public Func<string, string?>? McpConfigFor { get; set; }
+
     /// <summary>Opens a tab for one workstream and records the attempt.</summary>
     /// <returns>The session identifier the tab was started under, or null if it could not start.</returns>
     /// <param name="startMode">
@@ -122,7 +128,7 @@ public sealed class LaunchCoordinator : IAsyncDisposable
 
         var request = new WorkstreamLaunchRequest(workstream, Guid.NewGuid().ToString("N"), sessionId,
             mode, claudePath, terminal.ExecutablePath, _launcherPath, _pipeName,
-            windowName, opening);
+            windowName, opening, McpConfigFor?.Invoke(sessionId));
 
         var plan = WorkstreamLaunchPlanner.Plan(request, DateTimeOffset.UtcNow.AddMinutes(2));
 

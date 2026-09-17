@@ -37,6 +37,17 @@ public static class ClaudeArgumentBuilder
             argv.AddRange(spec.AddDirectories);
         }
 
+        // Last, because --mcp-config is variadic too. Anything after it would be read as another
+        // configuration, and it ends the list of directories before it by being a flag. The session's
+        // time tools are allowed alongside it, so no session stops to ask about them.
+        if (!string.IsNullOrWhiteSpace(spec.McpConfig))
+        {
+            argv.Add("--allowedTools");
+            argv.Add(Mcp.TheseusMcp.AllowedTools);
+            argv.Add("--mcp-config");
+            argv.Add(spec.McpConfig);
+        }
+
         return argv;
     }
 }
