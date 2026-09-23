@@ -137,26 +137,30 @@ public sealed class ShellViewModel : ObservableObject
 
         Settings = new SettingsViewModel(settings, Refresh);
 
-        NewWorkstream = new NewWorkstreamViewModel(plans, colours, (key, startNow) =>
-        {
-            Refresh();
-
-            if (Board.Card(key) is not { } card)
+        NewWorkstream = new NewWorkstreamViewModel(plans, colours,
+            () => [.. Board.Stages],
+            () => [.. Board.Rows.Select(row => row.Area)],
+            created =>
             {
-                Notice = "The workstream was created but is not on the board yet.";
+                Refresh();
+                Board.Place(created.Key, created.Stage, created.Area);
 
-                return;
-            }
+                if (Board.Card(created.Key) is not { } card)
+                {
+                    Notice = "The workstream was created but is not on the board yet.";
 
-            if (startNow)
-            {
-                StartMany([card.Workstream]);
+                    return;
+                }
 
-                return;
-            }
+                if (created.StartNow)
+                {
+                    StartMany([card.Workstream]);
 
-            Notice = $"Created {card.Title}.";
-        });
+                    return;
+                }
+
+                Notice = $"Created {card.Title} in {card.Column}.";
+            });
 
         Instructions = new InstructionsViewModel();
 

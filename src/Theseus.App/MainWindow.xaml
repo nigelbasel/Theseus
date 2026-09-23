@@ -1407,6 +1407,33 @@
                             </TextBlock.Style>
                         </TextBlock>
 
+                        <!--
+                            Where the card lands. Every new workstream used to appear in the first
+                            cell whatever it was for, and had to be dragged where it belonged.
+                        -->
+                        <Grid Margin="0,14,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="16" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Stage" Style="{StaticResource FieldLabel}" Margin="0,0,0,4" />
+                                <ComboBox ItemsSource="{Binding NewWorkstream.Stages}"
+                                          SelectedItem="{Binding NewWorkstream.Stage, Mode=TwoWay}" />
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="2"
+                                        Visibility="{Binding NewWorkstream.HasAreas, Converter={StaticResource BoolToVisibility}}">
+                                <TextBlock Text="Area" Style="{StaticResource FieldLabel}" Margin="0,0,0,4" />
+                                <ComboBox ItemsSource="{Binding NewWorkstream.Areas}"
+                                          SelectedItem="{Binding NewWorkstream.Area, Mode=TwoWay}" />
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock Style="{StaticResource FieldHint}"
+                                   Text="Which cell of the board the card starts in. It can be dragged anywhere afterwards." />
+
                         <TextBlock Text="Opening prompt" Style="{StaticResource FieldLabel}" />
                         <TextBox Text="{Binding NewWorkstream.Prompt, UpdateSourceTrigger=PropertyChanged}"
                                  AcceptsReturn="True" TextWrapping="Wrap" MinHeight="120"

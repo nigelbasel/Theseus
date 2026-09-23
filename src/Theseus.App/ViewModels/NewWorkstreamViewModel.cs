@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.IO;
 using Theseus.Core.Colour;
 using Theseus.Core.Abstractions;
@@ -10,23 +11,36 @@ public sealed class NewWorkstreamViewModel : ObservableObject
 {
     private readonly IPlanStore _plans;
     private readonly ITabColourAllocator _colours;
-    private readonly Action<string, bool> _created;
+    private readonly Func<IReadOnlyList<string>> _stages;
+    private readonly Func<IReadOnlyList<string>> _areas;
+    private readonly Action<NewWorkstream> _created;
 
     private string _title = string.Empty;
     private string _workingDirectory = string.Empty;
     private string _prompt = string.Empty;
     private string _colourHex = string.Empty;
+    private string _stage = string.Empty;
+    private string _area = string.Empty;
     private bool _startNow = true;
     private bool _isOpen;
 
     /// <summary>Creates the composer.</summary>
     /// <param name="plans">Where the new plan file is written.</param>
     /// <param name="colours">Chooses the workstream's permanent colour.</param>
-    /// <param name="created">Called with the new key and whether it should be started immediately.</param>
-    public NewWorkstreamViewModel(IPlanStore plans, ITabColourAllocator colours, Action<string, bool> created)
+    /// <param name="stages">The board's columns, offered as the cell to create it in.</param>
+    /// <param name="areas">The board's rows, likewise.</param>
+    /// <param name="created">Called with the new workstream, where it goes, and whether to start it.</param>
+    public NewWorkstreamViewModel(
+        IPlanStore plans,
+        ITabColourAllocator colours,
+        Func<IReadOnlyList<string>> stages,
+        Func<IReadOnlyList<string>> areas,
+        Action<NewWorkstream> created)
     {
         _plans = plans;
         _colours = colours;
+        _stages = stages;
+        _areas = areas;
         _created = created;
 
         OpenCommand = new RelayCommand(_ => Open());
@@ -104,6 +118,32 @@ public sealed class NewWorkstreamViewModel : ObservableObject
         set => Set(ref _colourHex, value);
     }
 
+    /// <summary>The board's columns, to choose between.</summary>
+    public ObservableCollection<string> Stages { get; } = [];
+
+    /// <summary>The board's rows, to choose between.</summary>
+    public ObservableCollection<string> Areas { get; } = [];
+
+    /// <summary>
+    /// Which column the card goes in. Until 2026-09-23 there was no choice and every new workstream
+    /// landed in the first cell, wherever the person making it meant it to go.
+    /// </summary>
+    public string Stage
+    {
+        get => _stage;
+        set => Set(ref _stage, value);
+    }
+
+    /// <summary>Which row the card goes in.</summary>
+    public string Area
+    {
+        get => _area;
+        set => Set(ref _area, value);
+    }
+
+    /// <summary>Whether the board has rows worth choosing between. One row is not a choice.</summary>
+    public bool HasAreas => Areas.Count > 1;
+
     /// <summary>Whether to open a tab as soon as the workstream exists.</summary>
     public bool StartNow
     {
@@ -124,7 +164,24 @@ public sealed class NewWorkstreamViewModel : ObservableObject
         WorkingDirectory = SuggestedWorkingDirectory();
         StartNow = true;
         ColourHex = _colours.Allocate(new ColourAllocationState(ColoursInUse(), []));
+
+        Fill(Stages, _stages());
+        Fill(Areas, _areas());
+        Stage = Stages.FirstOrDefault() ?? string.Empty;
+        Area = Areas.FirstOrDefault() ?? string.Empty;
+        Raise(nameof(HasAreas));
+
         IsOpen = true;
+    }
+
+    private static void Fill(ObservableCollection<string> collection, IReadOnlyList<string> values)
+    {
+        collection.Clear();
+
+        foreach (var value in values)
+        {
+            collection.Add(value);
+        }
     }
 
     private string SuggestedWorkingDirectory()
@@ -149,7 +206,7 @@ public sealed class NewWorkstreamViewModel : ObservableObject
         _plans.Write(key, plan);
 
         IsOpen = false;
-        _created(key, StartNow);
+        _created(new NewWorkstream(key, Stage, Area, StartNow));
     }
 
     private IReadOnlyList<string> ColoursInUse() =>

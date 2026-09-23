@@ -220,6 +220,28 @@ public sealed class BoardViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Puts a workstream in a cell of the grid and writes that down, so it opens there next time too.
+    /// A stage or area the board does not have resolves to the first one, the way a card read from
+    /// disk does, rather than leaving the workstream in a cell that is not on the board.
+    /// </summary>
+    public void Place(string key, string? stage, string? area)
+    {
+        if (Card(key) is not { } card)
+        {
+            return;
+        }
+
+        card.Workstream = card.Workstream with
+        {
+            Column = BoardLanes.Resolve(stage ?? string.Empty, [.. Stages]),
+            Area = BoardAreas.Resolve(area ?? string.Empty, [.. Rows.Select(row => row.Area)]),
+        };
+
+        Persist(card);
+        Refresh();
+    }
+
     /// <summary>Folds a row away, or opens it, and remembers which way it was left.</summary>
     public void ToggleRow(BoardRowViewModel row)
     {
