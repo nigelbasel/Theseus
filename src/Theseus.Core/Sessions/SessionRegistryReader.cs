@@ -91,23 +91,41 @@ public sealed class SessionRegistryReader : ISessionRegistryReader
             && string.Equals(actual, entry.ProcStart, StringComparison.Ordinal);
     }
 
+    /// <summary>How many times a file that is busy or half-written is read before it is given up on.</summary>
+    public const int ReadAttempts = 3;
+
+    private static readonly TimeSpan RetryPause = TimeSpan.FromMilliseconds(40);
+
+    /// <summary>
+    /// Claude Code rewrites an entry whenever its status changes, and a read that lands mid-write
+    /// sees a locked or truncated file. One such read must not report the session gone - that is a
+    /// death recorded against a session that ran on - so the file is tried again before it counts
+    /// as unreadable.
+    /// </summary>
     private static SessionRegistryEntry? TryRead(string file)
     {
-        try
+        for (var attempt = 1; ; attempt++)
         {
-            return JsonSerializer.Deserialize<SessionRegistryEntry>(File.ReadAllText(file), SerialiserOptions);
-        }
-        catch (JsonException exception)
-        {
-            TheseusLog.Warning("Session registry entry {Path} did not parse: {Reason}", file, exception.Message);
+            try
+            {
+                return JsonSerializer.Deserialize<SessionRegistryEntry>(File.ReadAllText(file), SerialiserOptions);
+            }
+            catch (JsonException exception) when (attempt == ReadAttempts)
+            {
+                TheseusLog.Warning("Session registry entry {Path} did not parse: {Reason}", file, exception.Message);
 
-            return null;
-        }
-        catch (IOException exception)
-        {
-            TheseusLog.Debug("Session registry entry {Path} was busy: {Reason}", file, exception.Message);
+                return null;
+            }
+            catch (IOException exception) when (attempt == ReadAttempts)
+            {
+                TheseusLog.Debug("Session registry entry {Path} was busy: {Reason}", file, exception.Message);
 
-            return null;
+                return null;
+            }
+            catch (Exception exception) when (exception is JsonException or IOException)
+            {
+                Thread.Sleep(RetryPause);
+            }
         }
     }
 }

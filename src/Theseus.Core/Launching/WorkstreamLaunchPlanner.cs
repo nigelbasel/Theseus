@@ -23,6 +23,7 @@ public static class WorkstreamLaunchPlanner
             workstream.AddDirectories)
         {
             McpConfig = request.McpConfig,
+            PromptIfReminted = request.OpeningIfReminted,
         };
 
         var tab = new TerminalTabRequest(

@@ -26,5 +26,13 @@ public sealed class ProcessProbe : IProcessProbe
 
             return null;
         }
+        catch (System.ComponentModel.Win32Exception exception)
+        {
+            TheseusLog.Debug(
+                "Process {Pid} cannot be opened ({Reason}), so it is not a session of this user's and its registry entry is a corpse",
+                pid, exception.Message);
+
+            return null;
+        }
     }
 }

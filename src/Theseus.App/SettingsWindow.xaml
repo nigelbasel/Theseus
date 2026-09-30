@@ -165,7 +165,7 @@
                             Command="{Binding ResetIdentityPromptCommand}" />
                 </Grid>
                 <TextBlock Style="{StaticResource FieldHint}"
-                           Text="Opens every session, before anything else. {title}, {key}, {handoff} and {plan} are filled in; a line naming {plan} is left out when a session has no plan file." />
+                           Text="Opens every first run and fresh start, before anything else; a resume keeps its conversation and opens with one line instead. {title}, {key}, {handoff} and {plan} are filled in; a line naming {plan} is left out when a session has no plan file." />
 
                 <TextBlock Text="Standing prompt" Style="{StaticResource FieldLabel}" />
                 <TextBox Text="{Binding SessionPreamble, UpdateSourceTrigger=PropertyChanged}"
@@ -180,7 +180,7 @@
                          VerticalScrollBarVisibility="Auto"
                          FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12" />
                 <TextBlock Style="{StaticResource FieldHint}"
-                           Text="Replaces the workstream's own prompt once it has run before. Use {handoff} for its notes." />
+                           Text="Replaces the workstream's own prompt on a fresh start once it has run before. Use {handoff} for its notes. A resume is not given it." />
                 <TextBlock Text="{Binding ContinuePromptState}" Style="{StaticResource FieldHint}" />
 
                 <TextBlock Text="Stopping a session" Style="{StaticResource FieldLabel}" />

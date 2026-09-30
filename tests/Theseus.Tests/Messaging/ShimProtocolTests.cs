@@ -76,6 +76,17 @@ public class ShimProtocolTests
     }
 
     [Test]
+    public void RoundTrip_CarriesTheOpeningARemintWouldNeed()
+    {
+        var spec = new LaunchSpec(SessionId, LaunchMode.Resume, @"C:\claude.cmd", @"C:\work\repo",
+            "Contact form validation", "Resumed at 08:02.", []) { PromptIfReminted = "Read the handoff." };
+
+        var payload = RoundTrip<LaunchSpec>(ShimMessageKind.LaunchSpec, spec);
+
+        Assert.That(payload!.PromptIfReminted, Is.EqualTo("Read the handoff."));
+    }
+
+    [Test]
     public void TryParse_RejectsAKindThisBuildDoesNotKnowRatherThanThrowing()
     {
         var understood = ShimProtocol.TryParse("""{"kind":"Teleported","payload":{}}""", out _);

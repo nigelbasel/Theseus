@@ -24,6 +24,30 @@ public static class SessionOpening
         + " and any other handover notes first, and pick up from what was left unfinished. "
         + "Do not start again or repeat work that is already done.";
 
+    /// <summary>What a resumed session is told, before the moment it was resumed at.</summary>
+    public const string ResumedPrefix = "Resumed by Theseus at ";
+
+    /// <summary>
+    /// The prompt a resumed session opens with: one line saying when, and then only what this one
+    /// workstream asks of every session.
+    ///
+    /// A resume keeps the conversation, so the identity, the board's standing prompt and the
+    /// continuation are all things the session already knows. Sent again they read as a restart —
+    /// and Claude Code queues the opening prompt behind any turn it takes on its own when it
+    /// resumes, so the whole opening could land half an hour into the resumed work, telling a busy
+    /// session to go back and read its notes. One short line is harmless whenever it arrives.
+    /// </summary>
+    public static string ForResume(Workstream workstream, DateTimeOffset resumedAtUtc, string handoffPath)
+    {
+        ArgumentNullException.ThrowIfNull(workstream);
+
+        var local = resumedAtUtc.ToLocalTime();
+        var line = $"{ResumedPrefix}{local:HH:mm} on {local:yyyy-MM-dd}. Your context is intact; carry on where you left off.";
+        var own = workstream.EveryStartPrompt?.Replace(HandoffPlaceholder, handoffPath, StringComparison.Ordinal);
+
+        return SessionPrompt.Compose(line, own);
+    }
+
     /// <summary>Whether this workstream has been worked before.</summary>
     public static bool HasHistory(Workstream workstream, bool handoffExists)
     {

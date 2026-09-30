@@ -122,6 +122,40 @@ public class SessionRegistryReaderTests
     }
 
     [Test]
+    public void Read_TriesAgainWhenAnEntryIsLockedMidRewrite()
+    {
+        WriteEntry(40000, "abc", "1");
+        _probe.Alive[40000] = "1";
+        var path = Path.Combine(_directory, "40000.json");
+
+        using (var held = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            var release = Task.Run(async () =>
+            {
+                await Task.Delay(30);
+                held.Dispose();
+            });
+
+            var snapshot = Reader().Read();
+            release.Wait();
+
+            Assert.That(snapshot.Live, Has.Count.EqualTo(1), "a file being rewritten is not a session gone");
+            Assert.That(snapshot.UnreadableCount, Is.Zero);
+        }
+    }
+
+    [Test]
+    public void Read_GivesUpOnAnEntryThatStaysUnreadable()
+    {
+        File.WriteAllText(Path.Combine(_directory, "40000.json"), "{ half-writ");
+
+        var snapshot = Reader().Read();
+
+        Assert.That(snapshot.Live, Is.Empty);
+        Assert.That(snapshot.UnreadableCount, Is.EqualTo(1));
+    }
+
+    [Test]
     public void Read_IgnoresTheAdjacentKeyFiles()
     {
         File.WriteAllText(Path.Combine(_directory, "40000.abc123.key"), "{\"peerToken\":\"x\"}");

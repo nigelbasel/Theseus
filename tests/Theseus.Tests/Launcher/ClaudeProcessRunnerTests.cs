@@ -119,6 +119,30 @@ public class ClaudeProcessRunnerTests
     }
 
     [Test]
+    public void Run_OpensARemintedSessionWithTheFullOpeningRatherThanTheResumeLine()
+    {
+        var launcher = new FakeProcessLauncher(exitCodes: [1, 0]);
+        var spec = Spec(LaunchMode.Resume) with { Prompt = "Resumed by Theseus.", PromptIfReminted = "You are the workstream. Read the handoff." };
+
+        Run(launcher, spec, clock: new StubClock(TimeSpan.FromSeconds(1)));
+
+        Assert.That(launcher.Requests[0].Arguments, Does.Contain("Resumed by Theseus."));
+        Assert.That(launcher.Requests[1].Arguments, Does.Contain("You are the workstream. Read the handoff."),
+            "a reminted session has no conversation to carry on from");
+        Assert.That(launcher.Requests[1].Arguments, Does.Not.Contain("Resumed by Theseus."));
+    }
+
+    [Test]
+    public void Run_OpensARemintedSessionWithTheSamePromptWhenNoOtherWasGiven()
+    {
+        var launcher = new FakeProcessLauncher(exitCodes: [1, 0]);
+
+        Run(launcher, Spec(LaunchMode.Resume), clock: new StubClock(TimeSpan.FromSeconds(1)));
+
+        Assert.That(launcher.Requests[1].Arguments, Does.Contain("Carry on."));
+    }
+
+    [Test]
     public void Run_ReportsTheExitUnderTheRemintedIdentifierNotTheAbandonedOne()
     {
         var reporter = new RecordingReporter();

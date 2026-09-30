@@ -80,11 +80,27 @@ public class WorkstreamLaunchPlannerTests
             Is.EqualTo(new[] { @"C:\work\repo\features\contact-forms" }));
     }
 
+    [Test]
+    public void Plan_CarriesTheOpeningARemintWouldNeedAlongsideTheResumeLine()
+    {
+        var plan = Plan(mode: LaunchMode.Resume, opening: "Resumed at 08:02.", openingIfReminted: "Read the handoff.");
+
+        Assert.That(plan.Ticket.Spec.Prompt, Is.EqualTo("Resumed at 08:02."));
+        Assert.That(plan.Ticket.Spec.PromptIfReminted, Is.EqualTo("Read the handoff."));
+    }
+
+    [Test]
+    public void Plan_LeavesTheRemintOpeningUnsetWhenTheSamePromptServesBoth()
+    {
+        Assert.That(Plan().Ticket.Spec.PromptIfReminted, Is.Null);
+    }
+
     private static WorkstreamLaunchPlan Plan(
         string title = "Contact form validation",
         string prompt = "Carry on.",
         LaunchMode mode = LaunchMode.FirstRun,
-        string opening = "Carry on.")
+        string opening = "Carry on.",
+        string? openingIfReminted = null)
     {
         var workstream = new Workstream("contact-forms", title, "#C0392B", ColorIsManual: true,
             @"C:\work\repo", [@"C:\work\repo\features\contact-forms"], prompt, 1, "Today",
@@ -95,7 +111,7 @@ public class WorkstreamLaunchPlannerTests
             @"C:\Users\dev\.local\bin\claude.exe",
             @"C:\Program Files\WindowsApps\WindowsTerminal.exe",
             @"C:\dev\git\Theseus\Theseus.Launcher.exe",
-            "Theseus.Launch", "theseus", opening);
+            "Theseus.Launch", "theseus", opening, OpeningIfReminted: openingIfReminted);
 
         return WorkstreamLaunchPlanner.Plan(request, Expiry);
     }

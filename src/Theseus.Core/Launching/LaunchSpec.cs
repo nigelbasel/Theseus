@@ -25,4 +25,12 @@ public sealed record LaunchSpec(
     /// null when the server is not running and the session should start without it.
     /// </summary>
     public string? McpConfig { get; init; }
+
+    /// <summary>
+    /// The prompt to open with if the shim has to remint this launch as a first run. A resume opens
+    /// with one line, because its context is intact; a session reminted after that resume dies has
+    /// no context at all and needs the full opening a fresh start would have had. Null means the
+    /// same prompt serves both.
+    /// </summary>
+    public string? PromptIfReminted { get; init; }
 }

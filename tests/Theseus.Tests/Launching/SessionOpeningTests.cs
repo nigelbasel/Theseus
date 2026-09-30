@@ -155,6 +155,41 @@ public class SessionOpeningTests
         Assert.That(opening, Does.StartWith("I am contact-forms."));
     }
 
+    private static readonly DateTimeOffset ResumedAt = new(2026, 9, 30, 8, 2, 0, TimeSpan.Zero);
+
+    [Test]
+    public void ForResume_SaysWhenTheSessionWasResumedAndNothingTheSessionAlreadyKnows()
+    {
+        var opening = SessionOpening.ForResume(Workstream("session-1"), ResumedAt, Handoff);
+        var local = ResumedAt.ToLocalTime();
+
+        Assert.That(opening, Does.StartWith($"{SessionOpening.ResumedPrefix}{local:HH:mm} on {local:yyyy-MM-dd}."));
+        Assert.That(opening, Does.Not.Contain("You are the"), "a resumed conversation knows which workstream it is");
+        Assert.That(opening, Does.Not.Contain(Original));
+        Assert.That(opening, Does.Not.Contain("Do not start again"),
+            "the continuation tells a session to read its notes, which a busy resumed session must not be told");
+        Assert.That(opening, Does.Not.Contain(Handoff));
+    }
+
+    [Test]
+    public void ForResume_StillGivesAWorkstreamItsOwnEveryStartInstructions()
+    {
+        var workstream = Workstream("session-1") with { EveryStartPrompt = "Also skim " + SessionOpening.HandoffPlaceholder + "." };
+
+        var opening = SessionOpening.ForResume(workstream, ResumedAt, Handoff);
+
+        Assert.That(opening, Does.EndWith($"Also skim {Handoff}."));
+    }
+
+    [Test]
+    public void ForResume_IsOneLineForAWorkstreamWithNoInstructionsOfItsOwn()
+    {
+        var opening = SessionOpening.ForResume(Workstream("session-1") with { EveryStartPrompt = "  " }, ResumedAt, Handoff);
+
+        Assert.That(opening, Does.Not.Contain(Environment.NewLine));
+        Assert.That(opening, Does.EndWith("carry on where you left off."));
+    }
+
     private static string WithOwnInstructions(string everyStart, bool hasHistory, string? preamble = null) =>
         SessionOpening.For(preamble, null, Workstream("session-1") with { EveryStartPrompt = everyStart },
             hasHistory, Handoff, handoffExists: true);

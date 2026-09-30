@@ -26,6 +26,7 @@ public sealed class LaunchCoordinator : IAsyncDisposable
     private readonly string _pipeName;
     private readonly string _launcherPath;
     private readonly ISettingsStore _settings;
+    private readonly ISystemClock _clock;
     private readonly Action<string, string, Guid>? _ticketIssued;
 
     /// <summary>Creates the coordinator and starts listening for shims.</summary>
@@ -49,6 +50,7 @@ public sealed class LaunchCoordinator : IAsyncDisposable
         _pipeName = pipeName;
         _launcherPath = launcherPath;
         _settings = settings;
+        _clock = clock;
         _ticketIssued = ticketIssued;
 
         _pipe = new LaunchPipeServer(pipeName, sink, clock);
@@ -111,7 +113,7 @@ public sealed class LaunchCoordinator : IAsyncDisposable
         var sessionId = resume ? workstream.LastSessionId! : _sessionIds.Create();
 
         var handoff = HandoffPath.For(workstream);
-        var opening = SessionOpening.For(
+        var fullOpening = SessionOpening.For(
             settings.SessionPreamble,
             settings.ContinuePrompt,
             workstream,
@@ -121,6 +123,11 @@ public sealed class LaunchCoordinator : IAsyncDisposable
             planPath,
             settings.IdentityPrompt);
 
+        // A resume keeps its conversation, so it opens with one line. The full opening still
+        // travels with it, for the shim to use if the resume dies at once and is reminted fresh.
+        var opening = resume
+            ? SessionOpening.ForResume(workstream, _clock.UtcNow, handoff)
+            : fullOpening;
 
         // Which window this tab joins is the whole of grouping: same name, same window; a name
         // nothing is using yet makes a new one. Nothing else has to exist for sessions to be grouped.
@@ -128,7 +135,7 @@ public sealed class LaunchCoordinator : IAsyncDisposable
 
         var request = new WorkstreamLaunchRequest(workstream, Guid.NewGuid().ToString("N"), sessionId,
             mode, claudePath, terminal.ExecutablePath, _launcherPath, _pipeName,
-            windowName, opening, McpConfigFor?.Invoke(sessionId));
+            windowName, opening, McpConfigFor?.Invoke(sessionId), resume ? fullOpening : null);
 
         var plan = WorkstreamLaunchPlanner.Plan(request, DateTimeOffset.UtcNow.AddMinutes(2));
 

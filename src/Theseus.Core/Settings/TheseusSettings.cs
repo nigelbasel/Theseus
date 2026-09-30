@@ -61,7 +61,8 @@ public sealed record TheseusSettings(
     public Launching.StartMode DefaultStartMode { get; init; } = Launching.StartMode.Resume;
 
     /// <summary>
-    /// What opens every session: which workstream it is and where its notes go. Empty means the
+    /// What opens every session that starts without its conversation - a first run or a fresh
+    /// start - saying which workstream it is and where its notes go. Empty means the
     /// built-in text, so a board that never changed it picks up any improvement to that text.
     /// </summary>
     public string IdentityPrompt { get; init; } = string.Empty;

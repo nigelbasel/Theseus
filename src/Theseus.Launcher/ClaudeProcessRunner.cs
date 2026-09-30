@@ -41,6 +41,8 @@ public sealed class ClaudeProcessRunner
             {
                 SessionId = _sessionIds.Create(),
                 Mode = LaunchMode.FirstRun,
+                Prompt = spec.PromptIfReminted ?? spec.Prompt,
+                PromptIfReminted = null,
             };
 
             reporter.Reminted(spec.SessionId, reminted.SessionId,

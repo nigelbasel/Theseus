@@ -21,18 +21,80 @@ public class RunEndingsTests
     }
 
     [Test]
-    public void Reconcile_RecordsAnEndingWhenASessionItWatchedDisappearsFromTheRegistry()
+    public void Reconcile_RecordsAnEndingWhenASessionItWatchedStaysGoneFromTheRegistry()
+    {
+        _log.Append(Run("session-1", WatchingSince.AddMinutes(10)));
+
+        _endings.Reconcile(_log, [Session("session-1")], Now);
+        _endings.Reconcile(_log, [], Now);
+        _endings.Reconcile(_log, [], Now.AddSeconds(5));
+
+        var end = _log.Endings.Single();
+
+        Assert.That(end.EndedUtc, Is.EqualTo(Now), "the moment it was first missed is the closest available");
+        Assert.That(end.Reason, Is.EqualTo(SessionExitReason.CrashedOrKilled));
+        Assert.That(end.ExitCode, Is.Null);
+    }
+
+    [Test]
+    public void Reconcile_DoesNotEndARunOnASingleMissingRead()
     {
         _log.Append(Run("session-1", WatchingSince.AddMinutes(10)));
 
         _endings.Reconcile(_log, [Session("session-1")], Now);
         _endings.Reconcile(_log, [], Now);
 
-        var end = _log.Endings.Single();
+        Assert.That(_log.Endings, Is.Empty,
+            "a registry entry being rewritten reads as absent for one tick; that is not a death");
+    }
 
-        Assert.That(end.EndedUtc, Is.EqualTo(Now), "the moment it was seen to vanish is the closest available");
-        Assert.That(end.Reason, Is.EqualTo(SessionExitReason.CrashedOrKilled));
-        Assert.That(end.ExitCode, Is.Null);
+    [Test]
+    public void Reconcile_ForgetsAMissWhenTheSessionIsSeenAgain()
+    {
+        _log.Append(Run("session-1", WatchingSince.AddMinutes(10)));
+
+        _endings.Reconcile(_log, [Session("session-1")], Now);
+        _endings.Reconcile(_log, [], Now);
+        _endings.Reconcile(_log, [Session("session-1")], Now.AddSeconds(5));
+        _endings.Reconcile(_log, [], Now.AddMinutes(10));
+
+        Assert.That(_log.Endings, Is.Empty, "two misses must be consecutive, not merely two");
+    }
+
+    [Test]
+    public void Reconcile_DoesNotEndAResumedRunBecauseItsPredecessorWasOnceSeenLive()
+    {
+        var earlier = Run("session-1", WatchingSince.AddMinutes(10));
+        _log.Append(earlier);
+        _endings.Reconcile(_log, [Session("session-1", WatchingSince.AddMinutes(10))], Now.AddMinutes(-60));
+
+        _log.Endings.Add(new RunEnd(earlier.Id, Now.AddMinutes(-30), 0, SessionExitReason.ClosedCleanly));
+        _log.Append(Run("session-1", Now.AddSeconds(-20)));
+
+        _endings.Reconcile(_log, [], Now);
+        _endings.Reconcile(_log, [], Now.AddSeconds(5));
+
+        Assert.That(_log.Endings, Has.Count.EqualTo(1),
+            "a resume shares its predecessor's session identifier; what was seen live was the predecessor");
+    }
+
+    [Test]
+    public void Reconcile_CreditsARegistryEntryToTheNewestRunIssuedBeforeItsProcessStarted()
+    {
+        var earlier = Run("session-1", WatchingSince.AddHours(-3));
+        var resumed = Run("session-1", Now.AddSeconds(-20));
+        _log.Append(earlier);
+        _log.Append(resumed);
+
+        _endings.Reconcile(_log, [Session("session-1", Now.AddSeconds(-18))], Now);
+        _endings.Reconcile(_log, [], Now.AddMinutes(1));
+        _endings.Reconcile(_log, [], Now.AddMinutes(2));
+
+        Assert.That(_log.Endings.Select(end => end.RunId), Is.EquivalentTo(new[] { earlier.Id, resumed.Id }));
+        Assert.That(_log.Endings.Single(end => end.RunId == earlier.Id).Reason,
+            Is.EqualTo(SessionExitReason.TheseusWasDown), "its own process was never seen by this watcher");
+        Assert.That(_log.Endings.Single(end => end.RunId == resumed.Id).Reason,
+            Is.EqualTo(SessionExitReason.CrashedOrKilled), "the entry was its process, and it went");
     }
 
     [Test]
@@ -110,8 +172,8 @@ public class RunEndingsTests
             "Do the thing.", "Contact forms", "#208DD7", started, null, null, null, null,
             SessionExitReason.Unknown);
 
-    private static LiveSession Session(string id) =>
-        new(1234, id, @"C:\work", "Contact forms", "busy", "cli", DateTimeOffset.UtcNow);
+    private static LiveSession Session(string id, DateTimeOffset? started = null) =>
+        new(1234, id, @"C:\work", "Contact forms", "busy", "cli", started ?? Now);
 
     private sealed class FakeRunLog : IRunLog
     {

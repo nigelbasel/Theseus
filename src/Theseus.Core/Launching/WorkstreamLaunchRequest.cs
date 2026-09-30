@@ -25,4 +25,5 @@ public sealed record WorkstreamLaunchRequest(
     string PipeName,
     string TerminalWindowName,
     string Opening = "",
-    string? McpConfig = null);
+    string? McpConfig = null,
+    string? OpeningIfReminted = null);
