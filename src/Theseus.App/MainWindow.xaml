@@ -978,6 +978,21 @@
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right"
                             VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Locks.Summary}" FontSize="11" Margin="12,0,0,0"
+                               VerticalAlignment="Center"
+                               ToolTip="The machine's shared locks, held by Theseus"
+                               Visibility="{Binding Locks.Summary, Converter={StaticResource NotEmptyToVisibility}}">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="{DynamicResource TextFillColorTertiaryBrush}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Locks.HasLongHold}" Value="True">
+                                        <Setter Property="Foreground" Value="#D68910" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
                     <TextBlock Text="{Binding Version}" FontSize="11" Margin="12,0,14,0"
                                VerticalAlignment="Center"
                                ToolTip="{Binding VersionDescribed}"
@@ -1067,6 +1082,98 @@
                                    TextWrapping="Wrap" VerticalAlignment="Center"
                                    Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                     </DockPanel>
+                </Border>
+
+                <!--
+                    The machine's locks, held by Theseus (Nigel, 2026-10-06). Only locks that are held
+                    or have a queue are shown, and the strip disappears when all are free. Reordering,
+                    cancelling and releasing happen here and nowhere else; Release asks twice, because
+                    it does not stop the holder's run and another may then start beside it.
+                -->
+                <Border DockPanel.Dock="Top" Margin="4,0,4,8" Padding="12,8" CornerRadius="6"
+                        Background="{DynamicResource LayerFillColorDefaultBrush}"
+                        BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        Visibility="{Binding Locks.IsVisible, Converter={StaticResource BoolToVisibility}}">
+                    <ItemsControl ItemsSource="{Binding Locks.Rows}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Margin="0,3"
+                                            Visibility="{Binding IsActive, Converter={StaticResource BoolToVisibility}}">
+                                    <DockPanel>
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Button Style="{StaticResource CommandButton}" Content="Release…"
+                                                    ToolTip="Take the lock from its holder. Its run keeps going."
+                                                    Command="{Binding AskReleaseCommand}"
+                                                    Visibility="{Binding CanAskRelease, Converter={StaticResource BoolToVisibility}}" />
+                                            <StackPanel Orientation="Horizontal"
+                                                        Visibility="{Binding IsConfirmingRelease, Converter={StaticResource BoolToVisibility}}">
+                                                <TextBlock Text="Its run keeps going and the next may start beside it." FontSize="12"
+                                                           VerticalAlignment="Center" Margin="0,0,8,0"
+                                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                <Button Style="{StaticResource CommandButton}" Content="Release" Margin="0,0,6,0"
+                                                        Command="{Binding ConfirmReleaseCommand}" />
+                                                <Button Style="{StaticResource CommandButton}" Content="Keep"
+                                                        Command="{Binding KeepCommand}" />
+                                            </StackPanel>
+                                        </StackPanel>
+
+                                        <TextBlock FontSize="12.5" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                   ToolTip="{Binding Guards}">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsLong}" Value="True">
+                                                            <Setter Property="Foreground" Value="#D68910" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                            <Run Text="{Binding Name, Mode=OneWay}" FontWeight="SemiBold" />
+                                            <Run Text="   " />
+                                            <Run Text="{Binding Holder, Mode=OneWay}" />
+                                            <Run Text="   " />
+                                            <Run Text="{Binding HeldFor, Mode=OneWay}" />
+                                        </TextBlock>
+                                    </DockPanel>
+
+                                    <ItemsControl ItemsSource="{Binding Waiting}" Margin="16,2,0,0">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <DockPanel Margin="0,1">
+                                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <Button Style="{StaticResource CommandButton}" Content="Up" Margin="0,0,4,0"
+                                                                ToolTip="Move one place towards the front"
+                                                                Command="{Binding MoveUpCommand}" />
+                                                        <Button Style="{StaticResource CommandButton}" Content="Down" Margin="0,0,4,0"
+                                                                ToolTip="Move one place back"
+                                                                Command="{Binding MoveDownCommand}" />
+                                                        <Button Style="{StaticResource CommandButton}" Content="Cancel"
+                                                                ToolTip="Take it out of the queue; its script is told it was cancelled"
+                                                                Command="{Binding CancelCommand}" />
+                                                    </StackPanel>
+
+                                                    <TextBlock FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}">
+                                                        <Run Text="{Binding Position, Mode=OneWay}" />
+                                                        <Run Text=". " />
+                                                        <Run Text="{Binding Who, Mode=OneWay}" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                                        <Run Text=" — " />
+                                                        <Run Text="{Binding Purpose, Mode=OneWay}" />
+                                                        <Run Text="   waiting " />
+                                                        <Run Text="{Binding WaitingFor, Mode=OneWay}" />
+                                                        <Run Text="   " />
+                                                        <Run Text="{Binding Reason, Mode=OneWay}" FontStyle="Italic" />
+                                                    </TextBlock>
+                                                </DockPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                 </Border>
 
                 <!--

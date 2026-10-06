@@ -26,6 +26,7 @@ public partial class App : Application
     private AttentionSampler? _attention;
     private McpHttpServer? _mcp;
     private Timer? _lockSweep;
+    private LocksViewModel? _locks;
 
     /// <summary>Where Theseus keeps the state the plan files have no room for.</summary>
     public static string DataDirectory { get; } = Path.Combine(
@@ -136,6 +137,8 @@ public partial class App : Application
             OrphanCleaner.ForThisMachine(new ProcessProbe()));
 
         _lockSweep = new Timer(_ => locks.Sweep(), null, TimeSpan.Zero, TimeSpan.FromSeconds(15));
+        _locks = new LocksViewModel(locks, () => DateTimeOffset.UtcNow);
+        shell.Locks = _locks;
 
         _mcp = new McpHttpServer(
             new Theseus.Core.Mcp.McpHandler(
@@ -190,6 +193,8 @@ public partial class App : Application
         TheseusLog.Information("Theseus is closing");
         _usage?.Dispose();
         _attention?.Dispose();
+
+        _locks?.Dispose();
 
         if (_lockSweep is not null)
         {
