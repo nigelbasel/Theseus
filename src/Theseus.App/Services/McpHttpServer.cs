@@ -2,6 +2,7 @@ using System.IO;
 using System.Net;
 using System.Text;
 using Theseus.Core.Diagnostics;
+using Theseus.Core.Locks;
 using Theseus.Core.Mcp;
 
 namespace Theseus.App.Services;
@@ -18,18 +19,29 @@ namespace Theseus.App.Services;
 public sealed class McpHttpServer : IAsyncDisposable
 {
     private const string Path = "/mcp/";
+    private const string LocksPath = "/locks/";
     private const long LargestBody = 1024 * 1024;
 
     private readonly McpHandler _handler;
+    private readonly LockHttpApi? _locks;
     private readonly HttpListener _listener = new();
     private Task? _loop;
 
-    /// <summary>Creates a server for a handler on one port.</summary>
-    public McpHttpServer(McpHandler handler, int port)
+    /// <summary>
+    /// Creates a server for a handler on one port, and, when given the lock API, the plain HTTP lock
+    /// calls at <c>/locks/</c> that the wrapper script and the guard hook use.
+    /// </summary>
+    public McpHttpServer(McpHandler handler, int port, LockHttpApi? locks = null)
     {
         _handler = handler;
+        _locks = locks;
         Port = port;
         _listener.Prefixes.Add($"http://localhost:{port}{Path}");
+
+        if (locks is not null)
+        {
+            _listener.Prefixes.Add($"http://localhost:{port}{LocksPath}");
+        }
     }
 
     /// <summary>The port it listens on.</summary>
@@ -106,6 +118,19 @@ public sealed class McpHttpServer : IAsyncDisposable
                 return;
             }
 
+            if (_locks is not null && path.StartsWith(LocksPath, StringComparison.Ordinal))
+            {
+                if (request.ContentLength64 > LargestBody)
+                {
+                    response.StatusCode = 413;
+                    return;
+                }
+
+                await WriteAsync(response, _locks.Handle(request.HttpMethod, path[LocksPath.Length..].Trim('/'), await ReadAsync(request).ConfigureAwait(false)))
+                    .ConfigureAwait(false);
+                return;
+            }
+
             if (sessionId.Length == 0 || sessionId.Contains('/'))
             {
                 response.StatusCode = 404;
@@ -125,25 +150,9 @@ public sealed class McpHttpServer : IAsyncDisposable
                 return;
             }
 
-            string body;
+            var body = await ReadAsync(request).ConfigureAwait(false);
 
-            using (var reader = new StreamReader(request.InputStream, Encoding.UTF8))
-            {
-                body = await reader.ReadToEndAsync().ConfigureAwait(false);
-            }
-
-            var answer = _handler.Handle(sessionId, body, request.Headers["MCP-Protocol-Version"]);
-
-            response.StatusCode = answer.StatusCode;
-
-            if (answer.Body is { } json)
-            {
-                var bytes = Encoding.UTF8.GetBytes(json);
-
-                response.ContentType = "application/json";
-                response.ContentLength64 = bytes.Length;
-                await response.OutputStream.WriteAsync(bytes).ConfigureAwait(false);
-            }
+            await WriteAsync(response, _handler.Handle(sessionId, body, request.Headers["MCP-Protocol-Version"])).ConfigureAwait(false);
         }
         catch (Exception exception) when (exception is IOException or HttpListenerException or InvalidOperationException or ArgumentException)
         {
@@ -159,6 +168,27 @@ public sealed class McpHttpServer : IAsyncDisposable
             {
                 TheseusLog.Debug("A session time response could not be closed: {Reason}", exception.Message);
             }
+        }
+    }
+
+    private static async Task<string> ReadAsync(HttpListenerRequest request)
+    {
+        using var reader = new StreamReader(request.InputStream, Encoding.UTF8);
+
+        return await reader.ReadToEndAsync().ConfigureAwait(false);
+    }
+
+    private static async Task WriteAsync(HttpListenerResponse response, McpResponse answer)
+    {
+        response.StatusCode = answer.StatusCode;
+
+        if (answer.Body is { } json)
+        {
+            var bytes = Encoding.UTF8.GetBytes(json);
+
+            response.ContentType = "application/json";
+            response.ContentLength64 = bytes.Length;
+            await response.OutputStream.WriteAsync(bytes).ConfigureAwait(false);
         }
     }
 

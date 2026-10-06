@@ -3,7 +3,9 @@ using System.Net.Sockets;
 using System.Text;
 using System.Text.Json.Nodes;
 using Theseus.App.Services;
+using Theseus.Core.Abstractions;
 using Theseus.Core.Attention;
+using Theseus.Core.Locks;
 using Theseus.Core.Mcp;
 
 namespace Theseus.Tests.Mcp;
@@ -16,6 +18,7 @@ public class McpHttpServerTests
     private McpHttpServer _server = null!;
     private HttpClient _client = null!;
     private string _url = string.Empty;
+    private string _locksUrl = string.Empty;
 
     [SetUp]
     public void SetUp()
@@ -30,11 +33,20 @@ public class McpHttpServerTests
 
         var port = FreePort();
 
-        _server = new McpHttpServer(handler, port);
+        var locks = new LockHttpApi(
+            new LockBook(
+                new LockStateStore(Path.Combine(_directory, "locks.json")),
+                new LockHistory(Path.Combine(_directory, "locks-history.jsonl")),
+                new AllAlive(),
+                new SystemClock()),
+            () => DateTimeOffset.UtcNow);
+
+        _server = new McpHttpServer(handler, port, locks);
         Assert.That(_server.Start(), Is.True, "the server could not listen on localhost");
 
         _client = new HttpClient();
         _url = TheseusMcp.UrlFor(port, "session-1");
+        _locksUrl = $"http://localhost:{port}/locks/";
     }
 
     [TearDown]
@@ -86,9 +98,30 @@ public class McpHttpServerTests
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
     }
 
-    private async Task<HttpResponseMessage> Post(string json, string? origin = null)
+    [Test]
+    public async Task Locks_RequestAndListOverPlainHttp()
     {
-        using var request = new HttpRequestMessage(HttpMethod.Post, _url)
+        using var requested = await Post("""{"lock":"tests","who":"Legacy job migration","purpose":"PersistenceTests.Jobs"}""", url: _locksUrl + "request");
+        var answer = JsonNode.Parse(await requested.Content.ReadAsStringAsync())!;
+
+        Assert.That(answer["status"]!.GetValue<string>(), Is.EqualTo("granted"));
+
+        var listing = JsonNode.Parse(await _client.GetStringAsync(_locksUrl))!;
+
+        Assert.That(listing["locks"]!.AsArray()[0]!["holder"]!["who"]!.GetValue<string>(), Is.EqualTo("Legacy job migration"));
+    }
+
+    [Test]
+    public async Task Locks_FromAWebPageOnAnotherOrigin_AreRefused()
+    {
+        using var response = await Post("""{"lock":"tests","who":"a","purpose":"b"}""", origin: "http://evil.example", url: _locksUrl + "request");
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+    }
+
+    private async Task<HttpResponseMessage> Post(string json, string? origin = null, string? url = null)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, url ?? _url)
         {
             Content = new StringContent(json, Encoding.UTF8, "application/json"),
         };
@@ -113,5 +146,12 @@ public class McpHttpServerTests
         listener.Stop();
 
         return port;
+    }
+
+    private sealed class AllAlive : ILockLiveness
+    {
+        public string? StartOf(int processId) => "start";
+
+        public bool IsSessionAlive(string sessionId) => true;
     }
 }

@@ -7,6 +7,7 @@ using Theseus.Core.Colour;
 using Theseus.Core.Domain;
 using Theseus.Core.Diagnostics;
 using Theseus.Core.Launching;
+using Theseus.Core.Locks;
 using Theseus.Core.Messaging;
 using Theseus.Core.Persistence;
 using Theseus.Core.Sessions;
@@ -24,6 +25,7 @@ public partial class App : Application
     private UsageViewModel? _usage;
     private AttentionSampler? _attention;
     private McpHttpServer? _mcp;
+    private Timer? _lockSweep;
 
     /// <summary>Where Theseus keeps the state the plan files have no room for.</summary>
     public static string DataDirectory { get; } = Path.Combine(
@@ -124,6 +126,15 @@ public partial class App : Application
         // never keeps a session waiting on a tool call.
         var attention = new Theseus.Core.Attention.AttentionLog(Path.Combine(DataDirectory, "attention.jsonl"));
 
+        var clock = new SystemClock();
+        var locks = new LockBook(
+            new LockStateStore(Path.Combine(DataDirectory, "locks.json")),
+            new LockHistory(Path.Combine(DataDirectory, "locks-history.jsonl")),
+            new RegistryLockLiveness(new ProcessProbe(), new SessionRegistryReader(SessionRegistryReader.DefaultDirectory, new ProcessProbe()), clock),
+            clock);
+
+        _lockSweep = new Timer(_ => locks.Sweep(), null, TimeSpan.Zero, TimeSpan.FromSeconds(15));
+
         _mcp = new McpHttpServer(
             new Theseus.Core.Mcp.McpHandler(
                 new Theseus.Core.Attention.WorkLog(Path.Combine(DataDirectory, "work.jsonl")),
@@ -134,7 +145,8 @@ public partial class App : Application
                     .Select(run => new Theseus.Core.Mcp.McpSession(run.ClaudeSessionId, run.WorkstreamKey, run.TabTitle))
                     .FirstOrDefault(),
                 () => DateTimeOffset.UtcNow),
-            Theseus.Core.Mcp.TheseusMcp.DefaultPort);
+            Theseus.Core.Mcp.TheseusMcp.DefaultPort,
+            new LockHttpApi(locks, () => DateTimeOffset.UtcNow));
 
         if (_mcp.Start() && _launcher is not null)
         {
@@ -175,6 +187,11 @@ public partial class App : Application
         TheseusLog.Information("Theseus is closing");
         _usage?.Dispose();
         _attention?.Dispose();
+
+        if (_lockSweep is not null)
+        {
+            await _lockSweep.DisposeAsync();
+        }
 
         if (_mcp is not null)
         {
