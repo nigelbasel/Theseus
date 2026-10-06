@@ -992,10 +992,15 @@
 
                                         <StackPanel Margin="0,8,0,0"
                                                     Visibility="{Binding IsHeld, Converter={StaticResource BoolToVisibility}}">
-                                            <TextBlock Text="Held by" FontSize="11"
-                                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
-                                            <TextBlock Text="{Binding Holder}" FontSize="12.5" TextWrapping="Wrap" Margin="0,1,0,6"
-                                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                            <Border Margin="0,0,0,6" Padding="8,4" CornerRadius="4" BorderThickness="4,0,0,0"
+                                                    BorderBrush="{Binding HolderColorHex, Converter={StaticResource HexToBrush}}">
+                                                <StackPanel>
+                                                    <TextBlock Text="Held by" FontSize="11"
+                                                               Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                                                    <TextBlock Text="{Binding Holder}" FontSize="12.5" TextWrapping="Wrap" Margin="0,1,0,0"
+                                                               Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                                </StackPanel>
+                                            </Border>
                                             <Button Style="{StaticResource CommandButton}" Content="Release…" HorizontalAlignment="Left"
                                                     ToolTip="Take the lock from its holder. Its run keeps going."
                                                     Command="{Binding AskReleaseCommand}"
@@ -1021,6 +1026,8 @@
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate>
                                                         <Border Margin="0,0,0,6" Padding="8,6" CornerRadius="6"
+                                                                BorderThickness="4,0,0,0"
+                                                                BorderBrush="{Binding ColorHex, Converter={StaticResource HexToBrush}}"
                                                                 Background="{DynamicResource LayerFillColorDefaultBrush}">
                                                             <StackPanel>
                                                                 <DockPanel>

@@ -17,6 +17,7 @@ public sealed class LockRowViewModel : ObservableObject
     private bool _isConfirmingRelease;
     private string _holder = string.Empty;
     private string _heldFor = string.Empty;
+    private string _holderColorHex = string.Empty;
 
     /// <summary>Creates the row for one lock.</summary>
     public LockRowViewModel(
@@ -87,6 +88,13 @@ public sealed class LockRowViewModel : ObservableObject
         private set => Set(ref _heldFor, value);
     }
 
+    /// <summary>The tab colour of the holder's workstream, or empty when no card matches.</summary>
+    public string HolderColorHex
+    {
+        get => _holderColorHex;
+        private set => Set(ref _holderColorHex, value);
+    }
+
     /// <summary>Whether Release has been pressed and is waiting for a second press.</summary>
     public bool IsConfirmingRelease
     {
@@ -116,7 +124,8 @@ public sealed class LockRowViewModel : ObservableObject
     public RelayCommand KeepCommand { get; }
 
     /// <summary>Brings the row into line with the lock book.</summary>
-    public void Update(IReadOnlyList<LockTicket> tickets, DateTimeOffset now)
+    /// <param name="colourOf">The tab colour of the workstream a ticket belongs to, or null when none matches.</param>
+    public void Update(IReadOnlyList<LockTicket> tickets, DateTimeOffset now, Func<LockTicket, string?>? colourOf = null)
     {
         var holder = tickets.FirstOrDefault(ticket => ticket.IsHolder && ticket.Lock == Name);
         var waiting = tickets.Where(ticket => !ticket.IsHolder && ticket.Lock == Name).ToList();
@@ -125,6 +134,7 @@ public sealed class LockRowViewModel : ObservableObject
         Holder = holder is null ? string.Empty : $"{holder.Who} — {holder.Purpose}";
         HeldFor = holder?.GrantedUtc is { } granted ? LocksViewModel.Say(now - granted) : string.Empty;
         IsLong = holder?.GrantedUtc is { } since && now - since > LocksViewModel.LongHold;
+        HolderColorHex = holder is null ? string.Empty : colourOf?.Invoke(holder) ?? string.Empty;
 
         if (!IsHeld)
         {
@@ -160,6 +170,7 @@ public sealed class LockRowViewModel : ObservableObject
             existing.Purpose = ticket.Purpose;
             existing.Reason = ticket.Reason ?? string.Empty;
             existing.WaitingFor = LocksViewModel.Say(now - ticket.RequestedUtc);
+            existing.ColorHex = colourOf?.Invoke(ticket) ?? string.Empty;
         }
 
         Raise(nameof(IsActive));

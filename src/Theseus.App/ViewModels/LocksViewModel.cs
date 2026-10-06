@@ -19,15 +19,21 @@ public sealed class LocksViewModel : ObservableObject, IDisposable
 
     private readonly LockBook _book;
     private readonly Func<DateTimeOffset> _clock;
+    private readonly Func<LockTicket, string?>? _colourOf;
     private readonly Dispatcher _dispatcher;
     private readonly DispatcherTimer _timer;
     private bool _isOpen;
 
     /// <summary>Creates the view over a lock book, refreshed on every change and twice a minute for the times.</summary>
-    public LocksViewModel(LockBook book, Func<DateTimeOffset> clock)
+    /// <param name="colourOf">
+    /// The tab colour of the workstream a ticket belongs to, so each entry carries the colour of the
+    /// session it came from (Nigel, 2026-10-06), or null when no card matches.
+    /// </param>
+    public LocksViewModel(LockBook book, Func<DateTimeOffset> clock, Func<LockTicket, string?>? colourOf = null)
     {
         _book = book;
         _clock = clock;
+        _colourOf = colourOf;
         _dispatcher = Dispatcher.CurrentDispatcher;
         Rows = new ObservableCollection<LockRowViewModel>(LockNames.All.Select(name =>
             new LockRowViewModel(name, Release, MoveUp, MoveDown, Cancel)));
@@ -80,7 +86,7 @@ public sealed class LocksViewModel : ObservableObject, IDisposable
 
         foreach (var row in Rows)
         {
-            row.Update(tickets, now);
+            row.Update(tickets, now, _colourOf);
         }
 
         Raise(nameof(Busy));

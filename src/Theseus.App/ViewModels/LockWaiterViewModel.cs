@@ -11,6 +11,7 @@ public sealed class LockWaiterViewModel : ObservableObject
     private string _purpose = string.Empty;
     private string _reason = string.Empty;
     private string _waitingFor = string.Empty;
+    private string _colorHex = string.Empty;
 
     /// <summary>Creates the entry for a ticket, with what Nigel can do to it.</summary>
     public LockWaiterViewModel(string token, Action<LockWaiterViewModel> moveUp, Action<LockWaiterViewModel> moveDown, Action<LockWaiterViewModel> cancel)
@@ -76,6 +77,13 @@ public sealed class LockWaiterViewModel : ObservableObject
     {
         get => _waitingFor;
         set => Set(ref _waitingFor, value);
+    }
+
+    /// <summary>The tab colour of the workstream that asked, or empty when no card matches.</summary>
+    public string ColorHex
+    {
+        get => _colorHex;
+        set => Set(ref _colorHex, value);
     }
 
     /// <summary>Moves it one place towards the front.</summary>

@@ -137,7 +137,7 @@ public partial class App : Application
             OrphanCleaner.ForThisMachine(new ProcessProbe()));
 
         _lockSweep = new Timer(_ => locks.Sweep(), null, TimeSpan.Zero, TimeSpan.FromSeconds(15));
-        _locks = new LocksViewModel(locks, () => DateTimeOffset.UtcNow);
+        _locks = new LocksViewModel(locks, () => DateTimeOffset.UtcNow, ticket => LockColours.For(ticket, shell.Board.Cards));
         shell.Locks = _locks;
 
         _mcp = new McpHttpServer(
