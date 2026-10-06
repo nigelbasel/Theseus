@@ -22,6 +22,9 @@ public sealed class LocksViewModel : ObservableObject, IDisposable
     private readonly Func<LockTicket, string?>? _colourOf;
     private readonly Dispatcher _dispatcher;
     private readonly DispatcherTimer _timer;
+    private readonly ITestContainers? _containers;
+    private IReadOnlyList<TestContainer> _lastContainers = [];
+    private int _checking;
     private bool _isOpen;
 
     /// <summary>Creates the view over a lock book, refreshed on every change and twice a minute for the times.</summary>
@@ -29,20 +32,27 @@ public sealed class LocksViewModel : ObservableObject, IDisposable
     /// The tab colour of the workstream a ticket belongs to, so each entry carries the colour of the
     /// session it came from (Nigel, 2026-10-06), or null when no card matches.
     /// </param>
-    public LocksViewModel(LockBook book, Func<DateTimeOffset> clock, Func<LockTicket, string?>? colourOf = null)
+    /// <param name="containers">Docker's Testcontainers containers, for the unowned list; null leaves it empty.</param>
+    public LocksViewModel(LockBook book, Func<DateTimeOffset> clock, Func<LockTicket, string?>? colourOf = null, ITestContainers? containers = null)
     {
         _book = book;
         _clock = clock;
         _colourOf = colourOf;
+        _containers = containers;
         _dispatcher = Dispatcher.CurrentDispatcher;
         Rows = new ObservableCollection<LockRowViewModel>(LockNames.All.Select(name =>
             new LockRowViewModel(name, Release, MoveUp, MoveDown, Cancel)));
 
         ToggleCommand = new RelayCommand(_ => IsOpen = !IsOpen);
         _book.Changed += OnChanged;
-        _timer = new DispatcherTimer(TimeSpan.FromSeconds(30), DispatcherPriority.Background, (_, _) => Refresh(), _dispatcher);
+        _timer = new DispatcherTimer(TimeSpan.FromSeconds(30), DispatcherPriority.Background, (_, _) =>
+        {
+            Refresh();
+            CheckContainers();
+        }, _dispatcher);
         _timer.Start();
         Refresh();
+        CheckContainers();
     }
 
     /// <summary>One row per lock, always in the same order.</summary>
@@ -55,6 +65,12 @@ public sealed class LocksViewModel : ObservableObject, IDisposable
         set => Set(ref _isOpen, value);
     }
 
+    /// <summary>
+    /// Testcontainers containers no lock holder accounts for, oldest first, for Nigel to remove. Never
+    /// removed automatically: a leftover cannot be told apart from a run in progress outside the lock.
+    /// </summary>
+    public ObservableCollection<UnownedContainerViewModel> Unowned { get; } = [];
+
     /// <summary>Opens or closes the locks panel.</summary>
     public RelayCommand ToggleCommand { get; }
 
@@ -62,7 +78,8 @@ public sealed class LocksViewModel : ObservableObject, IDisposable
     public int Busy => Rows.Sum(row => (row.IsHeld ? 1 : 0) + row.Waiting.Count);
 
     /// <summary>The command bar button's label: "Locks", with how many are holding or waiting.</summary>
-    public string ButtonText => Busy == 0 ? "Locks" : $"Locks {Busy}";
+    public string ButtonText =>
+        (Busy == 0 ? "Locks" : $"Locks {Busy}") + (Unowned.Count == 0 ? string.Empty : $" · {Unowned.Count} unowned");
 
     /// <summary>The status bar's line: each busy lock, or that all are free.</summary>
     public string Summary
@@ -89,6 +106,8 @@ public sealed class LocksViewModel : ObservableObject, IDisposable
             row.Update(tickets, now, _colourOf);
         }
 
+        UpdateUnowned(UnownedContainers.From(_lastContainers, tickets), now);
+
         Raise(nameof(Busy));
         Raise(nameof(ButtonText));
         Raise(nameof(Summary));
@@ -111,6 +130,86 @@ public sealed class LocksViewModel : ObservableObject, IDisposable
     };
 
     private void OnChanged(object? sender, EventArgs e) => _dispatcher.BeginInvoke(Refresh);
+
+    private void UpdateUnowned(IReadOnlyList<TestContainer> unowned, DateTimeOffset now)
+    {
+        for (var index = Unowned.Count - 1; index >= 0; index--)
+        {
+            if (!unowned.Any(container => container.Id == Unowned[index].Id))
+            {
+                Unowned.RemoveAt(index);
+            }
+        }
+
+        for (var index = 0; index < unowned.Count; index++)
+        {
+            var container = unowned[index];
+            var existing = Unowned.FirstOrDefault(entry => entry.Id == container.Id);
+
+            if (existing is null)
+            {
+                existing = new UnownedContainerViewModel(container.Id, container.Name, container.Image, Remove);
+                Unowned.Insert(index, existing);
+            }
+            else if (Unowned.IndexOf(existing) != index)
+            {
+                Unowned.Move(Unowned.IndexOf(existing), index);
+            }
+
+            existing.Age = Say(now - container.CreatedUtc);
+            existing.Status = container.Status;
+        }
+    }
+
+    private void CheckContainers()
+    {
+        if (_containers is null || Interlocked.Exchange(ref _checking, 1) == 1)
+        {
+            return;
+        }
+
+        Task.Run(() =>
+        {
+            try
+            {
+                var listed = _containers.List();
+                _dispatcher.BeginInvoke(() =>
+                {
+                    _lastContainers = listed;
+                    Refresh();
+                });
+            }
+            catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception or TimeoutException)
+            {
+                TheseusLog.Debug("Could not list Testcontainers containers: {Reason}", exception.Message);
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _checking, 0);
+            }
+        });
+    }
+
+    private void Remove(UnownedContainerViewModel container)
+    {
+        if (_containers is null)
+        {
+            return;
+        }
+
+        Task.Run(() =>
+        {
+            try
+            {
+                _containers.Remove(container.Id);
+                TheseusLog.Warning("Nigel removed unowned container {Name} ({Id}, {Image}) from the locks panel", container.Name, container.Id, container.Image);
+            }
+            catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception or TimeoutException)
+            {
+                TheseusLog.Warning(exception, "Could not remove container {Id}", container.Id);
+            }
+        }).ContinueWith(_ => _dispatcher.BeginInvoke(CheckContainers));
+    }
 
     private void Release(string name) => OffTheUiThread(() => _book.ForceRelease(name), $"release the {name} lock");
 

@@ -36,9 +36,9 @@ public class OrphanCleanupTests
     [Test]
     public void ParseDockerCreated_ReadsDockersOwnFormat()
     {
-        Assert.That(OrphanCleaner.ParseDockerCreated("2026-10-06 11:21:51 +0200 CEST"),
+        Assert.That(DockerTestContainers.ParseCreated("2026-10-06 11:21:51 +0200 CEST"),
             Is.EqualTo(new DateTimeOffset(2026, 10, 6, 9, 21, 51, TimeSpan.Zero)));
-        Assert.That(OrphanCleaner.ParseDockerCreated("not a date"), Is.Null);
+        Assert.That(DockerTestContainers.ParseCreated("not a date"), Is.Null);
     }
 
     [Test]

@@ -128,16 +128,17 @@ public partial class App : Application
         var attention = new Theseus.Core.Attention.AttentionLog(Path.Combine(DataDirectory, "attention.jsonl"));
 
         var clock = new SystemClock();
+        var testContainers = new DockerTestContainers();
         var locks = new LockBook(
             new LockStateStore(Path.Combine(DataDirectory, "locks.json")),
             new LockHistory(Path.Combine(DataDirectory, "locks-history.jsonl")),
             new RegistryLockLiveness(new ProcessProbe(), new SessionRegistryReader(SessionRegistryReader.DefaultDirectory, new ProcessProbe()), clock),
             clock,
             new WindowsProcessTree(new ProcessProbe()),
-            OrphanCleaner.ForThisMachine(new ProcessProbe()));
+            OrphanCleaner.ForThisMachine(new ProcessProbe(), testContainers));
 
         _lockSweep = new Timer(_ => locks.Sweep(), null, TimeSpan.Zero, TimeSpan.FromSeconds(15));
-        _locks = new LocksViewModel(locks, () => DateTimeOffset.UtcNow, ticket => LockColours.For(ticket, shell.Board.Cards));
+        _locks = new LocksViewModel(locks, () => DateTimeOffset.UtcNow, ticket => LockColours.For(ticket, shell.Board.Cards), testContainers);
         shell.Locks = _locks;
 
         _mcp = new McpHttpServer(

@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Globalization;
 using Theseus.Core.Diagnostics;
 using Theseus.Core.Sessions;
 
@@ -14,8 +13,6 @@ namespace Theseus.Core.Locks;
 /// </summary>
 public sealed class OrphanCleaner : IOrphanCleaner
 {
-    private static readonly TimeSpan DockerTimeout = TimeSpan.FromSeconds(30);
-
     private readonly Func<int, string?> _startOf;
     private readonly Action<int> _kill;
     private readonly Func<IReadOnlyList<(string Id, DateTimeOffset CreatedUtc)>> _containers;
@@ -35,8 +32,11 @@ public sealed class OrphanCleaner : IOrphanCleaner
     }
 
     /// <summary>A cleaner that acts on this machine's processes and Docker.</summary>
-    public static OrphanCleaner ForThisMachine(IProcessProbe probe) =>
-        new(probe.GetStartFileTime, KillTree, ListTestContainers, RemoveContainer);
+    public static OrphanCleaner ForThisMachine(IProcessProbe probe, ITestContainers containers) =>
+        new(probe.GetStartFileTime,
+            KillTree,
+            () => [.. containers.List().Select(container => (container.Id, container.CreatedUtc))],
+            containers.Remove);
 
     /// <inheritdoc />
     public string? Clean(IReadOnlyList<HeldProcess> testHosts, DateTimeOffset fromUtc, DateTimeOffset toUtc)
@@ -93,75 +93,9 @@ public sealed class OrphanCleaner : IOrphanCleaner
                + $"{removed.Count} container(s){(removed.Count > 0 ? $" ({string.Join(", ", removed)})" : string.Empty)}.";
     }
 
-    /// <summary>Reads the creation time Docker prints, such as <c>2026-10-06 11:21:51 +0200 CEST</c>.</summary>
-    public static DateTimeOffset? ParseDockerCreated(string text)
-    {
-        var parts = text.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-
-        if (parts.Length < 3
-            || !DateTime.TryParseExact($"{parts[0]} {parts[1]}", "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out var local)
-            || parts[2].Length != 5
-            || !int.TryParse(parts[2].AsSpan(1, 2), NumberStyles.None, CultureInfo.InvariantCulture, out var hours)
-            || !int.TryParse(parts[2].AsSpan(3, 2), NumberStyles.None, CultureInfo.InvariantCulture, out var minutes))
-        {
-            return null;
-        }
-
-        var offset = new TimeSpan(hours, minutes, 0) * (parts[2][0] == '-' ? -1 : 1);
-
-        return new DateTimeOffset(local, offset).ToUniversalTime();
-    }
-
     private static void KillTree(int processId)
     {
         using var process = Process.GetProcessById(processId);
         process.Kill(entireProcessTree: true);
-    }
-
-    private static IReadOnlyList<(string Id, DateTimeOffset CreatedUtc)> ListTestContainers()
-    {
-        var output = Docker("ps", "-a", "--filter", "label=org.testcontainers", "--format", "{{.ID}}|{{.CreatedAt}}");
-        var containers = new List<(string Id, DateTimeOffset CreatedUtc)>();
-
-        foreach (var line in output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-        {
-            var bar = line.IndexOf('|');
-
-            if (bar > 0 && ParseDockerCreated(line[(bar + 1)..]) is { } created)
-            {
-                containers.Add((line[..bar], created));
-            }
-        }
-
-        return containers;
-    }
-
-    private static void RemoveContainer(string id) => Docker("rm", "-f", id);
-
-    private static string Docker(params string[] arguments)
-    {
-        var start = new ProcessStartInfo("docker")
-        {
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        };
-
-        foreach (var argument in arguments)
-        {
-            start.ArgumentList.Add(argument);
-        }
-
-        using var process = Process.Start(start) ?? throw new InvalidOperationException("docker could not be started.");
-        var output = process.StandardOutput.ReadToEndAsync();
-
-        if (!process.WaitForExit(DockerTimeout))
-        {
-            process.Kill();
-            throw new TimeoutException($"docker {string.Join(' ', arguments)} did not finish in {DockerTimeout.TotalSeconds}s.");
-        }
-
-        return output.Result;
     }
 }
