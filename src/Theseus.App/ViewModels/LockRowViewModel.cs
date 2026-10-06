@@ -31,7 +31,7 @@ public sealed class LockRowViewModel : ObservableObject
         _moveUp = moveUp;
         _moveDown = moveDown;
         _cancel = cancel;
-        AskReleaseCommand = new RelayCommand(_ => IsConfirmingRelease = true, _ => IsHeld);
+        AskReleaseCommand = new RelayCommand(_ => IsConfirmingRelease = true);
         ConfirmReleaseCommand = new RelayCommand(_ =>
         {
             IsConfirmingRelease = false;

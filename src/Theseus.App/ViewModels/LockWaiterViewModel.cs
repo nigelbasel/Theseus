@@ -1,3 +1,5 @@
+using System.Windows.Input;
+
 namespace Theseus.App.ViewModels;
 
 /// <summary>One request waiting for a lock, as the board's lock strip shows it.</summary>
@@ -26,14 +28,26 @@ public sealed class LockWaiterViewModel : ObservableObject
     public int Position
     {
         get => _position;
-        set => Set(ref _position, value);
+        set
+        {
+            if (Set(ref _position, value))
+            {
+                CommandManager.InvalidateRequerySuggested();
+            }
+        }
     }
 
     /// <summary>Whether it is last in the queue, so it cannot move down.</summary>
     public bool IsLast
     {
         get => _isLast;
-        set => Set(ref _isLast, value);
+        set
+        {
+            if (Set(ref _isLast, value))
+            {
+                CommandManager.InvalidateRequerySuggested();
+            }
+        }
     }
 
     /// <summary>Who asked.</summary>

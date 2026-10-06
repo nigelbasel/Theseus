@@ -59,7 +59,7 @@ call() {
 
 stray_container_report() {
   local rows
-  rows=$(docker ps --filter "label=org.testcontainers" --format '{{.Names}} ({{.Image}}, {{.Status}})' 2>/dev/null)
+  rows=$(timeout 10 docker ps --filter "label=org.testcontainers" --format '{{.Names}} ({{.Image}}, {{.Status}})' 2>/dev/null)
   if [ -n "$rows" ]; then
     echo "NOTE: Testcontainers containers are already running on this host:"
     echo "$rows" | sed 's/^/  /'
