@@ -37,9 +37,47 @@ public static class CardLifecycle
 
         var latest = LatestToday(workstreamKey, runs, now);
 
-        return latest is null
-            ? new CardState(SessionLifecycle.NotStarted, null)
-            : new CardState(SessionLifecycle.Ended, latest.EndedUtc);
+        if (latest is not null)
+        {
+            return new CardState(SessionLifecycle.Ended, latest.EndedUtc);
+        }
+
+        var previous = runs
+            .Where(run => string.Equals(run.WorkstreamKey, workstreamKey, StringComparison.OrdinalIgnoreCase))
+            .MaxBy(run => run.StartedUtc);
+
+        return new CardState(SessionLifecycle.NotStarted, null, previous?.EndedUtc, previous?.StartedUtc);
+    }
+
+    /// <summary>
+    /// The card line for a workstream not started today. "Not started today" alone was correct and told
+    /// Nigel nothing he could use after closing a session that had run for days (2026-10-06), so it says
+    /// when the last run ended, or, where that ending was never recorded, when it began.
+    /// </summary>
+    public static string NotStartedLine(DateTimeOffset? lastExitedUtc, DateTimeOffset? lastStartedUtc, DateTimeOffset now)
+    {
+        if (lastExitedUtc is { } exited)
+        {
+            return $"not started today · last exited {Ago(exited, now)}";
+        }
+
+        return lastStartedUtc is { } started
+            ? $"not started today · last started {Ago(started, now)}"
+            : "never started";
+    }
+
+    private static string Ago(DateTimeOffset moment, DateTimeOffset now)
+    {
+        var elapsed = now - moment;
+
+        return elapsed switch
+        {
+            { TotalMinutes: < 1 } => "just now",
+            { TotalHours: < 1 } => $"{(int)elapsed.TotalMinutes}m ago",
+            { TotalDays: < 1 } => $"{(int)elapsed.TotalHours}h ago",
+            { TotalDays: < 7 } => $"{moment.ToLocalTime():ddd HH:mm}",
+            _ => $"{moment.ToLocalTime():d MMM}",
+        };
     }
 
     private static SessionRun? LatestToday(

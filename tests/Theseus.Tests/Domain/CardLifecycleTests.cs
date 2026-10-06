@@ -155,4 +155,47 @@ public class CardLifecycleTests
 
         Assert.That(CardLifecycle.For("tailhawk", "busy", isLive: false, runs, Now).Since, Is.EqualTo(ended));
     }
+
+    [Test]
+    public void For_NotStartedToday_CarriesWhenTheLastRunEnded()
+    {
+        var ended = Now.AddDays(-2);
+        var runs = new[]
+        {
+            Run("tailhawk", Now.AddDays(-9)) with { EndedUtc = Now.AddDays(-8) },
+            Run("tailhawk", Now.AddDays(-5)) with { EndedUtc = ended },
+        };
+
+        var state = CardLifecycle.For("tailhawk", "busy", isLive: false, runs, Now);
+
+        Assert.That(state.Lifecycle, Is.EqualTo(SessionLifecycle.NotStarted));
+        Assert.That(state.LastExitedUtc, Is.EqualTo(ended));
+        Assert.That(state.LastStartedUtc, Is.EqualTo(Now.AddDays(-5)));
+    }
+
+    [Test]
+    public void NotStartedLine_SaysWhenItLastExited()
+    {
+        Assert.That(CardLifecycle.NotStartedLine(Now.AddHours(-3), Now.AddDays(-4), Now),
+            Is.EqualTo("not started today · last exited 3h ago"));
+    }
+
+    [Test]
+    public void NotStartedLine_FallsBackToWhenItLastStartedWhenNoEndingWasRecorded()
+    {
+        Assert.That(CardLifecycle.NotStartedLine(null, Now.AddMinutes(-20), Now),
+            Is.EqualTo("not started today · last started 20m ago"));
+    }
+
+    [Test]
+    public void NotStartedLine_ForAWorkstreamThatHasNeverRun()
+    {
+        Assert.That(CardLifecycle.NotStartedLine(null, null, Now), Is.EqualTo("never started"));
+    }
+
+    [Test]
+    public void NotStartedLine_OlderThanAWeekGivesTheDate()
+    {
+        Assert.That(CardLifecycle.NotStartedLine(Now.AddDays(-20), null, Now), Does.StartWith("not started today · last exited ").And.Contain("Aug"));
+    }
 }

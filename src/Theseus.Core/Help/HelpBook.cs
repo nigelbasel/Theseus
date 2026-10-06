@@ -161,7 +161,9 @@ public static class HelpBook
                 new HelpEntry(
                     "Not started today",
                     "No run of this workstream was under way at any point today. A session left"
-                    + " working overnight counts as today's, whatever day it was started on."),
+                    + " working overnight counts as today's, whatever day it was started on. The card"
+                    + " says when the last run exited, or when it started if its ending was never seen;"
+                    + " a session closed a moment ago can show that way until the next refresh confirms it has gone."),
                 new HelpEntry(
                     "Jira keys",
                     "Three places name them and all three are shown: the opening prompt, the card"

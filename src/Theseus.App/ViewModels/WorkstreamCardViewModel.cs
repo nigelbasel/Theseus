@@ -7,6 +7,8 @@ public sealed class WorkstreamCardViewModel : ObservableObject
 {
     private Workstream _workstream;
     private SessionLifecycle _lifecycle = SessionLifecycle.NotStarted;
+    private DateTimeOffset? _lastExitedUtc;
+    private DateTimeOffset? _lastStartedUtc;
     private string _todoSummary = string.Empty;
     private bool _stopPending;
     private string _runningAs = string.Empty;
@@ -117,6 +119,32 @@ public sealed class WorkstreamCardViewModel : ObservableObject
         set
         {
             if (Set(ref _lifecycleSinceUtc, value))
+            {
+                Raise(nameof(StatusLine));
+            }
+        }
+    }
+
+    /// <summary>For a card not started today, when its last run ended, where that was recorded.</summary>
+    public DateTimeOffset? LastExitedUtc
+    {
+        get => _lastExitedUtc;
+        set
+        {
+            if (Set(ref _lastExitedUtc, value))
+            {
+                Raise(nameof(StatusLine));
+            }
+        }
+    }
+
+    /// <summary>For a card not started today, when its last run began.</summary>
+    public DateTimeOffset? LastStartedUtc
+    {
+        get => _lastStartedUtc;
+        set
+        {
+            if (Set(ref _lastStartedUtc, value))
             {
                 Raise(nameof(StatusLine));
             }
@@ -279,7 +307,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject
         }
         : Lifecycle switch
         {
-        SessionLifecycle.NotStarted => "not started today",
+        SessionLifecycle.NotStarted => CardLifecycle.NotStartedLine(LastExitedUtc, LastStartedUtc, DateTimeOffset.UtcNow),
         SessionLifecycle.Launching => "launching",
         SessionLifecycle.Running => Since("busy"),
         SessionLifecycle.Idle => Since("idle"),

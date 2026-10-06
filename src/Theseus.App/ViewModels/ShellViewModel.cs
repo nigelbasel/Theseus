@@ -798,6 +798,8 @@ public sealed class ShellViewModel : ObservableObject
             card.MotionAllowed = _motionAllowed;
             card.Lifecycle = state.Lifecycle;
             card.LifecycleSinceUtc = state.Since;
+            card.LastExitedUtc = state.LastExitedUtc;
+            card.LastStartedUtc = state.LastStartedUtc;
             card.TodoSummary = live ? Doing(card.Workstream.LastSessionId) : string.Empty;
 
             // A request that has been written but not yet collected is otherwise invisible, and the
