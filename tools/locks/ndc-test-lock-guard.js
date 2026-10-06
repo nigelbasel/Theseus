@@ -122,5 +122,5 @@ process.stdin.on('end', () => {
     `"<suite or build>", then run the command with ${runner} run --token <token> -- <the same command> in a fresh ` +
     `background call; tell Nigel you are waiting. If it is urgent, tell Nigel. ` +
     `Never ask the holder to stop or give way, and never kill a run to free the lock. Verify locally before pushing; do not offload verification to CI. ` +
-    `Unit suites (UnitTests.*, Api.Mcp.Tests) are not blocked.`);
+    `Unit suites (*.UnitTests, *.Unit.Tests, Api.Mcp.Tests) are not blocked.`);
 });

@@ -7,8 +7,8 @@ using Theseus.Core.Locks;
 namespace Theseus.App.ViewModels;
 
 /// <summary>
-/// The machine's locks on the board (Nigel, 2026-10-06): a strip under the command bar showing each
-/// lock that is held or has a queue, and a count in the status bar. Nigel reorders, cancels and
+/// The machine's locks on the board (Nigel, 2026-10-06): a panel at the side of the board, opened from the
+/// command bar like the live sessions panel, and a count in the status bar. Nigel reorders, cancels and
 /// releases from here and nowhere else. Every change to the book goes off the UI thread, because a
 /// change can clear up after a dead test run, which waits on Docker.
 /// </summary>
@@ -21,6 +21,7 @@ public sealed class LocksViewModel : ObservableObject, IDisposable
     private readonly Func<DateTimeOffset> _clock;
     private readonly Dispatcher _dispatcher;
     private readonly DispatcherTimer _timer;
+    private bool _isOpen;
 
     /// <summary>Creates the view over a lock book, refreshed on every change and twice a minute for the times.</summary>
     public LocksViewModel(LockBook book, Func<DateTimeOffset> clock)
@@ -31,6 +32,7 @@ public sealed class LocksViewModel : ObservableObject, IDisposable
         Rows = new ObservableCollection<LockRowViewModel>(LockNames.All.Select(name =>
             new LockRowViewModel(name, Release, MoveUp, MoveDown, Cancel)));
 
+        ToggleCommand = new RelayCommand(_ => IsOpen = !IsOpen);
         _book.Changed += OnChanged;
         _timer = new DispatcherTimer(TimeSpan.FromSeconds(30), DispatcherPriority.Background, (_, _) => Refresh(), _dispatcher);
         _timer.Start();
@@ -40,8 +42,21 @@ public sealed class LocksViewModel : ObservableObject, IDisposable
     /// <summary>One row per lock, always in the same order.</summary>
     public ObservableCollection<LockRowViewModel> Rows { get; }
 
-    /// <summary>Whether any lock is held or has a queue, which is when the strip shows.</summary>
-    public bool IsVisible => Rows.Any(row => row.IsActive);
+    /// <summary>Whether the locks panel is open at the side of the board.</summary>
+    public bool IsOpen
+    {
+        get => _isOpen;
+        set => Set(ref _isOpen, value);
+    }
+
+    /// <summary>Opens or closes the locks panel.</summary>
+    public RelayCommand ToggleCommand { get; }
+
+    /// <summary>Holders and waiters across every lock, for the command bar button.</summary>
+    public int Busy => Rows.Sum(row => (row.IsHeld ? 1 : 0) + row.Waiting.Count);
+
+    /// <summary>The command bar button's label: "Locks", with how many are holding or waiting.</summary>
+    public string ButtonText => Busy == 0 ? "Locks" : $"Locks {Busy}";
 
     /// <summary>The status bar's line: each busy lock, or that all are free.</summary>
     public string Summary
@@ -68,7 +83,8 @@ public sealed class LocksViewModel : ObservableObject, IDisposable
             row.Update(tickets, now);
         }
 
-        Raise(nameof(IsVisible));
+        Raise(nameof(Busy));
+        Raise(nameof(ButtonText));
         Raise(nameof(Summary));
         Raise(nameof(HasLongHold));
     }
