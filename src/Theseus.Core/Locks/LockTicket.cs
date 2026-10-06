@@ -19,6 +19,7 @@ namespace Theseus.Core.Locks;
 /// <param name="ReservedUntilUtc">For a process hold not yet attached, when the grant lapses.</param>
 /// <param name="ProcessId">The Windows process holding it, once attached.</param>
 /// <param name="ProcessStart">That process's start time as a file time, so a reused id is not mistaken for it.</param>
+/// <param name="TestHosts">Test hosts seen running under that process, to end if it dies without releasing.</param>
 public sealed record LockTicket(
     string Token,
     string Lock,
@@ -34,7 +35,8 @@ public sealed record LockTicket(
     DateTimeOffset? GrantedUtc = null,
     DateTimeOffset? ReservedUntilUtc = null,
     int? ProcessId = null,
-    string? ProcessStart = null)
+    string? ProcessStart = null,
+    IReadOnlyList<HeldProcess>? TestHosts = null)
 {
     /// <summary>Whether this ticket holds its lock.</summary>
     public bool IsHolder => GrantedUtc is not null;

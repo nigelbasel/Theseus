@@ -32,17 +32,29 @@ public sealed class LockBook
     private readonly LockHistory _history;
     private readonly ILockLiveness _liveness;
     private readonly ISystemClock _clock;
+    private readonly IProcessTree? _tree;
+    private readonly IOrphanCleaner? _cleaner;
 
     /// <summary>
     /// Opens the book from its saved state. Waiters are given a fresh grace period and unattached grants
     /// a fresh reservation, because nobody could reach Theseus while it was not running.
     /// </summary>
-    public LockBook(LockStateStore store, LockHistory history, ILockLiveness liveness, ISystemClock clock)
+    /// <param name="tree">Finds the test hosts under a test run's holder, so they can be cleared if it dies.</param>
+    /// <param name="cleaner">Clears what a dead test run's holder left running before the next is granted.</param>
+    public LockBook(
+        LockStateStore store,
+        LockHistory history,
+        ILockLiveness liveness,
+        ISystemClock clock,
+        IProcessTree? tree = null,
+        IOrphanCleaner? cleaner = null)
     {
         _store = store;
         _history = history;
         _liveness = liveness;
         _clock = clock;
+        _tree = tree;
+        _cleaner = cleaner;
 
         var now = clock.UtcNow;
 
@@ -267,10 +279,49 @@ public sealed class LockBook
         });
 
     /// <summary>
-    /// Ends holds whose process or session is gone, grants nobody took up and waiters that stopped
+    /// Records the test hosts running under each test run, ends holds whose process or session is gone
+    /// (clearing what a dead test run left behind), grants nobody took up and waiters that stopped
     /// asking, then gives each free lock to the front of its queue.
     /// </summary>
-    public void Sweep() => Change(now => (true, Promote(now)));
+    public void Sweep() => Change(now =>
+    {
+        var recorded = RecordTestHosts();
+
+        return (true, Promote(now) | recorded);
+    });
+
+    private bool RecordTestHosts()
+    {
+        if (_tree is null)
+        {
+            return false;
+        }
+
+        var changed = false;
+
+        for (var index = 0; index < _tickets.Count; index++)
+        {
+            var ticket = _tickets[index];
+
+            if (ticket is not { IsHolder: true, Lock: LockNames.Tests, ProcessId: { } processId })
+            {
+                continue;
+            }
+
+            var known = ticket.TestHosts ?? [];
+            var fresh = _tree.TestHostsUnder(processId)
+                .Where(host => !known.Any(seen => seen.ProcessId == host.ProcessId && seen.Start == host.Start))
+                .ToList();
+
+            if (fresh.Count > 0)
+            {
+                _tickets[index] = ticket with { TestHosts = [.. known, .. fresh] };
+                changed = true;
+            }
+        }
+
+        return changed;
+    }
 
     private T Change<T>(Func<DateTimeOffset, (T Result, bool Changed)> work)
     {
@@ -314,7 +365,11 @@ public sealed class LockBook
 
             if (Ending(ticket, now, gone) is { } ending)
             {
-                End(index, now, ending.Kind, ending.Detail, ending.Detail);
+                var cleaned = ending.Kind == LockEventKind.HolderGone && ticket is { Lock: LockNames.Tests, ProcessId: not null, GrantedUtc: { } granted }
+                    ? _cleaner?.Clean(ticket.TestHosts ?? [], granted, now)
+                    : null;
+
+                End(index, now, ending.Kind, ending.Detail, cleaned is null ? ending.Detail : $"{ending.Detail} {cleaned}");
                 changed = true;
             }
         }

@@ -131,7 +131,9 @@ public partial class App : Application
             new LockStateStore(Path.Combine(DataDirectory, "locks.json")),
             new LockHistory(Path.Combine(DataDirectory, "locks-history.jsonl")),
             new RegistryLockLiveness(new ProcessProbe(), new SessionRegistryReader(SessionRegistryReader.DefaultDirectory, new ProcessProbe()), clock),
-            clock);
+            clock,
+            new WindowsProcessTree(new ProcessProbe()),
+            OrphanCleaner.ForThisMachine(new ProcessProbe()));
 
         _lockSweep = new Timer(_ => locks.Sweep(), null, TimeSpan.Zero, TimeSpan.FromSeconds(15));
 
