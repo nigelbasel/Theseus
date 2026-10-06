@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Theseus.Core.Attention;
+using Theseus.Core.Locks;
 
 namespace Theseus.Core.Mcp;
 
@@ -27,9 +28,16 @@ public sealed partial class McpHandler
         + "move to a different issue, and stop_work when you stop working on issues. Never estimate, report or "
         + "log a duration of your own. When asked to log time to Jira, call time_for for the issue: it returns "
         + "attended time (the user at this work's tab) and machine time (sessions working) separately. Show the "
-        + "user both, let them choose which to log, and get their approval before writing any worklog.";
+        + "user both, let them choose which to log, and get their approval before writing any worklog. "
+        + "Theseus also holds the machine's shared locks: tests (container-backed suites and whole-solution "
+        + "builds), dev-stack (the local docker stack) and llama (the local model server). Run tests through "
+        + "~/.claude/bin/ndc-test-lock.sh, which asks Theseus for you. For the dev stack or llama, call "
+        + "lock_acquire before using it and lock_release when done. If you are waiting, tell the user who "
+        + "holds the lock. Never ask a holder to give way and never kill another session's process; only "
+        + "the user reorders the queue, from the Theseus board.";
 
     private readonly WorkLog _work;
+    private readonly LockBook? _locks;
     private readonly Func<IReadOnlyList<AttentionInterval>> _attention;
     private readonly Func<string, McpSession?> _sessions;
     private readonly Func<DateTimeOffset> _clock;
@@ -38,14 +46,17 @@ public sealed partial class McpHandler
     /// <summary>Creates the handler over the work log, the sampler's intervals and the launched sessions.</summary>
     /// <param name="sessions">Finds the session a request's path names, or null for one Theseus did not launch.</param>
     /// <param name="zone">The time zone a bare date means midnight in. Defaults to this machine's.</param>
+    /// <param name="locks">The machine's locks, or null when Theseus is not holding any.</param>
     public McpHandler(
         WorkLog work,
         Func<IReadOnlyList<AttentionInterval>> attention,
         Func<string, McpSession?> sessions,
         Func<DateTimeOffset> clock,
-        TimeZoneInfo? zone = null)
+        TimeZoneInfo? zone = null,
+        LockBook? locks = null)
     {
         _work = work;
+        _locks = locks;
         _attention = attention;
         _sessions = sessions;
         _clock = clock;
@@ -133,7 +144,23 @@ public sealed partial class McpHandler
                 "issue"),
             Tool("whoami",
                 "Which workstream this session is, and the issue it is currently working on.",
-                new JsonObject())),
+                new JsonObject()),
+            Tool("locks",
+                "Who holds each of the machine's shared locks (tests, dev-stack, llama), for how long, and who is waiting in what order.",
+                new JsonObject()),
+            Tool("lock_acquire",
+                "Take a shared lock for this session, or join its queue. Returns at once: granted, or your place in the queue. Call again to check; your place is kept while this session runs. The hold lasts until lock_release or this session ends. For test runs use ndc-test-lock.sh instead.",
+                new JsonObject
+                {
+                    ["lock"] = Property("dev-stack or llama (tests is taken by ndc-test-lock.sh)."),
+                    ["purpose"] = Property("What you will use it for, shown to the user on the board."),
+                    ["reason"] = Property("Optional: why it matters. Shown on the board; it does not change your place."),
+                },
+                "lock", "purpose"),
+            Tool("lock_release",
+                "Let go of a shared lock this session holds, or leave its queue.",
+                new JsonObject { ["lock"] = Property("The lock to release.") },
+                "lock")),
     };
 
     private McpResponse CallTool(JsonNode id, string sessionId, JsonObject? parameters)
@@ -157,8 +184,72 @@ public sealed partial class McpHandler
             "start_work" => StartWork(session, arguments),
             "stop_work" => StopWork(session),
             "time_for" => TimeFor(arguments),
+            "locks" => Locks(),
+            "lock_acquire" => LockAcquire(session, arguments),
+            "lock_release" => LockRelease(session, arguments),
             _ => WhoAmI(session),
         });
+    }
+
+    private JsonObject Locks()
+    {
+        if (_locks is null)
+        {
+            return Result("This Theseus is not holding locks.", isError: true);
+        }
+
+        var now = _clock();
+        var tickets = _locks.Snapshot();
+        var lines = new List<string>();
+
+        foreach (var name in LockNames.All)
+        {
+            var holder = tickets.FirstOrDefault(ticket => ticket.IsHolder && ticket.Lock == name);
+            var waiting = tickets.Where(ticket => !ticket.IsHolder && ticket.Lock == name).ToList();
+
+            lines.Add(holder is null
+                ? $"{name}: free"
+                : $"{name}: held by {holder.Who} for {holder.Purpose}, for {Say(now - holder.GrantedUtc!.Value)}");
+            lines.AddRange(waiting.Select((ticket, index) =>
+                $"  {index + 1}. {ticket.Who} for {ticket.Purpose}, waiting {Say(now - ticket.RequestedUtc)}{(ticket.Reason is null ? string.Empty : $" ({ticket.Reason})")}"));
+        }
+
+        return Result(string.Join("\n", lines));
+    }
+
+    private JsonObject LockAcquire(McpSession session, JsonObject arguments)
+    {
+        if (_locks is null)
+        {
+            return Result("This Theseus is not holding locks.", isError: true);
+        }
+
+        var answer = _locks.Request(new LockRequest(
+            Text(arguments["lock"]) ?? string.Empty,
+            session.WorkstreamTitle,
+            Text(arguments["purpose"]) ?? string.Empty,
+            HoldMode.Session,
+            SessionId: session.SessionId,
+            Reason: Text(arguments["reason"])));
+
+        return answer.Status switch
+        {
+            LockStatus.Granted => Result($"{answer.Detail} Call lock_release when you are done with it."),
+            LockStatus.Waiting => Result($"{answer.Detail} Tell the user, and call lock_acquire again later to check. Do not ask the holder to give way."),
+            _ => Result(answer.Detail, isError: true),
+        };
+    }
+
+    private JsonObject LockRelease(McpSession session, JsonObject arguments)
+    {
+        if (_locks is null)
+        {
+            return Result("This Theseus is not holding locks.", isError: true);
+        }
+
+        var answer = _locks.ReleaseForSession(session.SessionId, Text(arguments["lock"]) ?? string.Empty);
+
+        return Result(answer.Detail, isError: answer.Status != LockStatus.Ended);
     }
 
     private JsonObject StartWork(McpSession session, JsonObject arguments)

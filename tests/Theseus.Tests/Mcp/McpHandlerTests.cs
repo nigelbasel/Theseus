@@ -1,5 +1,7 @@
 using System.Text.Json.Nodes;
+using Theseus.Core.Abstractions;
 using Theseus.Core.Attention;
+using Theseus.Core.Locks;
 using Theseus.Core.Mcp;
 
 namespace Theseus.Tests.Mcp;
@@ -23,9 +25,19 @@ public class McpHandlerTests
         _handler = new McpHandler(
             new WorkLog(Path.Combine(_directory, "work.jsonl")),
             () => _intervals,
-            sessionId => sessionId == "session-1" ? new McpSession("session-1", "gdpr-mcp", "GDPR MCP") : null,
+            sessionId => sessionId switch
+            {
+                "session-1" => new McpSession("session-1", "gdpr-mcp", "GDPR MCP"),
+                "session-2" => new McpSession("session-2", "nexus-admin", "Nexus Admin"),
+                _ => null,
+            },
             () => _now,
-            TimeZoneInfo.Utc);
+            TimeZoneInfo.Utc,
+            new LockBook(
+                new LockStateStore(Path.Combine(_directory, "locks.json")),
+                new LockHistory(Path.Combine(_directory, "locks-history.jsonl")),
+                new AllAlive(),
+                new HandlerClock(() => _now)));
     }
 
     [TearDown]
@@ -91,12 +103,12 @@ public class McpHandlerTests
     }
 
     [Test]
-    public void ToolsList_OffersTheFourTools()
+    public void ToolsList_OffersTheTimeAndLockTools()
     {
         var tools = Request("tools/list", null)["result"]!["tools"]!.AsArray();
 
         Assert.That(tools.Select(tool => tool!["name"]!.GetValue<string>()),
-            Is.EquivalentTo(new[] { "start_work", "stop_work", "time_for", "whoami" }));
+            Is.EquivalentTo(new[] { "start_work", "stop_work", "time_for", "whoami", "locks", "lock_acquire", "lock_release" }));
         Assert.That(tools.All(tool => tool!["inputSchema"]!["type"]!.GetValue<string>() == "object"), Is.True);
     }
 
@@ -163,6 +175,59 @@ public class McpHandlerTests
         Assert.That(identity["workingOn"]!.GetValue<string>(), Is.EqualTo("NDC-680"));
     }
 
+    [Test]
+    public void LockAcquire_GrantsAFreeLockToTheSession()
+    {
+        var result = Call("lock_acquire", new JsonObject { ["lock"] = "dev-stack", ["purpose"] = "AFE editor" });
+
+        Assert.That(result["isError"]!.GetValue<bool>(), Is.False);
+        Assert.That(Text(result), Does.Contain("You hold the dev-stack lock"));
+    }
+
+    [Test]
+    public void LockAcquire_QueuesASecondSessionAndNamesTheHolder()
+    {
+        Call("lock_acquire", new JsonObject { ["lock"] = "dev-stack", ["purpose"] = "AFE editor" });
+
+        var result = Call("lock_acquire", new JsonObject { ["lock"] = "dev-stack", ["purpose"] = "Nexus check" }, "session-2");
+
+        Assert.That(Text(result), Does.Contain("first in the queue"));
+        Assert.That(Text(result), Does.Contain("GDPR MCP"));
+        Assert.That(Text(result), Does.Contain("Do not ask the holder to give way"));
+    }
+
+    [Test]
+    public void LockRelease_HandsTheLockOn()
+    {
+        Call("lock_acquire", new JsonObject { ["lock"] = "dev-stack", ["purpose"] = "AFE editor" });
+        Call("lock_acquire", new JsonObject { ["lock"] = "dev-stack", ["purpose"] = "Nexus check" }, "session-2");
+
+        Call("lock_release", new JsonObject { ["lock"] = "dev-stack" });
+
+        Assert.That(Text(Call("lock_acquire", new JsonObject { ["lock"] = "dev-stack", ["purpose"] = "Nexus check" }, "session-2")),
+            Does.Contain("You hold"));
+    }
+
+    [Test]
+    public void LockRelease_OfALockTheSessionDoesNotHold_IsAnError()
+    {
+        Assert.That(Call("lock_release", new JsonObject { ["lock"] = "llama" })["isError"]!.GetValue<bool>(), Is.True);
+    }
+
+    [Test]
+    public void Locks_ListsHoldersAndTheQueue()
+    {
+        Call("lock_acquire", new JsonObject { ["lock"] = "dev-stack", ["purpose"] = "AFE editor" });
+        Call("lock_acquire", new JsonObject { ["lock"] = "dev-stack", ["purpose"] = "Nexus check", ["reason"] = "demo at 3" }, "session-2");
+
+        var text = Text(Call("locks", new JsonObject()));
+
+        Assert.That(text, Does.Contain("dev-stack: held by GDPR MCP for AFE editor"));
+        Assert.That(text, Does.Contain("1. Nexus Admin for Nexus check"));
+        Assert.That(text, Does.Contain("(demo at 3)"));
+        Assert.That(text, Does.Contain("tests: free"));
+    }
+
     private JsonNode Request(string method, JsonObject? parameters, string session = "session-1")
     {
         var message = new JsonObject { ["jsonrpc"] = "2.0", ["id"] = 7, ["method"] = method };
@@ -183,4 +248,16 @@ public class McpHandlerTests
         Request("tools/call", new JsonObject { ["name"] = tool, ["arguments"] = arguments }, session)["result"]!;
 
     private static string Text(JsonNode result) => result["content"]![0]!["text"]!.GetValue<string>();
+
+    private sealed class AllAlive : ILockLiveness
+    {
+        public string? StartOf(int processId) => "start";
+
+        public bool IsSessionAlive(string sessionId) => true;
+    }
+
+    private sealed class HandlerClock(Func<DateTimeOffset> now) : ISystemClock
+    {
+        public DateTimeOffset UtcNow => now();
+    }
 }

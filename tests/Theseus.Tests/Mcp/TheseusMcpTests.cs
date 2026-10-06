@@ -36,7 +36,7 @@ public class TheseusMcpTests
     }
 
     [Test]
-    public void Build_AllowsExactlyTheTimeToolsSoASessionIsNotAskedAboutThem()
+    public void Build_AllowsExactlyTheTheseusToolsSoASessionIsNotAskedAboutThem()
     {
         var spec = new LaunchSpec(SessionId, LaunchMode.FirstRun, @"C:\claude.exe", @"C:\work", "Name", "Carry on.", [])
         {
@@ -46,7 +46,7 @@ public class TheseusMcpTests
         var argv = ClaudeArgumentBuilder.Build(spec).ToList();
 
         Assert.That(argv[argv.IndexOf("--allowedTools") + 1],
-            Is.EqualTo("mcp__theseus__start_work,mcp__theseus__stop_work,mcp__theseus__time_for,mcp__theseus__whoami"));
+            Is.EqualTo("mcp__theseus__start_work,mcp__theseus__stop_work,mcp__theseus__time_for,mcp__theseus__whoami,mcp__theseus__locks,mcp__theseus__lock_acquire,mcp__theseus__lock_release"));
         Assert.That(argv[argv.IndexOf("--allowedTools") + 1], Does.Not.Contain("*"),
             "a tool added to the server later must not be approved without anyone deciding it should be");
     }

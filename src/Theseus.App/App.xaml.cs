@@ -144,7 +144,8 @@ public partial class App : Application
                     .OrderByDescending(run => run.StartedUtc)
                     .Select(run => new Theseus.Core.Mcp.McpSession(run.ClaudeSessionId, run.WorkstreamKey, run.TabTitle))
                     .FirstOrDefault(),
-                () => DateTimeOffset.UtcNow),
+                () => DateTimeOffset.UtcNow,
+                locks: locks),
             Theseus.Core.Mcp.TheseusMcp.DefaultPort,
             new LockHttpApi(locks, () => DateTimeOffset.UtcNow));
 
