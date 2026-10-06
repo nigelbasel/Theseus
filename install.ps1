@@ -117,6 +117,26 @@ Write-Host '  Start Menu > Theseus'
 Write-Host ''
 Write-Host 'The board, runs, settings and logs in %LOCALAPPDATA%\Theseus were left alone.'
 
+# The lock client and its guard talk to the lock service in this build, so they are installed with it,
+# never separately. Each is written beside its target and renamed over it, never edited in place: bash
+# reads a running script by offset, and a wrapper mid-run must not find its file rewritten under it.
+$claudeBin = Join-Path $env:USERPROFILE '.claude\bin'
+New-Item -ItemType Directory -Force $claudeBin | Out-Null
+
+foreach ($name in 'ndc-test-lock.sh', 'ndc-test-lock-guard.js') {
+    $source = Join-Path $PSScriptRoot "tools\locks\$name"
+    $target = Join-Path $claudeBin $name
+    $staged = "$target.new"
+
+    try {
+        Copy-Item $source $staged -Force
+        Move-Item $staged $target -Force
+        Write-Host "  Lock client: $target" -ForegroundColor Green
+    } catch {
+        Write-Host "Could not install $name to $target ($($_.Exception.Message)). Copy it from $source by hand." -ForegroundColor Yellow
+    }
+}
+
 # The stop hook is registered in the user's own Claude Code settings, and this script does not write
 # it. That file governs what runs inside every session on the machine and is hand-edited; an
 # installer merging itself into it silently is not a thing its owner can reason about. So: report,
