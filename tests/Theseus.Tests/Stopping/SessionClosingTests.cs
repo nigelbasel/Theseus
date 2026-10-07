@@ -87,6 +87,19 @@ public class SessionClosingTests
             Now,
             alreadyAsked);
 
+    [Test]
+    public void StartedSince_ASessionResumedAfterTheStopWasAsked_IsNotTheOneAsked()
+    {
+        Assert.That(SessionClosing.StartedSince(Request(), Asked.AddMinutes(58)), Is.True,
+            "nexus-admin, 2026-10-07: resumed an hour after its stop, under the same identifier");
+    }
+
+    [Test]
+    public void StartedSince_TheSessionThatWasAsked_StartedBeforeIt()
+    {
+        Assert.That(SessionClosing.StartedSince(Request(), Asked.AddDays(-2)), Is.False);
+    }
+
     private static PendingStopRequest Request() => new(
         "2b96cd6e-5dca-4ac2-9aa3-eeaf67e27e38", "testing-stop", "testing stop",
         "Please stop.", Asked, Asked.AddHours(4))

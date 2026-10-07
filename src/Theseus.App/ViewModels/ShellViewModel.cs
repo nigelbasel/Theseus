@@ -865,6 +865,15 @@ public sealed class ShellViewModel : ObservableObject
 
             var delivered = _stopRequests.Delivered(sessionId);
 
+            if (delivered is not null && SessionClosing.StartedSince(delivered, session.StartedUtc))
+            {
+                _stopRequests.Retire(sessionId);
+                TheseusLog.Information(
+                    "Retired the stop request for {Workstream}: the session running now started after it was asked, so it is not the one that was asked",
+                    card.Key);
+                continue;
+            }
+
             if (!SessionClosing.ShouldClose(delivered, WrittenUtc(delivered?.HandoffPath), session.Status,
                     session.StatusSinceUtc, DateTimeOffset.UtcNow, _closed.Contains(sessionId)))
             {
@@ -1149,6 +1158,16 @@ public sealed class ShellViewModel : ObservableObject
             {
                 TheseusLog.Information(
                     "Withdrew the stop request for {Workstream}, which is being started again", workstream.Key);
+            }
+
+            // A request already handed over is finished with too. On 2026-10-07 nexus-admin was asked
+            // to stop, handed over, and was never closed; Nigel restarted it, and because the resumed
+            // session kept the same identifier, the delivered request was still on disk. Two minutes
+            // later the close step found it idle with a fresh handoff and typed /exit into the new one.
+            if (_stopRequests.Retire(sessionId))
+            {
+                TheseusLog.Information(
+                    "Retired the delivered stop request for {Workstream}, which is being started again", workstream.Key);
             }
 
             Remember(workstream, sessionId);

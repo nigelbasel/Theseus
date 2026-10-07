@@ -64,4 +64,16 @@ public static class SessionClosing
 
         return statusSinceUtc is not { } since || now - since >= Quiet;
     }
+
+    /// <summary>
+    /// Whether the session running now started after the stop was asked, and so cannot be the session
+    /// that was asked. A resumed session keeps its identifier, so the identifier alone does not say
+    /// which process a request was for; the process's start does.
+    /// </summary>
+    public static bool StartedSince(PendingStopRequest request, DateTimeOffset sessionStartedUtc)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        return sessionStartedUtc > request.RequestedUtc;
+    }
 }
