@@ -203,6 +203,46 @@ public sealed class LockBook
             return (new LockAnswer(LockStatus.Ended, $"Released the {ticket.Lock} lock.", token, ticket.Lock), true);
         });
 
+    /// <summary>
+    /// Takes a waiting request out of the queue by who asked and what for, the way it was asked, for a
+    /// requester that no longer has its token. Never touches a holder: a running holder's lock ends
+    /// with its process, and taking it early would let the next run start beside it.
+    /// </summary>
+    public LockAnswer Leave(LockRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (LockNames.Find(request.Lock) is not { } name)
+        {
+            return new LockAnswer(LockStatus.Refused, $"There is no lock called '{request.Lock}'.");
+        }
+
+        return Change(now =>
+        {
+            var key = KeyFor(name, request);
+            var index = _tickets.FindIndex(ticket => string.Equals(ticket.RequesterKey, key, StringComparison.Ordinal));
+
+            if (index < 0)
+            {
+                return (new LockAnswer(LockStatus.Unknown, $"Nothing from {request.Who} for {request.Purpose} is waiting for the {name} lock."), false);
+            }
+
+            var ticket = _tickets[index];
+
+            if (ticket.IsHolder)
+            {
+                return (new LockAnswer(LockStatus.Refused,
+                    $"{request.Who} holds the {name} lock for {request.Purpose}; it is released when that run exits, not by leaving.",
+                    ticket.Token, name), false);
+            }
+
+            End(index, now, LockEventKind.WaiterDropped, "Left the queue.", "Left the queue.");
+            Promote(now);
+
+            return (new LockAnswer(LockStatus.Ended, $"Left the queue for the {name} lock.", ticket.Token, name), true);
+        });
+    }
+
     /// <summary>Lets go of a session's hold on, or place in the queue for, one lock.</summary>
     public LockAnswer ReleaseForSession(string sessionId, string lockName)
     {

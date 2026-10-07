@@ -60,12 +60,18 @@ public sealed class LockHttpApi
                 Text(request, "cwd"),
                 Text(request, "sessionId"),
                 Text(request, "reason")))),
+            "leave" => Answer(_book.Leave(new LockRequest(
+                Text(request, "lock") ?? string.Empty,
+                Text(request, "who") ?? string.Empty,
+                Text(request, "purpose") ?? string.Empty,
+                HoldMode.Process,
+                Text(request, "cwd")))),
             "check" => WithToken(request, _book.Check),
             "release" => WithToken(request, _book.Release),
             "attach" => request["pid"] is JsonValue pid && pid.TryGetValue<int>(out var processId)
                 ? WithToken(request, token => _book.Attach(token, processId))
                 : Json(400, Problem("attach needs the Windows process id as pid.")),
-            _ => Json(404, Problem($"Unknown lock call '{verb}'. Use request, check, attach or release.")),
+            _ => Json(404, Problem($"Unknown lock call '{verb}'. Use request, check, attach, release or leave.")),
         };
     }
 

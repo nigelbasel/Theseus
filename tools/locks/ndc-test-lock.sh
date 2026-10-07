@@ -18,6 +18,9 @@
 #       Run a command under a lock granted by "wait". Start it within 2 minutes of the grant.
 #   ndc-test-lock.sh status
 #   ndc-test-lock.sh release <token>
+#       Let go of a lock, or leave its queue. The token is printed as soon as a request is queued.
+#   ndc-test-lock.sh leave "<who>" "<label>" [--lock <name>]
+#       Leave a queue without the token, from the directory you queued from. Never releases a held lock.
 #
 # Exit codes: 0 success (or the command's own code under "run"), 1 not granted within the wait,
 # 2 usage, 3 not Git Bash, 4 the ticket ended (cancelled by Nigel, dropped, or released), 5 the grant
@@ -124,11 +127,19 @@ queue() {
   WAIT_LEFT="$budget"
   call_waiting request "$body" "$WAIT_LEFT" || return 1
   TOKEN=$(field token)
+  if [ "$(field status)" = "waiting" ] && [ "$budget" -gt 0 ]; then
+    echo "QUEUED for the $lock lock. Token: $TOKEN"
+    echo "To leave the queue: ndc-test-lock.sh release $TOKEN   (or: ndc-test-lock.sh leave \"$who\" \"$label\")"
+  fi
+  # Interrupting a wait gives the place up, so a session that stops waiting does not leave a ticket to
+  # be granted and then lapse in front of everyone behind it. A wait that simply runs out keeps it.
+  trap 'call release "$(json token="$TOKEN")" >/dev/null; exit 130' INT
+  trap 'call release "$(json token="$TOKEN")" >/dev/null; exit 143' TERM
   while true; do
     status=$(field status)
     detail=$(field detail)
     case "$status" in
-      granted) return 0 ;;
+      granted) trap - INT TERM; return 0 ;;
       waiting) ;;
       ended) echo "LOCK TICKET ENDED: $detail" >&2; return 4 ;;
       *) echo "LOCK REFUSED: $detail" >&2; return 2 ;;
@@ -138,6 +149,7 @@ queue() {
       last="$detail"
     fi
     if [ "$WAIT_LEFT" -le 0 ]; then
+      trap - INT TERM
       return 1
     fi
     sleep "$POLL_SECONDS"
@@ -258,12 +270,25 @@ case "${1:-status}" in
     fi
     call release "$(json token="$TOKEN")" && echo "$(field detail)"
     ;;
+  leave)
+    shift
+    who="${1:-}"; label="${2:-}"
+    shift 2 2>/dev/null || true
+    take_lock_option "$@" && shift 2
+    if [ -z "$who" ] || [ -z "$label" ]; then
+      echo "usage: ndc-test-lock.sh leave \"<who>\" \"<label>\" [--lock <name>]   (run it from the same directory you queued from)" >&2
+      exit 2
+    fi
+    call leave "$(json lock="$lock_name" who="$who" purpose="$label" cwd="$(pwd -W 2>/dev/null || pwd)")" || { echo "THESEUS NOT REACHABLE at $URL" >&2; exit 1; }
+    echo "$(field detail)"
+    [ "$(field status)" = "ended" ]
+    ;;
   acquire)
     echo "acquire is gone. For a long wait use 'wait' then 'run --token'; to hold a lock across many commands use the lock_acquire tool on the Theseus MCP server." >&2
     exit 2
     ;;
   *)
-    echo "usage: ndc-test-lock.sh {run|wait|status|release}" >&2
+    echo "usage: ndc-test-lock.sh {run|wait|status|release|leave}" >&2
     exit 2
     ;;
 esac

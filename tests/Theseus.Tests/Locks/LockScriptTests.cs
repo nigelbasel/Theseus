@@ -137,6 +137,64 @@ public class LockScriptTests
     }
 
     [Test]
+    public void AQueuedWait_PrintsItsTokenAndHowToLeave_AndLeaveByNameTakesItOut()
+    {
+        HoldTestsLock();
+
+        var (waitCode, waitOutput) = Script("wait \"NDC-1190\" \"Api.Contacts.Tests\" --wait 1");
+
+        Assert.That(waitCode, Is.EqualTo(1), waitOutput);
+        Assert.That(waitOutput, Does.Contain("QUEUED for the tests lock. Token: "));
+        Assert.That(waitOutput, Does.Contain("leave \"NDC-1190\" \"Api.Contacts.Tests\""));
+        Assert.That(_book.Snapshot(), Has.Count.EqualTo(2), "a wait that runs out keeps its place");
+
+        var (leaveCode, leaveOutput) = Script("leave \"NDC-1190\" \"Api.Contacts.Tests\"");
+
+        Assert.That(leaveCode, Is.Zero, leaveOutput);
+        Assert.That(leaveOutput, Does.Contain("Left the queue"));
+        Assert.That(_book.Snapshot().Single().Who, Is.EqualTo("Legacy job migration"));
+    }
+
+    [Test]
+    public void AQueuedWait_ReleasedByItsToken_LeavesTheQueue()
+    {
+        HoldTestsLock();
+        var (_, waitOutput) = Script("wait \"NDC-1190\" \"Api.Contacts.Tests\" --wait 1");
+        var token = waitOutput.Split("Token: ")[1].Split('\n')[0].Trim();
+
+        var (code, output) = Script($"release {token}");
+
+        Assert.That(code, Is.Zero, output);
+        Assert.That(_book.Snapshot(), Has.Count.EqualTo(1));
+    }
+
+    [Test]
+    public void InterruptingAWait_GivesThePlaceUp()
+    {
+        HoldTestsLock();
+        var script = Path.Combine(RepositoryRoot(), "tools", "locks", "ndc-test-lock.sh").Replace('\\', '/');
+
+        var (code, output) = Bash(
+            $"\"{script}\" wait \"NDC-1190\" \"Api.Contacts.Tests\" --wait 120 & waiter=$!; sleep 6; kill -TERM $waiter; wait $waiter; echo \"exit=$?\"");
+
+        Assert.That(output, Does.Contain("QUEUED"), output);
+        Assert.That(output, Does.Contain("exit=143"), output);
+        Assert.That(_book.Snapshot().Single().Who, Is.EqualTo("Legacy job migration"), "the interrupted wait left the queue");
+    }
+
+    [Test]
+    public void Leave_NeverReleasesAHeldLock()
+    {
+        var answer = _book.Request(new LockRequest(LockNames.Tests, "NDC-1190", "Api.Contacts.Tests", HoldMode.Process,
+            Path.GetTempPath().TrimEnd('\\').Replace('\\', '/')));
+
+        Assert.That(answer.Status, Is.EqualTo(LockStatus.Granted));
+        Assert.That(_book.Leave(new LockRequest(LockNames.Tests, "NDC-1190", "Api.Contacts.Tests", HoldMode.Process,
+            Path.GetTempPath().TrimEnd('\\').Replace('\\', '/'))).Status, Is.EqualTo(LockStatus.Refused));
+        Assert.That(_book.Snapshot(), Has.Count.EqualTo(1));
+    }
+
+    [Test]
     public void Acquire_IsGone()
     {
         var (exitCode, output) = Script("acquire \"Someone\" \"Something\"");
@@ -156,6 +214,12 @@ public class LockScriptTests
     private (int ExitCode, string Output) Script(string arguments)
     {
         var script = Path.Combine(RepositoryRoot(), "tools", "locks", "ndc-test-lock.sh").Replace('\\', '/');
+
+        return Bash($"\"{script}\" {arguments}");
+    }
+
+    private (int ExitCode, string Output) Bash(string commandLine)
+    {
         var start = new ProcessStartInfo(GitBash)
         {
             RedirectStandardOutput = true,
@@ -165,7 +229,7 @@ public class LockScriptTests
         };
 
         start.ArgumentList.Add("-c");
-        start.ArgumentList.Add($"\"{script}\" {arguments}");
+        start.ArgumentList.Add(commandLine);
         start.Environment["THESEUS_LOCKS_URL"] = _url;
         start.Environment["NDC_TEST_LOCK_DIR"] = LegacyLockDirectory.Replace('\\', '/');
 
