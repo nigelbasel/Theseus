@@ -94,7 +94,7 @@ process.stdin.on('end', () => {
     process.exit(0);
   }
 
-  const containerSuite = /dotnet(\.exe)?\s+test\b[^\n;&|]*(Api\.Tests|Api\.[A-Za-z]+\.Tests|Persistence\.?Tests|IntegrationTests|\.slnf?\b)/i;
+  const containerSuite = /dotnet(\.exe)?\s+test\b[^\n;&|]*(Api\.Tests|Api\.[A-Za-z]+\.Tests|Persistence\.?Tests|IntegrationTests|Content\.Service\.UnitTests|\.slnf?\b)/i;
   const composeBuild = /docker(-compose|\s+compose)\b[^\n;&|]*(\sbuild\b|\sup\b[^\n;&|]*--build)/i;
   const solutionBuild = /dotnet(\.exe)?\s+build\b[^\n;&|]*\.slnf?\b/i;
 
