@@ -89,6 +89,9 @@ public sealed class LaunchCoordinator : IAsyncDisposable
     /// </summary>
     public Func<string, string?>? McpConfigFor { get; set; }
 
+    /// <summary>Why the last <see cref="Launch"/> failed to open its tab, when the terminal refused it.</summary>
+    public string? LastRefusal { get; private set; }
+
     /// <summary>Opens a tab for one workstream and records the attempt.</summary>
     /// <returns>The session identifier the tab was started under, or null if it could not start.</returns>
     /// <param name="startMode">
@@ -97,6 +100,8 @@ public sealed class LaunchCoordinator : IAsyncDisposable
     public string? Launch(Workstream workstream, string? planPath = null, StartMode? startMode = null)
     {
         ArgumentNullException.ThrowIfNull(workstream);
+
+        LastRefusal = null;
 
         if (_claude.Locate() is not { } claudePath
             || _terminals.Resolve() is not { Source: not TerminalSource.None } terminal)
@@ -158,6 +163,9 @@ public sealed class LaunchCoordinator : IAsyncDisposable
         }
         catch (Exception exception) when (exception is System.ComponentModel.Win32Exception or InvalidOperationException)
         {
+            TheseusLog.Warning(exception, "The terminal {Terminal} would not start for {Workstream}",
+                plan.TerminalExecutablePath, workstream.Key);
+            LastRefusal = StartNotice.Refusal(workstream.Title, exception.Message);
             _sink.TicketRefused(plan.Ticket.Ticket, $"The terminal would not start: {exception.Message}");
 
             return null;

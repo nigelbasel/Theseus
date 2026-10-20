@@ -1139,7 +1139,8 @@ public sealed class ShellViewModel : ObservableObject
             }
         }
 
-        var started = 0;
+        var started = new List<string>();
+        var refusals = new List<string>();
 
         foreach (var candidate in workstreams)
         {
@@ -1147,6 +1148,11 @@ public sealed class ShellViewModel : ObservableObject
 
             if (_launcher.Launch(workstream, _plans.PathFor(workstream.Key), startMode) is not { } sessionId)
             {
+                if (_launcher.LastRefusal is { } refusal)
+                {
+                    refusals.Add(refusal);
+                }
+
                 continue;
             }
 
@@ -1171,15 +1177,10 @@ public sealed class ShellViewModel : ObservableObject
             }
 
             Remember(workstream, sessionId);
-            started++;
+            started.Add(workstream.Title);
         }
 
-        Notice = started switch
-        {
-            0 => "Nothing was started.",
-            1 => $"Started {workstreams[0].Title}.",
-            _ => $"Started {started} sessions.",
-        };
+        Notice = StartNotice.For(started, refusals);
 
         Refresh();
     }
