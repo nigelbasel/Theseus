@@ -60,6 +60,15 @@ public sealed class ShellViewModel : ObservableObject
     /// <summary>How the held workstreams were asked to start, so Start anyway honours it.</summary>
     private StartMode? _heldStartMode;
 
+    /// <summary>
+    /// Workstreams a Start held back because they still wait on an input. A fresh session with
+    /// nothing to read only goes looking for a document that does not exist yet.
+    /// </summary>
+    private IReadOnlyList<Workstream> _heldForInputs = [];
+
+    /// <summary>How the waiting workstreams were asked to start.</summary>
+    private StartMode? _heldForInputsMode;
+
     /// <summary>Creates the shell over everything the window drives.</summary>
     public ShellViewModel(
         BoardViewModel board,
@@ -129,8 +138,10 @@ public sealed class ShellViewModel : ObservableObject
             card =>
             {
                 var title = card.Title;
+                var key = card.Key;
 
                 Board.Remove(card);
+                Chains?.Deleted(key);
                 Refresh();
                 Notice = $"Deleted {title}.";
             });
@@ -144,6 +155,11 @@ public sealed class ShellViewModel : ObservableObject
             {
                 Refresh();
                 Board.Place(created.Key, created.Stage, created.Area);
+
+                if (created.ParentKey is { } parent)
+                {
+                    Chains?.Spawned(parent, created.Key, created.ReportTo);
+                }
 
                 if (Board.Card(created.Key) is not { } card)
                 {
@@ -160,7 +176,13 @@ public sealed class ShellViewModel : ObservableObject
                 }
 
                 Notice = $"Created {card.Title} in {card.Column}.";
-            });
+            },
+            () => Chains?.TakenKeys ?? [],
+            () => _settings.Read().BriefFolderName);
+
+        SpawnFollowOnCommand = new RelayCommand(
+            parameter => NewWorkstream.OpenFollowOn(((WorkstreamCardViewModel)parameter!).Workstream),
+            parameter => parameter is WorkstreamCardViewModel { IsArchived: false });
 
         Instructions = new InstructionsViewModel();
 
@@ -184,7 +206,26 @@ public sealed class ShellViewModel : ObservableObject
 
             _heldForTabs = [];
             TabsChanged();
-            StartMany(held, evenIfTabsExist: true, startMode: mode);
+            StartMany(held, evenIfTabsExist: true, evenIfWaiting: true, startMode: mode);
+        });
+
+        StartWithoutInputsCommand = new RelayCommand(_ =>
+        {
+            var held = _heldForInputs;
+            var mode = _heldForInputsMode;
+
+            _heldForInputs = [];
+            InputsChanged();
+            StartMany(held, evenIfWaiting: true, startMode: mode, trigger: "StartWithoutInputs");
+        });
+
+        SkipWaitingCommand = new RelayCommand(_ =>
+        {
+            var count = _heldForInputs.Count;
+
+            _heldForInputs = [];
+            InputsChanged();
+            Notice = count == 1 ? "Left the waiting card unstarted." : $"Left {count} waiting cards unstarted.";
         });
 
         KeepExistingTabsCommand = new RelayCommand(_ =>
@@ -235,6 +276,24 @@ public sealed class ShellViewModel : ObservableObject
 
     /// <summary>The machine's locks, for the strip under the command bar and the status bar.</summary>
     public LocksViewModel? Locks { get; set; }
+
+    /// <summary>The links between workstreams: the Chains tab, the cards' link lines and the drawer's Related section.</summary>
+    public ChainsViewModel? Chains { get; set; }
+
+    /// <summary>Opens the New dialog for a follow-on spawned from a card.</summary>
+    public RelayCommand SpawnFollowOnCommand { get; }
+
+    /// <summary>Starts the held-back waiting cards anyway, without their inputs.</summary>
+    public RelayCommand StartWithoutInputsCommand { get; }
+
+    /// <summary>Leaves the waiting cards unstarted.</summary>
+    public RelayCommand SkipWaitingCommand { get; }
+
+    /// <summary>Whether a Start is waiting on an answer about cards whose inputs are not accepted yet.</summary>
+    public bool HasHeldForInputs => _heldForInputs.Count > 0;
+
+    /// <summary>What the strip says: which cards are waiting, and on what.</summary>
+    public string HeldForInputsSummary => Chains?.WaitingSummary(_heldForInputs) ?? string.Empty;
 
     /// <summary>Re-reads everything on disk.</summary>
     public RelayCommand RefreshCommand { get; }
@@ -839,6 +898,7 @@ public sealed class ShellViewModel : ObservableObject
             card.Model = TranscriptModel.Read(card.Workstream.LastSessionId);
         }
 
+        Chains?.Update();
         SyncClashes();
         CloseFinishedSessions();
     }
@@ -970,11 +1030,13 @@ public sealed class ShellViewModel : ObservableObject
         var cards = Board.Cards.ToList();
 
         var clashes = WorkstreamOverlap.Find(
-            [.. cards.Select(card => (card.Key, (string?)HandoffPath.For(card.Workstream), card.JiraKeys))]);
+            [.. cards.Select(card => (card.Key, (string?)HandoffPath.For(card.Workstream), card.JiraKeys))],
+            Chains?.LinkedPairs);
 
         foreach (var card in cards)
         {
             card.Clash = WorkstreamOverlap.Describe(card.Key, clashes);
+            card.LinkedShare = WorkstreamOverlap.DescribeLinked(card.Key, clashes);
         }
     }
 
@@ -1046,6 +1108,12 @@ public sealed class ShellViewModel : ObservableObject
         Raise(nameof(UnconfirmedStopsSummary));
     }
 
+    private void InputsChanged()
+    {
+        Raise(nameof(HasHeldForInputs));
+        Raise(nameof(HeldForInputsSummary));
+    }
+
     private void TabsChanged()
     {
         Raise(nameof(HasHeldForTabs));
@@ -1107,7 +1175,7 @@ public sealed class ShellViewModel : ObservableObject
     /// was which.
     /// </summary>
     private void StartMany(IReadOnlyList<Workstream> workstreams, bool evenIfTabsExist = false,
-        StartMode? startMode = null,
+        StartMode? startMode = null, bool evenIfWaiting = false,
         [System.Runtime.CompilerServices.CallerMemberName] string trigger = "")
     {
         // Which gesture asked, recorded before anything can go wrong with it. There are four callers
@@ -1122,6 +1190,22 @@ public sealed class ShellViewModel : ObservableObject
             Notice = impediment;
 
             return;
+        }
+
+        // Asked about before anything else: a card still waiting on an input has nothing to read, and
+        // is asked about whether one card was pressed or a whole selection.
+        if (!evenIfWaiting && Chains?.Waiting(workstreams) is { Count: > 0 } waiting)
+        {
+            _heldForInputs = waiting;
+            _heldForInputsMode = startMode;
+            InputsChanged();
+
+            workstreams = [.. workstreams.Except(waiting)];
+
+            if (workstreams.Count == 0)
+            {
+                return;
+            }
         }
 
         if (!evenIfTabsExist && Abandoned(workstreams) is { Count: > 0 } held)
@@ -1309,6 +1393,7 @@ public sealed class ShellViewModel : ObservableObject
 
         Board.Select(card);
         Drawer.Show(card);
+        Chains?.ShowFor(card.Key);
     }
 
     private bool CanFocusCard(object? parameter) =>

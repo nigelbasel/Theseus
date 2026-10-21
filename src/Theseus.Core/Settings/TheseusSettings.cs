@@ -74,6 +74,12 @@ public sealed record TheseusSettings(
     /// </summary>
     public IReadOnlyList<string> Areas { get; init; } = [];
 
+    /// <summary>
+    /// The folder a spawned workstream's brief and report go in, named relative to the working
+    /// directory of the workstream that spawned it, never as an absolute path (Nigel, 2026-10-21).
+    /// </summary>
+    public string BriefFolderName { get; init; } = Links.BriefFolder.DefaultName;
+
     /// <summary>Which rows were folded away, so a board left tidy opens tidy.</summary>
     public IReadOnlyList<string> CollapsedAreas { get; init; } = [];
 

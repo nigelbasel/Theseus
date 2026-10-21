@@ -116,6 +116,9 @@ public sealed class DetailDrawerViewModel : ObservableObject
     /// <summary>Hides the drawer, discarding unsaved edits.</summary>
     public RelayCommand CloseCommand { get; }
 
+    /// <summary>The card the drawer is showing, for the commands that act on it from the board.</summary>
+    public WorkstreamCardViewModel? Card => _card;
+
     /// <summary>Writes the edits back to the plan file.</summary>
     public RelayCommand SaveCommand { get; }
 
@@ -315,6 +318,7 @@ public sealed class DetailDrawerViewModel : ObservableObject
         ArgumentNullException.ThrowIfNull(card);
 
         _card = card;
+        Raise(nameof(Card));
         var workstream = card.Workstream;
 
         Title = workstream.Title;

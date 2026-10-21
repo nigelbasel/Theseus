@@ -44,6 +44,7 @@ public sealed class LocksViewModel : ObservableObject, IDisposable
             new LockRowViewModel(name, Release, MoveUp, MoveDown, Cancel)));
 
         ToggleCommand = new RelayCommand(_ => IsOpen = !IsOpen);
+        OpenCommand = new RelayCommand(_ => IsOpen = true);
         _book.Changed += OnChanged;
         _timer = new DispatcherTimer(TimeSpan.FromSeconds(30), DispatcherPriority.Background, (_, _) =>
         {
@@ -73,6 +74,9 @@ public sealed class LocksViewModel : ObservableObject, IDisposable
 
     /// <summary>Opens or closes the locks panel.</summary>
     public RelayCommand ToggleCommand { get; }
+
+    /// <summary>Opens the locks panel, from the Chains tab's header.</summary>
+    public RelayCommand OpenCommand { get; }
 
     /// <summary>Holders and waiters across every lock, for the command bar button.</summary>
     public int Busy => Rows.Sum(row => (row.IsHeld ? 1 : 0) + row.Waiting.Count);

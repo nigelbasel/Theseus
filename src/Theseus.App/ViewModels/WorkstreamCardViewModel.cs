@@ -1,4 +1,5 @@
 using Theseus.Core.Domain;
+using Theseus.Core.Links;
 
 namespace Theseus.App.ViewModels;
 
@@ -13,6 +14,8 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     private bool _stopPending;
     private string _runningAs = string.Empty;
     private string _clash = string.Empty;
+    private string _linkedShare = string.Empty;
+    private LinkLineText _links = LinkLineText.None;
     private string _restartCost = string.Empty;
     private string _resumeTooltip = string.Empty;
     private RelayCommand? _resumeCommand;
@@ -277,6 +280,40 @@ public sealed class WorkstreamCardViewModel : ObservableObject
         get => _clash;
         set => Set(ref _clash, value);
     }
+
+    /// <summary>
+    /// The Jira issues this card shares with cards it is linked to. Deliberate, so said quietly rather
+    /// than as a clash, but kept visible.
+    /// </summary>
+    public string LinkedShare
+    {
+        get => _linkedShare;
+        set => Set(ref _linkedShare, value);
+    }
+
+    /// <summary>The card's one line about its links: whether it is ready or waiting, and where it came from.</summary>
+    public LinkLineText Links
+    {
+        get => _links;
+        set
+        {
+            if (Set(ref _links, value))
+            {
+                Raise(nameof(LinkLine));
+                Raise(nameof(LinkTooltip));
+                Raise(nameof(IsLinkReady));
+            }
+        }
+    }
+
+    /// <summary>The link line's text; empty for a card with no links.</summary>
+    public string LinkLine => _links.Text;
+
+    /// <summary>Every link on the card, one per line.</summary>
+    public string LinkTooltip => _links.Tooltip;
+
+    /// <summary>Whether every input has been accepted and the card has not run since. Shown, never acted on.</summary>
+    public bool IsLinkReady => _links.IsReady;
 
     /// <summary>
     /// Whether a stop request for this session is written and not yet collected.

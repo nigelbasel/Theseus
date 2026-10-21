@@ -89,6 +89,12 @@ public sealed class LaunchCoordinator : IAsyncDisposable
     /// </summary>
     public Func<string, string?>? McpConfigFor { get; set; }
 
+    /// <summary>The related-workstreams paragraph a fresh session of a workstream is given, by key.</summary>
+    public Func<string, string?>? RelatedFor { get; set; }
+
+    /// <summary>What changed in a workstream's links since a moment, for a resumed session.</summary>
+    public Func<string, DateTimeOffset, string?>? RelatedSince { get; set; }
+
     /// <summary>Why the last <see cref="Launch"/> failed to open its tab, when the terminal refused it.</summary>
     public string? LastRefusal { get; private set; }
 
@@ -126,12 +132,13 @@ public sealed class LaunchCoordinator : IAsyncDisposable
             handoff,
             File.Exists(handoff),
             planPath,
-            settings.IdentityPrompt);
+            settings.IdentityPrompt,
+            RelatedFor?.Invoke(workstream.Key));
 
         // A resume keeps its conversation, so it opens with one line. The full opening still
         // travels with it, for the shim to use if the resume dies at once and is reminted fresh.
         var opening = resume
-            ? SessionOpening.ForResume(workstream, _clock.UtcNow, handoff)
+            ? SessionOpening.ForResume(workstream, _clock.UtcNow, handoff, RelatedSinceLastRun(workstream.Key))
             : fullOpening;
 
         // Which window this tab joins is the whole of grouping: same name, same window; a name
@@ -181,6 +188,21 @@ public sealed class LaunchCoordinator : IAsyncDisposable
 
     /// <inheritdoc />
     public ValueTask DisposeAsync() => _pipe.DisposeAsync();
+
+    private string? RelatedSinceLastRun(string key)
+    {
+        if (RelatedSince is null)
+        {
+            return null;
+        }
+
+        var last = _runs.Read()
+            .Where(run => string.Equals(run.WorkstreamKey, key, StringComparison.OrdinalIgnoreCase))
+            .Select(run => (DateTimeOffset?)run.StartedUtc)
+            .Max();
+
+        return last is { } started ? RelatedSince(key, started) : null;
+    }
 
     /// <summary>
     /// Whether a transcript exists for a session. The directory is never computed from the working

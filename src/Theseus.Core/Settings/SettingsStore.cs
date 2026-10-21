@@ -56,6 +56,7 @@ public sealed class SettingsStore : ISettingsStore
         ContinuePrompt = settings.ContinuePrompt ?? string.Empty,
         StopPrompt = settings.StopPrompt ?? string.Empty,
         IdentityPrompt = settings.IdentityPrompt ?? string.Empty,
+        BriefFolderName = Fallback(settings.BriefFolderName, Links.BriefFolder.DefaultName),
         Lanes = Domain.BoardLanes.Sanitise(settings.Lanes),
     };
 

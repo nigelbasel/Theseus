@@ -7,6 +7,7 @@ using Theseus.Core.Colour;
 using Theseus.Core.Domain;
 using Theseus.Core.Diagnostics;
 using Theseus.Core.Launching;
+using Theseus.Core.Links;
 using Theseus.Core.Locks;
 using Theseus.Core.Messaging;
 using Theseus.Core.Persistence;
@@ -95,6 +96,17 @@ public partial class App : Application
             new SessionTodoReader(SessionTodoReader.DefaultDirectory), new TabColourAllocator(),
             new RunEndings(DateTimeOffset.UtcNow));
 
+        var chains = new ChainsViewModel(
+            new LinkBook(new LinkStateStore(Path.Combine(DataDirectory, "links.json")), new SystemClock()),
+            () => [.. shell.Board.Cards],
+            () => settings.Read().BriefFolderName,
+            shell.Refresh,
+            key => shell.SelectCardCommand.Execute(shell.Board.Card(key)));
+
+        shell.Chains = chains;
+        _launcher.RelatedFor = chains.RelatedParagraph;
+        _launcher.RelatedSince = chains.RelatedSince;
+
         if (ChildSessionCheck.Warning() is { } warning)
         {
             TheseusLog.Warning("{Warning}", warning);
@@ -140,6 +152,23 @@ public partial class App : Application
         _lockSweep = new Timer(_ => locks.Sweep(), null, TimeSpan.Zero, TimeSpan.FromSeconds(15));
         _locks = new LocksViewModel(locks, () => DateTimeOffset.UtcNow, ticket => LockColours.For(ticket, shell.Board.Cards), testContainers);
         shell.Locks = _locks;
+
+        // Locks and Chains share the right-hand side and never sit side by side: with the sessions
+        // panel open as well, two would leave the board one column wide.
+        _locks.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(LocksViewModel.IsOpen) && _locks.IsOpen)
+            {
+                chains.IsOpen = false;
+            }
+        };
+        chains.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(ChainsViewModel.IsOpen) && chains.IsOpen)
+            {
+                _locks.IsOpen = false;
+            }
+        };
 
         _mcp = new McpHttpServer(
             new Theseus.Core.Mcp.McpHandler(

@@ -287,10 +287,16 @@
                                   IsChecked="{Binding IsSelected, Mode=TwoWay}"
                                   ToolTip="Include this card in Start selected and Stop selected" />
 
-                        <TextBlock Grid.Column="1" Text="{Binding Title}" FontSize="13"
-                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-                                   ToolTip="{Binding Title}"
-                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        <DockPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock DockPanel.Dock="Right" Text="Ready" FontSize="11" Margin="8,0,0,0"
+                                       VerticalAlignment="Center" Foreground="#2E8B57"
+                                       ToolTip="{Binding LinkTooltip}"
+                                       Visibility="{Binding IsLinkReady, Converter={StaticResource BoolToVisibility}}" />
+                            <TextBlock Text="{Binding Title}" FontSize="13"
+                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                       ToolTip="{Binding Title}"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        </DockPanel>
 
                         <Button Grid.Column="2" Style="{StaticResource CommandButton}"
                                 Padding="8,2" VerticalAlignment="Center"
@@ -478,6 +484,40 @@
                                    ToolTip="{Binding Clash}"
                                    Text="{Binding Clash}"
                                    Visibility="{Binding Clash, Converter={StaticResource NotEmptyToVisibility}}" />
+
+                        <!--
+                            A Jira issue shared with a linked card is deliberate, so it is said quietly,
+                            not in the clash colour, and stays visible.
+                        -->
+                        <TextBlock FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"
+                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                   ToolTip="{Binding LinkedShare}"
+                                   Text="{Binding LinkedShare}"
+                                   Visibility="{Binding LinkedShare, Converter={StaticResource NotEmptyToVisibility}}" />
+
+                        <!--
+                            The card's links in one line of words: Ready or what it waits on, then where
+                            it came from. Green only for Ready, which is shown and never acted on.
+                            Clicking it opens the Chains tab, where the whole chain is laid out.
+                        -->
+                        <Button Margin="0,2,0,0" Padding="0" HorizontalAlignment="Left"
+                                Background="Transparent" BorderThickness="0" Cursor="Hand"
+                                ToolTip="{Binding LinkTooltip}"
+                                Command="{Binding DataContext.Chains.OpenCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                Visibility="{Binding LinkLine, Converter={StaticResource NotEmptyToVisibility}}">
+                            <TextBlock FontSize="11" TextTrimming="CharacterEllipsis" Text="{Binding LinkLine}">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsLinkReady}" Value="True">
+                                                <Setter Property="Foreground" Value="#2E8B57" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Button>
 
                         <Button Margin="0,6,0,0" HorizontalAlignment="Left" FontSize="11" Padding="8,2"
                                 Content="{Binding LostSessionName, StringFormat='Adopt the running &quot;{0}&quot;'}"
@@ -705,6 +745,17 @@
                         <TextBlock Text="&#xE72E;" FontFamily="Segoe MDL2 Assets" FontSize="12"
                                    VerticalAlignment="Center" />
                         <TextBlock Text="{Binding Locks.ButtonText}" FontSize="12" Margin="8,0,0,0"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+
+                <Button Style="{StaticResource CommandButton}" Padding="8,3" Margin="0,0,12,0" VerticalAlignment="Center"
+                        ToolTip="Show or hide the chains: which workstreams were spawned from which, what each waits on, and which are ready"
+                        Command="{Binding Chains.ToggleCommand}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE71B;" FontFamily="Segoe MDL2 Assets" FontSize="12"
+                                   VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding Chains.ButtonText}" FontSize="12" Margin="8,0,0,0"
                                    VerticalAlignment="Center" />
                     </StackPanel>
                 </Button>
@@ -937,6 +988,111 @@
             </DockPanel>
         </Border>
         <!--
+            The chains (Nigel, 2026-10-21): every card with links, under the card that spawned it, with
+            what it waits on as a line beneath it. Read-only in this phase: links are made and changed in
+            a card's details. Ready is listed and never acted on; nothing here starts a session. It shares
+            the right-hand side with Locks and the two never sit side by side.
+        -->
+        <Border DockPanel.Dock="Right" Width="340" Margin="0,8,16,16" CornerRadius="10" Padding="10"
+                Visibility="{Binding Chains.IsOpen, Converter={StaticResource BoolToVisibility}}"
+                Background="{DynamicResource LayerFillColorDefaultBrush}"
+                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1">
+            <DockPanel>
+                <Grid DockPanel.Dock="Top" Margin="4,2,4,10">
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Locks" FontSize="13" Padding="0" Background="Transparent" BorderThickness="0"
+                                Cursor="Hand" ToolTip="Show the locks instead"
+                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                Command="{Binding Locks.OpenCommand}" />
+                        <TextBlock Text="│" FontSize="13" Margin="8,0"
+                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                        <TextBlock Text="Chains" FontSize="13" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                    </StackPanel>
+                    <Button Content="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="10"
+                            Padding="6,2" HorizontalAlignment="Right" ToolTip="Hide the chains"
+                            Command="{Binding Chains.ToggleCommand}" />
+                </Grid>
+
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock FontSize="11" TextWrapping="Wrap" Margin="4,0,4,10"
+                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                   Text="No links yet. Open a card's details and use Link to, or Spawn follow-on."
+                                   Visibility="{Binding Chains.HasNoChains, Converter={StaticResource BoolToVisibility}}" />
+
+                        <StackPanel Visibility="{Binding Chains.Ready.Count, Converter={StaticResource CountToVisibility}}">
+                            <TextBlock Text="READY" FontSize="11" FontWeight="SemiBold" Margin="4,0,0,6"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            <ItemsControl ItemsSource="{Binding Chains.Ready}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Margin="0,0,0,6" Padding="8,6" CornerRadius="6" BorderThickness="4,0,0,0"
+                                                BorderBrush="{Binding ColorHex, Converter={StaticResource HexToBrush}}"
+                                                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
+                                            <StackPanel>
+                                                <Button Content="{Binding Title}" FontSize="12" Padding="0" HorizontalAlignment="Left"
+                                                        Background="Transparent" BorderThickness="0" Cursor="Hand"
+                                                        ToolTip="Open this card's details" Command="{Binding Show}" />
+                                                <TextBlock Text="{Binding WaitsOn}" FontSize="11" TextWrapping="Wrap"
+                                                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <Separator Margin="0,4,0,10" />
+                        </StackPanel>
+
+                        <TextBlock Text="CHAINS" FontSize="11" FontWeight="SemiBold" Margin="4,0,0,6"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                   Visibility="{Binding Chains.Roots.Count, Converter={StaticResource CountToVisibility}}" />
+                        <TreeView ItemsSource="{Binding Chains.Roots}" BorderThickness="0" Background="Transparent"
+                                  Visibility="{Binding Chains.Roots.Count, Converter={StaticResource CountToVisibility}}">
+                            <TreeView.ItemContainerStyle>
+                                <Style TargetType="TreeViewItem">
+                                    <Setter Property="IsExpanded" Value="True" />
+                                </Style>
+                            </TreeView.ItemContainerStyle>
+                            <TreeView.ItemTemplate>
+                                <HierarchicalDataTemplate ItemsSource="{Binding Children}">
+                                    <Border Padding="6,3" BorderThickness="4,0,0,0"
+                                            BorderBrush="{Binding ColorHex, Converter={StaticResource HexToBrush}}">
+                                        <StackPanel>
+                                            <DockPanel>
+                                                <TextBlock DockPanel.Dock="Right" Text="{Binding State}" FontSize="11" Margin="8,0,0,0">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="{DynamicResource TextFillColorTertiaryBrush}" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsReady}" Value="True">
+                                                                    <Setter Property="Foreground" Value="#2E8B57" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                                <Button Content="{Binding Title}" FontSize="12" Padding="0" HorizontalAlignment="Left"
+                                                        Background="Transparent" BorderThickness="0" Cursor="Hand"
+                                                        ToolTip="Open this card's details" Command="{Binding Show}" />
+                                            </DockPanel>
+                                            <TextBlock Text="{Binding WaitsOn}" FontSize="11" TextWrapping="Wrap"
+                                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                                       Visibility="{Binding WaitsOn, Converter={StaticResource NotEmptyToVisibility}}" />
+                                            <TextBlock Text="{Binding Feeds}" FontSize="11" TextWrapping="Wrap"
+                                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                                       Visibility="{Binding Feeds, Converter={StaticResource NotEmptyToVisibility}}" />
+                                        </StackPanel>
+                                    </Border>
+                                </HierarchicalDataTemplate>
+                            </TreeView.ItemTemplate>
+                        </TreeView>
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+        <!--
             The machine's locks, held by Theseus (Nigel, 2026-10-06), opened from the command bar like the
             live sessions panel and docked on the other side so both can be open. One card per lock, free
             or not. Reordering, cancelling and releasing happen here and nowhere else; Release asks twice,
@@ -949,8 +1105,16 @@
                 BorderThickness="1">
             <DockPanel>
                 <Grid DockPanel.Dock="Top" Margin="4,2,4,10">
-                    <TextBlock Text="Locks" FontSize="13" FontWeight="SemiBold"
-                               Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Locks" FontSize="13" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                        <TextBlock Text="│" FontSize="13" Margin="8,0"
+                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                        <Button Content="Chains" FontSize="13" Padding="0" Background="Transparent" BorderThickness="0"
+                                Cursor="Hand" ToolTip="Show the chains instead"
+                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                Command="{Binding Chains.OpenCommand}" />
+                    </StackPanel>
                     <Button Content="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="10"
                             Padding="6,2" HorizontalAlignment="Right" ToolTip="Hide the locks panel"
                             Command="{Binding Locks.ToggleCommand}" />
@@ -1289,6 +1453,34 @@
                 </Border>
 
                 <!--
+                    Cards a Start held back because they still wait on an input (Nigel, 2026-10-21). A
+                    fresh session with nothing to read only goes looking for a document that is not there
+                    yet, so these are asked about, whether one card was pressed or a whole selection.
+                -->
+                <Border DockPanel.Dock="Top" Margin="4,0,4,8" Padding="12,10" CornerRadius="6"
+                        Background="{DynamicResource LayerFillColorDefaultBrush}"
+                        BorderBrush="{DynamicResource AccentFillColorDefaultBrush}"
+                        BorderThickness="1"
+                        Visibility="{Binding HasHeldForInputs, Converter={StaticResource BoolToVisibility}}">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
+                                    VerticalAlignment="Center" Margin="12,0,0,0">
+                            <Button Style="{StaticResource CommandButton}" Content="Start without their inputs"
+                                    Margin="0,0,6,0"
+                                    ToolTip="Start them anyway, before what they wait on has been accepted"
+                                    Command="{Binding StartWithoutInputsCommand}" />
+                            <Button Style="{StaticResource CommandButton}" Content="Skip them"
+                                    ToolTip="Leave them unstarted until their inputs are accepted"
+                                    Command="{Binding SkipWaitingCommand}" />
+                        </StackPanel>
+
+                        <TextBlock Text="{Binding HeldForInputsSummary}" FontSize="12.5"
+                                   TextWrapping="Wrap" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                    </DockPanel>
+                </Border>
+
+                <!--
                     The stage headings, written once. The left margin matches the width of a row's
                     header so the headings line up with the cells beneath them; both are fixed, and
                     they have to stay in step.
@@ -1555,6 +1747,85 @@
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
 
+                            <!--
+                                The card's links (Nigel, 2026-10-21). Made here by hand: "Link to" joins it to
+                                another card, "Spawn follow-on" opens the New dialog with this card as parent.
+                                Waiting = an input is missing, worked out from the links. Blocked = you said so.
+                            -->
+                            <TextBlock Text="Related" Style="{StaticResource FieldLabel}" />
+                            <TextBlock FontSize="11" TextWrapping="Wrap" Margin="0,0,0,6"
+                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                       Text="Waiting means an input is not accepted yet, worked out from the links. Blocked means you said so." />
+                            <ItemsControl ItemsSource="{Binding Chains.Related}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Margin="0,0,0,4" Padding="8,5" CornerRadius="4"
+                                                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Description}" FontSize="12" TextWrapping="Wrap"
+                                                           Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                                <TextBlock Text="{Binding StateText}" FontSize="11" TextWrapping="Wrap"
+                                                           Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                                           Visibility="{Binding StateText, Converter={StaticResource NotEmptyToVisibility}}" />
+                                                <TextBlock Text="{Binding Document}" FontSize="11" TextWrapping="Wrap"
+                                                           Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                                           Visibility="{Binding Document, Converter={StaticResource NotEmptyToVisibility}}" />
+                                                <StackPanel Visibility="{Binding CanSatisfy, Converter={StaticResource BoolToVisibility}}"
+                                                            Margin="0,4,0,0">
+                                                    <TextBox Text="{Binding Reason, UpdateSourceTrigger=PropertyChanged}" FontSize="11"
+                                                             ToolTip="Why the input is accepted. It is kept with the link." />
+                                                    <Button Content="Mark satisfied" FontSize="11" Padding="8,2" Margin="0,4,0,0"
+                                                            HorizontalAlignment="Left" Command="{Binding SatisfyCommand}"
+                                                            ToolTip="Accept this input by hand, for the reason given" />
+                                                </StackPanel>
+                                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                                    <Button Content="Open document" FontSize="11" Padding="8,2" Margin="0,0,6,0"
+                                                            Command="{Binding OpenDocumentCommand}" />
+                                                    <Button Content="Remove link" FontSize="11" Padding="8,2"
+                                                            Command="{Binding AskRemoveCommand}"
+                                                            Visibility="{Binding CanAskRemove, Converter={StaticResource BoolToVisibility}}" />
+                                                    <Button Content="Remove" FontSize="11" Padding="8,2" Margin="0,0,6,0"
+                                                            Command="{Binding ConfirmRemoveCommand}"
+                                                            Visibility="{Binding IsConfirmingRemove, Converter={StaticResource BoolToVisibility}}" />
+                                                    <Button Content="Keep" FontSize="11" Padding="8,2"
+                                                            Command="{Binding KeepCommand}"
+                                                            Visibility="{Binding IsConfirmingRemove, Converter={StaticResource BoolToVisibility}}" />
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding Refusal}" FontSize="11" TextWrapping="Wrap" Foreground="#D68910"
+                                                           Visibility="{Binding Refusal, Converter={StaticResource NotEmptyToVisibility}}" />
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Text="No links." FontSize="11" Margin="0,2,0,4"
+                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                       Visibility="{Binding Chains.Related.Count, Converter={StaticResource ZeroToVisibility}}" />
+
+                            <TextBlock Text="Link to" FontSize="11" Margin="0,6,0,2"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            <StackPanel Margin="0,0,0,4">
+                                <TextBlock Text="This card" FontSize="11"
+                                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                                <ComboBox ItemsSource="{Binding Chains.Kinds}" SelectedItem="{Binding Chains.Kind}"
+                                          Margin="0,2,0,0" />
+                                <ComboBox ItemsSource="{Binding Chains.Targets}" SelectedItem="{Binding Chains.Target}"
+                                          IsEditable="True" IsTextSearchEnabled="True" Margin="0,4,0,0"
+                                          ToolTip="Type to find the card" />
+                                <TextBox Text="{Binding Chains.Output, UpdateSourceTrigger=PropertyChanged}" FontSize="11"
+                                         Margin="0,4,0,0" ToolTip="The document the waiting card reads"
+                                         Visibility="{Binding Chains.NeedsOutput, Converter={StaticResource BoolToVisibility}}" />
+                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                    <Button Content="Link" Padding="10,3" Margin="0,0,8,0" Command="{Binding Chains.AddLinkCommand}" />
+                                    <Button Content="Spawn follow-on…" Padding="10,3"
+                                            ToolTip="Create a new card spawned from this one, in the same working directory"
+                                            Command="{Binding SpawnFollowOnCommand}"
+                                            CommandParameter="{Binding Drawer.Card}" />
+                                </StackPanel>
+                                <TextBlock Text="{Binding Chains.LinkRefusal}" FontSize="11" TextWrapping="Wrap" Foreground="#D68910"
+                                           Visibility="{Binding Chains.LinkRefusal, Converter={StaticResource NotEmptyToVisibility}}" />
+                            </StackPanel>
+
                             <TextBlock Text="Runs" Style="{StaticResource FieldLabel}" />
                             <ItemsControl ItemsSource="{Binding Drawer.Runs}">
                                 <ItemsControl.ItemTemplate>
@@ -1603,6 +1874,23 @@
                                     Background="{Binding NewWorkstream.ColourHex, Converter={StaticResource HexToBrush}}" />
                             <TextBlock Text="New workstream" FontSize="17" FontWeight="SemiBold"
                                        Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                        </StackPanel>
+
+                        <!--
+                            A follow-on (Nigel, 2026-10-21): spawned from the card it was opened on, in its
+                            working directory. Ticking report back makes the parent wait on the follow-on's
+                            report, under the parent's working directory.
+                        -->
+                        <StackPanel Margin="0,10,0,0"
+                                    Visibility="{Binding NewWorkstream.IsFollowOn, Converter={StaticResource BoolToVisibility}}">
+                            <TextBlock Text="{Binding NewWorkstream.ParentTitle, StringFormat=Follow-on from {0}}" FontSize="12"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            <CheckBox Content="Report back: the parent waits on this card's report" Margin="0,6,0,0"
+                                      IsChecked="{Binding NewWorkstream.ReportBack}" />
+                            <TextBlock Text="{Binding NewWorkstream.ReportPath}" Style="{StaticResource FieldHint}" TextWrapping="Wrap"
+                                       Visibility="{Binding NewWorkstream.ReportBack, Converter={StaticResource BoolToVisibility}}" />
+                            <TextBlock Style="{StaticResource FieldHint}" TextWrapping="Wrap"
+                                       Text="This creates a card only. No Jira item, branch, worktree, push or PR." />
                         </StackPanel>
 
                         <TextBlock Text="Title" Style="{StaticResource FieldLabel}" />
