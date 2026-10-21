@@ -318,6 +318,14 @@ public sealed partial class McpHandler
                        + "They are never added together. Ask the user which to log, and get their approval before writing a worklog.",
         };
 
+        // Linked cards often carry their parent's issue, and each session asking would otherwise log
+        // the combined total again.
+        if (time.Workstreams.Count > 1)
+        {
+            report["shared"] = $"{issue} was worked on by {time.Workstreams.Count} workstreams ({string.Join(", ", time.Workstreams)}). "
+                               + "The times above already combine them, so log this once, not once per workstream.";
+        }
+
         return Result(report.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
     }
 

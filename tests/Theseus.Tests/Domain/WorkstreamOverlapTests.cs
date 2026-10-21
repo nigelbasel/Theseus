@@ -47,6 +47,59 @@ public class WorkstreamOverlapTests
     }
 
     [Test]
+    public void Find_TurnsAJiraIssueSharedByLinkedCardsIntoALinkedShare()
+    {
+        var clashes = WorkstreamOverlap.Find(
+        [
+            ("auth-research", @"C:\a.md", ["APPS-1412"]),
+            ("token-spike", @"C:\b.md", ["APPS-1412"]),
+        ], [("auth-research", "token-spike")]);
+
+        Assert.That(clashes.Single().Kind, Is.EqualTo(ClashKind.LinkedJiraKey));
+        Assert.That(WorkstreamOverlap.Describe("token-spike", clashes), Is.Empty);
+        Assert.That(WorkstreamOverlap.DescribeLinked("token-spike", clashes),
+            Is.EqualTo("shares APPS-1412 with linked card auth-research"));
+    }
+
+    [Test]
+    public void Find_CountsCardsLinkedThroughAThirdAsLinked()
+    {
+        var clashes = WorkstreamOverlap.Find(
+        [
+            ("auth-research", @"C:\a.md", ["APPS-1412"]),
+            ("token-spike", @"C:\b.md", ["APPS-1412"]),
+            ("cache-spike", @"C:\c.md", ["APPS-1412"]),
+        ], [("auth-research", "token-spike"), ("cache-spike", "auth-research")]);
+
+        Assert.That(clashes.Single().Kind, Is.EqualTo(ClashKind.LinkedJiraKey));
+    }
+
+    [Test]
+    public void Find_StillClashesWhenOneCardSharingTheIssueIsNotLinked()
+    {
+        var clashes = WorkstreamOverlap.Find(
+        [
+            ("auth-research", @"C:\a.md", ["APPS-1412"]),
+            ("token-spike", @"C:\b.md", ["APPS-1412"]),
+            ("stranger", @"C:\c.md", ["APPS-1412"]),
+        ], [("auth-research", "token-spike")]);
+
+        Assert.That(clashes.Single().Kind, Is.EqualTo(ClashKind.JiraKey));
+    }
+
+    [Test]
+    public void Find_NeverExemptsAHandoffSharedByLinkedCards()
+    {
+        var clashes = WorkstreamOverlap.Find(
+        [
+            ("auth-research", @"C:\HANDOFF.md", null),
+            ("token-spike", @"C:\HANDOFF.md", null),
+        ], [("auth-research", "token-spike")]);
+
+        Assert.That(clashes.Single().Kind, Is.EqualTo(ClashKind.Handoff));
+    }
+
+    [Test]
     public void Find_SaysNothingWhenNothingIsShared()
     {
         Assert.That(WorkstreamOverlap.Find(

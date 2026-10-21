@@ -181,6 +181,29 @@ public class SessionOpeningTests
         Assert.That(opening, Does.EndWith($"Also skim {Handoff}."));
     }
 
+    [TestCase(false)]
+    [TestCase(true)]
+    public void For_GivesTheRelatedWorkstreamsBeforeTheWorkstreamsOwnInstructions(bool hasHistory)
+    {
+        var workstream = Workstream("session-1") with { EveryStartPrompt = "Own instructions." };
+
+        var opening = SessionOpening.For(null, null, workstream, hasHistory, Handoff, handoffExists: true,
+            related: "Related workstreams (from the Theseus board):");
+
+        Assert.That(opening, Does.Contain("Related workstreams"));
+        Assert.That(opening.IndexOf("Related workstreams", StringComparison.Ordinal),
+            Is.LessThan(opening.IndexOf("Own instructions.", StringComparison.Ordinal)));
+    }
+
+    [Test]
+    public void ForResume_GivesWhatChangedInItsLinks()
+    {
+        var opening = SessionOpening.ForResume(Workstream("session-1"), ResumedAt, Handoff,
+            related: "- Since your last session: Nigel accepted the output of \"Token spike\".");
+
+        Assert.That(opening, Does.Contain("Since your last session"));
+    }
+
     [Test]
     public void ForResume_IsOneLineForAWorkstreamWithNoInstructionsOfItsOwn()
     {

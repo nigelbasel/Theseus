@@ -151,6 +151,36 @@ public class McpHandlerTests
     }
 
     [Test]
+    public void TimeFor_WarnsToLogOnceWhenSeveralWorkstreamsWorkedOnTheIssue()
+    {
+        Call("start_work", new JsonObject { ["issue"] = "NDC-680" });
+        Call("start_work", new JsonObject { ["issue"] = "NDC-680" }, session: "session-2");
+        _now = Nine.AddHours(1);
+        _intervals =
+        [
+            new AttentionInterval(AttentionKind.Machine, "gdpr-mcp", Nine, Nine.AddHours(1)),
+            new AttentionInterval(AttentionKind.Machine, "nexus-admin", Nine, Nine.AddHours(1)),
+        ];
+
+        var report = JsonNode.Parse(Text(Call("time_for", new JsonObject { ["issue"] = "NDC-680" })))!;
+
+        Assert.That(report["shared"]!.GetValue<string>(),
+            Does.Contain("gdpr-mcp").And.Contain("nexus-admin").And.Contain("log this once"));
+    }
+
+    [Test]
+    public void TimeFor_SaysNothingAboutSharingWhenOneWorkstreamWorkedOnTheIssue()
+    {
+        Call("start_work", new JsonObject { ["issue"] = "NDC-680" });
+        _now = Nine.AddHours(1);
+        _intervals = [new AttentionInterval(AttentionKind.Machine, "gdpr-mcp", Nine, Nine.AddHours(1))];
+
+        var report = JsonNode.Parse(Text(Call("time_for", new JsonObject { ["issue"] = "NDC-680" })))!;
+
+        Assert.That(report["shared"], Is.Null);
+    }
+
+    [Test]
     public void StopWork_EndsTheStretchThatTimeIsCountedIn()
     {
         Call("start_work", new JsonObject { ["issue"] = "NDC-680" });

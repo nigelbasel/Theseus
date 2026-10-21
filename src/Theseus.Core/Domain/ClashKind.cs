@@ -14,4 +14,10 @@ public enum ClashKind
     /// two sessions do the same work.
     /// </summary>
     JiraKey,
+
+    /// <summary>
+    /// One Jira issue between cards that are all linked to one another. Deliberate, so it is said
+    /// quietly rather than as a clash, but it stays visible.
+    /// </summary>
+    LinkedJiraKey,
 }

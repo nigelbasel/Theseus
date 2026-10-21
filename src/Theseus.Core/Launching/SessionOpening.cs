@@ -37,7 +37,9 @@ public static class SessionOpening
     /// resumes, so the whole opening could land half an hour into the resumed work, telling a busy
     /// session to go back and read its notes. One short line is harmless whenever it arrives.
     /// </summary>
-    public static string ForResume(Workstream workstream, DateTimeOffset resumedAtUtc, string handoffPath)
+    /// <param name="related">What changed in its links since its last session, or nothing.</param>
+    public static string ForResume(Workstream workstream, DateTimeOffset resumedAtUtc, string handoffPath,
+        string? related = null)
     {
         ArgumentNullException.ThrowIfNull(workstream);
 
@@ -45,7 +47,7 @@ public static class SessionOpening
         var line = $"{ResumedPrefix}{local:HH:mm} on {local:yyyy-MM-dd}. Your context is intact; carry on where you left off.";
         var own = workstream.EveryStartPrompt?.Replace(HandoffPlaceholder, handoffPath, StringComparison.Ordinal);
 
-        return SessionPrompt.Compose(line, own);
+        return SessionPrompt.Compose(line, SessionPrompt.Compose(related, own));
     }
 
     /// <summary>Whether this workstream has been worked before.</summary>
@@ -74,7 +76,8 @@ public static class SessionOpening
         string handoffPath,
         bool handoffExists,
         string? planPath = null,
-        string? identityTemplate = null)
+        string? identityTemplate = null,
+        string? related = null)
     {
         ArgumentNullException.ThrowIfNull(workstream);
 
@@ -82,7 +85,7 @@ public static class SessionOpening
 
         if (!hasHistory)
         {
-            return Compose(identity, preamble, workstream.Prompt, workstream.EveryStartPrompt, handoffPath);
+            return Compose(identity, preamble, workstream.Prompt, related, workstream.EveryStartPrompt, handoffPath);
         }
 
         var body = string.IsNullOrWhiteSpace(continuePrompt)
@@ -96,18 +99,21 @@ public static class SessionOpening
             continuation = $"{continuation}{Environment.NewLine}{Environment.NewLine}{MissingHandoffNote}";
         }
 
-        return Compose(identity, preamble, continuation, workstream.EveryStartPrompt, handoffPath);
+        return Compose(identity, preamble, continuation, related, workstream.EveryStartPrompt, handoffPath);
     }
 
     /// <summary>
-    /// Identity, then the board's standing prompt, then what this start is for, then what this one
-    /// workstream asks of every session. Its own instructions come last because they are the most
-    /// specific: nearer the work, and the thing a session should read as having the final word.
+    /// Identity, then the board's standing prompt, then what this start is for, then the workstreams
+    /// linked to this one, then what this one workstream asks of every session. Its own instructions
+    /// come last because they are the most specific: nearer the work, and the thing a session should
+    /// read as having the final word.
     /// </summary>
-    private static string Compose(string identity, string? preamble, string? body, string? everyStart, string handoffPath)
+    private static string Compose(string identity, string? preamble, string? body, string? related,
+        string? everyStart, string handoffPath)
     {
         var own = everyStart?.Replace(HandoffPlaceholder, handoffPath, StringComparison.Ordinal);
 
-        return SessionPrompt.Compose(identity, SessionPrompt.Compose(preamble, SessionPrompt.Compose(body, own)));
+        return SessionPrompt.Compose(identity, SessionPrompt.Compose(preamble,
+            SessionPrompt.Compose(body, SessionPrompt.Compose(related, own))));
     }
 }

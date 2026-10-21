@@ -21,18 +21,37 @@ public static class WorkstreamOverlap
     /// its card. The handover path is passed in rather than worked out here: resolving one reads the
     /// disk, and this has to stay arithmetic.
     /// </param>
+    /// <param name="linkedPairs">
+    /// The pairs of cards joined by a link. An issue shared only among cards the links join is a
+    /// deliberate share, not a clash. A shared handover document is never excused.
+    /// </param>
     public static IReadOnlyList<WorkstreamClash> Find(
-        IReadOnlyList<(string Key, string? Handoff, IReadOnlyList<string>? JiraKeys)> workstreams)
+        IReadOnlyList<(string Key, string? Handoff, IReadOnlyList<string>? JiraKeys)> workstreams,
+        IReadOnlyCollection<(string From, string To)>? linkedPairs = null)
     {
         ArgumentNullException.ThrowIfNull(workstreams);
+
+        var linked = linkedPairs ?? [];
 
         return
         [
             .. Shared(workstreams, entry => entry.Handoff is { } handoff && handoff.Length > 0 ? [handoff] : [])
                 .Select(pair => new WorkstreamClash(ClashKind.Handoff, pair.What, pair.Keys)),
             .. Shared(workstreams, entry => entry.JiraKeys ?? [])
-                .Select(pair => new WorkstreamClash(ClashKind.JiraKey, pair.What, pair.Keys)),
+                .Select(pair => new WorkstreamClash(
+                    AllJoined(pair.Keys, linked) ? ClashKind.LinkedJiraKey : ClashKind.JiraKey, pair.What, pair.Keys)),
         ];
+    }
+
+    /// <summary>What a card should say, quietly, about the issues it shares with cards it is linked to.</summary>
+    public static string DescribeLinked(string workstreamKey, IReadOnlyList<WorkstreamClash> clashes)
+    {
+        ArgumentNullException.ThrowIfNull(clashes);
+
+        return string.Join(" · ", clashes
+            .Where(clash => clash.Kind is ClashKind.LinkedJiraKey
+                            && clash.Workstreams.Contains(workstreamKey, StringComparer.OrdinalIgnoreCase))
+            .Select(clash => $"shares {clash.What} with linked card {Others(workstreamKey, clash)}"));
     }
 
     /// <summary>What a card should say about the clashes it is caught up in, or nothing.</summary>
@@ -41,7 +60,8 @@ public static class WorkstreamOverlap
         ArgumentNullException.ThrowIfNull(clashes);
 
         var mine = clashes
-            .Where(clash => clash.Workstreams.Contains(workstreamKey, StringComparer.OrdinalIgnoreCase))
+            .Where(clash => clash.Kind is not ClashKind.LinkedJiraKey
+                            && clash.Workstreams.Contains(workstreamKey, StringComparer.OrdinalIgnoreCase))
             .ToList();
 
         if (mine.Count == 0)
@@ -54,15 +74,42 @@ public static class WorkstreamOverlap
 
     private static string Sentence(string workstreamKey, WorkstreamClash clash)
     {
-        var others = clash.Workstreams
-            .Where(key => !string.Equals(key, workstreamKey, StringComparison.OrdinalIgnoreCase))
-            .ToList();
-
-        var who = others.Count == 1 ? others[0] : string.Join(", ", others);
+        var who = Others(workstreamKey, clash);
 
         return clash.Kind is ClashKind.Handoff
             ? $"shares its handover notes with {who} — one will overwrite the other"
             : $"shares {clash.What} with {who}";
+    }
+
+    private static string Others(string workstreamKey, WorkstreamClash clash) =>
+        string.Join(", ", clash.Workstreams
+            .Where(key => !string.Equals(key, workstreamKey, StringComparison.OrdinalIgnoreCase)));
+
+    private static bool AllJoined(IReadOnlyList<string> keys, IReadOnlyCollection<(string From, string To)> linked)
+    {
+        var members = new HashSet<string>(keys, StringComparer.OrdinalIgnoreCase);
+        var reached = new HashSet<string>([keys[0]], StringComparer.OrdinalIgnoreCase);
+        var grew = true;
+
+        while (grew)
+        {
+            grew = false;
+
+            foreach (var (from, to) in linked)
+            {
+                if (!members.Contains(from) || !members.Contains(to))
+                {
+                    continue;
+                }
+
+                if (reached.Contains(from) && reached.Add(to) || reached.Contains(to) && reached.Add(from))
+                {
+                    grew = true;
+                }
+            }
+        }
+
+        return reached.Count == members.Count;
     }
 
     private static IEnumerable<(string What, IReadOnlyList<string> Keys)> Shared(
