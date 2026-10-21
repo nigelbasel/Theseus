@@ -35,6 +35,7 @@ public sealed record Link(
     public const string MadeOnTheBoard = "board";
 
     /// <summary>Whether the link still stands.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
     public bool IsActive => RemovedUtc is null;
 
     /// <summary>Whether the link joins this card at either end.</summary>

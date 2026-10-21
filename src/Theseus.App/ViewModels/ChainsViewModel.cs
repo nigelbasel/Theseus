@@ -23,6 +23,7 @@ public sealed class ChainsViewModel : ObservableObject
     private LinkTarget? _target;
     private LinkKindChoice _kind = LinkKindChoice.All[0];
     private string _output = string.Empty;
+    private string _suggestedOutput = string.Empty;
     private string _linkRefusal = string.Empty;
 
     /// <summary>Creates the view over a link book.</summary>
@@ -352,7 +353,7 @@ public sealed class ChainsViewModel : ObservableObject
 
     private void SuggestOutput()
     {
-        if (!NeedsOutput || _target is null || _focusKey is null || Output.Length > 0)
+        if (!NeedsOutput || _target is null || _focusKey is null || (Output.Length > 0 && Output != _suggestedOutput))
         {
             return;
         }
@@ -361,7 +362,8 @@ public sealed class ChainsViewModel : ObservableObject
 
         if (_cards().FirstOrDefault(card => string.Equals(card.Key, upstream, StringComparison.OrdinalIgnoreCase)) is { } card)
         {
-            Output = BriefFolder.ReportPath(card.Workstream.WorkingDirectory, _briefFolderName(), card.Key);
+            _suggestedOutput = BriefFolder.ReportPath(card.Workstream.WorkingDirectory, _briefFolderName(), card.Key);
+            Output = _suggestedOutput;
         }
     }
 

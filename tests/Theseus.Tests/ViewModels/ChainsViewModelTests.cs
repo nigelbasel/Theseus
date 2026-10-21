@@ -99,6 +99,31 @@ public class ChainsViewModelTests
     }
 
     [Test]
+    public void Target_ReplacesTheSuggestionWhenAnotherUpstreamIsChosen()
+    {
+        _chains.ShowFor("auth-implementation");
+        _chains.Kind = LinkKindChoice.All.Single(choice => choice is { Kind: LinkKind.Feeds, ThisCardIsFrom: false });
+        _chains.Target = _chains.Targets.Single(target => target.Key == "token-spike");
+
+        _chains.Target = _chains.Targets.Single(target => target.Key == "auth-research");
+
+        Assert.That(_chains.Output, Is.EqualTo(BriefFolder.ReportPath(@"C:\work", BriefFolder.DefaultName, "auth-research")));
+    }
+
+    [Test]
+    public void Target_KeepsADocumentTypedByHand()
+    {
+        _chains.ShowFor("auth-implementation");
+        _chains.Kind = LinkKindChoice.All.Single(choice => choice is { Kind: LinkKind.Feeds, ThisCardIsFrom: false });
+        _chains.Target = _chains.Targets.Single(target => target.Key == "token-spike");
+        _chains.Output = @"C:\work\notes\spike.md";
+
+        _chains.Target = _chains.Targets.Single(target => target.Key == "auth-research");
+
+        Assert.That(_chains.Output, Is.EqualTo(@"C:\work\notes\spike.md"));
+    }
+
+    [Test]
     public void AddLink_SaysWhyALinkWasRefused()
     {
         _book.Add(LinkKind.Feeds, "token-spike", "auth-implementation");
