@@ -12,6 +12,13 @@
             <converters:NotEmptyToVisibilityConverter x:Key="NotEmptyToVisibility" />
             <converters:ZeroToVisibilityConverter x:Key="ZeroToVisibility" />
             <converters:CountToVisibilityConverter x:Key="CountToVisibility" />
+
+            <!-- The label above a field, in the main window and in the setup window alike. -->
+            <Style x:Key="FieldLabel" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="Margin" Value="0,14,0,4" />
+                <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+            </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

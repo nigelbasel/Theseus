@@ -21,6 +21,7 @@ public partial class MainWindow : Window
     private ArrangeWindow? _arrange;
     private DayReportWindow? _report;
     private InstructionsWindow? _instructions;
+    private SetupWindow? _setup;
 
     /// <summary>Creates the window.</summary>
     public MainWindow()
@@ -44,6 +45,7 @@ public partial class MainWindow : Window
             WatchArrange();
             WatchDayReport();
             WatchInstructions();
+            WatchSetup();
         };
         Activated += (_, _) =>
         {
@@ -258,6 +260,55 @@ public partial class MainWindow : Window
         };
 
         _instructions.Show();
+    }
+
+    private void WatchSetup()
+    {
+        if ((DataContext as ShellViewModel)?.Drawer is not { } drawer)
+        {
+            return;
+        }
+
+        drawer.PropertyChanged += (_, changed) =>
+        {
+            if (changed.PropertyName == nameof(DetailDrawerViewModel.IsEditingSetup))
+            {
+                ShowSetup(drawer);
+            }
+        };
+    }
+
+    /// <summary>
+    /// Opens a card's setup as a dialog over the board, and closes it when Save or Cancel has been
+    /// pressed. Closing it any other way - its close button, Alt+F4 - is Cancel.
+    /// </summary>
+    private void ShowSetup(DetailDrawerViewModel drawer)
+    {
+        if (!drawer.IsEditingSetup)
+        {
+            _setup?.Close();
+
+            return;
+        }
+
+        if (_setup is not null)
+        {
+            return;
+        }
+
+        var setup = new SetupWindow { Owner = this, DataContext = DataContext };
+        setup.Closed += (_, _) =>
+        {
+            _setup = null;
+
+            if (drawer.IsEditingSetup)
+            {
+                drawer.CancelSetupCommand.Execute(null);
+            }
+        };
+
+        _setup = setup;
+        Dispatcher.BeginInvoke(() => setup.ShowDialog());
     }
 
     private void WatchDayReport()
