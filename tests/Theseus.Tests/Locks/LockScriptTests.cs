@@ -175,7 +175,9 @@ public class LockScriptTests
         var script = Path.Combine(RepositoryRoot(), "tools", "locks", "ndc-test-lock.sh").Replace('\\', '/');
 
         var (code, output) = Bash(
-            $"\"{script}\" wait \"NDC-1190\" \"Api.Contacts.Tests\" --wait 120 & waiter=$!; sleep 6; kill -TERM $waiter; wait $waiter; echo \"exit=$?\"");
+            $"out=$(mktemp); \"{script}\" wait \"NDC-1190\" \"Api.Contacts.Tests\" --wait 120 >\"$out\" 2>&1 & waiter=$!; " +
+            "for i in $(seq 1 400); do grep -q QUEUED \"$out\" && break; sleep 0.1; done; " +
+            "kill -TERM $waiter; wait $waiter; echo \"exit=$?\"; cat \"$out\"; rm -f \"$out\"");
 
         Assert.That(output, Does.Contain("QUEUED"), output);
         Assert.That(output, Does.Contain("exit=143"), output);
