@@ -1,3 +1,4 @@
+using System.Runtime.Versioning;
 using Microsoft.Win32;
 using Theseus.Core.Diagnostics;
 
@@ -24,6 +25,11 @@ public static class InstalledTerminals
     /// <summary>Every installed terminal executable, stable before preview.</summary>
     public static IReadOnlyList<string> Paths()
     {
+        if (!OperatingSystem.IsWindows())
+        {
+            return [];
+        }
+
         try
         {
             using var packages = Registry.CurrentUser.OpenSubKey(Packages);
@@ -33,12 +39,20 @@ public static class InstalledTerminals
                 return [];
             }
 
+            var executables = new List<string>();
+
+            foreach (var name in packages.GetSubKeyNames())
+            {
+                if (name.StartsWith(PackagePrefix, StringComparison.OrdinalIgnoreCase)
+                    && Executable(packages, name) is { } executable)
+                {
+                    executables.Add(executable);
+                }
+            }
+
             return
             [
-                .. packages.GetSubKeyNames()
-                    .Where(name => name.StartsWith(PackagePrefix, StringComparison.OrdinalIgnoreCase))
-                    .Select(name => Executable(packages, name))
-                    .OfType<string>()
+                .. executables
                     .OrderBy(TerminalSelector.IsPreview)
                     .ThenByDescending(path => path, StringComparer.OrdinalIgnoreCase)
             ];
@@ -51,6 +65,7 @@ public static class InstalledTerminals
         }
     }
 
+    [SupportedOSPlatform("windows")]
     private static string? Executable(RegistryKey packages, string name)
     {
         using var package = packages.OpenSubKey(name);
