@@ -22,6 +22,9 @@ internal sealed class BoardFixture
     private readonly FakeBoardStore _board = new();
     private readonly FakeSettingsStore _settings = new();
 
+    /// <summary>The plan files the board reads, for anything else that writes them.</summary>
+    public IPlanStore Plans => _plans;
+
     /// <summary>The board under test.</summary>
     public BoardViewModel Board { get; }
 

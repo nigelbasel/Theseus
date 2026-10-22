@@ -20,6 +20,9 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     private string _resumeTooltip = string.Empty;
     private RelayCommand? _resumeCommand;
     private RelayCommand? _startFreshCommand;
+    private RelayCommand? _toggleBlockedCommand;
+    private RelayCommand? _toggleReopenTomorrowCommand;
+    private RelayCommand? _spawnFollowOnCommand;
     private string _model = string.Empty;
     private bool _motionAllowed = true;
     private string _lostSessionName = string.Empty;
@@ -48,6 +51,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject
                 Raise(nameof(MoreJiraKeys));
                 Raise(nameof(AllJiraKeys));
                 Raise(nameof(IsBlocked));
+                Raise(nameof(ReopenTomorrow));
                 Raise(nameof(Column));
                 Raise(nameof(IsArchived));
                 Raise(nameof(ArchiveLabel));
@@ -85,6 +89,9 @@ public sealed class WorkstreamCardViewModel : ObservableObject
 
     /// <summary>Whether the work is blocked, shown as a flag rather than a column.</summary>
     public bool IsBlocked => _workstream.IsBlocked;
+
+    /// <summary>Whether a whole-board Start includes this workstream, ticked in the card's menu.</summary>
+    public bool ReopenTomorrow => _workstream.ReopenTomorrow;
 
     /// <summary>Which column the card belongs to.</summary>
     public string Column => _workstream.Column;
@@ -386,6 +393,27 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     {
         get => _startFreshCommand;
         set => Set(ref _startFreshCommand, value);
+    }
+
+    /// <summary>Marks the work blocked, or not, from the card's menu.</summary>
+    public RelayCommand? ToggleBlockedCommand
+    {
+        get => _toggleBlockedCommand;
+        set => Set(ref _toggleBlockedCommand, value);
+    }
+
+    /// <summary>Includes the workstream in a whole-board Start, or not, from the card's menu.</summary>
+    public RelayCommand? ToggleReopenTomorrowCommand
+    {
+        get => _toggleReopenTomorrowCommand;
+        set => Set(ref _toggleReopenTomorrowCommand, value);
+    }
+
+    /// <summary>Opens the New dialog with this card as the parent, from the card's menu.</summary>
+    public RelayCommand? SpawnFollowOnCommand
+    {
+        get => _spawnFollowOnCommand;
+        set => Set(ref _spawnFollowOnCommand, value);
     }
 
     /// <summary>

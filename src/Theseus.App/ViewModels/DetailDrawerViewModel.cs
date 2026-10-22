@@ -13,6 +13,11 @@ namespace Theseus.App.ViewModels;
 /// The editor for one workstream. It is the plan file's editor as much as the card's: everything it
 /// writes goes back to <c>sessions\&lt;key&gt;.json</c>, which the Claude Code sessions also write,
 /// so edits made here and edits made by a session are the same kind of change.
+///
+/// It is in tabs (Nigel, 2026-10-22). What is going on with the card - its title, Blocked, Reopen
+/// tomorrow and Jira issues - applies the moment it changes. How its sessions start is saved with
+/// Save, from the Setup tab only, and leaving with that unsaved asks first. One Save for everything,
+/// which also closed the drawer, once lost a half-made link without a word.
 /// </summary>
 public sealed class DetailDrawerViewModel : ObservableObject
 {
@@ -37,6 +42,10 @@ public sealed class DetailDrawerViewModel : ObservableObject
     private bool _isBlocked;
     private bool _reopenTomorrow;
     private bool _isOpen;
+    private bool _loading;
+    private DrawerTab _selectedTab;
+    private bool _isConfirmingDiscard;
+    private Action? _afterDiscardQuestion;
 
     /// <summary>Creates the drawer over the stores it reads and writes.</summary>
     /// <param name="archived">Puts the workstream away, or brings it back.</param>
@@ -58,8 +67,20 @@ public sealed class DetailDrawerViewModel : ObservableObject
         CancelDeleteCommand = new RelayCommand(_ => IsConfirmingDelete = false);
         ConfirmDeleteCommand = new RelayCommand(_ => Delete(), _ => _card is not null && !IsLive);
 
-        CloseCommand = new RelayCommand(_ => IsOpen = false);
-        SaveCommand = new RelayCommand(_ => Save(), _ => _card is not null);
+        CloseCommand = new RelayCommand(_ => Leave(() => IsOpen = false));
+        SaveCommand = new RelayCommand(_ => SaveSetup(), _ => _card is not null && IsSetupDirty);
+        SaveAndContinueCommand = new RelayCommand(_ =>
+        {
+            SaveSetup();
+            Continue();
+        });
+        DiscardCommand = new RelayCommand(_ => Continue());
+        KeepEditingCommand = new RelayCommand(_ =>
+        {
+            _afterDiscardQuestion = null;
+            IsConfirmingDiscard = false;
+        });
+        ShowLinksCommand = new RelayCommand(_ => SelectedTab = DrawerTab.Links);
         AddDirectoryCommand = new RelayCommand(_ => AddDirectory(), _ => CanAddDirectory);
         RemoveDirectoryCommand = new RelayCommand(RemoveDirectory, parameter => parameter is string);
         OpenWorkingDirectoryCommand = new RelayCommand(_ => Reveal(WorkingDirectory), _ => Directory.Exists(WorkingDirectory));
@@ -95,8 +116,58 @@ public sealed class DetailDrawerViewModel : ObservableObject
     public string WindowGroup
     {
         get => _windowGroup;
-        set => Set(ref _windowGroup, value);
+        set => SetSetup(ref _windowGroup, value);
     }
+
+    /// <summary>The tab showing.</summary>
+    public DrawerTab SelectedTab
+    {
+        get => _selectedTab;
+        set
+        {
+            if (Set(ref _selectedTab, value))
+            {
+                Raise(nameof(SelectedTabIndex));
+            }
+        }
+    }
+
+    /// <summary>The tab showing, as the tab control counts them.</summary>
+    public int SelectedTabIndex
+    {
+        get => (int)_selectedTab;
+        set => SelectedTab = (DrawerTab)value;
+    }
+
+    /// <summary>Whether the Setup tab holds edits that have not been saved.</summary>
+    public bool IsSetupDirty =>
+        _card is { Workstream: var saved }
+        && (!string.Equals(_workingDirectory, saved.WorkingDirectory, StringComparison.Ordinal)
+            || !AddDirectories.SequenceEqual(saved.AddDirectories, StringComparer.Ordinal)
+            || !string.Equals(_prompt, saved.Prompt, StringComparison.Ordinal)
+            || Blank(_everyStartPrompt) != saved.EveryStartPrompt
+            || Blank(_statusDocumentPath) != saved.StatusDocumentPath
+            || Blank(_windowGroup) != saved.WindowGroup
+            || _boardOrder != saved.BoardOrder);
+
+    /// <summary>Whether leaving is waiting on an answer about unsaved setup.</summary>
+    public bool IsConfirmingDiscard
+    {
+        get => _isConfirmingDiscard;
+        private set => Set(ref _isConfirmingDiscard, value);
+    }
+
+    /// <summary>Saves the setup, then does what was asked.</summary>
+    public RelayCommand SaveAndContinueCommand { get; }
+
+    /// <summary>Throws the unsaved setup away, then does what was asked.</summary>
+    public RelayCommand DiscardCommand { get; }
+
+    /// <summary>Stays, with the edits as they are.</summary>
+    public RelayCommand KeepEditingCommand { get; }
+
+    /// <summary>Shows the Links tab, from the chain line on Overview.</summary>
+    public RelayCommand ShowLinksCommand { get; }
 
     /// <summary>Whether this workstream is put away.</summary>
     public bool IsArchived => _card?.Workstream.IsArchived ?? false;
@@ -113,13 +184,13 @@ public sealed class DetailDrawerViewModel : ObservableObject
     /// <summary>What deleting will destroy, said before it is done.</summary>
     public string DeleteConsequence => WorkstreamRemoval.Consequence(Key);
 
-    /// <summary>Hides the drawer, discarding unsaved edits.</summary>
+    /// <summary>Hides the drawer, asking first when the setup has unsaved edits.</summary>
     public RelayCommand CloseCommand { get; }
 
     /// <summary>The card the drawer is showing, for the commands that act on it from the board.</summary>
     public WorkstreamCardViewModel? Card => _card;
 
-    /// <summary>Writes the edits back to the plan file.</summary>
+    /// <summary>Writes the setup back to the plan and board files, and stays open.</summary>
     public RelayCommand SaveCommand { get; }
 
     /// <summary>Adds the typed directory to the session's scope.</summary>
@@ -206,7 +277,7 @@ public sealed class DetailDrawerViewModel : ObservableObject
         get => _statusDocumentPath;
         set
         {
-            if (Set(ref _statusDocumentPath, value))
+            if (SetSetup(ref _statusDocumentPath, value))
             {
                 Raise(nameof(HandoffDestination));
             }
@@ -218,11 +289,17 @@ public sealed class DetailDrawerViewModel : ObservableObject
         ? string.Empty
         : HandoffPath.For(_card.Workstream with { StatusDocumentPath = Blank(_statusDocumentPath) });
 
-    /// <summary>The tab title and card heading.</summary>
+    /// <summary>The tab title and card heading. Saved as soon as it changes.</summary>
     public string Title
     {
         get => _title;
-        set => Set(ref _title, value);
+        set
+        {
+            if (Set(ref _title, value))
+            {
+                ApplyOverview();
+            }
+        }
     }
 
     /// <summary>Where sessions start.</summary>
@@ -231,7 +308,7 @@ public sealed class DetailDrawerViewModel : ObservableObject
         get => _workingDirectory;
         set
         {
-            if (Set(ref _workingDirectory, value))
+            if (SetSetup(ref _workingDirectory, value))
             {
                 Raise(nameof(WorkingDirectoryExists));
             }
@@ -247,7 +324,7 @@ public sealed class DetailDrawerViewModel : ObservableObject
         get => _prompt;
         set
         {
-            if (Set(ref _prompt, value))
+            if (SetSetup(ref _prompt, value))
             {
                 Raise(nameof(UnclaimedKeys));
             }
@@ -258,7 +335,7 @@ public sealed class DetailDrawerViewModel : ObservableObject
     public string EveryStartPrompt
     {
         get => _everyStartPrompt;
-        set => Set(ref _everyStartPrompt, value);
+        set => SetSetup(ref _everyStartPrompt, value);
     }
 
     /// <summary>
@@ -295,28 +372,80 @@ public sealed class DetailDrawerViewModel : ObservableObject
     public int BoardOrder
     {
         get => _boardOrder;
-        set => Set(ref _boardOrder, value);
+        set => SetSetup(ref _boardOrder, value);
     }
 
-    /// <summary>Whether the work is blocked. A flag on the card, deliberately not a lane.</summary>
+    /// <summary>Whether the work is blocked. A flag on the card, deliberately not a lane. Saved at once.</summary>
     public bool IsBlocked
     {
         get => _isBlocked;
-        set => Set(ref _isBlocked, value);
+        set
+        {
+            if (Set(ref _isBlocked, value))
+            {
+                ApplyOverview();
+            }
+        }
     }
 
-    /// <summary>Whether a whole-board Start should include this workstream.</summary>
+    /// <summary>Whether a whole-board Start should include this workstream. Saved at once.</summary>
     public bool ReopenTomorrow
     {
         get => _reopenTomorrow;
-        set => Set(ref _reopenTomorrow, value);
+        set
+        {
+            if (Set(ref _reopenTomorrow, value))
+            {
+                ApplyOverview();
+            }
+        }
     }
 
-    /// <summary>Shows a workstream, loading its plan and its run history.</summary>
-    public void Show(WorkstreamCardViewModel card)
+    /// <summary>
+    /// Shows a workstream, loading its plan and its run history, on the tab asked for. When the setup
+    /// of the card already showing has unsaved edits, it asks first and shows this one after.
+    /// </summary>
+    public void Show(WorkstreamCardViewModel card, DrawerTab tab = DrawerTab.Overview)
     {
         ArgumentNullException.ThrowIfNull(card);
 
+        if (IsOpen && _card is not null && !ReferenceEquals(_card, card))
+        {
+            Leave(() => Load(card, tab));
+
+            return;
+        }
+
+        if (IsOpen && ReferenceEquals(_card, card))
+        {
+            SelectedTab = tab;
+
+            return;
+        }
+
+        Load(card, tab);
+    }
+
+    /// <summary>
+    /// Brings Blocked and Reopen tomorrow into line with the card after they were changed from its
+    /// menu, without touching anything being edited.
+    /// </summary>
+    public void Reload(WorkstreamCardViewModel card)
+    {
+        if (!ReferenceEquals(_card, card))
+        {
+            return;
+        }
+
+        _loading = true;
+        IsBlocked = card.Workstream.IsBlocked;
+        ReopenTomorrow = card.Workstream.ReopenTomorrow;
+        _loading = false;
+    }
+
+    private void Load(WorkstreamCardViewModel card, DrawerTab tab)
+    {
+        _loading = true;
         _card = card;
         Raise(nameof(Card));
         var workstream = card.Workstream;
@@ -375,6 +504,9 @@ public sealed class DetailDrawerViewModel : ObservableObject
         Raise(nameof(UnclaimedKeys));
         Raise(nameof(HandoffDestination));
 
+        _loading = false;
+        Raise(nameof(IsSetupDirty));
+        SelectedTab = tab;
         IsOpen = true;
     }
 
@@ -383,6 +515,7 @@ public sealed class DetailDrawerViewModel : ObservableObject
         JiraKeys.Add(JiraKeyExtractor.Normalise(NewJiraKey)!);
         NewJiraKey = string.Empty;
         Raise(nameof(UnclaimedKeys));
+        ApplyOverview();
     }
 
     private void RemoveJiraKey(object? parameter)
@@ -392,6 +525,7 @@ public sealed class DetailDrawerViewModel : ObservableObject
             JiraKeys.Remove(key);
             Raise(nameof(CanAddJiraKey));
             Raise(nameof(UnclaimedKeys));
+            ApplyOverview();
         }
     }
 
@@ -403,12 +537,14 @@ public sealed class DetailDrawerViewModel : ObservableObject
         }
 
         Raise(nameof(UnclaimedKeys));
+        ApplyOverview();
     }
 
     private void AddDirectory()
     {
         AddDirectories.Add(NewDirectory.Trim());
         NewDirectory = string.Empty;
+        Raise(nameof(IsSetupDirty));
     }
 
     private void RemoveDirectory(object? parameter)
@@ -417,10 +553,38 @@ public sealed class DetailDrawerViewModel : ObservableObject
         {
             AddDirectories.Remove(directory);
             Raise(nameof(CanAddDirectory));
+            Raise(nameof(IsSetupDirty));
         }
     }
 
-    private void Save()
+    private void ApplyOverview()
+    {
+        if (_loading || _card is null)
+        {
+            return;
+        }
+
+        var key = _card.Key;
+
+        if (_plans.TryRead(key) is { } plan && !string.Equals(plan.Title, Title, StringComparison.Ordinal))
+        {
+            _plans.Write(key, plan with { Title = Title, WrittenAt = DateTimeOffset.Now.ToString("s") });
+        }
+
+        _card.Workstream = _card.Workstream with
+        {
+            Title = Title,
+            IsBlocked = IsBlocked,
+            ReopenTomorrow = ReopenTomorrow,
+            JiraKeys = [.. JiraKeys],
+            RemovedJiraKeys = JiraKeySelection.Removed(
+                _card.Workstream.JiraKeys, JiraKeys, _card.Workstream.RemovedJiraKeys),
+        };
+
+        _saved(_card);
+    }
+
+    private void SaveSetup()
     {
         if (_card is null)
         {
@@ -436,7 +600,6 @@ public sealed class DetailDrawerViewModel : ObservableObject
         _plans.Write(key, plan with
         {
             Order = BoardOrder,
-            Title = Title,
             Cwd = WorkingDirectory,
             AddDirs = [.. AddDirectories],
             Prompt = Prompt,
@@ -445,18 +608,51 @@ public sealed class DetailDrawerViewModel : ObservableObject
 
         _card.Workstream = _card.Workstream with
         {
-            IsBlocked = IsBlocked,
-            ReopenTomorrow = ReopenTomorrow,
+            WorkingDirectory = WorkingDirectory,
+            AddDirectories = [.. AddDirectories],
+            Prompt = Prompt,
+            BoardOrder = BoardOrder,
             StatusDocumentPath = Blank(StatusDocumentPath),
             WindowGroup = Blank(WindowGroup),
             EveryStartPrompt = Blank(EveryStartPrompt),
-            JiraKeys = [.. JiraKeys],
-            RemovedJiraKeys = JiraKeySelection.Removed(
-                _card.Workstream.JiraKeys, JiraKeys, _card.Workstream.RemovedJiraKeys),
         };
 
-        IsOpen = false;
+        Raise(nameof(IsSetupDirty));
         _saved(_card);
+    }
+
+    private void Leave(Action then)
+    {
+        if (!IsSetupDirty)
+        {
+            then();
+
+            return;
+        }
+
+        _afterDiscardQuestion = then;
+        IsConfirmingDiscard = true;
+    }
+
+    private void Continue()
+    {
+        var then = _afterDiscardQuestion;
+
+        _afterDiscardQuestion = null;
+        IsConfirmingDiscard = false;
+        then?.Invoke();
+    }
+
+    private bool SetSetup<T>(ref T field, T value, [System.Runtime.CompilerServices.CallerMemberName] string? name = null)
+    {
+        if (!Set(ref field, value, name))
+        {
+            return false;
+        }
+
+        Raise(nameof(IsSetupDirty));
+
+        return true;
     }
 
     private void Archive()
@@ -468,6 +664,7 @@ public sealed class DetailDrawerViewModel : ObservableObject
 
         var archived = !IsArchived;
 
+        _card = null;
         IsOpen = false;
         _archived?.Invoke(card, archived);
     }
@@ -480,6 +677,7 @@ public sealed class DetailDrawerViewModel : ObservableObject
         }
 
         IsConfirmingDelete = false;
+        _card = null;
         IsOpen = false;
         _removed?.Invoke(card);
     }

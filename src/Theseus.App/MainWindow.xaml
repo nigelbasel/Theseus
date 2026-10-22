@@ -372,8 +372,7 @@
                                     the card carries its own, the way it carries Adopt.
                                 -->
                                 <Button Content="▾" FontSize="11" Padding="4,1" Margin="-3,0,4,0"
-                                        Visibility="{Binding IsLive, Converter={StaticResource NotBoolToVisibility}}"
-                                        ToolTip="Resume the last conversation, or start fresh from the handoff"
+                                        ToolTip="Start choices, Blocked, Reopen tomorrow and Spawn follow-on"
                                         Click="OnOverflowClick">
                                     <Button.ContextMenu>
                                         <ContextMenu DataContext="{Binding PlacementTarget.DataContext,
@@ -381,10 +380,23 @@
                                             <MenuItem Header="Resume the last conversation"
                                                       Command="{Binding ResumeCommand}"
                                                       ToolTip="{Binding ResumeTooltip}"
-                                                      ToolTipService.ShowOnDisabled="True" />
+                                                      ToolTipService.ShowOnDisabled="True"
+                                                      Visibility="{Binding IsLive, Converter={StaticResource NotBoolToVisibility}}" />
                                             <MenuItem Header="Start fresh from the handoff"
                                                       Command="{Binding StartFreshCommand}"
-                                                      ToolTip="{x:Static launching:StartModeChoice.FreshTooltip}" />
+                                                      ToolTip="{x:Static launching:StartModeChoice.FreshTooltip}"
+                                                      Visibility="{Binding IsLive, Converter={StaticResource NotBoolToVisibility}}" />
+                                            <Separator Visibility="{Binding IsLive, Converter={StaticResource NotBoolToVisibility}}" />
+                                            <MenuItem Header="Blocked" IsChecked="{Binding IsBlocked, Mode=OneWay}"
+                                                      Command="{Binding ToggleBlockedCommand}"
+                                                      ToolTip="A flag on the card, not a lane" />
+                                            <MenuItem Header="Reopen tomorrow" IsChecked="{Binding ReopenTomorrow, Mode=OneWay}"
+                                                      Command="{Binding ToggleReopenTomorrowCommand}"
+                                                      ToolTip="Include this workstream when the whole board is started" />
+                                            <Separator />
+                                            <MenuItem Header="Spawn follow-on…"
+                                                      Command="{Binding SpawnFollowOnCommand}"
+                                                      ToolTip="Create a new card spawned from this one, in the same working directory" />
                                         </ContextMenu>
                                     </Button.ContextMenu>
                                 </Button>
@@ -498,12 +510,13 @@
                         <!--
                             The card's links in one line of words: Ready or what it waits on, then where
                             it came from. Green only for Ready, which is shown and never acted on.
-                            Clicking it opens the Chains tab, where the whole chain is laid out.
+                            Clicking it opens the card's details on its Links tab.
                         -->
                         <Button Margin="0,2,0,0" Padding="0" HorizontalAlignment="Left"
                                 Background="Transparent" BorderThickness="0" Cursor="Hand"
                                 ToolTip="{Binding LinkTooltip}"
-                                Command="{Binding DataContext.Chains.OpenCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                Command="{Binding DataContext.ShowCardLinksCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                CommandParameter="{Binding}"
                                 Visibility="{Binding LinkLine, Converter={StaticResource NotEmptyToVisibility}}">
                             <TextBlock FontSize="11" TextTrimming="CharacterEllipsis" Text="{Binding LinkLine}">
                                 <TextBlock.Style>
@@ -1514,35 +1527,63 @@
                 </ScrollViewer>
             </DockPanel>
 
-            <!-- Detail drawer -->
+            <!--
+                Detail drawer, in tabs (Nigel, 2026-10-22). It was one column of sixteen sections under one
+                Save, which also closed the drawer, and a half-made link was lost to it without a word.
+                Overview and Links apply each change as it is made; Setup alone has a Save, marks its tab
+                while anything is unsaved, and leaving with that unsaved asks first.
+            -->
             <Border HorizontalAlignment="Right" Width="480" Margin="0,0,0,8"
                     Background="{DynamicResource SolidBackgroundFillColorSecondaryBrush}"
                     BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                     BorderThickness="1,0,0,0"
                     Visibility="{Binding Drawer.IsOpen, Converter={StaticResource BoolToVisibility}}">
                 <DockPanel Margin="18,14,18,14">
-                    <Grid DockPanel.Dock="Top" Margin="0,0,0,12">
-                        <StackPanel Orientation="Horizontal">
-                            <Border Width="14" Height="14" CornerRadius="3" Margin="0,0,10,0"
-                                    VerticalAlignment="Center"
-                                    Background="{Binding Drawer.ColorHex, Converter={StaticResource HexToBrush}}"
-                                    ToolTip="Permanent. A change applies from the next launch." />
-                            <TextBlock Text="{Binding Drawer.Key}" FontSize="15" FontWeight="SemiBold"
-                                       VerticalAlignment="Center"
-                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                        </StackPanel>
-                        <Button Content="Close" HorizontalAlignment="Right" Padding="12,3"
+                    <Grid DockPanel.Dock="Top" Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Width="14" Height="14" CornerRadius="3" Margin="0,0,10,0"
+                                VerticalAlignment="Center"
+                                Background="{Binding Drawer.ColorHex, Converter={StaticResource HexToBrush}}"
+                                ToolTip="Permanent. A change applies from the next launch." />
+                        <TextBlock Grid.Column="1" Text="{Binding Drawer.Title}" FontSize="15" FontWeight="SemiBold"
+                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                   ToolTip="{Binding Drawer.Key, StringFormat=Key: {0}}"
+                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                        <!-- Archive and Delete are rare, and Delete cannot be undone, so they wait behind a menu. -->
+                        <Button Grid.Column="2" Content="⋯" Padding="10,3" Margin="8,0,6,0"
+                                ToolTip="Archive or delete this workstream"
+                                Click="OnOverflowClick">
+                            <Button.ContextMenu>
+                                <ContextMenu DataContext="{Binding PlacementTarget.DataContext,
+                                                          RelativeSource={RelativeSource Self}}">
+                                    <MenuItem Header="{Binding Drawer.ArchiveLabel}"
+                                              Command="{Binding Drawer.ArchiveCommand}"
+                                              ToolTip="Hide this workstream without losing it. Restore it from Archived." />
+                                    <MenuItem Header="Delete…"
+                                              Command="{Binding Drawer.DeleteCommand}"
+                                              ToolTip="Destroy this workstream and its plan file. Its notes and its work are left alone." />
+                                    <MenuItem Header="{Binding Drawer.RemovalRefusal}" IsEnabled="False"
+                                              Visibility="{Binding Drawer.IsLive, Converter={StaticResource BoolToVisibility}}" />
+                                </ContextMenu>
+                            </Button.ContextMenu>
+                        </Button>
+                        <Button Grid.Column="3" Content="Close" Padding="12,3"
                                 Command="{Binding Drawer.CloseCommand}" />
                     </Grid>
 
-                    <StackPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
+                    <StackPanel DockPanel.Dock="Bottom">
                         <!--
                             Deleting asks in place rather than in a message box: the question names
                             what goes and what stays, which is more than a title bar and two buttons
                             can say, and the answer is one click from the thing it is about.
                         -->
                         <Border Visibility="{Binding Drawer.IsConfirmingDelete, Converter={StaticResource BoolToVisibility}}"
-                                Padding="10" CornerRadius="6" Margin="0,0,0,8"
+                                Padding="10" CornerRadius="6" Margin="0,8,0,0"
                                 Background="{DynamicResource LayerFillColorDefaultBrush}"
                                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                                 BorderThickness="1">
@@ -1557,305 +1598,448 @@
                             </StackPanel>
                         </Border>
 
-                        <TextBlock Text="{Binding Drawer.RemovalRefusal}" TextWrapping="Wrap" FontSize="11"
-                                   Margin="0,0,0,6"
-                                   Visibility="{Binding Drawer.IsLive, Converter={StaticResource BoolToVisibility}}"
-                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
-
-                        <Grid>
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
-                                <Button Content="{Binding Drawer.ArchiveLabel}" Padding="12,4" Margin="0,0,8,0"
-                                        Command="{Binding Drawer.ArchiveCommand}"
-                                        ToolTip="Hide this workstream without losing it. Restore it from Archived." />
-                                <Button Content="Delete" Padding="12,4"
-                                        Command="{Binding Drawer.DeleteCommand}"
-                                        ToolTip="Destroy this workstream and its plan file. Its notes and its work are left alone." />
+                        <Border Visibility="{Binding Drawer.IsConfirmingDiscard, Converter={StaticResource BoolToVisibility}}"
+                                Padding="10" CornerRadius="6" Margin="0,8,0,0"
+                                Background="{DynamicResource LayerFillColorDefaultBrush}"
+                                BorderBrush="#D68910"
+                                BorderThickness="1">
+                            <StackPanel>
+                                <TextBlock TextWrapping="Wrap" FontSize="11.5"
+                                           Text="The Setup tab has changes that are not saved." />
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+                                    <Button Content="Keep editing" Padding="12,3" Margin="0,0,8,0"
+                                            Command="{Binding Drawer.KeepEditingCommand}" />
+                                    <Button Content="Discard" Padding="12,3" Margin="0,0,8,0"
+                                            Command="{Binding Drawer.DiscardCommand}" />
+                                    <Button Content="Save" Padding="12,3"
+                                            Command="{Binding Drawer.SaveAndContinueCommand}" />
+                                </StackPanel>
                             </StackPanel>
-                            <Button Content="Save" HorizontalAlignment="Right" Padding="20,4"
-                                    Command="{Binding Drawer.SaveCommand}" />
-                        </Grid>
+                        </Border>
 
-                        <TextBlock Text="{Binding Drawer.PlanPath}" FontSize="10" Margin="0,8,0,0"
-                                   TextTrimming="CharacterEllipsis"
-                                   ToolTip="{Binding Drawer.PlanPath}"
-                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
                     </StackPanel>
 
-                    <ScrollViewer VerticalScrollBarVisibility="Auto">
-                        <StackPanel>
-                            <TextBlock Text="Title" Style="{StaticResource FieldLabel}" />
-                            <TextBox Text="{Binding Drawer.Title, UpdateSourceTrigger=PropertyChanged}" />
-                            <TextBlock FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"
-                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                       Text="Also the tab title. A tab cannot be renamed once it is open, so a running session keeps the name it started with until it is restarted." />
-
-                            <TextBlock Text="Jira issues" Style="{StaticResource FieldLabel}" />
-                            <ItemsControl ItemsSource="{Binding Drawer.JiraKeys}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Grid Margin="0,0,0,4">
-                                            <TextBlock Text="{Binding}" FontSize="12" Margin="0,0,70,0"
-                                                       VerticalAlignment="Center"
-                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                            <Button Content="Remove" FontSize="11" Padding="8,1"
-                                                    HorizontalAlignment="Right"
-                                                    Command="{Binding DataContext.Drawer.RemoveJiraKeyCommand,
-                                                              RelativeSource={RelativeSource AncestorType=Window}}"
-                                                    CommandParameter="{Binding}" />
-                                        </Grid>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                            <Grid Margin="0,4,0,0">
-                                <TextBox Text="{Binding Drawer.NewJiraKey, UpdateSourceTrigger=PropertyChanged}"
-                                         Margin="0,0,60,0" />
-                                <Button Content="Add" HorizontalAlignment="Right" Padding="12,3"
-                                        Command="{Binding Drawer.AddJiraKeyCommand}" />
-                            </Grid>
-                            <Button Content="{Binding Drawer.UnclaimedKeys.Count,
-                                              StringFormat=Take {0} more from the prompt}"
-                                    HorizontalAlignment="Left" Margin="0,6,0,0" Padding="10,3" FontSize="11"
-                                    Command="{Binding Drawer.RescanPromptCommand}"
-                                    Visibility="{Binding Drawer.UnclaimedKeys.Count,
-                                                 Converter={StaticResource CountToVisibility}}" />
-
-                            <Button Content="Instructions and skills…" HorizontalAlignment="Left"
-                                    Margin="0,14,0,0" Padding="10,3" FontSize="11"
-                                    ToolTip="Every CLAUDE.md, rule, skill, command and agent this workstream's sessions get, in the order they are read"
-                                    Command="{Binding Instructions.OpenCommand}"
-                                    CommandParameter="{Binding Drawer}" />
-
-                            <TextBlock Text="Working directory" Style="{StaticResource FieldLabel}" />
-                            <Grid>
-                                <TextBox Text="{Binding Drawer.WorkingDirectory, UpdateSourceTrigger=PropertyChanged}"
-                                         Margin="0,0,80,0" />
-                                <Button Content="Open" HorizontalAlignment="Right" Padding="12,3"
-                                        Command="{Binding Drawer.OpenWorkingDirectoryCommand}" />
-                            </Grid>
-                            <TextBlock FontSize="11" Margin="0,4,0,0"
-                                       Text="This directory is missing."
-                                       Foreground="#CF5D61">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="Visibility" Value="Collapsed" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding Drawer.WorkingDirectoryExists}" Value="False">
-                                                <Setter Property="Visibility" Value="Visible" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-
-                            <TextBlock Text="Extra directories" Style="{StaticResource FieldLabel}" />
-                            <ItemsControl ItemsSource="{Binding Drawer.AddDirectories}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Grid Margin="0,0,0,4">
-                                            <TextBlock Text="{Binding}" FontSize="12" Margin="0,0,70,0"
-                                                       VerticalAlignment="Center"
-                                                       TextTrimming="CharacterEllipsis" ToolTip="{Binding}"
-                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                            <Button Content="Remove" FontSize="11" Padding="8,1"
-                                                    HorizontalAlignment="Right"
-                                                    Command="{Binding DataContext.Drawer.RemoveDirectoryCommand,
-                                                              RelativeSource={RelativeSource AncestorType=Window}}"
-                                                    CommandParameter="{Binding}" />
-                                        </Grid>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                            <Grid Margin="0,4,0,0">
-                                <TextBox Text="{Binding Drawer.NewDirectory, UpdateSourceTrigger=PropertyChanged}"
-                                         Margin="0,0,60,0" />
-                                <Button Content="Add" HorizontalAlignment="Right" Padding="12,3"
-                                        Command="{Binding Drawer.AddDirectoryCommand}" />
-                            </Grid>
-
-                            <TextBlock Text="First run only" Style="{StaticResource FieldLabel}" />
-                            <TextBox Text="{Binding Drawer.Prompt, UpdateSourceTrigger=PropertyChanged}"
-                                     IsReadOnly="{Binding Drawer.HasRun}"
-                                     AcceptsReturn="True" TextWrapping="Wrap" MinHeight="140"
-                                     VerticalScrollBarVisibility="Auto"
-                                     FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12" />
-                            <TextBlock Text="{Binding Drawer.FirstRunHint}" FontSize="11" TextWrapping="Wrap"
-                                       Margin="0,4,0,0"
-                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
-
-                            <TextBlock Text="Every start" Style="{StaticResource FieldLabel}" />
-                            <TextBox Text="{Binding Drawer.EveryStartPrompt, UpdateSourceTrigger=PropertyChanged}"
-                                     AcceptsReturn="True" TextWrapping="Wrap" MinHeight="90"
-                                     VerticalScrollBarVisibility="Auto"
-                                     FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12" />
-                            <TextBlock FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"
-                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}"
-                                       Text="Told to this workstream's sessions every time they start, after everything the board says. Use {handoff} for its notes." />
-
-                            <Grid Margin="0,14,0,0">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="Order" VerticalAlignment="Center" FontSize="12" Margin="0,0,8,0"
+                    <TabControl SelectedIndex="{Binding Drawer.SelectedTabIndex}"
+                                Background="Transparent" BorderThickness="0" Padding="0,10,0,0">
+                        <TabItem Header="Overview">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Drawer.Card.StatusLine}" FontSize="12" TextWrapping="Wrap"
                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                    <TextBox Text="{Binding Drawer.BoardOrder, UpdateSourceTrigger=PropertyChanged}"
-                                             Width="50" />
+                                    <TextBlock Text="{Binding Drawer.Card.Model}" FontSize="11" Margin="0,2,0,0"
+                                               Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                               Visibility="{Binding Drawer.Card.Model, Converter={StaticResource NotEmptyToVisibility}}" />
+
+                                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                        <Button Content="{Binding Drawer.Card.PrimaryAction}" Padding="12,3" Margin="0,0,6,0"
+                                                ToolTip="{Binding Drawer.Card.RestartCost}"
+                                                Visibility="{Binding Drawer.Card.IsLive, Converter={StaticResource NotBoolToVisibility}}"
+                                                Command="{Binding StartCardCommand}"
+                                                CommandParameter="{Binding Drawer.Card}" />
+                                        <Button Content="Stop" Padding="12,3" Margin="0,0,6,0"
+                                                ToolTip="Ask this session to write a handoff and exit when its turn ends"
+                                                Visibility="{Binding Drawer.Card.IsLive, Converter={StaticResource BoolToVisibility}}"
+                                                Command="{Binding StopCardCommand}"
+                                                CommandParameter="{Binding Drawer.Card}" />
+                                        <Button Content="Focus" Padding="12,3" Margin="0,0,6,0"
+                                                ToolTip="Bring this session's tab to the front"
+                                                Command="{Binding FocusCardCommand}"
+                                                CommandParameter="{Binding Drawer.Card}" />
+                                        <Button Content="Spawn follow-on…" Padding="12,3"
+                                                ToolTip="Create a new card spawned from this one, in the same working directory"
+                                                Command="{Binding SpawnFollowOnCommand}"
+                                                CommandParameter="{Binding Drawer.Card}" />
+                                    </StackPanel>
+
+                                    <TextBlock Text="Title" Style="{StaticResource FieldLabel}" />
+                                    <TextBox Text="{Binding Drawer.Title, UpdateSourceTrigger=LostFocus}" />
+                                    <TextBlock FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                               Text="Saved when you leave the box. Also the tab title: a running session keeps the name it started with until it is restarted." />
+
+                                    <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                        <CheckBox Content="Blocked" Margin="0,0,18,0"
+                                                  ToolTip="A flag on the card, not a lane. Saved at once."
+                                                  IsChecked="{Binding Drawer.IsBlocked}" />
+                                        <CheckBox Content="Reopen tomorrow"
+                                                  ToolTip="Include this workstream when the whole board is started. Saved at once."
+                                                  IsChecked="{Binding Drawer.ReopenTomorrow}" />
+                                    </StackPanel>
+
+                                    <TextBlock Text="Chain" Style="{StaticResource FieldLabel}" />
+                                    <Button Padding="0" HorizontalAlignment="Left" Background="Transparent"
+                                            BorderThickness="0" Cursor="Hand" ToolTip="Show this card's links"
+                                            Command="{Binding Drawer.ShowLinksCommand}">
+                                        <TextBlock FontSize="12" TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Text" Value="{Binding Drawer.Card.LinkLine}" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Drawer.Card.LinkLine}" Value="">
+                                                            <Setter Property="Text" Value="No links. Add one on the Links tab." />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Button>
+
+                                    <TextBlock Text="Jira issues" Style="{StaticResource FieldLabel}" />
+                                    <ItemsControl ItemsSource="{Binding Drawer.JiraKeys}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid Margin="0,0,0,4">
+                                                    <TextBlock Text="{Binding}" FontSize="12" Margin="0,0,70,0"
+                                                               VerticalAlignment="Center"
+                                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                    <Button Content="Remove" FontSize="11" Padding="8,1"
+                                                            HorizontalAlignment="Right"
+                                                            Command="{Binding DataContext.Drawer.RemoveJiraKeyCommand,
+                                                                      RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding}" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <Grid Margin="0,4,0,0">
+                                        <TextBox Text="{Binding Drawer.NewJiraKey, UpdateSourceTrigger=PropertyChanged}"
+                                                 Margin="0,0,60,0" />
+                                        <Button Content="Add" HorizontalAlignment="Right" Padding="12,3"
+                                                Command="{Binding Drawer.AddJiraKeyCommand}" />
+                                    </Grid>
+                                    <Button Content="{Binding Drawer.UnclaimedKeys.Count,
+                                                      StringFormat=Take {0} more from the prompt}"
+                                            HorizontalAlignment="Left" Margin="0,6,0,0" Padding="10,3" FontSize="11"
+                                            Command="{Binding Drawer.RescanPromptCommand}"
+                                            Visibility="{Binding Drawer.UnclaimedKeys.Count,
+                                                         Converter={StaticResource CountToVisibility}}" />
                                 </StackPanel>
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                    <CheckBox Content="Blocked" Margin="0,0,14,0"
-                                              IsChecked="{Binding Drawer.IsBlocked}" />
-                                    <CheckBox Content="Reopen tomorrow"
-                                              IsChecked="{Binding Drawer.ReopenTomorrow}" />
-                                </StackPanel>
-                            </Grid>
+                            </ScrollViewer>
+                        </TabItem>
 
-                            <TextBlock Text="Handover notes" Style="{StaticResource FieldLabel}" />
-                            <Grid>
-                                <TextBox Text="{Binding Drawer.StatusDocumentPath, UpdateSourceTrigger=PropertyChanged}"
-                                         Margin="0,0,70,0" />
-                                <Button Content="Open" FontSize="11" Padding="10,2" HorizontalAlignment="Right"
-                                        VerticalAlignment="Center"
-                                        Command="{Binding Drawer.OpenStatusDocumentCommand}" />
-                            </Grid>
-                            <TextBlock Text="{Binding Drawer.HandoffDestination, StringFormat=Leave empty to use {0}}"
-                                       FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"
-                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-
-                            <TextBlock Text="Terminal window" Style="{StaticResource FieldLabel}" />
-                            <TextBox Text="{Binding Drawer.WindowGroup, UpdateSourceTrigger=PropertyChanged}" />
-                            <TextBlock FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"
-                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                       Text="Leave empty to follow the lane. Name a window here to put this workstream beside another one whatever lane it is in. It applies from the next launch — a running session stays in the window it started in." />
-
-                            <TextBlock Text="Workflows" Style="{StaticResource FieldLabel}"
-                                       Visibility="{Binding Drawer.Workflows.Count,
-                                                    Converter={StaticResource CountToVisibility}}" />
-                            <ItemsControl ItemsSource="{Binding Drawer.Workflows}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <StackPanel Margin="0,0,0,8" ToolTip="{Binding Summary}">
-                                            <TextBlock Text="{Binding Headline}" FontSize="12"
-                                                       TextTrimming="CharacterEllipsis"
-                                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                            <TextBlock Text="{Binding Phases}" FontSize="11"
-                                                       TextTrimming="CharacterEllipsis"
-                                                       Visibility="{Binding Phases,
-                                                                    Converter={StaticResource NotEmptyToVisibility}}"
-                                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
-                                            <TextBlock FontSize="11"
-                                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}"
-                                                       Text="{Binding Timestamp, Converter={StaticResource RelativeTime}}" />
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-
-                            <!--
-                                The card's links (Nigel, 2026-10-21). Made here by hand: "Link to" joins it to
-                                another card, "Spawn follow-on" opens the New dialog with this card as parent.
-                                Waiting = an input is missing, worked out from the links. Blocked = you said so.
-                            -->
-                            <TextBlock Text="Related" Style="{StaticResource FieldLabel}" />
-                            <TextBlock FontSize="11" TextWrapping="Wrap" Margin="0,0,0,6"
-                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}"
-                                       Text="Waiting means an input is not accepted yet, worked out from the links. Blocked means you said so." />
-                            <ItemsControl ItemsSource="{Binding Chains.Related}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Margin="0,0,0,4" Padding="8,5" CornerRadius="4"
-                                                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
-                                            <StackPanel>
-                                                <TextBlock Text="{Binding Description}" FontSize="12" TextWrapping="Wrap"
-                                                           Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                                <TextBlock Text="{Binding StateText}" FontSize="11" TextWrapping="Wrap"
-                                                           Foreground="{DynamicResource TextFillColorTertiaryBrush}"
-                                                           Visibility="{Binding StateText, Converter={StaticResource NotEmptyToVisibility}}" />
-                                                <TextBlock Text="{Binding Document}" FontSize="11" TextWrapping="Wrap"
-                                                           Foreground="{DynamicResource TextFillColorTertiaryBrush}"
-                                                           Visibility="{Binding Document, Converter={StaticResource NotEmptyToVisibility}}" />
-                                                <StackPanel Visibility="{Binding CanSatisfy, Converter={StaticResource BoolToVisibility}}"
-                                                            Margin="0,4,0,0">
-                                                    <TextBox Text="{Binding Reason, UpdateSourceTrigger=PropertyChanged}" FontSize="11"
-                                                             ToolTip="Why the input is accepted. It is kept with the link." />
-                                                    <Button Content="Mark satisfied" FontSize="11" Padding="8,2" Margin="0,4,0,0"
-                                                            HorizontalAlignment="Left" Command="{Binding SatisfyCommand}"
-                                                            ToolTip="Accept this input by hand, for the reason given" />
-                                                </StackPanel>
-                                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                                    <Button Content="Open document" FontSize="11" Padding="8,2" Margin="0,0,6,0"
-                                                            Command="{Binding OpenDocumentCommand}" />
-                                                    <Button Content="Remove link" FontSize="11" Padding="8,2"
-                                                            Command="{Binding AskRemoveCommand}"
-                                                            Visibility="{Binding CanAskRemove, Converter={StaticResource BoolToVisibility}}" />
-                                                    <Button Content="Remove" FontSize="11" Padding="8,2" Margin="0,0,6,0"
-                                                            Command="{Binding ConfirmRemoveCommand}"
-                                                            Visibility="{Binding IsConfirmingRemove, Converter={StaticResource BoolToVisibility}}" />
-                                                    <Button Content="Keep" FontSize="11" Padding="8,2"
-                                                            Command="{Binding KeepCommand}"
-                                                            Visibility="{Binding IsConfirmingRemove, Converter={StaticResource BoolToVisibility}}" />
-                                                </StackPanel>
-                                                <TextBlock Text="{Binding Refusal}" FontSize="11" TextWrapping="Wrap" Foreground="#D68910"
-                                                           Visibility="{Binding Refusal, Converter={StaticResource NotEmptyToVisibility}}" />
-                                            </StackPanel>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                            <TextBlock Text="No links." FontSize="11" Margin="0,2,0,4"
-                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}"
-                                       Visibility="{Binding Chains.Related.Count, Converter={StaticResource ZeroToVisibility}}" />
-
-                            <TextBlock Text="Link to" FontSize="11" Margin="0,6,0,2"
-                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                            <StackPanel Margin="0,0,0,4">
-                                <TextBlock Text="This card" FontSize="11"
-                                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
-                                <ComboBox ItemsSource="{Binding Chains.Kinds}" SelectedItem="{Binding Chains.Kind}"
-                                          Margin="0,2,0,0" />
-                                <ComboBox ItemsSource="{Binding Chains.Targets}" SelectedItem="{Binding Chains.Target}"
-                                          IsEditable="True" IsTextSearchEnabled="True" Margin="0,4,0,0"
-                                          ToolTip="Type to find the card" />
-                                <TextBox Text="{Binding Chains.Output, UpdateSourceTrigger=PropertyChanged}" FontSize="11"
-                                         Margin="0,4,0,0" ToolTip="The document the waiting card reads"
-                                         Visibility="{Binding Chains.NeedsOutput, Converter={StaticResource BoolToVisibility}}" />
-                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                    <Button Content="Link" Padding="10,3" Margin="0,0,8,0" Command="{Binding Chains.AddLinkCommand}" />
-                                    <Button Content="Spawn follow-on…" Padding="10,3"
-                                            ToolTip="Create a new card spawned from this one, in the same working directory"
-                                            Command="{Binding SpawnFollowOnCommand}"
-                                            CommandParameter="{Binding Drawer.Card}" />
-                                </StackPanel>
-                                <TextBlock Text="{Binding Chains.LinkRefusal}" FontSize="11" TextWrapping="Wrap" Foreground="#D68910"
-                                           Visibility="{Binding Chains.LinkRefusal, Converter={StaticResource NotEmptyToVisibility}}" />
-                            </StackPanel>
-
-                            <TextBlock Text="Runs" Style="{StaticResource FieldLabel}" />
-                            <ItemsControl ItemsSource="{Binding Drawer.Runs}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Margin="0,0,0,4" Padding="8,5" CornerRadius="4"
-                                                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
-                                            <Grid>
+                        <TabItem Header="Links">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <StackPanel>
+                                    <StackPanel.Resources>
+                                        <!-- One link: the other card by name, where it stands, and what can be done with it. -->
+                                        <DataTemplate x:Key="LinkRowTemplate">
+                                            <Border Margin="0,0,0,4" Padding="8,5" CornerRadius="4"
+                                                    Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
                                                 <StackPanel>
-                                                    <TextBlock Text="{Binding Started}" FontSize="12"
-                                                               Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                                    <TextBlock FontSize="11"
-                                                               Foreground="{DynamicResource TextFillColorTertiaryBrush}">
-                                                        <Run Text="{Binding ShortSessionId, Mode=OneWay}" />
-                                                        <Run Text="·" />
-                                                        <Run Text="{Binding Outcome, Mode=OneWay}" />
-                                                    </TextBlock>
+                                                    <DockPanel>
+                                                        <TextBlock DockPanel.Dock="Right" Text="{Binding StateText}" FontSize="11"
+                                                                   Margin="8,0,0,0" VerticalAlignment="Center"
+                                                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                                                        <Button Padding="0" HorizontalAlignment="Left" Background="Transparent"
+                                                                BorderThickness="0" Cursor="Hand"
+                                                                ToolTip="Open this card's details"
+                                                                Command="{Binding ShowOtherCommand}">
+                                                            <TextBlock Text="{Binding OtherTitle}" FontSize="12.5"
+                                                                       TextTrimming="CharacterEllipsis"
+                                                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                                        </Button>
+                                                    </DockPanel>
+                                                    <TextBlock Text="{Binding Document}" FontSize="11" TextTrimming="CharacterEllipsis"
+                                                               ToolTip="{Binding Document}"
+                                                               Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                                               Visibility="{Binding Document, Converter={StaticResource NotEmptyToVisibility}}" />
+                                                    <StackPanel Visibility="{Binding CanSatisfy, Converter={StaticResource BoolToVisibility}}"
+                                                                Margin="0,4,0,0">
+                                                        <TextBox Text="{Binding Reason, UpdateSourceTrigger=PropertyChanged}" FontSize="11"
+                                                                 ToolTip="Why the input is accepted. It is kept with the link." />
+                                                    </StackPanel>
+                                                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                                        <Button Content="Mark satisfied" FontSize="11" Padding="8,1" Margin="0,0,6,0"
+                                                                Command="{Binding SatisfyCommand}"
+                                                                ToolTip="Accept this input by hand, for the reason given"
+                                                                Visibility="{Binding CanSatisfy, Converter={StaticResource BoolToVisibility}}" />
+                                                        <Button Content="Open document" FontSize="11" Padding="8,1" Margin="0,0,6,0"
+                                                                Command="{Binding OpenDocumentCommand}"
+                                                                Visibility="{Binding Document, Converter={StaticResource NotEmptyToVisibility}}" />
+                                                        <Button Content="Remove" FontSize="11" Padding="8,1"
+                                                                Command="{Binding AskRemoveCommand}"
+                                                                Visibility="{Binding CanAskRemove, Converter={StaticResource BoolToVisibility}}" />
+                                                        <Button Content="Remove the link" FontSize="11" Padding="8,1" Margin="0,0,6,0"
+                                                                Command="{Binding ConfirmRemoveCommand}"
+                                                                Visibility="{Binding IsConfirmingRemove, Converter={StaticResource BoolToVisibility}}" />
+                                                        <Button Content="Keep" FontSize="11" Padding="8,1"
+                                                                Command="{Binding KeepCommand}"
+                                                                Visibility="{Binding IsConfirmingRemove, Converter={StaticResource BoolToVisibility}}" />
+                                                    </StackPanel>
+                                                    <TextBlock Text="{Binding Refusal}" FontSize="11" TextWrapping="Wrap" Foreground="#D68910"
+                                                               Visibility="{Binding Refusal, Converter={StaticResource NotEmptyToVisibility}}" />
                                                 </StackPanel>
-                                                <TextBlock Text="{Binding Duration}" FontSize="11"
-                                                           HorizontalAlignment="Right" VerticalAlignment="Center"
-                                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                            </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                            <TextBlock Text="No runs recorded yet." FontSize="11" Margin="0,2,0,0"
-                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}"
-                                       Visibility="{Binding Drawer.Runs.Count, Converter={StaticResource ZeroToVisibility}}" />
-                        </StackPanel>
-                    </ScrollViewer>
+                                            </Border>
+                                        </DataTemplate>
+                                    </StackPanel.Resources>
+
+                                    <TextBlock FontSize="11" TextWrapping="Wrap" Margin="0,0,0,8"
+                                               Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                               Text="No links yet."
+                                               Visibility="{Binding Chains.HasNoLinks, Converter={StaticResource BoolToVisibility}}" />
+
+                                    <TextBlock Text="SPAWNED BY" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,4"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                               Visibility="{Binding Chains.Parents.Count, Converter={StaticResource CountToVisibility}}" />
+                                    <ItemsControl ItemsSource="{Binding Chains.Parents}" ItemTemplate="{StaticResource LinkRowTemplate}" />
+
+                                    <Border Margin="0,4,0,8" Padding="8,5" CornerRadius="4" BorderThickness="4,0,0,0"
+                                            BorderBrush="{Binding Drawer.ColorHex, Converter={StaticResource HexToBrush}}"
+                                            Visibility="{Binding Chains.HasNoLinks, Converter={StaticResource NotBoolToVisibility}}">
+                                        <TextBlock FontSize="12.5" FontWeight="SemiBold" Text="{Binding Drawer.Title, StringFormat=● {0} (this card)}"
+                                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                    </Border>
+
+                                    <TextBlock Text="SPAWNED" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,4"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                               Visibility="{Binding Chains.Children.Count, Converter={StaticResource CountToVisibility}}" />
+                                    <ItemsControl ItemsSource="{Binding Chains.Children}" ItemTemplate="{StaticResource LinkRowTemplate}" />
+
+                                    <TextBlock Text="WAITS ON THE OUTPUT OF" FontSize="11" FontWeight="SemiBold" Margin="0,8,0,4"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                               Visibility="{Binding Chains.Inputs.Count, Converter={StaticResource CountToVisibility}}" />
+                                    <ItemsControl ItemsSource="{Binding Chains.Inputs}" ItemTemplate="{StaticResource LinkRowTemplate}" />
+
+                                    <TextBlock Text="FEEDS ITS OUTPUT TO" FontSize="11" FontWeight="SemiBold" Margin="0,8,0,4"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                               Visibility="{Binding Chains.Outputs.Count, Converter={StaticResource CountToVisibility}}" />
+                                    <ItemsControl ItemsSource="{Binding Chains.Outputs}" ItemTemplate="{StaticResource LinkRowTemplate}" />
+
+                                    <StackPanel Orientation="Horizontal" Margin="0,12,0,0"
+                                                Visibility="{Binding Chains.IsAddingLink, Converter={StaticResource NotBoolToVisibility}}">
+                                        <Button Content="+ Add link…" Padding="12,3" Margin="0,0,8,0"
+                                                ToolTip="Link this card to another card on the board"
+                                                Command="{Binding Chains.BeginAddLinkCommand}" />
+                                        <Button Content="Spawn follow-on…" Padding="12,3"
+                                                ToolTip="Create a new card spawned from this one, in the same working directory"
+                                                Command="{Binding SpawnFollowOnCommand}"
+                                                CommandParameter="{Binding Drawer.Card}" />
+                                    </StackPanel>
+
+                                    <!-- The form for a new link has its own Add and Cancel, and Save has nothing to do with it. -->
+                                    <Border Margin="0,12,0,0" Padding="10" CornerRadius="6"
+                                            Background="{DynamicResource LayerFillColorDefaultBrush}"
+                                            BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                                            Visibility="{Binding Chains.IsAddingLink, Converter={StaticResource BoolToVisibility}}">
+                                        <StackPanel>
+                                            <TextBlock Text="New link" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,6" />
+                                            <TextBlock Text="This card" FontSize="11"
+                                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                                            <ComboBox ItemsSource="{Binding Chains.Kinds}" SelectedItem="{Binding Chains.Kind}"
+                                                      Margin="0,2,0,0" />
+                                            <ComboBox ItemsSource="{Binding Chains.Targets}" SelectedItem="{Binding Chains.Target}"
+                                                      DisplayMemberPath="Title" IsTextSearchEnabled="True" Margin="0,4,0,0"
+                                                      ToolTip="The other card. Type its first letters to jump to it." />
+                                            <TextBlock Text="Document it reads" FontSize="11" Margin="0,6,0,2"
+                                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                                       Visibility="{Binding Chains.NeedsOutput, Converter={StaticResource BoolToVisibility}}" />
+                                            <TextBox Text="{Binding Chains.Output, UpdateSourceTrigger=PropertyChanged}" FontSize="11"
+                                                     ToolTip="The document the waiting card reads"
+                                                     Visibility="{Binding Chains.NeedsOutput, Converter={StaticResource BoolToVisibility}}" />
+                                            <TextBlock Text="{Binding Chains.LinkRefusal}" FontSize="11" TextWrapping="Wrap"
+                                                       Foreground="#D68910" Margin="0,6,0,0"
+                                                       Visibility="{Binding Chains.LinkRefusal, Converter={StaticResource NotEmptyToVisibility}}" />
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+                                                <Button Content="Cancel" Padding="12,3" Margin="0,0,8,0"
+                                                        Command="{Binding Chains.CancelAddLinkCommand}" />
+                                                <Button Content="Add link" Padding="12,3"
+                                                        Command="{Binding Chains.AddLinkCommand}" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <TextBlock FontSize="11" TextWrapping="Wrap" Margin="0,14,0,0"
+                                               Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                               Text="Waiting means an input is not accepted yet, worked out from the links. Blocked means you said so." />
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <TabItem>
+                            <TabItem.Header>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Setup" />
+                                    <TextBlock Text=" ●" Foreground="#D68910" ToolTip="Not saved"
+                                               Visibility="{Binding Drawer.IsSetupDirty, Converter={StaticResource BoolToVisibility}}" />
+                                </StackPanel>
+                            </TabItem.Header>
+                            <DockPanel>
+                                <StackPanel DockPanel.Dock="Bottom" Margin="0,10,0,0">
+                                    <Grid>
+                                        <TextBlock Text="Not saved" VerticalAlignment="Center" FontSize="11"
+                                                   Foreground="#D68910"
+                                                   Visibility="{Binding Drawer.IsSetupDirty, Converter={StaticResource BoolToVisibility}}" />
+                                        <Button Content="Save" HorizontalAlignment="Right" Padding="20,4"
+                                                ToolTip="Save the setup. It applies from the next launch."
+                                                Command="{Binding Drawer.SaveCommand}" />
+                                    </Grid>
+                                    <TextBlock Text="{Binding Drawer.PlanPath}" FontSize="10" Margin="0,8,0,0"
+                                               TextTrimming="CharacterEllipsis"
+                                               ToolTip="{Binding Drawer.PlanPath}"
+                                               Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                                </StackPanel>
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <StackPanel>
+                                        <TextBlock Text="Working directory" Style="{StaticResource FieldLabel}" Margin="0,0,0,4" />
+                                        <Grid>
+                                            <TextBox Text="{Binding Drawer.WorkingDirectory, UpdateSourceTrigger=PropertyChanged}"
+                                                     Margin="0,0,80,0" />
+                                            <Button Content="Open" HorizontalAlignment="Right" Padding="12,3"
+                                                    Command="{Binding Drawer.OpenWorkingDirectoryCommand}" />
+                                        </Grid>
+                                        <TextBlock FontSize="11" Margin="0,4,0,0"
+                                                   Text="This directory is missing."
+                                                   Foreground="#CF5D61">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Drawer.WorkingDirectoryExists}" Value="False">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+
+                                        <TextBlock Text="Extra directories" Style="{StaticResource FieldLabel}" />
+                                        <ItemsControl ItemsSource="{Binding Drawer.AddDirectories}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid Margin="0,0,0,4">
+                                                        <TextBlock Text="{Binding}" FontSize="12" Margin="0,0,70,0"
+                                                                   VerticalAlignment="Center"
+                                                                   TextTrimming="CharacterEllipsis" ToolTip="{Binding}"
+                                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                        <Button Content="Remove" FontSize="11" Padding="8,1"
+                                                                HorizontalAlignment="Right"
+                                                                Command="{Binding DataContext.Drawer.RemoveDirectoryCommand,
+                                                                          RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                CommandParameter="{Binding}" />
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <Grid Margin="0,4,0,0">
+                                            <TextBox Text="{Binding Drawer.NewDirectory, UpdateSourceTrigger=PropertyChanged}"
+                                                     Margin="0,0,60,0" />
+                                            <Button Content="Add" HorizontalAlignment="Right" Padding="12,3"
+                                                    Command="{Binding Drawer.AddDirectoryCommand}" />
+                                        </Grid>
+
+                                        <TextBlock Text="First run only" Style="{StaticResource FieldLabel}" />
+                                        <TextBox Text="{Binding Drawer.Prompt, UpdateSourceTrigger=PropertyChanged}"
+                                                 IsReadOnly="{Binding Drawer.HasRun}"
+                                                 AcceptsReturn="True" TextWrapping="Wrap" MinHeight="110" MaxHeight="220"
+                                                 VerticalScrollBarVisibility="Auto"
+                                                 FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12" />
+                                        <TextBlock Text="{Binding Drawer.FirstRunHint}" FontSize="11" TextWrapping="Wrap"
+                                                   Margin="0,4,0,0"
+                                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+
+                                        <TextBlock Text="Every start" Style="{StaticResource FieldLabel}" />
+                                        <TextBox Text="{Binding Drawer.EveryStartPrompt, UpdateSourceTrigger=PropertyChanged}"
+                                                 AcceptsReturn="True" TextWrapping="Wrap" MinHeight="80" MaxHeight="200"
+                                                 VerticalScrollBarVisibility="Auto"
+                                                 FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12" />
+                                        <TextBlock FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"
+                                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                                   Text="Told to this workstream's sessions every time they start, after everything the board says. Use {handoff} for its notes." />
+
+                                        <Button Content="Instructions and skills…" HorizontalAlignment="Left"
+                                                Margin="0,10,0,0" Padding="10,3" FontSize="11"
+                                                ToolTip="Every CLAUDE.md, rule, skill, command and agent this workstream's sessions get, in the order they are read"
+                                                Command="{Binding Instructions.OpenCommand}"
+                                                CommandParameter="{Binding Drawer}" />
+
+                                        <TextBlock Text="Handover notes" Style="{StaticResource FieldLabel}" />
+                                        <Grid>
+                                            <TextBox Text="{Binding Drawer.StatusDocumentPath, UpdateSourceTrigger=PropertyChanged}"
+                                                     Margin="0,0,70,0" />
+                                            <Button Content="Open" FontSize="11" Padding="10,2" HorizontalAlignment="Right"
+                                                    VerticalAlignment="Center"
+                                                    Command="{Binding Drawer.OpenStatusDocumentCommand}" />
+                                        </Grid>
+                                        <TextBlock Text="{Binding Drawer.HandoffDestination, StringFormat=Leave empty to use {0}}"
+                                                   FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+
+                                        <TextBlock Text="Terminal window" Style="{StaticResource FieldLabel}" />
+                                        <TextBox Text="{Binding Drawer.WindowGroup, UpdateSourceTrigger=PropertyChanged}" />
+                                        <TextBlock FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                                   Text="Leave empty to follow the lane. Name a window to put this workstream beside another one whatever lane it is in. It applies from the next launch." />
+
+                                        <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                                            <TextBlock Text="Order in the lane" VerticalAlignment="Center" FontSize="12" Margin="0,0,8,0"
+                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                            <TextBox Text="{Binding Drawer.BoardOrder, UpdateSourceTrigger=PropertyChanged}"
+                                                     Width="60" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </DockPanel>
+                        </TabItem>
+
+                        <TabItem Header="History">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <StackPanel>
+                                    <TextBlock Text="Runs" Style="{StaticResource FieldLabel}" Margin="0,0,0,4" />
+                                    <ItemsControl ItemsSource="{Binding Drawer.Runs}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Margin="0,0,0,4" Padding="8,5" CornerRadius="4"
+                                                        Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
+                                                    <Grid>
+                                                        <StackPanel>
+                                                            <TextBlock Text="{Binding Started}" FontSize="12"
+                                                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                                            <TextBlock FontSize="11"
+                                                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}">
+                                                                <Run Text="{Binding ShortSessionId, Mode=OneWay}" />
+                                                                <Run Text="·" />
+                                                                <Run Text="{Binding Outcome, Mode=OneWay}" />
+                                                            </TextBlock>
+                                                        </StackPanel>
+                                                        <TextBlock Text="{Binding Duration}" FontSize="11"
+                                                                   HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <TextBlock Text="No runs recorded yet." FontSize="11" Margin="0,2,0,0"
+                                               Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                               Visibility="{Binding Drawer.Runs.Count, Converter={StaticResource ZeroToVisibility}}" />
+
+                                    <TextBlock Text="Workflows" Style="{StaticResource FieldLabel}"
+                                               Visibility="{Binding Drawer.Workflows.Count,
+                                                            Converter={StaticResource CountToVisibility}}" />
+                                    <ItemsControl ItemsSource="{Binding Drawer.Workflows}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Margin="0,0,0,8" ToolTip="{Binding Summary}">
+                                                    <TextBlock Text="{Binding Headline}" FontSize="12"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                                    <TextBlock Text="{Binding Phases}" FontSize="11"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               Visibility="{Binding Phases,
+                                                                            Converter={StaticResource NotEmptyToVisibility}}"
+                                                               Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                                                    <TextBlock FontSize="11"
+                                                               Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                                               Text="{Binding Timestamp, Converter={StaticResource RelativeTime}}" />
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+                    </TabControl>
                 </DockPanel>
             </Border>
 

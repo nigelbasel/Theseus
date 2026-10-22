@@ -19,12 +19,19 @@ public sealed class RelatedLinkViewModel : ObservableObject
     /// <summary>Creates the row for one link.</summary>
     /// <param name="satisfy">Accepts the input by hand for a reason, returning why not if it was refused.</param>
     /// <param name="remove">Removes the link, returning why not if it was refused.</param>
+    /// <param name="otherKey">The card at the other end of the link.</param>
+    /// <param name="otherTitle">That card's title.</param>
+    /// <param name="showOther">Opens that card's details.</param>
     public RelatedLinkViewModel(Link link, string description, LinkState state,
-        Func<string, string, string?> satisfy, Func<string, string?> remove)
+        Func<string, string, string?> satisfy, Func<string, string?> remove,
+        string otherKey, string otherTitle, RelayCommand showOther)
     {
         Link = link;
         Description = description;
         State = state;
+        OtherKey = otherKey;
+        OtherTitle = otherTitle;
+        ShowOtherCommand = showOther;
         _satisfy = satisfy;
         _remove = remove;
 
@@ -48,6 +55,15 @@ public sealed class RelatedLinkViewModel : ObservableObject
 
     /// <summary>Where the link stands.</summary>
     public LinkState State { get; }
+
+    /// <summary>The card at the other end of the link.</summary>
+    public string OtherKey { get; }
+
+    /// <summary>That card's title, which is all a row in the Links tab needs to say.</summary>
+    public string OtherTitle { get; }
+
+    /// <summary>Opens the other card's details.</summary>
+    public RelayCommand ShowOtherCommand { get; }
 
     /// <summary>The state in words.</summary>
     public string StateText => State switch

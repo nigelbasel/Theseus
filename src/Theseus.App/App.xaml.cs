@@ -101,7 +101,7 @@ public partial class App : Application
             () => [.. shell.Board.Cards],
             () => settings.Read().BriefFolderName,
             shell.Refresh,
-            key => shell.SelectCardCommand.Execute(shell.Board.Card(key)));
+            key => shell.ShowCardLinksCommand.Execute(shell.Board.Card(key)));
 
         shell.Chains = chains;
         _launcher.RelatedFor = chains.RelatedParagraph;

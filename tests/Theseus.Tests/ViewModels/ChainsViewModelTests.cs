@@ -163,6 +163,76 @@ public class ChainsViewModelTests
     }
 
     [Test]
+    public void ShowFor_GroupsTheLinksByWhichWayTheyRun()
+    {
+        _book.Add(LinkKind.Spawned, "auth-research", "token-spike");
+        _book.Add(LinkKind.Spawned, "token-spike", "auth-implementation");
+        _book.Add(LinkKind.Feeds, "auth-research", "token-spike", output: @"C:\work\a.md");
+        _book.Add(LinkKind.Feeds, "token-spike", "auth-implementation", output: @"C:\work\b.md");
+        _chains.Update();
+
+        _chains.ShowFor("token-spike");
+
+        Assert.That(_chains.Parents.Single().OtherKey, Is.EqualTo("auth-research"));
+        Assert.That(_chains.Children.Single().OtherKey, Is.EqualTo("auth-implementation"));
+        Assert.That(_chains.Inputs.Single().OtherKey, Is.EqualTo("auth-research"));
+        Assert.That(_chains.Outputs.Single().OtherKey, Is.EqualTo("auth-implementation"));
+    }
+
+    [Test]
+    public void AddLink_ClosesTheFormOnceTheLinkIsMade()
+    {
+        _chains.Update();
+        _chains.ShowFor("auth-implementation");
+        _chains.BeginAddLinkCommand.Execute(null);
+        _chains.Target = _chains.Targets.Single(target => target.Key == "token-spike");
+
+        _chains.AddLinkCommand.Execute(null);
+
+        Assert.That(_chains.IsAddingLink, Is.False);
+    }
+
+    [Test]
+    public void AddLink_KeepsTheFormOpenWhenTheLinkIsRefused()
+    {
+        _book.Add(LinkKind.Spawned, "auth-research", "token-spike");
+        _chains.Update();
+        _chains.ShowFor("token-spike");
+        _chains.BeginAddLinkCommand.Execute(null);
+        _chains.Kind = LinkKindChoice.All.Single(choice => choice is { Kind: LinkKind.Spawned, ThisCardIsFrom: false });
+        _chains.Target = _chains.Targets.Single(target => target.Key == "auth-implementation");
+
+        _chains.AddLinkCommand.Execute(null);
+
+        Assert.That(_chains.IsAddingLink, Is.True);
+        Assert.That(_chains.LinkRefusal, Does.Contain("already spawned"));
+    }
+
+    [Test]
+    public void CancelAddLink_ClosesTheFormAndForgetsTheChoice()
+    {
+        _chains.ShowFor("auth-implementation");
+        _chains.BeginAddLinkCommand.Execute(null);
+        _chains.Target = _chains.Targets.Single(target => target.Key == "token-spike");
+
+        _chains.CancelAddLinkCommand.Execute(null);
+
+        Assert.That(_chains.IsAddingLink, Is.False);
+        Assert.That(_chains.Target, Is.Null);
+    }
+
+    [Test]
+    public void ShowFor_ClosesAFormLeftOpenOnAnotherCard()
+    {
+        _chains.ShowFor("auth-implementation");
+        _chains.BeginAddLinkCommand.Execute(null);
+
+        _chains.ShowFor("token-spike");
+
+        Assert.That(_chains.IsAddingLink, Is.False);
+    }
+
+    [Test]
     public void Deleted_RemovesTheCardsLinksAndKeepsItsKeyTaken()
     {
         _book.Add(LinkKind.Spawned, "auth-research", "token-spike");

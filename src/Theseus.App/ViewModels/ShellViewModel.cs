@@ -102,6 +102,7 @@ public sealed class ShellViewModel : ObservableObject
 
         StartCardCommand = new RelayCommand(StartCard, CanStartCard);
         SelectCardCommand = new RelayCommand(ShowCard);
+        ShowCardLinksCommand = new RelayCommand(parameter => ShowCard(parameter, DrawerTab.Links));
         ToggleSessionsPanelCommand = new RelayCommand(_ => IsSessionsPanelOpen = !IsSessionsPanelOpen);
         StopCardCommand = new RelayCommand(parameter => BeginStop(CardSteps(parameter)),
             parameter => CardSteps(parameter).Count > 0);
@@ -391,6 +392,9 @@ public sealed class ShellViewModel : ObservableObject
 
     /// <summary>Opens a card in the detail drawer.</summary>
     public RelayCommand SelectCardCommand { get; }
+
+    /// <summary>Opens a card's details on its Links tab, from its link line or the Chains panel.</summary>
+    public RelayCommand ShowCardLinksCommand { get; }
 
     /// <summary>Puts one workstream away from the card itself, or brings it back.</summary>
     public RelayCommand ArchiveCardCommand { get; }
@@ -892,6 +896,16 @@ public sealed class ShellViewModel : ObservableObject
                 _ => StartMany([card.Workstream], startMode: StartMode.Fresh, trigger: "StartFreshCard"),
                 _ => CanStartCard(card));
 
+            // The card's menu carries the flags and Spawn follow-on, so a visit to the details is not
+            // needed for them. A context menu cannot reach the window's commands, so these are the card's.
+            card.ToggleBlockedCommand ??= new RelayCommand(_ => SetFlags(card,
+                card.Workstream with { IsBlocked = !card.Workstream.IsBlocked }));
+            card.ToggleReopenTomorrowCommand ??= new RelayCommand(_ => SetFlags(card,
+                card.Workstream with { ReopenTomorrow = !card.Workstream.ReopenTomorrow }));
+            card.SpawnFollowOnCommand ??= new RelayCommand(
+                _ => SpawnFollowOnCommand.Execute(card),
+                _ => SpawnFollowOnCommand.CanExecute(card));
+
             // Read for every card with a transcript, live or not: which model a stopped session was
             // on is worth knowing before restarting it. Cheap when nothing has changed - the reader
             // remembers its answer against the file's length - and a tail read otherwise.
@@ -1384,7 +1398,9 @@ public sealed class ShellViewModel : ObservableObject
         Refresh();
     }
 
-    private void ShowCard(object? parameter)
+    private void ShowCard(object? parameter) => ShowCard(parameter, DrawerTab.Overview);
+
+    private void ShowCard(object? parameter, DrawerTab tab)
     {
         if (parameter is not WorkstreamCardViewModel card)
         {
@@ -1392,8 +1408,20 @@ public sealed class ShellViewModel : ObservableObject
         }
 
         Board.Select(card);
-        Drawer.Show(card);
-        Chains?.ShowFor(card.Key);
+        Drawer.Show(card, tab);
+
+        if (ReferenceEquals(Drawer.Card, card))
+        {
+            Chains?.ShowFor(card.Key);
+        }
+    }
+
+    private void SetFlags(WorkstreamCardViewModel card, Workstream flagged)
+    {
+        card.Workstream = flagged;
+        Board.Persist(card);
+        Drawer.Reload(card);
+        Refresh();
     }
 
     private bool CanFocusCard(object? parameter) =>

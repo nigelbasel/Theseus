@@ -25,6 +25,7 @@ public sealed class ChainsViewModel : ObservableObject
     private string _output = string.Empty;
     private string _suggestedOutput = string.Empty;
     private string _linkRefusal = string.Empty;
+    private bool _isAddingLink;
 
     /// <summary>Creates the view over a link book.</summary>
     /// <param name="cards">The cards on the board, read on every update.</param>
@@ -43,6 +44,16 @@ public sealed class ChainsViewModel : ObservableObject
         ToggleCommand = new RelayCommand(_ => IsOpen = !IsOpen);
         OpenCommand = new RelayCommand(_ => IsOpen = true);
         AddLinkCommand = new RelayCommand(_ => AddLink(), _ => _focusKey is not null && _target is not null);
+        BeginAddLinkCommand = new RelayCommand(_ =>
+        {
+            ClearForm();
+            IsAddingLink = true;
+        }, _ => _focusKey is not null);
+        CancelAddLinkCommand = new RelayCommand(_ =>
+        {
+            ClearForm();
+            IsAddingLink = false;
+        });
     }
 
     /// <summary>The links read against the board as of the last update.</summary>
@@ -75,6 +86,34 @@ public sealed class ChainsViewModel : ObservableObject
 
     /// <summary>The links of the card open in the drawer.</summary>
     public ObservableCollection<RelatedLinkViewModel> Related { get; } = [];
+
+    /// <summary>The card that spawned the open card: one at most.</summary>
+    public ObservableCollection<RelatedLinkViewModel> Parents { get; } = [];
+
+    /// <summary>The cards the open card spawned.</summary>
+    public ObservableCollection<RelatedLinkViewModel> Children { get; } = [];
+
+    /// <summary>The cards whose output the open card waits on.</summary>
+    public ObservableCollection<RelatedLinkViewModel> Inputs { get; } = [];
+
+    /// <summary>The cards that wait on the open card's output.</summary>
+    public ObservableCollection<RelatedLinkViewModel> Outputs { get; } = [];
+
+    /// <summary>Whether the open card has no links at all.</summary>
+    public bool HasNoLinks => Related.Count == 0;
+
+    /// <summary>Whether the form for a new link is showing.</summary>
+    public bool IsAddingLink
+    {
+        get => _isAddingLink;
+        private set => Set(ref _isAddingLink, value);
+    }
+
+    /// <summary>Shows the form for a new link.</summary>
+    public RelayCommand BeginAddLinkCommand { get; }
+
+    /// <summary>Hides the form for a new link, forgetting what was chosen in it.</summary>
+    public RelayCommand CancelAddLinkCommand { get; }
 
     /// <summary>The cards "Link to…" can link the open card to.</summary>
     public ObservableCollection<LinkTarget> Targets { get; } = [];
@@ -175,10 +214,8 @@ public sealed class ChainsViewModel : ObservableObject
     public void ShowFor(string? key)
     {
         _focusKey = key;
-        LinkRefusal = string.Empty;
-        Target = null;
-        Output = string.Empty;
-        Kind = LinkKindChoice.All[0];
+        ClearForm();
+        IsAddingLink = false;
 
         Targets.Clear();
 
@@ -291,16 +328,42 @@ public sealed class ChainsViewModel : ObservableObject
     private void UpdateRelated()
     {
         Related.Clear();
+        Parents.Clear();
+        Children.Clear();
+        Inputs.Clear();
+        Outputs.Clear();
 
-        if (_focusKey is not { } key)
+        if (_focusKey is { } key)
         {
-            return;
+            foreach (var link in _status.For(key).OrderBy(link => link.CreatedUtc))
+            {
+                var here = string.Equals(link.From, key, StringComparison.OrdinalIgnoreCase);
+                var other = here ? link.To : link.From;
+                var row = new RelatedLinkViewModel(link, Describe(key, link), _status.StateOf(link), Satisfy, Remove,
+                    other, Title(other), new RelayCommand(_ => _showCard(other)));
+
+                var group = (link.Kind, here) switch
+                {
+                    (LinkKind.Spawned, false) => Parents,
+                    (LinkKind.Spawned, true) => Children,
+                    (LinkKind.Feeds, false) => Inputs,
+                    _ => Outputs,
+                };
+
+                Related.Add(row);
+                group.Add(row);
+            }
         }
 
-        foreach (var link in _status.For(key).OrderBy(link => link.CreatedUtc))
-        {
-            Related.Add(new RelatedLinkViewModel(link, Describe(key, link), _status.StateOf(link), Satisfy, Remove));
-        }
+        Raise(nameof(HasNoLinks));
+    }
+
+    private void ClearForm()
+    {
+        LinkRefusal = string.Empty;
+        Target = null;
+        Output = string.Empty;
+        Kind = LinkKindChoice.All[0];
     }
 
     private string Describe(string key, Link link)
@@ -345,8 +408,8 @@ public sealed class ChainsViewModel : ObservableObject
 
         if (change.Refusal is null)
         {
-            Target = null;
-            Output = string.Empty;
+            ClearForm();
+            IsAddingLink = false;
             _changed();
         }
     }
