@@ -1,4 +1,5 @@
 using Theseus.Core.Abstractions;
+using Theseus.Core.Diagnostics;
 
 namespace Theseus.Core.Links;
 
@@ -30,9 +31,93 @@ public sealed class LinkBook
     /// <summary>The links that still stand.</summary>
     public IReadOnlyList<Link> Active => [.. _links.Where(link => link.IsActive)];
 
-    /// <summary>Makes a link, unless it would contradict the ones already standing.</summary>
+    /// <summary>Makes a link, unless it would contradict the ones already standing. Either way it is logged.</summary>
     public LinkChange Add(LinkKind kind, string from, string to, string? output = null, string? brief = null,
         string? handOver = null)
+    {
+        var change = TryAdd(kind, from, to, output, brief, handOver);
+
+        if (change.Refusal is { } refusal)
+        {
+            TheseusLog.Information("Link {Kind} {From} -> {To} refused: {Refusal}", kind.ToString(), from, to, refusal);
+        }
+        else
+        {
+            TheseusLog.Information("Link {Id} made: {Kind} {From} -> {To}, output {Output}", change.Link!.Id, kind.ToString(), from,
+                to, change.Link.Output ?? "none");
+        }
+
+        return change;
+    }
+
+    /// <summary>Removes a link. It is kept as a tombstone, never deleted.</summary>
+    public LinkChange Remove(string id) =>
+        Logged(id, "removed", string.Empty, Change(id, link => LinkChange.Made(link with { RemovedUtc = _clock.UtcNow })));
+
+    /// <summary>Accepts a feeds link's input by hand, for the reason Nigel gives.</summary>
+    public LinkChange Satisfy(string id, string reason) =>
+        Logged(id, "satisfied", $" by hand: {reason}", Change(id, link =>
+        {
+            if (link.Kind != LinkKind.Feeds)
+            {
+                return LinkChange.Refused("Only a link a card waits on can be satisfied.");
+            }
+
+            if (string.IsNullOrWhiteSpace(reason))
+            {
+                return LinkChange.Refused("Say why it is satisfied; the reason is kept with the link.");
+            }
+
+            return LinkChange.Made(link with
+            {
+                SatisfiedUtc = _clock.UtcNow,
+                SatisfiedBy = $"by hand: {reason.Trim()}",
+            });
+        }));
+
+    /// <summary>Removes every link touching a card that has been deleted.</summary>
+    public void RemoveAllFor(string key)
+    {
+        var now = _clock.UtcNow;
+        var removed = 0;
+
+        for (var index = 0; index < _links.Count; index++)
+        {
+            if (_links[index].IsActive && _links[index].Touches(key))
+            {
+                _links[index] = _links[index] with { RemovedUtc = now };
+                removed++;
+            }
+        }
+
+        if (removed > 0)
+        {
+            Save();
+            TheseusLog.Information("Removed {Count} link(s) of deleted card {Key}", removed, key);
+        }
+    }
+
+    /// <summary>
+    /// Whether any link, removed or not, names this key. A deleted card's key stays taken, so a new
+    /// card with the same title gets a fresh key and inherits nothing.
+    /// </summary>
+    public bool IsKeyTaken(string key) => _links.Any(link => link.Touches(key));
+
+    private static LinkChange Logged(string id, string what, string detail, LinkChange change)
+    {
+        if (change.Refusal is { } refusal)
+        {
+            TheseusLog.Information("Link {Id} not {What}: {Refusal}", id, what, refusal);
+        }
+        else
+        {
+            TheseusLog.Information("Link {Id} {What}{Detail}", id, what, detail);
+        }
+
+        return change;
+    }
+
+    private LinkChange TryAdd(LinkKind kind, string from, string to, string? output, string? brief, string? handOver)
     {
         if (SameKey(from, to))
         {
@@ -73,58 +158,6 @@ public sealed class LinkBook
 
         return LinkChange.Made(link);
     }
-
-    /// <summary>Removes a link. It is kept as a tombstone, never deleted.</summary>
-    public LinkChange Remove(string id) =>
-        Change(id, link => LinkChange.Made(link with { RemovedUtc = _clock.UtcNow }));
-
-    /// <summary>Accepts a feeds link's input by hand, for the reason Nigel gives.</summary>
-    public LinkChange Satisfy(string id, string reason) =>
-        Change(id, link =>
-        {
-            if (link.Kind != LinkKind.Feeds)
-            {
-                return LinkChange.Refused("Only a link a card waits on can be satisfied.");
-            }
-
-            if (string.IsNullOrWhiteSpace(reason))
-            {
-                return LinkChange.Refused("Say why it is satisfied; the reason is kept with the link.");
-            }
-
-            return LinkChange.Made(link with
-            {
-                SatisfiedUtc = _clock.UtcNow,
-                SatisfiedBy = $"by hand: {reason.Trim()}",
-            });
-        });
-
-    /// <summary>Removes every link touching a card that has been deleted.</summary>
-    public void RemoveAllFor(string key)
-    {
-        var now = _clock.UtcNow;
-        var changed = false;
-
-        for (var index = 0; index < _links.Count; index++)
-        {
-            if (_links[index].IsActive && _links[index].Touches(key))
-            {
-                _links[index] = _links[index] with { RemovedUtc = now };
-                changed = true;
-            }
-        }
-
-        if (changed)
-        {
-            Save();
-        }
-    }
-
-    /// <summary>
-    /// Whether any link, removed or not, names this key. A deleted card's key stays taken, so a new
-    /// card with the same title gets a fresh key and inherits nothing.
-    /// </summary>
-    public bool IsKeyTaken(string key) => _links.Any(link => link.Touches(key));
 
     private LinkChange Change(string id, Func<Link, LinkChange> change)
     {
