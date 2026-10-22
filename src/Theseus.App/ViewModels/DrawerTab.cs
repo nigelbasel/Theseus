@@ -9,9 +9,6 @@ public enum DrawerTab
     /// <summary>The card's links to other cards, and adding new ones.</summary>
     Links,
 
-    /// <summary>How the card's sessions are started. The only tab with a Save.</summary>
-    Setup,
-
     /// <summary>The card's runs and workflow runs.</summary>
     History,
 }

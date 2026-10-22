@@ -6,9 +6,9 @@ using Theseus.Core.Sessions;
 namespace Theseus.Tests.ViewModels;
 
 /// <summary>
-/// The details are in tabs (Nigel, 2026-10-22). What is going on with a card applies the moment it is
-/// changed; how its sessions start is saved with Save, and only from the Setup tab. One Save for
-/// everything lost a half-made link without a word, because it also closed the drawer.
+/// The details are a slim panel in tabs (Nigel, 2026-10-22). What is going on with a card applies the
+/// moment it is changed; how its sessions start is edited in a dialog with its own Save and Cancel. One
+/// Save for everything lost a half-made link without a word, because it also closed the drawer.
 /// </summary>
 [TestFixture]
 public class DetailDrawerViewModelTests
@@ -122,9 +122,20 @@ public class DetailDrawerViewModelTests
     }
 
     [Test]
-    public void Save_WritesTheSetupAndKeepsTheDrawerOpen()
+    public void EditSetup_OpensTheSetupDialog()
     {
         _drawer.Show(Card("one"));
+
+        _drawer.EditSetupCommand.Execute(null);
+
+        Assert.That(_drawer.IsEditingSetup, Is.True);
+    }
+
+    [Test]
+    public void Save_WritesTheSetupAndClosesOnlyTheDialog()
+    {
+        _drawer.Show(Card("one"));
+        _drawer.EditSetupCommand.Execute(null);
         _drawer.WorkingDirectory = @"C:\elsewhere";
         _drawer.EveryStartPrompt = "Run the tests.";
 
@@ -133,76 +144,54 @@ public class DetailDrawerViewModelTests
         Assert.That(_fixture.Plans.TryRead("one")!.Cwd, Is.EqualTo(@"C:\elsewhere"));
         Assert.That(Card("one").Workstream.EveryStartPrompt, Is.EqualTo("Run the tests."));
         Assert.That(_drawer.IsSetupDirty, Is.False);
+        Assert.That(_drawer.IsEditingSetup, Is.False);
         Assert.That(_drawer.IsOpen, Is.True);
     }
 
     [Test]
-    public void ShowingAnotherCard_WithUnsavedSetup_AsksFirst()
+    public void Save_IsOnlyOfferedWhenSomethingChanged()
     {
         _drawer.Show(Card("one"));
-        _drawer.WorkingDirectory = @"C:\elsewhere";
+        _drawer.EditSetupCommand.Execute(null);
 
-        _drawer.Show(Card("two"));
+        Assert.That(_drawer.SaveCommand.CanExecute(null), Is.False);
 
-        Assert.That(_drawer.IsConfirmingDiscard, Is.True);
-        Assert.That(_drawer.Key, Is.EqualTo("one"));
+        _drawer.WindowGroup = "research";
+
+        Assert.That(_drawer.SaveCommand.CanExecute(null), Is.True);
     }
 
     [Test]
-    public void Discard_ThrowsTheEditsAwayAndCarriesOn()
+    public void Cancel_PutsTheSetupBackAndSavesNothing()
     {
         _drawer.Show(Card("one"));
+        _drawer.EditSetupCommand.Execute(null);
         _drawer.WorkingDirectory = @"C:\elsewhere";
-        _drawer.Show(Card("two"));
+        _drawer.NewDirectory = @"C:\extra";
+        _drawer.AddDirectoryCommand.Execute(null);
 
-        _drawer.DiscardCommand.Execute(null);
+        _drawer.CancelSetupCommand.Execute(null);
 
-        Assert.That(_drawer.Key, Is.EqualTo("two"));
+        Assert.That(_drawer.WorkingDirectory, Is.EqualTo(@"C:\work"));
+        Assert.That(_drawer.AddDirectories, Is.Empty);
+        Assert.That(_drawer.IsSetupDirty, Is.False);
+        Assert.That(_drawer.IsEditingSetup, Is.False);
         Assert.That(_fixture.Plans.TryRead("one")!.Cwd, Is.EqualTo(@"C:\work"));
-        Assert.That(_drawer.IsConfirmingDiscard, Is.False);
+        Assert.That(_saves, Is.Zero);
     }
 
     [Test]
-    public void SaveAndContinue_SavesTheEditsAndCarriesOn()
+    public void ShowingAnotherCard_ForgetsAnUnsavedSetup()
     {
         _drawer.Show(Card("one"));
+        _drawer.EditSetupCommand.Execute(null);
         _drawer.WorkingDirectory = @"C:\elsewhere";
-        _drawer.Show(Card("two"));
 
-        _drawer.SaveAndContinueCommand.Execute(null);
+        _drawer.Show(Card("two"));
 
         Assert.That(_drawer.Key, Is.EqualTo("two"));
-        Assert.That(_fixture.Plans.TryRead("one")!.Cwd, Is.EqualTo(@"C:\elsewhere"));
-    }
-
-    [Test]
-    public void KeepEditing_StaysWhereItWas()
-    {
-        _drawer.Show(Card("one"));
-        _drawer.WorkingDirectory = @"C:\elsewhere";
-        _drawer.Show(Card("two"));
-
-        _drawer.KeepEditingCommand.Execute(null);
-
-        Assert.That(_drawer.Key, Is.EqualTo("one"));
-        Assert.That(_drawer.WorkingDirectory, Is.EqualTo(@"C:\elsewhere"));
-        Assert.That(_drawer.IsConfirmingDiscard, Is.False);
-    }
-
-    [Test]
-    public void Close_WithUnsavedSetup_AsksFirst()
-    {
-        _drawer.Show(Card("one"));
-        _drawer.WorkingDirectory = @"C:\elsewhere";
-
-        _drawer.CloseCommand.Execute(null);
-
-        Assert.That(_drawer.IsOpen, Is.True);
-        Assert.That(_drawer.IsConfirmingDiscard, Is.True);
-
-        _drawer.DiscardCommand.Execute(null);
-
-        Assert.That(_drawer.IsOpen, Is.False);
+        Assert.That(_drawer.IsEditingSetup, Is.False);
+        Assert.That(_fixture.Plans.TryRead("one")!.Cwd, Is.EqualTo(@"C:\work"));
     }
 
     [Test]
