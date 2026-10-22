@@ -5,7 +5,7 @@ namespace Theseus.App.Services;
 
 /// <summary>
 /// Applies the chosen theme to the running application. <c>ThemeMode</c> is still an experimental
-/// WPF API, opted into deliberately in the project file: it is the only route to switching theme
+/// WPF API, opted into deliberately for this file alone in .editorconfig: it is the only route to switching theme
 /// without a restart, and following the operating system is the whole point of the System option.
 /// </summary>
 public static class ThemeApplier

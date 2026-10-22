@@ -1,0 +1,4 @@
+root = true
+
+[src/Theseus.App/Services/ThemeApplier.cs]
+dotnet_diagnostic.WPF0001.severity = none

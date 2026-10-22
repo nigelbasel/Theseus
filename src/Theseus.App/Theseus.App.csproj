@@ -10,7 +10,6 @@
     <AssemblyName>Theseus</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
-    <NoWarn>$(NoWarn);WPF0001</NoWarn>
     <ApplicationIcon>Assets\theseus.ico</ApplicationIcon>
   </PropertyGroup>
 
