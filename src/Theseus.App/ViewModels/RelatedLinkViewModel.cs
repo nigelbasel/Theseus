@@ -22,9 +22,10 @@ public sealed class RelatedLinkViewModel : ObservableObject
     /// <param name="otherKey">The card at the other end of the link.</param>
     /// <param name="otherTitle">That card's title.</param>
     /// <param name="showOther">Opens that card's details.</param>
+    /// <param name="confirm">Confirms the link's report, returning why not if it was refused.</param>
     public RelatedLinkViewModel(Link link, string description, LinkState state,
         Func<string, string, string?> satisfy, Func<string, string?> remove,
-        string otherKey, string otherTitle, RelayCommand showOther)
+        string otherKey, string otherTitle, RelayCommand showOther, Func<string, string?>? confirm = null)
     {
         Link = link;
         Description = description;
@@ -45,6 +46,17 @@ public sealed class RelatedLinkViewModel : ObservableObject
             Refusal = _remove(link.Id) ?? string.Empty;
         });
         KeepCommand = new RelayCommand(_ => IsConfirmingRemove = false);
+        ConfirmReportCommand = new RelayCommand(_ =>
+        {
+            if (ReportVerdicts.ConfirmsInOnePress(link.LatestReport?.Verdict) && confirm is not null)
+            {
+                Refusal = confirm(link.Id) ?? string.Empty;
+            }
+            else
+            {
+                Reason = link.LatestReport?.Verdict is { } verdict ? $"Report read; verdict {verdict}" : "Report read; no verdict given";
+            }
+        }, _ => State == LinkState.Reported);
     }
 
     /// <summary>The link this row shows.</summary>
@@ -69,6 +81,9 @@ public sealed class RelatedLinkViewModel : ObservableObject
     public string StateText => State switch
     {
         LinkState.Waiting => "⧗ waiting",
+        LinkState.Reported => $"? reported{(Link.LatestReport?.Verdict is { } verdict ? $", verdict {verdict}" : string.Empty)}, to confirm",
+        LinkState.NoReportYet => "ran since, no report yet",
+        LinkState.ReportLost => "! report lost",
         LinkState.Satisfied => $"✓ {Link.SatisfiedBy}",
         LinkState.CardMissing => "card missing",
         _ => string.Empty,
@@ -78,7 +93,18 @@ public sealed class RelatedLinkViewModel : ObservableObject
     public string? Document => Link.Output ?? Link.Brief;
 
     /// <summary>Whether this input is still waiting, so it can be satisfied by hand.</summary>
-    public bool CanSatisfy => State == LinkState.Waiting;
+    public bool CanSatisfy => State is LinkState.Waiting or LinkState.Reported or LinkState.NoReportYet or LinkState.ReportLost;
+
+    /// <summary>Whether the upstream has reported and the report waits for Confirm.</summary>
+    public bool CanConfirm => State == LinkState.Reported;
+
+    /// <summary>The report's summary, for the tooltip: another session's claim, shown as data.</summary>
+    public string ReportSummary => Link.LatestReport is { } report
+        ? $"Agent-originated, session {report.SessionId}, {report.AtUtc.ToLocalTime():yyyy-MM-dd HH:mm}:{Environment.NewLine}{report.Summary}"
+        : string.Empty;
+
+    /// <summary>Confirms a done or go report; any other verdict puts it in the reason box for Mark satisfied.</summary>
+    public RelayCommand ConfirmReportCommand { get; }
 
     /// <summary>Why it is satisfied, kept with the link so a hand-satisfied link can be told apart later.</summary>
     public string Reason

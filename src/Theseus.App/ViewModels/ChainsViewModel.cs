@@ -6,8 +6,9 @@ namespace Theseus.App.ViewModels;
 
 /// <summary>
 /// The links between workstreams on the board (Nigel, 2026-10-21): the Chains tab beside Locks, the
-/// link line on every card, and the Related section of the drawer. Every link in this phase is made by
-/// hand here. Ready is shown and counted, never acted on: nothing in here can start a session.
+/// link line on every card, and the Related section of the drawer. Links are made by hand here;
+/// sessions only report on them, and a report waits under Needs you for Nigel's Confirm. Ready is
+/// shown and counted, never acted on: nothing in here can start a session.
 /// </summary>
 public sealed class ChainsViewModel : ObservableObject
 {
@@ -18,6 +19,10 @@ public sealed class ChainsViewModel : ObservableObject
     private readonly Action<string> _showCard;
     private LinkStatus _status = new([], []);
     private string _treeShape = string.Empty;
+    private string _needsShape = string.Empty;
+    private readonly Dictionary<string, DateTimeOffset> _setAside = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, DateTimeOffset> _seenReports = new(StringComparer.Ordinal);
+    private bool _reportsSeeded;
     private string? _focusKey;
     private bool _isOpen;
     private LinkTarget? _target;
@@ -78,11 +83,22 @@ public sealed class ChainsViewModel : ObservableObject
     /// <summary>The cards whose every input has been accepted and which have not run since.</summary>
     public ObservableCollection<ChainNodeViewModel> Ready { get; } = [];
 
+    /// <summary>Reports waiting for Nigel's Confirm, and reports lost; set-aside ones last.</summary>
+    public ObservableCollection<NeedsYouRowViewModel> NeedsYou { get; } = [];
+
+    /// <summary>Told, in words, when a report arrives that the board has not shown before.</summary>
+    public Action<string>? ReportArrived { get; set; }
+
     /// <summary>Whether no card has a link yet, so the tab explains how to make one.</summary>
     public bool HasNoChains => Roots.Count == 0;
 
     /// <summary>The command bar button's label: "Chains", and how many cards are ready.</summary>
-    public string ButtonText => Ready.Count == 0 ? "Chains" : $"Chains · {Ready.Count} ready";
+    public string ButtonText => string.Join(" · ", new[]
+    {
+        "Chains",
+        NeedsYou.Count == 0 ? string.Empty : $"{NeedsYou.Count} need you",
+        Ready.Count == 0 ? string.Empty : $"{Ready.Count} ready",
+    }.Where(part => part.Length > 0));
 
     /// <summary>The links of the card open in the drawer.</summary>
     public ObservableCollection<RelatedLinkViewModel> Related { get; } = [];
@@ -258,14 +274,115 @@ public sealed class ChainsViewModel : ObservableObject
             Rebuild(nodes);
         }
 
+        UpdateNeedsYou(cards);
+        AnnounceReports();
         UpdateRelated();
+    }
+
+    /// <summary>Outlines the cards linked to this one while the pointer is over it, or clears the outline.</summary>
+    public void Highlight(string? key)
+    {
+        var linked = key is null
+            ? []
+            : _status.For(key).Select(link => Same(link.From, key) ? link.To : link.From)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var card in _cards())
+        {
+            card.IsLinkHighlighted = linked.Contains(card.Key);
+        }
     }
 
     private LinkStatus Current() => Current(_cards());
 
     private LinkStatus Current(IReadOnlyList<WorkstreamCardViewModel> cards) =>
         new(_book.Active, cards.Select(card => new LinkCard(card.Key, card.Title, card.IsArchived,
-            card.IsBlocked, card.IsLive, card.LastStartedUtc)));
+            card.IsBlocked, card.IsLive, card.LastStartedUtc, card.IsInLastStage, card.LastRunCrashed)));
+
+    private void UpdateNeedsYou(IReadOnlyList<WorkstreamCardViewModel> cards)
+    {
+        var rows = _status.Links
+            .Select(link => (Link: link, State: _status.StateOf(link)))
+            .Where(item => item.State is LinkState.Reported or LinkState.ReportLost)
+            .Select(item => (item.Link, item.State,
+                SetAside: item.Link.LatestReport is { } report && _setAside.TryGetValue(item.Link.Id, out var at) && at == report.AtUtc))
+            .OrderBy(item => item.SetAside)
+            .ThenByDescending(item => item.Link.LatestReport?.AtUtc ?? item.Link.CreatedUtc)
+            .ToList();
+
+        var shape = string.Join("|", rows.Select(row => $"{row.Link.Id}:{row.State}:{row.Link.LatestReport?.AtUtc:o}:{row.SetAside}"));
+
+        if (shape == _needsShape)
+        {
+            return;
+        }
+
+        _needsShape = shape;
+        NeedsYou.Clear();
+
+        foreach (var (link, state, setAside) in rows)
+        {
+            var upstream = cards.FirstOrDefault(card => Same(card.Key, link.From));
+
+            NeedsYou.Add(new NeedsYouRowViewModel(link, state, $"{Title(link.From)} → {Title(link.To)}",
+                Detail(link, state, upstream), upstream?.ColorHex ?? "#808080",
+                upstream is null ? null : Theseus.Core.Stopping.HandoffPath.For(upstream.Workstream),
+                setAside, Confirm, Satisfy, SetAside));
+        }
+
+        Raise(nameof(ButtonText));
+    }
+
+    private static string Detail(Link link, LinkState state, WorkstreamCardViewModel? upstream)
+    {
+        if (state == LinkState.Reported && link.LatestReport is { } report)
+        {
+            return $"reported {report.AtUtc.ToLocalTime():ddd HH:mm}"
+                   + (report.Verdict is { } verdict ? $" · verdict {verdict}" : " · no verdict")
+                   + $" · {System.IO.Path.GetFileName(report.Document)}";
+        }
+
+        return upstream switch
+        {
+            { IsArchived: true } => "no report, and the card is archived",
+            { IsInLastStage: true } => "no report, and the card is in Done",
+            { LastRunCrashed: true } => "no report, and its last run ended unexpectedly",
+            _ => "no report",
+        };
+    }
+
+    private void AnnounceReports()
+    {
+        foreach (var link in _status.Links.Where(link => link.LatestReport is not null && link.SatisfiedUtc is null))
+        {
+            var at = link.LatestReport!.AtUtc;
+
+            if (_seenReports.TryGetValue(link.Id, out var seen) && seen == at)
+            {
+                continue;
+            }
+
+            _seenReports[link.Id] = at;
+
+            if (_reportsSeeded)
+            {
+                ReportArrived?.Invoke($"{Title(link.From)} reported to {Title(link.To)}"
+                                      + (link.LatestReport.Verdict is { } verdict ? $" ({verdict})" : string.Empty)
+                                      + ". Confirm it in Chains.");
+            }
+        }
+
+        _reportsSeeded = true;
+    }
+
+    private void SetAside(NeedsYouRowViewModel row)
+    {
+        if (row.Link.LatestReport is { } report)
+        {
+            _setAside[row.Link.Id] = report.AtUtc;
+            UpdateNeedsYou(_cards());
+        }
+    }
 
     private ChainNodeViewModel Node(WorkstreamCardViewModel card)
     {
@@ -289,8 +406,7 @@ public sealed class ChainsViewModel : ObservableObject
             readiness == CardReadiness.Ready,
             inputs.Count == 0
                 ? string.Empty
-                : "waits on: " + string.Join(", ", inputs.Select(link =>
-                    $"{Title(link.From)} {(link.SatisfiedUtc is null ? "⧗" : "✓")}")),
+                : "waits on: " + string.Join(", ", inputs.Select(link => $"{Title(link.From)} {Mark(_status.StateOf(link))}")),
             feeds.Count == 0 ? string.Empty : "→ " + string.Join(", ", feeds),
             new RelayCommand(_ => _showCard(card.Key)));
     }
@@ -340,7 +456,7 @@ public sealed class ChainsViewModel : ObservableObject
                 var here = string.Equals(link.From, key, StringComparison.OrdinalIgnoreCase);
                 var other = here ? link.To : link.From;
                 var row = new RelatedLinkViewModel(link, Describe(key, link), _status.StateOf(link), Satisfy, Remove,
-                    other, Title(other), new RelayCommand(_ => _showCard(other)));
+                    other, Title(other), new RelayCommand(_ => _showCard(other)), Confirm);
 
                 var group = (link.Kind, here) switch
                 {
@@ -381,6 +497,19 @@ public sealed class ChainsViewModel : ObservableObject
     }
 
     private string? Satisfy(string id, string reason) => Changed(_book.Satisfy(id, reason));
+
+    private string? Confirm(string id) => Changed(_book.Confirm(id));
+
+    private static string Mark(LinkState state) => state switch
+    {
+        LinkState.Satisfied => "✓",
+        LinkState.Reported => "?",
+        LinkState.ReportLost => "!",
+        _ => "⧗",
+    };
+
+    private static bool Same(string left, string right) =>
+        string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
 
     private string? Remove(string id) => Changed(_book.Remove(id));
 

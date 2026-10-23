@@ -96,14 +96,27 @@ public partial class App : Application
             new SessionTodoReader(SessionTodoReader.DefaultDirectory), new TabColourAllocator(),
             new RunEndings(DateTimeOffset.UtcNow));
 
+        // Sessions report on links from the MCP server's threads, so a change made off the UI thread
+        // redraws the board. The board's own changes already refresh it.
+        var links = new LinkBook(new LinkStateStore(Path.Combine(DataDirectory, "links.json")), new SystemClock());
+        var snapshots = new BoardSnapshotSource();
         var chains = new ChainsViewModel(
-            new LinkBook(new LinkStateStore(Path.Combine(DataDirectory, "links.json")), new SystemClock()),
+            links,
             () => [.. shell.Board.Cards],
             () => settings.Read().BriefFolderName,
             shell.Refresh,
             key => shell.ShowCardLinksCommand.Execute(shell.Board.Card(key)));
 
         shell.Chains = chains;
+        shell.Snapshots = snapshots;
+        chains.ReportArrived = shell.Warn;
+        links.Changed += (_, _) =>
+        {
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.BeginInvoke(shell.Refresh);
+            }
+        };
         _launcher.RelatedFor = chains.RelatedParagraph;
         _launcher.RelatedSince = chains.RelatedSince;
 
@@ -180,7 +193,10 @@ public partial class App : Application
                     .Select(run => new Theseus.Core.Mcp.McpSession(run.ClaudeSessionId, run.WorkstreamKey, run.TabTitle))
                     .FirstOrDefault(),
                 () => DateTimeOffset.UtcNow,
-                locks: locks),
+                locks: locks,
+                links: links,
+                board: () => snapshots.Current,
+                paths: new SessionPathRule(current.PlanDirectory, DataDirectory)),
             Theseus.Core.Mcp.TheseusMcp.DefaultPort,
             new LockHttpApi(locks, () => DateTimeOffset.UtcNow));
 

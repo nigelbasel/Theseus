@@ -46,7 +46,9 @@ public class TheseusMcpTests
         var argv = ClaudeArgumentBuilder.Build(spec).ToList();
 
         Assert.That(argv[argv.IndexOf("--allowedTools") + 1],
-            Is.EqualTo("mcp__theseus__start_work,mcp__theseus__stop_work,mcp__theseus__time_for,mcp__theseus__whoami,mcp__theseus__locks,mcp__theseus__lock_acquire,mcp__theseus__lock_release"));
+            Is.EqualTo("mcp__theseus__start_work,mcp__theseus__stop_work,mcp__theseus__time_for,mcp__theseus__whoami,mcp__theseus__locks,mcp__theseus__lock_acquire,mcp__theseus__lock_release,mcp__theseus__related"));
+        Assert.That(argv[argv.IndexOf("--allowedTools") + 1], Does.Not.Contain("report_back"),
+            "a report is the one thing a session records on the board, so the person in the tab approves each one");
         Assert.That(argv[argv.IndexOf("--allowedTools") + 1], Does.Not.Contain("*"),
             "a tool added to the server later must not be approved without anyone deciding it should be");
     }

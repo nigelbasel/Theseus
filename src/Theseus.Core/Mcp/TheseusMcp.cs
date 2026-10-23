@@ -13,7 +13,15 @@ public static class TheseusMcp
 
     /// <summary>Every tool the server offers.</summary>
     public static readonly IReadOnlyList<string> ToolNames =
-        ["start_work", "stop_work", "time_for", "whoami", "locks", "lock_acquire", "lock_release"];
+        ["start_work", "stop_work", "time_for", "whoami", "locks", "lock_acquire", "lock_release", "related", "report_back"];
+
+    /// <summary>
+    /// The tools a launched session may use without being asked. <c>report_back</c> is left out
+    /// (decision 10, 2026-10-21): a report is the one thing a session records on the board, so the
+    /// person in the tab sees it before it is sent.
+    /// </summary>
+    public static readonly IReadOnlyList<string> PreApproved =
+        [.. ToolNames.Where(tool => tool != "report_back")];
 
     /// <summary>
     /// The <c>--allowedTools</c> value that lets a launched session use exactly these tools without being
@@ -22,7 +30,7 @@ public static class TheseusMcp
     /// deciding it should be. None of them writes to Jira, and none can reorder, cancel or take another
     /// session's lock; those stay on the board.
     /// </summary>
-    public static string AllowedTools => string.Join(",", ToolNames.Select(tool => $"mcp__{ServerName}__{tool}"));
+    public static string AllowedTools => string.Join(",", PreApproved.Select(tool => $"mcp__{ServerName}__{tool}"));
 
     /// <summary>
     /// The endpoint for one session. The session is identified by its path rather than by anything it

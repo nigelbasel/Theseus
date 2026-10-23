@@ -1,8 +1,8 @@
 namespace Theseus.Core.Links;
 
 /// <summary>
-/// The links read against the board as it stands right now. Only events are stored (made, satisfied,
-/// removed); every state here is computed from them and from the cards.
+/// The links read against the board as it stands right now. Only events are stored (made, reported,
+/// satisfied, removed); every state here is computed from them and from the cards.
 /// </summary>
 public sealed class LinkStatus
 {
@@ -35,7 +35,28 @@ public sealed class LinkStatus
             return LinkState.Lineage;
         }
 
-        return link.SatisfiedUtc is null ? LinkState.Waiting : LinkState.Satisfied;
+        if (link.SatisfiedUtc is not null)
+        {
+            return LinkState.Satisfied;
+        }
+
+        if (link.LatestReport is not null)
+        {
+            return LinkState.Reported;
+        }
+
+        // Only runs that started after the link was made count, so an old card linked as an upstream
+        // does not alarm for runs that never knew about the link.
+        var upstream = _cards[link.From];
+
+        if (upstream.IsLive || upstream.LastRunStartedUtc is not { } started || started <= link.CreatedUtc)
+        {
+            return LinkState.Waiting;
+        }
+
+        return upstream.IsArchived || upstream.IsDone || upstream.LastRunCrashed
+            ? LinkState.ReportLost
+            : LinkState.NoReportYet;
     }
 
     /// <summary>

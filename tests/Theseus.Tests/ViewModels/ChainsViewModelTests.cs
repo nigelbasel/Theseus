@@ -258,6 +258,127 @@ public class ChainsViewModelTests
             .And.None.AssignableTo(typeof(IProcessLauncher)));
     }
 
+    [Test]
+    public void Update_PutsAReportUnderNeedsYouAndCountsItOnTheButton()
+    {
+        _book.Add(LinkKind.Feeds, "token-spike", "auth-research", output: @"C:\work\REPORT.md");
+        _book.Report("token-spike", "session-1", [], @"C:\work\REPORT.md", "Found it.", "partial");
+
+        _chains.Update();
+
+        var row = _chains.NeedsYou.Single();
+        Assert.That(row.IsReported, Is.True);
+        Assert.That(row.Detail, Does.Contain("verdict partial"));
+        Assert.That(_chains.ButtonText, Is.EqualTo("Chains · 1 need you"));
+        Assert.That(Find("auth-research").LinkLine, Does.Contain("1 to confirm"));
+        Assert.That(Find("token-spike").LinkLine, Does.Contain("reported"));
+    }
+
+    [Test]
+    public void NoReportYet_AfterACleanStopNeverReachesNeedsYou()
+    {
+        _book.Add(LinkKind.Feeds, "token-spike", "auth-research", output: @"C:\work\REPORT.md");
+        Find("token-spike").LastStartedUtc = Nine.AddHours(1);
+
+        _chains.Update();
+
+        Assert.That(_chains.NeedsYou, Is.Empty);
+        Assert.That(Find("token-spike").LinkLine, Does.Contain("no report yet"));
+    }
+
+    [Test]
+    public void AReportLost_ReachesNeedsYou()
+    {
+        _book.Add(LinkKind.Feeds, "token-spike", "auth-research", output: @"C:\work\REPORT.md");
+        Find("token-spike").LastStartedUtc = Nine.AddHours(1);
+        Find("token-spike").LastRunCrashed = true;
+
+        _chains.Update();
+
+        Assert.That(_chains.NeedsYou.Single().IsLost, Is.True);
+        Assert.That(_chains.NeedsYou.Single().Detail, Does.Contain("ended unexpectedly"));
+    }
+
+    [Test]
+    public void Confirm_OnAGoReportSatisfiesTheLinkInOnePress()
+    {
+        _book.Add(LinkKind.Feeds, "token-spike", "auth-research", output: @"C:\work\REPORT.md");
+        _book.Report("token-spike", "session-1", [], @"C:\work\REPORT.md", "Found it.", "go");
+        _chains.Update();
+
+        _chains.NeedsYou.Single().ConfirmCommand.Execute(null);
+
+        Assert.That(_book.Active.Single().SatisfiedBy, Is.EqualTo(LinkBook.ConfirmedReport));
+        Assert.That(_changes, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void Confirm_OnAnyOtherVerdictAsksForAReasonWithTheVerdictInIt()
+    {
+        _book.Add(LinkKind.Feeds, "token-spike", "auth-research", output: @"C:\work\REPORT.md");
+        _book.Report("token-spike", "session-1", [], @"C:\work\REPORT.md", "Half of it.", "partial");
+        _chains.Update();
+        var row = _chains.NeedsYou.Single();
+
+        row.ConfirmCommand.Execute(null);
+
+        Assert.That(row.IsAskingReason, Is.True);
+        Assert.That(row.Reason, Does.Contain("partial"));
+        Assert.That(_book.Active.Single().SatisfiedUtc, Is.Null);
+    }
+
+    [Test]
+    public void NotYet_LeavesTheReportReportedAndMovesItLast()
+    {
+        _cards.Add(Card("cache-spike"));
+        _book.Add(LinkKind.Feeds, "token-spike", "auth-research", output: @"C:\work\A.md");
+        _book.Add(LinkKind.Feeds, "cache-spike", "auth-research", output: @"C:\work\B.md");
+        _book.Report("token-spike", "session-1", [], @"C:\work\A.md", "A.", null);
+        _book.Report("cache-spike", "session-2", [], @"C:\work\B.md", "B.", null);
+        _chains.Update();
+        var first = _chains.NeedsYou[0];
+
+        first.NotYetCommand.Execute(null);
+
+        Assert.That(_chains.NeedsYou.Last().Link.Id, Is.EqualTo(first.Link.Id));
+        Assert.That(_chains.NeedsYou.Last().IsSetAside, Is.True);
+        Assert.That(_book.Active.All(link => link.SatisfiedUtc is null), Is.True);
+    }
+
+    [Test]
+    public void ReportArrived_IsToldOnceForANewReportAndNotForOnesAlreadyThere()
+    {
+        _book.Add(LinkKind.Feeds, "token-spike", "auth-research", output: @"C:\work\REPORT.md");
+        _book.Add(LinkKind.Feeds, "auth-implementation", "auth-research", output: @"C:\work\OTHER.md");
+        _book.Report("token-spike", "session-1", [], @"C:\work\REPORT.md", "Old.", null);
+        var told = new List<string>();
+        _chains.ReportArrived = told.Add;
+        _chains.Update();
+
+        _book.Report("auth-implementation", "session-2", [], @"C:\work\OTHER.md", "New.", "go");
+        _chains.Update();
+        _chains.Update();
+
+        Assert.That(told, Is.EqualTo(new[] { "auth-implementation reported to auth-research (go). Confirm it in Chains." }));
+    }
+
+    [Test]
+    public void Highlight_OutlinesOnlyTheCardsLinkedToTheOneUnderThePointer()
+    {
+        _book.Add(LinkKind.Spawned, "auth-research", "token-spike");
+        _chains.Update();
+
+        _chains.Highlight("auth-research");
+
+        Assert.That(Find("token-spike").IsLinkHighlighted, Is.True);
+        Assert.That(Find("auth-implementation").IsLinkHighlighted, Is.False);
+        Assert.That(Find("auth-research").IsLinkHighlighted, Is.False);
+
+        _chains.Highlight(null);
+
+        Assert.That(_cards.Any(card => card.IsLinkHighlighted), Is.False);
+    }
+
     private WorkstreamCardViewModel Find(string key) => _cards.Single(card => card.Key == key);
 
     private static WorkstreamCardViewModel Card(string key) =>

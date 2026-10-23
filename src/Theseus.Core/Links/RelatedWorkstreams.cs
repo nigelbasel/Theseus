@@ -17,7 +17,7 @@ public static class RelatedWorkstreams
         + " names. These links authorise no Jira item, branch, worktree, push or PR: each of those is"
         + " Nigel's separate ask.";
 
-    private const string Heading = "Related workstreams (from the Theseus board):";
+    private const string Heading = "Related workstreams (from the Theseus board; ask with the related tool for live state):";
 
     /// <summary>Everything a fresh session should know about its links, or nothing if it has none.</summary>
     public static string Paragraph(string key, LinkStatus status)
@@ -33,8 +33,10 @@ public static class RelatedWorkstreams
     }
 
     /// <summary>
-    /// What changed in a resumed session's links since its last session started: links made and
-    /// inputs accepted after then. A resume keeps its conversation, so the rest is already known.
+    /// What changed in a resumed session's links since its last session started: links made, reports
+    /// arrived and inputs accepted after then. A resume keeps its conversation, so the rest is already
+    /// known. A report is named with its verdict and time only: what the session wrote stays out, and is
+    /// read with the related tool, as data.
     /// </summary>
     public static string Since(string key, LinkStatus status, DateTimeOffset lastSessionStartedUtc)
     {
@@ -52,6 +54,16 @@ public static class RelatedWorkstreams
             {
                 lines.Add($"Since your last session: Nigel accepted the output of {Name(link.From, status)}"
                           + $"{Path(link.Output)}.");
+            }
+            else if (link.SatisfiedUtc > lastSessionStartedUtc)
+            {
+                lines.Add($"Since your last session: Nigel accepted your output for {Name(link.To, status)}.");
+            }
+            else if (link.SatisfiedUtc is null && link.LatestReport is { } report && report.AtUtc > lastSessionStartedUtc
+                     && Same(link.To, key))
+            {
+                lines.Add($"Since your last session: {Name(link.From, status)} reported at {Day(report.AtUtc)}"
+                          + $"{Verdict(report)}. Read it with the related tool; Nigel has not confirmed it yet.");
             }
         }
 
@@ -76,12 +88,21 @@ public static class RelatedWorkstreams
         {
             yield return $"{Name(link.To, status)} waits on your output"
                          + (link.Output is { } output ? $": write it to {output}" : string.Empty)
-                         + ". Nigel accepts it on the board when it is ready.";
+                         + (link.SatisfiedUtc is not null
+                             ? ". Nigel has accepted it."
+                             : link.LatestReport is { } sent
+                                 ? $". You reported at {Day(sent.AtUtc)}; Nigel has not confirmed it yet."
+                                 : ". When it is ready, call report_back with that document and a short summary; Nigel confirms it on the board.");
         }
         else if (link.SatisfiedUtc is { } accepted)
         {
             yield return $"You read the output of {Name(link.From, status)}, accepted by Nigel {Day(accepted)}"
                          + $"{Path(link.Output)}.";
+        }
+        else if (link.LatestReport is { } report)
+        {
+            yield return $"You wait on {Name(link.From, status)}{Path(link.Output)}. It reported at {Day(report.AtUtc)}"
+                         + $"{Verdict(report)}; Nigel has not confirmed it yet. Read it with the related tool.";
         }
         else
         {
@@ -96,6 +117,9 @@ public static class RelatedWorkstreams
 
     private static string Name(string key, LinkStatus status) =>
         $"\"{status.Card(key)?.Title ?? key}\" ({key})";
+
+    private static string Verdict(LinkReport report) =>
+        report.Verdict is { } verdict ? $", verdict {verdict}" : string.Empty;
 
     private static string Path(string? output) => output is null ? string.Empty : $": {output}";
 

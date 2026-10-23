@@ -103,12 +103,12 @@ public class McpHandlerTests
     }
 
     [Test]
-    public void ToolsList_OffersTheTimeAndLockTools()
+    public void ToolsList_OffersTheTimeLockAndLinkTools()
     {
         var tools = Request("tools/list", null)["result"]!["tools"]!.AsArray();
 
         Assert.That(tools.Select(tool => tool!["name"]!.GetValue<string>()),
-            Is.EquivalentTo(new[] { "start_work", "stop_work", "time_for", "whoami", "locks", "lock_acquire", "lock_release" }));
+            Is.EquivalentTo(new[] { "start_work", "stop_work", "time_for", "whoami", "locks", "lock_acquire", "lock_release", "related", "report_back" }));
         Assert.That(tools.All(tool => tool!["inputSchema"]!["type"]!.GetValue<string>() == "object"), Is.True);
     }
 

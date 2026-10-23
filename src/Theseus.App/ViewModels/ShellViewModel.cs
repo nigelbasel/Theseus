@@ -281,6 +281,9 @@ public sealed class ShellViewModel : ObservableObject
     /// <summary>The links between workstreams: the Chains tab, the cards' link lines and the drawer's Related section.</summary>
     public ChainsViewModel? Chains { get; set; }
 
+    /// <summary>Where the board publishes itself at the end of each refresh, for the session tools to read.</summary>
+    public BoardSnapshotSource? Snapshots { get; set; }
+
     /// <summary>Opens the New dialog for a follow-on spawned from a card.</summary>
     public RelayCommand SpawnFollowOnCommand { get; }
 
@@ -854,6 +857,7 @@ public sealed class ShellViewModel : ObservableObject
         var now = DateTimeOffset.Now;
         var runs = _endings.Reconcile(_runs, Sessions.Snapshot.Live, DateTimeOffset.UtcNow);
         var preferred = _settings.Read().DefaultStartMode;
+        var lastStage = Board.Stages.LastOrDefault();
 
         foreach (var card in Board.Cards)
         {
@@ -866,6 +870,10 @@ public sealed class ShellViewModel : ObservableObject
             card.LifecycleSinceUtc = state.Since;
             card.LastExitedUtc = state.LastExitedUtc;
             card.LastStartedUtc = state.LastStartedUtc;
+            card.IsInLastStage = lastStage is not null && string.Equals(card.Column, lastStage, StringComparison.OrdinalIgnoreCase);
+            card.LastRunCrashed = !live && (state.Lifecycle == SessionLifecycle.Ghost
+                                            || runs.Where(run => string.Equals(run.WorkstreamKey, card.Key, StringComparison.OrdinalIgnoreCase))
+                                                .MaxBy(run => run.StartedUtc)?.ExitReason == SessionExitReason.CrashedOrKilled);
             card.TodoSummary = live ? Doing(card.Workstream.LastSessionId) : string.Empty;
 
             // A request that has been written but not yet collected is otherwise invisible, and the
@@ -913,9 +921,19 @@ public sealed class ShellViewModel : ObservableObject
         }
 
         Chains?.Update();
-        SyncClashes();
+
+        var handoffs = Board.Cards.ToDictionary(card => card, card => HandoffPath.For(card.Workstream));
+
+        SyncClashes(handoffs);
+        PublishSnapshot(handoffs);
         CloseFinishedSessions();
     }
+
+    private void PublishSnapshot(Dictionary<WorkstreamCardViewModel, string> handoffs) =>
+        Snapshots?.Publish(new BoardSnapshot(
+            [.. handoffs.Keys.Select(card => new BoardSnapshotCard(card.Workstream, handoffs[card],
+                card.Lifecycle, card.IsLive, card.IsInLastStage, card.LastStartedUtc, card.LastRunCrashed))],
+            DateTimeOffset.UtcNow));
 
     /// <summary>
     /// Types /exit into any session that was asked to stop, has written its handover, and has gone
@@ -1039,12 +1057,12 @@ public sealed class ShellViewModel : ObservableObject
             : $"Restored {title}.";
     }
 
-    private void SyncClashes()
+    private void SyncClashes(Dictionary<WorkstreamCardViewModel, string> handoffs)
     {
-        var cards = Board.Cards.ToList();
+        var cards = handoffs.Keys.ToList();
 
         var clashes = WorkstreamOverlap.Find(
-            [.. cards.Select(card => (card.Key, (string?)HandoffPath.For(card.Workstream), card.JiraKeys))],
+            [.. cards.Select(card => (card.Key, (string?)handoffs[card], card.JiraKeys))],
             Chains?.LinkedPairs);
 
         foreach (var card in cards)

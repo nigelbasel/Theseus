@@ -172,7 +172,8 @@
             -->
             <Border CornerRadius="8" Margin="0,0,0,8"
                     ToolTip="{Binding Workstream.WorkingDirectory}"
-                    MouseLeftButtonUp="OnCardClicked">
+                    MouseLeftButtonUp="OnCardClicked"
+                    MouseEnter="OnCardMouseEnter" MouseLeave="OnCardMouseLeave">
                 <!--
                     A card with no session takes the lane's own fill and sinks into the board; a
                     running one stays raised above it. Neither hue nor the border is available to say
@@ -192,6 +193,12 @@
                             <DataTrigger Binding="{Binding IsLive}" Value="True">
                                 <Setter Property="Background"
                                         Value="{DynamicResource CardBackgroundFillColorDefaultBrush}" />
+                            </DataTrigger>
+                            <!-- Linked to the card under the pointer: outlined, lighter than selection. -->
+                            <DataTrigger Binding="{Binding IsLinkHighlighted}" Value="True">
+                                <Setter Property="BorderBrush"
+                                        Value="{DynamicResource AccentFillColorTertiaryBrush}" />
+                                <Setter Property="BorderThickness" Value="2" />
                             </DataTrigger>
                             <DataTrigger Binding="{Binding IsAdoptTarget}" Value="True">
                                 <Setter Property="BorderBrush"
@@ -1029,6 +1036,73 @@
                                    Text="No links yet. Open a card's details and use Link to, or Spawn follow-on."
                                    Visibility="{Binding Chains.HasNoChains, Converter={StaticResource BoolToVisibility}}" />
 
+                        <!--
+                            Reports waiting for Nigel, and reports lost. A report satisfies nothing on its
+                            own: Confirm is one press for a done or go verdict, and any other opens the
+                            reason box with the verdict in it. Not yet moves the row to the bottom.
+                        -->
+                        <StackPanel Visibility="{Binding Chains.NeedsYou.Count, Converter={StaticResource CountToVisibility}}">
+                            <TextBlock Text="NEEDS YOU" FontSize="11" FontWeight="SemiBold" Margin="4,0,0,6"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            <ItemsControl ItemsSource="{Binding Chains.NeedsYou}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Margin="0,0,0,6" Padding="8,6" CornerRadius="6" BorderThickness="4,0,0,0"
+                                                BorderBrush="{Binding ColorHex, Converter={StaticResource HexToBrush}}"
+                                                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                                                ToolTip="{Binding Evidence}">
+                                            <StackPanel>
+                                                <TextBlock FontSize="12" TextWrapping="Wrap"
+                                                           Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+                                                    <Run Text="{Binding Glyph, Mode=OneWay}" FontWeight="SemiBold" />
+                                                    <Run Text="{Binding Heading, Mode=OneWay}" />
+                                                </TextBlock>
+                                                <TextBlock Text="{Binding Detail}" FontSize="11" TextWrapping="Wrap" Margin="0,2,0,0"
+                                                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                                                <WrapPanel Margin="0,6,0,0"
+                                                           Visibility="{Binding IsAskingReason, Converter={StaticResource NotBoolToVisibility}}">
+                                                    <Button Content="Open report" FontSize="11" Padding="8,2" Margin="0,0,6,0"
+                                                            Command="{Binding OpenReportCommand}"
+                                                            Visibility="{Binding IsReported, Converter={StaticResource BoolToVisibility}}" />
+                                                    <Button Content="Confirm…" FontSize="11" Padding="8,2" Margin="0,0,6,0"
+                                                            ToolTip="Accept the report, which satisfies the link"
+                                                            Command="{Binding ConfirmCommand}"
+                                                            Visibility="{Binding IsReported, Converter={StaticResource BoolToVisibility}}" />
+                                                    <Button Content="Not yet" FontSize="11" Padding="8,2" Margin="0,0,6,0"
+                                                            ToolTip="Leave it reported and move it below the others"
+                                                            Command="{Binding NotYetCommand}"
+                                                            Visibility="{Binding IsReported, Converter={StaticResource BoolToVisibility}}" />
+                                                    <Button Content="Open handoff" FontSize="11" Padding="8,2" Margin="0,0,6,0"
+                                                            Command="{Binding OpenHandoffCommand}"
+                                                            Visibility="{Binding IsLost, Converter={StaticResource BoolToVisibility}}" />
+                                                    <Button Content="Mark satisfied…" FontSize="11" Padding="8,2" Margin="0,0,6,0"
+                                                            Command="{Binding AskReasonCommand}"
+                                                            Visibility="{Binding IsLost, Converter={StaticResource BoolToVisibility}}" />
+                                                </WrapPanel>
+                                                <StackPanel Margin="0,6,0,0"
+                                                            Visibility="{Binding IsAskingReason, Converter={StaticResource BoolToVisibility}}">
+                                                    <TextBlock Text="Why is it satisfied? Kept with the link." FontSize="11"
+                                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                    <TextBox Text="{Binding Reason, UpdateSourceTrigger=PropertyChanged}" FontSize="11"
+                                                             Margin="0,4,0,4" />
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <Button Content="Mark satisfied" FontSize="11" Padding="8,2" Margin="0,0,6,0"
+                                                                Command="{Binding SatisfyCommand}" />
+                                                        <Button Content="Cancel" FontSize="11" Padding="8,2"
+                                                                Command="{Binding CancelReasonCommand}" />
+                                                    </StackPanel>
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding Refusal}" FontSize="11" TextWrapping="Wrap"
+                                                           Foreground="#D68910"
+                                                           Visibility="{Binding Refusal, Converter={StaticResource NotEmptyToVisibility}}" />
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <Separator Margin="0,4,0,10" />
+                        </StackPanel>
+
                         <StackPanel Visibility="{Binding Chains.Ready.Count, Converter={StaticResource CountToVisibility}}">
                             <TextBlock Text="READY" FontSize="11" FontWeight="SemiBold" Margin="4,0,0,6"
                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
@@ -1715,6 +1789,7 @@
                                                     <DockPanel>
                                                         <TextBlock DockPanel.Dock="Right" Text="{Binding StateText}" FontSize="11"
                                                                    Margin="8,0,0,0" VerticalAlignment="Center"
+                                                                   ToolTip="{Binding ReportSummary}"
                                                                    Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
                                                         <Button Padding="0" HorizontalAlignment="Left" Background="Transparent"
                                                                 BorderThickness="0" Cursor="Hand"
@@ -1735,6 +1810,10 @@
                                                                  ToolTip="Why the input is accepted. It is kept with the link." />
                                                     </StackPanel>
                                                     <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                                        <Button Content="Confirm report" FontSize="11" Padding="8,1" Margin="0,0,6,0"
+                                                                Command="{Binding ConfirmReportCommand}"
+                                                                ToolTip="Accept the report: one press for done or go, otherwise the verdict goes in the reason box"
+                                                                Visibility="{Binding CanConfirm, Converter={StaticResource BoolToVisibility}}" />
                                                         <Button Content="Mark satisfied" FontSize="11" Padding="8,1" Margin="0,0,6,0"
                                                                 Command="{Binding SatisfyCommand}"
                                                                 ToolTip="Accept this input by hand, for the reason given"

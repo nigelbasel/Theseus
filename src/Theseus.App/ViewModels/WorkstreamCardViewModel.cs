@@ -16,6 +16,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     private string _clash = string.Empty;
     private string _linkedShare = string.Empty;
     private LinkLineText _links = LinkLineText.None;
+    private bool _isLinkHighlighted;
     private string _restartCost = string.Empty;
     private string _resumeTooltip = string.Empty;
     private RelayCommand? _resumeCommand;
@@ -321,6 +322,19 @@ public sealed class WorkstreamCardViewModel : ObservableObject
 
     /// <summary>Whether every input has been accepted and the card has not run since. Shown, never acted on.</summary>
     public bool IsLinkReady => _links.IsReady;
+
+    /// <summary>Whether the card's newest run ended unexpectedly, which turns a missing report into a lost one.</summary>
+    public bool LastRunCrashed { get; set; }
+
+    /// <summary>Whether the card sits in the board's last stage.</summary>
+    public bool IsInLastStage { get; set; }
+
+    /// <summary>Whether the pointer is over a card linked to this one, so it is outlined.</summary>
+    public bool IsLinkHighlighted
+    {
+        get => _isLinkHighlighted;
+        set => Set(ref _isLinkHighlighted, value);
+    }
 
     /// <summary>
     /// Whether a stop request for this session is written and not yet collected.

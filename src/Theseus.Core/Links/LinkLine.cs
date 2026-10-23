@@ -33,6 +33,19 @@ public static class LinkLine
             parts.Add($"⧗ waits on {Names(status.WaitingOn(key), status)}");
         }
 
+        var inputStates = status.Inputs(key).Select(status.StateOf).ToList();
+        var toConfirm = inputStates.Count(state => state == LinkState.Reported);
+
+        if (toConfirm > 0)
+        {
+            parts.Add($"? {toConfirm} to confirm");
+        }
+
+        if (inputStates.Contains(LinkState.ReportLost))
+        {
+            parts.Add("! report lost");
+        }
+
         var parent = links.FirstOrDefault(link => link.Kind == LinkKind.Spawned && Same(link.To, key));
         var children = links.Where(link => link.Kind == LinkKind.Spawned && Same(link.From, key)).ToList();
         var feeds = links.Where(link => link.Kind == LinkKind.Feeds && Same(link.From, key)).ToList();
@@ -60,6 +73,17 @@ public static class LinkLine
             }
         }
 
+        var outputStates = feeds.Select(status.StateOf).ToList();
+
+        if (outputStates.Contains(LinkState.Reported))
+        {
+            parts.Add("reported");
+        }
+        else if (outputStates.Any(state => state is LinkState.NoReportYet or LinkState.ReportLost))
+        {
+            parts.Add("no report yet");
+        }
+
         if (links.Any(link => status.StateOf(link) == LinkState.CardMissing))
         {
             parts.Add("linked card missing");
@@ -84,12 +108,22 @@ public static class LinkLine
                 : $"Spawned {Title(link.To, status)}{(link.HandOver is { } scope ? $", handing over {scope}" : string.Empty)}{missing}";
         }
 
-        var accepted = state == LinkState.Satisfied ? "accepted" : "not accepted yet";
+        var accepted = state switch
+        {
+            LinkState.Satisfied => "accepted",
+            LinkState.Reported => $"reported{Verdict(link)}, not confirmed yet",
+            LinkState.NoReportYet => "ran since, no report yet",
+            LinkState.ReportLost => "report lost",
+            _ => "not accepted yet",
+        };
 
         return Same(link.From, key)
             ? $"{Title(link.To, status)} waits on this: {accepted}{missing}"
             : $"Waits on {Title(link.From, status)}: {accepted}{missing}";
     }
+
+    private static string Verdict(Link link) =>
+        link.LatestReport?.Verdict is { } verdict ? $" ({verdict})" : string.Empty;
 
     private static string Names(IReadOnlyList<string> keys, LinkStatus status)
     {

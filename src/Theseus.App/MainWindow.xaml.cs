@@ -510,6 +510,22 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
+    private void OnCardMouseEnter(object sender, MouseEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: WorkstreamCardViewModel card } && DataContext is ShellViewModel shell)
+        {
+            shell.Chains?.Highlight(card.Key);
+        }
+    }
+
+    private void OnCardMouseLeave(object sender, MouseEventArgs e)
+    {
+        if (DataContext is ShellViewModel shell)
+        {
+            shell.Chains?.Highlight(null);
+        }
+    }
+
     private void OnOverflowClick(object sender, RoutedEventArgs e)
     {
         if (sender is not Button button || button.ContextMenu is not { } menu)
