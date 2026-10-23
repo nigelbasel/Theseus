@@ -1,7 +1,7 @@
 namespace Theseus.Core.Links;
 
 /// <summary>
-/// The one line a card gives its links, in words. Readiness comes first, then lineage, because
+/// The one line a card gives its links, in words. Readiness comes first, then the flow, because
 /// whether a card can be started is what a glance at the board is for. Exact detail goes in the
 /// tooltip. The lifecycle glyph is never touched: link state has its own line.
 /// </summary>
@@ -33,7 +33,7 @@ public static class LinkLine
             parts.Add($"⧗ waits on {Names(status.WaitingOn(key), status)}");
         }
 
-        var inputStates = status.Inputs(key).Select(status.StateOf).ToList();
+        var inputStates = links.Where(link => Same(link.To, key)).Select(status.StateOf).ToList();
         var toConfirm = inputStates.Count(state => state == LinkState.Reported);
 
         if (toConfirm > 0)
@@ -46,34 +46,26 @@ public static class LinkLine
             parts.Add("! report lost");
         }
 
-        var parent = links.FirstOrDefault(link => link.Kind == LinkKind.Spawned && Same(link.To, key));
-        var children = links.Where(link => link.Kind == LinkKind.Spawned && Same(link.From, key)).ToList();
-        var feeds = links.Where(link => link.Kind == LinkKind.Feeds && Same(link.From, key)).ToList();
+        var parent = status.ParentLink(key);
+        var children = links.Where(link => link.Kind == LinkKind.HandsOver && Same(link.From, key)).ToList();
+        var reportsTo = links.FirstOrDefault(link => link.Kind == LinkKind.ReportsBack && Same(link.From, key));
 
         if (parent is not null)
         {
             parts.Add($"↑ from {Title(parent.From, status)}");
         }
 
-        if (readiness != CardReadiness.Waiting)
+        if (readiness != CardReadiness.Waiting && children.Count > 0)
         {
-            if (children.Count > 0)
-            {
-                parts.Add(children.Count == 1 ? "⑂ 1 child" : $"⑂ {children.Count} children");
-            }
-
-            if (children.Where(child => child.HandOver is not null).Select(child => child.To).ToList() is { Count: > 0 } handedTo)
-            {
-                parts.Add($"handed over to {Names(handedTo, status)}");
-            }
-
-            if (feeds.Count > 0)
-            {
-                parts.Add($"→ {Names([.. feeds.Select(link => link.To)], status)}");
-            }
+            parts.Add($"→ {Names([.. children.Select(link => link.To)], status)}");
         }
 
-        var outputStates = feeds.Select(status.StateOf).ToList();
+        if (reportsTo is not null)
+        {
+            parts.Add($"↩ reports back to {Title(reportsTo.To, status)}");
+        }
+
+        var outputStates = links.Where(link => Same(link.From, key)).Select(status.StateOf).ToList();
 
         if (outputStates.Contains(LinkState.Reported))
         {
@@ -101,25 +93,23 @@ public static class LinkLine
         var state = status.StateOf(link);
         var missing = state == LinkState.CardMissing ? " (card missing)" : string.Empty;
 
-        if (link.Kind == LinkKind.Spawned)
-        {
-            return Same(link.To, key)
-                ? $"Spawned by {Title(link.From, status)}{missing}"
-                : $"Spawned {Title(link.To, status)}{(link.HandOver is { } scope ? $", handing over {scope}" : string.Empty)}{missing}";
-        }
-
         var accepted = state switch
         {
-            LinkState.Satisfied => "accepted",
-            LinkState.Reported => $"reported{Verdict(link)}, not confirmed yet",
-            LinkState.NoReportYet => "ran since, no report yet",
-            LinkState.ReportLost => "report lost",
-            _ => "not accepted yet",
+            LinkState.Lineage => string.Empty,
+            LinkState.Satisfied => ": accepted",
+            LinkState.Reported => $": reported{Verdict(link)}, not confirmed yet",
+            LinkState.NoReportYet => ": ran since, no report yet",
+            LinkState.ReportLost => ": report lost",
+            _ => ": not accepted yet",
         };
 
-        return Same(link.From, key)
-            ? $"{Title(link.To, status)} waits on this: {accepted}{missing}"
-            : $"Waits on {Title(link.From, status)}: {accepted}{missing}";
+        return (link.Kind, Same(link.From, key)) switch
+        {
+            (LinkKind.HandsOver, true) => $"Hands over to {Title(link.To, status)}{accepted}{missing}",
+            (LinkKind.HandsOver, false) => $"Takes over from {Title(link.From, status)}{accepted}{missing}",
+            (_, true) => $"Reports back to {Title(link.To, status)}{accepted}{missing}",
+            _ => $"{Title(link.From, status)} reports back to this card{accepted}{missing}",
+        };
     }
 
     private static string Verdict(Link link) =>

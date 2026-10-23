@@ -63,26 +63,30 @@ public class McpLinkToolsTests
     [Test]
     public void Related_GivesEachLinkWithTheOtherCardsLifecycleAndPaths()
     {
-        _book.Add(LinkKind.Spawned, "auth-research", "token-spike", brief: @"C:\work\proposals\token-spike\BRIEF.md");
-        _book.Add(LinkKind.Feeds, "token-spike", "auth-research", output: Output);
+        _book.Add(LinkKind.HandsOver, "auth-research", "token-spike", output: @"C:\work\proposals\auth-research\HANDOVER.md");
+        _book.Add(LinkKind.ReportsBack, "token-spike", "auth-research", output: Output);
 
         var related = JsonNode.Parse(Text(Call("related", new JsonObject(), "spike-session")))!;
         var links = related["links"]!.AsArray();
 
         Assert.That(links, Has.Count.EqualTo(2));
+        Assert.That(links[0]!["kind"]!.GetValue<string>(), Is.EqualTo("hands-over"));
         Assert.That(links[0]!["you"]!.GetValue<string>(), Is.EqualTo("child"));
-        Assert.That(links[0]!["brief"]!.GetValue<string>(), Is.EqualTo(@"C:\work\proposals\token-spike\BRIEF.md"));
+        Assert.That(links[0]!["youWrite"]!.GetValue<bool>(), Is.False);
+        Assert.That(links[0]!["document"]!.GetValue<string>(), Is.EqualTo(@"C:\work\proposals\auth-research\HANDOVER.md"));
         Assert.That(links[0]!["other"]!["lifecycle"]!.GetValue<string>(), Is.EqualTo("Ended"));
         Assert.That(links[0]!["other"]!["handoff"]!.GetValue<string>(), Is.EqualTo(@"C:\work\HANDOFF-auth-research.md"));
-        Assert.That(links[1]!["you"]!.GetValue<string>(), Is.EqualTo("upstream"));
+        Assert.That(links[1]!["kind"]!.GetValue<string>(), Is.EqualTo("reports-back"));
+        Assert.That(links[1]!["you"]!.GetValue<string>(), Is.EqualTo("child"));
+        Assert.That(links[1]!["youWrite"]!.GetValue<bool>(), Is.True);
         Assert.That(links[1]!["state"]!.GetValue<string>(), Is.EqualTo("waiting"));
-        Assert.That(links[1]!["output"]!.GetValue<string>(), Is.EqualTo(Output));
+        Assert.That(links[1]!["document"]!.GetValue<string>(), Is.EqualTo(Output));
     }
 
     [Test]
     public void Related_ReadsTheSnapshotAndWritesNothing()
     {
-        _book.Add(LinkKind.Feeds, "token-spike", "auth-research", output: Output);
+        _book.Add(LinkKind.HandsOver, "token-spike", "auth-research", output: Output);
         var before = File.ReadAllText(Path.Combine(_directory, "links.json"));
         var changes = 0;
         _book.Changed += (_, _) => changes++;
@@ -97,7 +101,7 @@ public class McpLinkToolsTests
     [Test]
     public void Related_GivesTheLatestReportToTheDownstream()
     {
-        _book.Add(LinkKind.Feeds, "token-spike", "auth-research", output: Output);
+        _book.Add(LinkKind.HandsOver, "token-spike", "auth-research", output: Output);
         _book.Report("token-spike", "spike-session", [], Output, "Found the lifetime.", "go");
 
         var link = JsonNode.Parse(Text(Call("related", new JsonObject(), "research-session")))!["links"]![0]!;
@@ -110,7 +114,7 @@ public class McpLinkToolsTests
     [Test]
     public void ReportBack_RecordsTheReportAndLeavesTheLinkReported()
     {
-        _book.Add(LinkKind.Feeds, "token-spike", "auth-research", output: Output);
+        _book.Add(LinkKind.HandsOver, "token-spike", "auth-research", output: Output);
 
         var result = Call("report_back", new JsonObject { ["document"] = Output, ["summary"] = "Found it.", ["verdict"] = "go" },
             "spike-session");
@@ -124,7 +128,7 @@ public class McpLinkToolsTests
     [Test]
     public void ReportBack_IsRefusedWhenTheCallerIsNotTheUpstream()
     {
-        var link = _book.Add(LinkKind.Feeds, "token-spike", "auth-research", output: Output).Link!;
+        var link = _book.Add(LinkKind.HandsOver, "token-spike", "auth-research", output: Output).Link!;
 
         var result = Call("report_back",
             new JsonObject { ["links"] = new JsonArray(link.Id), ["document"] = Output, ["summary"] = "Done." },
@@ -137,7 +141,7 @@ public class McpLinkToolsTests
     [Test]
     public void ReportBack_IsRefusedWhenTheDocumentIsNotTheLinksOutput()
     {
-        _book.Add(LinkKind.Feeds, "token-spike", "auth-research", output: Output);
+        _book.Add(LinkKind.HandsOver, "token-spike", "auth-research", output: Output);
 
         var result = Call("report_back",
             new JsonObject { ["document"] = @"C:\work\proposals\token-spike\OTHER.md", ["summary"] = "Done." }, "spike-session");
@@ -149,8 +153,8 @@ public class McpLinkToolsTests
     [Test]
     public void ReportBack_IsRefusedWhenSeveralLinksWaitAndNoneIsNamed()
     {
-        _book.Add(LinkKind.Feeds, "token-spike", "auth-research", output: Output);
-        _book.Add(LinkKind.Feeds, "token-spike", "auth-implementation", output: Output);
+        _book.Add(LinkKind.HandsOver, "token-spike", "auth-research", output: Output);
+        _book.Add(LinkKind.HandsOver, "token-spike", "auth-implementation", output: Output);
 
         var result = Call("report_back", new JsonObject { ["document"] = Output, ["summary"] = "Done." }, "spike-session");
 
@@ -162,7 +166,7 @@ public class McpLinkToolsTests
     public void ReportBack_RefusesAHandoffEvenWhenTheLinkNamesIt()
     {
         const string handoff = @"C:\work\HANDOFF-token-spike.md";
-        _book.Add(LinkKind.Feeds, "token-spike", "auth-research", output: handoff);
+        _book.Add(LinkKind.HandsOver, "token-spike", "auth-research", output: handoff);
 
         var result = Call("report_back", new JsonObject { ["document"] = handoff, ["summary"] = "Done." }, "spike-session");
 
@@ -174,7 +178,7 @@ public class McpLinkToolsTests
     [Test]
     public void ASessionTheseusDidNotLaunch_CannotReport()
     {
-        _book.Add(LinkKind.Feeds, "token-spike", "auth-research", output: Output);
+        _book.Add(LinkKind.HandsOver, "token-spike", "auth-research", output: Output);
 
         var result = Call("report_back", new JsonObject { ["document"] = Output, ["summary"] = "Done." }, "stranger");
 

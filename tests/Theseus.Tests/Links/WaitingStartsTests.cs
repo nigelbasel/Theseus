@@ -59,6 +59,6 @@ public class WaitingStartsTests
     }
 
     private static Link Feeds(string from, string to, bool satisfied = false) =>
-        new($"lk-{from}-{to}", LinkKind.Feeds, from, to, Nine, Link.MadeOnTheBoard,
+        new($"lk-{from}-{to}", LinkKind.HandsOver, from, to, Nine, Link.MadeOnTheBoard, Output: @"C:\work\REPORT.md",
             SatisfiedUtc: satisfied ? Nine.AddHours(1) : null, SatisfiedBy: satisfied ? "by hand: ok" : null);
 }

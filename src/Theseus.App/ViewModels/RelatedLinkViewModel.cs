@@ -89,13 +89,13 @@ public sealed class RelatedLinkViewModel : ObservableObject
         _ => string.Empty,
     };
 
-    /// <summary>The document the link names: the output for an input, the brief for a spawned link.</summary>
-    public string? Document => Link.Output ?? Link.Brief;
+    /// <summary>The document the link names: the hand-over, or the report back.</summary>
+    public string? Document => Link.Output;
 
-    /// <summary>Whether this input is still waiting, so it can be satisfied by hand.</summary>
+    /// <summary>Whether the document is still waiting, so it can be accepted by hand.</summary>
     public bool CanSatisfy => State is LinkState.Waiting or LinkState.Reported or LinkState.NoReportYet or LinkState.ReportLost;
 
-    /// <summary>Whether the upstream has reported and the report waits for Confirm.</summary>
+    /// <summary>Whether the writer has reported and the report waits for Confirm.</summary>
     public bool CanConfirm => State == LinkState.Reported;
 
     /// <summary>The report's summary, for the tooltip: another session's claim, shown as data.</summary>

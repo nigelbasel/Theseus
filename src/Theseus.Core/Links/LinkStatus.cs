@@ -30,11 +30,6 @@ public sealed class LinkStatus
             return LinkState.CardMissing;
         }
 
-        if (link.Kind == LinkKind.Spawned)
-        {
-            return LinkState.Lineage;
-        }
-
         if (link.SatisfiedUtc is not null)
         {
             return LinkState.Satisfied;
@@ -45,16 +40,21 @@ public sealed class LinkStatus
             return LinkState.Reported;
         }
 
-        // Only runs that started after the link was made count, so an old card linked as an upstream
-        // does not alarm for runs that never knew about the link.
-        var upstream = _cards[link.From];
+        if (link.Output is null)
+        {
+            return LinkState.Lineage;
+        }
 
-        if (upstream.IsLive || upstream.LastRunStartedUtc is not { } started || started <= link.CreatedUtc)
+        // Only runs that started after the link was made count, so an old card linked as a writer
+        // does not alarm for runs that never knew about the link.
+        var writer = _cards[link.From];
+
+        if (writer.IsLive || writer.LastRunStartedUtc is not { } started || started <= link.CreatedUtc)
         {
             return LinkState.Waiting;
         }
 
-        return upstream.IsArchived || upstream.IsDone || upstream.LastRunCrashed
+        return writer.IsArchived || writer.IsDone || writer.LastRunCrashed
             ? LinkState.ReportLost
             : LinkState.NoReportYet;
     }
@@ -94,13 +94,20 @@ public sealed class LinkStatus
             : CardReadiness.Ready;
     }
 
-    /// <summary>The upstream keys a card still waits on.</summary>
+    /// <summary>The cards whose hand-over a card still waits on: its parent, or nobody.</summary>
     public IReadOnlyList<string> WaitingOn(string key) =>
         [.. Inputs(key).Where(link => link.SatisfiedUtc is null).Select(link => link.From)];
 
-    /// <summary>The feeds links into a card.</summary>
+    /// <summary>
+    /// The hand-overs into a card that name a document, which it waits on until Nigel accepts them. A
+    /// report back never holds its parent back, and a hand-over with no document has nothing to wait for.
+    /// </summary>
     public IReadOnlyList<Link> Inputs(string key) =>
-        [.. _links.Where(link => link.Kind == LinkKind.Feeds && Same(link.To, key))];
+        [.. _links.Where(link => link.Kind == LinkKind.HandsOver && link.Output is not null && Same(link.To, key))];
+
+    /// <summary>The card that handed over to this one, if any.</summary>
+    public Link? ParentLink(string key) =>
+        _links.FirstOrDefault(link => link.Kind == LinkKind.HandsOver && Same(link.To, key));
 
     /// <summary>Every link touching a card.</summary>
     public IReadOnlyList<Link> For(string key) => [.. _links.Where(link => link.Touches(key))];

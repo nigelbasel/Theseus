@@ -116,7 +116,7 @@ public sealed class NewWorkstreamViewModel : ObservableObject
 
     /// <summary>
     /// Shows the composer for a follow-on to <paramref name="parent"/>: same working directory, so it
-    /// keeps the same memory, and the same row. Creating it records that the parent spawned it.
+    /// keeps the same memory, and the same row. Creating it records that the parent hands over to it.
     /// </summary>
     public void OpenFollowOn(Workstream parent)
     {

@@ -159,7 +159,7 @@ public sealed class ShellViewModel : ObservableObject
 
                 if (created.ParentKey is { } parent)
                 {
-                    Chains?.Spawned(parent, created.Key, created.ReportTo);
+                    Chains?.FollowedOn(parent, created.Key, created.ReportTo);
                 }
 
                 if (Board.Card(created.Key) is not { } card)

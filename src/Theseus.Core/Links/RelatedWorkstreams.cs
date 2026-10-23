@@ -13,9 +13,8 @@ public static class RelatedWorkstreams
 {
     /// <summary>The sentence that closes every paragraph, so a link is never read as permission.</summary>
     public const string AuthorisesNothing =
-        "A link lets you read the documents it names. Only a hand-over moves scope, and only the scope it"
-        + " names. These links authorise no Jira item, branch, worktree, push or PR: each of those is"
-        + " Nigel's separate ask.";
+        "A link lets you read the documents it names. These links authorise no Jira item, branch,"
+        + " worktree, push or PR: each of those is Nigel's separate ask.";
 
     private const string Heading = "Related workstreams (from the Theseus board; ask with the related tool for live state):";
 
@@ -72,42 +71,52 @@ public static class RelatedWorkstreams
 
     private static IEnumerable<string> Lines(string key, Link link, LinkStatus status)
     {
-        if (link.Kind == LinkKind.Spawned && Same(link.To, key))
+        var writes = Same(link.From, key);
+
+        yield return (link.Kind, writes) switch
         {
-            yield return $"You were spawned by {Name(link.From, status)}."
-                         + (link.Brief is { } brief ? $" Your brief is {brief}." : string.Empty)
-                         + (link.HandOver is { } scope ? $" Scope handed over to you: {scope}." : string.Empty);
-        }
-        else if (link.Kind == LinkKind.Spawned)
+            (LinkKind.HandsOver, false) => $"You take over from {Name(link.From, status)}{Read(link)}",
+            (LinkKind.HandsOver, true) => $"You hand over to {Name(link.To, status)}{Write(link)}"
+                                         + " Once Nigel accepts the hand-over, your part is done unless he asks you to change it.",
+            (_, true) => $"Report back to {Name(link.To, status)} when your work is done{Write(link)}",
+            _ => $"{Name(link.From, status)} reports back to you{Read(link)}",
+        };
+    }
+
+    private static string Read(Link link)
+    {
+        if (link.Output is null && link.SatisfiedUtc is null && link.LatestReport is null)
         {
-            yield return link.HandOver is { } scope
-                ? $"Scope handed over to {Name(link.To, status)} on {Day(link.CreatedUtc)}: {scope}. It is no longer yours."
-                : $"You spawned {Name(link.To, status)}.";
+            return ".";
         }
-        else if (Same(link.From, key))
+
+        if (link.SatisfiedUtc is { } accepted)
         {
-            yield return $"{Name(link.To, status)} waits on your output"
-                         + (link.Output is { } output ? $": write it to {output}" : string.Empty)
-                         + (link.SatisfiedUtc is not null
-                             ? ". Nigel has accepted it."
-                             : link.LatestReport is { } sent
-                                 ? $". You reported at {Day(sent.AtUtc)}; Nigel has not confirmed it yet."
-                                 : ". When it is ready, call report_back with that document and a short summary; Nigel confirms it on the board.");
+            return $"{Path(link.Output)}, accepted by Nigel {Day(accepted)}.";
         }
-        else if (link.SatisfiedUtc is { } accepted)
+
+        return link.LatestReport is { } report
+            ? $"{Path(link.Output)}. It reported at {Day(report.AtUtc)}{Verdict(report)}; Nigel has not confirmed it yet. Read it with the related tool."
+            : $"{Path(link.Output)}. Nigel has not accepted it yet.";
+    }
+
+    private static string Write(Link link)
+    {
+        if (link.Output is null && link.SatisfiedUtc is null)
         {
-            yield return $"You read the output of {Name(link.From, status)}, accepted by Nigel {Day(accepted)}"
-                         + $"{Path(link.Output)}.";
+            return ".";
         }
-        else if (link.LatestReport is { } report)
+
+        var where = link.Output is { } output ? $": write it to {output}" : string.Empty;
+
+        if (link.SatisfiedUtc is not null)
         {
-            yield return $"You wait on {Name(link.From, status)}{Path(link.Output)}. It reported at {Day(report.AtUtc)}"
-                         + $"{Verdict(report)}; Nigel has not confirmed it yet. Read it with the related tool.";
+            return $"{where}. Nigel has accepted it.";
         }
-        else
-        {
-            yield return $"You wait on {Name(link.From, status)}{Path(link.Output)}. Nigel has not accepted it yet.";
-        }
+
+        return link.LatestReport is { } sent
+            ? $"{where}. You reported at {Day(sent.AtUtc)}; Nigel has not confirmed it yet."
+            : $"{where}. When it is ready, call report_back with that document and a short summary; Nigel confirms it on the board.";
     }
 
     private static string Compose(IReadOnlyList<string> lines) =>

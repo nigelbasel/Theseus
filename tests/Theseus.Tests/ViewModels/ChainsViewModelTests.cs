@@ -39,18 +39,18 @@ public class ChainsViewModelTests
     [Test]
     public void Update_GivesEveryCardItsLinkLine()
     {
-        _book.Add(LinkKind.Feeds, "token-spike", "auth-implementation");
+        _book.Add(LinkKind.HandsOver, "token-spike", "auth-implementation", output: @"C:\work\REPORT.md");
 
         _chains.Update();
 
-        Assert.That(Find("auth-implementation").LinkLine, Is.EqualTo("⧗ waits on token-spike"));
+        Assert.That(Find("auth-implementation").LinkLine, Is.EqualTo("⧗ waits on token-spike · ↑ from token-spike"));
         Assert.That(Find("auth-research").LinkLine, Is.Empty);
     }
 
     [Test]
-    public void Update_PutsAChildUnderTheCardThatSpawnedIt()
+    public void Update_PutsAChildUnderTheCardThatHandedOverToIt()
     {
-        _book.Add(LinkKind.Spawned, "auth-research", "token-spike");
+        _book.Add(LinkKind.HandsOver, "auth-research", "token-spike");
 
         _chains.Update();
 
@@ -59,10 +59,10 @@ public class ChainsViewModelTests
     }
 
     [Test]
-    public void Update_PutsACardNothingSpawnedUnderTheCardItWaitsOn()
+    public void Update_NestsEachStageUnderTheOneBefore()
     {
-        _book.Add(LinkKind.Spawned, "auth-research", "token-spike");
-        _book.Add(LinkKind.Feeds, "token-spike", "auth-implementation");
+        _book.Add(LinkKind.HandsOver, "auth-research", "token-spike");
+        _book.Add(LinkKind.HandsOver, "token-spike", "auth-implementation");
 
         _chains.Update();
 
@@ -72,47 +72,22 @@ public class ChainsViewModelTests
     }
 
     [Test]
-    public void Update_PrefersTheSpawningCardOverAnInput()
+    public void Update_ShowsAReportBackAsALineAndNeverAsNesting()
     {
-        _book.Add(LinkKind.Spawned, "auth-research", "auth-implementation");
-        _book.Add(LinkKind.Feeds, "token-spike", "auth-implementation");
+        _book.Add(LinkKind.HandsOver, "auth-research", "token-spike");
+        _book.Add(LinkKind.ReportsBack, "token-spike", "auth-research", output: @"C:\work\REPORT.md");
 
         _chains.Update();
 
-        Assert.That(_chains.Roots.Select(root => root.Key), Is.EquivalentTo(new[] { "auth-research", "token-spike" }));
-        Assert.That(_chains.Roots.Single(root => root.Key == "auth-research").Children.Single().Key,
-            Is.EqualTo("auth-implementation"));
-    }
-
-    [Test]
-    public void Update_PutsACardWithSeveralInputsUnderTheFirstLinked()
-    {
-        _book.Add(LinkKind.Feeds, "token-spike", "auth-implementation");
-        _book.Add(LinkKind.Feeds, "auth-research", "auth-implementation");
-
-        _chains.Update();
-
-        Assert.That(_chains.Roots.Single(root => root.Key == "token-spike").Children.Single().Key,
-            Is.EqualTo("auth-implementation"));
-        Assert.That(_chains.Roots.Single(root => root.Key == "auth-research").Children, Is.Empty);
-    }
-
-    [Test]
-    public void Update_NeverNestsAlongALinkThatLoopsBack()
-    {
-        _book.Add(LinkKind.Spawned, "auth-research", "token-spike");
-        _book.Add(LinkKind.Feeds, "token-spike", "auth-research");
-
-        _chains.Update();
-
-        Assert.That(_chains.Roots.Single().Key, Is.EqualTo("auth-research"));
-        Assert.That(_chains.Roots.Single().Children.Single().Key, Is.EqualTo("token-spike"));
+        var spike = _chains.Roots.Single().Children.Single();
+        Assert.That(spike.Children, Is.Empty);
+        Assert.That(spike.ReportsBack, Is.EqualTo("↩ reports back to auth-research ⧗"));
     }
 
     [Test]
     public void Update_ListsAndCountsReadyCards()
     {
-        var link = _book.Add(LinkKind.Feeds, "token-spike", "auth-implementation").Link!;
+        var link = _book.Add(LinkKind.HandsOver, "token-spike", "auth-implementation", output: @"C:\work\REPORT.md").Link!;
         _book.Satisfy(link.Id, "read it");
 
         _chains.Update();
@@ -127,7 +102,7 @@ public class ChainsViewModelTests
     {
         _chains.Update();
         _chains.ShowFor("auth-implementation");
-        _chains.Kind = LinkKindChoice.All.Single(choice => choice is { Kind: LinkKind.Feeds, ThisCardIsFrom: false });
+        _chains.Kind = LinkKindChoice.All.Single(choice => choice is { Kind: LinkKind.HandsOver, ThisCardIsFrom: false });
         _chains.Target = _chains.Targets.Single(target => target.Key == "token-spike");
 
         _chains.AddLinkCommand.Execute(null);
@@ -142,7 +117,7 @@ public class ChainsViewModelTests
     public void Kind_SuggestsTheUpstreamsReportUnderItsOwnWorkingDirectory()
     {
         _chains.ShowFor("auth-implementation");
-        _chains.Kind = LinkKindChoice.All.Single(choice => choice is { Kind: LinkKind.Feeds, ThisCardIsFrom: false });
+        _chains.Kind = LinkKindChoice.All.Single(choice => choice is { Kind: LinkKind.HandsOver, ThisCardIsFrom: false });
 
         _chains.Target = _chains.Targets.Single(target => target.Key == "token-spike");
 
@@ -153,7 +128,7 @@ public class ChainsViewModelTests
     public void Target_ReplacesTheSuggestionWhenAnotherUpstreamIsChosen()
     {
         _chains.ShowFor("auth-implementation");
-        _chains.Kind = LinkKindChoice.All.Single(choice => choice is { Kind: LinkKind.Feeds, ThisCardIsFrom: false });
+        _chains.Kind = LinkKindChoice.All.Single(choice => choice is { Kind: LinkKind.HandsOver, ThisCardIsFrom: false });
         _chains.Target = _chains.Targets.Single(target => target.Key == "token-spike");
 
         _chains.Target = _chains.Targets.Single(target => target.Key == "auth-research");
@@ -165,7 +140,7 @@ public class ChainsViewModelTests
     public void Target_KeepsADocumentTypedByHand()
     {
         _chains.ShowFor("auth-implementation");
-        _chains.Kind = LinkKindChoice.All.Single(choice => choice is { Kind: LinkKind.Feeds, ThisCardIsFrom: false });
+        _chains.Kind = LinkKindChoice.All.Single(choice => choice is { Kind: LinkKind.HandsOver, ThisCardIsFrom: false });
         _chains.Target = _chains.Targets.Single(target => target.Key == "token-spike");
         _chains.Output = @"C:\work\notes\spike.md";
 
@@ -177,57 +152,59 @@ public class ChainsViewModelTests
     [Test]
     public void AddLink_SaysWhyALinkWasRefused()
     {
-        _book.Add(LinkKind.Feeds, "token-spike", "auth-implementation");
+        _book.Add(LinkKind.HandsOver, "token-spike", "auth-implementation");
         _chains.Update();
         _chains.ShowFor("token-spike");
-        _chains.Kind = LinkKindChoice.All.Single(choice => choice is { Kind: LinkKind.Feeds, ThisCardIsFrom: false });
+        _chains.Kind = LinkKindChoice.All.Single(choice => choice is { Kind: LinkKind.HandsOver, ThisCardIsFrom: false });
         _chains.Target = _chains.Targets.Single(target => target.Key == "auth-implementation");
 
         _chains.AddLinkCommand.Execute(null);
 
-        Assert.That(_chains.LinkRefusal, Does.Contain("cycle"));
+        Assert.That(_chains.LinkRefusal, Does.Contain("ancestor"));
         Assert.That(_changes, Is.Zero);
     }
 
     [Test]
-    public void Spawned_RecordsTheParentAndAReportBackForAFollowOn()
+    public void FollowedOn_RecordsTheHandOverAndAReportBackForAFollowOn()
     {
-        _chains.Spawned("auth-research", "token-spike", @"C:\work\proposals\token-spike\REPORT.md");
+        _chains.FollowedOn("auth-research", "token-spike", @"C:\work\proposals\token-spike\REPORT.md");
 
         Assert.That(_book.Active.Select(link => (link.Kind, link.From, link.To)), Is.EquivalentTo(new[]
         {
-            (LinkKind.Spawned, "auth-research", "token-spike"),
-            (LinkKind.Feeds, "token-spike", "auth-research"),
+            (LinkKind.HandsOver, "auth-research", "token-spike"),
+            (LinkKind.ReportsBack, "token-spike", "auth-research"),
         }));
+        Assert.That(_book.Active.Single(link => link.Kind == LinkKind.HandsOver).Output, Is.Null,
+            "a follow-on starts from what Nigel wrote for it, so it waits on nothing");
     }
 
     [Test]
     public void ShowFor_ListsTheCardsLinksForTheDrawer()
     {
-        _book.Add(LinkKind.Spawned, "auth-research", "token-spike");
+        _book.Add(LinkKind.HandsOver, "auth-research", "token-spike");
         _chains.Update();
 
         _chains.ShowFor("token-spike");
 
-        Assert.That(_chains.Related.Single().Description, Is.EqualTo("Spawned by auth-research"));
+        Assert.That(_chains.Related.Single().Description, Is.EqualTo("Takes over from auth-research"));
         Assert.That(_chains.Targets.Select(target => target.Key), Does.Not.Contain("token-spike"));
     }
 
     [Test]
     public void ShowFor_GroupsTheLinksByWhichWayTheyRun()
     {
-        _book.Add(LinkKind.Spawned, "auth-research", "token-spike");
-        _book.Add(LinkKind.Spawned, "token-spike", "auth-implementation");
-        _book.Add(LinkKind.Feeds, "auth-research", "token-spike", output: @"C:\work\a.md");
-        _book.Add(LinkKind.Feeds, "token-spike", "auth-implementation", output: @"C:\work\b.md");
+        _book.Add(LinkKind.HandsOver, "auth-research", "token-spike");
+        _book.Add(LinkKind.HandsOver, "token-spike", "auth-implementation");
+        _book.Add(LinkKind.ReportsBack, "token-spike", "auth-research", output: @"C:\work\a.md");
+        _book.Add(LinkKind.ReportsBack, "auth-implementation", "token-spike", output: @"C:\work\b.md");
         _chains.Update();
 
         _chains.ShowFor("token-spike");
 
         Assert.That(_chains.Parents.Single().OtherKey, Is.EqualTo("auth-research"));
         Assert.That(_chains.Children.Single().OtherKey, Is.EqualTo("auth-implementation"));
-        Assert.That(_chains.Inputs.Single().OtherKey, Is.EqualTo("auth-research"));
-        Assert.That(_chains.Outputs.Single().OtherKey, Is.EqualTo("auth-implementation"));
+        Assert.That(_chains.Inputs.Single().OtherKey, Is.EqualTo("auth-implementation"));
+        Assert.That(_chains.Outputs.Single().OtherKey, Is.EqualTo("auth-research"));
     }
 
     [Test]
@@ -246,17 +223,17 @@ public class ChainsViewModelTests
     [Test]
     public void AddLink_KeepsTheFormOpenWhenTheLinkIsRefused()
     {
-        _book.Add(LinkKind.Spawned, "auth-research", "token-spike");
+        _book.Add(LinkKind.HandsOver, "auth-research", "token-spike");
         _chains.Update();
         _chains.ShowFor("token-spike");
         _chains.BeginAddLinkCommand.Execute(null);
-        _chains.Kind = LinkKindChoice.All.Single(choice => choice is { Kind: LinkKind.Spawned, ThisCardIsFrom: false });
+        _chains.Kind = LinkKindChoice.All.Single(choice => choice is { Kind: LinkKind.HandsOver, ThisCardIsFrom: false });
         _chains.Target = _chains.Targets.Single(target => target.Key == "auth-implementation");
 
         _chains.AddLinkCommand.Execute(null);
 
         Assert.That(_chains.IsAddingLink, Is.True);
-        Assert.That(_chains.LinkRefusal, Does.Contain("already spawned"));
+        Assert.That(_chains.LinkRefusal, Does.Contain("already hands over to token-spike"));
     }
 
     [Test]
@@ -286,7 +263,7 @@ public class ChainsViewModelTests
     [Test]
     public void Deleted_RemovesTheCardsLinksAndKeepsItsKeyTaken()
     {
-        _book.Add(LinkKind.Spawned, "auth-research", "token-spike");
+        _book.Add(LinkKind.HandsOver, "auth-research", "token-spike");
 
         _chains.Deleted("token-spike");
 
@@ -312,7 +289,7 @@ public class ChainsViewModelTests
     [Test]
     public void Update_PutsAReportUnderNeedsYouAndCountsItOnTheButton()
     {
-        _book.Add(LinkKind.Feeds, "token-spike", "auth-research", output: @"C:\work\REPORT.md");
+        _book.Add(LinkKind.HandsOver, "token-spike", "auth-research", output: @"C:\work\REPORT.md");
         _book.Report("token-spike", "session-1", [], @"C:\work\REPORT.md", "Found it.", "partial");
 
         _chains.Update();
@@ -328,7 +305,7 @@ public class ChainsViewModelTests
     [Test]
     public void NoReportYet_AfterACleanStopNeverReachesNeedsYou()
     {
-        _book.Add(LinkKind.Feeds, "token-spike", "auth-research", output: @"C:\work\REPORT.md");
+        _book.Add(LinkKind.HandsOver, "token-spike", "auth-research", output: @"C:\work\REPORT.md");
         Find("token-spike").LastStartedUtc = Nine.AddHours(1);
 
         _chains.Update();
@@ -340,7 +317,7 @@ public class ChainsViewModelTests
     [Test]
     public void AReportLost_ReachesNeedsYou()
     {
-        _book.Add(LinkKind.Feeds, "token-spike", "auth-research", output: @"C:\work\REPORT.md");
+        _book.Add(LinkKind.HandsOver, "token-spike", "auth-research", output: @"C:\work\REPORT.md");
         Find("token-spike").LastStartedUtc = Nine.AddHours(1);
         Find("token-spike").LastRunCrashed = true;
 
@@ -353,7 +330,7 @@ public class ChainsViewModelTests
     [Test]
     public void Confirm_OnAGoReportSatisfiesTheLinkInOnePress()
     {
-        _book.Add(LinkKind.Feeds, "token-spike", "auth-research", output: @"C:\work\REPORT.md");
+        _book.Add(LinkKind.HandsOver, "token-spike", "auth-research", output: @"C:\work\REPORT.md");
         _book.Report("token-spike", "session-1", [], @"C:\work\REPORT.md", "Found it.", "go");
         _chains.Update();
 
@@ -366,7 +343,7 @@ public class ChainsViewModelTests
     [Test]
     public void Confirm_OnAnyOtherVerdictAsksForAReasonWithTheVerdictInIt()
     {
-        _book.Add(LinkKind.Feeds, "token-spike", "auth-research", output: @"C:\work\REPORT.md");
+        _book.Add(LinkKind.HandsOver, "token-spike", "auth-research", output: @"C:\work\REPORT.md");
         _book.Report("token-spike", "session-1", [], @"C:\work\REPORT.md", "Half of it.", "partial");
         _chains.Update();
         var row = _chains.NeedsYou.Single();
@@ -382,8 +359,9 @@ public class ChainsViewModelTests
     public void NotYet_LeavesTheReportReportedAndMovesItLast()
     {
         _cards.Add(Card("cache-spike"));
-        _book.Add(LinkKind.Feeds, "token-spike", "auth-research", output: @"C:\work\A.md");
-        _book.Add(LinkKind.Feeds, "cache-spike", "auth-research", output: @"C:\work\B.md");
+        _book.Add(LinkKind.HandsOver, "token-spike", "auth-research", output: @"C:\work\A.md");
+        _book.Add(LinkKind.HandsOver, "auth-research", "cache-spike");
+        _book.Add(LinkKind.ReportsBack, "cache-spike", "auth-research", output: @"C:\work\B.md");
         _book.Report("token-spike", "session-1", [], @"C:\work\A.md", "A.", null);
         _book.Report("cache-spike", "session-2", [], @"C:\work\B.md", "B.", null);
         _chains.Update();
@@ -399,8 +377,9 @@ public class ChainsViewModelTests
     [Test]
     public void ReportArrived_IsToldOnceForANewReportAndNotForOnesAlreadyThere()
     {
-        _book.Add(LinkKind.Feeds, "token-spike", "auth-research", output: @"C:\work\REPORT.md");
-        _book.Add(LinkKind.Feeds, "auth-implementation", "auth-research", output: @"C:\work\OTHER.md");
+        _book.Add(LinkKind.HandsOver, "token-spike", "auth-research", output: @"C:\work\REPORT.md");
+        _book.Add(LinkKind.HandsOver, "auth-research", "auth-implementation");
+        _book.Add(LinkKind.ReportsBack, "auth-implementation", "auth-research", output: @"C:\work\OTHER.md");
         _book.Report("token-spike", "session-1", [], @"C:\work\REPORT.md", "Old.", null);
         var told = new List<string>();
         _chains.ReportArrived = told.Add;
@@ -416,7 +395,7 @@ public class ChainsViewModelTests
     [Test]
     public void Highlight_OutlinesOnlyTheCardsLinkedToTheOneUnderThePointer()
     {
-        _book.Add(LinkKind.Spawned, "auth-research", "token-spike");
+        _book.Add(LinkKind.HandsOver, "auth-research", "token-spike");
         _chains.Update();
 
         _chains.Highlight("auth-research");

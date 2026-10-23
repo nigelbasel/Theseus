@@ -397,7 +397,7 @@
                                             <Separator />
                                             <MenuItem Header="Spawn follow-on…"
                                                       Command="{Binding SpawnFollowOnCommand}"
-                                                      ToolTip="Create a new card spawned from this one, in the same working directory" />
+                                                      ToolTip="Create a new card this one hands over to, in the same working directory" />
                                         </ContextMenu>
                                     </Button.ContextMenu>
                                 </Button>
@@ -764,7 +764,7 @@
                 </Button>
 
                 <Button Style="{StaticResource CommandButton}" Padding="8,3" Margin="0,0,12,0" VerticalAlignment="Center"
-                        ToolTip="Show or hide the chains: which workstreams were spawned from which, what each waits on, and which are ready"
+                        ToolTip="Show or hide the chains: which workstream hands over to which, what each waits on, and which are ready"
                         Command="{Binding Chains.ToggleCommand}">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="&#xE71B;" FontFamily="Segoe MDL2 Assets" FontSize="12"
@@ -1002,8 +1002,8 @@
             </DockPanel>
         </Border>
         <!--
-            The chains (Nigel, 2026-10-21): every card with links, under the card that spawned it, with
-            what it waits on as a line beneath it. Read-only in this phase: links are made and changed in
+            The chains (Nigel, 2026-10-23): every card with links, under the card that handed over to it,
+            with what it waits on and whom it reports back to as lines beneath it. Read-only in this phase: links are made and changed in
             a card's details. Ready is listed and never acted on; nothing here starts a session. It shares
             the right-hand side with Locks and the two never sit side by side.
         -->
@@ -1161,9 +1161,9 @@
                                             <TextBlock Text="{Binding WaitsOn}" FontSize="11" TextWrapping="Wrap"
                                                        Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                                        Visibility="{Binding WaitsOn, Converter={StaticResource NotEmptyToVisibility}}" />
-                                            <TextBlock Text="{Binding Feeds}" FontSize="11" TextWrapping="Wrap"
+                                            <TextBlock Text="{Binding ReportsBack}" FontSize="11" TextWrapping="Wrap"
                                                        Foreground="{DynamicResource TextFillColorTertiaryBrush}"
-                                                       Visibility="{Binding Feeds, Converter={StaticResource NotEmptyToVisibility}}" />
+                                                       Visibility="{Binding ReportsBack, Converter={StaticResource NotEmptyToVisibility}}" />
                                         </StackPanel>
                                     </Border>
                                 </HierarchicalDataTemplate>
@@ -1696,7 +1696,7 @@
                                                 Command="{Binding FocusCardCommand}"
                                                 CommandParameter="{Binding Drawer.Card}" />
                                         <Button Content="Spawn follow-on…" Padding="12,3"
-                                                ToolTip="Create a new card spawned from this one, in the same working directory"
+                                                ToolTip="Create a new card this one hands over to, in the same working directory"
                                                 Command="{Binding SpawnFollowOnCommand}"
                                                 CommandParameter="{Binding Drawer.Card}" />
                                     </StackPanel>
@@ -1843,7 +1843,7 @@
                                                Text="No links yet."
                                                Visibility="{Binding Chains.HasNoLinks, Converter={StaticResource BoolToVisibility}}" />
 
-                                    <TextBlock Text="SPAWNED BY" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,4"
+                                    <TextBlock Text="TAKES OVER FROM" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,4"
                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                                Visibility="{Binding Chains.Parents.Count, Converter={StaticResource CountToVisibility}}" />
                                     <ItemsControl ItemsSource="{Binding Chains.Parents}" ItemTemplate="{StaticResource LinkRowTemplate}" />
@@ -1855,17 +1855,17 @@
                                                    Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                                     </Border>
 
-                                    <TextBlock Text="SPAWNED" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,4"
+                                    <TextBlock Text="HANDS OVER TO" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,4"
                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                                Visibility="{Binding Chains.Children.Count, Converter={StaticResource CountToVisibility}}" />
                                     <ItemsControl ItemsSource="{Binding Chains.Children}" ItemTemplate="{StaticResource LinkRowTemplate}" />
 
-                                    <TextBlock Text="WAITS ON THE OUTPUT OF" FontSize="11" FontWeight="SemiBold" Margin="0,8,0,4"
+                                    <TextBlock Text="REPORTED BACK TO BY" FontSize="11" FontWeight="SemiBold" Margin="0,8,0,4"
                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                                Visibility="{Binding Chains.Inputs.Count, Converter={StaticResource CountToVisibility}}" />
                                     <ItemsControl ItemsSource="{Binding Chains.Inputs}" ItemTemplate="{StaticResource LinkRowTemplate}" />
 
-                                    <TextBlock Text="FEEDS ITS OUTPUT TO" FontSize="11" FontWeight="SemiBold" Margin="0,8,0,4"
+                                    <TextBlock Text="REPORTS BACK TO" FontSize="11" FontWeight="SemiBold" Margin="0,8,0,4"
                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                                Visibility="{Binding Chains.Outputs.Count, Converter={StaticResource CountToVisibility}}" />
                                     <ItemsControl ItemsSource="{Binding Chains.Outputs}" ItemTemplate="{StaticResource LinkRowTemplate}" />
@@ -1876,7 +1876,7 @@
                                                 ToolTip="Link this card to another card on the board"
                                                 Command="{Binding Chains.BeginAddLinkCommand}" />
                                         <Button Content="Spawn follow-on…" Padding="12,3"
-                                                ToolTip="Create a new card spawned from this one, in the same working directory"
+                                                ToolTip="Create a new card this one hands over to, in the same working directory"
                                                 Command="{Binding SpawnFollowOnCommand}"
                                                 CommandParameter="{Binding Drawer.Card}" />
                                     </StackPanel>
@@ -1895,12 +1895,11 @@
                                             <ComboBox ItemsSource="{Binding Chains.Targets}" SelectedItem="{Binding Chains.Target}"
                                                       DisplayMemberPath="Title" IsTextSearchEnabled="True" Margin="0,4,0,0"
                                                       ToolTip="The other card. Type its first letters to jump to it." />
-                                            <TextBlock Text="Document it reads" FontSize="11" Margin="0,6,0,2"
-                                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}"
-                                                       Visibility="{Binding Chains.NeedsOutput, Converter={StaticResource BoolToVisibility}}" />
+                                            <TextBlock Text="Document (leave empty if nothing needs to wait for one)" FontSize="11"
+                                                       Margin="0,6,0,2" TextWrapping="Wrap"
+                                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
                                             <TextBox Text="{Binding Chains.Output, UpdateSourceTrigger=PropertyChanged}" FontSize="11"
-                                                     ToolTip="The document the waiting card reads"
-                                                     Visibility="{Binding Chains.NeedsOutput, Converter={StaticResource BoolToVisibility}}" />
+                                                     ToolTip="The document one card writes and the other reads. On a hand-over, the next card waits until you accept it." />
                                             <TextBlock Text="{Binding Chains.LinkRefusal}" FontSize="11" TextWrapping="Wrap"
                                                        Foreground="#D68910" Margin="0,6,0,0"
                                                        Visibility="{Binding Chains.LinkRefusal, Converter={StaticResource NotEmptyToVisibility}}" />
@@ -1999,15 +1998,15 @@
                         </StackPanel>
 
                         <!--
-                            A follow-on (Nigel, 2026-10-21): spawned from the card it was opened on, in its
-                            working directory. Ticking report back makes the parent wait on the follow-on's
-                            report, under the parent's working directory.
+                            A follow-on (Nigel, 2026-10-21): the card it was opened on hands over to it, in its
+                            working directory. Ticking report back asks the follow-on for a report to the parent,
+                            under the parent's working directory; the parent is never held back by it.
                         -->
                         <StackPanel Margin="0,10,0,0"
                                     Visibility="{Binding NewWorkstream.IsFollowOn, Converter={StaticResource BoolToVisibility}}">
                             <TextBlock Text="{Binding NewWorkstream.ParentTitle, StringFormat=Follow-on from {0}}" FontSize="12"
                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                            <CheckBox Content="Report back: the parent waits on this card's report" Margin="0,6,0,0"
+                            <CheckBox Content="Report back: this card reports its output to the parent when done" Margin="0,6,0,0"
                                       IsChecked="{Binding NewWorkstream.ReportBack}" />
                             <TextBlock Text="{Binding NewWorkstream.ReportPath}" Style="{StaticResource FieldHint}" TextWrapping="Wrap"
                                        Visibility="{Binding NewWorkstream.ReportBack, Converter={StaticResource BoolToVisibility}}" />

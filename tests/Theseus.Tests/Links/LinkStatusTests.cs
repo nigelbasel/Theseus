@@ -8,7 +8,7 @@ public class LinkStatusTests
     private static readonly DateTimeOffset Nine = new(2026, 10, 21, 9, 0, 0, TimeSpan.Zero);
 
     [Test]
-    public void StateOf_AnUnsatisfiedFeedsLinkIsWaiting()
+    public void StateOf_AnUnacceptedHandOverIsWaiting()
     {
         var status = Status([Feeds("spike", "implementation")], Card("spike"), Card("implementation"));
 
@@ -16,7 +16,7 @@ public class LinkStatusTests
     }
 
     [Test]
-    public void StateOf_ASatisfiedFeedsLinkIsSatisfied()
+    public void StateOf_AnAcceptedHandOverIsSatisfied()
     {
         var link = Feeds("spike", "implementation", satisfied: Nine);
 
@@ -25,9 +25,9 @@ public class LinkStatusTests
     }
 
     [Test]
-    public void StateOf_ASpawnedLinkIsLineage()
+    public void StateOf_AHandOverWithNoDocumentIsLineage()
     {
-        var link = Spawned("research", "spike");
+        var link = Lineage("research", "spike");
 
         Assert.That(Status([link], Card("research"), Card("spike")).StateOf(link), Is.EqualTo(LinkState.Lineage));
     }
@@ -44,27 +44,33 @@ public class LinkStatusTests
     [Test]
     public void ReadinessOf_ACardWithNoInputsIsUnlinked()
     {
-        var status = Status([Spawned("research", "spike")], Card("research"), Card("spike"));
+        var status = Status([Lineage("research", "spike")], Card("research"), Card("spike"));
 
         Assert.That(status.ReadinessOf("spike"), Is.EqualTo(CardReadiness.None));
     }
 
     [Test]
-    public void ReadinessOf_ACardWithEveryInputSatisfiedIsReady()
+    public void ReadinessOf_AReportBackNeverHoldsTheParentBack()
     {
-        var status = Status(
-            [Feeds("one", "implementation", satisfied: Nine), Feeds("two", "implementation", satisfied: Nine)],
-            Card("one"), Card("two"), Card("implementation"));
+        var status = Status([Lineage("research", "spike"), Feeds("spike", "research") with { Kind = LinkKind.ReportsBack }],
+            Card("research"), Card("spike"));
+
+        Assert.That(status.ReadinessOf("research"), Is.EqualTo(CardReadiness.None));
+        Assert.That(status.Inputs("research"), Is.Empty);
+    }
+
+    [Test]
+    public void ReadinessOf_ACardWhoseHandOverIsAcceptedIsReady()
+    {
+        var status = Status([Feeds("one", "implementation", satisfied: Nine)], Card("one"), Card("implementation"));
 
         Assert.That(status.ReadinessOf("implementation"), Is.EqualTo(CardReadiness.Ready));
     }
 
     [Test]
-    public void ReadinessOf_ACardWithOneInputOutstandingIsWaiting()
+    public void ReadinessOf_ACardWhoseHandOverIsOutstandingIsWaiting()
     {
-        var status = Status(
-            [Feeds("one", "implementation", satisfied: Nine), Feeds("two", "implementation")],
-            Card("one"), Card("two"), Card("implementation"));
+        var status = Status([Feeds("one", "implementation")], Card("one"), Card("implementation"));
 
         Assert.That(status.ReadinessOf("implementation"), Is.EqualTo(CardReadiness.Waiting));
     }
@@ -123,13 +129,11 @@ public class LinkStatusTests
     }
 
     [Test]
-    public void WaitingOn_NamesTheUpstreamsStillOutstanding()
+    public void WaitingOn_NamesTheParentWhileItsHandOverIsOutstanding()
     {
-        var status = Status(
-            [Feeds("one", "implementation", satisfied: Nine), Feeds("two", "implementation")],
-            Card("one"), Card("two"), Card("implementation"));
+        var status = Status([Feeds("one", "implementation")], Card("one"), Card("implementation"));
 
-        Assert.That(status.WaitingOn("implementation"), Is.EqualTo(new[] { "two" }));
+        Assert.That(status.WaitingOn("implementation"), Is.EqualTo(new[] { "one" }));
     }
 
     private static LinkStatus Status(IReadOnlyList<Link> links, params LinkCard[] cards) => new(links, cards);
@@ -139,9 +143,9 @@ public class LinkStatusTests
         new(key, key, archived, blocked, live, lastRun);
 
     private static Link Feeds(string from, string to, DateTimeOffset? satisfied = null) =>
-        new($"lk-{from}-{to}", LinkKind.Feeds, from, to, Nine.AddDays(-1), Link.MadeOnTheBoard,
-            SatisfiedUtc: satisfied, SatisfiedBy: satisfied is null ? null : "by hand: checked");
+        new($"lk-{from}-{to}", LinkKind.HandsOver, from, to, Nine.AddDays(-1), Link.MadeOnTheBoard,
+            Output: $@"C:\work\{from}\REPORT.md", SatisfiedUtc: satisfied, SatisfiedBy: satisfied is null ? null : "by hand: checked");
 
-    private static Link Spawned(string from, string to) =>
-        new($"lk-{from}-{to}", LinkKind.Spawned, from, to, Nine.AddDays(-1), Link.MadeOnTheBoard);
+    private static Link Lineage(string from, string to) =>
+        new($"lk-{from}-{to}", LinkKind.HandsOver, from, to, Nine.AddDays(-1), Link.MadeOnTheBoard);
 }

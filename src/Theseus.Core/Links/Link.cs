@@ -7,17 +7,15 @@ namespace Theseus.Core.Links;
 /// </summary>
 /// <param name="Id">A short random identifier.</param>
 /// <param name="Kind">What the link means.</param>
-/// <param name="From">The parent of a spawned link, or the upstream of a feeds link.</param>
-/// <param name="To">The child of a spawned link, or the downstream of a feeds link.</param>
+/// <param name="From">The card that hands over, or the child that reports back.</param>
+/// <param name="To">The card handed over to, or the parent reported back to.</param>
 /// <param name="CreatedUtc">When it was made.</param>
 /// <param name="CreatedBy">Who made it: <see cref="MadeOnTheBoard"/> for a link Nigel made.</param>
-/// <param name="Brief">For a spawned link, the document the child starts from.</param>
-/// <param name="HandOver">For a spawned link, the scope that moved from the parent to the child.</param>
-/// <param name="Output">For a feeds link, the document the downstream reads.</param>
-/// <param name="SatisfiedUtc">When the downstream's input was accepted, or null while it waits.</param>
+/// <param name="Output">The document <paramref name="From"/> writes and <paramref name="To"/> reads, or null when the link names none.</param>
+/// <param name="SatisfiedUtc">When Nigel accepted the document, or null while it waits.</param>
 /// <param name="SatisfiedBy">How it was accepted, so a link satisfied by hand can be told apart later.</param>
 /// <param name="RemovedUtc">When it was removed, or null while it stands.</param>
-/// <param name="LatestReport">For a feeds link, what the upstream last reported, or null.</param>
+/// <param name="LatestReport">What <paramref name="From"/> last reported, or null.</param>
 public sealed record Link(
     string Id,
     LinkKind Kind,
@@ -25,8 +23,6 @@ public sealed record Link(
     string To,
     DateTimeOffset CreatedUtc,
     string CreatedBy,
-    string? Brief = null,
-    string? HandOver = null,
     string? Output = null,
     DateTimeOffset? SatisfiedUtc = null,
     string? SatisfiedBy = null,

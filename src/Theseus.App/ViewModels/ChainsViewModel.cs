@@ -19,7 +19,6 @@ public sealed class ChainsViewModel : ObservableObject
     private readonly Action<string> _showCard;
     private LinkStatus _status = new([], []);
     private string _treeShape = string.Empty;
-    private Dictionary<string, string> _parents = new(StringComparer.OrdinalIgnoreCase);
     private string _needsShape = string.Empty;
     private readonly Dictionary<string, DateTimeOffset> _setAside = new(StringComparer.Ordinal);
     private readonly Dictionary<string, DateTimeOffset> _seenReports = new(StringComparer.Ordinal);
@@ -104,16 +103,16 @@ public sealed class ChainsViewModel : ObservableObject
     /// <summary>The links of the card open in the drawer.</summary>
     public ObservableCollection<RelatedLinkViewModel> Related { get; } = [];
 
-    /// <summary>The card that spawned the open card: one at most.</summary>
+    /// <summary>The card the open card takes over from: one at most.</summary>
     public ObservableCollection<RelatedLinkViewModel> Parents { get; } = [];
 
-    /// <summary>The cards the open card spawned.</summary>
+    /// <summary>The cards the open card hands over to.</summary>
     public ObservableCollection<RelatedLinkViewModel> Children { get; } = [];
 
-    /// <summary>The cards whose output the open card waits on.</summary>
+    /// <summary>The cards that report back to the open card.</summary>
     public ObservableCollection<RelatedLinkViewModel> Inputs { get; } = [];
 
-    /// <summary>The cards that wait on the open card's output.</summary>
+    /// <summary>The card the open card reports back to.</summary>
     public ObservableCollection<RelatedLinkViewModel> Outputs { get; } = [];
 
     /// <summary>Whether the open card has no links at all.</summary>
@@ -159,16 +158,15 @@ public sealed class ChainsViewModel : ObservableObject
         {
             if (Set(ref _kind, value))
             {
-                Raise(nameof(NeedsOutput));
                 SuggestOutput();
             }
         }
     }
 
-    /// <summary>Whether the chosen kind names an output document.</summary>
-    public bool NeedsOutput => _kind.Kind == LinkKind.Feeds;
-
-    /// <summary>The document the downstream reads, for a feeds link.</summary>
+    /// <summary>
+    /// The document one card writes and the other reads: a hand-over the child waits on, or a report
+    /// back. Left empty, the link holds nothing back.
+    /// </summary>
     public string Output
     {
         get => _output;
@@ -207,14 +205,17 @@ public sealed class ChainsViewModel : ObservableObject
     /// <summary>What the strip says about held-back cards.</summary>
     public string WaitingSummary(IReadOnlyList<Workstream> held) => WaitingStarts.Summary(held, _status);
 
-    /// <summary>Makes a spawned link, and a report back when one was asked for, for a card just created as a follow-on.</summary>
-    public void Spawned(string parentKey, string childKey, string? reportTo)
+    /// <summary>
+    /// Links a card just created as a follow-on to the card it came from: a hand-over with no document,
+    /// since the follow-on starts from what Nigel wrote for it, and a report back when one was asked for.
+    /// </summary>
+    public void FollowedOn(string parentKey, string childKey, string? reportTo)
     {
-        Report(_book.Add(LinkKind.Spawned, parentKey, childKey));
+        Report(_book.Add(LinkKind.HandsOver, parentKey, childKey));
 
         if (reportTo is not null)
         {
-            Report(_book.Add(LinkKind.Feeds, childKey, parentKey, output: reportTo));
+            Report(_book.Add(LinkKind.ReportsBack, childKey, parentKey, output: reportTo));
         }
 
         _changed();
@@ -256,7 +257,6 @@ public sealed class ChainsViewModel : ObservableObject
         var cards = _cards();
 
         _status = Current(cards);
-        _parents = TreeParents();
 
         foreach (var card in cards)
         {
@@ -268,7 +268,7 @@ public sealed class ChainsViewModel : ObservableObject
             .ToDictionary(card => card.Key, card => Node(card), StringComparer.OrdinalIgnoreCase);
 
         var shape = string.Join("|", nodes.Values.Select(node =>
-            $"{node.Key}:{node.Title}:{node.State}:{node.WaitsOn}:{node.Feeds}:{Parent(node.Key)}"));
+            $"{node.Key}:{node.Title}:{node.State}:{node.WaitsOn}:{node.ReportsBack}:{Parent(node.Key)}"));
 
         if (shape != _treeShape)
         {
@@ -324,18 +324,18 @@ public sealed class ChainsViewModel : ObservableObject
 
         foreach (var (link, state, setAside) in rows)
         {
-            var upstream = cards.FirstOrDefault(card => Same(card.Key, link.From));
+            var writer = cards.FirstOrDefault(card => Same(card.Key, link.From));
 
             NeedsYou.Add(new NeedsYouRowViewModel(link, state, $"{Title(link.From)} → {Title(link.To)}",
-                Detail(link, state, upstream), upstream?.ColorHex ?? "#808080",
-                upstream is null ? null : Theseus.Core.Stopping.HandoffPath.For(upstream.Workstream),
+                Detail(link, state, writer), writer?.ColorHex ?? "#808080",
+                writer is null ? null : Theseus.Core.Stopping.HandoffPath.For(writer.Workstream),
                 setAside, Confirm, Satisfy, SetAside));
         }
 
         Raise(nameof(ButtonText));
     }
 
-    private static string Detail(Link link, LinkState state, WorkstreamCardViewModel? upstream)
+    private static string Detail(Link link, LinkState state, WorkstreamCardViewModel? writer)
     {
         if (state == LinkState.Reported && link.LatestReport is { } report)
         {
@@ -344,7 +344,7 @@ public sealed class ChainsViewModel : ObservableObject
                    + $" · {System.IO.Path.GetFileName(report.Document)}";
         }
 
-        return upstream switch
+        return writer switch
         {
             { IsArchived: true } => "no report, and the card is archived",
             { IsInLastStage: true } => "no report, and the card is in Done",
@@ -390,10 +390,8 @@ public sealed class ChainsViewModel : ObservableObject
     {
         var readiness = _status.ReadinessOf(card.Key);
         var inputs = _status.Inputs(card.Key);
-        var feeds = _status.For(card.Key)
-            .Where(link => link.Kind == LinkKind.Feeds && string.Equals(link.From, card.Key, StringComparison.OrdinalIgnoreCase))
-            .Select(link => Title(link.To))
-            .ToList();
+        var reportsTo = _status.For(card.Key)
+            .FirstOrDefault(link => link.Kind == LinkKind.ReportsBack && Same(link.From, card.Key));
 
         return new ChainNodeViewModel(
             card.Key,
@@ -409,7 +407,7 @@ public sealed class ChainsViewModel : ObservableObject
             inputs.Count == 0
                 ? string.Empty
                 : "waits on: " + string.Join(", ", inputs.Select(link => $"{Title(link.From)} {Mark(_status.StateOf(link))}")),
-            feeds.Count == 0 ? string.Empty : "→ " + string.Join(", ", feeds),
+            reportsTo is null ? string.Empty : $"↩ reports back to {Title(reportsTo.To)} {Mark(_status.StateOf(reportsTo))}",
             new RelayCommand(_ => _showCard(card.Key)));
     }
 
@@ -439,52 +437,7 @@ public sealed class ChainsViewModel : ObservableObject
         Raise(nameof(HasNoChains));
     }
 
-    private string? Parent(string key) => _parents.GetValueOrDefault(key);
-
-    /// <summary>
-    /// Where each card sits in the tree: under the card that spawned it, otherwise under the first card
-    /// it waits on, so a run of stages reads downwards. An input that would put a card under one of its
-    /// own descendants is left as a "waits on" line only.
-    /// </summary>
-    private Dictionary<string, string> TreeParents()
-    {
-        var parents = _status.Links
-            .Where(link => link.Kind == LinkKind.Spawned)
-            .GroupBy(link => link.To, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(group => group.Key, group => group.First().From, StringComparer.OrdinalIgnoreCase);
-
-        foreach (var link in _status.Links.Where(link => link.Kind == LinkKind.Feeds).OrderBy(link => link.CreatedUtc))
-        {
-            if (!parents.ContainsKey(link.To) && !IsUnder(parents, link.From, link.To))
-            {
-                parents[link.To] = link.From;
-            }
-        }
-
-        return parents;
-    }
-
-    private static bool IsUnder(Dictionary<string, string> parents, string key, string ancestor)
-    {
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        for (var current = key; seen.Add(current); )
-        {
-            if (Same(current, ancestor))
-            {
-                return true;
-            }
-
-            if (!parents.TryGetValue(current, out var next))
-            {
-                return false;
-            }
-
-            current = next;
-        }
-
-        return true;
-    }
+    private string? Parent(string key) => _status.ParentLink(key)?.From;
 
     private void UpdateRelated()
     {
@@ -505,9 +458,9 @@ public sealed class ChainsViewModel : ObservableObject
 
                 var group = (link.Kind, here) switch
                 {
-                    (LinkKind.Spawned, false) => Parents,
-                    (LinkKind.Spawned, true) => Children,
-                    (LinkKind.Feeds, false) => Inputs,
+                    (LinkKind.HandsOver, false) => Parents,
+                    (LinkKind.HandsOver, true) => Children,
+                    (LinkKind.ReportsBack, false) => Inputs,
                     _ => Outputs,
                 };
 
@@ -534,10 +487,10 @@ public sealed class ChainsViewModel : ObservableObject
 
         return (link.Kind, here) switch
         {
-            (LinkKind.Spawned, true) => link.HandOver is { } scope ? $"Spawned {other}, handing over {scope}" : $"Spawned {other}",
-            (LinkKind.Spawned, false) => $"Spawned by {other}",
-            (LinkKind.Feeds, true) => $"{other} waits on this card's output",
-            _ => $"Waits on the output of {other}",
+            (LinkKind.HandsOver, true) => $"Hands over to {other}",
+            (LinkKind.HandsOver, false) => $"Takes over from {other}",
+            (LinkKind.ReportsBack, true) => $"Reports back to {other}",
+            _ => $"{other} reports back to this card",
         };
     }
 
@@ -576,7 +529,7 @@ public sealed class ChainsViewModel : ObservableObject
         }
 
         var (from, to) = _kind.ThisCardIsFrom ? (key, target.Key) : (target.Key, key);
-        var change = _book.Add(_kind.Kind, from, to, output: NeedsOutput ? Output : null);
+        var change = _book.Add(_kind.Kind, from, to, output: Output);
 
         LinkRefusal = change.Refusal ?? string.Empty;
 
@@ -590,14 +543,14 @@ public sealed class ChainsViewModel : ObservableObject
 
     private void SuggestOutput()
     {
-        if (!NeedsOutput || _target is null || _focusKey is null || (Output.Length > 0 && Output != _suggestedOutput))
+        if (_target is null || _focusKey is null || (Output.Length > 0 && Output != _suggestedOutput))
         {
             return;
         }
 
-        var upstream = _kind.ThisCardIsFrom ? _focusKey : _target.Key;
+        var writer = _kind.ThisCardIsFrom ? _focusKey : _target.Key;
 
-        if (_cards().FirstOrDefault(card => string.Equals(card.Key, upstream, StringComparison.OrdinalIgnoreCase)) is { } card)
+        if (_cards().FirstOrDefault(card => string.Equals(card.Key, writer, StringComparison.OrdinalIgnoreCase)) is { } card)
         {
             _suggestedOutput = BriefFolder.ReportPath(card.Workstream.WorkingDirectory, _briefFolderName(), card.Key);
             Output = _suggestedOutput;

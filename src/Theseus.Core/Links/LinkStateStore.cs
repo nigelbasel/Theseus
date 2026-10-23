@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Theseus.Core.Diagnostics;
 using Theseus.Core.Persistence;
 
@@ -28,7 +29,18 @@ public sealed class LinkStateStore
 
         try
         {
-            return JsonSerializer.Deserialize<List<Link>>(text, TheseusJson.Readable) ?? [];
+            if (JsonNode.Parse(text) is not JsonArray links)
+            {
+                return [];
+            }
+
+            if (LegacyLinks.Upgrade(links) is var upgraded and > 0)
+            {
+                TheseusLog.Information("Read {Count} link(s) in {Path} saved as spawned or feeds as hand-overs and report-backs",
+                    upgraded, FilePath);
+            }
+
+            return links.Deserialize<List<Link>>(TheseusJson.Readable) ?? [];
         }
         catch (JsonException exception)
         {

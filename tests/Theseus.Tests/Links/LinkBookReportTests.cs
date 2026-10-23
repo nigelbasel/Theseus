@@ -31,7 +31,7 @@ public class LinkBookReportTests
     [Test]
     public void Report_OnTheOneLinkThatWaitsIsRecordedAndLeavesItUnsatisfied()
     {
-        var link = Feeds("token-spike", "auth-research");
+        var link = HandOver("token-spike", "auth-research");
 
         var outcome = _book.Report("token-spike", "session-1", [], Output, "Found the lifetime.", "go");
 
@@ -42,29 +42,29 @@ public class LinkBookReportTests
     }
 
     [Test]
-    public void Report_IsRefusedWhenTheCallerIsNotTheUpstream()
+    public void Report_IsRefusedWhenTheCallerDoesNotWriteTheDocument()
     {
-        var link = Feeds("token-spike", "auth-research");
+        var link = HandOver("token-spike", "auth-research");
 
         var outcome = _book.Report("auth-research", "session-1", [link.Id], Output, "Done.", null);
 
-        Assert.That(outcome.Refusal, Does.Contain("not the upstream"));
+        Assert.That(outcome.Refusal, Does.Contain("does not write the document"));
         Assert.That(_book.Active.Single().LatestReport, Is.Null);
     }
 
     [Test]
-    public void Report_WithNoLinksNamedIsRefusedWhenItHasNoOutputs()
+    public void Report_WithNoLinksNamedIsRefusedWhenNoLinkAsksForADocument()
     {
-        Feeds("token-spike", "auth-research");
+        HandOver("token-spike", "auth-research");
 
         Assert.That(_book.Report("auth-research", "session-1", [], Output, "Done.", null).Refusal,
-            Does.Contain("No card waits"));
+            Does.Contain("No link asks"));
     }
 
     [Test]
     public void Report_IsRefusedWhenTheDocumentIsNotTheLinksOutput()
     {
-        Feeds("token-spike", "auth-research");
+        HandOver("token-spike", "auth-research");
 
         var outcome = _book.Report("token-spike", "session-1", [], @"C:\work\HANDOFF-token-spike.md", "Done.", null);
 
@@ -75,7 +75,7 @@ public class LinkBookReportTests
     [Test]
     public void Report_MatchesTheOutputWhateverItsCase()
     {
-        Feeds("token-spike", "auth-research");
+        HandOver("token-spike", "auth-research");
 
         Assert.That(_book.Report("token-spike", "session-1", [], Output.ToUpperInvariant(), "Done.", null).Refusal, Is.Null);
     }
@@ -83,8 +83,8 @@ public class LinkBookReportTests
     [Test]
     public void Report_IsRefusedWhenSeveralLinksWaitAndNoneIsNamed()
     {
-        Feeds("token-spike", "auth-research");
-        Feeds("token-spike", "auth-implementation");
+        HandOver("token-spike", "auth-research");
+        HandOver("token-spike", "auth-implementation");
 
         var outcome = _book.Report("token-spike", "session-1", [], Output, "Done.", null);
 
@@ -95,8 +95,8 @@ public class LinkBookReportTests
     [Test]
     public void Report_OnLinksNamedReachesEachOfThem()
     {
-        var one = Feeds("token-spike", "auth-research");
-        var two = Feeds("token-spike", "auth-implementation");
+        var one = HandOver("token-spike", "auth-research");
+        var two = HandOver("token-spike", "auth-implementation");
 
         var outcome = _book.Report("token-spike", "session-1", [one.Id, two.Id], Output, "Done.", "done");
 
@@ -108,7 +108,7 @@ public class LinkBookReportTests
     [TestCase("   ")]
     public void Report_NeedsASummary(string summary)
     {
-        Feeds("token-spike", "auth-research");
+        HandOver("token-spike", "auth-research");
 
         Assert.That(_book.Report("token-spike", "session-1", [], Output, summary, null).Refusal, Does.Contain("summary"));
     }
@@ -116,7 +116,7 @@ public class LinkBookReportTests
     [Test]
     public void Report_RefusesASummaryLongerThanTheLimit()
     {
-        Feeds("token-spike", "auth-research");
+        HandOver("token-spike", "auth-research");
 
         var summary = new string('x', LinkReport.MaxSummaryLength + 1);
 
@@ -126,7 +126,7 @@ public class LinkBookReportTests
     [Test]
     public void Report_RefusesAVerdictThatIsNotOneOfTheFive()
     {
-        Feeds("token-spike", "auth-research");
+        HandOver("token-spike", "auth-research");
 
         Assert.That(_book.Report("token-spike", "session-1", [], Output, "Done.", "ship it").Refusal, Does.Contain("verdict"));
     }
@@ -134,7 +134,7 @@ public class LinkBookReportTests
     [Test]
     public void Report_ReplacesTheEarlierReport()
     {
-        Feeds("token-spike", "auth-research");
+        HandOver("token-spike", "auth-research");
 
         _book.Report("token-spike", "session-1", [], Output, "First.", "partial");
         _book.Report("token-spike", "session-2", [], Output, "Second.", "go");
@@ -145,7 +145,7 @@ public class LinkBookReportTests
     [Test]
     public void Report_SurvivesReopeningTheBook()
     {
-        Feeds("token-spike", "auth-research");
+        HandOver("token-spike", "auth-research");
         _book.Report("token-spike", "session-1", [], Output, "Found it.", "go");
 
         Assert.That(Open().Active.Single().LatestReport!.Summary, Is.EqualTo("Found it."));
@@ -154,7 +154,7 @@ public class LinkBookReportTests
     [Test]
     public void Confirm_SatisfiesAReportedLink()
     {
-        var link = Feeds("token-spike", "auth-research");
+        var link = HandOver("token-spike", "auth-research");
         _book.Report("token-spike", "session-1", [], Output, "Found it.", "go");
 
         var change = _book.Confirm(link.Id);
@@ -167,7 +167,7 @@ public class LinkBookReportTests
     [Test]
     public void Confirm_IsRefusedWithNoReport()
     {
-        var link = Feeds("token-spike", "auth-research");
+        var link = HandOver("token-spike", "auth-research");
 
         Assert.That(_book.Confirm(link.Id).Refusal, Does.Contain("no report"));
     }
@@ -175,7 +175,7 @@ public class LinkBookReportTests
     [Test]
     public void Changed_IsRaisedForAReportAndNotForARefusal()
     {
-        Feeds("token-spike", "auth-research");
+        HandOver("token-spike", "auth-research");
         var raised = 0;
         _book.Changed += (_, _) => raised++;
 
@@ -186,17 +186,29 @@ public class LinkBookReportTests
     }
 
     [Test]
+    public void Report_FromAChildReachesItsReportBackAndLeavesTheParentFree()
+    {
+        _book.Add(LinkKind.HandsOver, "auth-research", "token-spike");
+        var back = _book.Add(LinkKind.ReportsBack, "token-spike", "auth-research", output: Output).Link!;
+
+        var outcome = _book.Report("token-spike", "session-1", [], Output, "Found the lifetime.", "done");
+
+        Assert.That(outcome.Links.Single().Id, Is.EqualTo(back.Id));
+        Assert.That(new LinkStatus(_book.Active, []).Inputs("auth-research"), Is.Empty);
+    }
+
+    [Test]
     public void Report_FromManyThreadsAtOnceLosesNothing()
     {
-        var links = Enumerable.Range(0, 20).Select(index => Feeds($"spike-{index}", "auth-research")).ToList();
+        var links = Enumerable.Range(0, 20).Select(index => HandOver("auth-research", $"spike-{index}")).ToList();
 
-        Parallel.ForEach(links, link => _book.Report(link.From, "session-1", [], Output, "Done.", null));
+        Parallel.ForEach(links, link => _book.Report(link.From, "session-1", [link.Id], Output, "Done.", null));
 
         Assert.That(_book.Active.Count(link => link.LatestReport is not null), Is.EqualTo(20));
         Assert.That(Open().Active.Count(link => link.LatestReport is not null), Is.EqualTo(20));
     }
 
-    private Link Feeds(string from, string to) => _book.Add(LinkKind.Feeds, from, to, output: Output).Link!;
+    private Link HandOver(string from, string to) => _book.Add(LinkKind.HandsOver, from, to, output: Output).Link!;
 
     private LinkBook Open() => new(new LinkStateStore(Path.Combine(_directory, "links.json")), new FixedClock(Nine));
 

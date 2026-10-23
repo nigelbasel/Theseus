@@ -5,8 +5,8 @@ namespace Theseus.Core.Links;
 
 /// <summary>
 /// Every link between workstreams, and the only thing that changes them. It refuses what would make
-/// the board lie: a card linked to itself, the same link twice, a card waiting on its own output
-/// through a ring of others, a card that is its own ancestor, or a child with two parents.
+/// the board lie: a card linked to itself, the same link twice, a card that is its own ancestor, a
+/// child with two parents, or a report back from a card its target never handed over to.
 ///
 /// Sessions report through it from the MCP server's pool threads while the board changes it on the UI
 /// thread, so every read and write takes the lock, and <see cref="Changed"/> is raised outside it on
@@ -58,14 +58,13 @@ public sealed class LinkBook
     }
 
     /// <summary>Makes a link, unless it would contradict the ones already standing. Either way it is logged.</summary>
-    public LinkChange Add(LinkKind kind, string from, string to, string? output = null, string? brief = null,
-        string? handOver = null)
+    public LinkChange Add(LinkKind kind, string from, string to, string? output = null)
     {
         LinkChange change;
 
         lock (_gate)
         {
-            change = TryAdd(kind, from, to, output, brief, handOver);
+            change = TryAdd(kind, from, to, output);
         }
 
         if (change.Refusal is { } refusal)
@@ -82,17 +81,41 @@ public sealed class LinkBook
         return change;
     }
 
-    /// <summary>Removes a link. It is kept as a tombstone, never deleted.</summary>
-    public LinkChange Remove(string id) =>
-        Logged(id, "removed", string.Empty, Change(id, link => LinkChange.Made(link with { RemovedUtc = _clock.UtcNow })));
+    /// <summary>
+    /// Removes a link, and with a hand-over the report back that depended on it. Both are kept as
+    /// tombstones, never deleted.
+    /// </summary>
+    public LinkChange Remove(string id)
+    {
+        var now = _clock.UtcNow;
+        var change = Change(id, link => LinkChange.Made(link with { RemovedUtc = now }));
 
-    /// <summary>Accepts a feeds link's input by hand, for the reason Nigel gives.</summary>
+        if (change.Link is { Kind: LinkKind.HandsOver } handOver)
+        {
+            lock (_gate)
+            {
+                var index = _links.FindIndex(link => link.IsActive && link.Kind == LinkKind.ReportsBack
+                                                     && SameKey(link.From, handOver.To) && SameKey(link.To, handOver.From));
+
+                if (index >= 0)
+                {
+                    TheseusLog.Information("Link {Id} removed with the hand-over it reported back on", _links[index].Id);
+                    _links[index] = _links[index] with { RemovedUtc = now };
+                    Save();
+                }
+            }
+        }
+
+        return Logged(id, "removed", string.Empty, change);
+    }
+
+    /// <summary>Accepts a link's document by hand, for the reason Nigel gives.</summary>
     public LinkChange Satisfy(string id, string reason) =>
         Logged(id, "satisfied", $" by hand: {reason}", Change(id, link =>
         {
-            if (link.Kind != LinkKind.Feeds)
+            if (link.Output is null)
             {
-                return LinkChange.Refused("Only a link a card waits on can be satisfied.");
+                return LinkChange.Refused("That link names no document, so there is nothing to accept.");
             }
 
             if (string.IsNullOrWhiteSpace(reason))
@@ -108,7 +131,7 @@ public sealed class LinkBook
         }));
 
     /// <summary>
-    /// Confirms the report on a feeds link, which satisfies it. Only Nigel does this, from the board:
+    /// Confirms the report on a link, which satisfies it. Only Nigel does this, from the board:
     /// no session tool reaches it.
     /// </summary>
     public LinkChange Confirm(string id) =>
@@ -128,10 +151,11 @@ public sealed class LinkBook
         }));
 
     /// <summary>
-    /// Records a report from the upstream of one or more feeds links. It replaces each link's latest
-    /// report and changes nothing else: the link shows Reported until Nigel confirms it.
+    /// Records a report on one or more links: a hand-over from the parent, or a report back from the
+    /// child. It replaces each link's latest report and changes nothing else: the link shows Reported
+    /// until Nigel confirms it.
     /// </summary>
-    /// <param name="from">The reporting workstream, which must be the upstream of every link named.</param>
+    /// <param name="from">The reporting workstream, which must be the writing end of every link named.</param>
     /// <param name="sessionId">The session sending it, kept as evidence.</param>
     /// <param name="linkIds">The links reported on. May be empty when exactly one link is eligible.</param>
     /// <param name="document">The output document. It must be the path recorded on each link.</param>
@@ -218,7 +242,7 @@ public sealed class LinkBook
         return change;
     }
 
-    private LinkChange TryAdd(LinkKind kind, string from, string to, string? output, string? brief, string? handOver)
+    private LinkChange TryAdd(LinkKind kind, string from, string to, string? output)
     {
         if (SameKey(from, to))
         {
@@ -232,27 +256,26 @@ public sealed class LinkBook
             return LinkChange.Refused("Those two cards are already linked that way.");
         }
 
-        if (kind == LinkKind.Feeds && Reaches(active, LinkKind.Feeds, to, from))
+        if (kind == LinkKind.HandsOver)
         {
-            return LinkChange.Refused(
-                $"That would make a cycle: {from} already waits, through other cards, on {to}.");
-        }
-
-        if (kind == LinkKind.Spawned)
-        {
-            if (active.FirstOrDefault(link => link.Kind == LinkKind.Spawned && SameKey(link.To, to)) is { } parent)
+            if (active.FirstOrDefault(link => link.Kind == LinkKind.HandsOver && SameKey(link.To, to)) is { } parent)
             {
-                return LinkChange.Refused($"{to} was already spawned by {parent.From}.");
+                return LinkChange.Refused($"{parent.From} already hands over to {to}; a card takes over from one card only.");
             }
 
-            if (Reaches(active, LinkKind.Spawned, to, from))
+            if (Reaches(active, to, from))
             {
                 return LinkChange.Refused($"That would make {to} its own ancestor.");
             }
         }
 
-        var link = new Link(NewId(), kind, from, to, _clock.UtcNow, Link.MadeOnTheBoard,
-            Brief: Blank(brief), HandOver: Blank(handOver), Output: Blank(output));
+        if (kind == LinkKind.ReportsBack
+            && !active.Any(link => link.Kind == LinkKind.HandsOver && SameKey(link.From, to) && SameKey(link.To, from)))
+        {
+            return LinkChange.Refused($"{to} does not hand over to {from}, so {from} has nothing to report back to it.");
+        }
+
+        var link = new Link(NewId(), kind, from, to, _clock.UtcNow, Link.MadeOnTheBoard, Output: Blank(output));
 
         _links.Add(link);
         Save();
@@ -313,17 +336,17 @@ public sealed class LinkBook
 
         if (linkIds.Count == 0)
         {
-            var eligible = _links.Where(link => link.IsActive && link.Kind == LinkKind.Feeds && SameKey(link.From, from)).ToList();
+            var eligible = _links.Where(link => link.IsActive && link.Output is not null && SameKey(link.From, from)).ToList();
 
             if (eligible.Count == 0)
             {
-                return ReportOutcome.Refused("No card waits on this workstream's output, so there is nothing to report to.");
+                return ReportOutcome.Refused("No link asks this workstream for a document, so there is nothing to report on.");
             }
 
             if (eligible.Count > 1)
             {
                 return ReportOutcome.Refused(
-                    "More than one card waits on this workstream's output, so say which with links: "
+                    "More than one link asks this workstream for a document, so say which with links: "
                     + string.Join("; ", eligible.Select(link => $"{link.Id} (to {link.To}, output {link.Output ?? "none"})")) + ".");
             }
 
@@ -338,9 +361,9 @@ public sealed class LinkBook
                     return ReportOutcome.Refused($"There is no link {id}.");
                 }
 
-                if (link.Kind != LinkKind.Feeds || !SameKey(link.From, from))
+                if (!SameKey(link.From, from))
                 {
-                    return ReportOutcome.Refused($"This workstream is not the upstream of {id}, so it cannot report on it.");
+                    return ReportOutcome.Refused($"This workstream does not write the document for {id}, so it cannot report on it.");
                 }
 
                 chosen.Add(link);
@@ -377,7 +400,7 @@ public sealed class LinkBook
         return ReportOutcome.Recorded(reported);
     }
 
-    private static bool Reaches(IReadOnlyList<Link> links, LinkKind kind, string start, string target)
+    private static bool Reaches(IReadOnlyList<Link> links, string start, string target)
     {
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var pending = new Stack<string>([start]);
@@ -394,7 +417,7 @@ public sealed class LinkBook
                 continue;
             }
 
-            foreach (var link in links.Where(link => link.Kind == kind && SameKey(link.From, key)))
+            foreach (var link in links.Where(link => link.Kind == LinkKind.HandsOver && SameKey(link.From, key)))
             {
                 pending.Push(link.To);
             }

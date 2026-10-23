@@ -34,25 +34,26 @@ public class LinkBookLoggingTests
     [Test]
     public void Add_LogsALinkMade()
     {
-        var link = _book.Add(LinkKind.Feeds, "token-spike", "auth-implementation", output: @"C:\work\REPORT.md").Link!;
+        var link = _book.Add(LinkKind.HandsOver, "token-spike", "auth-implementation", output: @"C:\work\REPORT.md").Link!;
 
-        Assert.That(Log(), Does.Contain($"Link {link.Id} made: Feeds token-spike -> auth-implementation, output C:\\work\\REPORT.md"));
+        Assert.That(Log(), Does.Contain($"Link {link.Id} made: HandsOver token-spike -> auth-implementation, output C:\\work\\REPORT.md"));
     }
 
     [Test]
     public void Add_LogsARefusalWithItsReason()
     {
-        _book.Add(LinkKind.Spawned, "auth-research", "token-spike");
+        _book.Add(LinkKind.HandsOver, "auth-research", "token-spike");
 
-        _book.Add(LinkKind.Spawned, "other-card", "token-spike");
+        _book.Add(LinkKind.HandsOver, "other-card", "token-spike");
 
-        Assert.That(Log(), Does.Contain("Link Spawned other-card -> token-spike refused: token-spike was already spawned by auth-research."));
+        Assert.That(Log(), Does.Contain(
+            "Link HandsOver other-card -> token-spike refused: auth-research already hands over to token-spike; a card takes over from one card only."));
     }
 
     [Test]
     public void Remove_LogsTheLinkRemoved()
     {
-        var link = _book.Add(LinkKind.Spawned, "auth-research", "token-spike").Link!;
+        var link = _book.Add(LinkKind.HandsOver, "auth-research", "token-spike").Link!;
 
         _book.Remove(link.Id);
 
@@ -62,11 +63,11 @@ public class LinkBookLoggingTests
     [Test]
     public void Satisfy_LogsARefusalWithItsReason()
     {
-        var link = _book.Add(LinkKind.Spawned, "auth-research", "token-spike").Link!;
+        var link = _book.Add(LinkKind.HandsOver, "auth-research", "token-spike").Link!;
 
         _book.Satisfy(link.Id, "read it");
 
-        Assert.That(Log(), Does.Contain($"Link {link.Id} not satisfied: Only a link a card waits on can be satisfied."));
+        Assert.That(Log(), Does.Contain($"Link {link.Id} not satisfied: That link names no document, so there is nothing to accept."));
     }
 
     private string Log()

@@ -6,7 +6,7 @@ namespace Theseus.App.ViewModels;
 
 /// <summary>
 /// One row under Needs you in the Chains tab: a report waiting for Nigel's Confirm, or a report that
-/// was never sent by an upstream he has finished with. Nothing here starts a session, and a report is
+/// was never sent by a card he has finished with. Nothing here starts a session, and a report is
 /// satisfied only by his press: Confirm for a <c>done</c> or <c>go</c> verdict, otherwise Mark
 /// satisfied with a reason, prefilled from the verdict.
 /// </summary>
@@ -19,10 +19,10 @@ public sealed class NeedsYouRowViewModel : ObservableObject
     private bool _isAskingReason;
 
     /// <summary>Creates the row for one link.</summary>
-    /// <param name="heading">"Upstream → Downstream", in titles.</param>
+    /// <param name="heading">"Writer → reader", in titles.</param>
     /// <param name="detail">The verdict and document of a report, or why a report is lost.</param>
-    /// <param name="colorHex">The upstream card's colour, as the row's left border.</param>
-    /// <param name="handoff">The upstream's handoff, opened when its report is lost.</param>
+    /// <param name="colorHex">The writing card's colour, as the row's left border.</param>
+    /// <param name="handoff">The writer's handoff, opened when its report is lost.</param>
     /// <param name="isSetAside">Whether Not yet was pressed on this report, which sorts it last.</param>
     /// <param name="confirm">Confirms the report, returning why not if it was refused.</param>
     /// <param name="satisfy">Satisfies the link by hand for a reason, returning why not if it was refused.</param>
@@ -71,16 +71,16 @@ public sealed class NeedsYouRowViewModel : ObservableObject
     /// <summary>The glyph before the heading: ? for a report to confirm, ! for a lost one.</summary>
     public string Glyph => IsReported ? "?" : "!";
 
-    /// <summary>"Upstream → Downstream".</summary>
+    /// <summary>"Writer → reader".</summary>
     public string Heading { get; }
 
     /// <summary>The verdict, time and document of a report, or why it is lost.</summary>
     public string Detail { get; }
 
-    /// <summary>The upstream's colour.</summary>
+    /// <summary>The writer's colour.</summary>
     public string ColorHex { get; }
 
-    /// <summary>The upstream's handoff.</summary>
+    /// <summary>The writer's handoff.</summary>
     public string? Handoff { get; }
 
     /// <summary>When the report arrived and the session that sent it, for the tooltip.</summary>
@@ -115,7 +115,7 @@ public sealed class NeedsYouRowViewModel : ObservableObject
     /// <summary>Opens the reported document.</summary>
     public RelayCommand OpenReportCommand { get; }
 
-    /// <summary>Opens the upstream's handoff.</summary>
+    /// <summary>Opens the writer's handoff.</summary>
     public RelayCommand OpenHandoffCommand { get; }
 
     /// <summary>Confirms a <c>done</c> or <c>go</c> report at once; any other opens the reason box with the verdict in it.</summary>

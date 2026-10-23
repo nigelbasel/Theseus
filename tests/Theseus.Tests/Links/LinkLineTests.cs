@@ -18,8 +18,7 @@ public class LinkLineTests
     {
         var line = LinkLine.For("auth-implementation", Status(
         [
-            Spawned("auth-research", "auth-implementation"),
-            Feeds("token-spike", "auth-implementation", satisfied: true),
+            HandOver("auth-research", "auth-implementation", satisfied: true),
         ]));
 
         Assert.That(line.Text, Is.EqualTo("Ready · ↑ from Auth research"));
@@ -27,70 +26,72 @@ public class LinkLineTests
     }
 
     [Test]
-    public void For_NamesWhatAWaitingCardWaitsOn()
+    public void For_NamesTheHandOverAWaitingCardWaitsOn()
     {
         var line = LinkLine.For("auth-implementation", Status(
         [
-            Feeds("token-spike", "auth-implementation"),
-            Feeds("cache-spike", "auth-implementation", satisfied: true),
+            HandOver("auth-design", "auth-implementation"),
         ]));
 
-        Assert.That(line.Text, Is.EqualTo("⧗ waits on Token spike"));
+        Assert.That(line.Text, Is.EqualTo("⧗ waits on Auth design · ↑ from Auth design"));
         Assert.That(line.IsReady, Is.False);
     }
 
     [Test]
-    public void For_ShortensALongListOfInputs()
-    {
-        var line = LinkLine.For("implementation", Status(
-        [
-            Feeds("one", "implementation"),
-            Feeds("two", "implementation"),
-            Feeds("three", "implementation"),
-        ]));
-
-        Assert.That(line.Text, Is.EqualTo("⧗ waits on One, Two +1"));
-    }
-
-    [Test]
-    public void For_CountsAParentsChildren()
-    {
-        var line = LinkLine.For("auth-research", Status(
-        [
-            Spawned("auth-research", "token-spike"),
-            Spawned("auth-research", "cache-spike"),
-        ]));
-
-        Assert.That(line.Text, Is.EqualTo("⑂ 2 children"));
-    }
-
-    [Test]
-    public void For_SaysWhatAnUpstreamFeeds()
+    public void For_AHandOverWithNoDocumentHoldsNothingBack()
     {
         var line = LinkLine.For("token-spike", Status(
         [
-            Spawned("auth-research", "token-spike"),
-            Feeds("token-spike", "auth-research"),
+            Lineage("auth-research", "token-spike"),
         ]));
 
-        Assert.That(line.Text, Is.EqualTo("↑ from Auth research · → Auth research"));
+        Assert.That(line.Text, Is.EqualTo("↑ from Auth research"));
     }
 
     [Test]
-    public void For_SaysWhatWasHandedOver()
+    public void For_NamesTheCardsAParentHandsOverTo()
     {
         var line = LinkLine.For("auth-research", Status(
         [
-            Spawned("auth-research", "token-spike") with { HandOver = "token lifetimes" },
+            Lineage("auth-research", "token-spike"),
+            Lineage("auth-research", "cache-spike"),
+            Lineage("auth-research", "session-spike"),
         ]));
 
-        Assert.That(line.Text, Is.EqualTo("⑂ 1 child · handed over to Token spike"));
+        Assert.That(line.Text, Is.EqualTo("→ Token spike, Cache spike +1"));
+    }
+
+    [Test]
+    public void For_SaysWhomAChildReportsBackTo()
+    {
+        var line = LinkLine.For("token-spike", Status(
+        [
+            Lineage("auth-research", "token-spike"),
+            ReportBack("token-spike", "auth-research"),
+        ]));
+
+        Assert.That(line.Text, Is.EqualTo("↑ from Auth research · ↩ reports back to Auth research"));
+    }
+
+    [Test]
+    public void For_CountsAReportBackWaitingForConfirmOnTheParent()
+    {
+        var line = LinkLine.For("auth-research", Status(
+        [
+            Lineage("auth-research", "token-spike"),
+            ReportBack("token-spike", "auth-research") with
+            {
+                LatestReport = new LinkReport(Nine.AddHours(2), "s-1", @"C:\work\REPORT.md", "Done.", "done"),
+            },
+        ]));
+
+        Assert.That(line.Text, Is.EqualTo("? 1 to confirm · → Token spike"));
     }
 
     [Test]
     public void For_SaysWhenALinkedCardIsMissing()
     {
-        var links = new[] { Spawned("auth-research", "deleted-spike") };
+        var links = new[] { Lineage("auth-research", "deleted-spike") };
         var status = new LinkStatus(links, [new LinkCard("auth-research", "Auth research", false, false, false, null)]);
 
         Assert.That(LinkLine.For("auth-research", status).Text, Does.Contain("linked card missing"));
@@ -101,11 +102,12 @@ public class LinkLineTests
     {
         var line = LinkLine.For("token-spike", Status(
         [
-            Spawned("auth-research", "token-spike"),
-            Feeds("token-spike", "auth-research"),
+            HandOver("auth-research", "token-spike"),
+            ReportBack("token-spike", "auth-research"),
         ]));
 
-        Assert.That(line.Tooltip, Does.Contain("Spawned by Auth research").And.Contain("Auth research waits on this"));
+        Assert.That(line.Tooltip, Does.Contain("Takes over from Auth research: not accepted yet")
+            .And.Contain("Reports back to Auth research: not accepted yet"));
     }
 
     private static LinkStatus Status(IReadOnlyList<Link> links)
@@ -122,10 +124,13 @@ public class LinkLineTests
         return char.ToUpperInvariant(words[0]) + words[1..];
     }
 
-    private static Link Feeds(string from, string to, bool satisfied = false) =>
-        new($"lk-{from}-{to}", LinkKind.Feeds, from, to, Nine, Link.MadeOnTheBoard,
+    private static Link HandOver(string from, string to, bool satisfied = false) =>
+        new($"lk-{from}-{to}", LinkKind.HandsOver, from, to, Nine, Link.MadeOnTheBoard, Output: @"C:\work\HANDOVER.md",
             SatisfiedUtc: satisfied ? Nine.AddHours(1) : null, SatisfiedBy: satisfied ? "by hand: ok" : null);
 
-    private static Link Spawned(string from, string to) =>
-        new($"lk-s-{from}-{to}", LinkKind.Spawned, from, to, Nine, Link.MadeOnTheBoard);
+    private static Link Lineage(string from, string to) =>
+        new($"lk-l-{from}-{to}", LinkKind.HandsOver, from, to, Nine, Link.MadeOnTheBoard);
+
+    private static Link ReportBack(string from, string to) =>
+        new($"lk-r-{from}-{to}", LinkKind.ReportsBack, from, to, Nine, Link.MadeOnTheBoard, Output: @"C:\work\REPORT.md");
 }

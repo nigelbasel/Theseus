@@ -10,7 +10,7 @@ public class LinkReportStatusTests
     [Test]
     public void StateOf_AnUnsatisfiedLinkWithAReportIsReported()
     {
-        var link = Feeds() with { LatestReport = Report() };
+        var link = HandOver() with { LatestReport = Report() };
 
         Assert.That(Status(link, Card("spike"), Card("research")).StateOf(link), Is.EqualTo(LinkState.Reported));
     }
@@ -18,7 +18,7 @@ public class LinkReportStatusTests
     [Test]
     public void StateOf_AReportNeverSatisfiesALinkUntilItIsConfirmed()
     {
-        var reported = Feeds() with { LatestReport = Report() };
+        var reported = HandOver() with { LatestReport = Report() };
         var confirmed = reported with { SatisfiedUtc = Nine.AddHours(1), SatisfiedBy = LinkBook.ConfirmedReport };
 
         Assert.That(Status(reported, Card("spike"), Card("research")).ReadinessOf("research"), Is.EqualTo(CardReadiness.Waiting));
@@ -28,7 +28,7 @@ public class LinkReportStatusTests
     [Test]
     public void StateOf_AnUpstreamThatRanSinceAndStoppedCleanlyHasNoReportYet()
     {
-        var link = Feeds();
+        var link = HandOver();
 
         Assert.That(Status(link, Card("spike", lastRun: Nine.AddHours(1)), Card("research")).StateOf(link),
             Is.EqualTo(LinkState.NoReportYet));
@@ -37,7 +37,7 @@ public class LinkReportStatusTests
     [Test]
     public void StateOf_AnUpstreamStillRunningIsOnlyWaiting()
     {
-        var link = Feeds();
+        var link = HandOver();
 
         Assert.That(Status(link, Card("spike", live: true, lastRun: Nine.AddHours(1)), Card("research")).StateOf(link),
             Is.EqualTo(LinkState.Waiting));
@@ -46,7 +46,7 @@ public class LinkReportStatusTests
     [Test]
     public void StateOf_RunsFromBeforeTheLinkWasMadeDoNotCount()
     {
-        var link = Feeds();
+        var link = HandOver();
 
         Assert.That(Status(link, Card("spike", lastRun: Nine.AddHours(-1), crashed: true), Card("research")).StateOf(link),
             Is.EqualTo(LinkState.Waiting));
@@ -57,7 +57,7 @@ public class LinkReportStatusTests
     [TestCase(false, false, true)]
     public void StateOf_AnUpstreamFinishedWithAndNoReportIsReportLost(bool archived, bool done, bool crashed)
     {
-        var link = Feeds();
+        var link = HandOver();
         var upstream = Card("spike", lastRun: Nine.AddHours(1), archived: archived, done: done, crashed: crashed);
 
         Assert.That(Status(link, upstream, Card("research")).StateOf(link), Is.EqualTo(LinkState.ReportLost));
@@ -69,8 +69,8 @@ public class LinkReportStatusTests
         bool done = false, bool crashed = false) =>
         new(key, key, archived, false, live, lastRun, done, crashed);
 
-    private static Link Feeds() =>
-        new("lk-1", LinkKind.Feeds, "spike", "research", Nine, Link.MadeOnTheBoard, Output: @"C:\work\REPORT.md");
+    private static Link HandOver() =>
+        new("lk-1", LinkKind.HandsOver, "spike", "research", Nine, Link.MadeOnTheBoard, Output: @"C:\work\REPORT.md");
 
     private static LinkReport Report() => new(Nine.AddMinutes(30), "session-1", @"C:\work\REPORT.md", "Found it.", "go");
 }
