@@ -19,6 +19,7 @@ public sealed class ChainsViewModel : ObservableObject
     private readonly Action<string> _showCard;
     private LinkStatus _status = new([], []);
     private string _treeShape = string.Empty;
+    private Dictionary<string, string> _parents = new(StringComparer.OrdinalIgnoreCase);
     private string _needsShape = string.Empty;
     private readonly Dictionary<string, DateTimeOffset> _setAside = new(StringComparer.Ordinal);
     private readonly Dictionary<string, DateTimeOffset> _seenReports = new(StringComparer.Ordinal);
@@ -255,6 +256,7 @@ public sealed class ChainsViewModel : ObservableObject
         var cards = _cards();
 
         _status = Current(cards);
+        _parents = TreeParents();
 
         foreach (var card in cards)
         {
@@ -437,9 +439,52 @@ public sealed class ChainsViewModel : ObservableObject
         Raise(nameof(HasNoChains));
     }
 
-    private string? Parent(string key) =>
-        _status.Links.FirstOrDefault(link => link.Kind == LinkKind.Spawned
-                                             && string.Equals(link.To, key, StringComparison.OrdinalIgnoreCase))?.From;
+    private string? Parent(string key) => _parents.GetValueOrDefault(key);
+
+    /// <summary>
+    /// Where each card sits in the tree: under the card that spawned it, otherwise under the first card
+    /// it waits on, so a run of stages reads downwards. An input that would put a card under one of its
+    /// own descendants is left as a "waits on" line only.
+    /// </summary>
+    private Dictionary<string, string> TreeParents()
+    {
+        var parents = _status.Links
+            .Where(link => link.Kind == LinkKind.Spawned)
+            .GroupBy(link => link.To, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First().From, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var link in _status.Links.Where(link => link.Kind == LinkKind.Feeds).OrderBy(link => link.CreatedUtc))
+        {
+            if (!parents.ContainsKey(link.To) && !IsUnder(parents, link.From, link.To))
+            {
+                parents[link.To] = link.From;
+            }
+        }
+
+        return parents;
+    }
+
+    private static bool IsUnder(Dictionary<string, string> parents, string key, string ancestor)
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        for (var current = key; seen.Add(current); )
+        {
+            if (Same(current, ancestor))
+            {
+                return true;
+            }
+
+            if (!parents.TryGetValue(current, out var next))
+            {
+                return false;
+            }
+
+            current = next;
+        }
+
+        return true;
+    }
 
     private void UpdateRelated()
     {

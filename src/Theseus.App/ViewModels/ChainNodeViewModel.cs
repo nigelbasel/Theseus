@@ -3,8 +3,8 @@ using System.Collections.ObjectModel;
 namespace Theseus.App.ViewModels;
 
 /// <summary>
-/// One card in the Chains tree. A card sits under the card that spawned it; a waited-on input is a
-/// line under the card that waits, never a line drawn between rows, so fan-in needs no special case.
+/// One card in the Chains tree. A card sits under the card that spawned it, or else under the first card
+/// it waits on; every input is also a "waits on" line under the card that waits, so fan-in needs no special case.
 /// </summary>
 /// <param name="Key">The card's key.</param>
 /// <param name="Title">Its title.</param>

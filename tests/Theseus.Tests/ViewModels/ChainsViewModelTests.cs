@@ -59,6 +59,57 @@ public class ChainsViewModelTests
     }
 
     [Test]
+    public void Update_PutsACardNothingSpawnedUnderTheCardItWaitsOn()
+    {
+        _book.Add(LinkKind.Spawned, "auth-research", "token-spike");
+        _book.Add(LinkKind.Feeds, "token-spike", "auth-implementation");
+
+        _chains.Update();
+
+        var spike = _chains.Roots.Single().Children.Single();
+        Assert.That(spike.Key, Is.EqualTo("token-spike"));
+        Assert.That(spike.Children.Single().Key, Is.EqualTo("auth-implementation"));
+    }
+
+    [Test]
+    public void Update_PrefersTheSpawningCardOverAnInput()
+    {
+        _book.Add(LinkKind.Spawned, "auth-research", "auth-implementation");
+        _book.Add(LinkKind.Feeds, "token-spike", "auth-implementation");
+
+        _chains.Update();
+
+        Assert.That(_chains.Roots.Select(root => root.Key), Is.EquivalentTo(new[] { "auth-research", "token-spike" }));
+        Assert.That(_chains.Roots.Single(root => root.Key == "auth-research").Children.Single().Key,
+            Is.EqualTo("auth-implementation"));
+    }
+
+    [Test]
+    public void Update_PutsACardWithSeveralInputsUnderTheFirstLinked()
+    {
+        _book.Add(LinkKind.Feeds, "token-spike", "auth-implementation");
+        _book.Add(LinkKind.Feeds, "auth-research", "auth-implementation");
+
+        _chains.Update();
+
+        Assert.That(_chains.Roots.Single(root => root.Key == "token-spike").Children.Single().Key,
+            Is.EqualTo("auth-implementation"));
+        Assert.That(_chains.Roots.Single(root => root.Key == "auth-research").Children, Is.Empty);
+    }
+
+    [Test]
+    public void Update_NeverNestsAlongALinkThatLoopsBack()
+    {
+        _book.Add(LinkKind.Spawned, "auth-research", "token-spike");
+        _book.Add(LinkKind.Feeds, "token-spike", "auth-research");
+
+        _chains.Update();
+
+        Assert.That(_chains.Roots.Single().Key, Is.EqualTo("auth-research"));
+        Assert.That(_chains.Roots.Single().Children.Single().Key, Is.EqualTo("token-spike"));
+    }
+
+    [Test]
     public void Update_ListsAndCountsReadyCards()
     {
         var link = _book.Add(LinkKind.Feeds, "token-spike", "auth-implementation").Link!;
