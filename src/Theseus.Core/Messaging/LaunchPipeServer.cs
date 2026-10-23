@@ -32,6 +32,10 @@ public sealed class LaunchPipeServer : IAsyncDisposable
     private readonly UTF8Encoding _encoding = new(encoderShouldEmitUTF8Identifier: false);
 
     private Task? _listener;
+    private Task? _sweeper;
+
+    /// <summary>How often tickets are checked for having lapsed unredeemed.</summary>
+    public static readonly TimeSpan SweepInterval = TimeSpan.FromSeconds(15);
 
     /// <summary>Creates a server that has not yet started listening.</summary>
     public LaunchPipeServer(string pipeName, ILaunchEventSink sink, ISystemClock clock)
@@ -51,8 +55,40 @@ public sealed class LaunchPipeServer : IAsyncDisposable
             ticket.Ticket, ticket.WorkstreamKey, _tickets.Count);
     }
 
-    /// <summary>Begins accepting shim connections.</summary>
-    public void Start() => _listener ??= Task.Run(() => ListenAsync(_stopping.Token));
+    /// <summary>Begins accepting shim connections, and watching for tickets nobody redeems.</summary>
+    public void Start()
+    {
+        _listener ??= Task.Run(() => ListenAsync(_stopping.Token));
+        _sweeper ??= Task.Run(() => SweepAsync(_stopping.Token));
+    }
+
+    /// <summary>
+    /// Drops every ticket that expired without a shim presenting it, and reports each one. On
+    /// 2026-10-23 Windows Terminal opened a plain cmd tab for a launch instead of running the shim,
+    /// and nothing anywhere said so: the ticket just sat here until the next restart.
+    /// </summary>
+    /// <returns>How many tickets lapsed.</returns>
+    public int SweepLapsed()
+    {
+        var now = _clock.UtcNow;
+        var lapsed = 0;
+
+        foreach (var (key, ticket) in _tickets)
+        {
+            if (ticket.ExpiresUtc > now || !_tickets.TryRemove(key, out _))
+            {
+                continue;
+            }
+
+            lapsed++;
+            TheseusLog.Warning(
+                "Ticket {Ticket} for {Workstream} lapsed at {Expires:HH:mm:ss} with no launcher presenting it: the terminal took the launch but never ran it",
+                ticket.Ticket, ticket.WorkstreamKey, ticket.ExpiresUtc.ToLocalTime());
+            _sink.TicketLapsed(ticket.Ticket, ticket.WorkstreamKey);
+        }
+
+        return lapsed;
+    }
 
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
@@ -70,7 +106,27 @@ public sealed class LaunchPipeServer : IAsyncDisposable
             }
         }
 
+        if (_sweeper is not null)
+        {
+            try
+            {
+                await _sweeper;
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
+
         _stopping.Dispose();
+    }
+
+    private async Task SweepAsync(CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            await Task.Delay(SweepInterval, cancellationToken);
+            SweepLapsed();
+        }
     }
 
     private async Task ListenAsync(CancellationToken cancellationToken)

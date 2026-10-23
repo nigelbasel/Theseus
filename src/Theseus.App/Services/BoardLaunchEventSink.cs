@@ -43,6 +43,29 @@ public sealed class BoardLaunchEventSink : ILaunchEventSink
     /// <inheritdoc />
     public void Started(string ticket, StartedPayload payload) => Set(ticket, SessionLifecycle.Running);
 
+    /// <summary>Told, in words, when a start never reached its tab, so Nigel knows to start it again.</summary>
+    public Action<string>? StartLost { get; set; }
+
+    /// <inheritdoc />
+    public void TicketLapsed(string ticket, string workstreamKey)
+    {
+        End(ticket, null, SessionExitReason.NeverStarted);
+        Set(ticket, SessionLifecycle.Ghost);
+
+        lock (_ticketsToWorkstreams)
+        {
+            _ticketsToWorkstreams.Remove(ticket);
+        }
+
+        _dispatcher.BeginInvoke(() =>
+        {
+            var title = _board.Card(workstreamKey)?.Title ?? workstreamKey;
+
+            StartLost?.Invoke($"{title} did not start: Windows Terminal opened the tab but never ran the session in it."
+                              + " Close that tab and press Start again.");
+        });
+    }
+
     /// <inheritdoc />
     public void Reminted(string ticket, RemintedPayload payload) =>
         Post(ticket, card => _board.RememberSession(card.Key, payload.NewSessionId));

@@ -235,6 +235,9 @@ public sealed class LaunchCoordinator : IAsyncDisposable
             startInfo.ArgumentList.Add(argument);
         }
 
-        Process.Start(startInfo);
+        var terminal = Process.Start(startInfo);
+
+        TheseusLog.Debug("Started {Terminal} (process {Process}) with {Arguments}", plan.TerminalExecutablePath,
+            terminal?.Id, string.Join(" | ", plan.TerminalArguments));
     }
 }

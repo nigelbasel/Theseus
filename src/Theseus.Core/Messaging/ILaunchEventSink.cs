@@ -12,6 +12,12 @@ public interface ILaunchEventSink
     /// <summary>A ticket was presented that could not be redeemed.</summary>
     void TicketRefused(string ticket, string reason);
 
+    /// <summary>
+    /// A ticket expired without any shim presenting it: the terminal took the launch but never ran
+    /// the shim, so no session will start from it.
+    /// </summary>
+    void TicketLapsed(string ticket, string workstreamKey);
+
     /// <summary>Claude Code started in the shim's tab.</summary>
     void Started(string ticket, StartedPayload payload);
 

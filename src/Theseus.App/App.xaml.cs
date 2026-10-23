@@ -110,6 +110,7 @@ public partial class App : Application
         shell.Chains = chains;
         shell.Snapshots = snapshots;
         chains.ReportArrived = shell.Warn;
+        sink.StartLost = shell.Warn;
         links.Changed += (_, _) =>
         {
             if (!Dispatcher.CheckAccess())

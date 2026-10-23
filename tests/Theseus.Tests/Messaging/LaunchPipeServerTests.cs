@@ -138,6 +138,30 @@ public class LaunchPipeServerTests
 
     private LauncherPipeClient Connect() => LauncherPipeClient.Connect(_pipeName, Patience);
 
+    [Test]
+    public void SweepLapsed_ReportsATicketThatExpiredUnredeemedOnce()
+    {
+        _server.Register(Ticket("t-old") with { ExpiresUtc = new DateTimeOffset(2026, 8, 26, 8, 58, 0, TimeSpan.Zero) });
+        _server.Register(Ticket("t-fresh"));
+
+        Assert.That(_server.SweepLapsed(), Is.EqualTo(1));
+        Assert.That(_server.SweepLapsed(), Is.Zero);
+        Assert.That(_sink.Lapsed.Single(), Is.EqualTo(("t-old", "contact-forms-contact-forms")));
+    }
+
+    [Test]
+    public void SweepLapsed_LeavesARedeemedTicketAlone()
+    {
+        _server.Register(Ticket("t-1") with { ExpiresUtc = new DateTimeOffset(2026, 8, 26, 9, 0, 1, TimeSpan.Zero) });
+
+        using var client = Connect();
+        client.Redeem("t-1", shimProcessId: 4242);
+        Assert.That(WaitFor(() => _sink.Connected.Count == 1), Is.True);
+
+        Assert.That(_server.SweepLapsed(), Is.Zero);
+        Assert.That(_sink.Lapsed, Is.Empty);
+    }
+
     private static LaunchTicket Ticket(string ticket) =>
         new(ticket, "contact-forms-contact-forms",
             new LaunchSpec(SessionId, LaunchMode.FirstRun, @"C:\claude.cmd", @"C:\work\repo",
@@ -181,6 +205,10 @@ public class LaunchPipeServerTests
         public ConcurrentBag<(string Ticket, string SessionId, int ExitCode, long DurationMs)> Exited { get; } = [];
 
         public ConcurrentBag<string> Disconnected { get; } = [];
+
+        public ConcurrentBag<(string Ticket, string Workstream)> Lapsed { get; } = [];
+
+        public void TicketLapsed(string ticket, string workstreamKey) => Lapsed.Add((ticket, workstreamKey));
 
         public void ShimConnected(string ticket, int shimProcessId) => Connected.Add((ticket, shimProcessId));
 
