@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net10.0-windows</TargetFramework>
+    <TargetFramework>net11.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
@@ -38,8 +38,8 @@
   -->
   <Target Name="CopyLauncherHost" AfterTargets="Build">
     <ItemGroup>
-      <LauncherHost Include="$(MSBuildThisFileDirectory)..\Theseus.Launcher\bin\$(Configuration)\net10.0\Theseus.Launcher.exe" />
-      <LauncherHost Include="$(MSBuildThisFileDirectory)..\Theseus.Hook\bin\$(Configuration)\net10.0\Theseus.Hook.exe" />
+      <LauncherHost Include="$(MSBuildThisFileDirectory)..\Theseus.Launcher\bin\$(Configuration)\net11.0\Theseus.Launcher.exe" />
+      <LauncherHost Include="$(MSBuildThisFileDirectory)..\Theseus.Hook\bin\$(Configuration)\net11.0\Theseus.Hook.exe" />
     </ItemGroup>
     <Copy SourceFiles="@(LauncherHost)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" Condition="Exists('%(LauncherHost.FullPath)')" />
   </Target>
