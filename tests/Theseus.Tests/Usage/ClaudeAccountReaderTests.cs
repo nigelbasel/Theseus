@@ -29,10 +29,10 @@ public class ClaudeAccountReaderTests
 
         var account = Read();
 
-        Assert.That(account.EmailAddress, Is.EqualTo("nigel@nurtur.tech"));
-        Assert.That(account.OrganizationName, Is.EqualTo("nigel@nurtur.tech's Organization"));
+        Assert.That(account.EmailAddress, Is.EqualTo("nigel@example.com"));
+        Assert.That(account.OrganizationName, Is.EqualTo("nigel@example.com's Organization"));
         Assert.That(account.SubscriptionType, Is.EqualTo("max"));
-        Assert.That(account.Describe, Is.EqualTo("nigel@nurtur.tech · max"));
+        Assert.That(account.Describe, Is.EqualTo("nigel@example.com · max"));
     }
 
     [Test]
@@ -42,9 +42,9 @@ public class ClaudeAccountReaderTests
             {
               "oauthAccount": {
                 "accountUuid": "11111111-2222-3333-4444-555555555555",
-                "emailAddress": "nigel@nurtur.tech",
+                "emailAddress": "nigel@example.com",
                 "organizationUuid": "66666666-7777-8888-9999-000000000000",
-                "organizationName": "Nurtur"
+                "organizationName": "Example"
               }
             }
             """);
@@ -62,11 +62,11 @@ public class ClaudeAccountReaderTests
         File.WriteAllText(_config, """
             {
               "projects": { "C:/dev/x": {}, "c:/dev/x": {} },
-              "oauthAccount": { "emailAddress": "nigel@nurtur.tech" }
+              "oauthAccount": { "emailAddress": "nigel@example.com" }
             }
             """);
 
-        Assert.That(Read().EmailAddress, Is.EqualTo("nigel@nurtur.tech"),
+        Assert.That(Read().EmailAddress, Is.EqualTo("nigel@example.com"),
             "paths differing only in case appear twice in the real file");
     }
 
@@ -86,9 +86,9 @@ public class ClaudeAccountReaderTests
 
         var account = Read();
 
-        Assert.That(account.EmailAddress, Is.EqualTo("nigel@nurtur.tech"));
+        Assert.That(account.EmailAddress, Is.EqualTo("nigel@example.com"));
         Assert.That(account.SubscriptionType, Is.Null);
-        Assert.That(account.Describe, Is.EqualTo("nigel@nurtur.tech"));
+        Assert.That(account.Describe, Is.EqualTo("nigel@example.com"));
     }
 
     [Test]
@@ -104,8 +104,8 @@ public class ClaudeAccountReaderTests
     private void WriteConfig() => File.WriteAllText(_config, """
         {
           "oauthAccount": {
-            "emailAddress": "nigel@nurtur.tech",
-            "organizationName": "nigel@nurtur.tech's Organization"
+            "emailAddress": "nigel@example.com",
+            "organizationName": "nigel@example.com's Organization"
           }
         }
         """);

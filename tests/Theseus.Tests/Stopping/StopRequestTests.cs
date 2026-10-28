@@ -6,7 +6,7 @@ namespace Theseus.Tests.Stopping;
 public class StopRequestTests
 {
     private static readonly StopTarget Target =
-        new("Robocop to Nexus", @"C:\dev\tfsgit\HANDOFF-nexus.md");
+        new("Old name to new name", @"C:\work\HANDOFF-example.md");
 
     [Test]
     public void For_NamesTheFileTheSessionShouldWrite()
