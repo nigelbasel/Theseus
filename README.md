@@ -31,7 +31,18 @@ yesterday's work.
 
 ## Installing
 
-Download the `.msi` from the releases page, or build and install from source in one step:
+Download the newest build:
+
+**https://github.com/nigelbasel/Theseus/releases/latest/download/Theseus.msi**
+
+Every push to `main` that builds and passes its tests is published as a release named after its
+version stamp, with a `SHA256SUMS.txt` beside the installer. Once installed, Theseus checks for a
+newer release a minute after it starts and every six hours, and offers it under the notice line:
+**Update and restart** downloads it, checks its SHA-256, installs it (Windows asks for permission) and
+starts Theseus again. **Later** skips that version. Sessions running in terminal tabs are not touched.
+A local Debug build is never offered an update.
+
+Or build and install from source in one step:
 
 ```powershell
 .\install.ps1

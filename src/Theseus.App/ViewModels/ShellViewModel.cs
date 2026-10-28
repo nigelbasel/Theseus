@@ -284,6 +284,9 @@ public sealed class ShellViewModel : ObservableObject
     /// <summary>Where the board publishes itself at the end of each refresh, for the session tools to read.</summary>
     public BoardSnapshotSource? Snapshots { get; set; }
 
+    /// <summary>The offer of a newer published build, under the notice line.</summary>
+    public UpdateViewModel? Updates { get; set; }
+
     /// <summary>Opens the New dialog for a follow-on spawned from a card.</summary>
     public RelayCommand SpawnFollowOnCommand { get; }
 

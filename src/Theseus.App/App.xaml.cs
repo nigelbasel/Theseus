@@ -15,6 +15,7 @@ using Theseus.Core.Sessions;
 using Theseus.Core.Settings;
 using Theseus.Core.Usage;
 using Theseus.Core.Terminal;
+using Theseus.Core.Updates;
 
 namespace Theseus.App;
 
@@ -25,6 +26,8 @@ public partial class App : Application
     private SessionRegistryWatcher? _watcher;
     private UsageViewModel? _usage;
     private AttentionSampler? _attention;
+    private GitHubReleaseFeed? _releases;
+    private System.Windows.Threading.DispatcherTimer? _updateTimer;
     private McpHttpServer? _mcp;
     private Timer? _lockSweep;
     private LocksViewModel? _locks;
@@ -210,8 +213,36 @@ public partial class App : Application
         SessionJumpList.Show(this, sessions.Snapshot.Live);
         sessions.Refreshed += (_, _) => SessionJumpList.Show(this, sessions.Snapshot.Live);
 
+        StartUpdateChecks(shell);
+
         MainWindow = new MainWindow { DataContext = shell };
         MainWindow.Show();
+    }
+
+    /// <summary>
+    /// Checks the public releases a minute after starting, so the board is up first, and every six
+    /// hours after that. GitHub allows sixty unauthenticated calls an hour; this makes four a day.
+    /// </summary>
+    private void StartUpdateChecks(ShellViewModel shell)
+    {
+        _releases = new GitHubReleaseFeed(AppVersion.Current);
+
+        var updates = new UpdateViewModel(_releases, AppVersion.Current, Path.Combine(DataDirectory, "updates"), msi =>
+        {
+            UpdateInstaller.Start(msi, Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "Theseus.exe"),
+                Environment.ProcessId);
+            MainWindow?.Close();
+        });
+
+        shell.Updates = updates;
+
+        _updateTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
+        _updateTimer.Tick += async (_, _) =>
+        {
+            _updateTimer.Interval = TimeSpan.FromHours(6);
+            await updates.CheckAsync();
+        };
+        _updateTimer.Start();
     }
 
     /// <summary>
@@ -240,6 +271,8 @@ public partial class App : Application
         TheseusLog.Information("Theseus is closing");
         _usage?.Dispose();
         _attention?.Dispose();
+        _updateTimer?.Stop();
+        _releases?.Dispose();
 
         _locks?.Dispose();
 

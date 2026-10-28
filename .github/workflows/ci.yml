@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# One run per branch at a time, and on main the newer push cancels the older: two pushes a minute
+# apart would otherwise race to publish, and the one that finished last would become "latest" -
+# the older build, half the time. The same reasoning as TailHawk's workflow.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref == 'refs/heads/main' }}
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  # WiX 6.0.2 is what builds the installer on Nigel's machine; the runner uses the same.
+  WIX_VERSION: 6.0.2
+
+jobs:
+  build:
+    runs-on: windows-latest
+    outputs:
+      version: ${{ steps.msi.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # global.json pins the SDK (a .NET 11 release candidate, allowPrerelease), so the runner
+      # builds with what a developer machine builds with rather than whatever the image carries.
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Test
+        run: dotnet test tests/Theseus.Tests --nologo --logger "console;verbosity=normal"
+
+      - name: Install WiX
+        run: |
+          dotnet tool install --global wix --version $env:WIX_VERSION
+          $tools = Join-Path $env:USERPROFILE '.dotnet\tools'
+          $env:PATH = "$tools;$env:PATH"
+          $tools >> $env:GITHUB_PATH
+          wix extension add --global "WixToolset.UI.wixext/$env:WIX_VERSION"
+
+      # The same script install.ps1 uses, so the published MSI is built exactly as a local one is.
+      # The release build stamps the version from the clock (Directory.Build.props); the stamp is
+      # read back out of the file name rather than recomputed, so the release is named after what
+      # the MSI says of itself.
+      - name: Build the installer
+        id: msi
+        shell: pwsh
+        run: |
+          ./scripts/Build-Installer.ps1 -OutputDirectory dist
+          $msi = Get-ChildItem dist -Filter 'Theseus-*.msi' | Select-Object -First 1
+          if ($null -eq $msi) { throw 'Build-Installer.ps1 produced no MSI.' }
+          $version = $msi.BaseName.Substring('Theseus-'.Length)
+          Copy-Item $msi.FullName dist/Theseus.msi
+          Remove-Item $msi.FullName
+          $hash = (Get-FileHash dist/Theseus.msi -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  Theseus.msi" | Set-Content -Path dist/SHA256SUMS.txt -Encoding ascii -NoNewline
+          "Theseus $version, SHA-256 $hash"
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: theseus-installer
+          path: dist/
+          if-no-files-found: error
+
+  # Every push to main that builds and tests green becomes a release tagged with the build's own
+  # version stamp. GitHub's latest/download redirect then always answers with the newest one,
+  # and that is the address the app's update check and anyone downloading by hand both use:
+  #
+  #   https://github.com/nigelbasel/Theseus/releases/latest/download/Theseus.msi
+  #
+  # A pull request builds and is never published.
+  release:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: theseus-installer
+          path: dist
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          gh release create "v$VERSION" dist/Theseus.msi dist/SHA256SUMS.txt \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "Theseus $VERSION" \
+            --notes "Built from $GITHUB_SHA. Install by running Theseus.msi; it replaces any earlier version. SHA-256 sums are in SHA256SUMS.txt."

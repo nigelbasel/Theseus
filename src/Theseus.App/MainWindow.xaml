@@ -786,6 +786,21 @@
                     <TextBlock Text="{Binding Notice}" FontSize="12" Margin="0,2,0,0"
                                TextTrimming="CharacterEllipsis" ToolTip="{Binding Notice}"
                                Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+                    <!-- A newer published build: offered, never installed until Update is pressed. -->
+                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
+                                Visibility="{Binding Updates.IsOffered, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
+                        <TextBlock Text="{Binding Updates.OfferText}" FontSize="12" VerticalAlignment="Center"
+                                   ToolTip="{Binding Updates.Offer.Page}" />
+                        <Button Content="Update and restart" Padding="10,2" Margin="8,0,0,0"
+                                ToolTip="Download it, check its SHA-256, install it (Windows asks for permission) and restart Theseus. Running sessions are not touched."
+                                Command="{Binding Updates.UpdateCommand}" />
+                        <Button Content="Later" Padding="10,2" Margin="6,0,0,0"
+                                ToolTip="Not this version. Theseus offers again when a newer one is published."
+                                Command="{Binding Updates.LaterCommand}" />
+                        <TextBlock Text="{Binding Updates.Status}" FontSize="12" Margin="8,0,0,0" VerticalAlignment="Center"
+                                   TextWrapping="Wrap" MaxWidth="420"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
                 </StackPanel>
             </StackPanel>
 
