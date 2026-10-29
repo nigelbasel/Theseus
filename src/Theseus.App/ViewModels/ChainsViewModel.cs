@@ -31,6 +31,7 @@ public sealed class ChainsViewModel : ObservableObject
     private string _suggestedOutput = string.Empty;
     private string _linkRefusal = string.Empty;
     private bool _isAddingLink;
+    private ProposalsViewModel? _proposals;
 
     /// <summary>Creates the view over a link book.</summary>
     /// <param name="cards">The cards on the board, read on every update.</param>
@@ -92,13 +93,39 @@ public sealed class ChainsViewModel : ObservableObject
     /// <summary>Whether no card has a link yet, so the tab explains how to make one.</summary>
     public bool HasNoChains => Roots.Count == 0;
 
-    /// <summary>The command bar button's label: "Chains", and how many cards are ready.</summary>
+    /// <summary>The workstreams sessions have proposed, shown at the top of the tab.</summary>
+    public ProposalsViewModel? Proposals
+    {
+        get => _proposals;
+        set
+        {
+            if (_proposals is not null)
+            {
+                _proposals.Updated -= ProposalsUpdated;
+            }
+
+            _proposals = value;
+
+            if (_proposals is not null)
+            {
+                _proposals.Updated += ProposalsUpdated;
+            }
+
+            Raise(nameof(Proposals));
+            Raise(nameof(ButtonText));
+        }
+    }
+
+    /// <summary>The command bar button's label: "Chains", and how many proposals and cards wait.</summary>
     public string ButtonText => string.Join(" · ", new[]
     {
         "Chains",
+        _proposals?.Pending.Count is > 0 and var proposed ? $"{proposed} proposed" : string.Empty,
         NeedsYou.Count == 0 ? string.Empty : $"{NeedsYou.Count} need you",
         Ready.Count == 0 ? string.Empty : $"{Ready.Count} ready",
     }.Where(part => part.Length > 0));
+
+    private void ProposalsUpdated(object? sender, EventArgs e) => Raise(nameof(ButtonText));
 
     /// <summary>The links of the card open in the drawer.</summary>
     public ObservableCollection<RelatedLinkViewModel> Related { get; } = [];

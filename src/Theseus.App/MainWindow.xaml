@@ -1052,6 +1052,65 @@
                                    Visibility="{Binding Chains.HasNoChains, Converter={StaticResource BoolToVisibility}}" />
 
                         <!--
+                            Workstreams sessions have proposed. Review opens the composer filled in from
+                            the proposal, and only Create there makes the card; Reject takes a note the
+                            proposer reads back.
+                        -->
+                        <StackPanel Visibility="{Binding Chains.Proposals.Pending.Count, Converter={StaticResource CountToVisibility}, FallbackValue=Collapsed}">
+                            <TextBlock Text="PROPOSED" FontSize="11" FontWeight="SemiBold" Margin="4,0,0,6"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            <ItemsControl ItemsSource="{Binding Chains.Proposals.Pending}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Margin="0,0,0,6" Padding="8,6" CornerRadius="6" BorderThickness="4,0,0,0"
+                                                BorderBrush="{Binding ColorHex, Converter={StaticResource HexToBrush}}"
+                                                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                                                ToolTip="{Binding Evidence}">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Heading}" FontSize="12" TextWrapping="Wrap"
+                                                           Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                                <TextBlock Text="{Binding Detail}" FontSize="11" TextWrapping="Wrap" Margin="0,2,0,0"
+                                                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                                                <TextBlock Text="{Binding DoneCriteria}" FontSize="11" TextWrapping="Wrap" Margin="0,2,0,0"
+                                                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                                                <TextBlock Text="{Binding Warnings}" FontSize="11" TextWrapping="Wrap" Margin="0,2,0,0"
+                                                           Foreground="#D68910"
+                                                           Visibility="{Binding Warnings, Converter={StaticResource NotEmptyToVisibility}}" />
+                                                <WrapPanel Margin="0,6,0,0"
+                                                           Visibility="{Binding IsRejecting, Converter={StaticResource NotBoolToVisibility}}">
+                                                    <Button Content="Review…" FontSize="11" Padding="8,2" Margin="0,0,6,0"
+                                                            ToolTip="Open it in the new workstream dialog; Create there approves it"
+                                                            Command="{Binding ReviewCommand}" />
+                                                    <Button Content="Open brief" FontSize="11" Padding="8,2" Margin="0,0,6,0"
+                                                            Command="{Binding OpenBriefCommand}" />
+                                                    <Button Content="Reject…" FontSize="11" Padding="8,2" Margin="0,0,6,0"
+                                                            Command="{Binding AskRejectCommand}" />
+                                                </WrapPanel>
+                                                <StackPanel Margin="0,6,0,0"
+                                                            Visibility="{Binding IsRejecting, Converter={StaticResource BoolToVisibility}}">
+                                                    <TextBlock Text="A note for the session that proposed it (optional)." FontSize="11"
+                                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                    <TextBox Text="{Binding Note, UpdateSourceTrigger=PropertyChanged}" FontSize="11"
+                                                             Margin="0,4,0,4" />
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <Button Content="Reject" FontSize="11" Padding="8,2" Margin="0,0,6,0"
+                                                                Command="{Binding RejectCommand}" />
+                                                        <Button Content="Cancel" FontSize="11" Padding="8,2"
+                                                                Command="{Binding CancelRejectCommand}" />
+                                                    </StackPanel>
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding Refusal}" FontSize="11" TextWrapping="Wrap"
+                                                           Foreground="#D68910"
+                                                           Visibility="{Binding Refusal, Converter={StaticResource NotEmptyToVisibility}}" />
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <Separator Margin="0,4,0,10" />
+                        </StackPanel>
+
+                        <!--
                             Reports waiting for Nigel, and reports lost. A report satisfies nothing on its
                             own: Confirm is one press for a done or go verdict, and any other opens the
                             reason box with the verdict in it. Not yet moves the row to the bottom.
@@ -2027,6 +2086,11 @@
                                        Visibility="{Binding NewWorkstream.ReportBack, Converter={StaticResource BoolToVisibility}}" />
                             <TextBlock Style="{StaticResource FieldHint}" TextWrapping="Wrap"
                                        Text="This creates a card only. No Jira item, branch, worktree, push or PR." />
+                            <TextBlock Text="{Binding NewWorkstream.ProposalText}" Style="{StaticResource FieldHint}" TextWrapping="Wrap"
+                                       Visibility="{Binding NewWorkstream.IsProposal, Converter={StaticResource BoolToVisibility}}" />
+                            <TextBlock Text="{Binding NewWorkstream.ProposalWarnings}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"
+                                       Foreground="#D68910"
+                                       Visibility="{Binding NewWorkstream.ProposalWarnings, Converter={StaticResource NotEmptyToVisibility}}" />
                         </StackPanel>
 
                         <TextBlock Text="Title" Style="{StaticResource FieldLabel}" />

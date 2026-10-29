@@ -4,6 +4,7 @@ using Theseus.Core.Colour;
 using Theseus.Core.Abstractions;
 using Theseus.Core.Domain;
 using Theseus.Core.Links;
+using Theseus.Core.Proposals;
 
 namespace Theseus.App.ViewModels;
 
@@ -28,6 +29,7 @@ public sealed class NewWorkstreamViewModel : ObservableObject
     private bool _isOpen;
     private Workstream? _parent;
     private bool _reportBack;
+    private WorkstreamProposal? _proposal;
 
     /// <summary>Creates the composer.</summary>
     /// <param name="plans">Where the new plan file is written.</param>
@@ -109,10 +111,45 @@ public sealed class NewWorkstreamViewModel : ObservableObject
         set => Set(ref _reportBack, value);
     }
 
-    /// <summary>Where the follow-on writes its report, under its parent's working directory.</summary>
+    /// <summary>Where the follow-on writes its report: where its proposal said, or under its parent's working directory.</summary>
     public string ReportPath => _parent is null
         ? string.Empty
-        : BriefFolder.ReportPath(_parent.WorkingDirectory, _briefFolderName(), Key);
+        : _proposal?.Request.ExpectedOutput ?? BriefFolder.ReportPath(_parent.WorkingDirectory, _briefFolderName(), Key);
+
+    /// <summary>Whether this composer is approving a session's proposal.</summary>
+    public bool IsProposal => _proposal is not null;
+
+    /// <summary>What the dialog says about the proposal it is approving.</summary>
+    public string ProposalText => _proposal is null
+        ? string.Empty
+        : $"Proposed by {ParentTitle}, from session {_proposal.SessionId}. Creating the card approves it; closing this leaves it waiting. "
+          + "This creates a card only: no Jira item, branch, worktree, push or pull request.";
+
+    /// <summary>The proposal's warnings, one per line.</summary>
+    public string ProposalWarnings => _proposal is null
+        ? string.Empty
+        : string.Join("\n", _proposal.Warnings.Select(warning => $"\u26A0 {warning}"));
+
+    /// <summary>
+    /// Shows the composer filled in from a session's proposal, as a follow-on to the card that proposed
+    /// it. Nigel may change anything; creating the card is the approval.
+    /// </summary>
+    public void OpenProposal(Workstream parent, WorkstreamProposal proposal)
+    {
+        ArgumentNullException.ThrowIfNull(proposal);
+
+        OpenFollowOn(parent);
+        _proposal = proposal;
+        Title = proposal.Request.Title;
+        ReportBack = proposal.Request.ReportBack;
+        Prompt = ProposalPrompt.For(proposal.Request);
+        StartNow = false;
+
+        Raise(nameof(IsProposal));
+        Raise(nameof(ProposalText));
+        Raise(nameof(ProposalWarnings));
+        Raise(nameof(ReportPath));
+    }
 
     /// <summary>
     /// Shows the composer for a follow-on to <paramref name="parent"/>: same working directory, so it
@@ -216,6 +253,10 @@ public sealed class NewWorkstreamViewModel : ObservableObject
     private void Open()
     {
         _parent = null;
+        _proposal = null;
+        Raise(nameof(IsProposal));
+        Raise(nameof(ProposalText));
+        Raise(nameof(ProposalWarnings));
         Raise(nameof(IsFollowOn));
         Raise(nameof(ParentTitle));
         Title = string.Empty;
@@ -259,14 +300,16 @@ public sealed class NewWorkstreamViewModel : ObservableObject
     private void Create()
     {
         var key = Key;
+        var reportTo = _parent is not null && ReportBack ? ReportPath : null;
         var plan = new SessionPlan(_plans.Keys().Count + 1, Title.Trim(), ColourHex,
             WorkingDirectory.Trim(), [], null, DateTimeOffset.Now.ToString("s"), Prompt.Trim());
 
+        // The report path is read before the plan is written: afterwards the key counts its own plan
+        // file as taken, and the path came out as <key>-2 until 2026-10-29.
         _plans.Write(key, plan);
 
         IsOpen = false;
-        _created(new NewWorkstream(key, Stage, Area, StartNow, _parent?.Key,
-            _parent is not null && ReportBack ? ReportPath : null));
+        _created(new NewWorkstream(key, Stage, Area, StartNow, _parent?.Key, reportTo, _proposal?.Id));
     }
 
     private IReadOnlyList<string> ColoursInUse() =>

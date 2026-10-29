@@ -162,6 +162,11 @@ public sealed class ShellViewModel : ObservableObject
                     Chains?.FollowedOn(parent, created.Key, created.ReportTo);
                 }
 
+                if (created.ProposalId is { } proposal)
+                {
+                    Chains?.Proposals?.Approved(proposal, created.Key);
+                }
+
                 if (Board.Card(created.Key) is not { } card)
                 {
                     Notice = "The workstream was created but is not on the board yet.";
@@ -525,6 +530,24 @@ public sealed class ShellViewModel : ObservableObject
         {
             TheseusLog.Information("Refreshing the board: {Step} took {Seconds:0.0}s", step, watch.Elapsed.TotalSeconds);
         }
+    }
+
+    /// <summary>
+    /// Opens the composer for a session's proposal, as a follow-on to the card that proposed it. The
+    /// card exists only once Nigel presses Create there.
+    /// </summary>
+    public void ReviewProposal(Theseus.Core.Proposals.WorkstreamProposal proposal)
+    {
+        ArgumentNullException.ThrowIfNull(proposal);
+
+        if (Board.Card(proposal.RequesterKey) is not { } parent)
+        {
+            Notice = $"{proposal.RequesterKey}, which proposed {proposal.Request.Title}, is no longer on the board.";
+
+            return;
+        }
+
+        NewWorkstream.OpenProposal(parent.Workstream, proposal);
     }
 
     /// <summary>

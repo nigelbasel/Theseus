@@ -113,6 +113,16 @@ public partial class App : Application
         shell.Chains = chains;
         shell.Snapshots = snapshots;
         chains.ReportArrived = shell.Warn;
+
+        var proposals = new Theseus.Core.Proposals.ProposalBook(
+            new Theseus.Core.Proposals.ProposalStateStore(Path.Combine(DataDirectory, "proposals.json")), new SystemClock());
+        var proposed = new ProposalsViewModel(proposals, () => [.. shell.Board.Cards], shell.ReviewProposal)
+        {
+            Arrived = shell.Warn,
+        };
+
+        chains.Proposals = proposed;
+        proposals.Changed += (_, _) => Dispatcher.BeginInvoke(proposed.Update);
         sink.StartLost = shell.Warn;
         links.Changed += (_, _) =>
         {
@@ -130,6 +140,7 @@ public partial class App : Application
             shell.Warn(warning);
         }
         shell.Refresh();
+        proposed.Update();
         shell.ApplyTheme();
 
         _watcher = new SessionRegistryWatcher(
@@ -200,7 +211,9 @@ public partial class App : Application
                 locks: locks,
                 links: links,
                 board: () => snapshots.Current,
-                paths: new SessionPathRule(current.PlanDirectory, DataDirectory)),
+                paths: new SessionPathRule(current.PlanDirectory, DataDirectory),
+                proposals: proposals,
+                briefFolderName: () => settings.Read().BriefFolderName),
             Theseus.Core.Mcp.TheseusMcp.DefaultPort,
             new LockHttpApi(locks, () => DateTimeOffset.UtcNow));
 
