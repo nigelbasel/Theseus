@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Collections.ObjectModel;
 using Theseus.App.Services;
 using Theseus.Core.Sessions;
@@ -11,6 +12,8 @@ namespace Theseus.App.ViewModels;
 /// </summary>
 public sealed class SessionsViewModel : ObservableObject
 {
+    private static readonly TimeSpan SlowTitle = TimeSpan.FromSeconds(1);
+
     private readonly ISessionRegistryReader _registry;
     private readonly IConsoleTitleReader _titles;
     private int _corpses = -1;
@@ -74,7 +77,15 @@ public sealed class SessionsViewModel : ObservableObject
                      .Where(session => session.IsAdoptable)
                      .OrderByDescending(session => session.StartedUtc))
         {
+            var watch = Stopwatch.StartNew();
             var title = _titles.Read(session.Pid);
+
+            if (watch.Elapsed > SlowTitle)
+            {
+                TheseusLog.Information("Reading the console title of process {Pid} took {Seconds:0.0}s",
+                    session.Pid, watch.Elapsed.TotalSeconds);
+            }
+
             var row = Sessions.FirstOrDefault(existing => existing.Pid == session.Pid
                 && string.Equals(existing.SessionId, session.SessionId, StringComparison.OrdinalIgnoreCase));
 

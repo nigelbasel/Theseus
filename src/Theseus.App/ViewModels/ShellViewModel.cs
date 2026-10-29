@@ -496,22 +496,35 @@ public sealed class ShellViewModel : ObservableObject
     /// <summary>Re-reads the plans, the board and the live sessions.</summary>
     public void Refresh()
     {
-        Board.Refresh();
+        Timed("board", Board.Refresh);
 
         // A refresh replaces every card, so the new ones need telling where to report a tick. Wiring
         // this only when the grid changes left the selection count frozen at whatever it said before
         // the last refresh.
         WireLanes();
-        Sessions.Refresh();
-        SyncLifecycles();
-        SyncPullRequests();
+        Timed("sessions", Sessions.Refresh);
+        Timed("lifecycles", SyncLifecycles);
+        Timed("pull requests", SyncPullRequests);
         WireAdoption();
 
         // The strip is answered by what is on the board and which sessions are alive, and a refresh
         // changes both. Without this it would still name a session that had gone.
-        StopsChanged();
-        SyncAccount();
+        Timed("stops", StopsChanged);
+        Timed("account", () => SyncAccount());
         _stopRequests.Sweep(DateTimeOffset.UtcNow);
+    }
+
+    // Start-up has taken anything from 4 seconds to over 2 minutes on the same machine, with nothing
+    // logged in between. A slow step names itself.
+    private static void Timed(string step, Action action)
+    {
+        var watch = Stopwatch.StartNew();
+        action();
+
+        if (watch.Elapsed > SlowStep)
+        {
+            TheseusLog.Information("Refreshing the board: {Step} took {Seconds:0.0}s", step, watch.Elapsed.TotalSeconds);
+        }
     }
 
     /// <summary>
@@ -600,6 +613,8 @@ public sealed class ShellViewModel : ObservableObject
     /// slow turn, short enough that one made this evening cannot interrupt tomorrow morning.
     /// </summary>
     private static readonly TimeSpan StopRequestLife = TimeSpan.FromHours(4);
+
+    private static readonly TimeSpan SlowStep = TimeSpan.FromSeconds(1);
 
     private void BeginStop(IReadOnlyList<StopStep> steps)
     {
