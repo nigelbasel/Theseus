@@ -185,18 +185,20 @@
             wider than menus normally are.
         -->
         <Style TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
-            <Setter Property="Padding" Value="10,3" />
             <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Padding" Value="0" />
             <Style.Triggers>
-                <!--
-                    The bar's own headings: the theme already spaces them, so padding here only adds to
-                    it. Setting them the same as the drop-down items is what widened the bar.
-                -->
                 <Trigger Property="Role" Value="TopLevelHeader">
-                    <Setter Property="Padding" Value="0,2" />
+                    <Setter Property="Template" Value="{StaticResource CompactTopLevelHeader}" />
                 </Trigger>
                 <Trigger Property="Role" Value="TopLevelItem">
-                    <Setter Property="Padding" Value="0,2" />
+                    <Setter Property="Template" Value="{StaticResource CompactTopLevelItem}" />
+                </Trigger>
+                <Trigger Property="Role" Value="SubmenuHeader">
+                    <Setter Property="Template" Value="{StaticResource CompactSubmenuHeader}" />
+                </Trigger>
+                <Trigger Property="Role" Value="SubmenuItem">
+                    <Setter Property="Template" Value="{StaticResource CompactSubmenuItem}" />
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -220,13 +222,49 @@
             a standard one: it was a row of hand-drawn buttons). Only the icon font is added, set on
             buttons whose content is only ever a glyph.
         -->
-        <Style x:Key="ToolIcon" TargetType="Button" BasedOn="{StaticResource {x:Static ToolBar.ButtonStyleKey}}">
+        <!--
+            The theme's toolbar button with its spacing made settable: its template fixes 12 pixels of
+            padding either side, which put the buttons about 42 pixels apart where other Windows
+            toolbars have them nearly touching. The face is transparent until the pointer is over it,
+            as the theme's is; a panel's button stays lit while its panel is open.
+        -->
+        <ControlTemplate x:Key="ToolIconTemplate" TargetType="ButtonBase">
+            <Border x:Name="Face" CornerRadius="4" Padding="{TemplateBinding Padding}" Background="Transparent"
+                    BorderThickness="0,0,0,2" BorderBrush="Transparent">
+                <ContentPresenter RecognizesAccessKey="True" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <ControlTemplate.Triggers>
+                <Trigger Property="ToggleButton.IsChecked" Value="True">
+                    <Setter TargetName="Face" Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
+                    <Setter TargetName="Face" Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                </Trigger>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter TargetName="Face" Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter TargetName="Face" Property="Background" Value="{DynamicResource ControlFillColorTertiaryBrush}" />
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter TargetName="Face" Property="Opacity" Value="0.35" />
+                </Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
+
+        <Style x:Key="ToolIcon" TargetType="Button">
+            <Setter Property="Template" Value="{StaticResource ToolIconTemplate}" />
             <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
             <Setter Property="FontSize" Value="14" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+            <Setter Property="Padding" Value="6,4,6,2" />
+            <Setter Property="Margin" Value="0" />
             <Setter Property="ToolTipService.ShowOnDisabled" Value="True" />
         </Style>
 
-        <Style x:Key="ToolIconToggle" TargetType="ToggleButton" BasedOn="{StaticResource {x:Static ToolBar.ToggleButtonStyleKey}}">
+        <Style x:Key="ToolIconToggle" TargetType="ToggleButton">
+            <Setter Property="Template" Value="{StaticResource ToolIconTemplate}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+            <Setter Property="Padding" Value="2,4,2,2" />
+            <Setter Property="Margin" Value="0" />
             <Setter Property="ToolTipService.ShowOnDisabled" Value="True" />
         </Style>
 
@@ -359,7 +397,7 @@
                 MinHeight is on the style so a folded card can drop it. Left at 96 the card would
                 keep the height of its full self and fold to nothing worth looking at.
             -->
-            <Border CornerRadius="8" Margin="0,0,0,8" Tag="Card"
+            <Border x:Name="CardFace" CornerRadius="8" Margin="0,0,0,8" Tag="Card"
                     ToolTip="{Binding Workstream.WorkingDirectory}"
                     ContextMenu="{StaticResource CardMenu}"
                     MouseLeftButtonDown="OnCardMouseDown"
@@ -448,6 +486,10 @@
                             </Rectangle>
                         </Grid>
                     </Border>
+
+                    <!-- A faint wash while the pointer is over the card, so the one under it stands out. -->
+                    <Border x:Name="HoverWash" Grid.ColumnSpan="2" CornerRadius="8" Background="White" Opacity="0"
+                            IsHitTestVisible="False" />
 
                     <Border x:Name="Stripe" Grid.Column="0" CornerRadius="8,0,0,8"
                             Background="{Binding ColorHex, Converter={StaticResource HexToBrush}}">
@@ -760,6 +802,9 @@
                 on whichever card last held it. A template gets a name scope per card.
             -->
             <DataTemplate.Triggers>
+                <Trigger SourceName="CardFace" Property="IsMouseOver" Value="True">
+                    <Setter TargetName="HoverWash" Property="Opacity" Value="0.05" />
+                </Trigger>
                 <DataTrigger Binding="{Binding IsWorking}" Value="True">
                     <DataTrigger.EnterActions>
                         <BeginStoryboard x:Name="Working">

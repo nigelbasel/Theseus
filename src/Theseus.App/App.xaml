@@ -4,6 +4,10 @@
              xmlns:converters="clr-namespace:Theseus.App.Converters">
     <Application.Resources>
         <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Themes/CompactMenu.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
             <converters:HexToBrushConverter x:Key="HexToBrush" />
             <converters:RelativeTimeConverter x:Key="RelativeTime" />
             <converters:LifecycleGlyphConverter x:Key="LifecycleGlyph" />
