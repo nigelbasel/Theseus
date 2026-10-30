@@ -528,11 +528,30 @@ public partial class MainWindow : Window
             return;
         }
 
+        Resize(shell, header, panel, e.HorizontalChange);
+    }
+
+    /// <summary>The same as dragging the heading's edge, from the border between two cells.</summary>
+    private void OnCellEdgeDrag(object sender, System.Windows.Controls.Primitives.DragDeltaEventArgs e)
+    {
+        if (sender is not FrameworkElement { DataContext: ColumnViewModel cell } edge
+            || DataContext is not ShellViewModel shell
+            || shell.Board.StageHeaders.FirstOrDefault(header => header.Stage == cell.Column) is not { } header
+            || FindAncestor<Controls.StageColumnsPanel>(edge) is not { } panel)
+        {
+            return;
+        }
+
+        Resize(shell, header, panel, e.HorizontalChange);
+    }
+
+    private static void Resize(ShellViewModel shell, StageHeaderViewModel header, Controls.StageColumnsPanel panel, double pixels)
+    {
         var openWidth = panel.ActualWidth - (shell.Board.StageHeaders.Count(other => other.IsCollapsed) * Controls.StageColumnsPanel.FoldedWidth);
 
         if (openWidth > 0)
         {
-            shell.Board.ResizeColumns(header, e.HorizontalChange * shell.Board.OpenColumnWeight / openWidth);
+            shell.Board.ResizeColumns(header, pixels * shell.Board.OpenColumnWeight / openWidth);
         }
     }
 
@@ -552,7 +571,7 @@ public partial class MainWindow : Window
         if (sender is not FrameworkElement { DataContext: BoardRowViewModel row } edge
             || DataContext is not ShellViewModel shell
             || FindAncestor<DockPanel>(edge) is not { } rowPanel
-            || rowPanel.Children.OfType<ItemsControl>().FirstOrDefault() is not { } cells)
+            || CellsOf(rowPanel, row) is not { } cells)
         {
             return;
         }
@@ -573,6 +592,27 @@ public partial class MainWindow : Window
 
     private void OnSizeDragCompleted(object sender, System.Windows.Controls.Primitives.DragCompletedEventArgs e) =>
         (DataContext as ShellViewModel)?.Board.RememberSizes();
+
+    /// <summary>The row's own cells, found below the handle's panel.</summary>
+    private static ItemsControl? CellsOf(DependencyObject panel, BoardRowViewModel row)
+    {
+        var pending = new Stack<DependencyObject>([panel]);
+
+        while (pending.TryPop(out var node))
+        {
+            if (node is ItemsControl { ItemsSource: var source } cells && ReferenceEquals(source, row.Cells))
+            {
+                return cells;
+            }
+
+            for (var index = 0; index < System.Windows.Media.VisualTreeHelper.GetChildrenCount(node); index++)
+            {
+                pending.Push(System.Windows.Media.VisualTreeHelper.GetChild(node, index));
+            }
+        }
+
+        return null;
+    }
 
     private static T? FindAncestor<T>(DependencyObject? source)
         where T : DependencyObject

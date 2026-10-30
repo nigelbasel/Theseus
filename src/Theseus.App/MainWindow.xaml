@@ -836,6 +836,7 @@
         </DataTemplate>
 
         <DataTemplate x:Key="ColumnTemplate" DataType="{x:Type vm:ColumnViewModel}">
+            <Grid>
             <Border Margin="4" CornerRadius="8"
                     Background="{DynamicResource LayerFillColorDefaultBrush}"
                     BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
@@ -911,6 +912,26 @@
                 </DockPanel>
                 </Grid>
             </Border>
+            <Thumb HorizontalAlignment="Right" Width="8" Cursor="SizeWE"
+                   ToolTip="Drag to resize the columns either side. Double-click to make them all even."
+                   DragDelta="OnCellEdgeDrag" DragCompleted="OnSizeDragCompleted"
+                   PreviewMouseLeftButtonDown="OnColumnEdgeDown"
+                   Visibility="{Binding IsCollapsed, Converter={StaticResource NotBoolToVisibility}}">
+                <Thumb.Template>
+                    <ControlTemplate TargetType="Thumb">
+                        <Border Background="Transparent">
+                            <Border x:Name="Line" Width="1" HorizontalAlignment="Center" Opacity="0"
+                                    Background="{DynamicResource AccentFillColorDefaultBrush}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Line" Property="Opacity" Value="1" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Thumb.Template>
+            </Thumb>
+            </Grid>
         </DataTemplate>
 
         <!--
@@ -921,7 +942,31 @@
             in that area actually is.
         -->
         <DataTemplate x:Key="RowTemplate" DataType="{x:Type vm:BoardRowViewModel}">
-            <Border Margin="0,0,0,6" CornerRadius="10" Padding="4"
+            <!--
+                The gap between rows is the row's resize handle. It was inside the row with a negative
+                margin, which WPF clipped to two pixels, so only the bottom row could be dragged.
+            -->
+            <DockPanel>
+            <!-- Drag to set the row's height; double-click to let it fit its cards again. -->
+            <Thumb DockPanel.Dock="Bottom" Height="6" Cursor="SizeNS"
+                   ToolTip="Drag to set this row's height. Double-click to let it fit its cards."
+                   DragDelta="OnRowEdgeDrag" DragCompleted="OnSizeDragCompleted"
+                   PreviewMouseLeftButtonDown="OnRowEdgeDown">
+                <Thumb.Template>
+                    <ControlTemplate TargetType="Thumb">
+                        <Border Background="Transparent">
+                            <Border x:Name="Line" Height="1" VerticalAlignment="Center" Opacity="0"
+                                    Background="{DynamicResource AccentFillColorDefaultBrush}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Line" Property="Opacity" Value="1" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Thumb.Template>
+            </Thumb>
+            <Border CornerRadius="10" Padding="4"
                     Background="{DynamicResource LayerFillColorDefaultBrush}"
                     BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                     BorderThickness="1">
@@ -971,26 +1016,6 @@
                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                Visibility="{Binding IsCollapsed, Converter={StaticResource BoolToVisibility}}" />
 
-                    <!-- Drag to set the row's height; double-click to let it fit its cards again. -->
-                    <Thumb DockPanel.Dock="Bottom" Height="6" Margin="0,0,0,-4" Cursor="SizeNS"
-                           ToolTip="Drag to set this row's height. Double-click to let it fit its cards."
-                           DragDelta="OnRowEdgeDrag" DragCompleted="OnSizeDragCompleted"
-                           PreviewMouseLeftButtonDown="OnRowEdgeDown"
-                           Visibility="{Binding IsCollapsed, Converter={StaticResource NotBoolToVisibility}}">
-                        <Thumb.Template>
-                            <ControlTemplate TargetType="Thumb">
-                                <Border Background="Transparent">
-                                    <Border x:Name="Line" Height="1" VerticalAlignment="Center" Opacity="0"
-                                            Background="{DynamicResource AccentFillColorDefaultBrush}" />
-                                </Border>
-                                <ControlTemplate.Triggers>
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="Line" Property="Opacity" Value="1" />
-                                    </Trigger>
-                                </ControlTemplate.Triggers>
-                            </ControlTemplate>
-                        </Thumb.Template>
-                    </Thumb>
 
                     <ItemsControl ItemsSource="{Binding Cells}"
                                   ItemTemplate="{StaticResource ColumnTemplate}"
@@ -1010,6 +1035,7 @@
                     </ItemsControl>
                 </DockPanel>
             </Border>
+            </DockPanel>
         </DataTemplate>
 
 
@@ -2032,7 +2058,7 @@
                             <DataTemplate DataType="{x:Type vm:StageHeaderViewModel}">
                                 <Grid>
                                 <!-- Drag to move the edge between this column and the next; double-click to make them all even. -->
-                                <Thumb HorizontalAlignment="Right" Width="7" Margin="0,0,-4,0" Cursor="SizeWE" Panel.ZIndex="1"
+                                <Thumb HorizontalAlignment="Right" Width="8" Cursor="SizeWE"
                                        ToolTip="Drag to resize the columns either side. Double-click to make them all even."
                                        DragDelta="OnColumnEdgeDrag" DragCompleted="OnSizeDragCompleted"
                                        PreviewMouseLeftButtonDown="OnColumnEdgeDown"
