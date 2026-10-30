@@ -597,7 +597,9 @@ public partial class MainWindow : Window
         {
             if (element is FrameworkElement { Tag: "Card", DataContext: WorkstreamCardViewModel card, IsVisible: true } face)
             {
-                var bounds = face.TransformToAncestor(BandLayer).TransformBounds(new Rect(face.RenderSize));
+                // The band's layer sits beside the board, not above it, so this is a transform between two
+                // visuals of the same window, not one to an ancestor.
+                var bounds = face.TransformToVisual(BandLayer).TransformBounds(new Rect(face.RenderSize));
 
                 if (bounds.IntersectsWith(area))
                 {
