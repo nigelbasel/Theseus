@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:Theseus.App.ViewModels"
+        xmlns:controls="clr-namespace:Theseus.App.Controls"
         xmlns:settings="clr-namespace:Theseus.Core.Settings;assembly=Theseus.Core"
         xmlns:launching="clr-namespace:Theseus.Core.Launching;assembly=Theseus.Core"
         xmlns:sys="clr-namespace:System;assembly=System.Runtime"
@@ -289,6 +290,22 @@
                                   ToolTip="Include this card in Start selected and Stop selected" />
 
                         <DockPanel Grid.Column="1" VerticalAlignment="Center">
+                            <!-- Folded, a card still says whether its session is running. -->
+                            <TextBlock DockPanel.Dock="Right" Margin="8,0,0,0" VerticalAlignment="Center" Text="{Binding Lifecycle, Converter={StaticResource LifecycleGlyph}}"
+                                       FontSize="14" ToolTip="{Binding StatusLine}">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground"
+                                                Value="{DynamicResource TextFillColorTertiaryBrush}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsLive}" Value="True">
+                                                <Setter Property="Foreground"
+                                                        Value="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
                             <TextBlock DockPanel.Dock="Right" Text="Ready" FontSize="11" Margin="8,0,0,0"
                                        VerticalAlignment="Center" Foreground="#2E8B57"
                                        ToolTip="{Binding LinkTooltip}"
@@ -327,7 +344,15 @@
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
+
+                            <Button Grid.Column="3" Style="{StaticResource CommandButton}"
+                                    Padding="6,2" Margin="6,0,0,0" VerticalAlignment="Center"
+                                    ToolTip="Fold this card down to its title"
+                                    Click="OnCollapseCard">
+                                <TextBlock Text="&#xE70E;" FontFamily="Segoe MDL2 Assets" FontSize="10" />
+                            </Button>
 
                             <!--
                                 The tick is what a bulk Start or Stop acts on. It sits with the title
@@ -580,11 +605,34 @@
         </DataTemplate>
 
         <DataTemplate x:Key="ColumnTemplate" DataType="{x:Type vm:ColumnViewModel}">
-            <Border MinWidth="260" Margin="4" CornerRadius="8" Padding="8"
+            <Border Margin="4" CornerRadius="8"
                     Background="{DynamicResource LayerFillColorDefaultBrush}"
                     BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                     BorderThickness="1">
-                <DockPanel>
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="MinWidth" Value="260" />
+                        <Setter Property="Padding" Value="8" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsCollapsed}" Value="True">
+                                <Setter Property="MinWidth" Value="0" />
+                                <Setter Property="Padding" Value="0,8" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <Grid>
+                <!-- Folded: how many cards the stage holds here, and how many are live. -->
+                <StackPanel HorizontalAlignment="Center" ToolTip="{Binding FoldedTooltip}" Background="Transparent"
+                            Visibility="{Binding IsCollapsed, Converter={StaticResource BoolToVisibility}}">
+                    <TextBlock Text="{Binding Count}" FontSize="11" HorizontalAlignment="Center"
+                               Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                    <TextBlock Text="{Binding LiveCount, StringFormat='&#x25CF; {0}'}" FontSize="11" Margin="0,4,0,0"
+                               HorizontalAlignment="Center"
+                               Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
+                               Visibility="{Binding LiveCount, Converter={StaticResource CountToVisibility}}" />
+                </StackPanel>
+                <DockPanel Visibility="{Binding IsCollapsed, Converter={StaticResource NotBoolToVisibility}}">
                     <!--
                         The cell does not repeat the stage name. It is written once across the top of
                         the board, and printing it again in every row is noise on a grid that already
@@ -630,6 +678,7 @@
                         </ItemsControl.ItemsPanel>
                     </ItemsControl>
                 </DockPanel>
+                </Grid>
             </Border>
         </DataTemplate>
 
@@ -658,7 +707,27 @@
                                     ToolTip="Fold this row away, or open it"
                                     Command="{Binding ToggleCommand}" />
                             <TextBlock Text="{Binding Count}" FontSize="12" VerticalAlignment="Center"
-                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                            <TextBlock Text="{Binding LiveText, StringFormat='  &#x25CF; {0}'}" FontSize="12"
+                                       VerticalAlignment="Center"
+                                       ToolTip="Cards in this row with a session running"
+                                       Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <MultiDataTrigger>
+                                                <MultiDataTrigger.Conditions>
+                                                    <Condition Binding="{Binding IsCollapsed}" Value="True" />
+                                                    <Condition Binding="{Binding LiveCount, Converter={StaticResource CountToVisibility}}"
+                                                               Value="{x:Static Visibility.Visible}" />
+                                                </MultiDataTrigger.Conditions>
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </MultiDataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
                         </StackPanel>
                         <TextBlock Text="{Binding Area}" FontSize="13" FontWeight="SemiBold"
                                    TextWrapping="Wrap" Margin="0,6,0,0"
@@ -676,9 +745,14 @@
                                   Visibility="{Binding IsCollapsed, Converter={StaticResource NotBoolToVisibility}}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
-                                <UniformGrid Rows="1" />
+                                <controls:StageColumnsPanel />
                             </ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemContainerStyle>
+                            <Style TargetType="ContentPresenter">
+                                <Setter Property="controls:StageColumnsPanel.IsFolded" Value="{Binding IsCollapsed}" />
+                            </Style>
+                        </ItemsControl.ItemContainerStyle>
                     </ItemsControl>
                 </DockPanel>
             </Border>
@@ -1646,18 +1720,51 @@
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
 
-                    <ItemsControl Grid.Column="1" ItemsSource="{Binding Board.Stages}">
+                    <ItemsControl Grid.Column="1" ItemsSource="{Binding Board.StageHeaders}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
-                                <UniformGrid Rows="1" />
+                                <controls:StageColumnsPanel />
                             </ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemContainerStyle>
+                            <Style TargetType="ContentPresenter">
+                                <Setter Property="controls:StageColumnsPanel.IsFolded" Value="{Binding IsCollapsed}" />
+                            </Style>
+                        </ItemsControl.ItemContainerStyle>
                         <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding}" FontSize="13" FontWeight="SemiBold"
-                                           Margin="8,0,0,0" TextTrimming="CharacterEllipsis"
-                                           ToolTip="{Binding}"
-                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            <DataTemplate DataType="{x:Type vm:StageHeaderViewModel}">
+                                <DockPanel Margin="4,0,4,0">
+                                    <Button DockPanel.Dock="Right" Style="{StaticResource CommandButton}"
+                                            Content="{Binding Glyph}" FontFamily="Segoe MDL2 Assets" FontSize="10"
+                                            Padding="5,2" VerticalAlignment="Center"
+                                            ToolTip="{Binding ToggleTooltip}"
+                                            Command="{Binding ToggleCommand}" />
+                                    <TextBlock DockPanel.Dock="Right" FontSize="11" Margin="0,0,6,0" VerticalAlignment="Center"
+                                               Text="{Binding LiveCount, StringFormat='&#x25CF; {0}'}"
+                                               ToolTip="Cards in this stage with a session running"
+                                               Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                <Style.Triggers>
+                                                    <MultiDataTrigger>
+                                                        <MultiDataTrigger.Conditions>
+                                                            <Condition Binding="{Binding IsCollapsed}" Value="True" />
+                                                            <Condition Binding="{Binding LiveCount, Converter={StaticResource CountToVisibility}}"
+                                                                       Value="{x:Static Visibility.Visible}" />
+                                                        </MultiDataTrigger.Conditions>
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                    </MultiDataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                    <TextBlock Text="{Binding Stage}" FontSize="13" FontWeight="SemiBold"
+                                               Margin="4,0,0,0" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                                               ToolTip="{Binding Stage}"
+                                               Visibility="{Binding IsCollapsed, Converter={StaticResource NotBoolToVisibility}}"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                </DockPanel>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>

@@ -32,6 +32,9 @@ public sealed class BoardViewModel : ObservableObject
     /// <summary>The stages, as configured: the columns of the grid, and its headings.</summary>
     public ObservableCollection<string> Stages { get; } = [];
 
+    /// <summary>The headings across the top of the grid, one per stage, each able to fold its stage away.</summary>
+    public ObservableCollection<StageHeaderViewModel> StageHeaders { get; } = [];
+
     /// <summary>The areas, as configured: the rows of the grid, each holding a cell per stage.</summary>
     public ObservableCollection<BoardRowViewModel> Rows { get; } = [];
 
@@ -93,6 +96,7 @@ public sealed class BoardViewModel : ObservableObject
         }
 
         var wanted = Cells.ToDictionary(cell => cell, _ => new List<WorkstreamCardViewModel>());
+        IReadOnlyList<string>? folded = null;
 
         foreach (var workstream in workstreams)
         {
@@ -106,7 +110,11 @@ public sealed class BoardViewModel : ObservableObject
             }
             else
             {
-                card = new WorkstreamCardViewModel(placed);
+                folded ??= _settings.Read().CollapsedCards;
+                card = new WorkstreamCardViewModel(placed)
+                {
+                    IsCollapsed = folded.Contains(workstream.Key, StringComparer.OrdinalIgnoreCase),
+                };
             }
 
             wanted[Cells.First(cell => cell.Column == lane && cell.Area == area)].Add(card);
@@ -195,8 +203,10 @@ public sealed class BoardViewModel : ObservableObject
     private void Rebuild(IReadOnlyList<string> lanes, IReadOnlyList<string> areas)
     {
         var collapsed = _settings.Read().CollapsedAreas;
+        var foldedStages = _settings.Read().CollapsedStages;
 
         Stages.Clear();
+        StageHeaders.Clear();
         Rows.Clear();
 
         foreach (var lane in lanes)
@@ -218,6 +228,58 @@ public sealed class BoardViewModel : ObservableObject
 
             Rows.Add(row);
         }
+
+        foreach (var lane in lanes)
+        {
+            var header = new StageHeaderViewModel(lane, [.. Rows.Select(row => row.Cells.First(cell => cell.Column == lane))])
+            {
+                IsCollapsed = foldedStages.Contains(lane, StringComparer.OrdinalIgnoreCase),
+            };
+
+            header.ToggleCommand = new RelayCommand(_ => ToggleStage(header));
+            StageHeaders.Add(header);
+        }
+    }
+
+    /// <summary>Folds a stage away in every row, or opens it, and remembers which way it was left.</summary>
+    public void ToggleStage(StageHeaderViewModel header)
+    {
+        ArgumentNullException.ThrowIfNull(header);
+
+        header.IsCollapsed = !header.IsCollapsed;
+
+        _settings.Write(_settings.Read() with
+        {
+            CollapsedStages = [.. StageHeaders.Where(other => other.IsCollapsed).Select(other => other.Stage)],
+        });
+    }
+
+    /// <summary>Folds one card or opens it, and remembers which way it was left.</summary>
+    public void Fold(WorkstreamCardViewModel card, bool folded)
+    {
+        ArgumentNullException.ThrowIfNull(card);
+
+        card.IsCollapsed = folded;
+        RememberFolds();
+    }
+
+    /// <summary>
+    /// Writes down which cards are folded. Cards not on the board just now - archived, or hidden by
+    /// the archive view - keep whatever was remembered for them.
+    /// </summary>
+    public void RememberFolds()
+    {
+        var shown = Cards.Select(card => card.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var settings = _settings.Read();
+
+        _settings.Write(settings with
+        {
+            CollapsedCards =
+            [
+                .. settings.CollapsedCards.Where(key => !shown.Contains(key)),
+                .. Cards.Where(card => card.IsCollapsed).Select(card => card.Key),
+            ],
+        });
     }
 
     /// <summary>

@@ -1180,6 +1180,8 @@ public sealed class ShellViewModel : ObservableObject
             card.IsCollapsed = inactiveOnly && !card.IsLive;
         }
 
+        Board.RememberFolds();
+
         System.Windows.Input.CommandManager.InvalidateRequerySuggested();
     }
 

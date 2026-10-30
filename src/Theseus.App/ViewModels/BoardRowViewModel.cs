@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 
 namespace Theseus.App.ViewModels;
 
@@ -18,7 +19,15 @@ public sealed class BoardRowViewModel : ObservableObject
     public BoardRowViewModel(string area)
     {
         Area = area;
-        Cells.CollectionChanged += (_, _) => RaiseCounts();
+        Cells.CollectionChanged += (_, e) =>
+        {
+            foreach (var cell in e.NewItems?.OfType<ColumnViewModel>() ?? [])
+            {
+                cell.PropertyChanged += OnCellChanged;
+            }
+
+            RaiseCounts();
+        };
     }
 
     /// <summary>Which area this row is, by name.</summary>
@@ -49,6 +58,12 @@ public sealed class BoardRowViewModel : ObservableObject
     /// <summary>How many cards the whole row holds.</summary>
     public int Count => Cells.Sum(cell => cell.Count);
 
+    /// <summary>How many of the row's cards have a session running.</summary>
+    public int LiveCount => Cells.Sum(cell => cell.LiveCount);
+
+    /// <summary>What a folded row says about its running sessions, or nothing when none are running.</summary>
+    public string LiveText => LiveCount == 0 ? string.Empty : $"{LiveCount} live";
+
     /// <summary>
     /// What a collapsed row shows instead of its cards: how many are at each stage that has any.
     /// Stages holding nothing are left out — a row of zeroes is noise, and the useful reading is
@@ -64,5 +79,15 @@ public sealed class BoardRowViewModel : ObservableObject
     {
         Raise(nameof(Count));
         Raise(nameof(Summary));
+        Raise(nameof(LiveCount));
+        Raise(nameof(LiveText));
+    }
+
+    private void OnCellChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(ColumnViewModel.LiveCount) or nameof(ColumnViewModel.Count))
+        {
+            RaiseCounts();
+        }
     }
 }

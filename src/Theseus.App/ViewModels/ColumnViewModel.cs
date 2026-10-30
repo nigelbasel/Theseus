@@ -1,4 +1,6 @@
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.ComponentModel;
 using Theseus.Core.Domain;
 
 namespace Theseus.App.ViewModels;
@@ -9,12 +11,14 @@ namespace Theseus.App.ViewModels;
 /// </summary>
 public sealed class ColumnViewModel : ObservableObject
 {
+    private bool _isCollapsed;
+
     /// <summary>Creates a cell.</summary>
     public ColumnViewModel(string column, string area = "")
     {
         Column = column;
         Area = area;
-        Cards.CollectionChanged += (_, _) => Raise(nameof(Count));
+        Cards.CollectionChanged += OnCardsChanged;
     }
 
     /// <summary>Which stage this is, by name.</summary>
@@ -31,4 +35,58 @@ public sealed class ColumnViewModel : ObservableObject
 
     /// <summary>How many cards the column holds, shown next to the heading.</summary>
     public int Count => Cards.Count;
+
+    /// <summary>How many of its cards have a session running, which a folded column still shows.</summary>
+    public int LiveCount => Cards.Count(card => card.IsLive);
+
+    /// <summary>Whether this cell's stage is folded away, across every row.</summary>
+    public bool IsCollapsed
+    {
+        get => _isCollapsed;
+        set => Set(ref _isCollapsed, value);
+    }
+
+    /// <summary>What the folded cell says when hovered.</summary>
+    public string FoldedTooltip => LiveCount == 0
+        ? $"{Column}: {Count} card(s)"
+        : $"{Column}: {Count} card(s), {LiveCount} with a session running";
+
+    private void OnCardsChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        foreach (var card in e.OldItems?.OfType<WorkstreamCardViewModel>() ?? [])
+        {
+            card.PropertyChanged -= OnCardChanged;
+        }
+
+        foreach (var card in e.NewItems?.OfType<WorkstreamCardViewModel>() ?? [])
+        {
+            card.PropertyChanged += OnCardChanged;
+        }
+
+        if (e.Action == NotifyCollectionChangedAction.Reset)
+        {
+            foreach (var card in Cards)
+            {
+                card.PropertyChanged -= OnCardChanged;
+                card.PropertyChanged += OnCardChanged;
+            }
+        }
+
+        Raise(nameof(Count));
+        RaiseLive();
+    }
+
+    private void OnCardChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(WorkstreamCardViewModel.IsLive))
+        {
+            RaiseLive();
+        }
+    }
+
+    private void RaiseLive()
+    {
+        Raise(nameof(LiveCount));
+        Raise(nameof(FoldedTooltip));
+    }
 }

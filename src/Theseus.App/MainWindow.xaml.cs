@@ -499,11 +499,16 @@ public partial class MainWindow : Window
     /// Opens one folded card. Handled here rather than bound to a command because it acts on the card
     /// it sits in and nothing else, and a command would have to be given the card to act on.
     /// </summary>
-    private void OnExpandCard(object sender, RoutedEventArgs e)
+    private void OnExpandCard(object sender, RoutedEventArgs e) => FoldCard(sender, e, folded: false);
+
+    /// <summary>Folds one card down to its title, from the button beside its status.</summary>
+    private void OnCollapseCard(object sender, RoutedEventArgs e) => FoldCard(sender, e, folded: true);
+
+    private void FoldCard(object sender, RoutedEventArgs e, bool folded)
     {
-        if (sender is FrameworkElement { DataContext: WorkstreamCardViewModel card })
+        if (sender is FrameworkElement { DataContext: WorkstreamCardViewModel card } && DataContext is ShellViewModel shell)
         {
-            card.IsCollapsed = false;
+            shell.Board.Fold(card, folded);
         }
 
         // The card is inside a click-to-open-the-drawer surface, so the click stops here.

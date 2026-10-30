@@ -37,6 +37,8 @@ public class SettingsStoreTests
         {
             ShowArchived = true,
             Areas = ["Research", "Dev"],
+            CollapsedStages = ["Paused"],
+            CollapsedCards = ["theseus", "tailhawk"],
         };
 
         _store.Write(settings);
@@ -45,7 +47,13 @@ public class SettingsStoreTests
 
         Assert.That(read.Lanes, Is.EqualTo(settings.Lanes));
         Assert.That(read.Areas, Is.EqualTo(settings.Areas));
-        Assert.That(read with { Lanes = settings.Lanes, Areas = settings.Areas, CollapsedAreas = settings.CollapsedAreas }, Is.EqualTo(settings),
+        Assert.That(read.CollapsedStages, Is.EqualTo(settings.CollapsedStages));
+        Assert.That(read.CollapsedCards, Is.EqualTo(settings.CollapsedCards));
+        Assert.That(read with
+            {
+                Lanes = settings.Lanes, Areas = settings.Areas, CollapsedAreas = settings.CollapsedAreas,
+                CollapsedStages = settings.CollapsedStages, CollapsedCards = settings.CollapsedCards,
+            }, Is.EqualTo(settings),
             "a record holding a list compares it by reference, so the lists are checked separately");
     }
 

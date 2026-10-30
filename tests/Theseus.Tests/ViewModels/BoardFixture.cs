@@ -81,6 +81,12 @@ internal sealed class BoardFixture
         return this;
     }
 
+    /// <summary>The settings the board reads and writes.</summary>
+    public TheseusSettings Settings => _settings.Settings;
+
+    /// <summary>A second board over the same stores, the way Theseus opens after a restart.</summary>
+    public BoardViewModel Reopen() => new(_plans, _board, _settings);
+
     /// <summary>The card for one workstream, or null when the board does not hold it.</summary>
     public WorkstreamCardViewModel? Card(string key) =>
         Board.Cards.FirstOrDefault(card =>

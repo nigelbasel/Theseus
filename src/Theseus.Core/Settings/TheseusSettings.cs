@@ -83,6 +83,15 @@ public sealed record TheseusSettings(
     /// <summary>Which rows were folded away, so a board left tidy opens tidy.</summary>
     public IReadOnlyList<string> CollapsedAreas { get; init; } = [];
 
+    /// <summary>Which columns were folded away, by stage name, for the same reason.</summary>
+    public IReadOnlyList<string> CollapsedStages { get; init; } = [];
+
+    /// <summary>
+    /// Which cards were folded, by key. A card archived or hidden while folded keeps its place here,
+    /// so it comes back folded.
+    /// </summary>
+    public IReadOnlyList<string> CollapsedCards { get; init; } = [];
+
     /// <summary>
     /// Where the board window was when it last closed, so it opens where it was left. Checked against
     /// the screens actually attached before it is used: a position saved while docked is a position
