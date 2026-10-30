@@ -553,9 +553,7 @@ public partial class MainWindow : Window
                 return true;
             }
 
-            source = source is System.Windows.Media.Visual or System.Windows.Media.Media3D.Visual3D
-                ? System.Windows.Media.VisualTreeHelper.GetParent(source)
-                : LogicalTreeHelper.GetParent(source);
+            source = ParentOf(source);
         }
 
         return false;
@@ -570,7 +568,7 @@ public partial class MainWindow : Window
                 return true;
             }
 
-            source = System.Windows.Media.VisualTreeHelper.GetParent(source);
+            source = ParentOf(source);
         }
 
         return false;
@@ -751,9 +749,18 @@ public partial class MainWindow : Window
                 return card;
             }
 
-            source = System.Windows.Media.VisualTreeHelper.GetParent(source);
+            source = ParentOf(source);
         }
 
         return null;
     }
+
+    /// <summary>
+    /// The element above this one. A click on text made of runs reports the run, which is not a
+    /// visual, and asking the visual tree for its parent throws; on 2026-10-30 that closed the board.
+    /// </summary>
+    private static DependencyObject? ParentOf(DependencyObject source) =>
+        source is System.Windows.Media.Visual or System.Windows.Media.Media3D.Visual3D
+            ? System.Windows.Media.VisualTreeHelper.GetParent(source)
+            : LogicalTreeHelper.GetParent(source);
 }
