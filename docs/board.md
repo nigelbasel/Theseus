@@ -13,6 +13,29 @@ kind of work it is. A new board starts with these, and you can change both in **
 
 Drag a card to move it to another cell. Where a card sits is remembered.
 
+## Views
+
+The same cards can be laid out in different ways. Choose from **View > Columns by** and
+**View > Rows by**. Theseus remembers your choice, and what you folded in each view.
+
+| Columns by | Shows |
+|---|---|
+| **Stage** | The stages above. Drag cards between them. |
+| **Session state** | What each session is doing: **Needs you**, **Working**, **Idle**, **Not running**, and **Done** for finished work. Cards move by themselves as their sessions change. |
+
+| Rows by | Shows |
+|---|---|
+| **Area** | The areas above. Drag cards between them. |
+| **Project** | The folder each workstream works in, such as Theseus or TailHawk. |
+| **Chain** | Each chain of hand-overs, named after the card it starts from, then the cards in no chain. See [chains](chains.md). |
+| **None** | One row holding everything. |
+
+Columns by session state and rows by area is a good view for the working day: the left column is
+everything waiting on you. Columns by stage is the view for planning.
+
+Dragging a card changes its stage only when columns show stages, and its area only when rows show
+areas.
+
 ## Paused and Blocked
 
 Paused and Blocked are **marks on a card**, not columns, so a card keeps its stage while it waits.
