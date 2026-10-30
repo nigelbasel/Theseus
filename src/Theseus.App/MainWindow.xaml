@@ -268,6 +268,7 @@
         <!-- A card's drop-down for its Jira issues or pull requests. -->
         <Style x:Key="ItemDropDown" TargetType="Button" BasedOn="{StaticResource ChipButton}">
             <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
         </Style>
 
         <DataTemplate x:Key="JiraKeyTemplate">
@@ -1978,12 +1979,9 @@
                                       ItemTemplate="{StaticResource RowTemplate}" />
                     </ScrollViewer>
                     <Canvas x:Name="BandLayer" IsHitTestVisible="False">
-                        <Rectangle x:Name="Band" Visibility="Collapsed" StrokeThickness="1"
-                                   Stroke="{DynamicResource AccentFillColorDefaultBrush}">
-                            <Rectangle.Fill>
-                                <SolidColorBrush Color="{DynamicResource SystemAccentColor}" Opacity="0.15" />
-                            </Rectangle.Fill>
-                        </Rectangle>
+                        <Rectangle x:Name="Band" Visibility="Collapsed" StrokeThickness="1" Opacity="0.35"
+                                   Stroke="{DynamicResource AccentFillColorDefaultBrush}"
+                                   Fill="{DynamicResource AccentFillColorDefaultBrush}" />
                     </Canvas>
                 </Grid>
             </DockPanel>
