@@ -531,6 +531,11 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OnExit(object sender, RoutedEventArgs e) => Close();
+
+    private void OnAbout(object sender, RoutedEventArgs e) =>
+        new AboutWindow { Owner = this, DataContext = DataContext }.ShowDialog();
+
     private void OnOverflowClick(object sender, RoutedEventArgs e)
     {
         if (sender is not Button button || button.ContextMenu is not { } menu)

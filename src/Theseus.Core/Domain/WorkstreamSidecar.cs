@@ -35,6 +35,13 @@ public sealed record WorkstreamSidecar(
     /// </summary>
     public IReadOnlyList<string> RemovedJiraKeys { get; init; } = [];
 
+    /// <summary>
+    /// Whether the work is paused: set aside on purpose, keeping its stage. A flag like blocked, and
+    /// no longer a column (Nigel, 2026-10-30), because a paused card in a Paused column had lost where
+    /// it was up to.
+    /// </summary>
+    public bool IsPaused { get; init; }
+
     /// <summary>The row of the board this card sits in: the kind of work, not how far along it is.</summary>
     public string? Area { get; init; }
 

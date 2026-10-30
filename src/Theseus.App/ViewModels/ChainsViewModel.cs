@@ -112,7 +112,7 @@ public sealed class ChainsViewModel : ObservableObject
             }
 
             Raise(nameof(Proposals));
-            Raise(nameof(ButtonText));
+            RaiseButton();
         }
     }
 
@@ -125,7 +125,20 @@ public sealed class ChainsViewModel : ObservableObject
         Ready.Count == 0 ? string.Empty : $"{Ready.Count} ready",
     }.Where(part => part.Length > 0));
 
-    private void ProposalsUpdated(object? sender, EventArgs e) => Raise(nameof(ButtonText));
+    /// <summary>The toolbar's count: proposals waiting, cards that need you, and cards ready to start.</summary>
+    public int BadgeCount => (_proposals?.Pending.Count ?? 0) + NeedsYou.Count + Ready.Count;
+
+    /// <summary>Whether the toolbar's count should turn amber: something waits on the user.</summary>
+    public bool IsUrgent => (_proposals?.Pending.Count ?? 0) > 0 || NeedsYou.Count > 0;
+
+    private void ProposalsUpdated(object? sender, EventArgs e) => RaiseButton();
+
+    private void RaiseButton()
+    {
+        Raise(nameof(ButtonText));
+        Raise(nameof(BadgeCount));
+        Raise(nameof(IsUrgent));
+    }
 
     /// <summary>The links of the card open in the drawer.</summary>
     public ObservableCollection<RelatedLinkViewModel> Related { get; } = [];
@@ -326,7 +339,7 @@ public sealed class ChainsViewModel : ObservableObject
 
     private LinkStatus Current(IReadOnlyList<WorkstreamCardViewModel> cards) =>
         new(_book.Active, cards.Select(card => new LinkCard(card.Key, card.Title, card.IsArchived,
-            card.IsBlocked, card.IsLive, card.LastStartedUtc, card.IsInLastStage, card.LastRunCrashed)));
+            card.IsBlocked || card.IsPaused, card.IsLive, card.LastStartedUtc, card.IsInLastStage, card.LastRunCrashed)));
 
     private void UpdateNeedsYou(IReadOnlyList<WorkstreamCardViewModel> cards)
     {
@@ -359,7 +372,7 @@ public sealed class ChainsViewModel : ObservableObject
                 setAside, Confirm, Satisfy, SetAside));
         }
 
-        Raise(nameof(ButtonText));
+        RaiseButton();
     }
 
     private static string Detail(Link link, LinkState state, WorkstreamCardViewModel? writer)
@@ -460,7 +473,7 @@ public sealed class ChainsViewModel : ObservableObject
             }
         }
 
-        Raise(nameof(ButtonText));
+        RaiseButton();
         Raise(nameof(HasNoChains));
     }
 

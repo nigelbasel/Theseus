@@ -1,0 +1,69 @@
+<Window x:Class="Theseus.App.AboutWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="About Theseus"
+        Width="520"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        ResizeMode="NoResize"
+        Background="{DynamicResource SolidBackgroundFillColorSecondaryBrush}">
+    <Window.Resources>
+        <Style x:Key="Label" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Margin" Value="0,10,0,2" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+        </Style>
+        <Style x:Key="Value" TargetType="TextBox">
+            <Setter Property="IsReadOnly" Value="True" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+    </Window.Resources>
+
+    <DockPanel>
+        <Border DockPanel.Dock="Bottom" Padding="22,14"
+                Background="{DynamicResource LayerFillColorDefaultBrush}"
+                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                BorderThickness="0,1,0,0">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Content="Close" Padding="18,5" IsCancel="True" IsDefault="True"
+                        Click="OnClose" />
+                <Button Content="Check for updates" Padding="14,5" HorizontalAlignment="Left"
+                        Command="{Binding Updates.CheckNowCommand}" />
+            </DockPanel>
+        </Border>
+
+        <StackPanel Margin="22,18,22,16">
+            <TextBlock Text="Theseus" FontSize="22" FontWeight="SemiBold" />
+            <TextBlock Text="A Claude Code session orchestrator." FontSize="13" Margin="0,2,0,0"
+                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+
+            <TextBlock Text="Version" Style="{StaticResource Label}" />
+            <TextBox Text="{Binding VersionDescribed, Mode=OneWay}" Style="{StaticResource Value}" />
+
+            <TextBlock Text="Account sessions run as" Style="{StaticResource Label}" />
+            <TextBox Text="{Binding Account, Mode=OneWay}" Style="{StaticResource Value}" />
+
+            <TextBlock Text="Installed in" Style="{StaticResource Label}" />
+            <TextBox Text="{Binding InstallFolder, Mode=OneWay}" Style="{StaticResource Value}" />
+
+            <TextBlock Text="Board, settings and logs" Style="{StaticResource Label}" />
+            <TextBox Text="{Binding DataFolder, Mode=OneWay}" Style="{StaticResource Value}" />
+
+            <TextBlock Margin="0,16,0,0" FontSize="13" TextWrapping="Wrap">
+                <Hyperlink NavigateUri="https://github.com/nigelbasel/Theseus" RequestNavigate="OnLink">Source code</Hyperlink>
+                <Run Text="   ·   " />
+                <Hyperlink NavigateUri="https://github.com/nigelbasel/Theseus/releases" RequestNavigate="OnLink">Releases</Hyperlink>
+                <Run Text="   ·   " />
+                <Hyperlink NavigateUri="https://github.com/nigelbasel/Theseus/blob/main/LICENSE" RequestNavigate="OnLink">MIT licence</Hyperlink>
+            </TextBlock>
+            <TextBlock Text="Copyright (c) 2026 Nigel Basel. Provided as is, without warranty."
+                       FontSize="11" Margin="0,10,0,0" TextWrapping="Wrap"
+                       Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+        </StackPanel>
+    </DockPanel>
+</Window>

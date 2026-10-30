@@ -99,6 +99,9 @@ public sealed class LocksViewModel : ObservableObject, IDisposable
     /// <summary>Whether any hold is longer than <see cref="LongHold"/>.</summary>
     public bool HasLongHold => Rows.Any(row => row.IsLong);
 
+    /// <summary>Whether the toolbar's count should turn amber: a long hold, or a container nobody owns.</summary>
+    public bool IsUrgent => HasLongHold || Unowned.Count > 0;
+
     /// <summary>Brings every row into line with the lock book.</summary>
     public void Refresh()
     {
@@ -116,6 +119,7 @@ public sealed class LocksViewModel : ObservableObject, IDisposable
         Raise(nameof(ButtonText));
         Raise(nameof(Summary));
         Raise(nameof(HasLongHold));
+        Raise(nameof(IsUrgent));
     }
 
     /// <inheritdoc />

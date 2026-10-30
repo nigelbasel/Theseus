@@ -40,6 +40,9 @@ public sealed record Workstream(
     /// <summary>The row of the board this card sits in: the kind of work, not how far along it is.</summary>
     public string? Area { get; init; }
 
+    /// <summary>Whether the work is paused: set aside on purpose, keeping its stage. A flag like blocked.</summary>
+    public bool IsPaused { get; init; }
+
     /// <summary>The keys taken off this card by hand, which stay off until they are added again.</summary>
     public IReadOnlyList<string> RemovedJiraKeys { get; init; } = [];
 

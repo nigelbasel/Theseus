@@ -40,6 +40,7 @@ public sealed class DetailDrawerViewModel : ObservableObject
     private string _windowGroup = string.Empty;
     private int _boardOrder;
     private bool _isBlocked;
+    private bool _isPaused;
     private bool _reopenTomorrow;
     private bool _isOpen;
     private bool _loading;
@@ -387,6 +388,19 @@ public sealed class DetailDrawerViewModel : ObservableObject
         }
     }
 
+    /// <summary>Whether the work is paused: set aside on purpose, keeping its stage. Saved at once.</summary>
+    public bool IsPaused
+    {
+        get => _isPaused;
+        set
+        {
+            if (Set(ref _isPaused, value))
+            {
+                ApplyOverview();
+            }
+        }
+    }
+
     /// <summary>Whether a whole-board Start should include this workstream. Saved at once.</summary>
     public bool ReopenTomorrow
     {
@@ -428,6 +442,7 @@ public sealed class DetailDrawerViewModel : ObservableObject
 
         _loading = true;
         IsBlocked = card.Workstream.IsBlocked;
+        IsPaused = card.Workstream.IsPaused;
         ReopenTomorrow = card.Workstream.ReopenTomorrow;
         _loading = false;
     }
@@ -441,6 +456,7 @@ public sealed class DetailDrawerViewModel : ObservableObject
 
         Title = workstream.Title;
         IsBlocked = workstream.IsBlocked;
+        IsPaused = workstream.IsPaused;
         ReopenTomorrow = workstream.ReopenTomorrow;
         LoadSetup(workstream);
         IsEditingSetup = false;
@@ -571,6 +587,7 @@ public sealed class DetailDrawerViewModel : ObservableObject
         {
             Title = Title,
             IsBlocked = IsBlocked,
+            IsPaused = IsPaused,
             ReopenTomorrow = ReopenTomorrow,
             JiraKeys = [.. JiraKeys],
             RemovedJiraKeys = JiraKeySelection.Removed(

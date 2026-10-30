@@ -254,6 +254,22 @@ public sealed class BoardViewModel : ObservableObject
         });
     }
 
+    /// <summary>Opens every folded row and stage, and remembers that nothing is folded.</summary>
+    public void UnfoldGrid()
+    {
+        foreach (var row in Rows)
+        {
+            row.IsCollapsed = false;
+        }
+
+        foreach (var header in StageHeaders)
+        {
+            header.IsCollapsed = false;
+        }
+
+        _settings.Write(_settings.Read() with { CollapsedAreas = [], CollapsedStages = [] });
+    }
+
     /// <summary>Folds one card or opens it, and remembers which way it was left.</summary>
     public void Fold(WorkstreamCardViewModel card, bool folded)
     {
@@ -522,6 +538,7 @@ public sealed class BoardViewModel : ObservableObject
               {
                   Column = card.Column,
                   IsBlocked = card.Workstream.IsBlocked,
+                  IsPaused = card.Workstream.IsPaused,
                   ReopenTomorrow = card.Workstream.ReopenTomorrow,
                   JiraKeys = card.JiraKeys,
                   RemovedJiraKeys = card.Workstream.RemovedJiraKeys,
@@ -540,6 +557,7 @@ public sealed class BoardViewModel : ObservableObject
                   WindowGroup = card.Workstream.WindowGroup,
                   Area = card.Workstream.Area,
                   EveryStartPrompt = card.Workstream.EveryStartPrompt,
+                  IsPaused = card.Workstream.IsPaused,
               };
 
         if (index >= 0)

@@ -17,13 +17,20 @@
         Icon="Assets/theseus.ico"
         Title="Theseus" Height="760" Width="1400" MinHeight="480" MinWidth="720">
 
-    <Window.Resources>
+    <Window.InputBindings>
+        <KeyBinding Gesture="Ctrl+N" Command="{Binding NewWorkstream.OpenCommand}" />
+        <KeyBinding Gesture="Ctrl+D" Command="{Binding DayReport.OpenCommand}" />
+        <KeyBinding Gesture="Ctrl+A" Command="{Binding SelectAllCommand}" />
+        <KeyBinding Gesture="Ctrl+I" Command="{Binding InvertSelectionCommand}" />
+        <KeyBinding Gesture="Ctrl+D1" Command="{Binding ToggleSessionsPanelCommand}" />
+        <KeyBinding Gesture="Ctrl+D2" Command="{Binding Locks.ToggleCommand}" />
+        <KeyBinding Gesture="Ctrl+D3" Command="{Binding Chains.ToggleCommand}" />
+        <KeyBinding Gesture="F5" Command="{Binding RefreshCommand}" />
+        <KeyBinding Key="OemComma" Modifiers="Ctrl" Command="{Binding Settings.OpenCommand}" />
+        <KeyBinding Gesture="F1" Command="{Binding Help.OpenCommand}" />
+    </Window.InputBindings>
 
-        <ObjectDataProvider x:Key="ThemeValues" MethodName="GetValues" ObjectType="{x:Type sys:Enum}">
-            <ObjectDataProvider.MethodParameters>
-                <x:Type TypeName="settings:AppTheme" />
-            </ObjectDataProvider.MethodParameters>
-        </ObjectDataProvider>
+    <Window.Resources>
 
         <!--
             The icon font is set on the glyph itself and never on anything that contains text.
@@ -118,6 +125,93 @@
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+        </Style>
+
+        <!--
+            The toolbar's buttons are flat, as toolbar buttons are everywhere: no face until the
+            pointer is over one, then the accent, as the command buttons do. A disabled one fades.
+            The glyph font is set on the button's content, which is only ever a glyph or a glyph
+            with a badge, so it never reaches a label.
+        -->
+        <Style x:Key="ToolButton" TargetType="ButtonBase">
+            <Setter Property="Width" Value="34" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Margin" Value="1,0" />
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+            <Setter Property="ToolTipService.ShowOnDisabled" Value="True" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ButtonBase">
+                        <Grid x:Name="Face" Background="Transparent">
+                            <Border x:Name="Checked" CornerRadius="4" Opacity="0"
+                                    Background="{DynamicResource ControlFillColorDefaultBrush}"
+                                    BorderBrush="{DynamicResource AccentFillColorDefaultBrush}"
+                                    BorderThickness="0,0,0,2" />
+                            <Border x:Name="Glow" CornerRadius="4" Opacity="0"
+                                    Background="{DynamicResource AccentFillColorDefaultBrush}" />
+                            <ContentPresenter x:Name="Label" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              TextElement.Foreground="{TemplateBinding Foreground}" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="ToggleButton.IsChecked" Value="True">
+                                <Setter TargetName="Checked" Property="Opacity" Value="1" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Glow" Property="Opacity" Value="1" />
+                                <Setter TargetName="Label" Property="TextElement.Foreground" Value="White" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Glow" Property="Opacity" Value="1" />
+                                <Setter TargetName="Glow" Property="Background" Value="#FF1F4E7A" />
+                                <Setter TargetName="Label" Property="TextElement.Foreground" Value="White" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Face" Property="Opacity" Value="0.35" />
+                                <Setter Property="Cursor" Value="Arrow" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- A panel's button: stays pressed while its panel is open, and is wider for its count. -->
+        <Style x:Key="ToolToggle" TargetType="ToggleButton" BasedOn="{StaticResource ToolButton}">
+            <Setter Property="Width" Value="NaN" />
+            <Setter Property="MinWidth" Value="34" />
+            <Setter Property="Padding" Value="8,0" />
+            <Setter Property="FontFamily" Value="{x:Static SystemFonts.MessageFontFamily}" />
+        </Style>
+
+        <Style x:Key="ToolGlyph" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="Margin" Value="8,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
+        <Style x:Key="ToolBadge" TargetType="Border">
+            <Setter Property="MinWidth" Value="18" />
+            <Setter Property="Height" Value="16" />
+            <Setter Property="Padding" Value="4,0" />
+            <Setter Property="Margin" Value="-4,0,8,0" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+            <Setter Property="TextElement.Foreground" Value="White" />
+            <Setter Property="TextElement.FontSize" Value="10" />
+            <Setter Property="TextElement.FontWeight" Value="SemiBold" />
+        </Style>
+
+        <Style x:Key="ToolSeparator" TargetType="Border">
+            <Setter Property="Width" Value="1" />
+            <Setter Property="Height" Value="20" />
+            <Setter Property="Margin" Value="6,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Background" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
         </Style>
 
         <Style x:Key="ChipButton" TargetType="Button">
@@ -290,7 +384,10 @@
                                   ToolTip="Include this card in Start selected and Stop selected" />
 
                         <DockPanel Grid.Column="1" VerticalAlignment="Center">
-                            <!-- Folded, a card still says whether its session is running. -->
+                            <!-- Folded, a card still says whether its session is running, and its marks. -->
+                            <TextBlock DockPanel.Dock="Right" Margin="8,0,0,0" Text="{Binding FlagText}" FontSize="11" FontWeight="SemiBold" Foreground="#D68910"
+                                       VerticalAlignment="Center"
+                                       Visibility="{Binding FlagText, Converter={StaticResource NotEmptyToVisibility}}" />
                             <TextBlock DockPanel.Dock="Right" Margin="8,0,0,0" VerticalAlignment="Center" Text="{Binding Lifecycle, Converter={StaticResource LifecycleGlyph}}"
                                        FontSize="14" ToolTip="{Binding StatusLine}">
                                 <TextBlock.Style>
@@ -386,6 +483,11 @@
                             </TextBlock>
                         </Grid>
 
+                        <!-- Paused or blocked, in amber under the title: a mark on the card, not a column. -->
+                        <TextBlock Margin="0,4,0,0" HorizontalAlignment="Left" Text="{Binding FlagText}" FontSize="11" FontWeight="SemiBold" Foreground="#D68910"
+                                       VerticalAlignment="Center"
+                                       Visibility="{Binding FlagText, Converter={StaticResource NotEmptyToVisibility}}" />
+
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,6,0,0">
                                 <Button Content="{Binding PrimaryAction}" FontSize="11" Padding="8,1" Margin="0,0,4,0"
                                         Visibility="{Binding IsLive, Converter={StaticResource NotBoolToVisibility}}"
@@ -413,6 +515,9 @@
                                                       ToolTip="{x:Static launching:StartModeChoice.FreshTooltip}"
                                                       Visibility="{Binding IsLive, Converter={StaticResource NotBoolToVisibility}}" />
                                             <Separator Visibility="{Binding IsLive, Converter={StaticResource NotBoolToVisibility}}" />
+                                            <MenuItem Header="Paused" IsChecked="{Binding IsPaused, Mode=OneWay}"
+                                                      Command="{Binding TogglePausedCommand}"
+                                                      ToolTip="Set aside on purpose. A flag on the card: it keeps its stage" />
                                             <MenuItem Header="Blocked" IsChecked="{Binding IsBlocked, Mode=OneWay}"
                                                       Command="{Binding ToggleBlockedCommand}"
                                                       ToolTip="A flag on the card, not a lane" />
@@ -808,263 +913,227 @@
     </Window.Resources>
 
     <DockPanel>
-        <Grid DockPanel.Dock="Top" Margin="16,12,16,4">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
+        <!--
+            The standard Windows layout (Nigel, 2026-10-30): a menu bar holding every command, an
+            icon toolbar holding the frequent ones, and a status bar for readings. It replaced a row
+            of eleven word buttons, three bordered groups and a "⋯" menu that had become a drawer for
+            whatever did not fit, which he found to follow no standard and to cost width and reading.
 
-            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                <Button Style="{StaticResource CommandButton}" Padding="8,3" Margin="0,0,12,0" VerticalAlignment="Center"
-                        ToolTip="Show or hide the live sessions panel"
-                        Command="{Binding ToggleSessionsPanelCommand}">
+            Each menu item with a toolbar button carries the same icon, so the toolbar is learned
+            from the menus; items without one keep the menu's empty icon column, so labels align.
+        -->
+        <Menu DockPanel.Dock="Top" Padding="8,2,8,0" Background="Transparent">
+            <MenuItem Header="_File">
+                <MenuItem Header="_New workstream…" InputGestureText="Ctrl+N" Command="{Binding NewWorkstream.OpenCommand}">
+                    <MenuItem.Icon><TextBlock Text="&#xE710;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                </MenuItem>
+                <Separator />
+                <MenuItem Header="_Day report…" InputGestureText="Ctrl+D" Command="{Binding DayReport.OpenCommand}">
+                    <MenuItem.Icon><TextBlock Text="&#xE9F9;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                </MenuItem>
+                <Separator />
+                <MenuItem Header="E_xit" InputGestureText="Alt+F4" Click="OnExit" />
+            </MenuItem>
+
+            <MenuItem Header="_Edit">
+                <MenuItem Header="Select _all" InputGestureText="Ctrl+A" Command="{Binding SelectAllCommand}" />
+                <MenuItem Header="Select _live" Command="{Binding SelectLiveCommand}"
+                          ToolTip="Tick every card with a session running" />
+                <MenuItem Header="_Invert selection" InputGestureText="Ctrl+I" Command="{Binding InvertSelectionCommand}" />
+                <MenuItem Header="_Unselect all" Command="{Binding ClearSelectionCommand}" />
+            </MenuItem>
+
+            <MenuItem Header="_View">
+                <MenuItem Header="Live _sessions panel" InputGestureText="Ctrl+1" IsCheckable="True"
+                          IsChecked="{Binding IsSessionsPanelOpen, Mode=TwoWay}">
+                    <MenuItem.Icon><TextBlock Text="&#xE90C;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="_Locks panel" InputGestureText="Ctrl+2" IsCheckable="True"
+                          IsChecked="{Binding Locks.IsOpen, Mode=TwoWay}">
+                    <MenuItem.Icon><TextBlock Text="&#xE72E;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="_Chains panel" InputGestureText="Ctrl+3" IsCheckable="True"
+                          IsChecked="{Binding Chains.IsOpen, Mode=TwoWay}">
+                    <MenuItem.Icon><TextBlock Text="&#xE71B;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                </MenuItem>
+                <Separator />
+                <MenuItem Header="_Archive" IsCheckable="True" IsChecked="{Binding Board.ShowArchived, Mode=TwoWay}"
+                          ToolTip="Show what has been put away instead of what is being worked on" />
+                <Separator />
+                <MenuItem Header="_Fold cards with no session" Command="{Binding CollapseInactiveCommand}">
+                    <MenuItem.Icon><TextBlock Text="&#xF165;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Fold all _cards" Command="{Binding FoldAllCommand}" />
+                <MenuItem Header="_Unfold all cards" Command="{Binding ExpandAllCommand}">
+                    <MenuItem.Icon><TextBlock Text="&#xF164;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Unfold all _rows and columns" Command="{Binding UnfoldGridCommand}" />
+                <Separator />
+                <MenuItem Header="_Toolbar" IsCheckable="True" IsChecked="{Binding IsToolbarVisible, Mode=TwoWay}" />
+                <MenuItem Header="Status _bar" IsCheckable="True" IsChecked="{Binding IsStatusBarVisible, Mode=TwoWay}" />
+                <Separator />
+                <MenuItem Header="_Refresh" InputGestureText="F5" Command="{Binding RefreshCommand}">
+                    <MenuItem.Icon><TextBlock Text="&#xE72C;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                </MenuItem>
+            </MenuItem>
+
+            <MenuItem Header="_Workstream">
+                <MenuItem Header="_Start selected" Command="{Binding StartSelectedCommand}"
+                          ToolTip="Start the ticked cards that are not already running">
+                    <MenuItem.Icon><TextBlock Text="&#xE768;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="St_op selected" Command="{Binding StopSelectedCommand}"
+                          ToolTip="Ask the ticked cards' running sessions to write a handoff and exit">
+                    <MenuItem.Icon><TextBlock Text="&#xE71A;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="_Archive selected" Command="{Binding ArchiveSelectedCommand}"
+                          ToolTip="Archive the ticked cards with no session running, or restore them when the archive is showing">
+                    <MenuItem.Icon><TextBlock Text="&#xE7B8;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                </MenuItem>
+            </MenuItem>
+
+            <MenuItem Header="Win_dow">
+                <MenuItem Header="_Arrange windows…" Command="{Binding Arrange.OpenCommand}"
+                          ToolTip="Tile, cascade or stack the terminal windows">
+                    <MenuItem.Icon><TextBlock Text="&#xE8A9;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                </MenuItem>
+            </MenuItem>
+
+            <MenuItem Header="_Tools">
+                <MenuItem Header="_Options…" InputGestureText="Ctrl+," Command="{Binding Settings.OpenCommand}" />
+                <Separator />
+                <MenuItem Header="Open _logs folder" Command="{Binding OpenLogsFolderCommand}" />
+                <MenuItem Header="Open _data folder" Command="{Binding OpenDataFolderCommand}" />
+            </MenuItem>
+
+            <MenuItem Header="_Help">
+                <MenuItem Header="View _help" InputGestureText="F1" Command="{Binding Help.OpenCommand}" />
+                <Separator />
+                <MenuItem Header="Check for _updates" Command="{Binding Updates.CheckNowCommand}"
+                          ToolTip="Ask GitHub for a newer release now, including one put aside with Later" />
+                <MenuItem Header="_What's new in this version" Command="{Binding OpenReleaseNotesCommand}" />
+                <Separator />
+                <MenuItem Header="_About Theseus…" Click="OnAbout" />
+            </MenuItem>
+        </Menu>
+
+        <!--
+            The toolbar: icons only, one size, in groups split by separators. Each tooltip gives the
+            name and its shortcut. Selection commands are greyed until something is ticked, as any
+            toolbar's are.
+        -->
+        <Border DockPanel.Dock="Top" Padding="10,3" Margin="0,0,0,4"
+                Visibility="{Binding IsToolbarVisible, Converter={StaticResource BoolToVisibility}}"
+                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal">
+                <Button Style="{StaticResource ToolButton}" Content="&#xE710;" ToolTip="New workstream (Ctrl+N)"
+                        Command="{Binding NewWorkstream.OpenCommand}" />
+
+                <Border Style="{StaticResource ToolSeparator}" />
+
+                <Button Style="{StaticResource ToolButton}" Content="&#xE768;" ToolTip="Start selected"
+                        Command="{Binding StartSelectedCommand}" />
+                <Button Style="{StaticResource ToolButton}" Content="&#xE71A;" ToolTip="Stop selected"
+                        Command="{Binding StopSelectedCommand}" />
+                <Button Style="{StaticResource ToolButton}" Content="&#xE7B8;" ToolTip="Archive selected"
+                        Command="{Binding ArchiveSelectedCommand}" />
+
+                <Border Style="{StaticResource ToolSeparator}" />
+
+                <Button Style="{StaticResource ToolButton}" Content="&#xF165;" ToolTip="Fold cards with no session"
+                        Command="{Binding CollapseInactiveCommand}" />
+                <Button Style="{StaticResource ToolButton}" Content="&#xF164;" ToolTip="Unfold all cards"
+                        Command="{Binding ExpandAllCommand}" />
+
+                <Border Style="{StaticResource ToolSeparator}" />
+
+                <ToggleButton Style="{StaticResource ToolToggle}" IsChecked="{Binding IsSessionsPanelOpen, Mode=TwoWay}"
+                              ToolTip="{Binding Sessions.Status, StringFormat='Live sessions panel (Ctrl+1): {0}'}">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="&#xE700;" FontFamily="Segoe MDL2 Assets" FontSize="12"
-                                   VerticalAlignment="Center" />
-                        <TextBlock Text="{Binding Sessions.Status}" FontSize="12" Margin="8,0,0,0"
-                                   VerticalAlignment="Center" />
+                        <TextBlock Text="&#xE90C;" Style="{StaticResource ToolGlyph}" />
+                        <Border Style="{StaticResource ToolBadge}"
+                                Visibility="{Binding Sessions.Sessions.Count, Converter={StaticResource CountToVisibility}}">
+                            <TextBlock Text="{Binding Sessions.Sessions.Count}" />
+                        </Border>
                     </StackPanel>
-                </Button>
-
-                <Button Style="{StaticResource CommandButton}" Padding="8,3" Margin="0,0,12,0" VerticalAlignment="Center"
-                        ToolTip="Show or hide the machine's locks: who holds each, and who is waiting"
-                        Command="{Binding Locks.ToggleCommand}">
+                </ToggleButton>
+                <ToggleButton Style="{StaticResource ToolToggle}" IsChecked="{Binding Locks.IsOpen, Mode=TwoWay}"
+                              ToolTip="{Binding Locks.ButtonText, StringFormat='Locks panel (Ctrl+2): {0}'}">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="&#xE72E;" FontFamily="Segoe MDL2 Assets" FontSize="12"
-                                   VerticalAlignment="Center" />
-                        <TextBlock Text="{Binding Locks.ButtonText}" FontSize="12" Margin="8,0,0,0"
-                                   VerticalAlignment="Center" />
+                        <TextBlock Text="&#xE72E;" Style="{StaticResource ToolGlyph}" />
+                        <Border Visibility="{Binding Locks.Busy, Converter={StaticResource CountToVisibility}}">
+                            <Border.Style>
+                                <Style TargetType="Border" BasedOn="{StaticResource ToolBadge}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Locks.IsUrgent}" Value="True">
+                                            <Setter Property="Background" Value="#D68910" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <TextBlock Text="{Binding Locks.Busy}" />
+                        </Border>
                     </StackPanel>
-                </Button>
-
-                <Button Style="{StaticResource CommandButton}" Padding="8,3" Margin="0,0,12,0" VerticalAlignment="Center"
-                        ToolTip="Show or hide the chains: which workstream hands over to which, what each waits on, and which are ready"
-                        Command="{Binding Chains.ToggleCommand}">
+                </ToggleButton>
+                <ToggleButton Style="{StaticResource ToolToggle}" IsChecked="{Binding Chains.IsOpen, Mode=TwoWay}"
+                              ToolTip="{Binding Chains.ButtonText, StringFormat='Chains panel (Ctrl+3): {0}'}">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="&#xE71B;" FontFamily="Segoe MDL2 Assets" FontSize="12"
-                                   VerticalAlignment="Center" />
-                        <TextBlock Text="{Binding Chains.ButtonText}" FontSize="12" Margin="8,0,0,0"
-                                   VerticalAlignment="Center" />
+                        <TextBlock Text="&#xE71B;" Style="{StaticResource ToolGlyph}" />
+                        <Border Visibility="{Binding Chains.BadgeCount, Converter={StaticResource CountToVisibility}}">
+                            <Border.Style>
+                                <Style TargetType="Border" BasedOn="{StaticResource ToolBadge}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Chains.IsUrgent}" Value="True">
+                                            <Setter Property="Background" Value="#D68910" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <TextBlock Text="{Binding Chains.BadgeCount}" />
+                        </Border>
                     </StackPanel>
-                </Button>
+                </ToggleButton>
 
-                <!--
-                    The notice is a sentence, not a label - "3 sessions were interrupted mid-turn
-                    and handed the request" - so it is trimmed and carries its own tooltip rather
-                    than pushing the buttons off the edge or running underneath them.
-                -->
-                <StackPanel>
-                    <TextBlock Text="{Binding Board.Status}" FontSize="12"
-                               TextTrimming="CharacterEllipsis"
-                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                    <TextBlock Text="{Binding Notice}" FontSize="12" Margin="0,2,0,0"
-                               TextTrimming="CharacterEllipsis" ToolTip="{Binding Notice}"
-                               Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" />
-                    <!-- A newer published build: offered, never installed until Update is pressed. -->
-                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
-                                Visibility="{Binding Updates.IsOffered, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
-                        <TextBlock Text="{Binding Updates.OfferText}" FontSize="12" VerticalAlignment="Center"
-                                   ToolTip="{Binding Updates.Offer.Page}" />
-                        <Button Content="Update and restart" Padding="10,2" Margin="8,0,0,0"
-                                ToolTip="Download it, check its SHA-256, install it (Windows asks for permission) and restart Theseus. Running sessions are not touched."
-                                Command="{Binding Updates.UpdateCommand}" />
-                        <Button Content="Later" Padding="10,2" Margin="6,0,0,0"
-                                ToolTip="Not this version. Theseus offers again when a newer one is published."
-                                Command="{Binding Updates.LaterCommand}" />
-                        <TextBlock Text="{Binding Updates.Status}" FontSize="12" Margin="8,0,0,0" VerticalAlignment="Center"
-                                   TextWrapping="Wrap" MaxWidth="420"
-                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                    </StackPanel>
-                </StackPanel>
-            </StackPanel>
+                <Border Style="{StaticResource ToolSeparator}" />
 
-            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right"
-                        VerticalAlignment="Center">
-                <!--
-                    A command bar rather than a row of peers. Eleven controls had grown along the top,
-                    every one of them the same size and weight, so starting every session on the board
-                    read as no more consequential than reloading it. What stays out here is what is
-                    used constantly or is worth the width; the rest is a click away under the overflow,
-                    and the next thing added goes there rather than becoming a twelfth button.
-                -->
-                <Button Style="{StaticResource CommandButton}" Padding="12,4" Margin="0,0,12,0"
-                        ToolTip="Create a workstream and open a session for it"
-                        Command="{Binding NewWorkstream.OpenCommand}">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="&#xE710;" Style="{StaticResource CommandGlyph}" />
-                        <TextBlock Text="New workstream" VerticalAlignment="Center" />
-                    </StackPanel>
-                </Button>
+                <Button Style="{StaticResource ToolButton}" Content="&#xE9F9;" ToolTip="Day report (Ctrl+D)"
+                        Command="{Binding DayReport.OpenCommand}" />
+                <Button Style="{StaticResource ToolButton}" Content="&#xE8A9;" ToolTip="Arrange windows"
+                        Command="{Binding Arrange.OpenCommand}" />
 
-                <!--
-                    Everything bulk goes through the ticks on the cards. There is no Start all, and
-                    no Start for a row or a cell: those worked out what to start from where a card
-                    sat, which is a guess about the board's shape, and it started paused work on any
-                    board whose last column was not the only one to leave alone.
-                -->
-                <TextBlock Text="{Binding SelectionSummary}" FontSize="12" VerticalAlignment="Center"
-                           Margin="0,0,10,0"
-                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                <Border Style="{StaticResource ToolSeparator}" />
 
-                <!--
-                    The three that change what is ticked, grouped the same way as the two that act on
-                    it. "Unselect all" rather than "Clear": it is disabled whenever nothing is ticked,
-                    so a word that does not pair with "Select all" reads as some other, unrelated
-                    thing that happens to be greyed out.
-                -->
-                <Border CornerRadius="4" Margin="0,0,12,0" Padding="2"
-                        Background="{DynamicResource LayerFillColorDefaultBrush}"
-                        BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
-                        BorderThickness="1">
-                    <StackPanel Orientation="Horizontal">
-                        <Button Style="{StaticResource CommandButton}" Padding="10,3" Margin="0,0,2,0"
-                                ToolTip="Tick every card on the board"
-                                Command="{Binding SelectAllCommand}">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="&#xE73A;" Style="{StaticResource CommandGlyph}" />
-                                <TextBlock Text="Select all" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </Button>
-                        <Button Style="{StaticResource CommandButton}" Padding="10,3" Margin="0,0,2,0"
-                                ToolTip="Untick everything"
-                                Command="{Binding ClearSelectionCommand}">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="&#xE739;" Style="{StaticResource CommandGlyph}" />
-                                <TextBlock Text="Unselect all" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </Button>
-                        <Button Style="{StaticResource CommandButton}" Padding="10,3"
-                                ToolTip="Tick what is not ticked, and untick what is"
-                                Command="{Binding InvertSelectionCommand}">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="&#xEF1F;" Style="{StaticResource CommandGlyph}" />
-                                <TextBlock Text="Invert" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </Button>
-                    </StackPanel>
-                </Border>
-
-                <!-- Folding the board down to what is alive, and opening it again. -->
-                <Border CornerRadius="4" Margin="0,0,12,0" Padding="2"
-                        Background="{DynamicResource LayerFillColorDefaultBrush}"
-                        BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
-                        BorderThickness="1">
-                    <StackPanel Orientation="Horizontal">
-                        <Button Style="{StaticResource CommandButton}" Padding="10,3" Margin="0,0,2,0"
-                                ToolTip="Fold every card with no session running down to its title"
-                                Command="{Binding CollapseInactiveCommand}">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="&#xE70E;" Style="{StaticResource CommandGlyph}" />
-                                <TextBlock Text="Collapse inactive" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </Button>
-                        <Button Style="{StaticResource CommandButton}" Padding="10,3"
-                                ToolTip="Open every card again"
-                                Command="{Binding ExpandAllCommand}">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="&#xE70D;" Style="{StaticResource CommandGlyph}" />
-                                <TextBlock Text="Expand all" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </Button>
-                    </StackPanel>
-                </Border>
-
-                <Border CornerRadius="4" Margin="0,0,12,0" Padding="2"
-                        Background="{DynamicResource LayerFillColorDefaultBrush}"
-                        BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
-                        BorderThickness="1">
-                    <StackPanel Orientation="Horizontal">
-                        <Button Style="{StaticResource CommandButton}" Padding="11,3" Margin="0,0,2,0"
-                                ToolTip="Start the ticked cards that are not already running"
-                                Command="{Binding StartSelectedCommand}">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="&#xE768;" Style="{StaticResource CommandGlyph}" />
-                                <TextBlock Text="Start selected" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </Button>
-                        <Button Style="{StaticResource CommandButton}" Padding="11,3"
-                                ToolTip="Ask the ticked cards' running sessions to write a handoff and exit"
-                                Command="{Binding StopSelectedCommand}">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="&#xE71A;" Style="{StaticResource CommandGlyph}" />
-                                <TextBlock Text="Stop selected" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </Button>
-                    </StackPanel>
-                </Border>
-
-                <!--
-                    A button carrying a context menu rather than a Menu, for two reasons. A bare
-                    MenuItem draws no button chrome, so the overflow read as three loose dots beside
-                    real buttons; and FontFamily inherits, so the icon font it needed for its own
-                    glyph descended into every item beneath it and rendered their labels as rows of
-                    empty squares.
-                -->
-                <Button Style="{StaticResource CommandButton}" Padding="10,4" Margin="0,0,12,0"
-                        Click="OnOverflowClick"
-                        ToolTip="The rest of the board's commands">
-                    <!--
-                        The glyph sits in its own TextBlock rather than on the button. A context menu
-                        is a logical child of the element that owns it, so an icon font set on the
-                        button would reach the menu's labels just as surely as one set on a MenuItem.
-                    -->
-                    <TextBlock Text="&#xE712;" FontFamily="Segoe MDL2 Assets" FontSize="12"
-                               VerticalAlignment="Center" />
-                    <Button.ContextMenu>
-                        <ContextMenu DataContext="{Binding PlacementTarget.DataContext,
-                                                  RelativeSource={RelativeSource Self}}">
-                            <MenuItem Header="Day report…" Command="{Binding DayReport.OpenCommand}"
-                                      ToolTip="What was worked on today, and which tabs are safe to close">
-                                <MenuItem.Icon>
-                                    <TextBlock Text="&#xE787;" Style="{StaticResource MenuGlyph}" />
-                                </MenuItem.Icon>
-                            </MenuItem>
-                            <MenuItem Header="Arrange windows…" Command="{Binding Arrange.OpenCommand}"
-                                      ToolTip="Tile, cascade or stack the terminal windows">
-                                <MenuItem.Icon>
-                                    <TextBlock Text="&#xE8A9;" Style="{StaticResource MenuGlyph}" />
-                                </MenuItem.Icon>
-                            </MenuItem>
-                            <Separator />
-                            <MenuItem Header="Show archived" IsCheckable="True"
-                                      IsChecked="{Binding Board.ShowArchived, Mode=TwoWay}"
-                                      ToolTip="Show what has been put away instead of what is being worked on" />
-                            <Separator />
-                            <MenuItem StaysOpenOnClick="True">
-                                <MenuItem.Icon>
-                                    <TextBlock Text="&#xE790;" Style="{StaticResource MenuGlyph}" />
-                                </MenuItem.Icon>
-                                <MenuItem.Header>
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="Theme" VerticalAlignment="Center" Margin="0,0,10,0" />
-                                        <ComboBox ItemsSource="{Binding Source={StaticResource ThemeValues}}"
-                                                  SelectedItem="{Binding Theme, Mode=TwoWay}"
-                                                  Width="110" />
-                                    </StackPanel>
-                                </MenuItem.Header>
-                            </MenuItem>
-                        </ContextMenu>
-                    </Button.ContextMenu>
-                </Button>
-
-                <!--
-                    Icons, because a refresh arrow and a gear need no label, and three words of chrome
-                    were taking the width of a card.
-                -->
-                <Button Style="{StaticResource CommandButton}" Content="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="12"
-                        Padding="9,4" Margin="0,0,4,0"
-                        ToolTip="Read the board and the running sessions again"
+                <Button Style="{StaticResource ToolButton}" Content="&#xE72C;" ToolTip="Refresh (F5)"
                         Command="{Binding RefreshCommand}" />
-                <Button Style="{StaticResource CommandButton}" Content="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="12"
-                        Padding="9,4" Margin="0,0,4,0"
-                        ToolTip="Settings"
-                        Command="{Binding Settings.OpenCommand}" />
-                <Button Style="{StaticResource CommandButton}" Content="&#xE897;" FontFamily="Segoe MDL2 Assets" FontSize="12"
-                        Padding="9,4"
-                        Command="{Binding Help.OpenCommand}"
-                        ToolTip="What the buttons do, how starting and stopping work, and what to look at when one of them does nothing" />
             </StackPanel>
-        </Grid>
+        </Border>
+
+        <!--
+            The information bar, as in Visual Studio and Office: shown only while a newer build is
+            on offer, which is the one message worth moving the board for. Offered, never installed
+            until Update and restart is pressed.
+        -->
+        <Border DockPanel.Dock="Top" Margin="12,0,12,6" Padding="12,6" CornerRadius="6"
+                Background="{DynamicResource SystemFillColorCautionBackgroundBrush}"
+                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                Visibility="{Binding Updates.IsOffered, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Style="{StaticResource CommandButton}" Content="Update and restart" Margin="8,0,0,0"
+                            ToolTip="Download it, check its SHA-256, install it (Windows asks for permission) and restart Theseus. Running sessions are not touched."
+                            Command="{Binding Updates.UpdateCommand}" />
+                    <Button Style="{StaticResource CommandButton}" Content="Later" Margin="6,0,0,0"
+                            ToolTip="Not this version. Theseus offers again when a newer one is published."
+                            Command="{Binding Updates.LaterCommand}" />
+                </StackPanel>
+                <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" FontSize="12"
+                           ToolTip="{Binding Updates.Offer.Page}">
+                    <Run Text="{Binding Updates.OfferText, Mode=OneWay}" />
+                    <Run Text="{Binding Updates.Status, Mode=OneWay}"
+                         Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                </TextBlock>
+            </DockPanel>
+        </Border>
 
         <Border DockPanel.Dock="Left" Width="280" Margin="16,8,0,16" CornerRadius="10" Padding="10"
                 Visibility="{Binding IsSessionsPanelOpen, Converter={StaticResource BoolToVisibility}}"
@@ -1523,59 +1592,100 @@
             </DockPanel>
         </Border>
 
-        <Border DockPanel.Dock="Bottom" Height="30" Padding="16,0"
+        <!--
+            The status bar holds readings and nothing that asks anything. The latest notice sits at
+            its left, as most Windows apps put their status message, with the earlier ones a click
+            away; the counts, usage, locks, version and account follow on the right.
+        -->
+        <Border DockPanel.Dock="Bottom" Height="30" Padding="12,0"
+                Visibility="{Binding IsStatusBarVisible, Converter={StaticResource BoolToVisibility}}"
                 Background="{DynamicResource LayerFillColorDefaultBrush}"
                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                 BorderThickness="0,1,0,0">
-            <!--
-                Two columns, because these two halves were sharing one cell and drawing over each
-                other. Left-aligned content growing rightwards and right-aligned content growing
-                leftwards meet in the middle and neither yields: the usage figures were being
-                overwritten by whatever the right-hand side had grown to. A column apiece makes the
-                right side take what it needs and the left side live in the remainder.
-            -->
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center"
-                            ClipToBounds="True"
-                            Visibility="{Binding Usage.HasReading, Converter={StaticResource BoolToVisibility}}">
-                    <TextBlock Text="{Binding Usage.SessionText}" FontSize="12"
-                               Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                    <TextBlock Text="  ·  " FontSize="12"
-                               Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
-                    <TextBlock Text="{Binding Usage.WeeklyText}" FontSize="12"
-                               Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                    <TextBlock Text="  ·  " FontSize="12"
-                               Visibility="{Binding Usage.BindingText, Converter={StaticResource NotEmptyToVisibility}}"
-                               Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
-                    <TextBlock Text="{Binding Usage.BindingText}" FontSize="12"
-                               Visibility="{Binding Usage.BindingText, Converter={StaticResource NotEmptyToVisibility}}">
-                        <TextBlock.Style>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="Foreground"
-                                        Value="{DynamicResource TextFillColorSecondaryBrush}" />
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding Usage.IsWarning}" Value="True">
-                                        <Setter Property="Foreground" Value="#D68910" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </TextBlock.Style>
-                    </TextBlock>
-                </StackPanel>
-
-                <TextBlock Grid.Column="0" Text="{Binding Usage.Problem}" FontSize="12"
-                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-                           Visibility="{Binding Usage.Problem, Converter={StaticResource NotEmptyToVisibility}}"
-                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                <Button Grid.Column="0" HorizontalAlignment="Left" Padding="4,0" Margin="0,3"
+                        Background="Transparent" BorderThickness="0" Cursor="Hand"
+                        HorizontalContentAlignment="Left"
+                        ToolTip="{Binding Notice}" Click="OnOverflowClick"
+                        Visibility="{Binding Notice, Converter={StaticResource NotEmptyToVisibility}}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE946;" FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="0,0,6,0"
+                                   VerticalAlignment="Center"
+                                   Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+                        <TextBlock Text="{Binding Notice}" FontSize="12" TextTrimming="CharacterEllipsis"
+                                   VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                        <TextBlock Text="&#xE70D;" FontFamily="Segoe MDL2 Assets" FontSize="8" Margin="6,0,0,0"
+                                   VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                    </StackPanel>
+                    <Button.ContextMenu>
+                        <ContextMenu ItemsSource="{Binding Notices.Entries}"
+                                     DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                            <ContextMenu.ItemContainerStyle>
+                                <Style TargetType="MenuItem">
+                                    <Setter Property="Header" Value="{Binding Display}" />
+                                    <Setter Property="IsHitTestVisible" Value="False" />
+                                </Style>
+                            </ContextMenu.ItemContainerStyle>
+                        </ContextMenu>
+                    </Button.ContextMenu>
+                </Button>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right"
                             VerticalAlignment="Center">
-                    <TextBlock Text="{Binding Locks.Summary}" FontSize="11" Margin="12,0,0,0"
+                    <TextBlock FontSize="11" Margin="12,0,0,0" VerticalAlignment="Center"
+                               Foreground="{DynamicResource TextFillColorTertiaryBrush}">
+                        <Run Text="{Binding Board.Status, Mode=OneWay}" />
+                        <Run Text="  ·  " />
+                        <Run Text="{Binding SelectionSummary, Mode=OneWay}" />
+                    </TextBlock>
+
+                    <StackPanel Orientation="Horizontal" Margin="18,0,0,0" VerticalAlignment="Center"
+                                Visibility="{Binding Usage.HasReading, Converter={StaticResource BoolToVisibility}}">
+                        <TextBlock Text="{Binding Usage.SessionText}" FontSize="11"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        <TextBlock Text="  ·  " FontSize="11"
+                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                        <TextBlock Text="{Binding Usage.WeeklyText}" FontSize="11"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        <TextBlock Text="  ·  " FontSize="11"
+                                   Visibility="{Binding Usage.BindingText, Converter={StaticResource NotEmptyToVisibility}}"
+                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                        <TextBlock Text="{Binding Usage.BindingText}" FontSize="11"
+                                   Visibility="{Binding Usage.BindingText, Converter={StaticResource NotEmptyToVisibility}}">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground"
+                                            Value="{DynamicResource TextFillColorSecondaryBrush}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Usage.IsWarning}" Value="True">
+                                            <Setter Property="Foreground" Value="#D68910" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <TextBlock Text="{Binding Usage.Age, StringFormat='  ({0})'}" FontSize="11"
+                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                    </StackPanel>
+
+                    <TextBlock Text="{Binding Usage.Problem}" FontSize="11" Margin="18,0,0,0"
+                               VerticalAlignment="Center" MaxWidth="360" TextTrimming="CharacterEllipsis"
+                               ToolTip="{Binding Usage.Problem}"
+                               Visibility="{Binding Usage.Problem, Converter={StaticResource NotEmptyToVisibility}}"
+                               Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+
+                    <Button Content="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="10" Padding="6,0" Margin="4,0,0,0"
+                            Background="Transparent" BorderThickness="0" Cursor="Hand"
+                            ToolTip="Read usage now" Command="{Binding Usage.RefreshCommand}" />
+
+                    <TextBlock Text="{Binding Locks.Summary}" FontSize="11" Margin="18,0,0,0"
                                VerticalAlignment="Center"
                                ToolTip="The machine's shared locks, held by Theseus"
                                Visibility="{Binding Locks.Summary, Converter={StaticResource NotEmptyToVisibility}}">
@@ -1590,21 +1700,16 @@
                             </Style>
                         </TextBlock.Style>
                     </TextBlock>
-                    <TextBlock Text="{Binding Version}" FontSize="11" Margin="12,0,14,0"
-                               VerticalAlignment="Center"
-                               ToolTip="{Binding VersionDescribed}"
-                               Visibility="{Binding Version, Converter={StaticResource NotEmptyToVisibility}}"
-                               Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
-                    <TextBlock Text="{Binding Account}" FontSize="11" Margin="0,0,14,0"
+                    <TextBlock Text="{Binding Account}" FontSize="11" Margin="18,0,0,0"
                                VerticalAlignment="Center"
                                ToolTip="The Claude account every session on this machine runs as"
                                Visibility="{Binding Account, Converter={StaticResource NotEmptyToVisibility}}"
                                Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
-                    <TextBlock Text="{Binding Usage.Age}" FontSize="11" Margin="0,0,10,0"
+                    <TextBlock Text="{Binding Version}" FontSize="11" Margin="18,0,4,0"
                                VerticalAlignment="Center"
+                               ToolTip="{Binding VersionDescribed}"
+                               Visibility="{Binding Version, Converter={StaticResource NotEmptyToVisibility}}"
                                Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
-                    <Button Content="↻" FontSize="12" Padding="8,0" ToolTip="Read usage now"
-                            Command="{Binding Usage.RefreshCommand}" />
                 </StackPanel>
             </Grid>
         </Border>
@@ -1889,6 +1994,9 @@
                                                Text="Saved when you leave the box. Also the tab title: a running session keeps the name it started with until it is restarted." />
 
                                     <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                        <CheckBox Content="Paused" Margin="0,0,18,0"
+                                                  ToolTip="Set aside on purpose. A flag on the card: it keeps its stage. Saved at once."
+                                                  IsChecked="{Binding Drawer.IsPaused}" />
                                         <CheckBox Content="Blocked" Margin="0,0,18,0"
                                                   ToolTip="A flag on the card, not a lane. Saved at once."
                                                   IsChecked="{Binding Drawer.IsBlocked}" />

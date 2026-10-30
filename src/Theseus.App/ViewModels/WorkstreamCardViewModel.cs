@@ -52,6 +52,8 @@ public sealed class WorkstreamCardViewModel : ObservableObject
                 Raise(nameof(MoreJiraKeys));
                 Raise(nameof(AllJiraKeys));
                 Raise(nameof(IsBlocked));
+                Raise(nameof(IsPaused));
+                Raise(nameof(FlagText));
                 Raise(nameof(ReopenTomorrow));
                 Raise(nameof(Column));
                 Raise(nameof(IsArchived));
@@ -90,6 +92,18 @@ public sealed class WorkstreamCardViewModel : ObservableObject
 
     /// <summary>Whether the work is blocked, shown as a flag rather than a column.</summary>
     public bool IsBlocked => _workstream.IsBlocked;
+
+    /// <summary>Whether the work is paused: set aside on purpose, keeping its stage.</summary>
+    public bool IsPaused => _workstream.IsPaused;
+
+    /// <summary>What the card says about its flags: Paused, Blocked, both, or nothing.</summary>
+    public string FlagText => (IsPaused, IsBlocked) switch
+    {
+        (true, true) => "Paused · blocked",
+        (true, false) => "Paused",
+        (false, true) => "Blocked",
+        _ => string.Empty,
+    };
 
     /// <summary>Whether a whole-board Start includes this workstream, ticked in the card's menu.</summary>
     public bool ReopenTomorrow => _workstream.ReopenTomorrow;
@@ -408,6 +422,9 @@ public sealed class WorkstreamCardViewModel : ObservableObject
         get => _startFreshCommand;
         set => Set(ref _startFreshCommand, value);
     }
+
+    /// <summary>Marks the work paused, or not, from the card's menu.</summary>
+    public RelayCommand? TogglePausedCommand { get; set; }
 
     /// <summary>Marks the work blocked, or not, from the card's menu.</summary>
     public RelayCommand? ToggleBlockedCommand

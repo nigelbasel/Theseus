@@ -79,6 +79,26 @@ public class BoardFoldingTests
     }
 
     [Test]
+    public void UnfoldGrid_OpensEveryRowAndStageAndRemembersIt()
+    {
+        var fixture = new BoardFixture().With("one");
+        fixture.Board.Refresh();
+        fixture.Board.ToggleStage(fixture.Board.StageHeaders[0]);
+        fixture.Board.ToggleRow(fixture.Board.Rows[0]);
+
+        fixture.Board.UnfoldGrid();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(fixture.Board.Rows.Select(row => row.IsCollapsed), Is.All.False);
+            Assert.That(fixture.Board.StageHeaders.Select(header => header.IsCollapsed), Is.All.False);
+            Assert.That(fixture.Board.Cells.Select(cell => cell.IsCollapsed), Is.All.False);
+            Assert.That(fixture.Settings.CollapsedAreas, Is.Empty);
+            Assert.That(fixture.Settings.CollapsedStages, Is.Empty);
+        });
+    }
+
+    [Test]
     public void LiveCounts_FollowTheSessionsUnderAFold()
     {
         var fixture = new BoardFixture().With("one", "In progress", "Dev").With("two", "In progress", "Research")

@@ -83,6 +83,18 @@ public sealed record TheseusSettings(
     /// <summary>Which rows were folded away, so a board left tidy opens tidy.</summary>
     public IReadOnlyList<string> CollapsedAreas { get; init; } = [];
 
+    /// <summary>
+    /// Which one-off tidies of the grid this board has had. Zero for a board from before any; see
+    /// <see cref="Domain.BoardTidy"/>.
+    /// </summary>
+    public int BoardRevision { get; init; }
+
+    /// <summary>Whether the toolbar was hidden from View. Named for hidden so an older file reads as shown.</summary>
+    public bool ToolbarHidden { get; init; }
+
+    /// <summary>Whether the status bar was hidden from View, likewise.</summary>
+    public bool StatusBarHidden { get; init; }
+
     /// <summary>Which columns were folded away, by stage name, for the same reason.</summary>
     public IReadOnlyList<string> CollapsedStages { get; init; } = [];
 

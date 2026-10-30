@@ -32,6 +32,8 @@ public sealed class ShellViewModel : ObservableObject
     private AppTheme _theme;
     private string _notice = string.Empty;
     private bool _isSessionsPanelOpen;
+    private bool _isToolbarVisible;
+    private bool _isStatusBarVisible;
     private bool _motionAllowed = true;
 
     /// <summary>
@@ -93,6 +95,8 @@ public sealed class ShellViewModel : ObservableObject
         _pullRequests = new PullRequestResolver(new GitRemoteReader());
         _theme = settings.Read().Theme;
         _isSessionsPanelOpen = !settings.Read().SessionsPanelCollapsed;
+        _isToolbarVisible = !settings.Read().ToolbarHidden;
+        _isStatusBarVisible = !settings.Read().StatusBarHidden;
 
         RefreshCommand = new RelayCommand(_ => Refresh());
         FocusCardCommand = new RelayCommand(FocusCard, CanFocusCard);
@@ -114,6 +118,13 @@ public sealed class ShellViewModel : ObservableObject
         SelectAllCommand = new RelayCommand(_ => ChooseAll(true), _ => Board.Cards.Any(card => !card.IsSelected));
         ClearSelectionCommand = new RelayCommand(_ => ChooseAll(false), _ => Board.Cards.Any(card => card.IsSelected));
         InvertSelectionCommand = new RelayCommand(_ => Invert(), _ => Board.Cards.Any());
+        SelectLiveCommand = new RelayCommand(_ => SelectLive(), _ => Board.Cards.Any(card => card.IsLive));
+        ArchiveSelectedCommand = new RelayCommand(_ => ArchiveSelected(), _ => Chosen().Any(card => !card.IsLive));
+        FoldAllCommand = new RelayCommand(_ => FoldEvery(), _ => Board.Cards.Any(card => !card.IsCollapsed));
+        UnfoldGridCommand = new RelayCommand(_ => Board.UnfoldGrid(),
+            _ => Board.Rows.Any(row => row.IsCollapsed) || Board.StageHeaders.Any(header => header.IsCollapsed));
+        OpenLogsFolderCommand = new RelayCommand(_ => OpenFolder(Path.Combine(App.DataDirectory, "logs")));
+        OpenDataFolderCommand = new RelayCommand(_ => OpenFolder(App.DataDirectory));
 
         // Archive is on the card as well as in the details; deleting is not. One is reversible and
         // the everyday way to clear finished work off the board, and the other destroys a plan file
@@ -401,6 +412,60 @@ public sealed class ShellViewModel : ObservableObject
         ? $"{count} selected"
         : "none selected";
 
+    /// <summary>Ticks every card with a session running, so the end of the day is Select live, then Stop.</summary>
+    public RelayCommand SelectLiveCommand { get; }
+
+    /// <summary>Archives the ticked cards that have no session running, or restores them in the archive view.</summary>
+    public RelayCommand ArchiveSelectedCommand { get; }
+
+    /// <summary>Folds every card down to its title, live or not.</summary>
+    public RelayCommand FoldAllCommand { get; }
+
+    /// <summary>Opens every folded row and stage.</summary>
+    public RelayCommand UnfoldGridCommand { get; }
+
+    /// <summary>Opens the folder Theseus writes its logs to.</summary>
+    public RelayCommand OpenLogsFolderCommand { get; }
+
+    /// <summary>Opens the folder Theseus keeps its board, settings and runs in.</summary>
+    public RelayCommand OpenDataFolderCommand { get; }
+
+    /// <summary>
+    /// Asks whether workstreams marked paused or blocked should start: true to clear the marks and
+    /// start them, false to leave them and start the rest, null to start nothing. Unset, the marked
+    /// ones are left alone.
+    /// </summary>
+    public Func<string, bool, bool?>? ConfirmFlaggedStart { get; set; }
+
+    /// <summary>The board's recent notices, for the status bar's list.</summary>
+    public NoticeLog Notices { get; } = new();
+
+    /// <summary>Whether the toolbar is showing. Remembered between runs.</summary>
+    public bool IsToolbarVisible
+    {
+        get => _isToolbarVisible;
+        set
+        {
+            if (Set(ref _isToolbarVisible, value))
+            {
+                _settings.Write(_settings.Read() with { ToolbarHidden = !value });
+            }
+        }
+    }
+
+    /// <summary>Whether the status bar is showing. Remembered between runs.</summary>
+    public bool IsStatusBarVisible
+    {
+        get => _isStatusBarVisible;
+        set
+        {
+            if (Set(ref _isStatusBarVisible, value))
+            {
+                _settings.Write(_settings.Read() with { StatusBarHidden = !value });
+            }
+        }
+    }
+
     /// <summary>Opens a card in the detail drawer.</summary>
     public RelayCommand SelectCardCommand { get; }
 
@@ -434,6 +499,16 @@ public sealed class ShellViewModel : ObservableObject
     /// <summary>Which build is running, shown so an installed copy can be told from the last one.</summary>
     public string Version => AppVersion.Current;
 
+    /// <summary>Where this copy of Theseus is installed, for About.</summary>
+    public string InstallFolder => AppContext.BaseDirectory;
+
+    /// <summary>Where Theseus keeps its board, settings, runs and logs, for About.</summary>
+    public string DataFolder => App.DataDirectory;
+
+    /// <summary>Opens the release page of the running version, which says what changed in it.</summary>
+    public RelayCommand OpenReleaseNotesCommand { get; } = new(_ => Process.Start(new ProcessStartInfo(
+        $"https://github.com/nigelbasel/Theseus/releases/tag/v{AppVersion.Current}") { UseShellExecute = true }));
+
     /// <summary>The same, with the build time spelled out.</summary>
     public string VersionDescribed => AppVersion.Described;
 
@@ -466,7 +541,13 @@ public sealed class ShellViewModel : ObservableObject
     public string Notice
     {
         get => _notice;
-        private set => Set(ref _notice, value);
+        private set
+        {
+            if (Set(ref _notice, value))
+            {
+                Notices.Add(value);
+            }
+        }
     }
 
     /// <summary>Which theme is in force. Applied immediately and remembered for next time.</summary>
@@ -621,6 +702,56 @@ public sealed class ShellViewModel : ObservableObject
     /// hiding a card from Select all would be the same guess about the board's shape that this
     /// replaced, and a tick the user can see and remove is honest where a silent exclusion is not.
     /// </summary>
+    private void SelectLive()
+    {
+        foreach (var card in Board.Cards)
+        {
+            card.IsSelected = card.IsLive;
+        }
+
+        SelectionMoved();
+    }
+
+    private void FoldEvery()
+    {
+        foreach (var card in Board.Cards)
+        {
+            card.IsCollapsed = true;
+        }
+
+        Board.RememberFolds();
+        System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+    }
+
+    /// <summary>
+    /// Archives each ticked card that has no session, or restores it when the archive is showing.
+    /// A card with a session running is left alone, as Archive on the card itself does.
+    /// </summary>
+    private void ArchiveSelected()
+    {
+        var chosen = Chosen();
+        var quiet = chosen.Where(card => !card.IsLive).ToList();
+        var restoring = Board.ShowArchived;
+
+        foreach (var card in quiet)
+        {
+            Board.SetArchived(card, !restoring);
+        }
+
+        Refresh();
+
+        var skipped = chosen.Count - quiet.Count;
+        var done = restoring ? $"Restored {quiet.Count}." : $"Archived {quiet.Count}.";
+
+        Notice = skipped == 0 ? done : $"{done} Left {skipped} alone because a session is running.";
+    }
+
+    private void OpenFolder(string path)
+    {
+        Directory.CreateDirectory(path);
+        Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+    }
+
     private void ChooseAll(bool chosen)
     {
         foreach (var card in Board.Cards)
@@ -986,6 +1117,8 @@ public sealed class ShellViewModel : ObservableObject
             // needed for them. A context menu cannot reach the window's commands, so these are the card's.
             card.ToggleBlockedCommand ??= new RelayCommand(_ => SetFlags(card,
                 card.Workstream with { IsBlocked = !card.Workstream.IsBlocked }));
+            card.TogglePausedCommand ??= new RelayCommand(_ => SetFlags(card,
+                card.Workstream with { IsPaused = !card.Workstream.IsPaused }));
             card.ToggleReopenTomorrowCommand ??= new RelayCommand(_ => SetFlags(card,
                 card.Workstream with { ReopenTomorrow = !card.Workstream.ReopenTomorrow }));
             card.SpawnFollowOnCommand ??= new RelayCommand(
@@ -1302,6 +1435,46 @@ public sealed class ShellViewModel : ObservableObject
             Notice = impediment;
 
             return;
+        }
+
+        if (FlaggedStart.Among(workstreams) is { Count: > 0 } flagged)
+        {
+            var others = workstreams.Count - flagged.Count;
+            bool? answer = ConfirmFlaggedStart is { } confirm
+                ? confirm(FlaggedStart.Question(flagged, others), others > 0)
+                : false;
+
+            TheseusLog.Information("Asked whether {Count} paused or blocked workstream(s) should start: {Answer}",
+                flagged.Count, answer?.ToString() ?? "cancelled");
+
+            if (answer is null)
+            {
+                return;
+            }
+
+            if (answer == true)
+            {
+                foreach (var workstream in flagged)
+                {
+                    if (Board.Card(workstream.Key) is { } card)
+                    {
+                        card.Workstream = FlaggedStart.Cleared(card.Workstream);
+                        Board.Persist(card);
+                    }
+                }
+
+                workstreams = [.. workstreams.Select(workstream =>
+                    flagged.Contains(workstream) ? FlaggedStart.Cleared(workstream) : workstream)];
+            }
+            else
+            {
+                workstreams = [.. workstreams.Except(flagged)];
+
+                if (workstreams.Count == 0)
+                {
+                    return;
+                }
+            }
         }
 
         // Asked about before anything else: a card still waiting on an input has nothing to read, and

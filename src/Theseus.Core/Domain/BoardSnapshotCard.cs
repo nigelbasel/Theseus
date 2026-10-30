@@ -27,5 +27,5 @@ public sealed record BoardSnapshotCard(
 
     /// <summary>What link status needs to know about it.</summary>
     public LinkCard ToLinkCard() =>
-        new(Key, Title, Workstream.IsArchived, Workstream.IsBlocked, IsLive, LastRunStartedUtc, IsDone, LastRunCrashed);
+        new(Key, Title, Workstream.IsArchived, Workstream.IsBlocked || Workstream.IsPaused, IsLive, LastRunStartedUtc, IsDone, LastRunCrashed);
 }

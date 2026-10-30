@@ -40,7 +40,14 @@ public sealed class UpdateViewModel : ObservableObject
             Offer = null;
             Status = string.Empty;
         }, _ => _offer is not null && !_isBusy);
+        CheckNowCommand = new RelayCommand(async _ => await CheckNowAsync(), _ => !_isBusy);
     }
+
+    /// <summary>Asks the feed now, from Help, and says what it found whatever that was.</summary>
+    public RelayCommand CheckNowCommand { get; }
+
+    /// <summary>Where a check asked for by hand reports: up to date, an update, or that it failed.</summary>
+    public Action<string>? Said { get; set; }
 
     /// <summary>The release on offer, or null.</summary>
     public AvailableRelease? Offer
@@ -98,6 +105,48 @@ public sealed class UpdateViewModel : ObservableObject
             TheseusLog.Information("Theseus {Version} is published; this is {Current}", latest.Version, _currentVersion);
             Offer = latest;
         }
+    }
+
+    /// <summary>
+    /// The check behind Help, Check for updates. Unlike the timed check it ignores a version put aside
+    /// with Later, since asking by hand is changing your mind, and it always answers: a failed check
+    /// must not read as "up to date".
+    /// </summary>
+    public async Task<string> CheckNowAsync(CancellationToken cancellationToken = default)
+    {
+        string answer;
+
+        try
+        {
+            var latest = await _feed.LatestAsync(cancellationToken);
+
+            if (latest is null)
+            {
+                answer = "No published release of Theseus was found.";
+            }
+            else if (!UpdatePolicy.IsNewer(_currentVersion, latest.Version))
+            {
+                answer = $"Theseus {_currentVersion} is up to date.";
+            }
+            else
+            {
+                _putAside = null;
+                Status = string.Empty;
+                Offer = latest;
+                answer = $"Theseus {latest.Version} is available.";
+            }
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or IOException
+                                              or InvalidDataException or System.Text.Json.JsonException)
+        {
+            TheseusLog.Warning(exception, "Checking for updates failed");
+            answer = $"Could not check for updates: {exception.Message}";
+        }
+
+        TheseusLog.Information("Check for updates: {Answer}", answer);
+        Said?.Invoke(answer);
+
+        return answer;
     }
 
     private async Task UpdateAsync()

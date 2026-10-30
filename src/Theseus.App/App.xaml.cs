@@ -74,6 +74,7 @@ public partial class App : Application
 
         // Before the board is built, not after: it reads the settings this may rewrite.
         BoardMigration.Run(settings, boardStore, plans);
+        BoardMigration.Tidy(settings, boardStore);
 
         var board = new BoardViewModel(plans, boardStore, settings);
         var sessions = new SessionsViewModel(
@@ -230,6 +231,19 @@ public partial class App : Application
         StartUpdateChecks(shell);
 
         MainWindow = new MainWindow { DataContext = shell };
+        shell.ConfirmFlaggedStart = (question, hasOthers) =>
+        {
+            var answer = MessageBox.Show(MainWindow, question, "Start paused or blocked work?",
+                hasOthers ? MessageBoxButton.YesNoCancel : MessageBoxButton.YesNo, MessageBoxImage.Question,
+                MessageBoxResult.No);
+
+            return answer switch
+            {
+                MessageBoxResult.Yes => true,
+                MessageBoxResult.No => false,
+                _ => null,
+            };
+        };
         MainWindow.Show();
     }
 
@@ -248,6 +262,7 @@ public partial class App : Application
             MainWindow?.Close();
         });
 
+        updates.Said = shell.Warn;
         shell.Updates = updates;
 
         _updateTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };

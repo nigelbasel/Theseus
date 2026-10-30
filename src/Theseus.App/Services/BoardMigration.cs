@@ -60,4 +60,33 @@ public static class BoardMigration
 
         return true;
     }
+
+    /// <summary>
+    /// Tidies the grid once (<see cref="BoardTidy"/>): Paused becomes a mark on the card, and the
+    /// columns and rows Nigel agreed on 2026-10-30 replace the old ones. Says whether it ran.
+    /// </summary>
+    public static bool Tidy(ISettingsStore settings, IBoardStore board)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(board);
+
+        var current = settings.Read();
+
+        if (!BoardTidy.IsNeeded(current))
+        {
+            return false;
+        }
+
+        var (tidied, sidecars) = BoardTidy.Apply(current, board.Read());
+
+        TheseusLog.Information("Tidying the board: stages {Stages}, areas {Areas}, {Paused} card(s) marked paused",
+            string.Join(", ", tidied.Lanes), string.Join(", ", tidied.Areas), sidecars.Count(sidecar => sidecar.IsPaused));
+
+        // The cards first, as above: a card that knows its new place on a board still showing the old
+        // columns is put right by the next start, and the other way round is not.
+        board.Write(sidecars);
+        settings.Write(tidied);
+
+        return true;
+    }
 }

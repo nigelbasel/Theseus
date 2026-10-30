@@ -47,6 +47,29 @@ public sealed class SettingsViewModel : ObservableObject
     /// <summary>Shows the panel, discarding any half-made edits from last time.</summary>
     public RelayCommand OpenCommand { get; }
 
+    /// <summary>The themes to choose between.</summary>
+    public IReadOnlyList<AppTheme> Themes { get; } = Enum.GetValues<AppTheme>();
+
+    /// <summary>
+    /// Which theme to paint in. Applied and saved as soon as it is chosen, not on Save, because a
+    /// theme is judged by looking at it.
+    /// </summary>
+    public AppTheme Theme
+    {
+        get => _store.Read().Theme;
+        set
+        {
+            if (value == _store.Read().Theme)
+            {
+                return;
+            }
+
+            _store.Write(_store.Read() with { Theme = value });
+            Services.ThemeApplier.Apply(value);
+            Raise(nameof(Theme));
+        }
+    }
+
     /// <summary>Hides the panel without saving.</summary>
     public RelayCommand CloseCommand { get; }
 

@@ -62,5 +62,6 @@ public static class WorkstreamAssembler
             WindowGroup = sidecar?.WindowGroup,
             Area = sidecar?.Area,
             EveryStartPrompt = sidecar?.EveryStartPrompt,
+            IsPaused = sidecar?.IsPaused ?? false,
         };
 }

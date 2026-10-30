@@ -59,7 +59,7 @@ public sealed class NewWorkstreamViewModel : ObservableObject
         _areas = areas;
         _created = created;
 
-        OpenCommand = new RelayCommand(_ => Open());
+        OpenCommand = new RelayCommand(_ => Open(), _ => !IsOpen);
         CloseCommand = new RelayCommand(_ => IsOpen = false);
         CreateCommand = new RelayCommand(_ => Create(), _ => CanCreate);
     }
