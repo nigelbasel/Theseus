@@ -43,7 +43,7 @@ Paused and Blocked are **marks on a card**, not columns, so a card keeps its sta
 - **Paused**: set aside on purpose.
 - **Blocked**: waiting on something outside your control.
 
-Set either from the card's **▾** menu or from its details. A marked card says so in amber under its
+Set either by right-clicking the card, from **Workstream > Mark as paused** or **Mark as blocked** for the selected cards, or in the card's Properties. The pause button on a card marks it paused too. A marked card says so in amber under its
 title. Starting a paused or blocked card asks first whether the mark still holds:
 
 - **Yes** clears the mark and starts it.
@@ -56,7 +56,7 @@ title. Starting a paused or blocked card asks first whether the mark still holds
 Anything can be folded, and Theseus remembers what you folded when it restarts.
 
 - **A card**: the **⌃** button beside its status folds it to its title. The **⌄** opens it again. A
-  folded card keeps its tick and its status dot, which is lit while its session is running.
+  folded card keeps its status dot, which is lit while its session is running.
 - **A row**: the chevron beside the row's name. A folded row shows how many cards are in each stage,
   and **● 2 live** when sessions are running in it.
 - **A column**: the **‹** beside the stage's name folds it to a narrow strip in every row. The strip
@@ -78,9 +78,9 @@ Hover over a toolbar button to see its name and shortcut.
 | Menu | What is in it |
 |---|---|
 | File | New workstream, Day report, Exit |
-| Edit | Select all, Select live, Invert selection, Unselect all |
+| Edit | Select all, Select live, Invert selection, Unselect all, Properties |
 | View | The three panels, the archive, folding, the toolbar and status bar, Refresh |
-| Workstream | Start, Stop and Archive the ticked cards |
+| Workstream | Start, Stop and Archive the selected cards, and mark them paused or blocked |
 | Window | Arrange the terminal windows |
 | Tools | Options, and the logs and data folders |
 | Help | These pages, Check for updates, What's new, About |

@@ -18,6 +18,7 @@ public sealed class BoardViewModel : ObservableObject
     private BoardColumnsBy _columnsBy;
     private BoardRowsBy _rowsBy;
     private List<WorkstreamCardViewModel> _all = [];
+    private WorkstreamCardViewModel? _anchor;
 
     /// <summary>Creates the board over its stores.</summary>
     public BoardViewModel(IPlanStore plans, IBoardStore board, ISettingsStore settings)
@@ -625,6 +626,88 @@ public sealed class BoardViewModel : ObservableObject
     {
         get => _selectedCard;
         private set => Set(ref _selectedCard, value);
+    }
+
+    /// <summary>
+    /// The cards that can be seen, in reading order: row by row, cell by cell. Shift+click selects a
+    /// run of these, so a card in a folded row or column is never caught up in it.
+    /// </summary>
+    public IReadOnlyList<WorkstreamCardViewModel> VisibleCards =>
+        [.. Rows.Where(row => !row.IsCollapsed).SelectMany(row => row.Cells.Where(cell => !cell.IsCollapsed)).SelectMany(cell => cell.Cards)];
+
+    /// <summary>
+    /// Selects as a click does everywhere in Windows (Nigel, 2026-10-30): a click selects that card
+    /// alone, Ctrl+click adds or removes it, and Shift+click selects the run from the last card
+    /// clicked to this one, added to the rest when Ctrl is held too.
+    /// </summary>
+    public void ClickSelect(WorkstreamCardViewModel card, bool toggle, bool extend)
+    {
+        ArgumentNullException.ThrowIfNull(card);
+
+        var visible = VisibleCards.ToList();
+
+        if (extend && _anchor is not null && visible.Contains(_anchor) && visible.Contains(card))
+        {
+            var from = visible.IndexOf(_anchor);
+            var to = visible.IndexOf(card);
+            var (low, high) = from <= to ? (from, to) : (to, from);
+
+            foreach (var other in _all)
+            {
+                var index = visible.IndexOf(other);
+                var inRun = index >= low && index <= high;
+
+                if (inRun || !toggle)
+                {
+                    other.IsSelected = inRun;
+                }
+            }
+
+            return;
+        }
+
+        if (toggle)
+        {
+            card.IsSelected = !card.IsSelected;
+        }
+        else
+        {
+            foreach (var other in _all)
+            {
+                other.IsSelected = ReferenceEquals(other, card);
+            }
+        }
+
+        _anchor = card;
+    }
+
+    /// <summary>Selects the cards a rubber band was drawn over, alone or added to the rest.</summary>
+    public void BandSelect(IReadOnlyList<WorkstreamCardViewModel> cards, bool add)
+    {
+        ArgumentNullException.ThrowIfNull(cards);
+
+        foreach (var card in _all)
+        {
+            if (cards.Contains(card))
+            {
+                card.IsSelected = true;
+            }
+            else if (!add)
+            {
+                card.IsSelected = false;
+            }
+        }
+
+        _anchor = cards.FirstOrDefault() ?? _anchor;
+    }
+
+    /// <summary>Clears the selection, as a click on empty board does.</summary>
+    public void ClearSelection()
+    {
+        foreach (var card in _all)
+        {
+            card.IsSelected = false;
+        }
     }
 
     /// <summary>Selects one card and clears any other selection.</summary>

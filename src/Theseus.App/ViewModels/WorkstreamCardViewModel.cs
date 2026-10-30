@@ -54,6 +54,8 @@ public sealed class WorkstreamCardViewModel : ObservableObject
                 Raise(nameof(IsBlocked));
                 Raise(nameof(IsPaused));
                 Raise(nameof(FlagText));
+                Raise(nameof(PauseTooltip));
+                Raise(nameof(ArchiveTooltip));
                 Raise(nameof(ReopenTomorrow));
                 Raise(nameof(Column));
                 Raise(nameof(IsArchived));
@@ -129,6 +131,8 @@ public sealed class WorkstreamCardViewModel : ObservableObject
             if (Set(ref _lifecycle, value))
             {
                 Raise(nameof(PrimaryAction));
+                Raise(nameof(PlayTooltip));
+                Raise(nameof(PauseTooltip));
                 Raise(nameof(IsLive));
                 Raise(nameof(IsWorking));
                 Raise(nameof(IsRunning));
@@ -439,6 +443,29 @@ public sealed class WorkstreamCardViewModel : ObservableObject
         get => _toggleReopenTomorrowCommand;
         set => Set(ref _toggleReopenTomorrowCommand, value);
     }
+
+    /// <summary>The play button's tooltip: what it does, and what resuming would cost.</summary>
+    public string PlayTooltip => string.IsNullOrWhiteSpace(RestartCost)
+        ? $"{PrimaryAction} this workstream's session"
+        : $"{PrimaryAction} this workstream's session. {RestartCost}";
+
+    /// <summary>The pause button's tooltip, which depends on whether a session is running.</summary>
+    public string PauseTooltip => IsLive
+        ? "Pause: stop this session with a handoff, and mark the card paused"
+        : IsPaused
+            ? "Paused. Click to clear the mark"
+            : "Mark as paused: set aside on purpose, keeping its stage";
+
+    /// <summary>The archive button's tooltip.</summary>
+    public string ArchiveTooltip => IsArchived
+        ? "Restore this workstream to the board"
+        : "Archive: take this workstream off the board without losing anything";
+
+    /// <summary>Pauses the card: stops a running session with a handoff and marks it paused.</summary>
+    public RelayCommand? PauseCommand { get; set; }
+
+    /// <summary>Opens the card's properties, from its menu or Alt+Enter.</summary>
+    public RelayCommand? PropertiesCommand { get; set; }
 
     /// <summary>Opens the New dialog with this card as the parent, from the card's menu.</summary>
     public RelayCommand? SpawnFollowOnCommand

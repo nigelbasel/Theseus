@@ -121,9 +121,16 @@ public sealed class ShellViewModel : ObservableObject
         InvertSelectionCommand = new RelayCommand(_ => Invert(), _ => Board.Cards.Any());
         SelectLiveCommand = new RelayCommand(_ => SelectLive(), _ => Board.Cards.Any(card => card.IsLive));
         ArchiveSelectedCommand = new RelayCommand(_ => ArchiveSelected(), _ => Chosen().Any(card => !card.IsLive));
+        MarkSelectedPausedCommand = new RelayCommand(_ => MarkSelected(workstream => workstream with { IsPaused = true }, "paused"),
+            _ => Chosen().Any(card => !card.IsPaused));
+        MarkSelectedBlockedCommand = new RelayCommand(_ => MarkSelected(workstream => workstream with { IsBlocked = true }, "blocked"),
+            _ => Chosen().Any(card => !card.IsBlocked));
+        ClearSelectedMarksCommand = new RelayCommand(_ => MarkSelected(FlaggedStart.Cleared, "unmarked"),
+            _ => Chosen().Any(card => card.IsPaused || card.IsBlocked));
         FoldAllCommand = new RelayCommand(_ => FoldEvery(), _ => Board.Cards.Any(card => !card.IsCollapsed));
         UnfoldGridCommand = new RelayCommand(_ => Board.UnfoldGrid(),
             _ => Board.Rows.Any(row => row.IsCollapsed) || Board.StageHeaders.Any(header => header.IsCollapsed));
+        PropertiesCommand = new RelayCommand(_ => ShowCard(Chosen().FirstOrDefault()), _ => Chosen().Count == 1);
         OpenLogsFolderCommand = new RelayCommand(_ => OpenFolder(Path.Combine(App.DataDirectory, "logs")));
         OpenDataFolderCommand = new RelayCommand(_ => OpenFolder(App.DataDirectory));
 
@@ -418,6 +425,30 @@ public sealed class ShellViewModel : ObservableObject
 
     /// <summary>Archives the ticked cards that have no session running, or restores them in the archive view.</summary>
     public RelayCommand ArchiveSelectedCommand { get; }
+
+    /// <summary>Opens the properties of the one selected card: Alt+Enter, as everywhere in Windows.</summary>
+    public RelayCommand PropertiesCommand { get; }
+
+    /// <summary>
+    /// Shows a card that has just been clicked in the properties panel, if that panel is open, so it
+    /// follows the selection the way a reading pane does.
+    /// </summary>
+    public void Clicked(WorkstreamCardViewModel card)
+    {
+        if (Drawer.IsOpen && Chosen() is { Count: 1 } chosen)
+        {
+            ShowCard(chosen[0]);
+        }
+    }
+
+    /// <summary>Marks the ticked cards paused.</summary>
+    public RelayCommand MarkSelectedPausedCommand { get; }
+
+    /// <summary>Marks the ticked cards blocked.</summary>
+    public RelayCommand MarkSelectedBlockedCommand { get; }
+
+    /// <summary>Takes the paused and blocked marks off the ticked cards.</summary>
+    public RelayCommand ClearSelectedMarksCommand { get; }
 
     /// <summary>Folds every card down to its title, live or not.</summary>
     public RelayCommand FoldAllCommand { get; }
@@ -746,6 +777,37 @@ public sealed class ShellViewModel : ObservableObject
         var done = restoring ? $"Restored {quiet.Count}." : $"Archived {quiet.Count}.";
 
         Notice = skipped == 0 ? done : $"{done} Left {skipped} alone because a session is running.";
+    }
+
+    /// <summary>
+    /// The pause button: a running session is stopped with a handoff and its card marked paused, so
+    /// starting it again asks first; a card with no session has its paused mark turned on or off.
+    /// </summary>
+    private void Pause(WorkstreamCardViewModel card)
+    {
+        if (card.IsLive)
+        {
+            SetFlags(card, card.Workstream with { IsPaused = true });
+            BeginStop(CardSteps(card));
+
+            return;
+        }
+
+        SetFlags(card, card.Workstream with { IsPaused = !card.Workstream.IsPaused });
+    }
+
+    private void MarkSelected(Func<Workstream, Workstream> mark, string said)
+    {
+        var chosen = Chosen();
+
+        foreach (var card in chosen)
+        {
+            card.Workstream = mark(card.Workstream);
+            Board.Persist(card);
+        }
+
+        Refresh();
+        Notice = chosen.Count == 1 ? $"{chosen[0].Title} is {said}." : $"{chosen.Count} cards are {said}.";
     }
 
     private void OpenFolder(string path)
@@ -1126,6 +1188,8 @@ public sealed class ShellViewModel : ObservableObject
             card.SpawnFollowOnCommand ??= new RelayCommand(
                 _ => SpawnFollowOnCommand.Execute(card),
                 _ => SpawnFollowOnCommand.CanExecute(card));
+            card.PauseCommand ??= new RelayCommand(_ => Pause(card));
+            card.PropertiesCommand ??= new RelayCommand(_ => ShowCard(card));
 
             // Read for every card with a transcript, live or not: which model a stopped session was
             // on is worth knowing before restarting it. Cheap when nothing has changed - the reader

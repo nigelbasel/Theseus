@@ -208,19 +208,7 @@ public sealed class LaunchCoordinator : IAsyncDisposable
     /// Whether a transcript exists for a session. The directory is never computed from the working
     /// directory: it is pinned to wherever the session was first created, which may no longer match.
     /// </summary>
-    public static bool TranscriptExists(string? sessionId)
-    {
-        if (string.IsNullOrWhiteSpace(sessionId))
-        {
-            return false;
-        }
-
-        var projects = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude", "projects");
-
-        return Directory.Exists(projects)
-               && Directory.EnumerateFiles(projects, $"{sessionId}.jsonl", SearchOption.AllDirectories).Any();
-    }
+    public static bool TranscriptExists(string? sessionId) => TranscriptLocator.Find(sessionId) is not null;
 
     private static void Start(WorkstreamLaunchPlan plan)
     {

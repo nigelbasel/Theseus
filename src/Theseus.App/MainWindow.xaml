@@ -28,6 +28,8 @@
         <KeyBinding Gesture="F5" Command="{Binding RefreshCommand}" />
         <KeyBinding Key="OemComma" Modifiers="Ctrl" Command="{Binding Settings.OpenCommand}" />
         <KeyBinding Gesture="F1" Command="{Binding Help.OpenCommand}" />
+        <KeyBinding Gesture="Alt+Enter" Command="{Binding PropertiesCommand}" />
+        <KeyBinding Gesture="Escape" Command="{Binding ClearSelectionCommand}" />
     </Window.InputBindings>
 
     <Window.Resources>
@@ -178,6 +180,22 @@
             </Setter>
         </Style>
 
+        <!--
+            Menu items at desktop density. The Fluent theme spaces them for touch, which Nigel found
+            wider than menus normally are.
+        -->
+        <Style TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+            <Setter Property="Padding" Value="10,3" />
+            <Setter Property="MinHeight" Value="0" />
+        </Style>
+
+        <!-- A card's own buttons: the toolbar's flat icon button, sized for a card. -->
+        <Style x:Key="CardIcon" TargetType="Button" BasedOn="{StaticResource ToolButton}">
+            <Setter Property="Width" Value="28" />
+            <Setter Property="Height" Value="24" />
+            <Setter Property="FontSize" Value="13" />
+        </Style>
+
         <!-- A panel's button: stays pressed while its panel is open, and is wider for its count. -->
         <Style x:Key="ToolToggle" TargetType="ToggleButton" BasedOn="{StaticResource ToolButton}">
             <Setter Property="Width" Value="NaN" />
@@ -260,13 +278,51 @@
             </Button>
         </DataTemplate>
 
+        <!--
+            A card's menu: the start choices, its marks, and Spawn follow-on. One resource, used by the
+            ▾ beside Start and by a right-click anywhere on the card, which is where a Windows user
+            looks for a thing's options. Not shared, so each card gets its own instance.
+        -->
+        <ContextMenu x:Key="CardMenu" x:Shared="False"
+                     DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+            <MenuItem Header="P_roperties" InputGestureText="Alt+Enter" FontWeight="SemiBold"
+                      Command="{Binding PropertiesCommand}"
+                      ToolTip="Rename it, edit its setup, its Jira keys, its links, or delete it" />
+            <Separator />
+            <MenuItem Header="Resume the last conversation"
+                      Command="{Binding ResumeCommand}"
+                      ToolTip="{Binding ResumeTooltip}"
+                      ToolTipService.ShowOnDisabled="True"
+                      Visibility="{Binding IsLive, Converter={StaticResource NotBoolToVisibility}}" />
+            <MenuItem Header="Start fresh from the handoff"
+                      Command="{Binding StartFreshCommand}"
+                      ToolTip="{x:Static launching:StartModeChoice.FreshTooltip}"
+                      Visibility="{Binding IsLive, Converter={StaticResource NotBoolToVisibility}}" />
+            <Separator Visibility="{Binding IsLive, Converter={StaticResource NotBoolToVisibility}}" />
+            <MenuItem Header="_Paused" IsChecked="{Binding IsPaused, Mode=OneWay}"
+                      Command="{Binding TogglePausedCommand}"
+                      ToolTip="Set aside on purpose. A mark on the card: it keeps its stage" />
+            <MenuItem Header="_Blocked" IsChecked="{Binding IsBlocked, Mode=OneWay}"
+                      Command="{Binding ToggleBlockedCommand}"
+                      ToolTip="Waiting on something outside your control. A mark on the card: it keeps its stage" />
+            <MenuItem Header="Reopen tomorrow" IsChecked="{Binding ReopenTomorrow, Mode=OneWay}"
+                      Command="{Binding ToggleReopenTomorrowCommand}"
+                      ToolTip="Include this workstream when the whole board is started" />
+            <Separator />
+            <MenuItem Header="Spawn follow-on…"
+                      Command="{Binding SpawnFollowOnCommand}"
+                      ToolTip="Create a new card this one hands over to, in the same working directory" />
+        </ContextMenu>
+
         <DataTemplate x:Key="CardTemplate" DataType="{x:Type vm:WorkstreamCardViewModel}">
             <!--
                 MinHeight is on the style so a folded card can drop it. Left at 96 the card would
                 keep the height of its full self and fold to nothing worth looking at.
             -->
-            <Border CornerRadius="8" Margin="0,0,0,8"
+            <Border CornerRadius="8" Margin="0,0,0,8" Tag="Card"
                     ToolTip="{Binding Workstream.WorkingDirectory}"
+                    ContextMenu="{StaticResource CardMenu}"
+                    MouseLeftButtonDown="OnCardMouseDown"
                     MouseLeftButtonUp="OnCardClicked"
                     MouseEnter="OnCardMouseEnter" MouseLeave="OnCardMouseLeave">
                 <!--
@@ -295,7 +351,7 @@
                                         Value="{DynamicResource AccentFillColorTertiaryBrush}" />
                                 <Setter Property="BorderThickness" Value="2" />
                             </DataTrigger>
-                            <DataTrigger Binding="{Binding IsAdoptTarget}" Value="True">
+                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
                                 <Setter Property="BorderBrush"
                                         Value="{DynamicResource AccentFillColorDefaultBrush}" />
                                 <Setter Property="BorderThickness" Value="2" />
@@ -379,10 +435,6 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
 
-                        <CheckBox Grid.Column="0" VerticalAlignment="Center" Margin="0,0,8,0"
-                                  IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                                  ToolTip="Include this card in Start selected and Stop selected" />
-
                         <DockPanel Grid.Column="1" VerticalAlignment="Center">
                             <!-- Folded, a card still says whether its session is running, and its marks. -->
                             <TextBlock DockPanel.Dock="Right" Margin="8,0,0,0" Text="{Binding FlagText}" FontSize="11" FontWeight="SemiBold" Foreground="#D68910"
@@ -456,9 +508,6 @@
                                 rather than with the buttons because it says what this card *is* to
                                 the next gesture, not what to do with it now.
                             -->
-                            <CheckBox Grid.Column="0" VerticalAlignment="Center" Margin="0,0,8,0"
-                                      IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                                      ToolTip="Include this card in Start selected and Stop selected" />
 
                             <TextBlock Grid.Column="1" Text="{Binding Title}" FontSize="15"
                                        FontWeight="SemiBold" VerticalAlignment="Center"
@@ -488,68 +537,48 @@
                                        VerticalAlignment="Center"
                                        Visibility="{Binding FlagText, Converter={StaticResource NotEmptyToVisibility}}" />
 
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,6,0,0">
-                                <Button Content="{Binding PrimaryAction}" FontSize="11" Padding="8,1" Margin="0,0,4,0"
-                                        Visibility="{Binding IsLive, Converter={StaticResource NotBoolToVisibility}}"
-                                        ToolTip="{Binding RestartCost}"
-                                        Command="{Binding DataContext.StartCardCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                        CommandParameter="{Binding}" />
-                                <!--
-                                    The other way to start. A context menu is not in the window's
-                                    visual tree, so it cannot reach the window's commands by ancestor;
-                                    the card carries its own, the way it carries Adopt.
-                                -->
-                                <Button Content="▾" FontSize="11" Padding="4,1" Margin="-3,0,4,0"
-                                        ToolTip="Start choices, Blocked, Reopen tomorrow and Spawn follow-on"
-                                        Click="OnOverflowClick">
-                                    <Button.ContextMenu>
-                                        <ContextMenu DataContext="{Binding PlacementTarget.DataContext,
-                                                                  RelativeSource={RelativeSource Self}}">
-                                            <MenuItem Header="Resume the last conversation"
-                                                      Command="{Binding ResumeCommand}"
-                                                      ToolTip="{Binding ResumeTooltip}"
-                                                      ToolTipService.ShowOnDisabled="True"
-                                                      Visibility="{Binding IsLive, Converter={StaticResource NotBoolToVisibility}}" />
-                                            <MenuItem Header="Start fresh from the handoff"
-                                                      Command="{Binding StartFreshCommand}"
-                                                      ToolTip="{x:Static launching:StartModeChoice.FreshTooltip}"
-                                                      Visibility="{Binding IsLive, Converter={StaticResource NotBoolToVisibility}}" />
-                                            <Separator Visibility="{Binding IsLive, Converter={StaticResource NotBoolToVisibility}}" />
-                                            <MenuItem Header="Paused" IsChecked="{Binding IsPaused, Mode=OneWay}"
-                                                      Command="{Binding TogglePausedCommand}"
-                                                      ToolTip="Set aside on purpose. A flag on the card: it keeps its stage" />
-                                            <MenuItem Header="Blocked" IsChecked="{Binding IsBlocked, Mode=OneWay}"
-                                                      Command="{Binding ToggleBlockedCommand}"
-                                                      ToolTip="A flag on the card, not a lane" />
-                                            <MenuItem Header="Reopen tomorrow" IsChecked="{Binding ReopenTomorrow, Mode=OneWay}"
-                                                      Command="{Binding ToggleReopenTomorrowCommand}"
-                                                      ToolTip="Include this workstream when the whole board is started" />
-                                            <Separator />
-                                            <MenuItem Header="Spawn follow-on…"
-                                                      Command="{Binding SpawnFollowOnCommand}"
-                                                      ToolTip="Create a new card this one hands over to, in the same working directory" />
-                                        </ContextMenu>
-                                    </Button.ContextMenu>
-                                </Button>
-                                <Button Content="Stop" FontSize="11" Padding="8,1" Margin="0,0,4,0"
-                                        Visibility="{Binding IsLive, Converter={StaticResource BoolToVisibility}}"
-                                        ToolTip="Ask this session to write a handoff and exit when its turn ends"
-                                        Command="{Binding DataContext.StopCardCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                        CommandParameter="{Binding}" />
-                                <Button Content="Focus" FontSize="11" Padding="8,1" Margin="0,0,4,0"
-                                        ToolTip="Bring this session's tab to the front"
-                                        Command="{Binding DataContext.FocusCardCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                        CommandParameter="{Binding}" />
-                                <!--
-                                    Archive is here and deleting is not. This one is reversible and
-                                    is the everyday way to clear finished work off the board; the
-                                    other destroys a plan file with no undo, and a destructive button
-                                    one click from Start is a trap rather than a convenience.
-                                -->
-                                <Button Content="{Binding ArchiveLabel}" FontSize="11" Padding="8,1"
-                                        ToolTip="Take this workstream off the board without losing anything. Restore it from Archived."
-                                        Command="{Binding DataContext.ArchiveCardCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                        CommandParameter="{Binding}" />
+                        <!--
+                            Icons, as media and transport controls are everywhere (Nigel, 2026-10-30):
+                            play starts or restarts, stop asks the session to hand over and exit,
+                            pause stops it and marks the card paused. Each tooltip says what it does.
+                        -->
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="-4,4,0,0">
+                            <Button Style="{StaticResource CardIcon}" Content="&#xE768;"
+                                    ToolTip="{Binding PlayTooltip}" AutomationProperties.Name="{Binding PrimaryAction}"
+                                    Visibility="{Binding IsLive, Converter={StaticResource NotBoolToVisibility}}"
+                                    Command="{Binding DataContext.StartCardCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                    CommandParameter="{Binding}" />
+                            <Button Style="{StaticResource CardIcon}" Content="&#xE71A;"
+                                    ToolTip="Stop: ask this session to write a handoff and exit when its turn ends"
+                                    AutomationProperties.Name="Stop"
+                                    Visibility="{Binding IsLive, Converter={StaticResource BoolToVisibility}}"
+                                    Command="{Binding DataContext.StopCardCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                    CommandParameter="{Binding}" />
+                            <Button Content="&#xE769;" ToolTip="{Binding PauseTooltip}" AutomationProperties.Name="Pause"
+                                    Command="{Binding PauseCommand}">
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource CardIcon}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsPaused}" Value="True">
+                                                <Setter Property="Foreground" Value="#D68910" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                            <Button Style="{StaticResource CardIcon}" Content="&#xE8A7;"
+                                    ToolTip="Focus: bring this session's tab to the front" AutomationProperties.Name="Focus"
+                                    Command="{Binding DataContext.FocusCardCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                    CommandParameter="{Binding}" />
+                            <Button Style="{StaticResource CardIcon}" Content="&#xE7B8;"
+                                    ToolTip="{Binding ArchiveTooltip}" AutomationProperties.Name="{Binding ArchiveLabel}"
+                                    Command="{Binding DataContext.ArchiveCardCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                    CommandParameter="{Binding}" />
+                            <Button Style="{StaticResource CardIcon}" Content="&#xE712;"
+                                    ToolTip="More: properties, start choices, paused, blocked, reopen tomorrow and spawn follow-on. Right-click the card for the same menu."
+                                    AutomationProperties.Name="More"
+                                    ContextMenu="{StaticResource CardMenu}"
+                                    Click="OnOverflowClick" />
                         </StackPanel>
 
                         <!--
@@ -940,7 +969,10 @@
                 <MenuItem Header="Select _live" Command="{Binding SelectLiveCommand}"
                           ToolTip="Tick every card with a session running" />
                 <MenuItem Header="_Invert selection" InputGestureText="Ctrl+I" Command="{Binding InvertSelectionCommand}" />
-                <MenuItem Header="_Unselect all" Command="{Binding ClearSelectionCommand}" />
+                <MenuItem Header="_Unselect all" InputGestureText="Esc" Command="{Binding ClearSelectionCommand}" />
+                <Separator />
+                <MenuItem Header="P_roperties" InputGestureText="Alt+Enter" Command="{Binding PropertiesCommand}"
+                          ToolTip="The selected card's properties" />
             </MenuItem>
 
             <MenuItem Header="_View">
@@ -1003,6 +1035,14 @@
                           ToolTip="Ask the ticked cards' running sessions to write a handoff and exit">
                     <MenuItem.Icon><TextBlock Text="&#xE71A;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
                 </MenuItem>
+                <Separator />
+                <MenuItem Header="Mark as _paused" Command="{Binding MarkSelectedPausedCommand}"
+                          ToolTip="Mark the ticked cards paused: set aside on purpose, keeping their stage" />
+                <MenuItem Header="Mark as _blocked" Command="{Binding MarkSelectedBlockedCommand}"
+                          ToolTip="Mark the ticked cards blocked: waiting on something outside your control" />
+                <MenuItem Header="_Clear paused and blocked" Command="{Binding ClearSelectedMarksCommand}"
+                          ToolTip="Take both marks off the ticked cards" />
+                <Separator />
                 <MenuItem Header="_Archive selected" Command="{Binding ArchiveSelectedCommand}"
                           ToolTip="Archive the ticked cards with no session running, or restore them when the archive is showing">
                     <MenuItem.Icon><TextBlock Text="&#xE7B8;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
@@ -1907,10 +1947,27 @@
                     </ItemsControl>
                 </Grid>
 
-                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                    <ItemsControl ItemsSource="{Binding Board.Rows}"
-                                  ItemTemplate="{StaticResource RowTemplate}" />
-                </ScrollViewer>
+                <!--
+                    Dragging on empty board draws a rubber band that selects every card it touches,
+                    with Ctrl adding to the selection; a click on empty board clears it.
+                -->
+                <Grid x:Name="BoardSurface" Background="Transparent"
+                      PreviewMouseLeftButtonDown="OnBoardMouseDown"
+                      PreviewMouseMove="OnBoardMouseMove"
+                      PreviewMouseLeftButtonUp="OnBoardMouseUp">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <ItemsControl ItemsSource="{Binding Board.Rows}"
+                                      ItemTemplate="{StaticResource RowTemplate}" />
+                    </ScrollViewer>
+                    <Canvas x:Name="BandLayer" IsHitTestVisible="False">
+                        <Rectangle x:Name="Band" Visibility="Collapsed" StrokeThickness="1"
+                                   Stroke="{DynamicResource AccentFillColorDefaultBrush}">
+                            <Rectangle.Fill>
+                                <SolidColorBrush Color="{DynamicResource SystemAccentColor}" Opacity="0.15" />
+                            </Rectangle.Fill>
+                        </Rectangle>
+                    </Canvas>
+                </Grid>
             </DockPanel>
 
             <!--

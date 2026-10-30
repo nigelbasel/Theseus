@@ -16,8 +16,8 @@ Two cards are joined by a link.
 A link can name a document: the hand-over the parent writes, or the report the child writes. A child
 waiting on a hand-over document is held back from starting until you accept the document.
 
-Make links from a card's details, on its **Links** tab, or with **Spawn follow-on** in the card's **▾**
-menu, which creates the next workstream already linked.
+Make links from a card's Properties, on its **Links** tab, or with **Spawn follow-on** on the card's
+right-click menu, which creates the next workstream already linked.
 
 ## The Chains panel
 

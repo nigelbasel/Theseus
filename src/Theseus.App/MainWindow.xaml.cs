@@ -403,12 +403,148 @@ public partial class MainWindow : Window
     private void OnCardClicked(object sender, MouseButtonEventArgs e)
     {
         if (sender is not FrameworkElement { DataContext: WorkstreamCardViewModel card }
-            || IsWithinAControl(e.OriginalSource as DependencyObject))
+            || IsWithinAControl(e.OriginalSource as DependencyObject)
+            || DataContext is not ShellViewModel shell)
         {
             return;
         }
 
-        (DataContext as ShellViewModel)?.SelectCardCommand.Execute(card);
+        var modifiers = Keyboard.Modifiers;
+
+        shell.Board.ClickSelect(card, modifiers.HasFlag(ModifierKeys.Control), modifiers.HasFlag(ModifierKeys.Shift));
+        shell.Clicked(card);
+        e.Handled = true;
+    }
+
+    /// <summary>A double-click opens the card's properties, as Alt+Enter and its menu do.</summary>
+    private void OnCardMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount == 2
+            && sender is FrameworkElement { DataContext: WorkstreamCardViewModel card }
+            && !IsWithinAControl(e.OriginalSource as DependencyObject))
+        {
+            card.PropertiesCommand?.Execute(null);
+            e.Handled = true;
+        }
+    }
+
+    private Point? _bandStart;
+    private bool _bandAdds;
+    private bool _banding;
+
+    /// <summary>Starts a rubber band, when the press is on empty board rather than on a card or a control.</summary>
+    private void OnBoardMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        var source = e.OriginalSource as DependencyObject;
+
+        if (FindCard(source) is not null || IsWithinAControl(source) || IsWithin<System.Windows.Controls.Primitives.ScrollBar>(source))
+        {
+            return;
+        }
+
+        _bandStart = e.GetPosition(BandLayer);
+        _bandAdds = Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
+        _banding = false;
+    }
+
+    private void OnBoardMouseMove(object sender, MouseEventArgs e)
+    {
+        if (_bandStart is not { } start || e.LeftButton != MouseButtonState.Pressed)
+        {
+            return;
+        }
+
+        var here = e.GetPosition(BandLayer);
+
+        if (!_banding && Math.Abs(here.X - start.X) < SystemParameters.MinimumHorizontalDragDistance
+            && Math.Abs(here.Y - start.Y) < SystemParameters.MinimumVerticalDragDistance)
+        {
+            return;
+        }
+
+        if (!_banding)
+        {
+            _banding = true;
+            BoardSurface.CaptureMouse();
+            Band.Visibility = Visibility.Visible;
+        }
+
+        var area = new Rect(start, here);
+        Canvas.SetLeft(Band, area.X);
+        Canvas.SetTop(Band, area.Y);
+        Band.Width = area.Width;
+        Band.Height = area.Height;
+    }
+
+    private void OnBoardMouseUp(object sender, MouseButtonEventArgs e)
+    {
+        if (_bandStart is not { } start || DataContext is not ShellViewModel shell)
+        {
+            _bandStart = null;
+
+            return;
+        }
+
+        if (_banding)
+        {
+            var area = new Rect(start, e.GetPosition(BandLayer));
+
+            shell.Board.BandSelect([.. CardsWithin(area)], _bandAdds);
+            Band.Visibility = Visibility.Collapsed;
+            BoardSurface.ReleaseMouseCapture();
+            e.Handled = true;
+        }
+        else if (!_bandAdds)
+        {
+            shell.Board.ClearSelection();
+        }
+
+        _bandStart = null;
+        _banding = false;
+    }
+
+    /// <summary>The cards on show whose outline the rubber band touches.</summary>
+    private IEnumerable<WorkstreamCardViewModel> CardsWithin(Rect area)
+    {
+        var pending = new Stack<DependencyObject>([BoardSurface]);
+
+        while (pending.TryPop(out var element))
+        {
+            if (element is FrameworkElement { Tag: "Card", DataContext: WorkstreamCardViewModel card, IsVisible: true } face)
+            {
+                var bounds = face.TransformToAncestor(BandLayer).TransformBounds(new Rect(face.RenderSize));
+
+                if (bounds.IntersectsWith(area))
+                {
+                    yield return card;
+                }
+
+                continue;
+            }
+
+            for (var index = 0; index < System.Windows.Media.VisualTreeHelper.GetChildrenCount(element); index++)
+            {
+                pending.Push(System.Windows.Media.VisualTreeHelper.GetChild(element, index));
+            }
+        }
+    }
+
+    private static bool IsWithin<T>(DependencyObject? source)
+        where T : DependencyObject
+    {
+        while (source is not null)
+        {
+            if (source is T)
+            {
+                return true;
+            }
+
+            source = source is System.Windows.Media.Visual or System.Windows.Media.Media3D.Visual3D
+                ? System.Windows.Media.VisualTreeHelper.GetParent(source)
+                : LogicalTreeHelper.GetParent(source);
+        }
+
+        return false;
     }
 
     private static bool IsWithinAControl(DependencyObject? source)

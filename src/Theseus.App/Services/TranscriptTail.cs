@@ -93,26 +93,5 @@ public static class TranscriptTail
     }
 
     /// <summary>Where a session's transcript is, or null. Shared with the model reader, which wants the same file.</summary>
-    internal static string? Find(string? sessionId)
-    {
-        if (string.IsNullOrWhiteSpace(sessionId))
-        {
-            return null;
-        }
-
-        var projects = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude", "projects");
-
-        try
-        {
-            return Directory.Exists(projects)
-                ? Directory.EnumerateFiles(projects, $"{sessionId}.jsonl", SearchOption.AllDirectories)
-                    .FirstOrDefault()
-                : null;
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            return null;
-        }
-    }
+    internal static string? Find(string? sessionId) => TranscriptLocator.Find(sessionId);
 }
