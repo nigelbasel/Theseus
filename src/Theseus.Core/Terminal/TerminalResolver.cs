@@ -9,9 +9,16 @@ public sealed class TerminalResolver : ITerminalResolver
     private const string ProcessName = "WindowsTerminal";
 
     private readonly string _configuredPath;
+    private readonly RefusedTerminals _refused;
 
     /// <summary>Creates a resolver, optionally pinned to a path the user chose in settings.</summary>
-    public TerminalResolver(string? configuredPath = null) => _configuredPath = configuredPath ?? string.Empty;
+    /// <param name="configuredPath">The terminal set in Options, or empty to find one.</param>
+    /// <param name="refused">Executables Windows has refused this run. Defaults to the shared record.</param>
+    public TerminalResolver(string? configuredPath = null, RefusedTerminals? refused = null)
+    {
+        _configuredPath = configuredPath ?? string.Empty;
+        _refused = refused ?? RefusedTerminals.Shared;
+    }
 
     /// <summary>The <c>wt.exe</c> app execution alias for the current user, whether or not it exists.</summary>
     public static string AliasPath => Path.Combine(
@@ -28,7 +35,7 @@ public sealed class TerminalResolver : ITerminalResolver
 
         var alias = File.Exists(AliasPath) ? AliasPath : null;
 
-        return TerminalSelector.Choose(RunningTerminalPaths(), alias, InstalledTerminals.Paths());
+        return TerminalSelector.Choose(RunningTerminalPaths(), alias, InstalledTerminals.Paths(), _refused);
     }
 
     private static List<string> RunningTerminalPaths()

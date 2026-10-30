@@ -122,8 +122,47 @@ public class TerminalSelectorTests
     }
 
     [Test]
-    public void Choose_TakesTheOnlyInstalledTerminalEvenWhenItIsThePreview()
+    public void Choose_UsesTheAliasWhenOnlyOnePackageIsInstalled()
     {
-        Assert.That(TerminalSelector.Choose([], Alias, [Preview]).ExecutablePath, Is.EqualTo(Preview));
+        var cold = TerminalSelector.Choose([], Alias, [Preview]);
+        var warm = TerminalSelector.Choose([Stable, Stable], Alias, [Stable]);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That((cold.ExecutablePath, cold.Source), Is.EqualTo((Alias, TerminalSource.OnlyPackageAlias)),
+                "with one package the alias can open nothing else, and Windows may refuse the package's own executable");
+            Assert.That((warm.ExecutablePath, warm.Source), Is.EqualTo((Alias, TerminalSource.OnlyPackageAlias)));
+        });
+    }
+
+    [Test]
+    public void Choose_GoesToTheAliasOnceWindowsHasRefusedAPackage()
+    {
+        var refused = new RefusedTerminals();
+        refused.Add(Stable);
+
+        var resolution = TerminalSelector.Choose([Stable], Alias, [Stable, Preview], refused);
+
+        Assert.That((resolution.ExecutablePath, resolution.Source), Is.EqualTo((Alias, TerminalSource.RefusedFallback)),
+            "the running instance is refused too, and the other package would be refused or would open the preview");
+    }
+
+    [Test]
+    public void Choose_WithARefusalAndNoAlias_TriesWhatIsThere()
+    {
+        var refused = new RefusedTerminals();
+        refused.Add(Stable);
+
+        Assert.That(TerminalSelector.Choose([], null, [Stable, Preview], refused).Source, Is.EqualTo(TerminalSource.RunningInstance),
+            "with no alias to fall back to, the start is tried and its refusal reported");
+    }
+
+    [TestCase(5, @"C:\Program Files\WindowsApps\Microsoft.WindowsTerminal_1.24\WindowsTerminal.exe", true)]
+    [TestCase(2, @"C:\Program Files\WindowsApps\Microsoft.WindowsTerminal_1.24\WindowsTerminal.exe", false)]
+    [TestCase(5, @"C:\Tools\WindowsTerminal.exe", false)]
+    [TestCase(5, @"C:\Users\dev\AppData\Local\Microsoft\WindowsApps\wt.exe", false)]
+    public void IsPackageRefusal_IsAccessDeniedOnAPackageExecutable(int error, string path, bool refusal)
+    {
+        Assert.That(RefusedTerminals.IsPackageRefusal(new System.ComponentModel.Win32Exception(error), path), Is.EqualTo(refusal));
     }
 }

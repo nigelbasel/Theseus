@@ -150,6 +150,17 @@ public class LaunchPipeServerTests
     }
 
     [Test]
+    public void Withdraw_TakesBackATicketWhoseTerminalWouldNotStart()
+    {
+        _server.Register(Ticket("t-refused") with { ExpiresUtc = new DateTimeOffset(2026, 8, 26, 8, 58, 0, TimeSpan.Zero) });
+
+        _server.Withdraw("t-refused");
+
+        Assert.That(_server.SweepLapsed(), Is.Zero, "a refused start is not a launch the terminal took and never ran");
+        Assert.That(_sink.Lapsed, Is.Empty);
+    }
+
+    [Test]
     public void SweepLapsed_LeavesARedeemedTicketAlone()
     {
         _server.Register(Ticket("t-1") with { ExpiresUtc = new DateTimeOffset(2026, 8, 26, 9, 0, 1, TimeSpan.Zero) });

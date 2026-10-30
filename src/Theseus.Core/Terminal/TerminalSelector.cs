@@ -15,14 +15,34 @@ public static class TerminalSelector
     /// Every terminal installed, stable first, for when nothing is running to follow. Preferred over
     /// the alias because both packages claim the alias and it opens the preview where one exists.
     /// </param>
+    /// <param name="refused">Executables Windows has refused to start this run, which are not chosen.</param>
     public static TerminalResolution Choose(
         IReadOnlyList<string> runningExecutablePaths,
         string? aliasPath,
-        IReadOnlyList<string>? installed = null)
+        IReadOnlyList<string>? installed = null,
+        RefusedTerminals? refused = null)
     {
         ArgumentNullException.ThrowIfNull(runningExecutablePaths);
 
         installed ??= [];
+        var hasAlias = !string.IsNullOrWhiteSpace(aliasPath);
+
+        // With one package installed the alias can open nothing else, so the ambiguity that makes it
+        // the last resort cannot arise, and it is the one path Windows still lets anything start.
+        var runningPaths = runningExecutablePaths.Where(path => !string.IsNullOrWhiteSpace(path)).ToList();
+
+        if (hasAlias && installed.Count == 1
+            && runningPaths.All(path => string.Equals(path, installed[0], StringComparison.OrdinalIgnoreCase)))
+        {
+            return new TerminalResolution(aliasPath!, TerminalSource.OnlyPackageAlias, runningPaths.Count == 0 ? 0 : 1);
+        }
+
+        // Windows refuses package executables as a class, not one at a time: once one has been refused,
+        // trying the other package would only fail again, or open the preview nobody asked for.
+        if (hasAlias && refused?.Any == true)
+        {
+            return new TerminalResolution(aliasPath!, TerminalSource.RefusedFallback, 0);
+        }
 
         var groups = runningExecutablePaths
             .Where(path => !string.IsNullOrWhiteSpace(path))
@@ -43,9 +63,9 @@ public static class TerminalSelector
             return new TerminalResolution(installed[0], TerminalSource.RunningInstance, 0);
         }
 
-        if (!string.IsNullOrWhiteSpace(aliasPath))
+        if (hasAlias)
         {
-            return new TerminalResolution(aliasPath, TerminalSource.ExecutionAlias, 0);
+            return new TerminalResolution(aliasPath!, TerminalSource.ExecutionAlias, 0);
         }
 
         return new TerminalResolution(string.Empty, TerminalSource.None, 0);

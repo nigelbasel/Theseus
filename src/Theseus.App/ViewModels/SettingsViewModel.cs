@@ -136,6 +136,9 @@ public sealed class SettingsViewModel : ObservableObject
             {
                 TerminalSource.None => "no terminal found",
                 TerminalSource.ExecutionAlias => $"wt.exe alias — {resolved.ExecutablePath}",
+                TerminalSource.OnlyPackageAlias => $"wt.exe alias, the only terminal installed — {resolved.ExecutablePath}",
+                TerminalSource.RefusedFallback =>
+                    $"wt.exe alias, because Windows refused to start the terminal package directly — {resolved.ExecutablePath}",
                 _ when resolved.DistinctRunningPackages > 1 =>
                     $"{resolved.ExecutablePath} ({resolved.DistinctRunningPackages} packages running)",
                 _ => resolved.ExecutablePath,

@@ -26,6 +26,9 @@ public sealed class CachedTerminalResolver : ITerminalResolver
         _lifetime = lifetime ?? TimeSpan.FromSeconds(15);
     }
 
+    /// <summary>Drops the remembered answer, so the next launch resolves afresh.</summary>
+    public void Forget() => _cached = null;
+
     /// <inheritdoc />
     public TerminalResolution Resolve()
     {
@@ -59,6 +62,22 @@ public sealed class CachedTerminalResolver : ITerminalResolver
         {
             TheseusLog.Error(new InvalidOperationException("No terminal found"),
                 "No Windows Terminal could be found, so no session can be started");
+
+            return;
+        }
+
+        if (resolution.Source == TerminalSource.RefusedFallback)
+        {
+            TheseusLog.Warning("Launching tabs through the wt.exe alias at {Path}: Windows refused to start the terminal package's own executable",
+                resolution.ExecutablePath);
+
+            return;
+        }
+
+        if (resolution.Source == TerminalSource.OnlyPackageAlias)
+        {
+            TheseusLog.Information("Launching tabs through the wt.exe alias at {Path}, the only terminal package installed",
+                resolution.ExecutablePath);
 
             return;
         }

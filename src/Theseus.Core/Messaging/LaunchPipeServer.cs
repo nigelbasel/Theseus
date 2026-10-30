@@ -55,6 +55,19 @@ public sealed class LaunchPipeServer : IAsyncDisposable
             ticket.Ticket, ticket.WorkstreamKey, _tickets.Count);
     }
 
+    /// <summary>
+    /// Takes back a ticket whose terminal would not start, so it is not swept two minutes later as a
+    /// launch the terminal took and never ran. The ticket is still registered before the terminal is
+    /// started, because a fast launcher must not present one that is not yet known.
+    /// </summary>
+    public void Withdraw(string ticket)
+    {
+        if (_tickets.TryRemove(ticket, out var withdrawn))
+        {
+            TheseusLog.Debug("Ticket {Ticket} for {Workstream} withdrawn: its terminal did not start", ticket, withdrawn.WorkstreamKey);
+        }
+    }
+
     /// <summary>Begins accepting shim connections, and watching for tickets nobody redeems.</summary>
     public void Start()
     {

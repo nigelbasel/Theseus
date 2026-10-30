@@ -11,4 +11,12 @@ public enum TerminalSource
 
     /// <summary>The <c>wt.exe</c> app execution alias, whichever package currently owns it.</summary>
     ExecutionAlias,
+
+    /// <summary>
+    /// The <c>wt.exe</c> alias with only one terminal package installed, so it can open no other.
+    /// </summary>
+    OnlyPackageAlias,
+
+    /// <summary>The <c>wt.exe</c> alias, because Windows refused to start the package's own executable.</summary>
+    RefusedFallback,
 }

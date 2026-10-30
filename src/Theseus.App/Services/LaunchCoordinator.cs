@@ -166,10 +166,11 @@ public sealed class LaunchCoordinator : IAsyncDisposable
 
         try
         {
-            Start(plan);
+            plan = StartWithFallback(plan, workstream.Key);
         }
         catch (Exception exception) when (exception is System.ComponentModel.Win32Exception or InvalidOperationException)
         {
+            _pipe.Withdraw(plan.Ticket.Ticket);
             TheseusLog.Warning(exception, "The terminal {Terminal} would not start for {Workstream}",
                 plan.TerminalExecutablePath, workstream.Key);
             LastRefusal = StartNotice.Refusal(workstream.Title, exception.Message);
@@ -209,6 +210,36 @@ public sealed class LaunchCoordinator : IAsyncDisposable
     /// directory: it is pinned to wherever the session was first created, which may no longer match.
     /// </summary>
     public static bool TranscriptExists(string? sessionId) => TranscriptLocator.Find(sessionId) is not null;
+
+    /// <summary>
+    /// Starts the terminal, and when Windows refuses the package's own executable starts the
+    /// <c>wt.exe</c> alias instead with the same arguments, remembering the refusal so later launches
+    /// go straight to the alias. Reported as a refusal only if the alias fails too.
+    /// </summary>
+    private WorkstreamLaunchPlan StartWithFallback(WorkstreamLaunchPlan plan, string workstream)
+    {
+        try
+        {
+            Start(plan);
+
+            return plan;
+        }
+        catch (System.ComponentModel.Win32Exception exception)
+            when (RefusedTerminals.IsPackageRefusal(exception, plan.TerminalExecutablePath) && File.Exists(TerminalResolver.AliasPath))
+        {
+            TheseusLog.Warning(
+                "Windows refused to start {Refused} for {Workstream} ({Reason}); starting the wt.exe alias at {Alias} instead, and using it for the rest of this run",
+                plan.TerminalExecutablePath, workstream, exception.Message, TerminalResolver.AliasPath);
+
+            RefusedTerminals.Shared.Add(plan.TerminalExecutablePath);
+            (_terminals as CachedTerminalResolver)?.Forget();
+
+            var retry = plan with { TerminalExecutablePath = TerminalResolver.AliasPath };
+            Start(retry);
+
+            return retry;
+        }
+    }
 
     private static void Start(WorkstreamLaunchPlan plan)
     {
