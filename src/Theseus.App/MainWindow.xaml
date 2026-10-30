@@ -1182,6 +1182,9 @@
                         <TextBlock Text="Chains" FontSize="13" FontWeight="SemiBold"
                                    Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                     </StackPanel>
+                    <Button Content="&#xE897;" FontFamily="Segoe MDL2 Assets" FontSize="10"
+                            Padding="6,2" Margin="0,0,30,0" HorizontalAlignment="Right" ToolTip="How chains and proposals work (opens the help in your browser)"
+                            Command="{Binding Help.OpenCommand}" CommandParameter="chains" />
                     <Button Content="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="10"
                             Padding="6,2" HorizontalAlignment="Right" ToolTip="Hide the chains"
                             Command="{Binding Chains.ToggleCommand}" />
@@ -1413,6 +1416,9 @@
                                 Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                 Command="{Binding Chains.OpenCommand}" />
                     </StackPanel>
+                    <Button Content="&#xE897;" FontFamily="Segoe MDL2 Assets" FontSize="10"
+                            Padding="6,2" Margin="0,0,30,0" HorizontalAlignment="Right" ToolTip="How the locks work (opens the help in your browser)"
+                            Command="{Binding Help.OpenCommand}" CommandParameter="locks" />
                     <Button Content="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="10"
                             Padding="6,2" HorizontalAlignment="Right" ToolTip="Hide the locks panel"
                             Command="{Binding Locks.ToggleCommand}" />

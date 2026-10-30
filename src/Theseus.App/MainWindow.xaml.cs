@@ -17,7 +17,6 @@ public partial class MainWindow : Window
 {
     private Point? _dragOrigin;
     private SettingsWindow? _settings;
-    private HelpWindow? _help;
     private ArrangeWindow? _arrange;
     private DayReportWindow? _report;
     private InstructionsWindow? _instructions;
@@ -41,7 +40,6 @@ public partial class MainWindow : Window
         DataContextChanged += (_, _) =>
         {
             WatchSettings();
-            WatchHelp();
             WatchArrange();
             WatchDayReport();
             WatchInstructions();
@@ -111,57 +109,6 @@ public partial class MainWindow : Window
         };
 
         _settings.ShowDialog();
-    }
-
-    private void WatchHelp()
-    {
-        if ((DataContext as ShellViewModel)?.Help is not { } help)
-        {
-            return;
-        }
-
-        help.PropertyChanged += (_, changed) =>
-        {
-            if (changed.PropertyName == nameof(HelpViewModel.IsOpen))
-            {
-                ShowHelp(help);
-            }
-        };
-    }
-
-    /// <summary>
-    /// Shows the help beside the board rather than over it, and without holding it. Somebody reads
-    /// this while pressing the button it describes, so it must not be a dialog.
-    /// </summary>
-    private void ShowHelp(HelpViewModel help)
-    {
-        if (_help is not null)
-        {
-            if (help.IsOpen)
-            {
-                _help.Activate();
-            }
-            else
-            {
-                _help.Close();
-            }
-
-            return;
-        }
-
-        if (!help.IsOpen)
-        {
-            return;
-        }
-
-        _help = new HelpWindow { Owner = this, DataContext = help };
-        _help.Closed += (_, _) =>
-        {
-            _help = null;
-            help.IsOpen = false;
-        };
-
-        _help.Show();
     }
 
     private void WatchArrange()
@@ -533,8 +480,11 @@ public partial class MainWindow : Window
 
     private void OnExit(object sender, RoutedEventArgs e) => Close();
 
-    private void OnAbout(object sender, RoutedEventArgs e) =>
+    private void OnAbout(object sender, RoutedEventArgs e)
+    {
+        (DataContext as ShellViewModel)?.Help.Check();
         new AboutWindow { Owner = this, DataContext = DataContext }.ShowDialog();
+    }
 
     private void OnOverflowClick(object sender, RoutedEventArgs e)
     {

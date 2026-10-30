@@ -54,7 +54,12 @@
             <TextBlock Text="Board, settings and logs" Style="{StaticResource Label}" />
             <TextBox Text="{Binding DataFolder, Mode=OneWay}" Style="{StaticResource Value}" />
 
+            <TextBlock Text="Stop hook" Style="{StaticResource Label}" />
+            <TextBlock Text="{Binding Help.HookStatus}" FontSize="13" TextWrapping="Wrap" />
+
             <TextBlock Margin="0,16,0,0" FontSize="13" TextWrapping="Wrap">
+                <Hyperlink NavigateUri="https://nigelbasel.github.io/Theseus/" RequestNavigate="OnLink">Help</Hyperlink>
+                <Run Text="   ·   " />
                 <Hyperlink NavigateUri="https://github.com/nigelbasel/Theseus" RequestNavigate="OnLink">Source code</Hyperlink>
                 <Run Text="   ·   " />
                 <Hyperlink NavigateUri="https://github.com/nigelbasel/Theseus/releases" RequestNavigate="OnLink">Releases</Hyperlink>

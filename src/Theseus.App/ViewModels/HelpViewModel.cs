@@ -1,50 +1,40 @@
+using System.Diagnostics;
 using System.IO;
 using Theseus.Core.Diagnostics;
-using Theseus.Core.Help;
 using Theseus.Core.Stopping;
 
 namespace Theseus.App.ViewModels;
 
 /// <summary>
-/// The help window's state: the written explanations, and what is actually true on this machine
-/// right now.
-///
-/// The second part is the point. "Stop asks the session to hand over" is worth reading once; "the
-/// hook that delivers it is not registered on this machine" is what somebody needs at the moment
-/// they press Stop and nothing happens. Help that cannot see the machine it is running on leaves
-/// them reading a description of a mechanism they do not have.
+/// Help: web pages kept in the repository's docs folder and published with GitHub Pages (Nigel,
+/// 2026-10-30: "a normal help page, html with hyperlinks, images etc ... opened in a browser"), and
+/// the one thing about this machine that help used to show beside its text: whether the stop hook is
+/// registered. About shows that now.
 /// </summary>
 public sealed class HelpViewModel : ObservableObject
 {
-    private bool _isOpen;
+    /// <summary>Where the help pages are published.</summary>
+    public const string Site = "https://nigelbasel.github.io/Theseus/";
+
     private bool _hookIsRegistered;
 
     /// <summary>Creates the help.</summary>
-    public HelpViewModel()
-    {
-        OpenCommand = new RelayCommand(_ =>
-        {
-            Check();
-            IsOpen = true;
-        });
+    public HelpViewModel() => OpenCommand = new RelayCommand(parameter => Open(parameter as string));
 
-        CloseCommand = new RelayCommand(_ => IsOpen = false);
-    }
-
-    /// <summary>The written explanations.</summary>
-    public IReadOnlyList<HelpSection> Sections { get; } = HelpBook.Sections;
-
-    /// <summary>Shows the help.</summary>
+    /// <summary>Opens the help in the browser: the page named by the parameter, or the contents.</summary>
     public RelayCommand OpenCommand { get; }
 
-    /// <summary>Hides it.</summary>
-    public RelayCommand CloseCommand { get; }
-
-    /// <summary>Whether the window is showing.</summary>
-    public bool IsOpen
+    /// <summary>The address of a help page, such as <c>locks</c> or <c>board#folding</c>.</summary>
+    public static string PageUrl(string? page)
     {
-        get => _isOpen;
-        set => Set(ref _isOpen, value);
+        if (string.IsNullOrWhiteSpace(page))
+        {
+            return Site;
+        }
+
+        var parts = page.Trim().Split('#', 2);
+
+        return parts.Length == 2 ? $"{Site}{parts[0]}.html#{parts[1]}" : $"{Site}{parts[0]}.html";
     }
 
     /// <summary>Whether a Theseus hook is registered in the Claude Code settings.</summary>
@@ -71,8 +61,11 @@ public sealed class HelpViewModel : ObservableObject
     /// <summary>Where the hook is registered, shown so it can be opened and read.</summary>
     public string SettingsPath => HookInstallation.SettingsPath;
 
-    /// <summary>Re-reads what is true on this machine. Cheap, and done every time help is opened.</summary>
+    /// <summary>Re-reads what is true on this machine. Cheap, and done every time About is opened.</summary>
     public void Check() => HookIsRegistered = HookInstallation.IsInstalled(Read());
+
+    private static void Open(string? page) =>
+        Process.Start(new ProcessStartInfo(PageUrl(page)) { UseShellExecute = true });
 
     private static string? Read()
     {
