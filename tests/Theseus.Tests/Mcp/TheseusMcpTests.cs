@@ -49,6 +49,10 @@ public class TheseusMcpTests
             Is.EqualTo("mcp__theseus__start_work,mcp__theseus__stop_work,mcp__theseus__time_for,mcp__theseus__whoami,mcp__theseus__locks,mcp__theseus__lock_acquire,mcp__theseus__lock_release,mcp__theseus__related,mcp__theseus__proposal_status"));
         Assert.That(argv[argv.IndexOf("--allowedTools") + 1], Does.Not.Contain("propose_workstream").And.Not.Contain("withdraw_proposal"),
             "a proposal puts something on the board, so the person in the tab approves each one");
+        Assert.That(argv[argv.IndexOf("--allowedTools") + 1],
+            Does.Not.Contain("link_workstream").And.Not.Contain("unlink_workstream")
+                .And.Not.Contain("approve_proposal").And.Not.Contain("reject_proposal"),
+            "linking and deciding a proposal change the board, so the person in the tab approves each one");
         Assert.That(argv[argv.IndexOf("--allowedTools") + 1], Does.Not.Contain("report_back"),
             "a report is the one thing a session records on the board, so the person in the tab approves each one");
         Assert.That(argv[argv.IndexOf("--allowedTools") + 1], Does.Not.Contain("*"),

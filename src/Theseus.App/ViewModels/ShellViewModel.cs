@@ -551,6 +551,43 @@ public sealed class ShellViewModel : ObservableObject
     }
 
     /// <summary>
+    /// Creates the card for a proposal its session approved when Nigel told it to, through the composer
+    /// as Create on the board would. Refused while the composer is open, so nothing Nigel is typing is lost.
+    /// </summary>
+    public Theseus.Core.Proposals.ProposalApproval ApproveFromSession(Theseus.Core.Proposals.WorkstreamProposal proposal, bool startNow)
+    {
+        ArgumentNullException.ThrowIfNull(proposal);
+
+        if (NewWorkstream.IsOpen)
+        {
+            return Theseus.Core.Proposals.ProposalApproval.Refused(
+                "The new workstream dialog is open on the board. Ask the user to close it, or to approve this proposal there.");
+        }
+
+        if (Board.Card(proposal.RequesterKey) is not { } parent)
+        {
+            return Theseus.Core.Proposals.ProposalApproval.Refused($"{proposal.RequesterKey} is no longer on the board.");
+        }
+
+        NewWorkstream.OpenProposal(parent.Workstream, proposal);
+        NewWorkstream.StartNow = startNow;
+
+        if (!NewWorkstream.CanCreate)
+        {
+            NewWorkstream.IsOpen = false;
+
+            return Theseus.Core.Proposals.ProposalApproval.Refused(
+                $"{parent.Workstream.WorkingDirectory} is not there, so the card cannot be made. Approve it on the board and choose a working directory.");
+        }
+
+        var key = NewWorkstream.Key;
+
+        NewWorkstream.CreateCommand.Execute(null);
+
+        return Theseus.Core.Proposals.ProposalApproval.Made(key);
+    }
+
+    /// <summary>
     /// <para>Cheap enough to call whenever the window is looked at: two file timestamps unless something changed.</para>
     /// Notices a switch to the other account. The usage shown beside it belongs to whichever account
     /// was signed in when it was read, so it is thrown away rather than left to describe the account

@@ -206,6 +206,74 @@ public class McpLinkToolsTests
         return JsonNode.Parse(_handler.Handle(session, message.ToJsonString(), null).Body!)!;
     }
 
+    [Test]
+    public void LinkWorkstream_HandsOverFromThisCardWhenItIsTheParent()
+    {
+        var result = Call("link_workstream", new JsonObject { ["other"] = "Auth implementation", ["this_is"] = "parent" },
+            "research-session");
+
+        var link = _book.Active.Single();
+
+        Assert.That(result["isError"]!.GetValue<bool>(), Is.False, Text(result));
+        Assert.That((link.Kind, link.From, link.To), Is.EqualTo((LinkKind.HandsOver, "auth-research", "auth-implementation")));
+        Assert.That(link.Output, Is.Null);
+        Assert.That(link.CreatedBy, Is.EqualTo("session research-session"));
+    }
+
+    [Test]
+    public void LinkWorkstream_AsTheChildWithAReportBackToTheParentsBriefFolder()
+    {
+        var result = Call("link_workstream",
+            new JsonObject { ["other"] = "auth-research", ["this_is"] = "child", ["report_back"] = true }, "spike-session");
+
+        Assert.That(result["isError"]!.GetValue<bool>(), Is.False, Text(result));
+        Assert.That(_book.Active.Select(link => (link.Kind, link.From, link.To, link.Output)), Is.EquivalentTo(new[]
+        {
+            (LinkKind.HandsOver, "auth-research", "token-spike", (string?)null),
+            (LinkKind.ReportsBack, "token-spike", "auth-research", (string?)@"C:\work\proposals\token-spike\REPORT.md"),
+        }));
+    }
+
+    [Test]
+    public void LinkWorkstream_PassesOnTheBooksRefusal()
+    {
+        _book.Add(LinkKind.HandsOver, "auth-implementation", "token-spike");
+
+        var result = Call("link_workstream", new JsonObject { ["other"] = "auth-research", ["this_is"] = "child" }, "spike-session");
+
+        Assert.That(result["isError"]!.GetValue<bool>(), Is.True);
+        Assert.That(Text(result), Does.Contain("takes over from one card only"));
+    }
+
+    [Test]
+    public void LinkWorkstream_RefusesAnUnknownCardOrAHandoffAsTheDocument()
+    {
+        var unknown = Call("link_workstream", new JsonObject { ["other"] = "Nowhere", ["this_is"] = "parent" }, "research-session");
+        var handoff = Call("link_workstream",
+            new JsonObject { ["other"] = "token-spike", ["this_is"] = "parent", ["document"] = @"C:\work\HANDOFF-token-spike.md" },
+            "research-session");
+        var sideless = Call("link_workstream", new JsonObject { ["other"] = "token-spike" }, "research-session");
+
+        Assert.That(Text(unknown), Does.Contain("no card Nowhere"));
+        Assert.That(Text(handoff), Does.Contain("handoff"));
+        Assert.That(Text(sideless), Does.Contain("parent or child"));
+        Assert.That(_book.All, Is.Empty);
+    }
+
+    [Test]
+    public void UnlinkWorkstream_RemovesOnlyLinksTouchingThisCard()
+    {
+        var mine = _book.Add(LinkKind.HandsOver, "auth-research", "token-spike").Link!;
+        var theirs = _book.Add(LinkKind.HandsOver, "token-spike", "auth-implementation").Link!;
+
+        var refused = Call("unlink_workstream", new JsonObject { ["link_id"] = theirs.Id }, "research-session");
+        var removed = Call("unlink_workstream", new JsonObject { ["link_id"] = mine.Id }, "research-session");
+
+        Assert.That(Text(refused), Does.Contain("does not touch this workstream"));
+        Assert.That(removed["isError"]!.GetValue<bool>(), Is.False, Text(removed));
+        Assert.That(_book.Active.Single().Id, Is.EqualTo(theirs.Id));
+    }
+
     private JsonNode Call(string tool, JsonObject arguments, string session) =>
         Request("tools/call", new JsonObject { ["name"] = tool, ["arguments"] = arguments }, session)["result"]!;
 

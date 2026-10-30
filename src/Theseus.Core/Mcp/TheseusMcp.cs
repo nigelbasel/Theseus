@@ -15,16 +15,18 @@ public static class TheseusMcp
     public static readonly IReadOnlyList<string> ToolNames =
         [
             "start_work", "stop_work", "time_for", "whoami", "locks", "lock_acquire", "lock_release", "related", "report_back",
-            "propose_workstream", "proposal_status", "withdraw_proposal",
+            "propose_workstream", "proposal_status", "withdraw_proposal", "link_workstream", "unlink_workstream",
+            "approve_proposal", "reject_proposal",
         ];
 
     /// <summary>
-    /// The tools a launched session may use without being asked. Those that put something on the board
-    /// are left out (decision 10, 2026-10-21): a report, a proposal and taking a proposal back all pass
-    /// the person in the tab before they are sent.
+    /// The tools a launched session may use without being asked. Those that change the board are left
+    /// out (decision 10, 2026-10-21): a report, a proposal or its withdrawal, a link made or removed, and
+    /// a proposal approved or rejected all pass the person in the tab before they are sent.
     /// </summary>
     public static readonly IReadOnlyList<string> PreApproved =
-        [.. ToolNames.Where(tool => tool is not ("report_back" or "propose_workstream" or "withdraw_proposal"))];
+        [.. ToolNames.Where(tool => tool is not ("report_back" or "propose_workstream" or "withdraw_proposal"
+                                       or "link_workstream" or "unlink_workstream" or "approve_proposal" or "reject_proposal"))];
 
     /// <summary>
     /// The <c>--allowedTools</c> value that lets a launched session use exactly these tools without being

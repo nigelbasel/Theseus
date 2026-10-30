@@ -58,13 +58,18 @@ public sealed class LinkBook
     }
 
     /// <summary>Makes a link, unless it would contradict the ones already standing. Either way it is logged.</summary>
-    public LinkChange Add(LinkKind kind, string from, string to, string? output = null)
+    /// <param name="kind">What the link means.</param>
+    /// <param name="from">The card that hands over, or the child that reports back.</param>
+    /// <param name="to">The card handed over to, or the parent reported back to.</param>
+    /// <param name="output">The document the link names, or null.</param>
+    /// <param name="createdBy">Who made it: the board, or the session that made it when Nigel asked it to.</param>
+    public LinkChange Add(LinkKind kind, string from, string to, string? output = null, string createdBy = Link.MadeOnTheBoard)
     {
         LinkChange change;
 
         lock (_gate)
         {
-            change = TryAdd(kind, from, to, output);
+            change = TryAdd(kind, from, to, output, createdBy);
         }
 
         if (change.Refusal is { } refusal)
@@ -73,8 +78,8 @@ public sealed class LinkBook
         }
         else
         {
-            TheseusLog.Information("Link {Id} made: {Kind} {From} -> {To}, output {Output}", change.Link!.Id, kind.ToString(), from,
-                to, change.Link.Output ?? "none");
+            TheseusLog.Information("Link {Id} made by {CreatedBy}: {Kind} {From} -> {To}, output {Output}", change.Link!.Id, createdBy,
+                kind.ToString(), from, to, change.Link.Output ?? "none");
             OnChanged();
         }
 
@@ -242,7 +247,7 @@ public sealed class LinkBook
         return change;
     }
 
-    private LinkChange TryAdd(LinkKind kind, string from, string to, string? output)
+    private LinkChange TryAdd(LinkKind kind, string from, string to, string? output, string createdBy)
     {
         if (SameKey(from, to))
         {
@@ -275,7 +280,7 @@ public sealed class LinkBook
             return LinkChange.Refused($"{to} does not hand over to {from}, so {from} has nothing to report back to it.");
         }
 
-        var link = new Link(NewId(), kind, from, to, _clock.UtcNow, Link.MadeOnTheBoard, Output: Blank(output));
+        var link = new Link(NewId(), kind, from, to, _clock.UtcNow, createdBy, Output: Blank(output));
 
         _links.Add(link);
         Save();

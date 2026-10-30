@@ -112,11 +112,11 @@ public sealed class ProposalBook
                 : "That proposal was made by another workstream, so this one cannot withdraw it.",
             ProposalStatus.Withdrawn, $"withdrawn by session {sessionId}", null);
 
-    /// <summary>Marks a proposal approved, once its card exists. Only the board calls this.</summary>
+    /// <summary>Marks a proposal approved, once its card exists: on the board, or from its session when Nigel says so there.</summary>
     public ProposalOutcome Approve(string id, string resultingKey) =>
         Decide(id, "approved", _ => null, ProposalStatus.Approved, null, resultingKey);
 
-    /// <summary>Turns a proposal down, with Nigel's note if he gave one. Only the board calls this.</summary>
+    /// <summary>Turns a proposal down, with Nigel's note if he gave one: on the board, or from its session when he says so there.</summary>
     public ProposalOutcome Reject(string id, string? note) =>
         Decide(id, "rejected", _ => null, ProposalStatus.Rejected, string.IsNullOrWhiteSpace(note) ? null : note.Trim(), null);
 

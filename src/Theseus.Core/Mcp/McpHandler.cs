@@ -52,7 +52,11 @@ public sealed partial class McpHandler
         + "for their confirmation on the board. A report never satisfies a link by itself. "
         + "If part of this work should be carried on by a new workstream, write a brief for it and call "
         + "propose_workstream; the user approves it on the board, and no card, link or tab exists before that. "
-        + "Never write a plan file for another workstream yourself.";
+        + "Never write a plan file for another workstream yourself. "
+        + "When the user asks you to link this workstream to another card on the board, or to remove a link, "
+        + "call link_workstream or unlink_workstream; never do either unless the user asked for it in this tab. "
+        + "The user may review a proposal's brief with you here and approve or reject it: call approve_proposal or "
+        + "reject_proposal only when the user says so in this tab, never on your own judgement.";
 
     private readonly WorkLog _work;
     private readonly LockBook? _locks;
@@ -65,6 +69,7 @@ public sealed partial class McpHandler
     private readonly SessionPathRule? _paths;
     private readonly ProposalBook? _proposals;
     private readonly Func<string> _briefFolderName;
+    private readonly Func<WorkstreamProposal, bool, ProposalApproval>? _approve;
 
     /// <summary>Creates the handler over the work log, the sampler's intervals and the launched sessions.</summary>
     /// <param name="sessions">Finds the session a request's path names, or null for one Theseus did not launch.</param>
@@ -75,6 +80,10 @@ public sealed partial class McpHandler
     /// <param name="paths">What a report or a brief may not name.</param>
     /// <param name="proposals">The workstreams sessions have proposed, or null when Theseus is not taking any.</param>
     /// <param name="briefFolderName">The board's brief folder, relative to a working directory.</param>
+    /// <param name="approve">
+    /// Creates the card for a proposal its session approves when Nigel asks, and whether to start it, or
+    /// null when sessions cannot approve.
+    /// </param>
     public McpHandler(
         WorkLog work,
         Func<IReadOnlyList<AttentionInterval>> attention,
@@ -86,8 +95,10 @@ public sealed partial class McpHandler
         Func<BoardSnapshot>? board = null,
         SessionPathRule? paths = null,
         ProposalBook? proposals = null,
-        Func<string>? briefFolderName = null)
+        Func<string>? briefFolderName = null,
+        Func<WorkstreamProposal, bool, ProposalApproval>? approve = null)
     {
+        _approve = approve;
         _proposals = proposals;
         _briefFolderName = briefFolderName ?? (() => BriefFolder.DefaultName);
         _links = links;
@@ -240,11 +251,50 @@ public sealed partial class McpHandler
                 },
                 "title", "brief", "done_criteria", "report_back"),
             Tool("proposal_status",
-                "This workstream's proposals and what the user decided: pending, approved (with the new card's key), rejected (with their note) or withdrawn. Read-only.",
+                "This workstream's proposals, everything each asks for, its warnings, and what the user decided: pending, approved (with the new card's key), rejected (with their note) or withdrawn. Read-only.",
                 new JsonObject()),
             Tool("withdraw_proposal",
                 "Take back one of this workstream's pending proposals.",
                 new JsonObject { ["proposal_id"] = Property("The id propose_workstream returned.") },
+                "proposal_id"),
+            Tool("link_workstream",
+                "Link this workstream to another card on the board, exactly as the user would on the board. Use only when the user asks for it in this tab. A card takes over from one card only, and nothing may become its own ancestor.",
+                new JsonObject
+                {
+                    ["other"] = Property("The other card's key or title."),
+                    ["this_is"] = Property("parent when this workstream hands over to the other card; child when the other card hands over to this one."),
+                    ["document"] = Property("Optional: absolute path of the hand-over document the parent writes. The child waits until the user accepts it. Leave out when the child starts from what it already has."),
+                    ["report_back"] = new JsonObject
+                    {
+                        ["type"] = "boolean",
+                        ["description"] = "Optional: true when the child should also report back to the parent.",
+                    },
+                    ["report_path"] = Property("Optional: absolute path of the child's report. Defaults to REPORT.md in the child's folder in the parent's brief folder."),
+                },
+                "other", "this_is"),
+            Tool("unlink_workstream",
+                "Remove a link this workstream is at either end of, by its id from related. Removing a hand-over also removes the report back that depended on it. Use only when the user asks for it in this tab.",
+                new JsonObject { ["link_id"] = Property("The link's id, from related.") },
+                "link_id"),
+            Tool("approve_proposal",
+                "Approve one of this workstream's pending proposals, which creates its card, links it and leaves it ready to start, exactly as Create does on the board. Only when the user has read the brief and tells you to approve it in this tab.",
+                new JsonObject
+                {
+                    ["proposal_id"] = Property("The id propose_workstream returned."),
+                    ["start_now"] = new JsonObject
+                    {
+                        ["type"] = "boolean",
+                        ["description"] = "Optional: true when the user wants its session started straight away.",
+                    },
+                },
+                "proposal_id"),
+            Tool("reject_proposal",
+                "Turn down one of this workstream's pending proposals, with the user's reason. Only when the user tells you to in this tab.",
+                new JsonObject
+                {
+                    ["proposal_id"] = Property("The id propose_workstream returned."),
+                    ["note"] = Property("Optional: the user's reason, kept with the proposal."),
+                },
                 "proposal_id")),
     };
 
@@ -277,6 +327,10 @@ public sealed partial class McpHandler
             "propose_workstream" => ProposeWorkstream(session, arguments),
             "proposal_status" => ProposalStatusFor(session),
             "withdraw_proposal" => WithdrawProposal(session, arguments),
+            "link_workstream" => LinkWorkstream(session, arguments),
+            "unlink_workstream" => UnlinkWorkstream(session, arguments),
+            "approve_proposal" => ApproveProposal(session, arguments),
+            "reject_proposal" => RejectProposal(session, arguments),
             _ => WhoAmI(session),
         });
     }
@@ -431,6 +485,133 @@ public sealed partial class McpHandler
                       + "confirms it there. Tell the user in this tab that it is waiting for them.");
     }
 
+    private JsonObject LinkWorkstream(McpSession session, JsonObject arguments)
+    {
+        if (_links is null)
+        {
+            return Result("This Theseus is not keeping links between workstreams.", isError: true);
+        }
+
+        var board = _board();
+        var named = Text(arguments["other"])?.Trim() ?? string.Empty;
+        var other = board.Card(named)
+                    ?? board.Cards.FirstOrDefault(card => string.Equals(card.Title, named, StringComparison.CurrentCultureIgnoreCase));
+
+        if (other is null)
+        {
+            return Result($"There is no card {named} on the board. Give its key or its title exactly.", isError: true);
+        }
+
+        if (other.Workstream.IsArchived)
+        {
+            return Result($"{other.Title} is archived. The user restores it on the board before it can be linked.", isError: true);
+        }
+
+        bool? isParent = Text(arguments["this_is"])?.Trim().ToLowerInvariant() switch
+        {
+            "parent" => true,
+            "child" => false,
+            _ => null,
+        };
+
+        if (isParent is null)
+        {
+            return Result("this_is is required: parent or child.", isError: true);
+        }
+
+        var parentKey = isParent.Value ? session.WorkstreamKey : other.Key;
+        var childKey = isParent.Value ? other.Key : session.WorkstreamKey;
+        var parentDirectory = board.Card(parentKey)?.Workstream.WorkingDirectory;
+        var document = Text(arguments["document"])?.Trim() is { Length: > 0 } handOver ? handOver : null;
+        var reportBack = arguments["report_back"] is JsonValue value && value.TryGetValue<bool>(out var reports) && reports;
+        var reportPath = Text(arguments["report_path"])?.Trim() is { Length: > 0 } given ? given : null;
+
+        if (reportBack && reportPath is null)
+        {
+            if (string.IsNullOrWhiteSpace(parentDirectory))
+            {
+                return Result("The parent card has no working directory, so give report_path.", isError: true);
+            }
+
+            reportPath = BriefFolder.ReportPath(parentDirectory, _briefFolderName(), childKey);
+        }
+
+        foreach (var path in new[] { document, reportBack ? reportPath : null }.OfType<string>())
+        {
+            if (!Path.IsPathFullyQualified(path))
+            {
+                return Result($"{path} is not an absolute path.", isError: true);
+            }
+
+            if (_paths?.Refusal(path, board) is { } refusal)
+            {
+                return Result(refusal, isError: true);
+            }
+        }
+
+        var madeBy = $"session {session.SessionId}";
+        var handed = _links.Add(LinkKind.HandsOver, parentKey, childKey, document, madeBy);
+
+        if (handed.Refusal is { } refused)
+        {
+            return Result(refused, isError: true);
+        }
+
+        var lines = new List<string>
+        {
+            $"Linked: {Title(board, parentKey)} hands over to {Title(board, childKey)} ({handed.Link!.Id})"
+            + (document is null ? ", with no document." : $"; {Title(board, childKey)} waits until the user accepts {document}."),
+        };
+
+        if (reportBack)
+        {
+            var back = _links.Add(LinkKind.ReportsBack, childKey, parentKey, reportPath, madeBy);
+
+            lines.Add(back.Refusal is { } notBack
+                ? $"The report back was not made: {notBack}"
+                : $"{Title(board, childKey)} reports back to {Title(board, parentKey)} with {reportPath} ({back.Link!.Id}).");
+        }
+
+        lines.Add("It shows on the board now. Tell the user in this tab what you linked.");
+
+        return Result(string.Join("\n", lines));
+    }
+
+    private JsonObject UnlinkWorkstream(McpSession session, JsonObject arguments)
+    {
+        if (_links is null)
+        {
+            return Result("This Theseus is not keeping links between workstreams.", isError: true);
+        }
+
+        var id = Text(arguments["link_id"])?.Trim() ?? string.Empty;
+
+        if (_links.Active.FirstOrDefault(link => string.Equals(link.Id, id, StringComparison.OrdinalIgnoreCase)) is not { } link)
+        {
+            return Result($"There is no link {id}. Call related for this workstream's links.", isError: true);
+        }
+
+        if (!link.Touches(session.WorkstreamKey))
+        {
+            return Result($"Link {link.Id} does not touch this workstream, so it is not this session's to remove.", isError: true);
+        }
+
+        var removed = _links.Remove(link.Id);
+
+        if (removed.Refusal is { } refusal)
+        {
+            return Result(refusal, isError: true);
+        }
+
+        var board = _board();
+
+        return Result($"Removed link {link.Id} between {Title(board, link.From)} and {Title(board, link.To)}"
+                      + (link.Kind == LinkKind.HandsOver ? ", and any report back that depended on it." : ".")
+                      + " Tell the user in this tab what you removed.");
+    }
+
+    private static string Title(BoardSnapshot board, string key) => board.Card(key)?.Title ?? key;
+
     private JsonObject ProposeWorkstream(McpSession session, JsonObject arguments)
     {
         if (_proposals is null || _links is null)
@@ -495,13 +676,22 @@ public sealed partial class McpHandler
             ["note"] = proposal.DecisionNote,
             ["newWorkstream"] = proposal.ResultingKey,
             ["brief"] = proposal.Request.Brief,
+            ["doneCriteria"] = proposal.Request.DoneCriteria,
+            ["reportBack"] = proposal.Request.ReportBack,
+            ["expectedOutput"] = proposal.Request.ExpectedOutput,
+            ["jiraKeys"] = new JsonArray([.. proposal.Request.JiraKeys.Select(key => (JsonNode?)key)]),
+            ["reason"] = proposal.Request.Reason,
+            ["warnings"] = new JsonArray([.. proposal.Warnings.Select(warning => (JsonNode?)warning)]),
         })]);
 
         return Result(new JsonObject
         {
             ["workstream"] = session.WorkstreamKey,
             ["proposals"] = entries,
-            ["note"] = entries.Count == 0 ? "This workstream has proposed nothing." : "Only the user approves or rejects, on the board.",
+            ["note"] = entries.Count == 0
+                ? "This workstream has proposed nothing."
+                : "The user approves or rejects, on the board or by telling you to here. To review one with them, "
+                  + "show them its brief, done criteria and warnings, then wait for their word.",
         }.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
     }
 
@@ -517,6 +707,68 @@ public sealed partial class McpHandler
         return outcome.Refusal is { } refusal
             ? Result(refusal, isError: true)
             : Result($"Proposal {outcome.Proposal!.Id} ({outcome.Proposal.Request.Title}) is withdrawn.");
+    }
+
+    private JsonObject ApproveProposal(McpSession session, JsonObject arguments)
+    {
+        if (_proposals is null || _approve is null)
+        {
+            return Result("This Theseus cannot approve proposals from a session; the user approves them on the board.", isError: true);
+        }
+
+        if (OwnPending(session, arguments) is not { } proposal)
+        {
+            return Result(NotOwnPending(session, arguments), isError: true);
+        }
+
+        var startNow = arguments["start_now"] is JsonValue value && value.TryGetValue<bool>(out var start) && start;
+        var approval = _approve(proposal, startNow);
+
+        if (approval.Refusal is { } refusal)
+        {
+            return Result(refusal, isError: true);
+        }
+
+        return Result($"Approved {proposal.Id}: {proposal.Request.Title} is on the board as {approval.Key}, linked from this workstream"
+                      + (startNow ? ", and its session is starting." : ". It starts when the user starts it.")
+                      + " Tell the user in this tab.");
+    }
+
+    private JsonObject RejectProposal(McpSession session, JsonObject arguments)
+    {
+        if (_proposals is null)
+        {
+            return Result("This Theseus is not taking proposals.", isError: true);
+        }
+
+        if (OwnPending(session, arguments) is not { } proposal)
+        {
+            return Result(NotOwnPending(session, arguments), isError: true);
+        }
+
+        var outcome = _proposals.Reject(proposal.Id, Text(arguments["note"]));
+
+        return outcome.Refusal is { } refusal
+            ? Result(refusal, isError: true)
+            : Result($"Proposal {proposal.Id} ({proposal.Request.Title}) is rejected.");
+    }
+
+    private WorkstreamProposal? OwnPending(McpSession session, JsonObject arguments) =>
+        _proposals?.Find(Text(arguments["proposal_id"])?.Trim() ?? string.Empty) is { IsPending: true } proposal
+        && string.Equals(proposal.RequesterKey, session.WorkstreamKey, StringComparison.OrdinalIgnoreCase)
+            ? proposal
+            : null;
+
+    private string NotOwnPending(McpSession session, JsonObject arguments)
+    {
+        var id = Text(arguments["proposal_id"])?.Trim() ?? string.Empty;
+
+        return _proposals?.Find(id) switch
+        {
+            null => $"There is no proposal {id}. Call proposal_status for this workstream's.",
+            { IsPending: false } decided => $"Proposal {id} is already {decided.Status.ToString().ToLowerInvariant()}.",
+            _ => "That proposal was made by another workstream; approve or reject it from that workstream's tab, or on the board.",
+        };
     }
 
     private static IReadOnlyList<string> Ids(JsonNode? node) => node switch

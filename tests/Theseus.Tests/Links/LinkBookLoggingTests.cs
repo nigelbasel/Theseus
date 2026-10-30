@@ -36,7 +36,7 @@ public class LinkBookLoggingTests
     {
         var link = _book.Add(LinkKind.HandsOver, "token-spike", "auth-implementation", output: @"C:\work\REPORT.md").Link!;
 
-        Assert.That(Log(), Does.Contain($"Link {link.Id} made: HandsOver token-spike -> auth-implementation, output C:\\work\\REPORT.md"));
+        Assert.That(Log(), Does.Contain($"Link {link.Id} made by board: HandsOver token-spike -> auth-implementation, output C:\\work\\REPORT.md"));
     }
 
     [Test]

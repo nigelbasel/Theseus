@@ -18,6 +18,8 @@ public class McpProposalToolsTests
     private LinkBook _links = null!;
     private ProposalBook _proposals = null!;
     private McpHandler _handler = null!;
+    private List<(WorkstreamProposal Proposal, bool StartNow)> _approved = [];
+    private ProposalApproval _approval = ProposalApproval.Made("cache-spike");
 
     [SetUp]
     public void SetUp()
@@ -46,7 +48,14 @@ public class McpProposalToolsTests
             links: _links,
             board: () => board,
             paths: new SessionPathRule(Path.Combine(_directory, "plans"), Path.Combine(_directory, "data")),
-            proposals: _proposals);
+            proposals: _proposals,
+            approve: (proposal, startNow) =>
+            {
+                _approved.Add((proposal, startNow));
+
+                return _approval;
+            });
+        _approved = [];
     }
 
     [TearDown]
@@ -136,16 +145,94 @@ public class McpProposalToolsTests
     }
 
     [Test]
-    public void NoToolApprovesOrRejectsAProposal()
+    public void NoOtherToolDecidesAProposal()
     {
         Call("propose_workstream", Proposal(), "research-session");
 
-        foreach (var tool in TheseusMcp.ToolNames.Where(tool => tool != "withdraw_proposal"))
+        foreach (var tool in TheseusMcp.ToolNames.Where(tool => tool is not ("withdraw_proposal" or "approve_proposal" or "reject_proposal")))
         {
             Call(tool, new JsonObject { ["proposal_id"] = _proposals.Pending.Single().Id }, "research-session");
         }
 
         Assert.That(_proposals.Pending.Single().Status, Is.EqualTo(ProposalStatus.Pending));
+        Assert.That(_approved, Is.Empty);
+    }
+
+    [Test]
+    public void ProposalStatus_GivesWhatTheUserNeedsToReviewIt()
+    {
+        var arguments = Proposal();
+        arguments["done_criteria"] = "A verdict on dropping the token cache; push it to main.";
+        Call("propose_workstream", arguments, "research-session");
+
+        var entry = JsonNode.Parse(Text(Call("proposal_status", new JsonObject(), "research-session")))!["proposals"]![0]!;
+
+        Assert.That(entry["brief"]!.GetValue<string>(), Is.EqualTo(_brief));
+        Assert.That(entry["doneCriteria"]!.GetValue<string>(), Is.EqualTo("A verdict on dropping the token cache; push it to main."));
+        Assert.That(entry["reportBack"]!.GetValue<bool>(), Is.True);
+        Assert.That(entry["reason"]!.GetValue<string>(), Is.EqualTo("The cache is in the way."));
+        Assert.That(entry["warnings"]!.AsArray().Select(warning => warning!.GetValue<string>()),
+            Has.Some.Contains("push"), "the warning the board would show");
+    }
+
+    [Test]
+    public void ApproveProposal_CreatesTheCardThroughTheBoard()
+    {
+        Call("propose_workstream", Proposal(), "research-session");
+        var id = _proposals.Pending.Single().Id;
+
+        var result = Call("approve_proposal", new JsonObject { ["proposal_id"] = id, ["start_now"] = true }, "research-session");
+
+        Assert.That(result["isError"]!.GetValue<bool>(), Is.False, Text(result));
+        Assert.That(_approved.Single().Proposal.Id, Is.EqualTo(id));
+        Assert.That(_approved.Single().StartNow, Is.True);
+        Assert.That(Text(result), Does.Contain("cache-spike"));
+    }
+
+    [Test]
+    public void ApproveProposal_LeavesItWaitingWhenTheBoardRefuses()
+    {
+        Call("propose_workstream", Proposal(), "research-session");
+        _approval = ProposalApproval.Refused("The new workstream dialog is open on the board.");
+
+        var result = Call("approve_proposal", new JsonObject { ["proposal_id"] = _proposals.Pending.Single().Id }, "research-session");
+
+        Assert.That(result["isError"]!.GetValue<bool>(), Is.True);
+        Assert.That(Text(result), Does.Contain("dialog is open"));
+        Assert.That(_approved.Single().StartNow, Is.False, "a card starts only when asked");
+        Assert.That(_proposals.Pending, Has.Count.EqualTo(1));
+    }
+
+    [Test]
+    public void ApproveAndReject_TouchOnlyTheCallersOwnPendingProposals()
+    {
+        Call("propose_workstream", Proposal(), "research-session");
+        var id = _proposals.Pending.Single().Id;
+
+        var approve = Call("approve_proposal", new JsonObject { ["proposal_id"] = id }, "spike-session");
+        var reject = Call("reject_proposal", new JsonObject { ["proposal_id"] = id }, "spike-session");
+
+        Assert.That(approve["isError"]!.GetValue<bool>(), Is.True);
+        Assert.That(reject["isError"]!.GetValue<bool>(), Is.True);
+        Assert.That(Text(reject), Does.Contain("another workstream"));
+        Assert.That(_approved, Is.Empty);
+        Assert.That(_proposals.Find(id)!.Status, Is.EqualTo(ProposalStatus.Pending));
+    }
+
+    [Test]
+    public void RejectProposal_KeepsTheUsersNote()
+    {
+        Call("propose_workstream", Proposal(), "research-session");
+        var id = _proposals.Pending.Single().Id;
+
+        var result = Call("reject_proposal", new JsonObject { ["proposal_id"] = id, ["note"] = "Fold it into the research." },
+            "research-session");
+        var again = Call("approve_proposal", new JsonObject { ["proposal_id"] = id }, "research-session");
+
+        Assert.That(result["isError"]!.GetValue<bool>(), Is.False);
+        Assert.That(_proposals.Find(id)!.DecisionNote, Is.EqualTo("Fold it into the research."));
+        Assert.That(Text(again), Does.Contain("already rejected"));
+        Assert.That(_approved, Is.Empty);
     }
 
     private JsonObject Proposal() => new()

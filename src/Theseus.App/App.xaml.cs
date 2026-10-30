@@ -213,7 +213,8 @@ public partial class App : Application
                 board: () => snapshots.Current,
                 paths: new SessionPathRule(current.PlanDirectory, DataDirectory),
                 proposals: proposals,
-                briefFolderName: () => settings.Read().BriefFolderName),
+                briefFolderName: () => settings.Read().BriefFolderName,
+                approve: (proposal, startNow) => Dispatcher.Invoke(() => shell.ApproveFromSession(proposal, startNow))),
             Theseus.Core.Mcp.TheseusMcp.DefaultPort,
             new LockHttpApi(locks, () => DateTimeOffset.UtcNow));
 
