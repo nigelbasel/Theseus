@@ -31,6 +31,9 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     private bool _isAdoptTarget;
     private bool _isCollapsed;
     private IReadOnlyList<PullRequestLink> _pullRequests = [];
+    private IReadOnlyList<CardItemRow> _jiraItems = [];
+    private IReadOnlyList<CardItemRow> _pullRequestItems = [];
+    private string _branch = string.Empty;
     private DateTimeOffset? _lifecycleSinceUtc;
 
     /// <summary>Creates a card over a workstream.</summary>
@@ -90,6 +93,59 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     {
         get => _pullRequests;
         set => Set(ref _pullRequests, value);
+    }
+
+    /// <summary>The card's Jira issues, with titles where a session reported them, for its drop-down.</summary>
+    public IReadOnlyList<CardItemRow> JiraItems
+    {
+        get => _jiraItems;
+        private set
+        {
+            if (Set(ref _jiraItems, value))
+            {
+                Raise(nameof(JiraButtonText));
+            }
+        }
+    }
+
+    /// <summary>The card's pull requests, with titles where a session reported them, for its drop-down.</summary>
+    public IReadOnlyList<CardItemRow> PullRequestItems
+    {
+        get => _pullRequestItems;
+        private set
+        {
+            if (Set(ref _pullRequestItems, value))
+            {
+                Raise(nameof(PullRequestButtonText));
+            }
+        }
+    }
+
+    /// <summary>The branch the card's working directory has checked out, or empty.</summary>
+    public string Branch
+    {
+        get => _branch;
+        set => Set(ref _branch, value);
+    }
+
+    /// <summary>What the Jira drop-down's button says.</summary>
+    public string JiraButtonText => JiraItems.Count == 1 ? JiraItems[0].Id : $"Jira {JiraItems.Count}";
+
+    /// <summary>What the pull request drop-down's button says.</summary>
+    public string PullRequestButtonText => PullRequestItems.Count == 1 ? PullRequestItems[0].Id : $"PRs {PullRequestItems.Count}";
+
+    /// <summary>Replaces the drop-downs' rows, only when they have changed so an open menu is left alone.</summary>
+    public void SetItems(IReadOnlyList<CardItemRow> jira, IReadOnlyList<CardItemRow> pullRequests)
+    {
+        if (!jira.Select(row => row.Display + row.Url).SequenceEqual(JiraItems.Select(row => row.Display + row.Url)))
+        {
+            JiraItems = jira;
+        }
+
+        if (!pullRequests.Select(row => row.Display + row.Url).SequenceEqual(PullRequestItems.Select(row => row.Display + row.Url)))
+        {
+            PullRequestItems = pullRequests;
+        }
     }
 
     /// <summary>Whether the work is blocked, shown as a flag rather than a column.</summary>

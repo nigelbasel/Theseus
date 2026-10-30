@@ -115,6 +115,9 @@ public partial class App : Application
         shell.Snapshots = snapshots;
         chains.ReportArrived = shell.Warn;
 
+        var workItems = new WorkItemBook(Path.Combine(DataDirectory, "work-items.json"));
+        shell.WorkItems = workItems;
+        workItems.Changed += (_, _) => Dispatcher.BeginInvoke(shell.SyncPullRequests);
         var proposals = new Theseus.Core.Proposals.ProposalBook(
             new Theseus.Core.Proposals.ProposalStateStore(Path.Combine(DataDirectory, "proposals.json")), new SystemClock());
         var proposed = new ProposalsViewModel(proposals, () => [.. shell.Board.Cards], shell.ReviewProposal)
@@ -215,7 +218,8 @@ public partial class App : Application
                 paths: new SessionPathRule(current.PlanDirectory, DataDirectory),
                 proposals: proposals,
                 briefFolderName: () => settings.Read().BriefFolderName,
-                approve: (proposal, startNow) => Dispatcher.Invoke(() => shell.ApproveFromSession(proposal, startNow))),
+                approve: (proposal, startNow) => Dispatcher.Invoke(() => shell.ApproveFromSession(proposal, startNow)),
+                workItems: workItems),
             Theseus.Core.Mcp.TheseusMcp.DefaultPort,
             new LockHttpApi(locks, () => DateTimeOffset.UtcNow));
 

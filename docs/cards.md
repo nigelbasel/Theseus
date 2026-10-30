@@ -44,6 +44,8 @@ Hover over any button to see what it does.
 | ended | The session has gone, but it ran today. |
 | not started today | No run of this workstream was under way today. The card says when the last run exited. |
 | **Paused** or **Blocked** in amber | A mark you set. See [the board](board.md#paused-and-blocked). |
-| Jira keys | Gathered from the opening prompt, the card itself and the session's own plan file. Taking a key off a card is remembered. |
+| **Jira 12 ▾** | The card's Jira issues. Click to list them with their titles and open one. Keys come from the opening prompt, the card itself and the session's plan file; titles come from the session, which reports each issue it works on. Taking a key off a card is remembered. |
+| **PR 22174 ▾** | The card's pull requests, with titles where the session reported them. |
+| on nigel/gdpr | The git branch checked out in the card's working directory. |
 | "shares … with …" in amber | Two workstreams share a handover document or a Jira issue. Two sessions writing the same file overwrite each other without either noticing, so give one its own document in its details. |
 | "Restarted outside Theseus" | A session is running in this workstream's folder that the board is not following. **Adopt** it. |

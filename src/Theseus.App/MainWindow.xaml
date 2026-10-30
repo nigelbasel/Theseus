@@ -189,6 +189,13 @@
             <Setter Property="MinHeight" Value="0" />
         </Style>
 
+        <!-- One row of such a drop-down: the id and title, opening it when chosen. -->
+        <Style x:Key="ItemRow" TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+            <Setter Property="Header" Value="{Binding Display}" />
+            <Setter Property="Command" Value="{Binding OpenCommand}" />
+            <Setter Property="ToolTip" Value="{Binding Tooltip}" />
+        </Style>
+
         <!-- A card's own buttons: the toolbar's flat icon button, sized for a card. -->
         <Style x:Key="CardIcon" TargetType="Button" BasedOn="{StaticResource ToolButton}">
             <Setter Property="Width" Value="28" />
@@ -256,6 +263,11 @@
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+        </Style>
+
+        <!-- A card's drop-down for its Jira issues or pull requests. -->
+        <Style x:Key="ItemDropDown" TargetType="Button" BasedOn="{StaticResource ChipButton}">
+            <Setter Property="FontSize" Value="11" />
         </Style>
 
         <DataTemplate x:Key="JiraKeyTemplate">
@@ -582,36 +594,42 @@
                         </StackPanel>
 
                         <!--
-                            Only the first few issues. One workstream here spans sixteen, which wraps
-                            to five rows of chips and makes its card taller than everything around it
-                            - and on a grid that pushes the whole row out of shape, so one busy
-                            workstream distorts the board. The rest are counted, and named in the
-                            tooltip, and all of them are in the details where they are edited anyway.
+                            Jira issues and pull requests in drop-downs, with titles where a session
+                            reported them, and the branch the working directory has checked out
+                            (Nigel, 2026-10-30). They were chips, and a workstream with twenty-five
+                            issues grew a card taller than everything around it.
                         -->
-                        <WrapPanel Margin="0,8,0,0">
-                            <ItemsControl ItemsSource="{Binding VisibleJiraKeys}"
-                                          ItemTemplate="{StaticResource JiraKeyTemplate}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <WrapPanel />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                            </ItemsControl>
-                            <TextBlock Text="{Binding MoreJiraKeys}" FontSize="11" Margin="2,2,0,4"
-                                       VerticalAlignment="Center"
-                                       ToolTip="{Binding AllJiraKeys}"
+                        <WrapPanel Margin="-2,6,0,2">
+                            <Button Style="{StaticResource ItemDropDown}" Click="OnOverflowClick"
+                                    ToolTip="This card's Jira issues. Choose one to open it."
+                                    Visibility="{Binding JiraItems.Count, Converter={StaticResource CountToVisibility}}">
+                                <TextBlock>
+                                    <Run Text="{Binding JiraButtonText, Mode=OneWay}" />
+                                    <Run Text="&#xE70D;" FontFamily="Segoe MDL2 Assets" FontSize="8" />
+                                </TextBlock>
+                                <Button.ContextMenu>
+                                    <ContextMenu ItemsSource="{Binding JiraItems}" ItemContainerStyle="{StaticResource ItemRow}"
+                                                 DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}" />
+                                </Button.ContextMenu>
+                            </Button>
+                            <Button Style="{StaticResource ItemDropDown}" Click="OnOverflowClick"
+                                    ToolTip="This card's pull requests. Choose one to open it."
+                                    Visibility="{Binding PullRequestItems.Count, Converter={StaticResource CountToVisibility}}">
+                                <TextBlock>
+                                    <Run Text="{Binding PullRequestButtonText, Mode=OneWay}" />
+                                    <Run Text="&#xE70D;" FontFamily="Segoe MDL2 Assets" FontSize="8" />
+                                </TextBlock>
+                                <Button.ContextMenu>
+                                    <ContextMenu ItemsSource="{Binding PullRequestItems}" ItemContainerStyle="{StaticResource ItemRow}"
+                                                 DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}" />
+                                </Button.ContextMenu>
+                            </Button>
+                            <TextBlock FontSize="11" Margin="4,0,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                       MaxWidth="220" ToolTip="{Binding Branch, StringFormat='The branch checked out in this working directory: {0}'}"
                                        Foreground="{DynamicResource TextFillColorTertiaryBrush}"
-                                       Visibility="{Binding MoreJiraKeys, Converter={StaticResource NotEmptyToVisibility}}" />
+                                       Text="{Binding Branch, StringFormat='on {0}'}"
+                                       Visibility="{Binding Branch, Converter={StaticResource NotEmptyToVisibility}}" />
                         </WrapPanel>
-
-                        <ItemsControl ItemsSource="{Binding PullRequests}"
-                                      ItemTemplate="{StaticResource PullRequestTemplate}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <WrapPanel />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                        </ItemsControl>
 
                         <TextBlock FontSize="12" TextTrimming="CharacterEllipsis"
                                    Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"

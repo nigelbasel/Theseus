@@ -16,7 +16,7 @@ public static class TheseusMcp
         [
             "start_work", "stop_work", "time_for", "whoami", "locks", "lock_acquire", "lock_release", "related", "report_back",
             "propose_workstream", "proposal_status", "withdraw_proposal", "link_workstream", "unlink_workstream",
-            "approve_proposal", "reject_proposal",
+            "approve_proposal", "reject_proposal", "record_work_item",
         ];
 
     /// <summary>

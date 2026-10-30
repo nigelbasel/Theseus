@@ -56,7 +56,9 @@ public sealed partial class McpHandler
         + "When the user asks you to link this workstream to another card on the board, or to remove a link, "
         + "call link_workstream or unlink_workstream; never do either unless the user asked for it in this tab. "
         + "The user may review a proposal's brief with you here and approve or reject it: call approve_proposal or "
-        + "reject_proposal only when the user says so in this tab, never on your own judgement.";
+        + "reject_proposal only when the user says so in this tab, never on your own judgement. "
+        + "When you start work on a Jira issue, raise one, or open a pull request, call record_work_item with "
+        + "its id and title so the card can show it.";
 
     private readonly WorkLog _work;
     private readonly LockBook? _locks;
@@ -70,6 +72,7 @@ public sealed partial class McpHandler
     private readonly ProposalBook? _proposals;
     private readonly Func<string> _briefFolderName;
     private readonly Func<WorkstreamProposal, bool, ProposalApproval>? _approve;
+    private readonly WorkItemBook? _workItems;
 
     /// <summary>Creates the handler over the work log, the sampler's intervals and the launched sessions.</summary>
     /// <param name="sessions">Finds the session a request's path names, or null for one Theseus did not launch.</param>
@@ -80,6 +83,7 @@ public sealed partial class McpHandler
     /// <param name="paths">What a report or a brief may not name.</param>
     /// <param name="proposals">The workstreams sessions have proposed, or null when Theseus is not taking any.</param>
     /// <param name="briefFolderName">The board's brief folder, relative to a working directory.</param>
+    /// <param name="workItems">The Jira issues and pull requests sessions record against their cards, or null.</param>
     /// <param name="approve">
     /// Creates the card for a proposal its session approves when Nigel asks, and whether to start it, or
     /// null when sessions cannot approve.
@@ -96,8 +100,10 @@ public sealed partial class McpHandler
         SessionPathRule? paths = null,
         ProposalBook? proposals = null,
         Func<string>? briefFolderName = null,
-        Func<WorkstreamProposal, bool, ProposalApproval>? approve = null)
+        Func<WorkstreamProposal, bool, ProposalApproval>? approve = null,
+        WorkItemBook? workItems = null)
     {
+        _workItems = workItems;
         _approve = approve;
         _proposals = proposals;
         _briefFolderName = briefFolderName ?? (() => BriefFolder.DefaultName);
@@ -276,6 +282,16 @@ public sealed partial class McpHandler
                 "Remove a link this workstream is at either end of, by its id from related. Removing a hand-over also removes the report back that depended on it. Use only when the user asks for it in this tab.",
                 new JsonObject { ["link_id"] = Property("The link's id, from related.") },
                 "link_id"),
+            Tool("record_work_item",
+                "Show a Jira issue or pull request on this workstream's card, with its title, in the card's drop-down. Call it when you start work on an issue, raise one, or open a pull request. Recording one again updates its title.",
+                new JsonObject
+                {
+                    ["kind"] = Property("jira or pr."),
+                    ["id"] = Property("The issue key, such as NDC-680, or the pull request number."),
+                    ["title"] = Property("Its title, as it stands in Jira or the pull request."),
+                    ["url"] = Property("Optional: its address. Jira addresses are worked out from the board's settings when left out."),
+                },
+                "kind", "id", "title"),
             Tool("approve_proposal",
                 "Approve one of this workstream's pending proposals, which creates its card, links it and leaves it ready to start, exactly as Create does on the board. Only when the user has read the brief and tells you to approve it in this tab.",
                 new JsonObject
@@ -330,6 +346,7 @@ public sealed partial class McpHandler
             "link_workstream" => LinkWorkstream(session, arguments),
             "unlink_workstream" => UnlinkWorkstream(session, arguments),
             "approve_proposal" => ApproveProposal(session, arguments),
+            "record_work_item" => RecordWorkItem(session, arguments),
             "reject_proposal" => RejectProposal(session, arguments),
             _ => WhoAmI(session),
         });
@@ -707,6 +724,33 @@ public sealed partial class McpHandler
         return outcome.Refusal is { } refusal
             ? Result(refusal, isError: true)
             : Result($"Proposal {outcome.Proposal!.Id} ({outcome.Proposal.Request.Title}) is withdrawn.");
+    }
+
+    private JsonObject RecordWorkItem(McpSession session, JsonObject arguments)
+    {
+        if (_workItems is null)
+        {
+            return Result("This Theseus is not keeping work items.", isError: true);
+        }
+
+        WorkItemKind? kind = Text(arguments["kind"])?.Trim().ToLowerInvariant() switch
+        {
+            "jira" => WorkItemKind.Jira,
+            "pr" or "pull request" or "pullrequest" => WorkItemKind.PullRequest,
+            _ => null,
+        };
+
+        if (kind is null)
+        {
+            return Result("kind is required: jira or pr.", isError: true);
+        }
+
+        var refusal = _workItems.Record(new WorkItem(session.WorkstreamKey, kind.Value, Text(arguments["id"]) ?? string.Empty,
+            Text(arguments["title"]), Text(arguments["url"]), _clock()));
+
+        return refusal is null
+            ? Result("Recorded. It shows in the card's drop-down on the board.")
+            : Result(refusal, isError: true);
     }
 
     private JsonObject ApproveProposal(McpSession session, JsonObject arguments)

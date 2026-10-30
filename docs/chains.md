@@ -43,6 +43,10 @@ your permission before each of these.
 | Show its proposals | `proposal_status` |
 | Approve or reject one of its proposals | `approve_proposal` or `reject_proposal` |
 
+Sessions also call `record_work_item` when they start on a Jira issue, raise one, or open a pull
+request, so the card's drop-downs can show its title. That one runs without asking, because it only
+annotates the session's own card.
+
 ## Proposals
 
 A session that thinks part of its work belongs in a new workstream writes a **brief** (what to do,

@@ -469,6 +469,9 @@ public sealed class ShellViewModel : ObservableObject
     /// </summary>
     public Func<string, bool, bool?>? ConfirmFlaggedStart { get; set; }
 
+    /// <summary>The Jira issues and pull requests sessions recorded against their cards, with titles.</summary>
+    public WorkItemBook? WorkItems { get; set; }
+
     /// <summary>The board's recent notices, for the status bar's list.</summary>
     public NoticeLog Notices { get; } = new();
 
@@ -1100,9 +1103,15 @@ public sealed class ShellViewModel : ObservableObject
     /// <summary>Finds the pull requests each workstream mentions and where they live.</summary>
     public void SyncPullRequests()
     {
+        var jiraBase = _settings.Read().JiraBaseUrl;
+
         foreach (var card in Board.Cards)
         {
+            var recorded = WorkItems?.For(card.Key) ?? [];
+
             card.PullRequests = _pullRequests.Resolve(card.Workstream);
+            card.Branch = GitBranchReader.Read(card.Workstream.WorkingDirectory) ?? string.Empty;
+            card.SetItems(CardItemRows.Jira(card.JiraKeys, recorded, jiraBase), CardItemRows.PullRequests(card.PullRequests, recorded));
         }
     }
 
