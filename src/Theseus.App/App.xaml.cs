@@ -227,6 +227,16 @@ public partial class App : Application
         {
             var port = _mcp.Port;
             _launcher.McpConfigFor = sessionId => Theseus.Core.Mcp.TheseusMcp.ConfigJson(port, sessionId);
+
+            // Sessions learn from a file, not an event, that Theseus has stopped or restarted: once it
+            // has gone it can tell them nothing (Nigel, 2026-10-30).
+            var hook = Path.Combine(AppContext.BaseDirectory, "Theseus.Hook.exe");
+            _launcher.SessionSettings = File.Exists(hook) ? Theseus.Core.Status.TheseusHookSettings.Json(hook) : null;
+            _launcher.Launched = sessionId => new Theseus.Core.Status.StatusSeenStore().Write(sessionId,
+                Theseus.Core.Status.TheseusStatusNotice.Marker(Theseus.Core.Status.TheseusStatusFile.Read(),
+                    Theseus.Core.Status.TheseusStatusFile.IsRunning));
+            Theseus.Core.Status.TheseusStatusFile.Write(new Theseus.Core.Status.TheseusStatus(
+                Environment.ProcessId, DateTimeOffset.UtcNow, null, AppVersion.Current));
         }
 
         SessionJumpList.Show(this, sessions.Snapshot.Live);
@@ -302,6 +312,11 @@ public partial class App : Application
     protected override async void OnExit(ExitEventArgs e)
     {
         TheseusLog.Information("Theseus is closing");
+
+        if (Theseus.Core.Status.TheseusStatusFile.Read() is { } status && status.ProcessId == Environment.ProcessId)
+        {
+            Theseus.Core.Status.TheseusStatusFile.Write(status with { StoppedUtc = DateTimeOffset.UtcNow });
+        }
         _usage?.Dispose();
         _attention?.Dispose();
         _updateTimer?.Stop();

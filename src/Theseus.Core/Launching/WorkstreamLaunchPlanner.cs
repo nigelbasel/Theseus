@@ -23,6 +23,7 @@ public static class WorkstreamLaunchPlanner
             workstream.AddDirectories)
         {
             McpConfig = request.McpConfig,
+            Settings = request.Settings,
             PromptIfReminted = request.OpeningIfReminted,
         };
 

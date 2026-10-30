@@ -69,9 +69,26 @@ stray_container_report() {
   fi
 }
 
+# What Theseus's status file says about why it is not answering: closed at a time, stopped
+# unexpectedly, or never started. Theseus writes it on start and on a clean exit; a process that has
+# gone without writing "stopped" crashed. Empty when the file says nothing useful.
+theseus_down_reason() {
+  local file="${LOCALAPPDATA:-$HOME/AppData/Local}/Theseus/status.json"
+  [ -f "$file" ] || { echo "it has not been started on this machine"; return; }
+  local stopped started pid
+  stopped=$(sed -n 's/.*"stoppedUtc": *"\([^"]*\)".*//p' "$file" | head -1)
+  started=$(sed -n 's/.*"startedUtc": *"\([^"]*\)".*//p' "$file" | head -1)
+  pid=$(sed -n 's/.*"processId": *\([0-9]*\).*//p' "$file" | head -1)
+  if [ -n "$stopped" ]; then
+    echo "it was closed at ${stopped:11:5} UTC"
+  elif [ -n "$pid" ] && ! tasklist //FI "PID eq $pid" 2>/dev/null | grep -qi theseus; then
+    echo "it stopped unexpectedly, having started at ${started:11:5} UTC"
+  fi
+}
+
 # Calls Theseus, waiting for it while it is not running, for at most the seconds left in the budget.
 call_waiting() {
-  local verb="$1" body="$2" budget="$3" announced=0
+  local verb="$1" body="$2" budget="$3" announced=0 reason=""
   while ! call "$verb" "$body"; do
     if [ "$budget" -le 0 ]; then
       echo "THESEUS NOT REACHABLE at $URL - it holds the machine's locks, so nothing can be granted until it is running." >&2
@@ -79,7 +96,8 @@ call_waiting() {
       return 1
     fi
     if [ "$announced" -eq 0 ]; then
-      echo "Theseus is not running (or has no lock service), so the lock cannot be granted. Waiting for it - tell the user." >&2
+      reason=$(theseus_down_reason)
+      echo "Theseus is not running${reason:+ ($reason)}, so the lock cannot be granted. Waiting for it - tell the user." >&2
       announced=1
     fi
     sleep 15

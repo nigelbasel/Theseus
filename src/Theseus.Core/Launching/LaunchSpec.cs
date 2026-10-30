@@ -27,6 +27,12 @@ public sealed record LaunchSpec(
     public string? McpConfig { get; init; }
 
     /// <summary>
+    /// The <c>--settings</c> value: hooks for this session alone, such as the one that answers a
+    /// Theseus tool call while Theseus is down. Null to add none.
+    /// </summary>
+    public string? Settings { get; init; }
+
+    /// <summary>
     /// The prompt to open with if the shim has to remint this launch as a first run. A resume opens
     /// with one line, because its context is intact; a session reminted after that resume dies has
     /// no context at all and needs the full opening a fresh start would have had. Null means the

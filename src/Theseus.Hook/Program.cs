@@ -1,4 +1,5 @@
 using System.Text;
+using Theseus.Core.Status;
 using Theseus.Core.Stopping;
 
 // This runs on every turn of every Claude Code session on the machine, including sessions that have
@@ -25,10 +26,24 @@ try
         bytes = bytes[preamble.Length..];
     }
 
-    var input = StopHookInput.Parse(Encoding.UTF8.GetString(bytes));
+    var text = Encoding.UTF8.GetString(bytes);
+    var input = StopHookInput.Parse(text);
 
     if (input?.SessionId is not { } sessionId)
     {
+        return 0;
+    }
+
+    // Registered only for the sessions Theseus launches, and only on its own tools: a call made while
+    // Theseus is down is answered with why, rather than failing to connect with nothing said.
+    if (input.HookEventName == "PreToolUse")
+    {
+        if (StatusHook.PreToolUseReply(StatusHook.ToolName(text), TheseusStatusFile.Read(), TheseusStatusFile.IsRunning,
+                TimeZoneInfo.Local) is { } refusal)
+        {
+            Console.Out.Write(refusal);
+        }
+
         return 0;
     }
 
@@ -41,6 +56,15 @@ try
     if (StopHookDecision.Deliver(input, waiting, DateTimeOffset.UtcNow) is null
         || store.Claim(sessionId) is not { } request)
     {
+        // Nothing to stop for. A session Theseus launched is told, once, if Theseus has stopped or
+        // restarted since it last looked: it cannot be told by Theseus itself once Theseus is gone.
+        if (input.HookEventName == "UserPromptSubmit"
+            && StatusHook.PromptReply(sessionId, new StatusSeenStore(), TheseusStatusFile.Read(), TheseusStatusFile.IsRunning,
+                TimeZoneInfo.Local) is { } notice)
+        {
+            Console.Out.Write(notice);
+        }
+
         return 0;
     }
 

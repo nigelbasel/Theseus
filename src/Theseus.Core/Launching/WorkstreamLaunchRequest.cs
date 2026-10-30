@@ -26,4 +26,8 @@ public sealed record WorkstreamLaunchRequest(
     string TerminalWindowName,
     string Opening = "",
     string? McpConfig = null,
-    string? OpeningIfReminted = null);
+    string? OpeningIfReminted = null)
+{
+    /// <summary>The session's own <c>--settings</c>, or null.</summary>
+    public string? Settings { get; init; }
+}

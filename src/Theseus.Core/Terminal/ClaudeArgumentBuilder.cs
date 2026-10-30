@@ -37,6 +37,12 @@ public static class ClaudeArgumentBuilder
             argv.AddRange(spec.AddDirectories);
         }
 
+        if (!string.IsNullOrWhiteSpace(spec.Settings))
+        {
+            argv.Add("--settings");
+            argv.Add(spec.Settings);
+        }
+
         // Last, because --mcp-config is variadic too. Anything after it would be read as another
         // configuration, and it ends the list of directories before it by being a flag. The session's
         // time tools are allowed alongside it, so no session stops to ask about them.

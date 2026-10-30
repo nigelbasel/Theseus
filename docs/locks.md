@@ -34,3 +34,16 @@ If a session holding a lock dies without releasing it, Theseus ends its test hos
 containers it started, and grants the lock to the next in line.
 
 If Theseus is not running, no lock is granted, and sessions wait.
+
+## When Theseus stops or restarts
+
+Theseus writes a small status file when it starts and when it closes, because once it has stopped it
+can tell sessions nothing itself. Sessions learn from that file:
+
+- A session that calls one of Theseus's tools while Theseus is down is told why the call failed, such
+  as "Theseus is not running: it was closed at 17:20" or "it stopped unexpectedly", instead of seeing
+  only a connection error.
+- The next time you type into a session after Theseus stopped or restarted, it is told once. After a
+  restart it is told that any lock it held has gone, and to ask you to run `/mcp` if Theseus's tools
+  fail to reconnect.
+- The test lock script says the same when it cannot reach Theseus.

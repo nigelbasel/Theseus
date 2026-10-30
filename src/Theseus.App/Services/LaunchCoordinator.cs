@@ -89,6 +89,12 @@ public sealed class LaunchCoordinator : IAsyncDisposable
     /// </summary>
     public Func<string, string?>? McpConfigFor { get; set; }
 
+    /// <summary>The <c>--settings</c> every session is launched with, or null for none.</summary>
+    public string? SessionSettings { get; set; }
+
+    /// <summary>Marks a session as Theseus's at launch, so its hook tells it when Theseus stops or restarts.</summary>
+    public Action<string>? Launched { get; set; }
+
     /// <summary>The related-workstreams paragraph a fresh session of a workstream is given, by key.</summary>
     public Func<string, string?>? RelatedFor { get; set; }
 
@@ -147,7 +153,10 @@ public sealed class LaunchCoordinator : IAsyncDisposable
 
         var request = new WorkstreamLaunchRequest(workstream, Guid.NewGuid().ToString("N"), sessionId,
             mode, claudePath, terminal.ExecutablePath, _launcherPath, _pipeName,
-            windowName, opening, McpConfigFor?.Invoke(sessionId), resume ? fullOpening : null);
+            windowName, opening, McpConfigFor?.Invoke(sessionId), resume ? fullOpening : null)
+        {
+            Settings = SessionSettings,
+        };
 
         var plan = WorkstreamLaunchPlanner.Plan(request, DateTimeOffset.UtcNow.AddMinutes(2));
 
@@ -178,6 +187,8 @@ public sealed class LaunchCoordinator : IAsyncDisposable
 
             return null;
         }
+
+        Launched?.Invoke(sessionId);
 
         _runs.Append(new SessionRun(runId, sessionId, workstream.Key, workstream.WorkingDirectory,
             null, resume ? SessionLaunchMode.Resume : SessionLaunchMode.FirstRun, workstream.Prompt,
