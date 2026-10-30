@@ -97,6 +97,7 @@ public sealed class ShellViewModel : ObservableObject
         _isSessionsPanelOpen = !settings.Read().SessionsPanelCollapsed;
         _isToolbarVisible = !settings.Read().ToolbarHidden;
         _isStatusBarVisible = !settings.Read().StatusBarHidden;
+        Board.ChainOf = key => Chains?.ChainName(key);
 
         RefreshCommand = new RelayCommand(_ => Refresh());
         FocusCardCommand = new RelayCommand(FocusCard, CanFocusCard);
@@ -162,7 +163,7 @@ public sealed class ShellViewModel : ObservableObject
 
         NewWorkstream = new NewWorkstreamViewModel(plans, colours,
             () => [.. Board.Stages],
-            () => [.. Board.Rows.Select(row => row.Area)],
+            () => [.. Board.Areas],
             created =>
             {
                 Refresh();
@@ -590,6 +591,7 @@ public sealed class ShellViewModel : ObservableObject
         WireLanes();
         Timed("sessions", Sessions.Refresh);
         Timed("lifecycles", SyncLifecycles);
+        Timed("regroup", Board.Regroup);
         Timed("pull requests", SyncPullRequests);
         WireAdoption();
 

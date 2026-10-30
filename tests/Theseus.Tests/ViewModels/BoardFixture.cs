@@ -41,9 +41,9 @@ internal sealed class BoardFixture
     }
 
     /// <summary>Adds a workstream, which appears on the next refresh.</summary>
-    public BoardFixture With(string key, string column = "New", string area = "Research")
+    public BoardFixture With(string key, string column = "New", string area = "Research", string folder = @"C:\work")
     {
-        _plans.Add(key, new SessionPlan(1, key, "#208DD7", @"C:\work", [], null,
+        _plans.Add(key, new SessionPlan(1, key, "#208DD7", folder, [], null,
             DateTimeOffset.UtcNow.ToString("O"), "Carry on."));
 
         _board.Add(new WorkstreamSidecar(key, column, IsBlocked: false, IsArchived: false,

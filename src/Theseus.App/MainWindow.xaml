@@ -957,6 +957,23 @@
                     <MenuItem.Icon><TextBlock Text="&#xE71B;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
                 </MenuItem>
                 <Separator />
+                <MenuItem Header="Columns _by">
+                    <MenuItem Header="_Stage" IsCheckable="True" IsChecked="{Binding Board.ColumnsByStage, Mode=TwoWay}"
+                              ToolTip="How far along the work is. Cards can be dragged between stages." />
+                    <MenuItem Header="Session st_ate" IsCheckable="True" IsChecked="{Binding Board.ColumnsBySessionState, Mode=TwoWay}"
+                              ToolTip="What each session is doing: needs you, working, idle, not running, done" />
+                </MenuItem>
+                <MenuItem Header="Rows b_y">
+                    <MenuItem Header="_Area" IsCheckable="True" IsChecked="{Binding Board.RowsByArea, Mode=TwoWay}"
+                              ToolTip="The kind of work, as set in Options" />
+                    <MenuItem Header="_Project" IsCheckable="True" IsChecked="{Binding Board.RowsByProject, Mode=TwoWay}"
+                              ToolTip="The folder each workstream works in" />
+                    <MenuItem Header="_Chain" IsCheckable="True" IsChecked="{Binding Board.RowsByChain, Mode=TwoWay}"
+                              ToolTip="The chain of hand-overs each workstream belongs to" />
+                    <MenuItem Header="_None" IsCheckable="True" IsChecked="{Binding Board.RowsByNone, Mode=TwoWay}"
+                              ToolTip="One row holding everything" />
+                </MenuItem>
+                <Separator />
                 <MenuItem Header="_Archive" IsCheckable="True" IsChecked="{Binding Board.ShowArchived, Mode=TwoWay}"
                           ToolTip="Show what has been put away instead of what is being worked on" />
                 <Separator />
@@ -1026,29 +1043,32 @@
                 Visibility="{Binding IsToolbarVisible, Converter={StaticResource BoolToVisibility}}"
                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
             <StackPanel Orientation="Horizontal">
-                <Button Style="{StaticResource ToolButton}" Content="&#xE710;" ToolTip="New workstream (Ctrl+N)"
+                <Button Style="{StaticResource ToolButton}" Content="&#xE710;" ToolTip="New workstream (Ctrl+N)" AutomationProperties.Name="New workstream"
                         Command="{Binding NewWorkstream.OpenCommand}" />
 
                 <Border Style="{StaticResource ToolSeparator}" />
 
-                <Button Style="{StaticResource ToolButton}" Content="&#xE768;" ToolTip="Start selected"
+                <Button Style="{StaticResource ToolButton}" Content="&#xE768;" ToolTip="Start selected" AutomationProperties.Name="Start selected"
                         Command="{Binding StartSelectedCommand}" />
-                <Button Style="{StaticResource ToolButton}" Content="&#xE71A;" ToolTip="Stop selected"
+                <Button Style="{StaticResource ToolButton}" Content="&#xE71A;" ToolTip="Stop selected" AutomationProperties.Name="Stop selected"
                         Command="{Binding StopSelectedCommand}" />
-                <Button Style="{StaticResource ToolButton}" Content="&#xE7B8;" ToolTip="Archive selected"
+                <Button Style="{StaticResource ToolButton}" Content="&#xE7B8;" ToolTip="Archive selected" AutomationProperties.Name="Archive selected"
                         Command="{Binding ArchiveSelectedCommand}" />
 
                 <Border Style="{StaticResource ToolSeparator}" />
 
-                <Button Style="{StaticResource ToolButton}" Content="&#xF165;" ToolTip="Fold cards with no session"
+                <Button Style="{StaticResource ToolButton}" Content="&#xF165;" ToolTip="Fold cards with no session" AutomationProperties.Name="Fold cards with no session"
                         Command="{Binding CollapseInactiveCommand}" />
-                <Button Style="{StaticResource ToolButton}" Content="&#xF164;" ToolTip="Unfold all cards"
+                <Button Style="{StaticResource ToolButton}" Content="&#xF164;" ToolTip="Unfold all cards" AutomationProperties.Name="Unfold all cards"
                         Command="{Binding ExpandAllCommand}" />
 
                 <Border Style="{StaticResource ToolSeparator}" />
 
                 <ToggleButton Style="{StaticResource ToolToggle}" IsChecked="{Binding IsSessionsPanelOpen, Mode=TwoWay}"
-                              ToolTip="{Binding Sessions.Status, StringFormat='Live sessions panel (Ctrl+1): {0}'}">
+                              AutomationProperties.Name="Live sessions panel">
+                    <ToggleButton.ToolTip>
+                        <TextBlock Text="{Binding Sessions.Status, StringFormat='Live sessions panel (Ctrl+1): {0}'}" />
+                    </ToggleButton.ToolTip>
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="&#xE90C;" Style="{StaticResource ToolGlyph}" />
                         <Border Style="{StaticResource ToolBadge}"
@@ -1058,7 +1078,10 @@
                     </StackPanel>
                 </ToggleButton>
                 <ToggleButton Style="{StaticResource ToolToggle}" IsChecked="{Binding Locks.IsOpen, Mode=TwoWay}"
-                              ToolTip="{Binding Locks.ButtonText, StringFormat='Locks panel (Ctrl+2): {0}'}">
+                              AutomationProperties.Name="Locks panel">
+                    <ToggleButton.ToolTip>
+                        <TextBlock Text="{Binding Locks.ButtonText, StringFormat='Locks panel (Ctrl+2): {0}'}" />
+                    </ToggleButton.ToolTip>
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="&#xE72E;" Style="{StaticResource ToolGlyph}" />
                         <Border Visibility="{Binding Locks.Busy, Converter={StaticResource CountToVisibility}}">
@@ -1076,7 +1099,10 @@
                     </StackPanel>
                 </ToggleButton>
                 <ToggleButton Style="{StaticResource ToolToggle}" IsChecked="{Binding Chains.IsOpen, Mode=TwoWay}"
-                              ToolTip="{Binding Chains.ButtonText, StringFormat='Chains panel (Ctrl+3): {0}'}">
+                              AutomationProperties.Name="Chains panel">
+                    <ToggleButton.ToolTip>
+                        <TextBlock Text="{Binding Chains.ButtonText, StringFormat='Chains panel (Ctrl+3): {0}'}" />
+                    </ToggleButton.ToolTip>
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="&#xE71B;" Style="{StaticResource ToolGlyph}" />
                         <Border Visibility="{Binding Chains.BadgeCount, Converter={StaticResource CountToVisibility}}">
@@ -1096,14 +1122,14 @@
 
                 <Border Style="{StaticResource ToolSeparator}" />
 
-                <Button Style="{StaticResource ToolButton}" Content="&#xE9F9;" ToolTip="Day report (Ctrl+D)"
+                <Button Style="{StaticResource ToolButton}" Content="&#xE9F9;" ToolTip="Day report (Ctrl+D)" AutomationProperties.Name="Day report"
                         Command="{Binding DayReport.OpenCommand}" />
-                <Button Style="{StaticResource ToolButton}" Content="&#xE8A9;" ToolTip="Arrange windows"
+                <Button Style="{StaticResource ToolButton}" Content="&#xE8A9;" ToolTip="Arrange windows" AutomationProperties.Name="Arrange windows"
                         Command="{Binding Arrange.OpenCommand}" />
 
                 <Border Style="{StaticResource ToolSeparator}" />
 
-                <Button Style="{StaticResource ToolButton}" Content="&#xE72C;" ToolTip="Refresh (F5)"
+                <Button Style="{StaticResource ToolButton}" Content="&#xE72C;" ToolTip="Refresh (F5)" AutomationProperties.Name="Refresh"
                         Command="{Binding RefreshCommand}" />
             </StackPanel>
         </Border>

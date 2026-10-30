@@ -95,6 +95,19 @@ public sealed record TheseusSettings(
     /// <summary>Whether the status bar was hidden from View, likewise.</summary>
     public bool StatusBarHidden { get; init; }
 
+    /// <summary>What the board's columns show: stages, or what each session is doing.</summary>
+    public BoardColumnsBy ColumnsBy { get; init; }
+
+    /// <summary>What the board's rows show: areas, projects, chains, or one row.</summary>
+    public BoardRowsBy RowsBy { get; init; }
+
+    /// <summary>
+    /// What is folded in the views other than stages and areas, keyed "columns:SessionState",
+    /// "rows:Project" and so on, so each view opens the way it was left.
+    /// </summary>
+    public IReadOnlyDictionary<string, IReadOnlyList<string>> ViewFolds { get; init; } =
+        new Dictionary<string, IReadOnlyList<string>>();
+
     /// <summary>Which columns were folded away, by stage name, for the same reason.</summary>
     public IReadOnlyList<string> CollapsedStages { get; init; } = [];
 

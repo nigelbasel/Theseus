@@ -546,7 +546,7 @@ public partial class MainWindow : Window
 
     private void OnColumnDragOver(object sender, DragEventArgs e)
     {
-        e.Effects = e.Data.GetDataPresent(DataFormats.StringFormat)
+        e.Effects = e.Data.GetDataPresent(DataFormats.StringFormat) && Board?.CanDrag == true
             ? DragDropEffects.Move
             : DragDropEffects.None;
 

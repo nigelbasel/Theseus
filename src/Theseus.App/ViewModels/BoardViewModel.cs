@@ -15,6 +15,9 @@ public sealed class BoardViewModel : ObservableObject
     private string _status = string.Empty;
     private WorkstreamCardViewModel? _selectedCard;
     private bool _showArchived;
+    private BoardColumnsBy _columnsBy;
+    private BoardRowsBy _rowsBy;
+    private List<WorkstreamCardViewModel> _all = [];
 
     /// <summary>Creates the board over its stores.</summary>
     public BoardViewModel(IPlanStore plans, IBoardStore board, ISettingsStore settings)
@@ -23,19 +26,22 @@ public sealed class BoardViewModel : ObservableObject
         _board = board;
         _settings = settings;
         _showArchived = settings.Read().ShowArchived;
+        _columnsBy = settings.Read().ColumnsBy;
+        _rowsBy = settings.Read().RowsBy;
 
-        Rebuild(Lanes(), Areas());
+        SyncConfigured(ConfiguredLanes(), ConfiguredAreas());
+        Place();
 
         RefreshCommand = new RelayCommand(_ => Refresh());
     }
 
-    /// <summary>The stages, as configured: the columns of the grid, and its headings.</summary>
+    /// <summary>The stages, as configured: what a card's stage can be, whatever the columns show.</summary>
     public ObservableCollection<string> Stages { get; } = [];
 
-    /// <summary>The headings across the top of the grid, one per stage, each able to fold its stage away.</summary>
+    /// <summary>The headings across the top of the grid, one per column of the current view, each able to fold it away.</summary>
     public ObservableCollection<StageHeaderViewModel> StageHeaders { get; } = [];
 
-    /// <summary>The areas, as configured: the rows of the grid, each holding a cell per stage.</summary>
+    /// <summary>The rows of the current view, each holding a cell per column.</summary>
     public ObservableCollection<BoardRowViewModel> Rows { get; } = [];
 
     /// <summary>Every card on the board, whatever cell it is in.</summary>
@@ -57,6 +63,69 @@ public sealed class BoardViewModel : ObservableObject
         get => _status;
         private set => Set(ref _status, value);
     }
+
+    /// <summary>The areas, as configured: what a card's row is when rows show areas.</summary>
+    public ObservableCollection<string> Areas { get; } = [];
+
+    /// <summary>
+    /// Names the chain a card belongs to, by the title of the card the chain starts from, or null when
+    /// it is in none. Set by the shell from the links, which the board does not hold.
+    /// </summary>
+    public Func<string, string?>? ChainOf { get; set; }
+
+    /// <summary>What the columns show. Changing it regroups the board at once and is remembered.</summary>
+    public BoardColumnsBy ColumnsBy
+    {
+        get => _columnsBy;
+        set
+        {
+            if (Set(ref _columnsBy, value))
+            {
+                _settings.Write(_settings.Read() with { ColumnsBy = value });
+                RaiseViews();
+                Place();
+            }
+        }
+    }
+
+    /// <summary>What the rows show. Changing it regroups the board at once and is remembered.</summary>
+    public BoardRowsBy RowsBy
+    {
+        get => _rowsBy;
+        set
+        {
+            if (Set(ref _rowsBy, value))
+            {
+                _settings.Write(_settings.Read() with { RowsBy = value });
+                RaiseViews();
+                Place();
+            }
+        }
+    }
+
+    /// <summary>View > Columns by > Stage.</summary>
+    public bool ColumnsByStage { get => ColumnsBy == BoardColumnsBy.Stage; set => Choose(value, () => ColumnsBy = BoardColumnsBy.Stage); }
+
+    /// <summary>View > Columns by > Session state.</summary>
+    public bool ColumnsBySessionState { get => ColumnsBy == BoardColumnsBy.SessionState; set => Choose(value, () => ColumnsBy = BoardColumnsBy.SessionState); }
+
+    /// <summary>View > Rows by > Area.</summary>
+    public bool RowsByArea { get => RowsBy == BoardRowsBy.Area; set => Choose(value, () => RowsBy = BoardRowsBy.Area); }
+
+    /// <summary>View > Rows by > Project.</summary>
+    public bool RowsByProject { get => RowsBy == BoardRowsBy.Project; set => Choose(value, () => RowsBy = BoardRowsBy.Project); }
+
+    /// <summary>View > Rows by > Chain.</summary>
+    public bool RowsByChain { get => RowsBy == BoardRowsBy.Chain; set => Choose(value, () => RowsBy = BoardRowsBy.Chain); }
+
+    /// <summary>View > Rows by > None.</summary>
+    public bool RowsByNone { get => RowsBy == BoardRowsBy.None; set => Choose(value, () => RowsBy = BoardRowsBy.None); }
+
+    /// <summary>
+    /// Whether a dragged card can be dropped to move it. Only stages are a place a card is put: in the
+    /// session-state view a card's column is whatever its session is doing.
+    /// </summary>
+    public bool CanDrag => ColumnsBy == BoardColumnsBy.Stage;
 
     /// <summary>Reads the plans and sidecars and rebuilds the board from them.</summary>
     public void Refresh()
@@ -80,7 +149,9 @@ public sealed class BoardViewModel : ObservableObject
             .Where(workstream => workstream.IsArchived == ShowArchived)
             .ToList();
 
-        var (lanes, areas) = SyncGrid();
+        var lanes = ConfiguredLanes();
+        var areas = ConfiguredAreas();
+        SyncConfigured(lanes, areas);
 
         // The cards already on the board are kept and brought up to date, not thrown away and made
         // again. Emptying every cell and refilling it replaced the whole of the window's element
@@ -90,19 +161,21 @@ public sealed class BoardViewModel : ObservableObject
         // them - ticks, folds - without having to carry it across by key.
         var existing = new Dictionary<string, WorkstreamCardViewModel>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var card in Cards)
+        foreach (var card in _all)
         {
             existing.TryAdd(card.Key, card);
         }
 
-        var wanted = Cells.ToDictionary(cell => cell, _ => new List<WorkstreamCardViewModel>());
         IReadOnlyList<string>? folded = null;
+        var next = new List<WorkstreamCardViewModel>();
 
         foreach (var workstream in workstreams)
         {
-            var lane = BoardLanes.Resolve(workstream.Column, lanes);
-            var area = BoardAreas.Resolve(workstream.Area, areas);
-            var placed = workstream with { Column = lane, Area = area };
+            var placed = workstream with
+            {
+                Column = BoardLanes.Resolve(workstream.Column, lanes),
+                Area = BoardAreas.Resolve(workstream.Area, areas),
+            };
 
             if (existing.TryGetValue(workstream.Key, out var card))
             {
@@ -117,7 +190,38 @@ public sealed class BoardViewModel : ObservableObject
                 };
             }
 
-            wanted[Cells.First(cell => cell.Column == lane && cell.Area == area)].Add(card);
+            next.Add(card);
+        }
+
+        _all = next;
+        Place();
+
+        Status = unreadable == 0
+            ? $"{workstreams.Count} workstreams"
+            : $"{workstreams.Count} workstreams · {unreadable} plan file(s) unreadable";
+    }
+
+    /// <summary>
+    /// Puts every card in the cell the view says, without reading anything from disk. Called after a
+    /// refresh, and again once the sessions have been read, since the session-state view depends on
+    /// them and the chain view on the links.
+    /// </summary>
+    public void Regroup() => Place();
+
+    private void Place()
+    {
+        var (columns, rows) = ViewAxes();
+        SyncGrid(columns, rows);
+
+        var wanted = Cells.ToDictionary(cell => cell, _ => new List<WorkstreamCardViewModel>());
+        var byPlace = Cells.ToDictionary(cell => (cell.Column, cell.Area));
+
+        foreach (var card in _all)
+        {
+            if (byPlace.TryGetValue((ColumnOf(card), RowOf(card)), out var cell))
+            {
+                wanted[cell].Add(card);
+            }
         }
 
         // Everything leaving a cell goes before anything arrives, so a card moving between cells is
@@ -166,74 +270,118 @@ public sealed class BoardViewModel : ObservableObject
         {
             row.RaiseCounts();
         }
+    }
 
-        Status = unreadable == 0
-            ? $"{workstreams.Count} workstreams"
-            : $"{workstreams.Count} workstreams · {unreadable} plan file(s) unreadable";
+    /// <summary>The column a card belongs in, in the current view.</summary>
+    private string ColumnOf(WorkstreamCardViewModel card) => ColumnsBy == BoardColumnsBy.Stage
+        ? card.Column
+        : BoardView.StateColumn(card.Lifecycle, string.Equals(card.Column, Stages.LastOrDefault(), StringComparison.Ordinal));
+
+    /// <summary>The row a card belongs in, in the current view.</summary>
+    private string RowOf(WorkstreamCardViewModel card) => RowsBy switch
+    {
+        BoardRowsBy.Project => BoardView.Project(card.Workstream.WorkingDirectory),
+        BoardRowsBy.Chain => ChainOf?.Invoke(card.Key) ?? BoardView.NoChain,
+        BoardRowsBy.None => BoardView.AllWork,
+        _ => card.Area,
+    };
+
+    /// <summary>
+    /// The view's columns and rows. Stages and areas are as configured, empty ones included, since
+    /// they are places to put work; projects and chains exist only where there are cards.
+    /// </summary>
+    private (IReadOnlyList<string> Columns, IReadOnlyList<string> Rows) ViewAxes()
+    {
+        IReadOnlyList<string> columns = ColumnsBy == BoardColumnsBy.Stage ? [.. Stages] : BoardView.StateColumns;
+
+        IReadOnlyList<string> rows = RowsBy switch
+        {
+            BoardRowsBy.Area => [.. Areas],
+            BoardRowsBy.None => [BoardView.AllWork],
+            BoardRowsBy.Chain => [.. _all.Select(RowOf).Distinct(StringComparer.Ordinal)
+                .OrderBy(name => name == BoardView.NoChain)
+                .ThenBy(name => name, StringComparer.CurrentCultureIgnoreCase)],
+            _ => [.. _all.Select(RowOf).Distinct(StringComparer.Ordinal)
+                .OrderBy(name => name, StringComparer.CurrentCultureIgnoreCase)],
+        };
+
+        return (columns, rows.Count == 0 ? [BoardView.AllWork] : rows);
     }
 
     /// <summary>The configured stages, cleaned up.</summary>
-    private IReadOnlyList<string> Lanes() => BoardLanes.Sanitise(_settings.Read().Lanes);
+    private IReadOnlyList<string> ConfiguredLanes() => BoardLanes.Sanitise(_settings.Read().Lanes);
 
     /// <summary>The configured areas, cleaned up.</summary>
-    private IReadOnlyList<string> Areas() => BoardAreas.Sanitise(_settings.Read().Areas);
+    private IReadOnlyList<string> ConfiguredAreas() => BoardAreas.Sanitise(_settings.Read().Areas);
+
+    private void SyncConfigured(IReadOnlyList<string> lanes, IReadOnlyList<string> areas)
+    {
+        if (!Stages.SequenceEqual(lanes, StringComparer.Ordinal))
+        {
+            Fill(Stages, lanes);
+        }
+
+        if (!Areas.SequenceEqual(areas, StringComparer.Ordinal))
+        {
+            Fill(Areas, areas);
+        }
+    }
+
+    private static void Fill(ObservableCollection<string> target, IReadOnlyList<string> values)
+    {
+        target.Clear();
+
+        foreach (var value in values)
+        {
+            target.Add(value);
+        }
+    }
 
     /// <summary>
-    /// Brings the grid into line with the settings, rebuilding it only when it has actually changed.
-    /// A rebuild replaces every row and cell, so doing it on every refresh would throw away each
-    /// row's collapsed state, its Start command and its scroll position for nothing.
+    /// Brings the grid into line with the view, rebuilding it only when its columns or rows have
+    /// actually changed. A rebuild replaces every row and cell, so doing it on every refresh would
+    /// throw away each row's collapsed state, its commands and its scroll position for nothing.
     /// </summary>
-    private (IReadOnlyList<string> Lanes, IReadOnlyList<string> Areas) SyncGrid()
+    private void SyncGrid(IReadOnlyList<string> columns, IReadOnlyList<string> rows)
     {
-        var lanes = Lanes();
-        var areas = Areas();
-
-        var same = Stages.SequenceEqual(lanes, StringComparer.Ordinal)
-                   && Rows.Select(row => row.Area).SequenceEqual(areas, StringComparer.Ordinal);
+        var same = StageHeaders.Select(header => header.Stage).SequenceEqual(columns, StringComparer.Ordinal)
+                   && Rows.Select(row => row.Area).SequenceEqual(rows, StringComparer.Ordinal);
 
         if (!same)
         {
-            Rebuild(lanes, areas);
+            Rebuild(columns, rows);
             LanesChanged?.Invoke(this, EventArgs.Empty);
         }
-
-        return (lanes, areas);
     }
 
-    private void Rebuild(IReadOnlyList<string> lanes, IReadOnlyList<string> areas)
+    private void Rebuild(IReadOnlyList<string> columns, IReadOnlyList<string> rows)
     {
-        var collapsed = _settings.Read().CollapsedAreas;
-        var foldedStages = _settings.Read().CollapsedStages;
+        var foldedRows = FoldedRows();
+        var foldedColumns = FoldedColumns();
 
-        Stages.Clear();
         StageHeaders.Clear();
         Rows.Clear();
 
-        foreach (var lane in lanes)
+        foreach (var name in rows)
         {
-            Stages.Add(lane);
-        }
-
-        foreach (var area in areas)
-        {
-            var row = new BoardRowViewModel(area)
+            var row = new BoardRowViewModel(name)
             {
-                IsCollapsed = collapsed.Any(name => BoardAreas.Same(area, name)),
+                IsCollapsed = foldedRows.Any(folded => BoardAreas.Same(name, folded)),
             };
 
-            foreach (var lane in lanes)
+            foreach (var column in columns)
             {
-                row.Cells.Add(new ColumnViewModel(lane, area));
+                row.Cells.Add(new ColumnViewModel(column, name));
             }
 
             Rows.Add(row);
         }
 
-        foreach (var lane in lanes)
+        foreach (var column in columns)
         {
-            var header = new StageHeaderViewModel(lane, [.. Rows.Select(row => row.Cells.First(cell => cell.Column == lane))])
+            var header = new StageHeaderViewModel(column, [.. Rows.Select(row => row.Cells.First(cell => cell.Column == column))])
             {
-                IsCollapsed = foldedStages.Contains(lane, StringComparer.OrdinalIgnoreCase),
+                IsCollapsed = foldedColumns.Contains(column, StringComparer.OrdinalIgnoreCase),
             };
 
             header.ToggleCommand = new RelayCommand(_ => ToggleStage(header));
@@ -241,20 +389,54 @@ public sealed class BoardViewModel : ObservableObject
         }
     }
 
-    /// <summary>Folds a stage away in every row, or opens it, and remembers which way it was left.</summary>
+    private string RowFoldKey => $"rows:{RowsBy}";
+
+    private string ColumnFoldKey => $"columns:{ColumnsBy}";
+
+    private IReadOnlyList<string> FoldedRows() => RowsBy == BoardRowsBy.Area
+        ? _settings.Read().CollapsedAreas
+        : _settings.Read().ViewFolds.GetValueOrDefault(RowFoldKey) ?? [];
+
+    private IReadOnlyList<string> FoldedColumns() => ColumnsBy == BoardColumnsBy.Stage
+        ? _settings.Read().CollapsedStages
+        : _settings.Read().ViewFolds.GetValueOrDefault(ColumnFoldKey) ?? [];
+
+    /// <summary>Writes down what is folded in this view, in the setting that view keeps it in.</summary>
+    private void RememberGridFolds()
+    {
+        var rows = (IReadOnlyList<string>)[.. Rows.Where(row => row.IsCollapsed).Select(row => row.Area)];
+        var columns = (IReadOnlyList<string>)[.. StageHeaders.Where(header => header.IsCollapsed).Select(header => header.Stage)];
+        var settings = _settings.Read();
+        var views = new Dictionary<string, IReadOnlyList<string>>(settings.ViewFolds);
+
+        if (RowsBy != BoardRowsBy.Area)
+        {
+            views[RowFoldKey] = rows;
+        }
+
+        if (ColumnsBy != BoardColumnsBy.Stage)
+        {
+            views[ColumnFoldKey] = columns;
+        }
+
+        _settings.Write(settings with
+        {
+            CollapsedAreas = RowsBy == BoardRowsBy.Area ? rows : settings.CollapsedAreas,
+            CollapsedStages = ColumnsBy == BoardColumnsBy.Stage ? columns : settings.CollapsedStages,
+            ViewFolds = views,
+        });
+    }
+
+    /// <summary>Folds a column away in every row, or opens it, and remembers which way it was left.</summary>
     public void ToggleStage(StageHeaderViewModel header)
     {
         ArgumentNullException.ThrowIfNull(header);
 
         header.IsCollapsed = !header.IsCollapsed;
-
-        _settings.Write(_settings.Read() with
-        {
-            CollapsedStages = [.. StageHeaders.Where(other => other.IsCollapsed).Select(other => other.Stage)],
-        });
+        RememberGridFolds();
     }
 
-    /// <summary>Opens every folded row and stage, and remembers that nothing is folded.</summary>
+    /// <summary>Opens every folded row and column in this view, and remembers that nothing is folded.</summary>
     public void UnfoldGrid()
     {
         foreach (var row in Rows)
@@ -267,7 +449,31 @@ public sealed class BoardViewModel : ObservableObject
             header.IsCollapsed = false;
         }
 
-        _settings.Write(_settings.Read() with { CollapsedAreas = [], CollapsedStages = [] });
+        RememberGridFolds();
+    }
+
+    private void Choose(bool chosen, Action choose)
+    {
+        if (chosen)
+        {
+            choose();
+        }
+        else
+        {
+            // Unticking the chosen view is not a choice of another, so it stays ticked.
+            RaiseViews();
+        }
+    }
+
+    private void RaiseViews()
+    {
+        Raise(nameof(ColumnsByStage));
+        Raise(nameof(ColumnsBySessionState));
+        Raise(nameof(RowsByArea));
+        Raise(nameof(RowsByProject));
+        Raise(nameof(RowsByChain));
+        Raise(nameof(RowsByNone));
+        Raise(nameof(CanDrag));
     }
 
     /// <summary>Folds one card or opens it, and remembers which way it was left.</summary>
@@ -313,7 +519,7 @@ public sealed class BoardViewModel : ObservableObject
         card.Workstream = card.Workstream with
         {
             Column = BoardLanes.Resolve(stage ?? string.Empty, [.. Stages]),
-            Area = BoardAreas.Resolve(area ?? string.Empty, [.. Rows.Select(row => row.Area)]),
+            Area = BoardAreas.Resolve(area ?? string.Empty, [.. Areas]),
         };
 
         Persist(card);
@@ -326,11 +532,7 @@ public sealed class BoardViewModel : ObservableObject
         ArgumentNullException.ThrowIfNull(row);
 
         row.IsCollapsed = !row.IsCollapsed;
-
-        _settings.Write(_settings.Read() with
-        {
-            CollapsedAreas = [.. Rows.Where(other => other.IsCollapsed).Select(other => other.Area)],
-        });
+        RememberGridFolds();
     }
 
     /// <summary>Moves a card to another cell of the grid and persists the change.</summary>
@@ -348,12 +550,17 @@ public sealed class BoardViewModel : ObservableObject
     {
         var card = Card(key);
 
-        if (card is null)
+        if (card is null || !CanDrag)
         {
             return;
         }
 
-        var row = area ?? card.Workstream.Area ?? card.Area;
+        if (RowsBy != BoardRowsBy.Area && area is not null && !string.Equals(area, RowOf(card), StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        var row = area ?? (RowsBy == BoardRowsBy.Area ? card.Workstream.Area ?? card.Area : RowOf(card));
         var cell = Cells.FirstOrDefault(candidate =>
             candidate.Column == destination && BoardAreas.Same(candidate.Area, row));
 
@@ -370,7 +577,8 @@ public sealed class BoardViewModel : ObservableObject
         }
 
         var at = LaneInsertion.At(index ?? cell.Cards.Count + 1, cameFrom, cell.Cards.Count);
-        var stayed = cameFrom == at && card.Column == destination && BoardAreas.Same(cell.Area, card.Area);
+        var newArea = RowsBy == BoardRowsBy.Area ? cell.Area : card.Area;
+        var stayed = cameFrom == at && card.Column == destination && BoardAreas.Same(newArea, card.Area);
 
         cell.Cards.Insert(at, card);
 
@@ -379,7 +587,7 @@ public sealed class BoardViewModel : ObservableObject
             return;
         }
 
-        card.Workstream = card.Workstream with { Column = destination, Area = cell.Area };
+        card.Workstream = card.Workstream with { Column = destination, Area = newArea };
 
         Persist(card);
         Renumber(cell);

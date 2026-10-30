@@ -234,6 +234,20 @@ public sealed class ChainsViewModel : ObservableObject
     /// <summary>The links as a fresh session of this card should be told them.</summary>
     public string RelatedParagraph(string key) => RelatedWorkstreams.Paragraph(key, Current());
 
+    /// <summary>
+    /// The chain a card is in, named by the title of the card it starts from, or null when the card
+    /// is in no chain. The board's Rows by > Chain view groups by this.
+    /// </summary>
+    public string? ChainName(string key)
+    {
+        if (!ChainRoots.Of(_book.Active).TryGetValue(key, out var root))
+        {
+            return null;
+        }
+
+        return _cards().FirstOrDefault(card => string.Equals(card.Key, root, StringComparison.OrdinalIgnoreCase))?.Title ?? root;
+    }
+
     /// <summary>What changed in this card's links since its last session started.</summary>
     public string RelatedSince(string key, DateTimeOffset lastSessionStartedUtc) =>
         RelatedWorkstreams.Since(key, Current(), lastSessionStartedUtc);
