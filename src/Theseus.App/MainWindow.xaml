@@ -361,7 +361,12 @@
             ▾ beside Start and by a right-click anywhere on the card, which is where a Windows user
             looks for a thing's options. Not shared, so each card gets its own instance.
         -->
+        <!--
+            The font is set here because a context menu is a logical child of the element that owns it
+            and inherits its font: owned by the ⋯ icon button, it drew every label in the icon font.
+        -->
         <ContextMenu x:Key="CardMenu" x:Shared="False"
+                     FontFamily="{x:Static SystemFonts.MessageFontFamily}"
                      DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
             <MenuItem Header="P_roperties" InputGestureText="Alt+Enter" FontWeight="SemiBold"
                       Command="{Binding PropertiesCommand}"
@@ -966,8 +971,30 @@
                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                Visibility="{Binding IsCollapsed, Converter={StaticResource BoolToVisibility}}" />
 
+                    <!-- Drag to set the row's height; double-click to let it fit its cards again. -->
+                    <Thumb DockPanel.Dock="Bottom" Height="6" Margin="0,0,0,-4" Cursor="SizeNS"
+                           ToolTip="Drag to set this row's height. Double-click to let it fit its cards."
+                           DragDelta="OnRowEdgeDrag" DragCompleted="OnSizeDragCompleted"
+                           PreviewMouseLeftButtonDown="OnRowEdgeDown"
+                           Visibility="{Binding IsCollapsed, Converter={StaticResource NotBoolToVisibility}}">
+                        <Thumb.Template>
+                            <ControlTemplate TargetType="Thumb">
+                                <Border Background="Transparent">
+                                    <Border x:Name="Line" Height="1" VerticalAlignment="Center" Opacity="0"
+                                            Background="{DynamicResource AccentFillColorDefaultBrush}" />
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="Line" Property="Opacity" Value="1" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Thumb.Template>
+                    </Thumb>
+
                     <ItemsControl ItemsSource="{Binding Cells}"
                                   ItemTemplate="{StaticResource ColumnTemplate}"
+                                  Height="{Binding Height}"
                                   Visibility="{Binding IsCollapsed, Converter={StaticResource NotBoolToVisibility}}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
@@ -977,6 +1004,7 @@
                         <ItemsControl.ItemContainerStyle>
                             <Style TargetType="ContentPresenter">
                                 <Setter Property="controls:StageColumnsPanel.IsFolded" Value="{Binding IsCollapsed}" />
+                                <Setter Property="controls:StageColumnsPanel.Weight" Value="{Binding Weight}" />
                             </Style>
                         </ItemsControl.ItemContainerStyle>
                     </ItemsControl>
@@ -1997,11 +2025,33 @@
                         <ItemsControl.ItemContainerStyle>
                             <Style TargetType="ContentPresenter">
                                 <Setter Property="controls:StageColumnsPanel.IsFolded" Value="{Binding IsCollapsed}" />
+                                <Setter Property="controls:StageColumnsPanel.Weight" Value="{Binding Weight}" />
                             </Style>
                         </ItemsControl.ItemContainerStyle>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate DataType="{x:Type vm:StageHeaderViewModel}">
-                                <DockPanel Margin="4,0,4,0">
+                                <Grid>
+                                <!-- Drag to move the edge between this column and the next; double-click to make them all even. -->
+                                <Thumb HorizontalAlignment="Right" Width="7" Margin="0,0,-4,0" Cursor="SizeWE" Panel.ZIndex="1"
+                                       ToolTip="Drag to resize the columns either side. Double-click to make them all even."
+                                       DragDelta="OnColumnEdgeDrag" DragCompleted="OnSizeDragCompleted"
+                                       PreviewMouseLeftButtonDown="OnColumnEdgeDown"
+                                       Visibility="{Binding IsCollapsed, Converter={StaticResource NotBoolToVisibility}}">
+                                    <Thumb.Template>
+                                        <ControlTemplate TargetType="Thumb">
+                                            <Border Background="Transparent">
+                                                <Border x:Name="Line" Width="1" HorizontalAlignment="Center" Opacity="0"
+                                                        Background="{DynamicResource AccentFillColorDefaultBrush}" />
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="Line" Property="Opacity" Value="1" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                                <DockPanel Margin="4,0,8,0">
                                     <Button DockPanel.Dock="Right" Style="{StaticResource CommandButton}"
                                             Content="{Binding Glyph}" FontFamily="Segoe MDL2 Assets" FontSize="10"
                                             Padding="5,2" VerticalAlignment="Center"
@@ -2033,6 +2083,7 @@
                                                Visibility="{Binding IsCollapsed, Converter={StaticResource NotBoolToVisibility}}"
                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                                 </DockPanel>
+                                </Grid>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>

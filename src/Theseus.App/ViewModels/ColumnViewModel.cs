@@ -12,6 +12,7 @@ namespace Theseus.App.ViewModels;
 public sealed class ColumnViewModel : ObservableObject
 {
     private bool _isCollapsed;
+    private double _weight = 1;
 
     /// <summary>Creates a cell.</summary>
     public ColumnViewModel(string column, string area = "")
@@ -44,6 +45,13 @@ public sealed class ColumnViewModel : ObservableObject
     {
         get => _isCollapsed;
         set => Set(ref _isCollapsed, value);
+    }
+
+    /// <summary>This cell's share of the row's width, the same as its column heading's.</summary>
+    public double Weight
+    {
+        get => _weight;
+        set => Set(ref _weight, value);
     }
 
     /// <summary>What the folded cell says when hovered.</summary>

@@ -14,6 +14,7 @@ namespace Theseus.App.ViewModels;
 public sealed class BoardRowViewModel : ObservableObject
 {
     private bool _isCollapsed;
+    private double _height = double.NaN;
 
     /// <summary>Creates a row for one area.</summary>
     public BoardRowViewModel(string area)
@@ -35,6 +36,16 @@ public sealed class BoardRowViewModel : ObservableObject
 
     /// <summary>The cells across the row, one per stage, in stage order.</summary>
     public ObservableCollection<ColumnViewModel> Cells { get; } = [];
+
+    /// <summary>
+    /// The height the row was dragged to, in pixels, or NaN to fit its cards. At a set height each
+    /// cell scrolls its own cards.
+    /// </summary>
+    public double Height
+    {
+        get => _height;
+        set => Set(ref _height, value);
+    }
 
     /// <summary>Folds the row away, or opens it again.</summary>
     public RelayCommand? ToggleCommand { get; set; }

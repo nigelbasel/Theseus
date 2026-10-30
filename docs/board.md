@@ -13,6 +13,16 @@ kind of work it is. A new board starts with these, and you can change both in **
 
 Drag a card to move it to another cell. Where a card sits is remembered.
 
+## Resizing columns and rows
+
+Drag the edge between two column headings to make one wider and the other narrower; the rest stay as
+they are. Double-click an edge to make every column even again.
+
+Drag the bottom edge of a row to give it a set height, and its cells scroll their cards inside it.
+Double-click the edge to let the row fit its cards again.
+
+Sizes are remembered across restarts, separately for each view.
+
 ## Views
 
 The same cards can be laid out in different ways. Choose from **View > Columns by** and

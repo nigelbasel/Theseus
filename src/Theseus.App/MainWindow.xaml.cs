@@ -451,7 +451,8 @@ public partial class MainWindow : Window
     {
         var source = e.OriginalSource as DependencyObject;
 
-        if (FindCard(source) is not null || IsWithinAControl(source) || IsWithin<System.Windows.Controls.Primitives.ScrollBar>(source))
+        if (FindCard(source) is not null || IsWithinAControl(source) || IsWithin<System.Windows.Controls.Primitives.ScrollBar>(source)
+            || IsWithin<System.Windows.Controls.Primitives.Thumb>(source))
         {
             return;
         }
@@ -515,6 +516,76 @@ public partial class MainWindow : Window
 
         _bandStart = null;
         _banding = false;
+    }
+
+    /// <summary>Moves the edge between a column and the next by the pixels dragged, as a share of the width.</summary>
+    private void OnColumnEdgeDrag(object sender, System.Windows.Controls.Primitives.DragDeltaEventArgs e)
+    {
+        if (sender is not FrameworkElement { DataContext: StageHeaderViewModel header } edge
+            || DataContext is not ShellViewModel shell
+            || FindAncestor<Controls.StageColumnsPanel>(edge) is not { } panel)
+        {
+            return;
+        }
+
+        var openWidth = panel.ActualWidth - (shell.Board.StageHeaders.Count(other => other.IsCollapsed) * Controls.StageColumnsPanel.FoldedWidth);
+
+        if (openWidth > 0)
+        {
+            shell.Board.ResizeColumns(header, e.HorizontalChange * shell.Board.OpenColumnWeight / openWidth);
+        }
+    }
+
+    /// <summary>A double-click on a column edge makes every column even again.</summary>
+    private void OnColumnEdgeDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount == 2 && DataContext is ShellViewModel shell)
+        {
+            shell.Board.ResetColumnWidths();
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>Sets a row's height to where its lower edge has been dragged.</summary>
+    private void OnRowEdgeDrag(object sender, System.Windows.Controls.Primitives.DragDeltaEventArgs e)
+    {
+        if (sender is not FrameworkElement { DataContext: BoardRowViewModel row } edge
+            || DataContext is not ShellViewModel shell
+            || FindAncestor<DockPanel>(edge) is not { } rowPanel
+            || rowPanel.Children.OfType<ItemsControl>().FirstOrDefault() is not { } cells)
+        {
+            return;
+        }
+
+        var from = double.IsNaN(row.Height) ? cells.ActualHeight : row.Height;
+        shell.Board.SetRowHeight(row, from + e.VerticalChange);
+    }
+
+    /// <summary>A double-click on a row's lower edge lets it fit its cards again.</summary>
+    private void OnRowEdgeDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount == 2 && sender is FrameworkElement { DataContext: BoardRowViewModel row } && DataContext is ShellViewModel shell)
+        {
+            shell.Board.ResetRowHeight(row);
+            e.Handled = true;
+        }
+    }
+
+    private void OnSizeDragCompleted(object sender, System.Windows.Controls.Primitives.DragCompletedEventArgs e) =>
+        (DataContext as ShellViewModel)?.Board.RememberSizes();
+
+    private static T? FindAncestor<T>(DependencyObject? source)
+        where T : DependencyObject
+    {
+        for (var node = source is null ? null : ParentOf(source); node is not null; node = ParentOf(node))
+        {
+            if (node is T found)
+            {
+                return found;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>The cards on show whose outline the rubber band touches.</summary>

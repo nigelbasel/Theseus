@@ -57,7 +57,7 @@ public class SettingsStoreTests
             {
                 Lanes = settings.Lanes, Areas = settings.Areas, CollapsedAreas = settings.CollapsedAreas,
                 CollapsedStages = settings.CollapsedStages, CollapsedCards = settings.CollapsedCards,
-                ViewFolds = settings.ViewFolds,
+                ViewFolds = settings.ViewFolds, ColumnWeights = settings.ColumnWeights, RowHeights = settings.RowHeights,
             }, Is.EqualTo(settings),
             "a record holding a list compares it by reference, so the lists are checked separately");
     }

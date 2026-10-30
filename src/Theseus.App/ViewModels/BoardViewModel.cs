@@ -359,6 +359,8 @@ public sealed class BoardViewModel : ObservableObject
     {
         var foldedRows = FoldedRows();
         var foldedColumns = FoldedColumns();
+        var weights = _settings.Read().ColumnWeights;
+        var heights = _settings.Read().RowHeights;
 
         StageHeaders.Clear();
         Rows.Clear();
@@ -368,6 +370,7 @@ public sealed class BoardViewModel : ObservableObject
             var row = new BoardRowViewModel(name)
             {
                 IsCollapsed = foldedRows.Any(folded => BoardAreas.Same(name, folded)),
+                Height = heights.TryGetValue(RowSizeKey(name), out var height) ? height : double.NaN,
             };
 
             foreach (var column in columns)
@@ -383,12 +386,108 @@ public sealed class BoardViewModel : ObservableObject
             var header = new StageHeaderViewModel(column, [.. Rows.Select(row => row.Cells.First(cell => cell.Column == column))])
             {
                 IsCollapsed = foldedColumns.Contains(column, StringComparer.OrdinalIgnoreCase),
+                Weight = weights.TryGetValue(ColumnSizeKey(column), out var weight) ? weight : 1,
             };
 
             header.ToggleCommand = new RelayCommand(_ => ToggleStage(header));
             StageHeaders.Add(header);
         }
     }
+
+    /// <summary>
+    /// Moves the edge between a column and the next open one by a share of the width: one widens as
+    /// the other narrows, and the rest stay put. Neither goes below a fifth of the even share.
+    /// </summary>
+    public void ResizeColumns(StageHeaderViewModel left, double shareMoved)
+    {
+        ArgumentNullException.ThrowIfNull(left);
+
+        var index = StageHeaders.IndexOf(left);
+        var right = StageHeaders.Skip(index + 1).FirstOrDefault(header => !header.IsCollapsed);
+
+        if (index < 0 || right is null || left.IsCollapsed)
+        {
+            return;
+        }
+
+        const double least = 0.2;
+        var moved = Math.Clamp(shareMoved, least - left.Weight, right.Weight - least);
+
+        left.Weight += moved;
+        right.Weight -= moved;
+    }
+
+    /// <summary>The open columns' combined share, so a drag in pixels can be turned into a share.</summary>
+    public double OpenColumnWeight => StageHeaders.Where(header => !header.IsCollapsed).Sum(header => header.Weight);
+
+    /// <summary>Sets every column back to the even share.</summary>
+    public void ResetColumnWidths()
+    {
+        foreach (var header in StageHeaders)
+        {
+            header.Weight = 1;
+        }
+
+        RememberSizes();
+    }
+
+    /// <summary>Gives a row a set height, at least enough for a folded card or two.</summary>
+    public void SetRowHeight(BoardRowViewModel row, double height)
+    {
+        ArgumentNullException.ThrowIfNull(row);
+
+        row.Height = Math.Max(MinimumRowHeight, height);
+    }
+
+    /// <summary>Lets a row fit its cards again.</summary>
+    public void ResetRowHeight(BoardRowViewModel row)
+    {
+        ArgumentNullException.ThrowIfNull(row);
+
+        row.Height = double.NaN;
+        RememberSizes();
+    }
+
+    /// <summary>The least a row can be dragged to.</summary>
+    public const double MinimumRowHeight = 90;
+
+    /// <summary>Writes down this view's column widths and row heights, after a drag ends.</summary>
+    public void RememberSizes()
+    {
+        var settings = _settings.Read();
+        var weights = new Dictionary<string, double>(settings.ColumnWeights);
+        var heights = new Dictionary<string, double>(settings.RowHeights);
+
+        foreach (var header in StageHeaders)
+        {
+            if (Math.Abs(header.Weight - 1) < 0.001)
+            {
+                weights.Remove(ColumnSizeKey(header.Stage));
+            }
+            else
+            {
+                weights[ColumnSizeKey(header.Stage)] = Math.Round(header.Weight, 3);
+            }
+        }
+
+        foreach (var row in Rows)
+        {
+            if (double.IsNaN(row.Height))
+            {
+                heights.Remove(RowSizeKey(row.Area));
+            }
+            else
+            {
+                heights[RowSizeKey(row.Area)] = Math.Round(row.Height);
+            }
+        }
+
+        _settings.Write(settings with { ColumnWeights = weights, RowHeights = heights });
+    }
+
+    private string ColumnSizeKey(string column) => $"{ColumnsBy}:{column}";
+
+    private string RowSizeKey(string row) => $"{RowsBy}:{row}";
 
     private string RowFoldKey => $"rows:{RowsBy}";
 

@@ -14,7 +14,7 @@
             <Setter Property="Margin" Value="0,10,0,2" />
             <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
         </Style>
-        <Style x:Key="Value" TargetType="TextBox">
+        <Style x:Key="Value" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
             <Setter Property="IsReadOnly" Value="True" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Background" Value="Transparent" />

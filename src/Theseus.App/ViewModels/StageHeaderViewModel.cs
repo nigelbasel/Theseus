@@ -11,6 +11,7 @@ public sealed class StageHeaderViewModel : ObservableObject
 {
     private readonly IReadOnlyList<ColumnViewModel> _cells;
     private bool _isCollapsed;
+    private double _weight = 1;
 
     /// <summary>Creates the heading over the stage's cell in each row.</summary>
     public StageHeaderViewModel(string stage, IReadOnlyList<ColumnViewModel> cells)
@@ -45,6 +46,25 @@ public sealed class StageHeaderViewModel : ObservableObject
 
                 Raise(nameof(Glyph));
                 Raise(nameof(ToggleTooltip));
+            }
+        }
+    }
+
+    /// <summary>
+    /// This column's share of the width relative to the others, 1 being the even share. Every row's
+    /// cell for the column takes the same, so the columns stay lined up.
+    /// </summary>
+    public double Weight
+    {
+        get => _weight;
+        set
+        {
+            if (Set(ref _weight, value))
+            {
+                foreach (var cell in _cells)
+                {
+                    cell.Weight = value;
+                }
             }
         }
     }

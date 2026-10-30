@@ -19,6 +19,18 @@ public sealed class StageColumnsPanel : Panel
         new FrameworkPropertyMetadata(false,
             FrameworkPropertyMetadataOptions.AffectsParentMeasure | FrameworkPropertyMetadataOptions.AffectsParentArrange));
 
+    /// <summary>A child's share of the width relative to the others: 1 is the even share.</summary>
+    public static readonly DependencyProperty WeightProperty = DependencyProperty.RegisterAttached(
+        "Weight", typeof(double), typeof(StageColumnsPanel),
+        new FrameworkPropertyMetadata(1.0,
+            FrameworkPropertyMetadataOptions.AffectsParentMeasure | FrameworkPropertyMetadataOptions.AffectsParentArrange));
+
+    /// <summary>Reads a child's share of the width.</summary>
+    public static double GetWeight(DependencyObject element) => (double)element.GetValue(WeightProperty);
+
+    /// <summary>Sets a child's share of the width.</summary>
+    public static void SetWeight(DependencyObject element, double value) => element.SetValue(WeightProperty, value);
+
     /// <summary>Reads whether a child is folded.</summary>
     public static bool GetIsFolded(DependencyObject element) => (bool)element.GetValue(IsFoldedProperty);
 
@@ -66,11 +78,18 @@ public sealed class StageColumnsPanel : Panel
     {
         var count = InternalChildren.Count;
         var folded = Enumerable.Range(0, count).Count(index => GetIsFolded(InternalChildren[index]));
-        var open = count - folded;
-        var share = double.IsInfinity(available) || open == 0
-            ? double.PositiveInfinity
-            : Math.Max(0, (available - (folded * FoldedWidth)) / open);
+        var weights = Enumerable.Range(0, count)
+            .Select(index => GetIsFolded(InternalChildren[index]) ? 0 : Math.Max(0.05, GetWeight(InternalChildren[index])))
+            .ToArray();
+        var total = weights.Sum();
 
-        return [.. Enumerable.Range(0, count).Select(index => GetIsFolded(InternalChildren[index]) ? FoldedWidth : share)];
+        if (double.IsInfinity(available) || total <= 0)
+        {
+            return [.. Enumerable.Range(0, count).Select(index => GetIsFolded(InternalChildren[index]) ? FoldedWidth : double.PositiveInfinity)];
+        }
+
+        var open = Math.Max(0, available - (folded * FoldedWidth));
+
+        return [.. Enumerable.Range(0, count).Select(index => GetIsFolded(InternalChildren[index]) ? FoldedWidth : open * weights[index] / total)];
     }
 }

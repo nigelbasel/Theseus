@@ -108,6 +108,18 @@ public sealed record TheseusSettings(
     public IReadOnlyDictionary<string, IReadOnlyList<string>> ViewFolds { get; init; } =
         new Dictionary<string, IReadOnlyList<string>>();
 
+    /// <summary>
+    /// How wide each column was left, as a share relative to the others (1 is the even share), keyed
+    /// by view and column such as "Stage:In progress". A column not listed takes the even share.
+    /// </summary>
+    public IReadOnlyDictionary<string, double> ColumnWeights { get; init; } = new Dictionary<string, double>();
+
+    /// <summary>
+    /// How tall each row was left in pixels, keyed by view and row such as "Area:Dev". A row not
+    /// listed fits its cards.
+    /// </summary>
+    public IReadOnlyDictionary<string, double> RowHeights { get; init; } = new Dictionary<string, double>();
+
     /// <summary>Which columns were folded away, by stage name, for the same reason.</summary>
     public IReadOnlyList<string> CollapsedStages { get; init; } = [];
 
