@@ -110,7 +110,7 @@ public class McpHandlerTests
         Assert.That(tools.Select(tool => tool!["name"]!.GetValue<string>()),
             Is.EquivalentTo(new[] { "start_work", "stop_work", "time_for", "whoami", "locks", "lock_acquire", "lock_release", "related", "report_back",
                 "propose_workstream", "proposal_status", "withdraw_proposal", "link_workstream", "unlink_workstream",
-                "approve_proposal", "reject_proposal", "record_work_item" }));
+                "approve_proposal", "reject_proposal", "record_work_item", "name_work_items" }));
         Assert.That(tools.All(tool => tool!["inputSchema"]!["type"]!.GetValue<string>() == "object"), Is.True);
     }
 

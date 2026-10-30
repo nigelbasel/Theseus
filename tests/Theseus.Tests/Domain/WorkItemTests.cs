@@ -50,6 +50,23 @@ public class WorkItemTests
     }
 
     [Test]
+    public void ATitle_BelongsToTheItemSoEveryCardCarryingItShowsIt()
+    {
+        var book = new WorkItemBook(_path);
+
+        book.Record(new WorkItem(WorkItemBook.NoCard, WorkItemKind.Jira, "ndc-680", "Mandatory 2FA", null, Nine));
+
+        var rows = CardItemRows.Jira(["NDC-680"], book.For("any-card"), null, key => book.TitleOf(WorkItemKind.Jira, key));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(book.For("any-card"), Is.Empty, "naming a title attaches it to no card");
+            Assert.That(rows.Single().Display, Is.EqualTo("NDC-680   Mandatory 2FA"));
+            Assert.That(rows.Single().Tooltip, Does.StartWith("Mandatory 2FA"));
+        });
+    }
+
+    [Test]
     public void Record_RefusesAPullRequestThatIsNotANumber()
     {
         var refusal = new WorkItemBook(_path).Record(new WorkItem("auth", WorkItemKind.PullRequest, "main", "x", null, Nine));

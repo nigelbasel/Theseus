@@ -25,19 +25,37 @@ public sealed class WorkItemBook
     /// <summary>Raised after a change is saved, on the thread that made it.</summary>
     public event EventHandler? Changed;
 
+    /// <summary>The card a title-only record belongs to: none.</summary>
+    public const string NoCard = "";
+
     /// <summary>What has been recorded for one card, Jira issues first, each in the order recorded.</summary>
     public IReadOnlyList<WorkItem> For(string workstream)
     {
         lock (_gate)
         {
-            return [.. _items.Where(item => Same(item.Workstream, workstream))
+            return [.. _items.Where(item => item.Workstream.Length > 0 && Same(item.Workstream, workstream))
                 .OrderBy(item => item.Kind).ThenBy(item => item.RecordedUtc)];
         }
     }
 
     /// <summary>
-    /// Records an item against a card, or updates its title and address if it is there already. Says
-    /// why not when the id is no use.
+    /// The title an issue or pull request was last given, by any session for any card. A title belongs
+    /// to the item, so every card carrying NDC-680 shows the title one session reported for it.
+    /// </summary>
+    public string? TitleOf(WorkItemKind kind, string id)
+    {
+        var key = kind == WorkItemKind.Jira ? id.Trim().ToUpperInvariant() : id.Trim().TrimStart('#', '!');
+
+        lock (_gate)
+        {
+            return _items.Where(item => item.Kind == kind && Same(item.Id, key) && item.Title is not null)
+                .MaxBy(item => item.RecordedUtc)?.Title;
+        }
+    }
+
+    /// <summary>
+    /// Records an item against a card, or updates its title and address if it is there already. A
+    /// workstream of <see cref="NoCard"/> records a title alone. Says why not when the id is no use.
     /// </summary>
     public string? Record(WorkItem item)
     {
@@ -71,7 +89,7 @@ public sealed class WorkItemBook
                 {
                     Title = title ?? _items[index].Title,
                     Url = url ?? _items[index].Url,
-                    RecordedUtc = _items[index].RecordedUtc,
+                    RecordedUtc = title is null ? _items[index].RecordedUtc : item.RecordedUtc,
                 };
             }
             else

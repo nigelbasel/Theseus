@@ -29,8 +29,12 @@ public sealed class CardItemRow
     /// <summary>What the drop-down shows: the id, then the title when there is one.</summary>
     public string Display => Title is null ? Id : $"{Id}   {Title}";
 
-    /// <summary>What hovering says: where it opens, or why it cannot.</summary>
-    public string Tooltip => Url ?? "Set your Jira address in Tools > Options to open it from here";
+    /// <summary>What hovering says: its title, then where it opens or why it cannot.</summary>
+    public string Tooltip => string.Join("\n", new[]
+    {
+        Title ?? "No title yet. A session reports it when it works on this item.",
+        Url ?? "Set your Jira address in Tools > Options to open it from here.",
+    });
 
     /// <summary>Opens it in the browser.</summary>
     public RelayCommand OpenCommand { get; }

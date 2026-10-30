@@ -416,6 +416,20 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
+    /// <summary>
+    /// A right-click on a card outside the selection selects that card alone, so its menu acts on what
+    /// was clicked; on a card inside the selection it leaves the selection for the menu to act on.
+    /// </summary>
+    private void OnCardRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: WorkstreamCardViewModel { IsSelected: false } card }
+            && DataContext is ShellViewModel shell)
+        {
+            shell.Board.ClickSelect(card, toggle: false, extend: false);
+            shell.Clicked(card);
+        }
+    }
+
     /// <summary>A double-click opens the card's properties, as Alt+Enter and its menu do.</summary>
     private void OnCardMouseDown(object sender, MouseButtonEventArgs e)
     {

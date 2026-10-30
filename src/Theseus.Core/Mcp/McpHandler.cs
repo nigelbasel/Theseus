@@ -292,6 +292,28 @@ public sealed partial class McpHandler
                     ["url"] = Property("Optional: its address. Jira addresses are worked out from the board's settings when left out."),
                 },
                 "kind", "id", "title"),
+            Tool("name_work_items",
+                "Give Jira issues or pull requests their titles, so every card carrying them shows the title in its drop-down. It attaches nothing to any card. Use it to fill in titles you have looked up.",
+                new JsonObject
+                {
+                    ["items"] = new JsonObject
+                    {
+                        ["type"] = "array",
+                        ["items"] = new JsonObject
+                        {
+                            ["type"] = "object",
+                            ["properties"] = new JsonObject
+                            {
+                                ["kind"] = Property("jira or pr."),
+                                ["id"] = Property("The issue key or pull request number."),
+                                ["title"] = Property("Its title."),
+                            },
+                            ["required"] = new JsonArray("kind", "id", "title"),
+                        },
+                        ["description"] = "The items and their titles.",
+                    },
+                },
+                "items"),
             Tool("approve_proposal",
                 "Approve one of this workstream's pending proposals, which creates its card, links it and leaves it ready to start, exactly as Create does on the board. Only when the user has read the brief and tells you to approve it in this tab.",
                 new JsonObject
@@ -347,6 +369,7 @@ public sealed partial class McpHandler
             "unlink_workstream" => UnlinkWorkstream(session, arguments),
             "approve_proposal" => ApproveProposal(session, arguments),
             "record_work_item" => RecordWorkItem(session, arguments),
+            "name_work_items" => NameWorkItems(arguments),
             "reject_proposal" => RejectProposal(session, arguments),
             _ => WhoAmI(session),
         });
@@ -751,6 +774,51 @@ public sealed partial class McpHandler
         return refusal is null
             ? Result("Recorded. It shows in the card's drop-down on the board.")
             : Result(refusal, isError: true);
+    }
+
+    private JsonObject NameWorkItems(JsonObject arguments)
+    {
+        if (_workItems is null)
+        {
+            return Result("This Theseus is not keeping work items.", isError: true);
+        }
+
+        if (arguments["items"] is not JsonArray items || items.Count == 0)
+        {
+            return Result("items is required: a list of { kind, id, title }.", isError: true);
+        }
+
+        var named = 0;
+        var refused = new List<string>();
+
+        foreach (var entry in items.OfType<JsonObject>())
+        {
+            WorkItemKind? kind = Text(entry["kind"])?.Trim().ToLowerInvariant() switch
+            {
+                "jira" => WorkItemKind.Jira,
+                "pr" or "pull request" or "pullrequest" => WorkItemKind.PullRequest,
+                _ => null,
+            };
+            var id = Text(entry["id"]) ?? string.Empty;
+
+            if (kind is null || string.IsNullOrWhiteSpace(Text(entry["title"])))
+            {
+                refused.Add($"{id}: kind and title are required");
+                continue;
+            }
+
+            if (_workItems.Record(new WorkItem(WorkItemBook.NoCard, kind.Value, id, Text(entry["title"]), null, _clock())) is { } refusal)
+            {
+                refused.Add($"{id}: {refusal}");
+                continue;
+            }
+
+            named++;
+        }
+
+        return Result(refused.Count == 0
+            ? $"Named {named}."
+            : $"Named {named}. Not named: {string.Join("; ", refused)}", isError: named == 0);
     }
 
     private JsonObject ApproveProposal(McpSession session, JsonObject arguments)

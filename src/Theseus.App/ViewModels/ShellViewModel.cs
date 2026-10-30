@@ -786,6 +786,46 @@ public sealed class ShellViewModel : ObservableObject
     /// The pause button: a running session is stopped with a handoff and its card marked paused, so
     /// starting it again asks first; a card with no session has its paused mark turned on or off.
     /// </summary>
+    /// <summary>The cards a card's menu acts on: the selection when this card is in it, else this card.</summary>
+    private IReadOnlyList<WorkstreamCardViewModel> Targets(WorkstreamCardViewModel card) =>
+        card.IsSelected && Chosen() is { Count: > 1 } chosen ? chosen : [card];
+
+    /// <summary>Marks several cards at once, refreshing once rather than per card.</summary>
+    private void SetFlagsOn(IReadOnlyList<WorkstreamCardViewModel> cards, Func<Workstream, Workstream> flag)
+    {
+        foreach (var card in cards)
+        {
+            card.Workstream = flag(card.Workstream);
+            Board.Persist(card);
+            Drawer.Reload(card);
+        }
+
+        Refresh();
+    }
+
+    /// <summary>
+    /// The menu's Pause or Unpause, for every card it acts on: pausing stops each running session with
+    /// a handoff and marks every card paused; unpausing clears the mark.
+    /// </summary>
+    private void PauseAll(IReadOnlyList<WorkstreamCardViewModel> cards, bool pause)
+    {
+        if (!pause)
+        {
+            SetFlagsOn(cards, workstream => workstream with { IsPaused = false });
+
+            return;
+        }
+
+        var steps = StepsFor([.. cards.Where(card => card.IsLive)]);
+
+        SetFlagsOn(cards, workstream => workstream with { IsPaused = true });
+
+        if (steps.Count > 0)
+        {
+            BeginStop(steps);
+        }
+    }
+
     private void Pause(WorkstreamCardViewModel card)
     {
         if (card.IsLive)
@@ -1111,7 +1151,9 @@ public sealed class ShellViewModel : ObservableObject
 
             card.PullRequests = _pullRequests.Resolve(card.Workstream);
             card.Branch = GitBranchReader.Read(card.Workstream.WorkingDirectory) ?? string.Empty;
-            card.SetItems(CardItemRows.Jira(card.JiraKeys, recorded, jiraBase), CardItemRows.PullRequests(card.PullRequests, recorded));
+            card.SetItems(
+                CardItemRows.Jira(card.JiraKeys, recorded, jiraBase, key => WorkItems?.TitleOf(WorkItemKind.Jira, key)),
+                CardItemRows.PullRequests(card.PullRequests, recorded, number => WorkItems?.TitleOf(WorkItemKind.PullRequest, number)));
         }
     }
 
@@ -1179,25 +1221,36 @@ public sealed class ShellViewModel : ObservableObject
 
             // The other way to start, whichever the board prefers. Named explicitly in the log: the
             // caller's own name here would be this method's, which says nothing about the gesture.
+            // The card's menu acts on the whole selection when the card is part of it, as a
+            // right-click does in Explorer (Nigel, 2026-10-30); otherwise on this card alone.
             card.ResumeCommand ??= new RelayCommand(
-                _ => StartMany([card.Workstream], startMode: StartMode.Resume, trigger: "ResumeCard"),
-                _ => CanStartCard(card) && card.CanResume);
+                _ => StartMany([.. Targets(card).Where(CanStartCard).Select(target => target.Workstream)],
+                    startMode: StartMode.Resume, trigger: "ResumeCard"),
+                _ => Targets(card).Any(target => CanStartCard(target) && target.CanResume));
             card.StartFreshCommand ??= new RelayCommand(
-                _ => StartMany([card.Workstream], startMode: StartMode.Fresh, trigger: "StartFreshCard"),
-                _ => CanStartCard(card));
+                _ => StartMany([.. Targets(card).Where(CanStartCard).Select(target => target.Workstream)],
+                    startMode: StartMode.Fresh, trigger: "StartFreshCard"),
+                _ => Targets(card).Any(CanStartCard));
 
             // The card's menu carries the flags and Spawn follow-on, so a visit to the details is not
             // needed for them. A context menu cannot reach the window's commands, so these are the card's.
-            card.ToggleBlockedCommand ??= new RelayCommand(_ => SetFlags(card,
-                card.Workstream with { IsBlocked = !card.Workstream.IsBlocked }));
+            card.ToggleBlockedCommand ??= new RelayCommand(_ =>
+            {
+                var blocked = !card.Workstream.IsBlocked;
+                SetFlagsOn(Targets(card), workstream => workstream with { IsBlocked = blocked });
+            });
             card.TogglePausedCommand ??= new RelayCommand(_ => SetFlags(card,
                 card.Workstream with { IsPaused = !card.Workstream.IsPaused }));
-            card.ToggleReopenTomorrowCommand ??= new RelayCommand(_ => SetFlags(card,
-                card.Workstream with { ReopenTomorrow = !card.Workstream.ReopenTomorrow }));
+            card.ToggleReopenTomorrowCommand ??= new RelayCommand(_ =>
+            {
+                var reopen = !card.Workstream.ReopenTomorrow;
+                SetFlagsOn(Targets(card), workstream => workstream with { ReopenTomorrow = reopen });
+            });
             card.SpawnFollowOnCommand ??= new RelayCommand(
                 _ => SpawnFollowOnCommand.Execute(card),
-                _ => SpawnFollowOnCommand.CanExecute(card));
+                _ => Targets(card).Count == 1 && SpawnFollowOnCommand.CanExecute(card));
             card.PauseCommand ??= new RelayCommand(_ => Pause(card));
+            card.MenuPauseCommand ??= new RelayCommand(_ => PauseAll(Targets(card), pause: !card.IsPaused));
             card.PropertiesCommand ??= new RelayCommand(_ => ShowCard(card));
 
             // Read for every card with a transcript, live or not: which model a stopped session was

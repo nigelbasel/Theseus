@@ -312,12 +312,12 @@
                       ToolTip="{x:Static launching:StartModeChoice.FreshTooltip}"
                       Visibility="{Binding IsLive, Converter={StaticResource NotBoolToVisibility}}" />
             <Separator Visibility="{Binding IsLive, Converter={StaticResource NotBoolToVisibility}}" />
-            <MenuItem Header="_Paused" IsChecked="{Binding IsPaused, Mode=OneWay}"
-                      Command="{Binding TogglePausedCommand}"
-                      ToolTip="Set aside on purpose. A mark on the card: it keeps its stage" />
-            <MenuItem Header="_Blocked" IsChecked="{Binding IsBlocked, Mode=OneWay}"
-                      Command="{Binding ToggleBlockedCommand}"
-                      ToolTip="Waiting on something outside your control. A mark on the card: it keeps its stage" />
+            <MenuItem Header="{Binding PauseMenuText}" Command="{Binding MenuPauseCommand}"
+                      ToolTip="{Binding PauseTooltip}">
+                <MenuItem.Icon><TextBlock Text="&#xE769;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+            </MenuItem>
+            <MenuItem Header="{Binding BlockMenuText}" Command="{Binding ToggleBlockedCommand}"
+                      ToolTip="Blocked means waiting on something outside your control. A mark on the card: it keeps its stage" />
             <MenuItem Header="Reopen tomorrow" IsChecked="{Binding ReopenTomorrow, Mode=OneWay}"
                       Command="{Binding ToggleReopenTomorrowCommand}"
                       ToolTip="Include this workstream when the whole board is started" />
@@ -336,6 +336,7 @@
                     ToolTip="{Binding Workstream.WorkingDirectory}"
                     ContextMenu="{StaticResource CardMenu}"
                     MouseLeftButtonDown="OnCardMouseDown"
+                    PreviewMouseRightButtonDown="OnCardRightButtonDown"
                     MouseLeftButtonUp="OnCardClicked"
                     MouseEnter="OnCardMouseEnter" MouseLeave="OnCardMouseLeave">
                 <!--

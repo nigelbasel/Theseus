@@ -9,27 +9,33 @@ public static class CardItemRows
     /// Every Jira key the card carries, then any a session recorded that it does not, each with the
     /// title a session gave it.
     /// </summary>
-    public static IReadOnlyList<CardItemRow> Jira(IReadOnlyList<string> keys, IReadOnlyList<WorkItem> recorded, string? jiraBaseUrl)
+    public static IReadOnlyList<CardItemRow> Jira(IReadOnlyList<string> keys, IReadOnlyList<WorkItem> recorded, string? jiraBaseUrl,
+        Func<string, string?>? titleOf = null)
     {
-        var titles = recorded.Where(item => item.Kind == WorkItemKind.Jira)
+        var mine = recorded.Where(item => item.Kind == WorkItemKind.Jira)
             .ToDictionary(item => item.Id, StringComparer.OrdinalIgnoreCase);
-        var all = keys.Concat(titles.Keys).Distinct(StringComparer.OrdinalIgnoreCase);
+        var all = keys.Concat(mine.Keys).Distinct(StringComparer.OrdinalIgnoreCase);
 
-        return [.. all.Select(key => titles.GetValueOrDefault(key) is { } item
-            ? new CardItemRow(key, item.Title, item.Url ?? JiraSite.IssueUrl(jiraBaseUrl, key))
-            : new CardItemRow(key, null, JiraSite.IssueUrl(jiraBaseUrl, key)))];
+        return [.. all.Select(key =>
+        {
+            var item = mine.GetValueOrDefault(key);
+
+            return new CardItemRow(key, item?.Title ?? titleOf?.Invoke(key), item?.Url ?? JiraSite.IssueUrl(jiraBaseUrl, key));
+        })];
     }
 
     /// <summary>The pull requests the card's prompt names, then any a session recorded, with titles.</summary>
-    public static IReadOnlyList<CardItemRow> PullRequests(IReadOnlyList<PullRequestLink> mentioned, IReadOnlyList<WorkItem> recorded)
+    public static IReadOnlyList<CardItemRow> PullRequests(IReadOnlyList<PullRequestLink> mentioned, IReadOnlyList<WorkItem> recorded,
+        Func<string, string?>? titleOf = null)
     {
         var titles = recorded.Where(item => item.Kind == WorkItemKind.PullRequest)
             .ToDictionary(item => item.Id, StringComparer.OrdinalIgnoreCase);
         var rows = mentioned.Select(link =>
         {
-            var item = titles.GetValueOrDefault(link.Number.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            var number = link.Number.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            var item = titles.GetValueOrDefault(number);
 
-            return new CardItemRow($"PR {link.Number}", item?.Title, item?.Url ?? link.Url);
+            return new CardItemRow($"PR {link.Number}", item?.Title ?? titleOf?.Invoke(number), item?.Url ?? link.Url);
         }).ToList();
 
         var named = mentioned.Select(link => link.Number.ToString(System.Globalization.CultureInfo.InvariantCulture))

@@ -58,6 +58,8 @@ public sealed class WorkstreamCardViewModel : ObservableObject
                 Raise(nameof(IsPaused));
                 Raise(nameof(FlagText));
                 Raise(nameof(PauseTooltip));
+                Raise(nameof(PauseMenuText));
+                Raise(nameof(BlockMenuText));
                 Raise(nameof(ArchiveTooltip));
                 Raise(nameof(ReopenTomorrow));
                 Raise(nameof(Column));
@@ -512,6 +514,12 @@ public sealed class WorkstreamCardViewModel : ObservableObject
             ? "Paused. Click to clear the mark"
             : "Mark as paused: set aside on purpose, keeping its stage";
 
+    /// <summary>What the card's menu offers for pausing: an action, so it says what clicking does.</summary>
+    public string PauseMenuText => IsPaused ? "Un_pause" : "_Pause";
+
+    /// <summary>What the card's menu offers for blocking.</summary>
+    public string BlockMenuText => IsBlocked ? "Un_block" : "_Block";
+
     /// <summary>The archive button's tooltip.</summary>
     public string ArchiveTooltip => IsArchived
         ? "Restore this workstream to the board"
@@ -519,6 +527,9 @@ public sealed class WorkstreamCardViewModel : ObservableObject
 
     /// <summary>Pauses the card: stops a running session with a handoff and marks it paused.</summary>
     public RelayCommand? PauseCommand { get; set; }
+
+    /// <summary>The card menu's Pause or Unpause, which acts on the selection when this card is in it.</summary>
+    public RelayCommand? MenuPauseCommand { get; set; }
 
     /// <summary>Opens the card's properties, from its menu or Alt+Enter.</summary>
     public RelayCommand? PropertiesCommand { get; set; }
