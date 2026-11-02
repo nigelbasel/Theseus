@@ -29,6 +29,17 @@ public class WindowPlacementFitTests
     }
 
     [Test]
+    public void Onto_RescuesAWindowWindowsParkedAtMinus32000()
+    {
+        var parked = Placement(-32000, -32000, 2436, 1278);
+
+        var fitted = WindowPlacementFit.Onto(parked, [Laptop]);
+
+        Assert.That(WindowPlacementFit.IsReachable(fitted!.Bounds, [Laptop]), Is.True,
+            "a board left at the minimised parking spot looks hung (2026-11-02)");
+    }
+
+    [Test]
     public void Onto_KeepsAWindowOnTheSecondScreenWhileItIsStillAttached()
     {
         var saved = Placement(3600, 100, 1400, 800);

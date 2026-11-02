@@ -33,6 +33,10 @@ public partial class MainWindow : Window
         SourceInitialized += (_, _) => RestorePlacement();
         Closing += (_, _) => SavePlacement();
 
+        // Screens change under a running window too: monitors sleep and wake, and a dock comes and goes.
+        Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnDisplaysChanged;
+        Closed += (_, _) => Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplaysChanged;
+
         AddHandler(PreviewMouseLeftButtonDownEvent, new MouseButtonEventHandler(OnPreviewMouseDown), handledEventsToo: true);
         AddHandler(PreviewMouseLeftButtonUpEvent, new MouseButtonEventHandler(OnPreviewMouseUp), handledEventsToo: true);
         AddHandler(PreviewMouseMoveEvent, new MouseEventHandler(OnPreviewMouseMove), handledEventsToo: true);
@@ -47,6 +51,7 @@ public partial class MainWindow : Window
         };
         Activated += (_, _) =>
         {
+            RefitPlacement();
             (DataContext as ShellViewModel)?.SyncAccount();
             AllowMotion(true);
         };
@@ -341,6 +346,29 @@ public partial class MainWindow : Window
         }
 
         OwnWindowPlacement.Apply(new WindowInteropHelper(this).Handle, placement);
+    }
+
+    private void OnDisplaysChanged(object? sender, EventArgs e) =>
+        Dispatcher.BeginInvoke(RefitPlacement, System.Windows.Threading.DispatcherPriority.Background);
+
+    /// <summary>
+    /// Brings the running window back onto a screen when it has been left on none. Windows parks a
+    /// window at -32000,-32000 while the displays rearrange, and can leave it there once they wake,
+    /// which looks exactly like a hung application (2026-11-02).
+    /// </summary>
+    private void RefitPlacement()
+    {
+        var handle = new WindowInteropHelper(this).Handle;
+
+        if (handle == 0
+            || OwnWindowPlacement.Capture(handle) is not { } current
+            || WindowPlacementFit.Onto(current, Displays.WorkAreas()) is not { } fitted
+            || fitted == current)
+        {
+            return;
+        }
+
+        OwnWindowPlacement.Apply(handle, fitted);
     }
 
     /// <summary>Remembers where the window is, so the next run opens where this one was left.</summary>
