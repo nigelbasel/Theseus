@@ -33,6 +33,13 @@
     <Property Id="ARPNOREPAIR" Value="1" />
 
     <!--
+      No System Restore point. Windows makes one before every install unless told not to, and on
+      2026-11-03 that alone held an update for 1m48s (install.log, 15:00:16 to 15:02:04). Theseus
+      keeps nothing a restore point would bring back: its state lives in %LOCALAPPDATA%.
+    -->
+    <Property Id="MSIFASTINSTALL" Value="1" />
+
+    <!--
       The smallest dialog set WiX has: one page, progress, finish. Without any UI the install is
       Windows' bare progress box, which carries the generic Installer icon and nothing of Theseus;
       the icon above reaches Add/Remove Programs and the Start Menu, but not that box. The two
