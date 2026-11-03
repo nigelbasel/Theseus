@@ -21,6 +21,7 @@ public partial class MainWindow : Window
     private DayReportWindow? _report;
     private InstructionsWindow? _instructions;
     private SetupWindow? _setup;
+    private NewWorkstreamWindow? _composer;
 
     /// <summary>Creates the window.</summary>
     public MainWindow()
@@ -48,6 +49,7 @@ public partial class MainWindow : Window
             WatchDayReport();
             WatchInstructions();
             WatchSetup();
+            WatchComposer();
         };
         Activated += (_, _) =>
         {
@@ -261,6 +263,55 @@ public partial class MainWindow : Window
 
         _setup = setup;
         Dispatcher.BeginInvoke(() => setup.ShowDialog());
+    }
+
+    private void WatchComposer()
+    {
+        if ((DataContext as ShellViewModel)?.NewWorkstream is not { } composer)
+        {
+            return;
+        }
+
+        composer.PropertyChanged += (_, changed) =>
+        {
+            if (changed.PropertyName == nameof(NewWorkstreamViewModel.IsOpen))
+            {
+                ShowComposer(composer);
+            }
+        };
+    }
+
+    /// <summary>
+    /// Opens New workstream as a dialog over the board, and closes it once the card is created or
+    /// Cancel is pressed. Closing it any other way - its close button, Alt+F4 - is Cancel.
+    /// </summary>
+    private void ShowComposer(NewWorkstreamViewModel composer)
+    {
+        if (!composer.IsOpen)
+        {
+            _composer?.Close();
+
+            return;
+        }
+
+        if (_composer is not null)
+        {
+            return;
+        }
+
+        var window = new NewWorkstreamWindow { Owner = this, DataContext = DataContext };
+        window.Closed += (_, _) =>
+        {
+            _composer = null;
+
+            if (composer.IsOpen)
+            {
+                composer.CloseCommand.Execute(null);
+            }
+        };
+
+        _composer = window;
+        Dispatcher.BeginInvoke(() => window.ShowDialog());
     }
 
     private void WatchDayReport()
