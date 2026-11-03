@@ -18,7 +18,9 @@ public static class WindowGroupName
     /// <summary>The window name for one workstream at the moment it is started.</summary>
     /// <param name="configured">The base name, which every window is named after.</param>
     /// <param name="workstream">The workstream being started, for its lane and any override.</param>
-    public static string For(string? configured, Workstream workstream)
+    /// <param name="areaWindows">Areas whose window keeps an earlier name, from the settings.</param>
+    public static string For(string? configured, Workstream workstream,
+        IReadOnlyDictionary<string, string>? areaWindows = null)
     {
         ArgumentNullException.ThrowIfNull(workstream);
 
@@ -33,7 +35,12 @@ public static class WindowGroupName
         // renaming every time work advanced, and a session cannot move between windows once it has
         // started; the kind of work is the part that stays put. A board with no areas yet falls back
         // to its lane, which is what it used to do.
-        var row = Sanitise(workstream.Area) is { Length: > 0 } area ? area : Sanitise(workstream.Column);
+        var kept = areaWindows?
+            .FirstOrDefault(pair => string.Equals(pair.Key, workstream.Area?.Trim(), StringComparison.OrdinalIgnoreCase))
+            .Value;
+        var row = Sanitise(kept) is { Length: > 0 } window ? window
+            : Sanitise(workstream.Area) is { Length: > 0 } area ? area
+            : Sanitise(workstream.Column);
 
         return row.Length > 0 ? $"{fallback}-{row}" : fallback;
     }

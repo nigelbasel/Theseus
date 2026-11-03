@@ -59,6 +59,37 @@ public class BoardTidyTests
         Assert.That(BoardTidy.IsNeeded(Before() with { BoardRevision = BoardTidy.Revision }), Is.False);
     }
 
+    [Test]
+    public void Apply_KeepsEachRenamedAreaInTheWindowItsSessionsAlreadyHave()
+    {
+        var (settings, _) = BoardTidy.Apply(Before(), []);
+
+        Assert.That(settings.AreaWindows, Is.EquivalentTo(new Dictionary<string, string>
+        {
+            ["Research & spikes"] = "research",
+            ["Support & admin"] = "admin-tasks",
+            ["Side projects"] = "side-project",
+        }), "a renamed area otherwise opens a new window beside the one its tabs are in (2026-11-02)");
+    }
+
+    [Test]
+    public void Apply_ToABoardAlreadyTidiedOnlyAddsTheWindows_LeavingItsGridAlone()
+    {
+        var (tidied, _) = BoardTidy.Apply(Before(), []);
+        var regrown = tidied with { BoardRevision = 2, Lanes = [.. tidied.Lanes, "Paused"], AreaWindows = new Dictionary<string, string>() };
+        var sidecars = new[] { Sidecar("a", "Paused", "Side projects", lastSession: null) };
+
+        var (settings, cards) = BoardTidy.Apply(regrown, sidecars);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(settings.Lanes, Does.Contain("Paused"), "a column added back after the tidy stays");
+            Assert.That(cards, Is.EqualTo(sidecars));
+            Assert.That(settings.AreaWindows["Side projects"], Is.EqualTo("side-project"));
+            Assert.That(settings.BoardRevision, Is.EqualTo(BoardTidy.Revision));
+        });
+    }
+
     private static (string Column, string? Area, bool IsPaused) Place(IReadOnlyList<WorkstreamSidecar> sidecars, string key) =>
         sidecars.Single(sidecar => sidecar.Key == key) is var found ? (found.Column, found.Area, found.IsPaused) : default;
 

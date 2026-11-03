@@ -1,4 +1,5 @@
 using Theseus.Core.Settings;
+using Theseus.Core.Terminal;
 
 namespace Theseus.Core.Domain;
 
@@ -11,7 +12,10 @@ namespace Theseus.Core.Domain;
 public static class BoardTidy
 {
     /// <summary>The revision this tidy brings a board to.</summary>
-    public const int Revision = 2;
+    public const int Revision = 3;
+
+    /// <summary>The revision of the grid tidy itself; revision 3 only keeps renamed areas' windows.</summary>
+    private const int GridRevision = 2;
 
     private const string PausedLane = "Paused";
 
@@ -42,6 +46,11 @@ public static class BoardTidy
     {
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(sidecars);
+
+        if (settings.BoardRevision >= GridRevision)
+        {
+            return (KeepingWindows(settings), sidecars);
+        }
 
         var lanes = settings.Lanes
             .Where(lane => !Same(lane, PausedLane))
@@ -76,7 +85,7 @@ public static class BoardTidy
 
         var done = lanes.FirstOrDefault(lane => Same(lane, "Done"));
 
-        return (settings with
+        return (KeepingWindows(settings with
         {
             Lanes = lanes,
             Areas = areas,
@@ -87,7 +96,27 @@ public static class BoardTidy
                 .Select(stage => Rename(LaneNames, stage))
                 .Concat(done is null ? [] : [done])
                 .Distinct(StringComparer.OrdinalIgnoreCase)],
-        }, tidied);
+        }), tidied);
+    }
+
+    /// <summary>
+    /// Points each renamed area at the window its first old name used, since a window takes its name
+    /// from the area and running sessions cannot move: without this, "Side projects" opened beside
+    /// the "Side Project" window rather than in it (2026-11-02).
+    /// </summary>
+    private static TheseusSettings KeepingWindows(TheseusSettings settings)
+    {
+        var windows = new Dictionary<string, string>(settings.AreaWindows, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (old, renamed) in AreaNames)
+        {
+            if (settings.Areas.Contains(renamed, StringComparer.OrdinalIgnoreCase))
+            {
+                windows.TryAdd(renamed, WindowGroupName.Sanitise(old));
+            }
+        }
+
+        return settings with { AreaWindows = windows, BoardRevision = Revision };
     }
 
     private static string Rename(Dictionary<string, string> names, string name) =>

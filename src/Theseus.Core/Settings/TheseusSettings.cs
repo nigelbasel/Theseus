@@ -120,6 +120,13 @@ public sealed record TheseusSettings(
     /// </summary>
     public IReadOnlyDictionary<string, double> RowHeights { get; init; } = new Dictionary<string, double>();
 
+    /// <summary>
+    /// The terminal window an area's sessions start in, where it is not named after the area itself:
+    /// an area renamed by <see cref="Domain.BoardTidy"/> keeps its old window, so its new sessions
+    /// join the tabs already open rather than starting a window of their own.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> AreaWindows { get; init; } = new Dictionary<string, string>();
+
     /// <summary>Which columns were folded away, by stage name, for the same reason.</summary>
     public IReadOnlyList<string> CollapsedStages { get; init; } = [];
 

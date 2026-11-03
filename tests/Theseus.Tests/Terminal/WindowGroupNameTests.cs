@@ -87,6 +87,19 @@ public class WindowGroupNameTests
     }
 
     [Test]
+    public void For_UsesTheWindowAnAreaKeptThroughARename()
+    {
+        var workstream = Workstream("New") with { Area = "Side projects" };
+        var kept = new Dictionary<string, string> { ["side projects"] = "side-project" };
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(WindowGroupName.For("theseus", workstream, kept), Is.EqualTo("theseus-side-project"));
+            Assert.That(WindowGroupName.For("theseus", workstream with { Area = "Dev" }, kept), Is.EqualTo("theseus-dev"));
+        });
+    }
+
+    [Test]
     public void For_FallsBackToTheLaneOnABoardWithNoAreasYet()
     {
         Assert.That(WindowGroupName.For("theseus", Workstream("Side Project")),
