@@ -2,6 +2,7 @@
 // solution-wide builds that do not go through ~/.claude/bin/ndc-test-lock.sh. Many Claude sessions
 // share this machine; two such runs at once starve each other and fail like real defects. A rule in
 // CLAUDE.md only reaches sessions started after it was written; this hook reaches every session.
+// Theseus.slnx is exempt: its suites start no containers and touch no shared stack.
 // Override for one command by setting NDC_TEST_LOCK_BYPASS=1 in that command (for the lock's own holder).
 //
 // Source of truth: C:\dev\git\Theseus\tools\locks\ndc-test-lock-guard.js, installed to ~/.claude/bin by the
@@ -98,12 +99,14 @@ process.stdin.on('end', () => {
   const composeBuild = /docker(-compose|\s+compose)\b[^\n;&|]*(\sbuild\b|\sup\b[^\n;&|]*--build)/i;
   const solutionBuild = /dotnet(\.exe)?\s+build\b[^\n;&|]*\.slnf?\b/i;
 
-  const withoutUnitOnlySuites = command.replace(/Api\.Mcp\.Tests/gi, 'McpUnitSuite');
+  const withoutUnitOnlySuites = command
+    .replace(/Api\.Mcp\.Tests/gi, 'McpUnitSuite')
+    .replace(/\bTheseus\.slnx\b/gi, 'TheseusSolution');
 
   let what = null;
   if (containerSuite.test(withoutUnitOnlySuites)) { what = 'a container-backed test suite (or a whole-solution test run)'; }
   else if (composeBuild.test(command)) { what = 'a docker compose build'; }
-  else if (solutionBuild.test(command)) { what = 'a whole-solution build'; }
+  else if (solutionBuild.test(withoutUnitOnlySuites)) { what = 'a whole-solution build'; }
 
   if (!what) {
     process.exit(0);
