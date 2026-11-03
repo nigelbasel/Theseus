@@ -29,6 +29,7 @@ public sealed class ShellViewModel : ObservableObject
     private readonly IWorkflowActivityReader _activity =
         new WorkflowActivityReader(WorkflowRunReader.DefaultDirectory);
     private readonly ClaudeAccountSource _account = new();
+    private readonly TranscriptFacts _transcripts = new();
     private AppTheme _theme;
     private string _notice = string.Empty;
     private bool _isSessionsPanelOpen;
@@ -98,6 +99,7 @@ public sealed class ShellViewModel : ObservableObject
         _isToolbarVisible = !settings.Read().ToolbarHidden;
         _isStatusBarVisible = !settings.Read().StatusBarHidden;
         Board.ChainOf = key => Chains?.ChainName(key);
+        _transcripts.Changed += (_, _) => ApplyTranscripts();
 
         RefreshCommand = new RelayCommand(_ => Refresh());
         FocusCardCommand = new RelayCommand(FocusCard, CanFocusCard);
@@ -1208,16 +1210,7 @@ public sealed class ShellViewModel : ObservableObject
                                && _stopRequests.Waiting(pendingFor) is not null;
             card.RunningAs = live ? RunningAs.For(card.Title, session?.Name) : string.Empty;
 
-            // Only for a card that is offering Restart. Measuring a transcript is a read of a file
-            // that runs to tens of megabytes, and there is nothing to say about a session that is
-            // already running.
-            var measured = live ? default : TranscriptTail.Measure(card.Workstream.LastSessionId);
-
-            card.CanResume = measured.TotalBytes > 0;
-            card.ResumeTooltip = Theseus.Core.Domain.RestartCost.Tooltip(measured.TailBytes, measured.TotalBytes);
-            card.RestartCost = live
-                ? string.Empty
-                : StartModeChoice.Tooltip(preferred, card.CanResume, card.ResumeTooltip);
+            ApplyTranscript(card, live, preferred);
 
             // The other way to start, whichever the board prefers. Named explicitly in the log: the
             // caller's own name here would be this method's, which says nothing about the gesture.
@@ -1252,12 +1245,11 @@ public sealed class ShellViewModel : ObservableObject
             card.PauseCommand ??= new RelayCommand(_ => Pause(card));
             card.MenuPauseCommand ??= new RelayCommand(_ => PauseAll(Targets(card), pause: !card.IsPaused));
             card.PropertiesCommand ??= new RelayCommand(_ => ShowCard(card));
-
-            // Read for every card with a transcript, live or not: which model a stopped session was
-            // on is worth knowing before restarting it. Cheap when nothing has changed - the reader
-            // remembers its answer against the file's length - and a tail read otherwise.
-            card.Model = TranscriptModel.Read(card.Workstream.LastSessionId);
         }
+
+        // Every card with a transcript, live or not: which model a stopped session was on is worth
+        // knowing before restarting it.
+        _transcripts.Refresh([.. Board.Cards.Select(card => (card.Workstream.LastSessionId, card.IsLive))]);
 
         Chains?.Update();
 
@@ -1266,6 +1258,32 @@ public sealed class ShellViewModel : ObservableObject
         SyncClashes(handoffs);
         PublishSnapshot(handoffs);
         CloseFinishedSessions();
+    }
+
+    /// <summary>Shows on every card what the transcripts have told the board so far.</summary>
+    private void ApplyTranscripts()
+    {
+        var preferred = _settings.Read().DefaultStartMode;
+
+        foreach (var card in Board.Cards)
+        {
+            ApplyTranscript(card, card.IsLive, preferred);
+        }
+    }
+
+    // The restart cost is only for a card that is offering Restart: there is nothing to say about a
+    // session that is already running.
+    private void ApplyTranscript(WorkstreamCardViewModel card, bool live, StartMode preferred)
+    {
+        var fact = _transcripts.Known(card.Workstream.LastSessionId);
+        var measured = live ? default : fact.Measured;
+
+        card.CanResume = measured.TotalBytes > 0;
+        card.ResumeTooltip = Theseus.Core.Domain.RestartCost.Tooltip(measured.TailBytes, measured.TotalBytes);
+        card.RestartCost = live
+            ? string.Empty
+            : StartModeChoice.Tooltip(preferred, card.CanResume, card.ResumeTooltip);
+        card.Model = fact.Model ?? string.Empty;
     }
 
     private void PublishSnapshot(Dictionary<WorkstreamCardViewModel, string> handoffs) =>
