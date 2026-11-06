@@ -11,6 +11,8 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     private DateTimeOffset? _lastExitedUtc;
     private DateTimeOffset? _lastStartedUtc;
     private string _todoSummary = string.Empty;
+    private string _resources = string.Empty;
+    private string _resourcesTooltip = string.Empty;
     private bool _stopPending;
     private string _runningAs = string.Empty;
     private string _clash = string.Empty;
@@ -343,6 +345,23 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     {
         get => _todoSummary;
         set => Set(ref _todoSummary, value);
+    }
+
+    /// <summary>
+    /// What the running session is using: processor, memory, I/O and agents at work. Empty while
+    /// the session is not running.
+    /// </summary>
+    public string Resources
+    {
+        get => _resources;
+        set => Set(ref _resources, value);
+    }
+
+    /// <summary>The processes behind <see cref="Resources"/>, busiest first.</summary>
+    public string ResourcesTooltip
+    {
+        get => _resourcesTooltip;
+        set => Set(ref _resourcesTooltip, value);
     }
 
     /// <summary>

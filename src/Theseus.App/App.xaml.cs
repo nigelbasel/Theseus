@@ -25,6 +25,7 @@ public partial class App : Application
     private LaunchCoordinator? _launcher;
     private SessionRegistryWatcher? _watcher;
     private UsageViewModel? _usage;
+    private ResourcesViewModel? _resources;
     private AttentionSampler? _attention;
     private GitHubReleaseFeed? _releases;
     private System.Windows.Threading.DispatcherTimer? _updateTimer;
@@ -159,6 +160,11 @@ public partial class App : Application
             new SystemClock());
 
         shell.Usage = _usage;
+
+        _resources = new ResourcesViewModel(
+            () => [.. shell.Board.Cards],
+            sessionId => shell.Sessions.Find(sessionId)?.Pid);
+        shell.Resources = _resources;
 
         _attention = new AttentionSampler(
             () => [.. shell.Board.Cards.Select(card => card.Workstream)],
@@ -318,6 +324,7 @@ public partial class App : Application
             Theseus.Core.Status.TheseusStatusFile.Write(status with { StoppedUtc = DateTimeOffset.UtcNow });
         }
         _usage?.Dispose();
+        _resources?.Dispose();
         _attention?.Dispose();
         _updateTimer?.Stop();
         _releases?.Dispose();

@@ -713,6 +713,12 @@
                                    Text="{Binding TodoSummary}"
                                    Visibility="{Binding TodoSummary, Converter={StaticResource NotEmptyToVisibility}}" />
 
+                        <TextBlock FontSize="11" TextTrimming="CharacterEllipsis"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                   ToolTip="{Binding ResourcesTooltip}"
+                                   Text="{Binding Resources}"
+                                   Visibility="{Binding Resources, Converter={StaticResource NotEmptyToVisibility}}" />
+
                         <TextBlock FontSize="12"
                                    Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                    Text="{Binding StatusLine}" />
@@ -1862,6 +1868,12 @@
                         <Run Text="  ·  " />
                         <Run Text="{Binding SelectionSummary, Mode=OneWay}" />
                     </TextBlock>
+
+                    <TextBlock Text="{Binding Resources.MachineText}" FontSize="11" Margin="18,0,0,0"
+                               VerticalAlignment="Center"
+                               ToolTip="{Binding Resources.MachineTooltip}"
+                               Visibility="{Binding Resources.MachineText, Converter={StaticResource NotEmptyToVisibility}}"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
 
                     <StackPanel Orientation="Horizontal" Margin="18,0,0,0" VerticalAlignment="Center"
                                 Visibility="{Binding Usage.HasReading, Converter={StaticResource BoolToVisibility}}">

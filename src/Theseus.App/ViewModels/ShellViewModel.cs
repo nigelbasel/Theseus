@@ -301,6 +301,9 @@ public sealed class ShellViewModel : ObservableObject
     /// <summary>The account usage shown in the status bar.</summary>
     public UsageViewModel? Usage { get; set; }
 
+    /// <summary>What the sessions and the machine are using, for the cards and the status bar.</summary>
+    public ResourcesViewModel? Resources { get; set; }
+
     /// <summary>The machine's locks, for the strip under the command bar and the status bar.</summary>
     public LocksViewModel? Locks { get; set; }
 
