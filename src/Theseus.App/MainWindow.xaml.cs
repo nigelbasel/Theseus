@@ -289,7 +289,11 @@ public partial class MainWindow : Window
     {
         if (!composer.IsOpen)
         {
-            _composer?.Close();
+            // Cleared here as well as in Closed, so the deferred ShowDialog below sees the window has
+            // gone even if it closes before it was ever shown.
+            var open = _composer;
+            _composer = null;
+            open?.Close();
 
             return;
         }
@@ -311,7 +315,17 @@ public partial class MainWindow : Window
         };
 
         _composer = window;
-        Dispatcher.BeginInvoke(() => window.ShowDialog());
+
+        // A session's approval opens the composer and creates the card in one dispatcher turn, so by
+        // the time this runs the window may already be closed, and showing a closed window throws
+        // (it took the board down on 2026-11-10). Show it only if it is still the open composer.
+        Dispatcher.BeginInvoke(() =>
+        {
+            if (ReferenceEquals(_composer, window) && composer.IsOpen)
+            {
+                window.ShowDialog();
+            }
+        });
     }
 
     private void WatchDayReport()
