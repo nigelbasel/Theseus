@@ -76,9 +76,9 @@ theseus_down_reason() {
   local file="${LOCALAPPDATA:-$HOME/AppData/Local}/Theseus/status.json"
   [ -f "$file" ] || { echo "it has not been started on this machine"; return; }
   local stopped started pid
-  stopped=$(sed -n 's/.*"stoppedUtc": *"\([^"]*\)".*//p' "$file" | head -1)
-  started=$(sed -n 's/.*"startedUtc": *"\([^"]*\)".*//p' "$file" | head -1)
-  pid=$(sed -n 's/.*"processId": *\([0-9]*\).*//p' "$file" | head -1)
+  stopped=$(sed -n 's/.*"stoppedUtc": *"\([^"]*\)".*/\1/p' "$file" | head -1)
+  started=$(sed -n 's/.*"startedUtc": *"\([^"]*\)".*/\1/p' "$file" | head -1)
+  pid=$(sed -n 's/.*"processId": *\([0-9]*\).*/\1/p' "$file" | head -1)
   if [ -n "$stopped" ]; then
     echo "it was closed at ${stopped:11:5} UTC"
   elif [ -n "$pid" ] && ! tasklist //FI "PID eq $pid" 2>/dev/null | grep -qi theseus; then

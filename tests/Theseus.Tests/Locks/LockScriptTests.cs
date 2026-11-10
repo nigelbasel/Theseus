@@ -124,6 +124,32 @@ public class LockScriptTests
         Assert.That(output, Does.Contain("THESEUS NOT REACHABLE"));
     }
 
+    /// <summary>
+    /// The reason is read out of Theseus's status file with sed. Its back-references were once
+    /// written as a raw control character, so every reason came out as "stopped unexpectedly" with a
+    /// blank time, whatever the file said. Waits one poll (15 s) to reach the announcement.
+    /// </summary>
+    [TestCase("\"stoppedUtc\": \"2026-11-10T08:20:15+00:00\"", "it was closed at 08:20 UTC")]
+    [TestCase("\"stoppedUtc\": null", "it stopped unexpectedly, having started at 07:05 UTC")]
+    public void TheseusNotRunning_WhileWaiting_SaysWhyFromItsStatusFile(string stopped, string reason)
+    {
+        _url = "http://localhost:1/locks";
+        var localAppData = Path.Combine(_directory, "LocalAppData");
+        Directory.CreateDirectory(Path.Combine(localAppData, "Theseus"));
+        File.WriteAllText(Path.Combine(localAppData, "Theseus", "status.json"),
+            "{\n  \"processId\": 999999,\n  \"startedUtc\": \"2026-11-10T07:05:00+00:00\",\n  " + stopped + "\n}\n");
+
+        var (exitCode, output) = Script("run \"Release checks\" \"Contacts.Tests\" -- bash -c 'exit 0'",
+            new Dictionary<string, string>
+            {
+                ["LOCALAPPDATA"] = localAppData.Replace('\\', '/'),
+                ["NDC_TEST_LOCK_WAIT"] = "1",
+            });
+
+        Assert.That(exitCode, Is.EqualTo(1), output);
+        Assert.That(output, Does.Contain($"Theseus is not running ({reason})"));
+    }
+
     [Test]
     public void AnOldStyleLockWhoseHolderHasGone_IsClearedAndDoesNotBlock()
     {
@@ -213,14 +239,14 @@ public class LockScriptTests
         _book.Attach(answer.Token!, Environment.ProcessId);
     }
 
-    private (int ExitCode, string Output) Script(string arguments)
+    private (int ExitCode, string Output) Script(string arguments, IReadOnlyDictionary<string, string>? environment = null)
     {
         var script = Path.Combine(RepositoryRoot(), "tools", "locks", "ndc-test-lock.sh").Replace('\\', '/');
 
-        return Bash($"\"{script}\" {arguments}");
+        return Bash($"\"{script}\" {arguments}", environment);
     }
 
-    private (int ExitCode, string Output) Bash(string commandLine)
+    private (int ExitCode, string Output) Bash(string commandLine, IReadOnlyDictionary<string, string>? environment = null)
     {
         var start = new ProcessStartInfo(GitBash)
         {
@@ -234,6 +260,11 @@ public class LockScriptTests
         start.ArgumentList.Add(commandLine);
         start.Environment["THESEUS_LOCKS_URL"] = _url;
         start.Environment["NDC_TEST_LOCK_DIR"] = LegacyLockDirectory.Replace('\\', '/');
+
+        foreach (var (name, value) in environment ?? new Dictionary<string, string>())
+        {
+            start.Environment[name] = value;
+        }
 
         using var process = Process.Start(start)!;
         var output = process.StandardOutput.ReadToEndAsync();
