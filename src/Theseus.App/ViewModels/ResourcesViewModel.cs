@@ -22,7 +22,7 @@ public sealed class ResourcesViewModel : ObservableObject, IDisposable
     private const string MachineExplanation =
         "Share of the whole machine's processors.\n" +
         "sessions: every session's Claude Code process and everything it has started.\n" +
-        "Defender: Microsoft Defender's scanning engine. It rises when sessions open or write many files.\n" +
+        "Defender: Microsoft Defender's scanning engine and its Defender for Endpoint sensor. It rises when sessions open or write many files, or start many processes.\n" +
         "Docker: the WSL virtual machine that Docker's containers run in.";
 
     private readonly Func<IReadOnlyList<WorkstreamCardViewModel>> _cards;

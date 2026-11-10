@@ -121,6 +121,23 @@ public class ResourceSamplerTests
     }
 
     [Test]
+    public void TheDefenderShare_IncludesTheDefenderForEndpointSensor()
+    {
+        var sampler = new ResourceSampler(1);
+        sampler.Take(Table(First, idle: 0, total: 0,
+            new ProcessCounters(10, 4, "MsMpEng", Older, 0, 0, 0),
+            new ProcessCounters(12, 4, "MsSense", Older, 0, 0, 0),
+            new ProcessCounters(13, 4, "SenseNDR", Older, 0, 0, 0)), []);
+
+        var reading = sampler.Take(Table(Second, idle: 0, total: 10 * Second1,
+            new ProcessCounters(10, 4, "MsMpEng", Older, Second1, 0, 0),
+            new ProcessCounters(12, 4, "MsSense", Older, Second1, 0, 0),
+            new ProcessCounters(13, 4, "SenseNDR", Older, Second1, 0, 0)), []);
+
+        Assert.That(reading.Machine.DefenderPercent, Is.EqualTo(60).Within(0.001), "3s of processor time in 5s on 1 processor");
+    }
+
+    [Test]
     public void ASessionWhoseProcessHasGone_HasNoReading()
     {
         var reading = new ResourceSampler(4).Take(Table(First, 0, 0, Claude(100, 0, 0)), [100]);

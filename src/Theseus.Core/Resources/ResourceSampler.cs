@@ -6,9 +6,13 @@ namespace Theseus.Core.Resources;
 /// </summary>
 public sealed class ResourceSampler
 {
-    /// <summary>The processes that are Microsoft Defender's scanning engine.</summary>
+    /// <summary>
+    /// The processes that are Microsoft Defender: the antivirus engine, and the Defender for Endpoint
+    /// sensor, which watches every process start, file write and connection separately from it.
+    /// </summary>
     public static readonly IReadOnlySet<string> Defender =
-        new HashSet<string>(["MsMpEng", "MpDefenderCoreService"], StringComparer.OrdinalIgnoreCase);
+        new HashSet<string>(["MsMpEng", "MpDefenderCoreService", "MsSense", "SenseNdr", "SenseIR", "SenseCncProxy", "SenseTVM"],
+            StringComparer.OrdinalIgnoreCase);
 
     /// <summary>The processes that are the virtual machine Docker Desktop's containers run in.</summary>
     public static readonly IReadOnlySet<string> Docker =
