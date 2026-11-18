@@ -1,5 +1,53 @@
 # stop-timing: evidence
 
+## Part 2: live check on a running board (2026-11-18)
+
+Board and hook at v2026.11.18.26389 (built from e414465), confirmed from the running files. Two scratch cards, made
+from proposals Nigel approved: "Stop check: hands over" and "Stop check: stays idle". Nigel pressed the buttons and
+typed in the tabs; the implementer read the Theseus log (`%LOCALAPPDATA%\Theseus\logs\theseus-20261118.log`) and the
+stop-request files. Every time below is from the log or a file time.
+
+| Run | What happened | Log line, verbatim |
+|---|---|---|
+| Hands over | Stop 15:17:12.5; Theseus nudged the idle session itself; `/exit` typed 15:18:43.8; the tab closed by itself | `Stop of stop-check-hands-over finished in 91.3s: delivered after 0.5s, handoff 3.5s later, /exit 87.3s after that` |
+| Stays idle, 1st | Stop 15:19:15.4, nudged and delivered, so it handed over rather than staying undelivered. The card still showed Stop; Nigel pressed Stop again at 15:19:52.4 and `/exit` was typed 0.7 s later | `Stop of stop-check-stays-idle finished in 37.7s: delivered after 0.6s, handoff 9.5s later, /exit 27.7s after that` |
+| Stays idle, 2nd (resumed, same session id) | Stop 15:23:06.7, delivered 15:23:07.2 (the stamp is on disk: `"deliveredUtc":"2026-11-18T15:23:07.16..."`), handoff 15:23:18.3. Never closed: no log line at all from 15:23:18 to 15:34:20, through Focus, F5 and the Refresh button. Nigel typed `/exit` himself | none (correct: the stop did not finish, and its request is still on disk) |
+
+### Against the spec
+
+- **AC 1, 2, 3, 7, 8 seen working live:** the installed hook stamped the delivery time; each finished stop logged one
+  line with all four figures, matching the surrounding log timestamps; stopping behaved as before.
+- **AC 5, 6 (unfinished stops):** not yet seen live. The "stays idle" card could not stay undelivered, because Theseus
+  nudges an idle session (which the implementer did not foresee). The second run's request is still on disk, so the
+  next start of that card will be reported as unfinished ("started again ... handed over, but /exit was never
+  typed"); otherwise that path rests on part 1's tests.
+
+### Defects found (all predate stop-timing; none is caused by it)
+
+- **L3 (defect, confirmed): a session resumed under the same id is never closed by a second stop.** `ShellViewModel`
+  keeps `_closed`, the sessions it has typed `/exit` into, in memory, and nothing removes an entry. A resumed session
+  keeps its id, so after one closed stop every later stop of it in the same Theseus run hands over and then waits
+  forever (`SessionClosing.ShouldClose` is given `alreadyAsked = true`). Seen in the second run; read in the code
+  (`_closed` is only added to, lines 44, 1334, 1339).
+- **L1 (unconfirmed): closes can come well after the 20 s quiet period.** 87.3 s on the first card. The close step
+  runs only in `Refresh()`, which runs on session-registry changes, link changes, edits and F5, not on a timer; a
+  session that goes idle produces its last event when it has been quiet for 0 s. That would explain it, but the
+  first card's close came without a user action, so something else triggered it; not proved.
+- **L2 (UX): a card shows no sign that a stop is under way**, so a stop looks as if nothing happened and invites a
+  second press (Nigel did, at 15:19:52).
+- Corrected during the check: the implementer first said pressing Focus re-read the sessions. It does not; it only
+  makes WPF re-check which buttons are enabled. The Start button that came back after Focus was that, not a refresh.
+
+### Verdict, part 2
+
+**Passes** for what stop-timing adds: delivery is stamped, and finished stops are timed correctly and logged once. The
+unfinished path is not yet seen live. L3 is a real defect in stopping, found because of this work; L1 and L2 are
+smaller. Whether and how to take them on is Nigel's decision.
+
+---
+
+## Part 1, attempt 2
+
 Pipeline: `feature` (method kit v0), stage **verify, part 1 of 2**, **attempt 2** (a re-verify of the fix round).
 Part 2 is a live check on a running board, by Nigel. Autonomy L0. Card git-22, branch `main`, repo Theseus, commit
 `ee9a529` (the fix round), compared with `a565dd7`. The first attempt is in `evidence-part1-attempt1.md`.
