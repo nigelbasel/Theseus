@@ -27,4 +27,11 @@ public sealed record PendingStopRequest(
     /// and reading a path back out of a sentence is not a way to decide anything.
     /// </summary>
     public string? HandoffPath { get; init; }
+
+    /// <summary>
+    /// When the stop hook handed the request to its session, which is when the session's turn ended. Null on a
+    /// request claimed by a hook older than this field, or whose time could not be written (stop-timing,
+    /// 2026-11-18).
+    /// </summary>
+    public DateTimeOffset? DeliveredUtc { get; init; }
 }

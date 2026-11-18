@@ -13,8 +13,10 @@ public interface IStopRequestStore
 
     /// <summary>
     /// Takes the request for one session, if there is one, so that nothing else can take it too.
+    /// <paramref name="deliveredUtc"/>, when given, is recorded on the request as the moment it was handed
+    /// over; failing to record it never fails the claim.
     /// </summary>
-    PendingStopRequest? Claim(string sessionId);
+    PendingStopRequest? Claim(string sessionId, DateTimeOffset? deliveredUtc = null);
 
     /// <summary>The request waiting for one session, without taking it.</summary>
     PendingStopRequest? Waiting(string sessionId);

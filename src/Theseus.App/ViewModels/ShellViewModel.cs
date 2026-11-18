@@ -1320,6 +1320,7 @@ public sealed class ShellViewModel : ObservableObject
             if (delivered is not null && SessionClosing.StartedSince(delivered, session.StartedUtc))
             {
                 _stopRequests.Retire(sessionId);
+                StopTiming.ReportUnfinished(delivered, delivered: true, StopRemoval.NewerSession, DateTimeOffset.UtcNow);
                 TheseusLog.Information(
                     "Retired the stop request for {Workstream}: the session running now started after it was asked, so it is not the one that was asked",
                     card.Key);
@@ -1347,6 +1348,7 @@ public sealed class ShellViewModel : ObservableObject
             if (outcome == NudgeOutcome.Sent)
             {
                 _stopRequests.Retire(sessionId);
+                StopTiming.ReportFinished(delivered!, DateTimeOffset.UtcNow);
 
                 // The one ending Theseus can be certain of, recorded at the moment it is caused.
                 // Nothing else was recording it: the reconcile only writes an ending when a session
@@ -1488,7 +1490,12 @@ public sealed class ShellViewModel : ObservableObject
 
         foreach (var sessionId in _unconfirmed)
         {
-            _stopRequests.Retire(sessionId);
+            var handed = _stopRequests.Delivered(sessionId);
+
+            if (_stopRequests.Retire(sessionId) && handed is not null)
+            {
+                StopTiming.ReportUnfinished(handed, delivered: true, StopRemoval.Declined, DateTimeOffset.UtcNow);
+            }
         }
 
         _unconfirmed.Clear();
@@ -1678,20 +1685,34 @@ public sealed class ShellViewModel : ObservableObject
             // identifier, so a request nobody collected outlives the session it was meant for and is
             // handed to the next one on its opening prompt - told to write a handoff and exit before
             // it has done anything at all.
+            var undelivered = _stopRequests.Waiting(sessionId);
+
             if (_stopRequests.Cancel(sessionId))
             {
                 TheseusLog.Information(
                     "Withdrew the stop request for {Workstream}, which is being started again", workstream.Key);
+
+                if (undelivered is not null)
+                {
+                    StopTiming.ReportUnfinished(undelivered, delivered: false, StopRemoval.StartedAgain, DateTimeOffset.UtcNow);
+                }
             }
 
             // A request already handed over is finished with too. On 2026-10-07 a workstream was asked
             // to stop, handed over, and was never closed; Nigel restarted it, and because the resumed
             // session kept the same identifier, the delivered request was still on disk. Two minutes
             // later the close step found it idle with a fresh handoff and typed /exit into the new one.
+            var handed = _stopRequests.Delivered(sessionId);
+
             if (_stopRequests.Retire(sessionId))
             {
                 TheseusLog.Information(
                     "Retired the delivered stop request for {Workstream}, which is being started again", workstream.Key);
+
+                if (handed is not null)
+                {
+                    StopTiming.ReportUnfinished(handed, delivered: true, StopRemoval.StartedAgain, DateTimeOffset.UtcNow);
+                }
             }
 
             Remember(workstream, sessionId);

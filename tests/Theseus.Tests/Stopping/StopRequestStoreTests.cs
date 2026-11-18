@@ -103,6 +103,26 @@ public class StopRequestStoreTests
         Assert.That(_store.Pending(), Is.Empty);
     }
 
+    [Test]
+    public void Claim_RecordsWhenTheRequestWasDelivered()
+    {
+        var delivered = new DateTimeOffset(2026, 11, 18, 13, 46, 21, TimeSpan.Zero);
+        _store.Write(Request());
+
+        var claimed = _store.Claim(SessionId, delivered)!;
+
+        Assert.That(claimed.DeliveredUtc, Is.EqualTo(delivered));
+        Assert.That(_store.Delivered(SessionId)!.DeliveredUtc, Is.EqualTo(delivered), "kept on disk for the close step to read");
+    }
+
+    [Test]
+    public void ARequestDeliveredByAnOlderHook_HasNoDeliveryTime()
+    {
+        _store.Write(Request());
+
+        Assert.That(_store.Claim(SessionId)!.DeliveredUtc, Is.Null);
+    }
+
     private static PendingStopRequest Request() =>
         new(SessionId, "contact-forms", "Contact forms", "Write a handoff and stop.",
             DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(2));

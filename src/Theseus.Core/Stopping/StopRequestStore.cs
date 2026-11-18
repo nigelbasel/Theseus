@@ -13,8 +13,9 @@ namespace Theseus.Core.Stopping;
 /// session asked to stop must be asked once. Told twice - by two hooks, or by a session forked onto
 /// the same identifier - it would write its handoff, exit, and be interrupted again on the way out.
 ///
-/// The move is also the receipt. What was delivered, and when, is on disk without a second file to
-/// keep in step with the first.
+/// The move is also the receipt: what was delivered is on disk without a second file to keep in step with
+/// the first. When it was delivered is written into the moved file (<see cref="PendingStopRequest.DeliveredUtc"/>),
+/// because a move keeps the file's original time.
 /// </summary>
 public sealed class StopRequestStore : IStopRequestStore
 {
@@ -74,7 +75,7 @@ public sealed class StopRequestStore : IStopRequestStore
     }
 
     /// <inheritdoc />
-    public PendingStopRequest? Claim(string sessionId)
+    public PendingStopRequest? Claim(string sessionId, DateTimeOffset? deliveredUtc = null)
     {
         if (StopRequestPath.For(_root, sessionId) is not { } pending
             || StopRequestPath.For(_root, sessionId, StopRequestPath.DeliveredFolder) is not { } delivered)
@@ -92,7 +93,27 @@ public sealed class StopRequestStore : IStopRequestStore
             return null;
         }
 
-        return Parse(delivered);
+        var request = Parse(delivered);
+
+        if (request is null || deliveredUtc is not { } when)
+        {
+            return request;
+        }
+
+        // The stamp is a record, not part of the delivery: the request is already claimed, and failing to
+        // note when must never stop the session being told.
+        var stamped = request with { DeliveredUtc = when };
+
+        try
+        {
+            File.WriteAllText(delivered, JsonSerializer.Serialize(stamped, TheseusJson.Compact));
+
+            return stamped;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            return request;
+        }
     }
 
     /// <inheritdoc />
@@ -185,6 +206,7 @@ public sealed class StopRequestStore : IStopRequestStore
         {
             if (Cancel(stale.SessionId))
             {
+                StopTiming.ReportUnfinished(stale, delivered: false, StopRemoval.Expired, now);
                 gone++;
             }
         }
@@ -196,13 +218,9 @@ public sealed class StopRequestStore : IStopRequestStore
         {
             if (Retire(stale.SessionId))
             {
+                StopTiming.ReportUnfinished(stale, delivered: true, StopRemoval.Expired, now);
                 gone++;
             }
-        }
-
-        if (gone > 0)
-        {
-            TheseusLog.Debug("Discarded {Count} stop request(s) nothing had come back for", gone);
         }
 
         return gone;

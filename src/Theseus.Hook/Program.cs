@@ -54,7 +54,7 @@ try
     var waiting = store.Waiting(sessionId);
 
     if (StopHookDecision.Deliver(input, waiting, DateTimeOffset.UtcNow) is null
-        || store.Claim(sessionId) is not { } request)
+        || store.Claim(sessionId, DateTimeOffset.UtcNow) is not { } request)
     {
         // Nothing to stop for. A session Theseus launched is told, once, if Theseus has stopped or
         // restarted since it last looked: it cannot be told by Theseus itself once Theseus is gone.
