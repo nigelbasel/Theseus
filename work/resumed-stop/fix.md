@@ -58,3 +58,23 @@ Known limits:
 |---|---|---|---|
 | rule | 2026-11-18 16:48:58 (logged) | 16:49:25 (commit 6063b09) | Approved by Nigel |
 | fix | 16:50:08 (logged) | this commit's time | Full suite 1481/1481 |
+
+## Pass 2 (after verify part 1, `evidence-part1-attempt1.md`; option A, Nigel)
+
+Part 1 passed with no defects and five gaps. Fixed:
+
+| Gap | Change |
+|---|---|
+| G3 | Rule 4 kept the time of **any** waiting request, including one left by an earlier run of the session (resumed outside the board's Start), which made the close step take the new stop for an earlier process's and never close it. `StopRequestStore.Write` now takes the running session's start: a waiting request asked before it is reported ("did not finish (a newer session is running ...)") and replaced by a fresh stop; one from this run keeps its first time, as rule 4 says |
+| G1 | A second press on a stop held back when the board opened said it "closes once it has handed over"; it closes only once agreed to. The notice now says to press **Close them** |
+| G5 | `Sweep`'s `finished` check is tested, with the real log read back (the pattern `LinkBookLoggingTests` already uses) |
+
+Tests: new file `tests/Theseus.Tests/Stopping/StopRequestStoreLoggingTests.cs` (4 tests). The two G3 tests failed to build
+before the change; the two G5 tests cover code that already existed. No existing test file changed. Full suite
+**1485 of 1485**, 0 warnings.
+
+Recorded as limits, not fixed: **G2** (if the board briefly cannot find the session, a second press asks again, as
+before the fix); **G4** (a millisecond race between the hook's claim and a second press). And a correction to the
+wording above: rule 3's "delivered by this process" is, in the code, "delivered to the session running now".
+
+Lesson for stop-timing: its "untested report methods" (review F8) could have been tested the same way.

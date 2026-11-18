@@ -5,8 +5,12 @@ namespace Theseus.Core.Abstractions;
 /// <summary>Where stop requests wait between the board asking and a session being told.</summary>
 public interface IStopRequestStore
 {
-    /// <summary>Records a request for one session, replacing any it has not yet been given.</summary>
-    void Write(PendingStopRequest request);
+    /// <summary>
+    /// Records a request for one session, replacing any it has not yet been given. A request still waiting from this
+    /// run of the session keeps its first time; one from an earlier run (asked before
+    /// <paramref name="sessionStartedUtc"/>) is reported as unfinished and replaced.
+    /// </summary>
+    void Write(PendingStopRequest request, DateTimeOffset? sessionStartedUtc = null);
 
     /// <summary>Withdraws an undelivered request. A request already given cannot be taken back.</summary>
     bool Cancel(string sessionId);

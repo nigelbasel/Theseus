@@ -932,6 +932,7 @@ public sealed class ShellViewModel : ObservableObject
         var blocked = 0;
         var interrupted = 0;
         var underway = 0;
+        var heldBack = 0;
 
         foreach (var step in steps)
         {
@@ -948,7 +949,17 @@ public sealed class ShellViewModel : ObservableObject
                 case StopRoute.AlreadyDelivered:
                     TheseusLog.Information(
                         "Did not ask {Workstream} again: it has already been handed its stop", step.WorkstreamKey);
-                    underway++;
+
+                    // A stop held back when the board opened only closes once it is agreed to (fix pass 2, G1).
+                    if (_unconfirmed.Contains(step.SessionId))
+                    {
+                        heldBack++;
+                    }
+                    else
+                    {
+                        underway++;
+                    }
+
                     break;
 
                 case StopRoute.WaitForTurnEnd:
@@ -1012,21 +1023,29 @@ public sealed class ShellViewModel : ObservableObject
 
         // The refresh runs the close step, so a session already handed over and quiet is closed on this press.
         Refresh();
-        Notice = Describe(asked, waiting, unreached, blocked, interrupted, underway);
+        Notice = Describe(asked, waiting, unreached, blocked, interrupted, underway, heldBack);
     }
 
     /// <summary>
     /// What was actually set in motion. A session that has been asked has not yet been told: the
     /// request waits until its next turn ends, so saying it has stopped would be ahead of the facts.
     /// </summary>
-    private static string Describe(int asked, int waiting, int unreached, int blocked, int interrupted, int underway = 0)
+    private static string Describe(int asked, int waiting, int unreached, int blocked, int interrupted, int underway = 0,
+        int heldBack = 0)
     {
-        if (asked == 0 && unreached == 0 && blocked == 0 && interrupted == 0 && underway == 0)
+        if (asked == 0 && unreached == 0 && blocked == 0 && interrupted == 0 && underway == 0 && heldBack == 0)
         {
             return "Nothing to stop.";
         }
 
         var said = new List<string>();
+
+        if (heldBack > 0)
+        {
+            said.Add(heldBack == 1
+                ? "That session's stop was held back when the board opened; press Close them to finish it."
+                : $"{heldBack} sessions' stops were held back when the board opened; press Close them to finish them.");
+        }
 
         if (underway == 1)
         {
@@ -1086,7 +1105,7 @@ public sealed class ShellViewModel : ObservableObject
             DateTimeOffset.UtcNow.Add(StopRequestLife))
         {
             HandoffPath = step.HandoffPath,
-        });
+        }, Sessions.Find(step.SessionId)?.StartedUtc);
 
         TheseusLog.Information("Asked {Workstream} ({SessionId}) to stop", step.WorkstreamKey, step.SessionId);
     }

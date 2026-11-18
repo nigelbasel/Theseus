@@ -25,7 +25,7 @@ public sealed class StopRequestStore : IStopRequestStore
     public StopRequestStore(string root) => _root = root;
 
     /// <inheritdoc />
-    public void Write(PendingStopRequest request)
+    public void Write(PendingStopRequest request, DateTimeOffset? sessionStartedUtc = null)
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -37,10 +37,19 @@ public sealed class StopRequestStore : IStopRequestStore
         }
 
         // Asking again while the request still waits is the same stop: it keeps the moment it was first asked, so
-        // its figures run from the first press (resumed-stop rule 4, Nigel 2026-11-18).
+        // its figures run from the first press (resumed-stop rule 4, Nigel 2026-11-18). Unless the waiting request
+        // was asked before the session now running started: that was an earlier run's stop, never delivered, and
+        // keeping its time would make the close step take this stop for an earlier process's (fix pass 2, G3).
         if (Waiting(request.SessionId) is { } waiting)
         {
-            request = request with { RequestedUtc = waiting.RequestedUtc };
+            if (sessionStartedUtc is { } started && SessionClosing.StartedSince(waiting, started))
+            {
+                StopTiming.ReportUnfinished(waiting, delivered: false, StopRemoval.NewerSession, request.RequestedUtc);
+            }
+            else
+            {
+                request = request with { RequestedUtc = waiting.RequestedUtc };
+            }
         }
 
         try
