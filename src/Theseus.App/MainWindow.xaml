@@ -700,11 +700,26 @@
                                                  DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}" />
                                 </Button.ContextMenu>
                             </Button>
+                            <!--
+                                The branch line (card-branches, Nigel 2026-11-18): worded in Core, one line however
+                                many repos the card covers, the list in the tooltip, and the caution colour when the
+                                repos are not all on one branch.
+                            -->
                             <TextBlock FontSize="11" Margin="4,0,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-                                       MaxWidth="220" ToolTip="{Binding Branch, StringFormat='The branch checked out in this working directory: {0}'}"
-                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}"
-                                       Text="{Binding Branch, StringFormat='on {0}'}"
-                                       Visibility="{Binding Branch, Converter={StaticResource NotEmptyToVisibility}}" />
+                                       MaxWidth="220" ToolTip="{Binding BranchTooltip}"
+                                       Text="{Binding Branch}"
+                                       Visibility="{Binding Branch, Converter={StaticResource NotEmptyToVisibility}}">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="{DynamicResource TextFillColorTertiaryBrush}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding BranchesDiffer}" Value="True">
+                                                <Setter Property="Foreground" Value="#D68910" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
                         </WrapPanel>
 
                         <TextBlock FontSize="12" TextTrimming="CharacterEllipsis"

@@ -36,6 +36,8 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     private IReadOnlyList<CardItemRow> _jiraItems = [];
     private IReadOnlyList<CardItemRow> _pullRequestItems = [];
     private string _branch = string.Empty;
+    private string _branchTooltip = string.Empty;
+    private bool _branchesDiffer;
     private DateTimeOffset? _lifecycleSinceUtc;
 
     /// <summary>Creates a card over a workstream.</summary>
@@ -125,11 +127,28 @@ public sealed class WorkstreamCardViewModel : ObservableObject
         }
     }
 
-    /// <summary>The branch the card's working directory has checked out, or empty.</summary>
+    /// <summary>
+    /// The card's branch line, worded in Core (<see cref="Theseus.Core.Domain.BranchLines"/>): "on main", "on
+    /// user/feature · 3 repos" or "branches differ"; empty when there is nothing to show.
+    /// </summary>
     public string Branch
     {
         get => _branch;
         set => Set(ref _branch, value);
+    }
+
+    /// <summary>What hovering the branch line says: the branch of each of the card's repos.</summary>
+    public string BranchTooltip
+    {
+        get => _branchTooltip;
+        set => Set(ref _branchTooltip, value);
+    }
+
+    /// <summary>Whether the card's repos are not all on the same branch.</summary>
+    public bool BranchesDiffer
+    {
+        get => _branchesDiffer;
+        set => Set(ref _branchesDiffer, value);
     }
 
     /// <summary>What the Jira drop-down's button says.</summary>

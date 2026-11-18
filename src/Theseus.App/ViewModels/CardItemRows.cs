@@ -35,7 +35,7 @@ public static class CardItemRows
             var number = link.Number.ToString(System.Globalization.CultureInfo.InvariantCulture);
             var item = titles.GetValueOrDefault(number);
 
-            return new CardItemRow($"PR {link.Number}", item?.Title ?? titleOf?.Invoke(number), item?.Url ?? link.Url);
+            return new CardItemRow($"PR {link.Number}", item?.Title ?? titleOf?.Invoke(number) ?? link.Note, item?.Url ?? link.Url);
         }).ToList();
 
         var named = mentioned.Select(link => link.Number.ToString(System.Globalization.CultureInfo.InvariantCulture))

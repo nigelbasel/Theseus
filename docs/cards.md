@@ -46,6 +46,6 @@ Hover over any button to see what it does.
 | **Paused** or **Blocked** in amber | A mark you set. See [the board](board.md#paused-and-blocked). |
 | **Jira 12 ▾** | The card's Jira issues. Click to list them with their titles and open one. Keys come from the opening prompt, the card itself and the session's plan file; titles come from the session, which reports each issue it works on. Taking a key off a card is remembered. |
 | **PR 22174 ▾** | The card's pull requests, with titles where the session reported them. |
-| on nigel/ledger | The git branch checked out in the card's working directory. |
+| on nigel/ledger | The git branch checked out. If the card's extra directories include repositories (a clone, a worktree, or a feature folder holding several), it is their branch: "on nigel/ledger · 3 repos" when they agree, **branches differ** in amber when they do not, with each repository's branch in the tooltip. Otherwise it is the branch of the card's working directory. |
 | "shares … with …" in amber | Two workstreams share a handover document or a Jira issue. Two sessions writing the same file overwrite each other without either noticing, so give one its own document in its details. |
 | "Restarted outside Theseus" | A session is running in this workstream's folder that the board is not following. **Adopt** it. |

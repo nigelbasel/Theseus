@@ -1194,7 +1194,10 @@ public sealed class ShellViewModel : ObservableObject
             var recorded = WorkItems?.For(card.Key) ?? [];
 
             card.PullRequests = _pullRequests.Resolve(card.Workstream);
-            card.Branch = GitBranchReader.Read(card.Workstream.WorkingDirectory) ?? string.Empty;
+            var line = BranchLines.For(card.Workstream.WorkingDirectory, CardRepos.Read(card.Workstream.AddDirectories));
+            card.Branch = line.Text;
+            card.BranchTooltip = line.Tooltip;
+            card.BranchesDiffer = line.Differs;
             card.SetItems(
                 CardItemRows.Jira(card.JiraKeys, recorded, jiraBase, key => WorkItems?.TitleOf(WorkItemKind.Jira, key)),
                 CardItemRows.PullRequests(card.PullRequests, recorded, number => WorkItems?.TitleOf(WorkItemKind.PullRequest, number)));
