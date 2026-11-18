@@ -11,17 +11,33 @@ namespace Theseus.Core.Stopping;
 public sealed class ExitsTyped
 {
     private readonly HashSet<(string Session, DateTimeOffset Asked)> _stops = new(new StopComparer());
+    private readonly HashSet<(string Session, DateTimeOffset Asked)> _finished = new(new StopComparer());
 
-    /// <summary>Whether /exit has already been typed for this stop.</summary>
+    /// <summary>Whether /exit has already been tried for this stop, landed or not. It is never tried twice.</summary>
     public bool AlreadyTyped(PendingStopRequest? request) =>
         request is not null && _stops.Contains((request.SessionId, request.RequestedUtc));
 
-    /// <summary>Records that /exit has been typed for this stop.</summary>
+    /// <summary>Records that /exit has been tried for this stop.</summary>
     public void Typed(PendingStopRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
 
         _stops.Add((request.SessionId, request.RequestedUtc));
+    }
+
+    /// <summary>
+    /// Whether /exit landed for this stop, so that it has finished. Tried is not finished: keystrokes that did not
+    /// land leave the stop unfinished, and it is reported as such when it is removed (resumed-stop review S1).
+    /// </summary>
+    public bool IsFinished(PendingStopRequest? request) =>
+        request is not null && _finished.Contains((request.SessionId, request.RequestedUtc));
+
+    /// <summary>Records that /exit landed for this stop.</summary>
+    public void Finished(PendingStopRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        _finished.Add((request.SessionId, request.RequestedUtc));
     }
 
     private sealed class StopComparer : IEqualityComparer<(string Session, DateTimeOffset Asked)>

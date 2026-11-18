@@ -76,4 +76,16 @@ public static class SessionClosing
 
         return sessionStartedUtc > request.RequestedUtc;
     }
+
+    /// <summary>
+    /// Whether a delivered stop was handed to an earlier run of the session, not to the one now running. The hook
+    /// hands a waiting request to whichever process has the id, so the moment it was handed over decides, not the
+    /// moment it was asked; a request with no delivery time falls back to when it was asked (resumed-stop review S2).
+    /// </summary>
+    public static bool HandedBefore(PendingStopRequest request, DateTimeOffset sessionStartedUtc)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        return sessionStartedUtc > (request.DeliveredUtc ?? request.RequestedUtc);
+    }
 }

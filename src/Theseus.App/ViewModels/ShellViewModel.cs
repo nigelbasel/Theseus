@@ -635,7 +635,7 @@ public sealed class ShellViewModel : ObservableObject
         // changes both. Without this it would still name a session that had gone.
         Timed("stops", StopsChanged);
         Timed("account", () => SyncAccount());
-        _stopRequests.Sweep(DateTimeOffset.UtcNow, _closed.AlreadyTyped);
+        _stopRequests.Sweep(DateTimeOffset.UtcNow, _closed.IsFinished);
     }
 
     // Start-up has taken anything from 4 seconds to over 2 minutes on the same machine, with nothing
@@ -938,11 +938,11 @@ public sealed class ShellViewModel : ObservableObject
         {
             var alreadyAsked = _stopRequests.Waiting(step.SessionId) is not null;
 
-            // Handed a stop it has not finished, by this very process: a request from before the session now
-            // running started belongs to an earlier one, and the close step retires it as such.
+            // Handed a stop it has not finished, to the session running now: a request handed to an earlier run of
+            // the session belongs to that run, and the close step retires it as such.
             var alreadyDelivered = _stopRequests.Delivered(step.SessionId) is { } handed
                                    && Sessions.Find(step.SessionId) is { } running
-                                   && !SessionClosing.StartedSince(handed, running.StartedUtc);
+                                   && !SessionClosing.HandedBefore(handed, running.StartedUtc);
 
             switch (StopRouting.For(step.Lifecycle, installed, alreadyAsked, alreadyDelivered))
             {
@@ -1043,8 +1043,8 @@ public sealed class ShellViewModel : ObservableObject
         if (heldBack > 0)
         {
             said.Add(heldBack == 1
-                ? "That session's stop was held back when the board opened; press Close them to finish it."
-                : $"{heldBack} sessions' stops were held back when the board opened; press Close them to finish them.");
+                ? "That stop was held back when the board opened. Close them finishes it, with every other held-back stop."
+                : $"{heldBack} of these stops were held back when the board opened. Close them finishes every held-back stop.");
         }
 
         if (underway == 1)
@@ -1358,7 +1358,7 @@ public sealed class ShellViewModel : ObservableObject
 
             if (delivered is not null && SessionClosing.StartedSince(delivered, session.StartedUtc))
             {
-                if (_stopRequests.Retire(sessionId) && !_closed.AlreadyTyped(delivered))
+                if (_stopRequests.Retire(sessionId) && !_closed.IsFinished(delivered))
                 {
                     StopTiming.ReportUnfinished(delivered, delivered: true, StopRemoval.NewerSession, DateTimeOffset.UtcNow);
                 }
@@ -1391,6 +1391,7 @@ public sealed class ShellViewModel : ObservableObject
             // exit, so there is still something to do, and Sweep expires it if that never happens.
             if (outcome == NudgeOutcome.Sent)
             {
+                _closed.Finished(delivered!);
                 _stopRequests.Retire(sessionId);
                 StopTiming.ReportFinished(delivered!, handoffWritten, DateTimeOffset.UtcNow);
 
@@ -1732,7 +1733,7 @@ public sealed class ShellViewModel : ObservableObject
                 TheseusLog.Information(
                     "Retired the delivered stop request for {Workstream}, which is being started again", workstream.Key);
 
-                if (handed is not null && !_closed.AlreadyTyped(handed))
+                if (handed is not null && !_closed.IsFinished(handed))
                 {
                     StopTiming.ReportUnfinished(handed, delivered: true, StopRemoval.StartedAgain, DateTimeOffset.UtcNow);
                 }
