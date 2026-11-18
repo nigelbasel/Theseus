@@ -50,6 +50,11 @@ quoting it cannot be sure of.
    separator anywhere ends a segment. A quoted separator may then cause a refusal; it can never hide a command.
 4. **A `VAR=value` prefix may have a quoted value** (`NDC_TEST_LOCK_REASON="two words"`), as the machine's
    instructions tell sessions to write it.
+0. **What the guard is for (added after verify 3, Nigel, 2026-11-18).** Sessions obey the guard. It protects
+   against *accidents*: a cooperating session's ordinary command being misread, so that a correct command is
+   refused or an unlocked run goes unnoticed. It is not a boundary against a session trying to get round it.
+   Verification therefore asks whether the commands sessions really write are read correctly, not whether some
+   contrived command text can fool it.
 5. Unchanged: a segment that runs the script is a locked run; every other segment is checked; WSL bash is refused
    from PowerShell; the three bypasses listed under Known limits stay out of scope.
 
