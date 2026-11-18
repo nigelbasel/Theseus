@@ -1,5 +1,36 @@
 # resumed-stop: evidence
 
+## Part 2: live check on a running board (2026-11-18, Nigel)
+
+Board 2026.11.18.31498 (built from the fix), one process from 17:31:53 throughout, so its record of typed exits was
+never reset. Card "Stop check: stays idle", session `d616ea10-e23d-4b77-8157-c39be7095633`. Times from the Theseus log.
+
+| Step | What happened | Log |
+|---|---|---|
+| 1. first stop in this board run | Stop 17:34:44.6, delivered 0.5 s later, handoff 11.0 s after that; closed at 17:36:48.7 when Nigel pressed a banner button (a refresh) | `Stop of stop-check-stays-idle finished in 124.1s: delivered after 0.5s, handoff 11.0s later, /exit 112.5s after that` |
+| 2. the same session resumed, stopped again in the **same** board run | Start 19:32:18 (Resume, same id); Stop 19:32:54.2; delivered 1.0 s later; handoff 19:33:01; **closed by itself at 19:34:12.9**, which Nigel saw | `Stop of stop-check-stays-idle finished in 78.8s: delivered after 1.0s, handoff 6.5s later, /exit 71.2s after that` |
+
+**This is the defect, fixed.** Before the fix, step 2's sequence never closed within one board run (15:23 that day:
+eleven minutes, through Focus, F5 and Refresh, until Nigel typed `/exit`).
+
+Also seen live, not part of this change's contract:
+
+- 17:32:31: the leftover 15:23 request, retired when the card was started again, was reported as
+  `did not finish (its card was started again, 2.1h after it was asked): handed over, but /exit was never typed`
+  (stop-timing AC 5, start-again path).
+- 19:18:11: another session's stop expired and was reported as
+  `did not finish (it expired, 4.0h after it was asked): delivered, but no handoff was written` (the expiry path).
+
+Not exercised live: rule 3 (a press on a stop already delivered) and rule 4 (a press while a stop still waits). Both rest
+on part 1's tests.
+
+Observations, not caused by this change: both closes came long after the 20 s quiet period (112.5 s, 71.2 s): L1. During
+step 1 the card showed "Not running" while its session was alive and idle; not explained.
+
+**Verdict, part 2: passes.**
+
+---
+
 Pipeline: `bug` (method kit v0), stage **verify, part 1 of 2, attempt 2** (re-verify of the fix round `d43d6ff`;
 attempt 1 is `evidence-part1-attempt1.md`, which passed `a33e527` with gaps G1-G5). Part 2 is a live check on a
 running board by Nigel. Autonomy L0. Card git-22, branch `main`, repo Theseus, at `d43d6ff` (working tree clean).
