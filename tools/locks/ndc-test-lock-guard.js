@@ -55,6 +55,27 @@ function announceWaitIfHeldByAnother(command, finish) {
   });
 }
 
+// Whether the guard can be sure how a shell reads this command's quotes: every quote balanced, and none of the
+// constructs where bash and PowerShell read quotes differently from each other or from a plain reading. When it
+// cannot be sure it splits as if there were no quotes, which can refuse a correct run but never hide a command
+// (guard-mentions, fix pass 3: fail closed when unsure).
+function quotingIsSimple(command) {
+  if (/\\["']|`|\$'|#|@['"]/.test(command)) {
+    return false;
+  }
+  let quote = null;
+  for (const character of command) {
+    if (quote) {
+      if (character === quote) {
+        quote = null;
+      }
+    } else if (character === '"' || character === "'") {
+      quote = character;
+    }
+  }
+  return quote === null;
+}
+
 // Splits a command line at newlines, &&, ||, ; and | that are outside quotes. A separator inside quotes
 // belongs to the argument it is in (a commit message, a label, the script given to bash -c), not to the line.
 function splitOutsideQuotes(command) {
@@ -100,7 +121,7 @@ function splitOutsideQuotes(command) {
 // The program a command segment starts, and its first argument, after any PowerShell call operator and any
 // VAR=value prefixes.
 function programAndArgument(segment) {
-  const text = segment.trim().replace(/^&\s*/, '').replace(/^(?:[A-Za-z_][A-Za-z0-9_]*=\S*\s+)*/, '');
+  const text = segment.trim().replace(/^&\s*/, '').replace(/^(?:[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|\S*)\s+)*/, '');
   const token = /^\s*(?:"([^"]*)"|'([^']*)'|(\S+))/;
   const first = token.exec(text);
   if (!first) {
@@ -148,7 +169,7 @@ process.stdin.on('end', () => {
   // Only a segment that RUNS the lock script is a locked run. A command that merely mentions it (a commit
   // message, a grep, a git log) is checked like any other, and every other segment of a command that does run
   // it is still checked: mentioning the script must neither refuse a harmless command nor excuse an unlocked one.
-  const segments = splitOutsideQuotes(command);
+  const segments = quotingIsSimple(command) ? splitOutsideQuotes(command) : command.split(/\r?\n|&&|\|\||;|\|/);
   const lockRuns = segments.filter(runsLockScript);
   const rest = segments.filter(segment => !runsLockScript(segment)).join('\n');
 

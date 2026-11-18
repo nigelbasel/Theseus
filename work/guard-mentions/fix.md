@@ -12,7 +12,8 @@ PowerShell, and a mention ended the guard early, so the rest of the command went
 
 `tools/locks/ndc-test-lock-guard.js` only:
 
-- The command is split into segments at newlines, `&&`, `||`, `;` and `|`.
+- The command is split into segments at newlines, `&&`, `||`, `;` and `|`: outside quotes when the quoting is
+  simple, and regardless of quotes when it is not (passes 2 and 3, below; pass 1 always ignored quotes).
 - A segment **runs** the lock script when its program, after any PowerShell `&` and any `VAR=value` prefixes,
   is the script itself, or is `bash`/`sh` (with or without a path or `.exe`) whose first argument is the script.
   (`programAndArgument`, `runsLockScript`.)
@@ -34,6 +35,42 @@ symptoms came from the text test, and both cases now go through the same rule.
 ## Result
 
 All 80 tests under `Theseus.Tests.Locks` pass (logged at the `<guard-mentions> ===== fix` banner).
+
+## Spec for pass 3: fail closed when unsure (Nigel chose option A, 2026-11-18)
+
+Written before the pass 3 code, after two failed verifies showed the guard needed a rule for commands whose
+quoting it cannot be sure of.
+
+1. **A wrong refusal is cheap; a wrong allow is not.** A refused command costs a rephrase. An unlocked suite
+   running beside a locked one costs a run that fails like a real defect. When in doubt, the guard refuses.
+2. **Quotes are honoured only when the quoting is simple:** every `"` and `'` is balanced, and the command
+   contains none of `\"`, `\'`, a backtick, `$'`, `#`, `@'` or `@"`. Those are where bash and PowerShell disagree
+   with each other or with a plain reading, so the guard cannot know how the shell will split the line.
+3. **When the quoting is not simple, the guard splits as if there were no quotes** (pass 1's behaviour): a
+   separator anywhere ends a segment. A quoted separator may then cause a refusal; it can never hide a command.
+4. **A `VAR=value` prefix may have a quoted value** (`NDC_TEST_LOCK_REASON="two words"`), as the machine's
+   instructions tell sessions to write it.
+5. Unchanged: a segment that runs the script is a locked run; every other segment is checked; WSL bash is refused
+   from PowerShell; the three bypasses listed under Known limits stay out of scope.
+
+## Pass 3 (after the second verify failed)
+
+The second verifier (`evidence-2-failed.md`) found that pass 2's quote-aware split could be fooled: a `"` or `'`
+that the shell does not treat as a quote (`\"`, `\'`, a quote in a `#` comment, `$'...'`, PowerShell's backtick,
+and `\"` read as an escape in PowerShell, where it is not one) made the guard think a quote was open, so the next
+`;` or newline did not split, and an unlocked command hid inside the lock-run segment: 12 bypasses that pass 1
+refused (the pre-fix guard allowed them too). It also found that a quoted `VAR="two words"` prefix made a correct
+locked run look like something else (M4, M5), in pass 1 and pass 2 alike.
+
+Change in pass 3, per the spec above: `quotingIsSimple` decides whether quotes can be honoured; when not, the
+command is split as if there were no quotes. The `VAR=value` prefix may be quoted. New tests in
+`tests/Theseus.Tests/Locks/LockGuardUnsureQuotingTests.cs`: the 12 bypasses must be refused, and three locked runs
+with a quoted reason must be allowed. All 15 failed against pass 2 (logged at the pass 3 banner) and pass now.
+`LockGuardTests.cs` (since f3418f6) and `LockGuardLockedRunTests.cs` (since de8619a) are unchanged. 107 lock
+tests pass.
+
+What pass 3 knowingly accepts: a correct locked run whose arguments use any of the unsure constructs **and** a
+separator may be refused. That is the trade the spec makes.
 
 ## Pass 2 (after the verify gate failed)
 
@@ -58,7 +95,9 @@ The reproduction tests in `LockGuardTests.cs` are still unchanged since they fai
   The common cause: whatever follows the script inside its own segment is never checked.
 - A segment that does **not** run the script is still checked as text, quotes and all, so a commit message that
   contains `dotnet test X.sln` is still refused. That was true before this fix as well.
-- Quote handling is bash-like. PowerShell's backtick escape is not treated as an escape.
+- Quotes are honoured only when the quoting is simple (spec rule 2). Otherwise a quoted separator can refuse a
+  correct run; it cannot hide a command. A PowerShell here-string commit message mentioning the script (the
+  second verifier's H9) is refused, as it was before this fix.
 - Only the repo copy is changed. Sessions run the copy in `~/.claude/bin`, which the installer replaces. It is
   not installed by this stage: installing changes the hook every session on the machine runs, so that is
   Nigel's call.
@@ -70,4 +109,6 @@ The reproduction tests in `LockGuardTests.cs` are still unchanged since they fai
 |---|---|---|---|
 | fix, pass 1 | 2026-11-18 12:13:17 (logged) | 12:15:36 (commit 7036ae2) | Lock tests passing; the verify gate then failed |
 | verify, attempt 1 | 12:18:40 | 12:23:19 | Sub-agent: 133,237 tokens, 16 tool calls. Gate failed: 4 new false refusals |
-| fix, pass 2 | 12:43:55 (logged) | this commit's time | Quote-aware split; 92 lock tests pass |
+| fix, pass 2 | 12:43:55 (logged) | 12:46:29 (commit de8619a) | Quote-aware split; 92 lock tests pass |
+| verify, attempt 2 | 12:47:08 | 12:54:27 | Fresh sub-agent: 162,613 tokens, 17 tool calls. Gate failed: 12 new bypasses vs pass 1, M4/M5 false refusal |
+| fix, pass 3 | 12:57:07 (logged) | this commit's time | Spec written first; fail closed when unsure; 107 lock tests pass |
