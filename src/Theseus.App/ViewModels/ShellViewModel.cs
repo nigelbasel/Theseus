@@ -37,11 +37,8 @@ public sealed class ShellViewModel : ObservableObject
     private bool _isStatusBarVisible;
     private bool _motionAllowed = true;
 
-    /// <summary>
-    /// The sessions already told to exit. Typing it twice would land in a session that had moved on
-    /// to something else, and there is no taking a keystroke back.
-    /// </summary>
-    private readonly HashSet<string> _closed = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>The stops already told to exit (<see cref="ExitsTyped"/>).</summary>
+    private readonly ExitsTyped _closed = new();
 
     /// <summary>
     /// Stops that were asked for before this Theseus started, and have not been agreed to yet.
@@ -1333,12 +1330,12 @@ public sealed class ShellViewModel : ObservableObject
             var handoffWritten = StopTiming.HandoffWrittenUtc(delivered?.HandoffPath);
 
             if (!SessionClosing.ShouldClose(delivered, handoffWritten, session.Status,
-                    session.StatusSinceUtc, DateTimeOffset.UtcNow, _closed.Contains(sessionId)))
+                    session.StatusSinceUtc, DateTimeOffset.UtcNow, _closed.AlreadyTyped(delivered)))
             {
                 continue;
             }
 
-            _closed.Add(sessionId);
+            _closed.Typed(delivered!);
 
             var outcome = TabNudge.Nudge(session.Pid, session.Name, SessionClosing.ExitCommand);
 
