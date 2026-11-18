@@ -1684,7 +1684,7 @@ public sealed class ShellViewModel : ObservableObject
                     "Withdrew the stop request for {Workstream}, which is being started again", workstream.Key);
             }
 
-            // A request already handed over is finished with too. On 2026-10-07 nexus-admin was asked
+            // A request already handed over is finished with too. On 2026-10-07 a workstream was asked
             // to stop, handed over, and was never closed; Nigel restarted it, and because the resumed
             // session kept the same identifier, the delivered request was still on disk. Two minutes
             // later the close step found it idle with a fresh handoff and typed /exit into the new one.

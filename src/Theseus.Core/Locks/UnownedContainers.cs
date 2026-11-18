@@ -3,7 +3,7 @@ namespace Theseus.Core.Locks;
 /// <summary>
 /// Testcontainers containers no lock holder accounts for (Nigel, 2026-10-06): left over from before the
 /// lock, or from a run that went around the guard, with nothing to reap them. One such SQL container
-/// cost the nexus-admin workstream a day on 2026-10-02. They are shown for Nigel to remove, never removed
+/// cost a workstream a day on 2026-10-02. They are shown for Nigel to remove, never removed
 /// automatically, because a leftover cannot be told apart from a run in progress outside the lock.
 /// </summary>
 public static class UnownedContainers
