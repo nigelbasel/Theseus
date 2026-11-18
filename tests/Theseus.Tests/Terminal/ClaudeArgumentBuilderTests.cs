@@ -46,7 +46,7 @@ public class ClaudeArgumentBuilderTests
     public void Build_PutsThePromptBeforeAddDirBecauseAddDirIsVariadic()
     {
         var argv = ClaudeArgumentBuilder.Build(
-            Spec(addDirectories: [@"C:\work\repo\Core", @"C:\work\repo\Nexus"])).ToList();
+            Spec(addDirectories: [@"C:\work\repo\Core", @"C:\work\repo\Harbor"])).ToList();
 
         Assert.That(argv.IndexOf("Pick up where we left off."),
             Is.LessThan(argv.IndexOf("--add-dir")));
@@ -56,11 +56,11 @@ public class ClaudeArgumentBuilderTests
     public void Build_PlacesEveryExtraDirectoryAfterASingleAddDirFlag()
     {
         var argv = ClaudeArgumentBuilder.Build(
-            Spec(addDirectories: [@"C:\work\repo\Core", @"C:\work\repo\Nexus"])).ToList();
+            Spec(addDirectories: [@"C:\work\repo\Core", @"C:\work\repo\Harbor"])).ToList();
 
         Assert.That(argv.Count(a => a == "--add-dir"), Is.EqualTo(1));
         Assert.That(argv[^2], Is.EqualTo(@"C:\work\repo\Core"));
-        Assert.That(argv[^1], Is.EqualTo(@"C:\work\repo\Nexus"));
+        Assert.That(argv[^1], Is.EqualTo(@"C:\work\repo\Harbor"));
     }
 
     [Test]

@@ -10,24 +10,24 @@ public class IssueTimeCalculatorTests
     [Test]
     public void For_CountsOnlyTheTimeInsideTheStretch()
     {
-        var marks = new[] { Start("s1", "gdpr", "NDC-1", 10), Stop("s1", "gdpr", 40) };
-        var intervals = new[] { Attended("gdpr", 0, 20), Machine("gdpr", 30, 60) };
+        var marks = new[] { Start("s1", "ledger", "KITE-1", 10), Stop("s1", "ledger", 40) };
+        var intervals = new[] { Attended("ledger", 0, 20), Machine("ledger", 30, 60) };
 
-        var time = IssueTimeCalculator.For("NDC-1", marks, intervals, Nine, At(120), At(120));
+        var time = IssueTimeCalculator.For("KITE-1", marks, intervals, Nine, At(120), At(120));
 
         Assert.That(time.Attended, Is.EqualTo(TimeSpan.FromMinutes(10)));
         Assert.That(time.Machine, Is.EqualTo(TimeSpan.FromMinutes(10)));
-        Assert.That(time.Workstreams, Is.EqualTo(new[] { "gdpr" }));
+        Assert.That(time.Workstreams, Is.EqualTo(new[] { "ledger" }));
     }
 
     [Test]
     public void For_GivesAWorkstreamsTimeToTheIssueStartedMostRecently()
     {
-        var marks = new[] { Start("s1", "gdpr", "NDC-1", 0), Start("s2", "gdpr", "NDC-2", 30) };
-        var intervals = new[] { Attended("gdpr", 0, 60) };
+        var marks = new[] { Start("s1", "ledger", "KITE-1", 0), Start("s2", "ledger", "KITE-2", 30) };
+        var intervals = new[] { Attended("ledger", 0, 60) };
 
-        var first = IssueTimeCalculator.For("NDC-1", marks, intervals, Nine, At(60), At(60));
-        var second = IssueTimeCalculator.For("NDC-2", marks, intervals, Nine, At(60), At(60));
+        var first = IssueTimeCalculator.For("KITE-1", marks, intervals, Nine, At(60), At(60));
+        var second = IssueTimeCalculator.For("KITE-2", marks, intervals, Nine, At(60), At(60));
 
         Assert.That(first.Attended, Is.EqualTo(TimeSpan.FromMinutes(30)));
         Assert.That(second.Attended, Is.EqualTo(TimeSpan.FromMinutes(30)));
@@ -38,20 +38,20 @@ public class IssueTimeCalculatorTests
     [Test]
     public void For_EndsAStretchWhenTheSessionMovesToAnotherIssue()
     {
-        var marks = new[] { Start("s1", "gdpr", "NDC-1", 0), Start("s1", "gdpr", "NDC-2", 20) };
-        var intervals = new[] { Attended("gdpr", 0, 60) };
+        var marks = new[] { Start("s1", "ledger", "KITE-1", 0), Start("s1", "ledger", "KITE-2", 20) };
+        var intervals = new[] { Attended("ledger", 0, 60) };
 
-        Assert.That(IssueTimeCalculator.For("NDC-1", marks, intervals, Nine, At(60), At(60)).Attended,
+        Assert.That(IssueTimeCalculator.For("KITE-1", marks, intervals, Nine, At(60), At(60)).Attended,
             Is.EqualTo(TimeSpan.FromMinutes(20)));
     }
 
     [Test]
     public void For_NeverCountsAnotherWorkstreamsTime()
     {
-        var marks = new[] { Start("s1", "gdpr", "NDC-1", 0) };
-        var intervals = new[] { Attended("nexus", 0, 60), Machine("nexus", 0, 60) };
+        var marks = new[] { Start("s1", "ledger", "KITE-1", 0) };
+        var intervals = new[] { Attended("harbor", 0, 60), Machine("harbor", 0, 60) };
 
-        var time = IssueTimeCalculator.For("NDC-1", marks, intervals, Nine, At(60), At(60));
+        var time = IssueTimeCalculator.For("KITE-1", marks, intervals, Nine, At(60), At(60));
 
         Assert.That(time.Attended + time.Machine, Is.EqualTo(TimeSpan.Zero));
     }
@@ -59,29 +59,29 @@ public class IssueTimeCalculatorTests
     [Test]
     public void For_RunsAStretchNobodyStoppedUpToNow()
     {
-        var marks = new[] { Start("s1", "gdpr", "NDC-1", 0) };
-        var intervals = new[] { Machine("gdpr", 0, 45) };
+        var marks = new[] { Start("s1", "ledger", "KITE-1", 0) };
+        var intervals = new[] { Machine("ledger", 0, 45) };
 
-        Assert.That(IssueTimeCalculator.For("NDC-1", marks, intervals, Nine, At(45), At(45)).Machine,
+        Assert.That(IssueTimeCalculator.For("KITE-1", marks, intervals, Nine, At(45), At(45)).Machine,
             Is.EqualTo(TimeSpan.FromMinutes(45)));
     }
 
     [Test]
     public void For_CountsOnlyTheRangeAskedFor()
     {
-        var marks = new[] { Start("s1", "gdpr", "NDC-1", 0), Stop("s1", "gdpr", 120) };
-        var intervals = new[] { Attended("gdpr", 0, 120) };
+        var marks = new[] { Start("s1", "ledger", "KITE-1", 0), Stop("s1", "ledger", 120) };
+        var intervals = new[] { Attended("ledger", 0, 120) };
 
-        Assert.That(IssueTimeCalculator.For("NDC-1", marks, intervals, At(60), At(90), At(120)).Attended,
+        Assert.That(IssueTimeCalculator.For("KITE-1", marks, intervals, At(60), At(90), At(120)).Attended,
             Is.EqualTo(TimeSpan.FromMinutes(30)));
     }
 
     [Test]
     public void For_MatchesTheIssueKeyWhateverItsCase()
     {
-        var marks = new[] { Start("s1", "gdpr", "ndc-1", 0), Stop("s1", "gdpr", 10) };
+        var marks = new[] { Start("s1", "ledger", "kite-1", 0), Stop("s1", "ledger", 10) };
 
-        Assert.That(IssueTimeCalculator.For("NDC-1", marks, [Attended("gdpr", 0, 10)], Nine, At(10), At(10)).Attended,
+        Assert.That(IssueTimeCalculator.For("KITE-1", marks, [Attended("ledger", 0, 10)], Nine, At(10), At(10)).Attended,
             Is.EqualTo(TimeSpan.FromMinutes(10)));
     }
 

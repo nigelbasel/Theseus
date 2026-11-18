@@ -40,7 +40,7 @@ public sealed class WorkItemBook
 
     /// <summary>
     /// The title an issue or pull request was last given, by any session for any card. A title belongs
-    /// to the item, so every card carrying NDC-680 shows the title one session reported for it.
+    /// to the item, so every card carrying ABC-123 shows the title one session reported for it.
     /// </summary>
     public string? TitleOf(WorkItemKind kind, string id)
     {

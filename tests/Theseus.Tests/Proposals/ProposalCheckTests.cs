@@ -24,7 +24,7 @@ public class ProposalCheckTests
 
         _board = new BoardSnapshot(
         [
-            Card("auth-research", jiraKeys: ["APPS-1412"]),
+            Card("auth-research", jiraKeys: ["MOTH-1412"]),
             Card("token-spike"),
             Card("old-work", archived: true),
         ], Nine);
@@ -79,15 +79,15 @@ public class ProposalCheckTests
     [Test]
     public void Check_RefusesAJiraKeyTheProposerDoesNotHold()
     {
-        var result = Check(Request() with { JiraKeys = ["APPS-1412", "NDC-680"] });
+        var result = Check(Request() with { JiraKeys = ["MOTH-1412", "KITE-680"] });
 
-        Assert.That(result.Refusal, Does.Contain("NDC-680 is not on Auth research's card"));
+        Assert.That(result.Refusal, Does.Contain("KITE-680 is not on Auth research's card"));
     }
 
     [Test]
     public void Check_AllowsAJiraKeyTheProposerHolds()
     {
-        Assert.That(Check(Request() with { JiraKeys = ["apps-1412"] }).Refusal, Is.Null);
+        Assert.That(Check(Request() with { JiraKeys = ["moth-1412"] }).Refusal, Is.Null);
     }
 
     [Test]

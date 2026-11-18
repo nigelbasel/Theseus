@@ -80,7 +80,7 @@ public class LockScriptTests
     {
         HoldTestsLock();
 
-        var (exitCode, output) = Script("run \"NDC-1190\" \"Api.Contacts.Tests\" -- bash -c 'exit 0'");
+        var (exitCode, output) = Script("run \"KITE-1190\" \"Api.Contacts.Tests\" -- bash -c 'exit 0'");
 
         Assert.That(exitCode, Is.EqualTo(1), output);
         Assert.That(output, Does.Contain("LOCK BUSY"));
@@ -91,7 +91,7 @@ public class LockScriptTests
     [Test]
     public void WaitThenRunWithToken_RunsUnderTheGrantedLock()
     {
-        var (waitCode, waitOutput) = Script("wait \"NDC-1190\" \"Api.Contacts.Tests\" --wait 30");
+        var (waitCode, waitOutput) = Script("wait \"KITE-1190\" \"Api.Contacts.Tests\" --wait 30");
 
         Assert.That(waitCode, Is.Zero, waitOutput);
 
@@ -118,7 +118,7 @@ public class LockScriptTests
     {
         _url = "http://localhost:1/locks";
 
-        var (exitCode, output) = Script("run \"NDC-1190\" \"Api.Contacts.Tests\" -- bash -c 'exit 0'");
+        var (exitCode, output) = Script("run \"KITE-1190\" \"Api.Contacts.Tests\" -- bash -c 'exit 0'");
 
         Assert.That(exitCode, Is.EqualTo(1), output);
         Assert.That(output, Does.Contain("THESEUS NOT REACHABLE"));
@@ -156,7 +156,7 @@ public class LockScriptTests
         Directory.CreateDirectory(LegacyLockDirectory);
         File.WriteAllText(Path.Combine(LegacyLockDirectory, "holder"), "who:     Old run\npid:     999999\nmode:    run\n");
 
-        var (exitCode, output) = Script("run \"NDC-1190\" \"Api.Contacts.Tests\" -- bash -c 'exit 0'");
+        var (exitCode, output) = Script("run \"KITE-1190\" \"Api.Contacts.Tests\" -- bash -c 'exit 0'");
 
         Assert.That(exitCode, Is.Zero, output);
         Assert.That(Directory.Exists(LegacyLockDirectory), Is.False);
@@ -167,14 +167,14 @@ public class LockScriptTests
     {
         HoldTestsLock();
 
-        var (waitCode, waitOutput) = Script("wait \"NDC-1190\" \"Api.Contacts.Tests\" --wait 1");
+        var (waitCode, waitOutput) = Script("wait \"KITE-1190\" \"Api.Contacts.Tests\" --wait 1");
 
         Assert.That(waitCode, Is.EqualTo(1), waitOutput);
         Assert.That(waitOutput, Does.Contain("QUEUED for the tests lock. Token: "));
-        Assert.That(waitOutput, Does.Contain("leave \"NDC-1190\" \"Api.Contacts.Tests\""));
+        Assert.That(waitOutput, Does.Contain("leave \"KITE-1190\" \"Api.Contacts.Tests\""));
         Assert.That(_book.Snapshot(), Has.Count.EqualTo(2), "a wait that runs out keeps its place");
 
-        var (leaveCode, leaveOutput) = Script("leave \"NDC-1190\" \"Api.Contacts.Tests\"");
+        var (leaveCode, leaveOutput) = Script("leave \"KITE-1190\" \"Api.Contacts.Tests\"");
 
         Assert.That(leaveCode, Is.Zero, leaveOutput);
         Assert.That(leaveOutput, Does.Contain("Left the queue"));
@@ -185,7 +185,7 @@ public class LockScriptTests
     public void AQueuedWait_ReleasedByItsToken_LeavesTheQueue()
     {
         HoldTestsLock();
-        var (_, waitOutput) = Script("wait \"NDC-1190\" \"Api.Contacts.Tests\" --wait 1");
+        var (_, waitOutput) = Script("wait \"KITE-1190\" \"Api.Contacts.Tests\" --wait 1");
         var token = waitOutput.Split("Token: ")[1].Split('\n')[0].Trim();
 
         var (code, output) = Script($"release {token}");
@@ -201,7 +201,7 @@ public class LockScriptTests
         var script = Path.Combine(RepositoryRoot(), "tools", "locks", "ndc-test-lock.sh").Replace('\\', '/');
 
         var (code, output) = Bash(
-            $"out=$(mktemp); \"{script}\" wait \"NDC-1190\" \"Api.Contacts.Tests\" --wait 120 >\"$out\" 2>&1 & waiter=$!; " +
+            $"out=$(mktemp); \"{script}\" wait \"KITE-1190\" \"Api.Contacts.Tests\" --wait 120 >\"$out\" 2>&1 & waiter=$!; " +
             "for i in $(seq 1 400); do grep -q QUEUED \"$out\" && break; sleep 0.1; done; " +
             "kill -TERM $waiter; wait $waiter; echo \"exit=$?\"; cat \"$out\"; rm -f \"$out\"");
 
@@ -213,11 +213,11 @@ public class LockScriptTests
     [Test]
     public void Leave_NeverReleasesAHeldLock()
     {
-        var answer = _book.Request(new LockRequest(LockNames.Tests, "NDC-1190", "Api.Contacts.Tests", HoldMode.Process,
+        var answer = _book.Request(new LockRequest(LockNames.Tests, "KITE-1190", "Api.Contacts.Tests", HoldMode.Process,
             Path.GetTempPath().TrimEnd('\\').Replace('\\', '/')));
 
         Assert.That(answer.Status, Is.EqualTo(LockStatus.Granted));
-        Assert.That(_book.Leave(new LockRequest(LockNames.Tests, "NDC-1190", "Api.Contacts.Tests", HoldMode.Process,
+        Assert.That(_book.Leave(new LockRequest(LockNames.Tests, "KITE-1190", "Api.Contacts.Tests", HoldMode.Process,
             Path.GetTempPath().TrimEnd('\\').Replace('\\', '/'))).Status, Is.EqualTo(LockStatus.Refused));
         Assert.That(_book.Snapshot(), Has.Count.EqualTo(1));
     }
@@ -231,7 +231,7 @@ public class LockScriptTests
         Assert.That(output, Does.Contain("lock_acquire"));
     }
 
-    private string LegacyLockDirectory => Path.Combine(_directory, "ndc-test.lock");
+    private string LegacyLockDirectory => Path.Combine(_directory, "kite-test.lock");
 
     private void HoldTestsLock()
     {

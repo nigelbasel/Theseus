@@ -14,7 +14,7 @@ public class SubagentActivityReaderTests
     public void SetUp()
     {
         _root = Path.Combine(Path.GetTempPath(), $"theseus-subagents-{Guid.NewGuid():N}");
-        _subagents = Path.Combine(_root, "E--dev-tfsgit", SessionId, "subagents");
+        _subagents = Path.Combine(_root, "E--dev-work", SessionId, "subagents");
         Directory.CreateDirectory(Path.Combine(_subagents, "workflows", "wf_1"));
     }
 

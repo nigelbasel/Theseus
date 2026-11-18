@@ -18,9 +18,9 @@ public class LockGuardTests
         Assert.That(Guard(command), Does.Not.Contain("\"deny\""));
     }
 
-    [TestCase("dotnet build Nurtur.Direct.Communications.sln")]
-    [TestCase("dotnet test BYM.slnf --no-build")]
-    [TestCase("dotnet test Nurtur.Config.Persistence.Tests --no-build")]
+    [TestCase("dotnet build Fabrikam.Messaging.sln")]
+    [TestCase("dotnet test CORP.slnf --no-build")]
+    [TestCase("dotnet test Fabrikam.Config.Persistence.Tests --no-build")]
     [TestCase("dotnet build Theseus.slnx && dotnet test Other.sln")]
     public void OtherSolutionsAndContainerSuites_AreStillRefused(string command)
     {

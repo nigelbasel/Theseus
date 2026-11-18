@@ -45,7 +45,7 @@ public class LockBookTests
     {
         Ask("Legacy job migration", "PersistenceTests.Jobs");
 
-        var answer = Ask("NDC-1190", "Api.Contacts.Tests");
+        var answer = Ask("KITE-1190", "Api.Contacts.Tests");
 
         Assert.That(answer.Status, Is.EqualTo(LockStatus.Waiting));
         Assert.That(answer.Position, Is.EqualTo(1));
@@ -57,10 +57,10 @@ public class LockBookTests
     public void Request_AskedAgainBySameRequester_KeepsItsPlaceAndToken()
     {
         Ask("Legacy job migration", "PersistenceTests.Jobs");
-        var first = Ask("NDC-1190", "Api.Contacts.Tests");
-        Ask("GDPR", "Api.Gdpr.Tests");
+        var first = Ask("KITE-1190", "Api.Contacts.Tests");
+        Ask("LEDGER", "Api.Ledger.Tests");
 
-        var again = Ask("NDC-1190", "Api.Contacts.Tests");
+        var again = Ask("KITE-1190", "Api.Contacts.Tests");
 
         Assert.That(again.Token, Is.EqualTo(first.Token));
         Assert.That(again.Position, Is.EqualTo(1));
@@ -78,7 +78,7 @@ public class LockBookTests
     [Test]
     public void Request_RefusesASessionHoldWithoutASession()
     {
-        var answer = _book.Request(new LockRequest(LockNames.DevStack, "Someone", "AFE", HoldMode.Session));
+        var answer = _book.Request(new LockRequest(LockNames.DevStack, "Someone", "WREN", HoldMode.Session));
 
         Assert.That(answer.Status, Is.EqualTo(LockStatus.Refused));
     }
@@ -88,7 +88,7 @@ public class LockBookTests
     {
         Ask("Legacy job migration", "PersistenceTests.Jobs");
 
-        var stack = _book.Request(new LockRequest(LockNames.DevStack, "NDC-679", "AFE editor", HoldMode.Session, SessionId: "s-1"));
+        var stack = _book.Request(new LockRequest(LockNames.DevStack, "KITE-679", "WREN editor", HoldMode.Session, SessionId: "s-1"));
 
         Assert.That(stack.Status, Is.EqualTo(LockStatus.Granted));
     }
@@ -97,7 +97,7 @@ public class LockBookTests
     public void Release_HandsTheLockToTheNextInLine()
     {
         var holder = Ask("Legacy job migration", "PersistenceTests.Jobs");
-        var waiter = Ask("NDC-1190", "Api.Contacts.Tests");
+        var waiter = Ask("KITE-1190", "Api.Contacts.Tests");
 
         _book.Release(holder.Token!);
 
@@ -116,7 +116,7 @@ public class LockBookTests
         _clock.Advance(TimeSpan.FromHours(3));
         Assert.That(_book.Check(holder.Token!).Status, Is.EqualTo(LockStatus.Granted), "an attached hold has no time limit");
 
-        var waiter = Ask("NDC-1190", "Api.Contacts.Tests");
+        var waiter = Ask("KITE-1190", "Api.Contacts.Tests");
         _liveness.Processes.Remove(20036);
 
         Assert.That(_book.Check(waiter.Token!).Status, Is.EqualTo(LockStatus.Granted));
@@ -138,7 +138,7 @@ public class LockBookTests
     public void Attach_RefusesAWaiter()
     {
         Ask("Legacy job migration", "PersistenceTests.Jobs");
-        var waiter = Ask("NDC-1190", "Api.Contacts.Tests");
+        var waiter = Ask("KITE-1190", "Api.Contacts.Tests");
         _liveness.Processes[1] = "start";
 
         Assert.That(_book.Attach(waiter.Token!, 1).Status, Is.EqualTo(LockStatus.Refused));
@@ -148,7 +148,7 @@ public class LockBookTests
     public void AGrantNobodyTakesUp_PassesOnAfterTheReservation()
     {
         var holder = Ask("Legacy job migration", "PersistenceTests.Jobs");
-        var waiter = Ask("NDC-1190", "Api.Contacts.Tests");
+        var waiter = Ask("KITE-1190", "Api.Contacts.Tests");
 
         _clock.Advance(LockBook.Reservation + TimeSpan.FromSeconds(1));
 
@@ -160,8 +160,8 @@ public class LockBookTests
     public void AWaiterThatStopsAsking_IsDroppedAfterTheGrace()
     {
         HoldWithProcess("Legacy job migration", "PersistenceTests.Jobs", 20036);
-        var quiet = Ask("NDC-1190", "Api.Contacts.Tests");
-        var keen = Ask("GDPR", "Api.Gdpr.Tests");
+        var quiet = Ask("KITE-1190", "Api.Contacts.Tests");
+        var keen = Ask("LEDGER", "Api.Ledger.Tests");
 
         for (var minute = 0; minute < 6; minute++)
         {
@@ -177,14 +177,14 @@ public class LockBookTests
     public void ASessionHold_EndsOnlyAfterTheSessionIsMissedTwice()
     {
         _liveness.Sessions.Add("s-1");
-        var hold = _book.Request(new LockRequest(LockNames.DevStack, "NDC-679", "AFE editor", HoldMode.Session, SessionId: "s-1"));
+        var hold = _book.Request(new LockRequest(LockNames.DevStack, "KITE-679", "WREN editor", HoldMode.Session, SessionId: "s-1"));
 
         _liveness.Sessions.Remove("s-1");
         _book.Sweep();
         Assert.That(_book.Check(hold.Token!).Status, Is.EqualTo(LockStatus.Ended), "the Check is the second miss");
 
         _liveness.Sessions.Add("s-2");
-        var other = _book.Request(new LockRequest(LockNames.DevStack, "NDC-690", "AFE", HoldMode.Session, SessionId: "s-2"));
+        var other = _book.Request(new LockRequest(LockNames.DevStack, "KITE-690", "WREN", HoldMode.Session, SessionId: "s-2"));
         _liveness.Sessions.Remove("s-2");
         _book.Sweep();
         _liveness.Sessions.Add("s-2");
@@ -196,8 +196,8 @@ public class LockBookTests
     public void ASessionHoldingTwoLocks_IsMissedOncePerSweepNotOncePerLock()
     {
         _liveness.Sessions.Add("s-1");
-        var stack = _book.Request(new LockRequest(LockNames.DevStack, "NDC-679", "AFE", HoldMode.Session, SessionId: "s-1"));
-        _book.Request(new LockRequest(LockNames.Llama, "NDC-679", "classify", HoldMode.Session, SessionId: "s-1"));
+        var stack = _book.Request(new LockRequest(LockNames.DevStack, "KITE-679", "WREN", HoldMode.Session, SessionId: "s-1"));
+        _book.Request(new LockRequest(LockNames.Llama, "KITE-679", "classify", HoldMode.Session, SessionId: "s-1"));
 
         _liveness.Sessions.Remove("s-1");
         _book.Sweep();
@@ -210,7 +210,7 @@ public class LockBookTests
     public void ReleaseForSession_LetsGoOfThatSessionsHold()
     {
         _liveness.Sessions.Add("s-1");
-        _book.Request(new LockRequest(LockNames.DevStack, "NDC-679", "AFE", HoldMode.Session, SessionId: "s-1"));
+        _book.Request(new LockRequest(LockNames.DevStack, "KITE-679", "WREN", HoldMode.Session, SessionId: "s-1"));
 
         Assert.That(_book.ReleaseForSession("s-1", "dev-stack").Status, Is.EqualTo(LockStatus.Ended));
         Assert.That(_book.Snapshot(), Is.Empty);
@@ -220,8 +220,8 @@ public class LockBookTests
     public void Reorder_MovesAWaiterAheadButNeverAheadOfTheHolder()
     {
         HoldWithProcess("Legacy job migration", "PersistenceTests.Jobs", 20036);
-        var first = Ask("NDC-1190", "Api.Contacts.Tests");
-        var second = Ask("GDPR", "Api.Gdpr.Tests");
+        var first = Ask("KITE-1190", "Api.Contacts.Tests");
+        var second = Ask("LEDGER", "Api.Ledger.Tests");
 
         Assert.That(_book.Reorder(second.Token!, 0), Is.True);
 
@@ -234,8 +234,8 @@ public class LockBookTests
     public void Reorder_ToTheBack()
     {
         HoldWithProcess("Legacy job migration", "PersistenceTests.Jobs", 20036);
-        var first = Ask("NDC-1190", "Api.Contacts.Tests");
-        var second = Ask("GDPR", "Api.Gdpr.Tests");
+        var first = Ask("KITE-1190", "Api.Contacts.Tests");
+        var second = Ask("LEDGER", "Api.Ledger.Tests");
 
         _book.Reorder(first.Token!, 99);
 
@@ -247,7 +247,7 @@ public class LockBookTests
     public void Reorder_RefusesTheHolder()
     {
         var holder = HoldWithProcess("Legacy job migration", "PersistenceTests.Jobs", 20036);
-        Ask("NDC-1190", "Api.Contacts.Tests");
+        Ask("KITE-1190", "Api.Contacts.Tests");
 
         Assert.That(_book.Reorder(holder, 1), Is.False);
     }
@@ -256,7 +256,7 @@ public class LockBookTests
     public void Cancel_TakesAWaiterOutAndTellsItWhy()
     {
         HoldWithProcess("Legacy job migration", "PersistenceTests.Jobs", 20036);
-        var waiter = Ask("NDC-1190", "Api.Contacts.Tests");
+        var waiter = Ask("KITE-1190", "Api.Contacts.Tests");
 
         Assert.That(_book.Cancel(waiter.Token!), Is.True);
 
@@ -278,7 +278,7 @@ public class LockBookTests
     public void ForceRelease_TakesTheLockAndGrantsTheNext()
     {
         HoldWithProcess("Legacy job migration", "PersistenceTests.Jobs", 20036);
-        var waiter = Ask("NDC-1190", "Api.Contacts.Tests");
+        var waiter = Ask("KITE-1190", "Api.Contacts.Tests");
 
         Assert.That(_book.ForceRelease(LockNames.Tests), Is.True);
         Assert.That(_book.Check(waiter.Token!).Status, Is.EqualTo(LockStatus.Granted));
@@ -288,7 +288,7 @@ public class LockBookTests
     public void ARestartResumesHoldersAndQueueExactly()
     {
         var holder = HoldWithProcess("Legacy job migration", "PersistenceTests.Jobs", 20036);
-        var waiter = Ask("NDC-1190", "Api.Contacts.Tests");
+        var waiter = Ask("KITE-1190", "Api.Contacts.Tests");
 
         _clock.Advance(TimeSpan.FromMinutes(10));
         var reopened = Open();
@@ -312,7 +312,7 @@ public class LockBookTests
     public void History_RecordsWaitingAndHolding()
     {
         var holder = HoldWithProcess("Legacy job migration", "PersistenceTests.Jobs", 20036);
-        var waiter = Ask("NDC-1190", "Api.Contacts.Tests");
+        var waiter = Ask("KITE-1190", "Api.Contacts.Tests");
 
         _clock.Advance(TimeSpan.FromMinutes(1));
         _book.Check(waiter.Token!);
@@ -325,7 +325,7 @@ public class LockBookTests
         var granted = history.Last(lockEvent => lockEvent.Kind == LockEventKind.Granted);
 
         Assert.That(released.HeldSeconds, Is.EqualTo(120));
-        Assert.That(granted.Who, Is.EqualTo("NDC-1190"));
+        Assert.That(granted.Who, Is.EqualTo("KITE-1190"));
         Assert.That(granted.WaitedSeconds, Is.EqualTo(120));
     }
 
@@ -344,7 +344,7 @@ public class LockBookTests
     }
 
     private LockAnswer Ask(string who, string purpose) =>
-        _book.Request(new LockRequest(LockNames.Tests, who, purpose, HoldMode.Process, @"C:\dev\tfsgit"));
+        _book.Request(new LockRequest(LockNames.Tests, who, purpose, HoldMode.Process, @"C:\dev\work"));
 
     private string HoldWithProcess(string who, string purpose, int processId)
     {

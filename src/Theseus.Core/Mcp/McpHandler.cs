@@ -181,7 +181,7 @@ public sealed partial class McpHandler
                 "Say that this session is now working on a Jira issue. Theseus measures the time from here; never send a duration. Call again for a different issue.",
                 new JsonObject
                 {
-                    ["issue"] = Property("Jira issue key, for example NDC-680."),
+                    ["issue"] = Property("Jira issue key, for example ABC-123."),
                     ["summary"] = Property("One line on what you are doing."),
                 },
                 "issue"),
@@ -192,7 +192,7 @@ public sealed partial class McpHandler
                 "The time spent on a Jira issue, as attended time and machine time, never added together. Use when logging time: show the user both and let them choose.",
                 new JsonObject
                 {
-                    ["issue"] = Property("Jira issue key, for example NDC-680."),
+                    ["issue"] = Property("Jira issue key, for example ABC-123."),
                     ["from"] = Property("Start, as an ISO 8601 date or date-time. A date means midnight. Defaults to the start of today."),
                     ["to"] = Property("End, as an ISO 8601 date or date-time. Defaults to now."),
                 },
@@ -287,7 +287,7 @@ public sealed partial class McpHandler
                 new JsonObject
                 {
                     ["kind"] = Property("jira or pr."),
-                    ["id"] = Property("The issue key, such as NDC-680, or the pull request number."),
+                    ["id"] = Property("The issue key, such as ABC-123, or the pull request number."),
                     ["title"] = Property("Its title, as it stands in Jira or the pull request."),
                     ["url"] = Property("Optional: its address. Jira addresses are worked out from the board's settings when left out."),
                 },
@@ -905,7 +905,7 @@ public sealed partial class McpHandler
     {
         if (Issue(arguments) is not { } issue)
         {
-            return Result("issue must be a Jira key, for example NDC-680.", isError: true);
+            return Result("issue must be a Jira key, for example ABC-123.", isError: true);
         }
 
         var now = _clock();
@@ -935,7 +935,7 @@ public sealed partial class McpHandler
     {
         if (Issue(arguments) is not { } issue)
         {
-            return Result("issue must be a Jira key, for example NDC-680.", isError: true);
+            return Result("issue must be a Jira key, for example ABC-123.", isError: true);
         }
 
         var now = _clock();

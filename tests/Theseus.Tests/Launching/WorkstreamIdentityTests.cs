@@ -6,7 +6,7 @@ namespace Theseus.Tests.Launching;
 [TestFixture]
 public class WorkstreamIdentityTests
 {
-    private const string Handoff = @"C:\dev\tfsgit\SESSION-STATUS-2026-08-26-contact-forms.md";
+    private const string Handoff = @"C:\dev\work\SESSION-STATUS-2026-08-26-contact-forms.md";
 
     [Test]
     public void For_TellsTheSessionWhichWorkstreamItIs()
@@ -43,7 +43,7 @@ public class WorkstreamIdentityTests
 
     private static Workstream Workstream() =>
         new("contact-forms", "Contact form validation", "#208DD7", ColorIsManual: true,
-            @"C:\dev\tfsgit", [], "Add validation.", 1, "Today", IsBlocked: false,
+            @"C:\dev\work", [], "Add validation.", 1, "Today", IsBlocked: false,
             ReopenTomorrow: true, IsArchived: false, "session-1", [], null, DateTimeOffset.UtcNow);
 
     [Test]

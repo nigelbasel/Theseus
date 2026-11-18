@@ -69,9 +69,9 @@ public class WorkstreamAssemblerTests
     [Test]
     public void Assemble_ShowsAnIssueTheSessionRecordedInItsOwnPlan()
     {
-        var workstream = Single(Plan() with { JiraKeys = ["NDC-742"] }, Sidecar());
+        var workstream = Single(Plan() with { JiraKeys = ["KITE-742"] }, Sidecar());
 
-        Assert.That(workstream.JiraKeys, Does.Contain("NDC-742"),
+        Assert.That(workstream.JiraKeys, Does.Contain("KITE-742"),
             "an issue raised mid-session is in neither the prompt nor the board");
     }
 
@@ -79,11 +79,11 @@ public class WorkstreamAssemblerTests
     public void Assemble_LeavesOffAKeyThatWasTakenOffTheCard()
     {
         var workstream = Single(
-            Plan() with { JiraKeys = ["NDC-742"] },
-            Sidecar() with { RemovedJiraKeys = ["NDC-742"] });
+            Plan() with { JiraKeys = ["KITE-742"] },
+            Sidecar() with { RemovedJiraKeys = ["KITE-742"] });
 
-        Assert.That(workstream.JiraKeys, Does.Not.Contain("NDC-742"));
-        Assert.That(workstream.RemovedJiraKeys, Is.EqualTo(new[] { "NDC-742" }),
+        Assert.That(workstream.JiraKeys, Does.Not.Contain("KITE-742"));
+        Assert.That(workstream.RemovedJiraKeys, Is.EqualTo(new[] { "KITE-742" }),
             "the removal has to survive the read that would otherwise re-harvest it");
     }
 
@@ -164,7 +164,7 @@ public class WorkstreamAssemblerTests
 
     private static SessionPlan Plan(string title = "Contact form validation", string color = "#C0392B") =>
         new(1, title, color, @"C:\work\repo", [@"C:\work\repo\features\contact-forms"], null,
-            "2026-08-25T21:20:33", "Pick up the GDPR work (PROJ-101 / API-202). PROJ-101 again.");
+            "2026-08-25T21:20:33", "Pick up the LEDGER work (PROJ-101 / API-202). PROJ-101 again.");
 
     private static WorkstreamSidecar Sidecar() =>
         new("contact-forms", "Today", IsBlocked: false, IsArchived: false, ColorIsManual: true,

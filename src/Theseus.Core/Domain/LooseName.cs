@@ -2,7 +2,7 @@ namespace Theseus.Core.Domain;
 
 /// <summary>
 /// Compares names the way a person would: "In flight" and "in-flight" are the same name, and so are
-/// "Investigate Nexus MCP Server" and "investigate-nexus-mcp-server". Names here are typed by people
+/// "Investigate Harbor MCP Server" and "investigate-harbor-mcp-server". Names here are typed by people
 /// and mangled by machines on the way through - a lane renamed in settings, a session named from a
 /// workstream title - so matching them exactly loses the match for a space.
 /// </summary>

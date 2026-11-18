@@ -14,13 +14,13 @@ public class SessionLabelTests
     [Test]
     public void For_FallsBackToTheFolderTheSessionIsWorkingIn()
     {
-        Assert.That(SessionLabel.For(Session(cwd: @"C:\dev\tfsgit\Automation.UI")), Is.EqualTo("Automation.UI"));
+        Assert.That(SessionLabel.For(Session(cwd: @"C:\dev\work\Automation.UI")), Is.EqualTo("Automation.UI"));
     }
 
     [Test]
     public void For_IgnoresATrailingSeparatorWhenNamingTheFolder()
     {
-        Assert.That(SessionLabel.For(Session(cwd: @"C:\dev\tfsgit\Automation.UI\")), Is.EqualTo("Automation.UI"));
+        Assert.That(SessionLabel.For(Session(cwd: @"C:\dev\work\Automation.UI\")), Is.EqualTo("Automation.UI"));
     }
 
     [Test]

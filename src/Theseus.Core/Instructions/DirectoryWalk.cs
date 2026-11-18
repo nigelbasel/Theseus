@@ -4,7 +4,7 @@ namespace Theseus.Core.Instructions;
 
 /// <summary>
 /// The file system reads the instruction and skill scans are built on, each one safe to point at a
-/// directory that is missing, locked or enormous. A working directory like <c>C:\dev\tfsgit</c>
+/// directory that is missing, locked or enormous. A working directory like <c>C:\src</c>
 /// holds eighty repositories, so the searches below it are bounded and skip build output.
 /// </summary>
 public static class DirectoryWalk

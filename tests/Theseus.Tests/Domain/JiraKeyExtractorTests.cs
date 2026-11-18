@@ -6,10 +6,10 @@ namespace Theseus.Tests.Domain;
 public class JiraKeyExtractorTests
 {
     [Test]
-    public void Extract_FindsTheKeysInTheRealGdprPrompt()
+    public void Extract_FindsTheKeysInTheRealLedgerPrompt()
     {
         var keys = JiraKeyExtractor.Extract(
-            "Pick up the GDPR link-not-data work for the MCP server (PROJ-101 / API-202).");
+            "Pick up the LEDGER link-not-data work for the MCP server (PROJ-101 / API-202).");
 
         Assert.That(keys, Is.EqualTo(new[] { "PROJ-101", "API-202" }));
     }
@@ -70,19 +70,19 @@ public class JiraKeyExtractorTests
     [Test]
     public void Normalise_AcceptsAKeyTypedInLowerCase()
     {
-        Assert.That(JiraKeyExtractor.Normalise("ndc-620"), Is.EqualTo("NDC-620"));
+        Assert.That(JiraKeyExtractor.Normalise("kite-620"), Is.EqualTo("KITE-620"));
     }
 
     [Test]
     public void Normalise_IgnoresTheSpaceAroundATypedKey()
     {
-        Assert.That(JiraKeyExtractor.Normalise("  APPS-1776 "), Is.EqualTo("APPS-1776"));
+        Assert.That(JiraKeyExtractor.Normalise("  MOTH-1776 "), Is.EqualTo("MOTH-1776"));
     }
 
     [Test]
     public void Normalise_RefusesASentenceThatMerelyContainsAKey()
     {
-        Assert.That(JiraKeyExtractor.Normalise("see APPS-1776 for detail"), Is.Null);
+        Assert.That(JiraKeyExtractor.Normalise("see MOTH-1776 for detail"), Is.Null);
     }
 
     [Test]

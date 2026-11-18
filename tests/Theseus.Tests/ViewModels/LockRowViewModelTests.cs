@@ -41,11 +41,11 @@ public class LockRowViewModelTests
         row.Update(
         [
             Holder("Legacy job migration", "PersistenceTests.Jobs", Nine.AddMinutes(-5)),
-            Waiter("a", "NDC-1190", Nine.AddMinutes(-4), "blocking a release"),
-            Waiter("b", "GDPR", Nine.AddMinutes(-2)),
+            Waiter("a", "KITE-1190", Nine.AddMinutes(-4), "blocking a release"),
+            Waiter("b", "LEDGER", Nine.AddMinutes(-2)),
         ], Nine);
 
-        Assert.That(row.Waiting.Select(waiter => waiter.Who), Is.EqualTo(new[] { "NDC-1190", "GDPR" }));
+        Assert.That(row.Waiting.Select(waiter => waiter.Who), Is.EqualTo(new[] { "KITE-1190", "LEDGER" }));
         Assert.That(row.Waiting[0].Position, Is.EqualTo(1));
         Assert.That(row.Waiting[0].Reason, Is.EqualTo("blocking a release"));
         Assert.That(row.Waiting[0].MoveUpCommand.CanExecute(null), Is.False);
@@ -57,7 +57,7 @@ public class LockRowViewModelTests
     public void Update_WithNothingChanged_RaisesNoCollectionChanges()
     {
         var row = Row();
-        var tickets = new[] { Holder("Legacy job migration", "PersistenceTests.Jobs", Nine), Waiter("a", "NDC-1190", Nine), Waiter("b", "GDPR", Nine) };
+        var tickets = new[] { Holder("Legacy job migration", "PersistenceTests.Jobs", Nine), Waiter("a", "KITE-1190", Nine), Waiter("b", "LEDGER", Nine) };
         row.Update(tickets, Nine);
         var changes = 0;
         ((INotifyCollectionChanged)row.Waiting).CollectionChanged += (_, _) => changes++;
@@ -71,13 +71,13 @@ public class LockRowViewModelTests
     public void Update_FollowsAReorderByMovingTheSameEntry()
     {
         var row = Row();
-        row.Update([Holder("H", "x", Nine), Waiter("a", "NDC-1190", Nine), Waiter("b", "GDPR", Nine)], Nine);
-        var gdpr = row.Waiting[1];
+        row.Update([Holder("H", "x", Nine), Waiter("a", "KITE-1190", Nine), Waiter("b", "LEDGER", Nine)], Nine);
+        var ledger = row.Waiting[1];
 
-        row.Update([Holder("H", "x", Nine), Waiter("b", "GDPR", Nine), Waiter("a", "NDC-1190", Nine)], Nine);
+        row.Update([Holder("H", "x", Nine), Waiter("b", "LEDGER", Nine), Waiter("a", "KITE-1190", Nine)], Nine);
 
-        Assert.That(row.Waiting[0], Is.SameAs(gdpr));
-        Assert.That(gdpr.Position, Is.EqualTo(1));
+        Assert.That(row.Waiting[0], Is.SameAs(ledger));
+        Assert.That(ledger.Position, Is.EqualTo(1));
     }
 
     [Test]

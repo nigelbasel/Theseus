@@ -40,7 +40,7 @@ public class LockHttpApiTests
     [Test]
     public void Request_ReturnsTheTokenAndStanding()
     {
-        var answer = Post("request", """{"lock":"tests","who":"Legacy job migration","purpose":"PersistenceTests.Jobs","cwd":"C:\\dev\\tfsgit"}""");
+        var answer = Post("request", """{"lock":"tests","who":"Legacy job migration","purpose":"PersistenceTests.Jobs","cwd":"C:\\dev\\work"}""");
 
         Assert.That(answer["status"]!.GetValue<string>(), Is.EqualTo("granted"));
         Assert.That(answer["token"]!.GetValue<string>(), Has.Length.EqualTo(32));
@@ -69,7 +69,7 @@ public class LockHttpApiTests
     public void Listing_ShowsHolderAndQueueButNeverATokenInIt()
     {
         var token = Post("request", """{"lock":"tests","who":"Legacy job migration","purpose":"PersistenceTests.Jobs"}""")["token"]!.GetValue<string>();
-        Post("request", """{"lock":"tests","who":"NDC-1190","purpose":"Api.Contacts.Tests","reason":"blocking a release"}""");
+        Post("request", """{"lock":"tests","who":"KITE-1190","purpose":"Api.Contacts.Tests","reason":"blocking a release"}""");
 
         var response = _api.Handle("GET", string.Empty, string.Empty);
         var tests = JsonNode.Parse(response.Body!)!["locks"]!.AsArray().First(node => node!["name"]!.GetValue<string>() == "tests")!;

@@ -15,7 +15,7 @@ public class WorkflowActivityReaderTests
     public void SetUp()
     {
         _root = Path.Combine(Path.GetTempPath(), $"theseus-journal-{Guid.NewGuid():N}");
-        _runs = Path.Combine(_root, "C--dev-tfsgit", SessionId, "subagents", "workflows");
+        _runs = Path.Combine(_root, "C--dev-work", SessionId, "subagents", "workflows");
 
         Directory.CreateDirectory(_runs);
         _reader = new WorkflowActivityReader(_root);
@@ -157,7 +157,7 @@ public class WorkflowActivityReaderTests
 
     private void Summary(string runId)
     {
-        var session = Path.Combine(_root, "C--dev-tfsgit", SessionId);
+        var session = Path.Combine(_root, "C--dev-work", SessionId);
 
         Directory.CreateDirectory(Path.Combine(session, "workflows"));
         File.WriteAllText(Path.Combine(session, "workflows", $"{runId}.json"), """{"status":"killed"}""");

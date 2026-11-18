@@ -11,7 +11,7 @@ public class LockColoursTests
 
     private static readonly WorkstreamCardViewModel[] Cards =
     [
-        Card("nexus-admin", "Nexus Admin", "#208DD7", "session-nexus"),
+        Card("harbor-admin", "Harbor Admin", "#208DD7", "session-harbor"),
         Card("legacy-jobs", "Legacy job migration", "#C0392B", "session-legacy"),
     ];
 
@@ -26,8 +26,8 @@ public class LockColoursTests
     [Test]
     public void ATestRun_IsMatchedByTheCardTitleItGaveAsItsName()
     {
-        Assert.That(LockColours.For(Ticket("Nexus Admin"), Cards), Is.EqualTo("#208DD7"));
-        Assert.That(LockColours.For(Ticket("nexus admin"), Cards), Is.EqualTo("#208DD7"));
+        Assert.That(LockColours.For(Ticket("Harbor Admin"), Cards), Is.EqualTo("#208DD7"));
+        Assert.That(LockColours.For(Ticket("harbor admin"), Cards), Is.EqualTo("#208DD7"));
     }
 
     [Test]

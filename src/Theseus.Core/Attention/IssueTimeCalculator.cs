@@ -3,7 +3,7 @@ namespace Theseus.Core.Attention;
 /// <summary>
 /// Puts the time the sampler measured against the issues sessions said they were working on.
 ///
-/// Sessions mark stretches - "on NDC-680 from now" - and never durations. Within a workstream, the
+/// Sessions mark stretches - "on ABC-123 from now" - and never durations. Within a workstream, the
 /// issue at any moment is the one most recently started by any of its sessions that has not since
 /// stopped or moved on; the attended and machine time the sampler recorded for that workstream in
 /// that moment belongs to that issue. So time is only ever given to one issue per workstream at once,

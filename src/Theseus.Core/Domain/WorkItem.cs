@@ -7,7 +7,7 @@ namespace Theseus.Core.Domain;
 /// </summary>
 /// <param name="Workstream">The card it belongs to.</param>
 /// <param name="Kind">Jira issue or pull request.</param>
-/// <param name="Id">The issue key, such as NDC-680, or the pull request number.</param>
+/// <param name="Id">The issue key, such as ABC-123, or the pull request number.</param>
 /// <param name="Title">Its title, or null when none was given.</param>
 /// <param name="Url">Where it is, or null to work it out from the board's settings.</param>
 /// <param name="RecordedUtc">When it was last recorded.</param>

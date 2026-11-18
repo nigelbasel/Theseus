@@ -21,7 +21,7 @@ public class BoardViewTests
     }
 
     [TestCase(@"C:\dev\git\Theseus", "Theseus")]
-    [TestCase(@"C:\dev\tfsgit\features\gdpr\Nurtur.Direct.Communications\", "Nurtur.Direct.Communications")]
+    [TestCase(@"C:\dev\work\features\ledger\Fabrikam.Messaging\", "Fabrikam.Messaging")]
     [TestCase(@"C:\", @"C:")]
     [TestCase("  ", BoardView.NoProject)]
     public void Project_IsTheFolderItself(string directory, string project)

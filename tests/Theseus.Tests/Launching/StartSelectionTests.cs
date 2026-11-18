@@ -28,7 +28,7 @@ public class StartSelectionTests
     [Test]
     public void ForCards_StartsNothingThatWasNotChosen()
     {
-        var paused = Workstream("nexus", "Paused");
+        var paused = Workstream("harbor", "Paused");
 
         Assert.That(
             StartSelection.ForCards([Workstream("job-queue", "In progress")], Columns,

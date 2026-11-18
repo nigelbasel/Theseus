@@ -78,7 +78,7 @@ public class TheseusMcpTests
     [Test]
     public void Plan_CarriesTheMcpConfigToTheSession()
     {
-        var workstream = new Workstream("gdpr-mcp", "GDPR MCP", "#208DD7", ColorIsManual: true, @"C:\work", [], "Prompt.",
+        var workstream = new Workstream("ledger-mcp", "LEDGER MCP", "#208DD7", ColorIsManual: true, @"C:\work", [], "Prompt.",
             1, "New", IsBlocked: false, ReopenTomorrow: true, IsArchived: false, SessionId, [], null, DateTimeOffset.UtcNow);
         var request = new WorkstreamLaunchRequest(workstream, "ticket", SessionId, LaunchMode.Resume, @"C:\claude.exe",
             @"C:\wt.exe", @"C:\Theseus.Launcher.exe", "Theseus.Launch", "theseus", "Carry on.",

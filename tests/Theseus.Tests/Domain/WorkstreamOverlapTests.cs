@@ -37,13 +37,13 @@ public class WorkstreamOverlapTests
     {
         var clashes = WorkstreamOverlap.Find(
         [
-            ("contact-forms", @"C:\a.md", ["NDC-742", "APPS-1"]),
-            ("job-queue", @"C:\b.md", ["NDC-742"]),
+            ("contact-forms", @"C:\a.md", ["KITE-742", "MOTH-1"]),
+            ("job-queue", @"C:\b.md", ["KITE-742"]),
         ]);
 
         Assert.That(clashes, Has.Count.EqualTo(1));
         Assert.That(clashes[0].Kind, Is.EqualTo(ClashKind.JiraKey));
-        Assert.That(clashes[0].What, Is.EqualTo("NDC-742"));
+        Assert.That(clashes[0].What, Is.EqualTo("KITE-742"));
     }
 
     [Test]
@@ -51,14 +51,14 @@ public class WorkstreamOverlapTests
     {
         var clashes = WorkstreamOverlap.Find(
         [
-            ("auth-research", @"C:\a.md", ["APPS-1412"]),
-            ("token-spike", @"C:\b.md", ["APPS-1412"]),
+            ("auth-research", @"C:\a.md", ["MOTH-1412"]),
+            ("token-spike", @"C:\b.md", ["MOTH-1412"]),
         ], [("auth-research", "token-spike")]);
 
         Assert.That(clashes.Single().Kind, Is.EqualTo(ClashKind.LinkedJiraKey));
         Assert.That(WorkstreamOverlap.Describe("token-spike", clashes), Is.Empty);
         Assert.That(WorkstreamOverlap.DescribeLinked("token-spike", clashes),
-            Is.EqualTo("shares APPS-1412 with linked card auth-research"));
+            Is.EqualTo("shares MOTH-1412 with linked card auth-research"));
     }
 
     [Test]
@@ -66,9 +66,9 @@ public class WorkstreamOverlapTests
     {
         var clashes = WorkstreamOverlap.Find(
         [
-            ("auth-research", @"C:\a.md", ["APPS-1412"]),
-            ("token-spike", @"C:\b.md", ["APPS-1412"]),
-            ("cache-spike", @"C:\c.md", ["APPS-1412"]),
+            ("auth-research", @"C:\a.md", ["MOTH-1412"]),
+            ("token-spike", @"C:\b.md", ["MOTH-1412"]),
+            ("cache-spike", @"C:\c.md", ["MOTH-1412"]),
         ], [("auth-research", "token-spike"), ("cache-spike", "auth-research")]);
 
         Assert.That(clashes.Single().Kind, Is.EqualTo(ClashKind.LinkedJiraKey));
@@ -79,9 +79,9 @@ public class WorkstreamOverlapTests
     {
         var clashes = WorkstreamOverlap.Find(
         [
-            ("auth-research", @"C:\a.md", ["APPS-1412"]),
-            ("token-spike", @"C:\b.md", ["APPS-1412"]),
-            ("stranger", @"C:\c.md", ["APPS-1412"]),
+            ("auth-research", @"C:\a.md", ["MOTH-1412"]),
+            ("token-spike", @"C:\b.md", ["MOTH-1412"]),
+            ("stranger", @"C:\c.md", ["MOTH-1412"]),
         ], [("auth-research", "token-spike")]);
 
         Assert.That(clashes.Single().Kind, Is.EqualTo(ClashKind.JiraKey));
@@ -104,8 +104,8 @@ public class WorkstreamOverlapTests
     {
         Assert.That(WorkstreamOverlap.Find(
         [
-            ("contact-forms", @"C:\a.md", ["APPS-1"]),
-            ("job-queue", @"C:\b.md", ["APPS-2"]),
+            ("contact-forms", @"C:\a.md", ["MOTH-1"]),
+            ("job-queue", @"C:\b.md", ["MOTH-2"]),
         ]), Is.Empty);
     }
 
@@ -124,8 +124,8 @@ public class WorkstreamOverlapTests
     {
         var clashes = WorkstreamOverlap.Find(
         [
-            ("contact-forms", @"C:\a.md", ["NDC-742", "NDC-742"]),
-            ("job-queue", @"C:\b.md", ["NDC-742"]),
+            ("contact-forms", @"C:\a.md", ["KITE-742", "KITE-742"]),
+            ("job-queue", @"C:\b.md", ["KITE-742"]),
         ]);
 
         Assert.That(clashes[0].Workstreams, Has.Count.EqualTo(2));
@@ -173,13 +173,13 @@ public class WorkstreamOverlapTests
     {
         var clashes = WorkstreamOverlap.Find(
         [
-            ("contact-forms", @"C:\dev\HANDOFF.md", ["NDC-742"]),
-            ("job-queue", @"C:\dev\HANDOFF.md", ["NDC-742"]),
+            ("contact-forms", @"C:\dev\HANDOFF.md", ["KITE-742"]),
+            ("job-queue", @"C:\dev\HANDOFF.md", ["KITE-742"]),
         ]);
 
         var said = WorkstreamOverlap.Describe("contact-forms", clashes);
 
         Assert.That(said, Does.Contain("handover notes"));
-        Assert.That(said, Does.Contain("NDC-742"));
+        Assert.That(said, Does.Contain("KITE-742"));
     }
 }

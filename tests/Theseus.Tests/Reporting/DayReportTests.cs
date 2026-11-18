@@ -68,7 +68,7 @@ public class DayReportTests
     {
         var entries = Report(Run("dev", At(9), At(12)));
 
-        Assert.That(entries[0].JiraKeys, Is.EqualTo(new[] { "NDC-1", "NDC-2" }),
+        Assert.That(entries[0].JiraKeys, Is.EqualTo(new[] { "KITE-1", "KITE-2" }),
             "nothing knows how to split a session between issues, so the split is not invented");
         Assert.That(entries[0].Worked, Is.EqualTo(TimeSpan.FromHours(3)), "the time stays whole");
     }
@@ -112,8 +112,8 @@ public class DayReportTests
 
     private static IReadOnlyList<Workstream> Workstreams() =>
     [
-        Workstream("research", "Nexus research", "Research", []),
-        Workstream("dev", "Job queue", "Dev", ["NDC-1", "NDC-2"]),
+        Workstream("research", "Harbor research", "Research", []),
+        Workstream("dev", "Job queue", "Dev", ["KITE-1", "KITE-2"]),
     ];
 
     private static Workstream Workstream(string key, string title, string area, string[] keys) =>

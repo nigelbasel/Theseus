@@ -33,10 +33,10 @@ public class WorkstreamLaunchPlannerTests
     [Test]
     public void Plan_EscapesTheSemicolonInATabTitleSoOneTabOpensRatherThanTwo()
     {
-        var plan = Plan(title: "GDPR; contact forms");
+        var plan = Plan(title: "LEDGER; contact forms");
 
         Assert.That(plan.TerminalArguments.ToList()[plan.TerminalArguments.ToList().IndexOf("--title") + 1],
-            Is.EqualTo(@"GDPR\; contact forms"));
+            Is.EqualTo(@"LEDGER\; contact forms"));
     }
 
     [Test]

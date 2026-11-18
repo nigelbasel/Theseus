@@ -15,7 +15,7 @@ public class WorkflowRunReaderTests
     public void SetUp()
     {
         _root = Path.Combine(Path.GetTempPath(), $"theseus-wf-{Guid.NewGuid():N}");
-        _workflows = Path.Combine(_root, "C--dev-tfsgit", SessionId, "workflows");
+        _workflows = Path.Combine(_root, "C--dev-work", SessionId, "workflows");
 
         Directory.CreateDirectory(_workflows);
         Directory.CreateDirectory(Path.Combine(_root, "C--dev-somewhere-else"));
@@ -33,11 +33,11 @@ public class WorkflowRunReaderTests
             {
               "runId": "wf_e606be63-cda",
               "timestamp": "2026-08-26T10:14:13.569Z",
-              "script": "export const meta = { name: 'nexus-instance-scripts' }",
+              "script": "export const meta = { name: 'harbor-instance-scripts' }",
               "agentCount": 17,
               "durationMs": 1851251,
               "summary": "Instance-DB scripts for DbScriptRunner",
-              "workflowName": "nexus-instance-scripts",
+              "workflowName": "harbor-instance-scripts",
               "status": "killed",
               "phases": [
                 { "title": "Author", "detail": "write each instance script" },
@@ -51,7 +51,7 @@ public class WorkflowRunReaderTests
 
         var run = _reader.Read(SessionId).Single();
 
-        Assert.That(run.WorkflowName, Is.EqualTo("nexus-instance-scripts"));
+        Assert.That(run.WorkflowName, Is.EqualTo("harbor-instance-scripts"));
         Assert.That(run.AgentCount, Is.EqualTo(17));
         Assert.That(run.TotalTokens, Is.EqualTo(2235969));
         Assert.That(run.Status, Is.EqualTo("killed"));
@@ -62,10 +62,10 @@ public class WorkflowRunReaderTests
     [Test]
     public void Read_DescribesARunInOneLine()
     {
-        Write("wf_a", """{"runId":"wf_a","workflowName":"nexus-sql-split","agentCount":51,"totalTokens":2235969,"status":"killed"}""");
+        Write("wf_a", """{"runId":"wf_a","workflowName":"harbor-sql-split","agentCount":51,"totalTokens":2235969,"status":"killed"}""");
 
         Assert.That(_reader.Read(SessionId).Single().Describe,
-            Is.EqualTo("nexus-sql-split · 51 agents · 2.2M tokens · killed"));
+            Is.EqualTo("harbor-sql-split · 51 agents · 2.2M tokens · killed"));
     }
 
     [Test]

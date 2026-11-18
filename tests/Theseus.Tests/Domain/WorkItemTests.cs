@@ -25,15 +25,15 @@ public class WorkItemTests
     {
         var book = new WorkItemBook(_path);
 
-        book.Record(new WorkItem("auth", WorkItemKind.Jira, "ndc-680", "Mandatory 2FA", null, Nine));
+        book.Record(new WorkItem("auth", WorkItemKind.Jira, "kite-680", "Mandatory 2FA", null, Nine));
         book.Record(new WorkItem("auth", WorkItemKind.PullRequest, "#22174", "Enforce 2FA at sign-in", null, Nine));
-        book.Record(new WorkItem("other", WorkItemKind.Jira, "NDC-1", "Elsewhere", null, Nine));
+        book.Record(new WorkItem("other", WorkItemKind.Jira, "KITE-1", "Elsewhere", null, Nine));
 
         var reopened = new WorkItemBook(_path).For("auth");
 
         Assert.That(reopened.Select(item => (item.Kind, item.Id, item.Title)), Is.EqualTo(new[]
         {
-            (WorkItemKind.Jira, "NDC-680", (string?)"Mandatory 2FA"),
+            (WorkItemKind.Jira, "KITE-680", (string?)"Mandatory 2FA"),
             (WorkItemKind.PullRequest, "22174", (string?)"Enforce 2FA at sign-in"),
         }));
     }
@@ -43,8 +43,8 @@ public class WorkItemTests
     {
         var book = new WorkItemBook(_path);
 
-        book.Record(new WorkItem("auth", WorkItemKind.Jira, "NDC-680", "Old title", null, Nine));
-        book.Record(new WorkItem("auth", WorkItemKind.Jira, "NDC-680", "New title", null, Nine));
+        book.Record(new WorkItem("auth", WorkItemKind.Jira, "KITE-680", "Old title", null, Nine));
+        book.Record(new WorkItem("auth", WorkItemKind.Jira, "KITE-680", "New title", null, Nine));
 
         Assert.That(book.For("auth").Single().Title, Is.EqualTo("New title"));
     }
@@ -54,14 +54,14 @@ public class WorkItemTests
     {
         var book = new WorkItemBook(_path);
 
-        book.Record(new WorkItem(WorkItemBook.NoCard, WorkItemKind.Jira, "ndc-680", "Mandatory 2FA", null, Nine));
+        book.Record(new WorkItem(WorkItemBook.NoCard, WorkItemKind.Jira, "kite-680", "Mandatory 2FA", null, Nine));
 
-        var rows = CardItemRows.Jira(["NDC-680"], book.For("any-card"), null, key => book.TitleOf(WorkItemKind.Jira, key));
+        var rows = CardItemRows.Jira(["KITE-680"], book.For("any-card"), null, key => book.TitleOf(WorkItemKind.Jira, key));
 
         Assert.Multiple(() =>
         {
             Assert.That(book.For("any-card"), Is.Empty, "naming a title attaches it to no card");
-            Assert.That(rows.Single().Display, Is.EqualTo("NDC-680   Mandatory 2FA"));
+            Assert.That(rows.Single().Display, Is.EqualTo("KITE-680   Mandatory 2FA"));
             Assert.That(rows.Single().Tooltip, Does.StartWith("Mandatory 2FA"));
         });
     }
@@ -77,15 +77,15 @@ public class WorkItemTests
     [Test]
     public void JiraRows_GiveEveryKeyWithItsTitleAndAddress()
     {
-        var rows = CardItemRows.Jira(["NDC-680", "NDC-681"],
-            [new WorkItem("auth", WorkItemKind.Jira, "NDC-680", "Mandatory 2FA", null, Nine),
-             new WorkItem("auth", WorkItemKind.Jira, "NDC-900", "Raised by the session", null, Nine)],
+        var rows = CardItemRows.Jira(["KITE-680", "KITE-681"],
+            [new WorkItem("auth", WorkItemKind.Jira, "KITE-680", "Mandatory 2FA", null, Nine),
+             new WorkItem("auth", WorkItemKind.Jira, "KITE-900", "Raised by the session", null, Nine)],
             "https://example.atlassian.net");
 
         Assert.Multiple(() =>
         {
-            Assert.That(rows.Select(row => row.Display), Is.EqualTo(new[] { "NDC-680   Mandatory 2FA", "NDC-681", "NDC-900   Raised by the session" }));
-            Assert.That(rows[1].Url, Is.EqualTo("https://example.atlassian.net/browse/NDC-681"));
+            Assert.That(rows.Select(row => row.Display), Is.EqualTo(new[] { "KITE-680   Mandatory 2FA", "KITE-681", "KITE-900   Raised by the session" }));
+            Assert.That(rows[1].Url, Is.EqualTo("https://example.atlassian.net/browse/KITE-681"));
         });
     }
 
@@ -99,7 +99,7 @@ public class WorkItemTests
         Assert.That(rows.Single().Url, Is.EqualTo("https://tfs/pr/22174"));
     }
 
-    [TestCase("ref: refs/heads/nigel/gdpr\n", "nigel/gdpr")]
+    [TestCase("ref: refs/heads/nigel/ledger\n", "nigel/ledger")]
     [TestCase("ref: refs/heads/main", "main")]
     [TestCase("0123456789abcdef0123456789abcdef01234567\n", "detached at 0123456")]
     public void Branch_IsReadFromHead(string head, string branch)
@@ -114,12 +114,12 @@ public class WorkItemTests
 
         try
         {
-            var gitDirectory = Directory.CreateDirectory(Path.Combine(root, "main", ".git", "worktrees", "gdpr")).FullName;
-            File.WriteAllText(Path.Combine(gitDirectory, "HEAD"), "ref: refs/heads/nigel/gdpr\n");
-            var worktree = Directory.CreateDirectory(Path.Combine(root, "features", "gdpr", "repo", "src")).FullName;
-            File.WriteAllText(Path.Combine(root, "features", "gdpr", "repo", ".git"), $"gitdir: {gitDirectory}\n");
+            var gitDirectory = Directory.CreateDirectory(Path.Combine(root, "main", ".git", "worktrees", "ledger")).FullName;
+            File.WriteAllText(Path.Combine(gitDirectory, "HEAD"), "ref: refs/heads/nigel/ledger\n");
+            var worktree = Directory.CreateDirectory(Path.Combine(root, "features", "ledger", "repo", "src")).FullName;
+            File.WriteAllText(Path.Combine(root, "features", "ledger", "repo", ".git"), $"gitdir: {gitDirectory}\n");
 
-            Assert.That(GitBranchReader.Read(worktree), Is.EqualTo("nigel/gdpr"));
+            Assert.That(GitBranchReader.Read(worktree), Is.EqualTo("nigel/ledger"));
         }
         finally
         {

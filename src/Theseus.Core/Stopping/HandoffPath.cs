@@ -85,7 +85,7 @@ public static class HandoffPath
     }
 
     /// <summary>
-    /// Whether a file name distinguishes one workstream from another — <c>HANDOFF-gdpr-mcp.md</c>
+    /// Whether a file name distinguishes one workstream from another — <c>HANDOFF-ledger-mcp.md</c>
     /// does, <c>HANDOFF.md</c> does not. Reached only once the name is known not to be this
     /// workstream's, so a name that belongs to anybody belongs to somebody else.
     /// </summary>

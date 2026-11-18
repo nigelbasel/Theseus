@@ -28,7 +28,7 @@ public class McpHttpServerTests
         var handler = new McpHandler(
             new WorkLog(Path.Combine(_directory, "work.jsonl")),
             () => [],
-            sessionId => new McpSession(sessionId, "gdpr-mcp", "GDPR MCP"),
+            sessionId => new McpSession(sessionId, "ledger-mcp", "LEDGER MCP"),
             () => DateTimeOffset.UtcNow);
 
         var port = FreePort();

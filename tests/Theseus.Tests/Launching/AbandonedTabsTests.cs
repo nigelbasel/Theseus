@@ -19,12 +19,12 @@ public class AbandonedTabsTests
     [Test]
     public void Among_FindsAWorkstreamWhoseTabOutlivedItsSession()
     {
-        var stopping = Workstream("gdpr-mcp", "MCP: GDPR Changes");
+        var stopping = Workstream("ledger-mcp", "MCP: LEDGER Changes");
 
         Assert.That(
-            AbandonedTabs.Among([stopping], ["MCP: GDPR Changes", "TailHawk"], SessionRegistrySnapshot.Empty)
+            AbandonedTabs.Among([stopping], ["MCP: LEDGER Changes", "TailHawk"], SessionRegistrySnapshot.Empty)
                 .Select(w => w.Key),
-            Is.EqualTo(new[] { "gdpr-mcp" }));
+            Is.EqualTo(new[] { "ledger-mcp" }));
     }
 
     [Test]
@@ -48,10 +48,10 @@ public class AbandonedTabsTests
     [Test]
     public void Among_MatchesTheNameLooselyBecauseATitleIsTypedByAPerson()
     {
-        var workstream = Workstream("gdpr", "MCP: GDPR Changes");
+        var workstream = Workstream("ledger", "MCP: LEDGER Changes");
 
         Assert.That(
-            AbandonedTabs.Among([workstream], ["mcp gdpr changes"], SessionRegistrySnapshot.Empty),
+            AbandonedTabs.Among([workstream], ["mcp ledger changes"], SessionRegistrySnapshot.Empty),
             Has.Count.EqualTo(1),
             "punctuation and case must not decide whether a second tab is opened");
     }
@@ -62,7 +62,7 @@ public class AbandonedTabsTests
         // Every terminal elevated, or none open. The guard is best-effort and says so by finding
         // nothing rather than by guessing.
         Assert.That(
-            AbandonedTabs.Among([Workstream("gdpr", "MCP: GDPR Changes")], [], SessionRegistrySnapshot.Empty),
+            AbandonedTabs.Among([Workstream("ledger", "MCP: LEDGER Changes")], [], SessionRegistrySnapshot.Empty),
             Is.Empty);
     }
 

@@ -82,11 +82,11 @@ public class DetailDrawerViewModelTests
     public void AJiraKey_IsSavedWhenAdded()
     {
         _drawer.Show(Card("one"));
-        _drawer.NewJiraKey = "NDC-1";
+        _drawer.NewJiraKey = "KITE-1";
 
         _drawer.AddJiraKeyCommand.Execute(null);
 
-        Assert.That(Card("one").Workstream.JiraKeys, Is.EquivalentTo(new[] { "NDC-1" }));
+        Assert.That(Card("one").Workstream.JiraKeys, Is.EquivalentTo(new[] { "KITE-1" }));
     }
 
     [Test]

@@ -165,11 +165,11 @@ public class PlanStoreTests
             {
                 "order": 1, "title": "Contact forms", "color": "#C0392B", "cwd": "C:\\work\\repo",
                 "addDirs": [], "resumeSessionId": null, "writtenAt": "2026-08-28T09:00:00",
-                "prompt": "Pick up the support case.", "jiraKeys": ["NDC-742"]
+                "prompt": "Pick up the support case.", "jiraKeys": ["KITE-742"]
             }
             """);
 
-        Assert.That(_store.TryRead("contact-forms")!.JiraKeys, Is.EqualTo(new[] { "NDC-742" }));
+        Assert.That(_store.TryRead("contact-forms")!.JiraKeys, Is.EqualTo(new[] { "KITE-742" }));
     }
 
     [Test]

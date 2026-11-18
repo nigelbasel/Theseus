@@ -15,8 +15,8 @@ public class ImportReferencesTests
     [Test]
     public void In_ReadsAbsoluteAndHomeRelativePaths()
     {
-        Assert.That(ImportReferences.In("@C:/dev/tfsgit/CLAUDE.md\n- @~/.claude/mine.md"),
-            Is.EqualTo(new[] { "C:/dev/tfsgit/CLAUDE.md", "~/.claude/mine.md" }));
+        Assert.That(ImportReferences.In("@C:/dev/work/CLAUDE.md\n- @~/.claude/mine.md"),
+            Is.EqualTo(new[] { "C:/dev/work/CLAUDE.md", "~/.claude/mine.md" }));
     }
 
     [Test]

@@ -10,7 +10,7 @@ public static class LockNames
     /// <summary>Container-backed test suites, compose builds and whole-solution builds, as one lock.</summary>
     public const string Tests = "tests";
 
-    /// <summary>The shared local NDC/AFE docker stack.</summary>
+    /// <summary>The shared local docker stack.</summary>
     public const string DevStack = "dev-stack";
 
     /// <summary>The local llama.cpp server on port 8090, which holds one model at a time.</summary>
@@ -23,7 +23,7 @@ public static class LockNames
     public static string Describe(string name) => name switch
     {
         Tests => "Container-backed test suites, compose builds and whole-solution builds",
-        DevStack => "The local NDC/AFE docker stack",
+        DevStack => "The local docker stack",
         Llama => "The local llama server (port 8090)",
         _ => name,
     };

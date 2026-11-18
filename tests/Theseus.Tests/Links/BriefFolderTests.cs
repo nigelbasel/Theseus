@@ -5,7 +5,7 @@ namespace Theseus.Tests.Links;
 [TestFixture]
 public class BriefFolderTests
 {
-    [TestCase(@"C:\dev\tfsgit")]
+    [TestCase(@"C:\dev\work")]
     [TestCase(@"C:\dev\git")]
     public void ReportPath_IsUnderTheSpawningWorkstreamsOwnWorkingDirectory(string workingDirectory)
     {

@@ -27,8 +27,8 @@ public class McpHandlerTests
             () => _intervals,
             sessionId => sessionId switch
             {
-                "session-1" => new McpSession("session-1", "gdpr-mcp", "GDPR MCP"),
-                "session-2" => new McpSession("session-2", "nexus-admin", "Nexus Admin"),
+                "session-1" => new McpSession("session-1", "ledger-mcp", "LEDGER MCP"),
+                "session-2" => new McpSession("session-2", "harbor-admin", "Harbor Admin"),
                 _ => null,
             },
             () => _now,
@@ -125,7 +125,7 @@ public class McpHandlerTests
     [Test]
     public void AToolCall_FromASessionTheseusDidNotLaunch_IsRefused()
     {
-        var result = Call("start_work", new JsonObject { ["issue"] = "NDC-680" }, session: "stranger");
+        var result = Call("start_work", new JsonObject { ["issue"] = "KITE-680" }, session: "stranger");
 
         Assert.That(result["isError"]!.GetValue<bool>(), Is.True);
         Assert.That(Text(result), Does.Contain("not launched by Theseus"));
@@ -134,15 +134,15 @@ public class McpHandlerTests
     [Test]
     public void TimeFor_GivesAttendedAndMachineTimeSeparately()
     {
-        Call("start_work", new JsonObject { ["issue"] = "NDC-680" });
+        Call("start_work", new JsonObject { ["issue"] = "KITE-680" });
         _now = Nine.AddHours(1);
         _intervals =
         [
-            new AttentionInterval(AttentionKind.Attended, "gdpr-mcp", Nine.AddMinutes(10), Nine.AddMinutes(40)),
-            new AttentionInterval(AttentionKind.Machine, "gdpr-mcp", Nine, Nine.AddHours(1)),
+            new AttentionInterval(AttentionKind.Attended, "ledger-mcp", Nine.AddMinutes(10), Nine.AddMinutes(40)),
+            new AttentionInterval(AttentionKind.Machine, "ledger-mcp", Nine, Nine.AddHours(1)),
         ];
 
-        var report = JsonNode.Parse(Text(Call("time_for", new JsonObject { ["issue"] = "ndc-680", ["from"] = "2026-09-17" })))!;
+        var report = JsonNode.Parse(Text(Call("time_for", new JsonObject { ["issue"] = "kite-680", ["from"] = "2026-09-17" })))!;
 
         Assert.Multiple(() =>
         {
@@ -155,29 +155,29 @@ public class McpHandlerTests
     [Test]
     public void TimeFor_WarnsToLogOnceWhenSeveralWorkstreamsWorkedOnTheIssue()
     {
-        Call("start_work", new JsonObject { ["issue"] = "NDC-680" });
-        Call("start_work", new JsonObject { ["issue"] = "NDC-680" }, session: "session-2");
+        Call("start_work", new JsonObject { ["issue"] = "KITE-680" });
+        Call("start_work", new JsonObject { ["issue"] = "KITE-680" }, session: "session-2");
         _now = Nine.AddHours(1);
         _intervals =
         [
-            new AttentionInterval(AttentionKind.Machine, "gdpr-mcp", Nine, Nine.AddHours(1)),
-            new AttentionInterval(AttentionKind.Machine, "nexus-admin", Nine, Nine.AddHours(1)),
+            new AttentionInterval(AttentionKind.Machine, "ledger-mcp", Nine, Nine.AddHours(1)),
+            new AttentionInterval(AttentionKind.Machine, "harbor-admin", Nine, Nine.AddHours(1)),
         ];
 
-        var report = JsonNode.Parse(Text(Call("time_for", new JsonObject { ["issue"] = "NDC-680" })))!;
+        var report = JsonNode.Parse(Text(Call("time_for", new JsonObject { ["issue"] = "KITE-680" })))!;
 
         Assert.That(report["shared"]!.GetValue<string>(),
-            Does.Contain("gdpr-mcp").And.Contain("nexus-admin").And.Contain("log this once"));
+            Does.Contain("ledger-mcp").And.Contain("harbor-admin").And.Contain("log this once"));
     }
 
     [Test]
     public void TimeFor_SaysNothingAboutSharingWhenOneWorkstreamWorkedOnTheIssue()
     {
-        Call("start_work", new JsonObject { ["issue"] = "NDC-680" });
+        Call("start_work", new JsonObject { ["issue"] = "KITE-680" });
         _now = Nine.AddHours(1);
-        _intervals = [new AttentionInterval(AttentionKind.Machine, "gdpr-mcp", Nine, Nine.AddHours(1))];
+        _intervals = [new AttentionInterval(AttentionKind.Machine, "ledger-mcp", Nine, Nine.AddHours(1))];
 
-        var report = JsonNode.Parse(Text(Call("time_for", new JsonObject { ["issue"] = "NDC-680" })))!;
+        var report = JsonNode.Parse(Text(Call("time_for", new JsonObject { ["issue"] = "KITE-680" })))!;
 
         Assert.That(report["shared"], Is.Null);
     }
@@ -185,13 +185,13 @@ public class McpHandlerTests
     [Test]
     public void StopWork_EndsTheStretchThatTimeIsCountedIn()
     {
-        Call("start_work", new JsonObject { ["issue"] = "NDC-680" });
+        Call("start_work", new JsonObject { ["issue"] = "KITE-680" });
         _now = Nine.AddMinutes(30);
         Call("stop_work", new JsonObject());
         _now = Nine.AddHours(1);
-        _intervals = [new AttentionInterval(AttentionKind.Machine, "gdpr-mcp", Nine, Nine.AddHours(1))];
+        _intervals = [new AttentionInterval(AttentionKind.Machine, "ledger-mcp", Nine, Nine.AddHours(1))];
 
-        var report = JsonNode.Parse(Text(Call("time_for", new JsonObject { ["issue"] = "NDC-680" })))!;
+        var report = JsonNode.Parse(Text(Call("time_for", new JsonObject { ["issue"] = "KITE-680" })))!;
 
         Assert.That(report["machineMinutes"]!.GetValue<int>(), Is.EqualTo(30));
     }
@@ -199,18 +199,18 @@ public class McpHandlerTests
     [Test]
     public void WhoAmI_SaysWhichWorkstreamThisIsAndWhatItIsOn()
     {
-        Call("start_work", new JsonObject { ["issue"] = "NDC-680" });
+        Call("start_work", new JsonObject { ["issue"] = "KITE-680" });
 
         var identity = JsonNode.Parse(Text(Call("whoami", new JsonObject())))!;
 
-        Assert.That(identity["workstream"]!.GetValue<string>(), Is.EqualTo("gdpr-mcp"));
-        Assert.That(identity["workingOn"]!.GetValue<string>(), Is.EqualTo("NDC-680"));
+        Assert.That(identity["workstream"]!.GetValue<string>(), Is.EqualTo("ledger-mcp"));
+        Assert.That(identity["workingOn"]!.GetValue<string>(), Is.EqualTo("KITE-680"));
     }
 
     [Test]
     public void LockAcquire_GrantsAFreeLockToTheSession()
     {
-        var result = Call("lock_acquire", new JsonObject { ["lock"] = "dev-stack", ["purpose"] = "AFE editor" });
+        var result = Call("lock_acquire", new JsonObject { ["lock"] = "dev-stack", ["purpose"] = "WREN editor" });
 
         Assert.That(result["isError"]!.GetValue<bool>(), Is.False);
         Assert.That(Text(result), Does.Contain("You hold the dev-stack lock"));
@@ -219,24 +219,24 @@ public class McpHandlerTests
     [Test]
     public void LockAcquire_QueuesASecondSessionAndNamesTheHolder()
     {
-        Call("lock_acquire", new JsonObject { ["lock"] = "dev-stack", ["purpose"] = "AFE editor" });
+        Call("lock_acquire", new JsonObject { ["lock"] = "dev-stack", ["purpose"] = "WREN editor" });
 
-        var result = Call("lock_acquire", new JsonObject { ["lock"] = "dev-stack", ["purpose"] = "Nexus check" }, "session-2");
+        var result = Call("lock_acquire", new JsonObject { ["lock"] = "dev-stack", ["purpose"] = "Harbor check" }, "session-2");
 
         Assert.That(Text(result), Does.Contain("first in the queue"));
-        Assert.That(Text(result), Does.Contain("GDPR MCP"));
+        Assert.That(Text(result), Does.Contain("LEDGER MCP"));
         Assert.That(Text(result), Does.Contain("Do not ask the holder to give way"));
     }
 
     [Test]
     public void LockRelease_HandsTheLockOn()
     {
-        Call("lock_acquire", new JsonObject { ["lock"] = "dev-stack", ["purpose"] = "AFE editor" });
-        Call("lock_acquire", new JsonObject { ["lock"] = "dev-stack", ["purpose"] = "Nexus check" }, "session-2");
+        Call("lock_acquire", new JsonObject { ["lock"] = "dev-stack", ["purpose"] = "WREN editor" });
+        Call("lock_acquire", new JsonObject { ["lock"] = "dev-stack", ["purpose"] = "Harbor check" }, "session-2");
 
         Call("lock_release", new JsonObject { ["lock"] = "dev-stack" });
 
-        Assert.That(Text(Call("lock_acquire", new JsonObject { ["lock"] = "dev-stack", ["purpose"] = "Nexus check" }, "session-2")),
+        Assert.That(Text(Call("lock_acquire", new JsonObject { ["lock"] = "dev-stack", ["purpose"] = "Harbor check" }, "session-2")),
             Does.Contain("You hold"));
     }
 
@@ -249,13 +249,13 @@ public class McpHandlerTests
     [Test]
     public void Locks_ListsHoldersAndTheQueue()
     {
-        Call("lock_acquire", new JsonObject { ["lock"] = "dev-stack", ["purpose"] = "AFE editor" });
-        Call("lock_acquire", new JsonObject { ["lock"] = "dev-stack", ["purpose"] = "Nexus check", ["reason"] = "demo at 3" }, "session-2");
+        Call("lock_acquire", new JsonObject { ["lock"] = "dev-stack", ["purpose"] = "WREN editor" });
+        Call("lock_acquire", new JsonObject { ["lock"] = "dev-stack", ["purpose"] = "Harbor check", ["reason"] = "demo at 3" }, "session-2");
 
         var text = Text(Call("locks", new JsonObject()));
 
-        Assert.That(text, Does.Contain("dev-stack: held by GDPR MCP for AFE editor"));
-        Assert.That(text, Does.Contain("1. Nexus Admin for Nexus check"));
+        Assert.That(text, Does.Contain("dev-stack: held by LEDGER MCP for WREN editor"));
+        Assert.That(text, Does.Contain("1. Harbor Admin for Harbor check"));
         Assert.That(text, Does.Contain("(demo at 3)"));
         Assert.That(text, Does.Contain("tests: free"));
     }

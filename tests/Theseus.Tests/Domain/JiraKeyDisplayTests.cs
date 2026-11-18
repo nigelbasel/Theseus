@@ -8,8 +8,8 @@ public class JiraKeyDisplayTests
     // The card that prompted this: sixteen issues on one workstream.
     private static readonly string[] Many =
     [
-        "APPS-2170", "NDC-202", "REQ-06", "NDC-200", "NDC-201", "NDC-639", "NDC-653", "NDC-654",
-        "NDC-655", "NDC-656", "NDC-662", "NDC-663", "NDC-664", "NDC-665", "NDC-667", "NDC-669",
+        "MOTH-2170", "KITE-202", "REQ-06", "KITE-200", "KITE-201", "KITE-639", "KITE-653", "KITE-654",
+        "KITE-655", "KITE-656", "KITE-662", "KITE-663", "KITE-664", "KITE-665", "KITE-667", "KITE-669",
     ];
 
     [Test]
@@ -21,14 +21,14 @@ public class JiraKeyDisplayTests
     [Test]
     public void Visible_KeepsTheOrderTheyAreIn()
     {
-        Assert.That(JiraKeyDisplay.Visible(Many)[0], Is.EqualTo("APPS-2170"),
+        Assert.That(JiraKeyDisplay.Visible(Many)[0], Is.EqualTo("MOTH-2170"),
             "the first is the one the work started from, and is the one worth seeing");
     }
 
     [Test]
     public void Visible_ShowsEveryKeyWhenTheyAllFit()
     {
-        Assert.That(JiraKeyDisplay.Visible(["NDC-1", "NDC-2"]), Has.Count.EqualTo(2));
+        Assert.That(JiraKeyDisplay.Visible(["KITE-1", "KITE-2"]), Has.Count.EqualTo(2));
     }
 
     [Test]
@@ -40,7 +40,7 @@ public class JiraKeyDisplayTests
     [Test]
     public void More_SaysNothingWhenEveryKeyIsOnTheCard()
     {
-        Assert.That(JiraKeyDisplay.More(["NDC-1", "NDC-2"]), Is.Empty);
+        Assert.That(JiraKeyDisplay.More(["KITE-1", "KITE-2"]), Is.Empty);
     }
 
     [Test]
@@ -55,8 +55,8 @@ public class JiraKeyDisplayTests
     {
         var all = JiraKeyDisplay.All(Many);
 
-        Assert.That(all, Does.Contain("NDC-669"), "the last one is reachable from the tooltip");
-        Assert.That(all, Does.Contain("APPS-2170"));
+        Assert.That(all, Does.Contain("KITE-669"), "the last one is reachable from the tooltip");
+        Assert.That(all, Does.Contain("MOTH-2170"));
     }
 
     [Test]

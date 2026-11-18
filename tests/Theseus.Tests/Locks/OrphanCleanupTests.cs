@@ -75,7 +75,7 @@ public class OrphanCleanupTests
     {
         using var fixture = new BookFixture();
         var holder = fixture.HoldTests(4242);
-        var waiter = fixture.Book.Request(new LockRequest(LockNames.Tests, "NDC-1190", "Api.Contacts.Tests", HoldMode.Process));
+        var waiter = fixture.Book.Request(new LockRequest(LockNames.Tests, "KITE-1190", "Api.Contacts.Tests", HoldMode.Process));
 
         fixture.Tree.Hosts[4242] = [new HeldProcess(5000, "t", "testhost")];
         fixture.Book.Sweep();
@@ -209,7 +209,7 @@ public class OrphanCleanupTests
         public string? Clean(IReadOnlyList<HeldProcess> testHosts, DateTimeOffset fromUtc, DateTimeOffset toUtc)
         {
             Calls.Add((testHosts, fromUtc, toUtc));
-            GrantedWhenCleaned = Book is not null && Book.Snapshot().Any(ticket => ticket.IsHolder && ticket.Who == "NDC-1190");
+            GrantedWhenCleaned = Book is not null && Book.Snapshot().Any(ticket => ticket.IsHolder && ticket.Who == "KITE-1190");
 
             return "Cleaned up after it: 1 test host(s).";
         }

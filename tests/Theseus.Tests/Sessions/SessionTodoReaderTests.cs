@@ -27,7 +27,7 @@ public class SessionTodoReaderTests
         Write("1", """
             {
               "id": "1",
-              "subject": "Port Core TextRenderingTests (17) to NDC",
+              "subject": "Port Core TextRenderingTests (17) to KITE",
               "description": "Triage then port.",
               "activeForm": "Porting TextRenderingTests",
               "status": "in_progress",
@@ -38,7 +38,7 @@ public class SessionTodoReaderTests
 
         var todo = _reader.Read(SessionId).Single();
 
-        Assert.That(todo.Subject, Is.EqualTo("Port Core TextRenderingTests (17) to NDC"));
+        Assert.That(todo.Subject, Is.EqualTo("Port Core TextRenderingTests (17) to KITE"));
         Assert.That(todo.ActiveForm, Is.EqualTo("Porting TextRenderingTests"));
         Assert.That(todo.IsInProgress, Is.True);
     }

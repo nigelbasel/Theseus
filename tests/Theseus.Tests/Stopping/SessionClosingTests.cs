@@ -91,7 +91,7 @@ public class SessionClosingTests
     public void StartedSince_ASessionResumedAfterTheStopWasAsked_IsNotTheOneAsked()
     {
         Assert.That(SessionClosing.StartedSince(Request(), Asked.AddMinutes(58)), Is.True,
-            "nexus-admin, 2026-10-07: resumed an hour after its stop, under the same identifier");
+            "harbor-admin, 2026-10-07: resumed an hour after its stop, under the same identifier");
     }
 
     [Test]

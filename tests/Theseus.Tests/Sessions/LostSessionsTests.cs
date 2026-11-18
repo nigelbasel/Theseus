@@ -9,20 +9,20 @@ public class LostSessionsTests
     [Test]
     public void Find_SpotsASessionRestartedOutFromUnderItsWorkstream()
     {
-        var workstreams = new[] { Workstream("investigate-nexus-mcp-server", "Investigate Nexus MCP Server", "old-id") };
-        var sessions = new[] { Session("new-id", "Investigate Nexus MCP Server") };
+        var workstreams = new[] { Workstream("investigate-harbor-mcp-server", "Investigate Harbor MCP Server", "old-id") };
+        var sessions = new[] { Session("new-id", "Investigate Harbor MCP Server") };
 
         var lost = LostSessions.Find(workstreams, sessions).Single();
 
-        Assert.That(lost.WorkstreamKey, Is.EqualTo("investigate-nexus-mcp-server"));
+        Assert.That(lost.WorkstreamKey, Is.EqualTo("investigate-harbor-mcp-server"));
         Assert.That(lost.SessionId, Is.EqualTo("new-id"));
     }
 
     [Test]
     public void Find_MatchesTheNameLooselyBecauseAKeyIsNotATitle()
     {
-        var workstreams = new[] { Workstream("nexus", "Investigate Nexus MCP Server", "old-id") };
-        var sessions = new[] { Session("new-id", "investigate-nexus-mcp-server") };
+        var workstreams = new[] { Workstream("harbor", "Investigate Harbor MCP Server", "old-id") };
+        var sessions = new[] { Session("new-id", "investigate-harbor-mcp-server") };
 
         Assert.That(LostSessions.Find(workstreams, sessions), Has.Count.EqualTo(1));
     }
@@ -51,11 +51,11 @@ public class LostSessionsTests
     {
         var workstreams = new[]
         {
-            Workstream("first", "Nexus work", null),
-            Workstream("second", "nexus-work", null),
+            Workstream("first", "Harbor work", null),
+            Workstream("second", "harbor-work", null),
         };
 
-        Assert.That(LostSessions.Find(workstreams, [Session("new-id", "Nexus work")]), Is.Empty,
+        Assert.That(LostSessions.Find(workstreams, [Session("new-id", "Harbor work")]), Is.Empty,
             "binding a workstream to the wrong session is worse than leaving it plainly unbound");
     }
 
