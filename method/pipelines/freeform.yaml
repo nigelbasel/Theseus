@@ -1,0 +1,23 @@
+# Ad hoc work: today's Theseus, exactly. A card, a session, a handoff.
+# It adds no step, gate or file to what a standalone workstream already does.
+name: freeform
+version: 0
+mode: standalone
+description: >
+  One stage with no gates. The session works on whatever the card asks, across whichever repos the card's
+  folders cover, and writes its handoff when stopped.
+
+stages:
+  - id: work
+    role: implementer
+    inputs:
+      - the card's prompt, or its handoff when it has run before
+    outputs:
+      - the work itself, in each repo the card covers
+      - the card's handoff, written on stop
+    gate:
+      kind: none
+    evidence:
+      # Shown on the card when present; never blocks anything.
+      shown: [tests run by the session, pull requests it opened]
+      blocks: false

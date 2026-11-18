@@ -1,0 +1,86 @@
+# A new capability, or a change in behaviour, inside a project.
+# Paths are relative to the project's home repo. <issue> is the tracker item or card slug.
+# <repos> are every repo the workstream changes, on one branch name, one worktree each.
+name: feature
+version: 0
+mode: project
+artefacts: work/<issue>/
+
+stages:
+  - id: research
+    role: researcher
+    inputs: [the derived objective and its acceptance criteria, the code in <repos>]
+    outputs: [work/<issue>/research.md]
+    produces: >
+      What exists today, what the change touches in each repo, prior decisions that constrain it,
+      options with their trade-offs. No code changes.
+    gate: {kind: none}
+
+  - id: spec
+    role: specifier
+    inputs: [work/<issue>/research.md]
+    outputs: [work/<issue>/spec.md]
+    produces: >
+      What the change must do, from the user's side, as acceptance criteria a test or a scenario can
+      decide. What is out of scope. Which holdout scenarios apply, by name only.
+    gate:
+      kind: human
+      who: owner
+      passes_when: the owner approves spec.md
+
+  - id: plan
+    role: planner
+    inputs: [work/<issue>/spec.md]
+    outputs: [work/<issue>/plan.md]
+    produces: >
+      The steps, the files in each repo, the tests to write first, and the risks. Each step names how it
+      will be verified.
+    gate:
+      kind: human
+      who: owner
+      passes_when: the owner approves plan.md
+
+  - id: implement
+    role: implementer
+    inputs: [work/<issue>/plan.md]
+    outputs: [commits on the workstream's branch in each of <repos>, work/<issue>/implementation.md]
+    produces: >
+      Tests first, then the code, then the build and tests green in every repo changed.
+      implementation.md says what was done, what differs from the plan and why.
+    gate: {kind: none}
+
+  - id: verify
+    role: verifier
+    independent_of: implementer
+    inputs: [the branch in each of <repos>, work/<issue>/spec.md]
+    outputs: [work/<issue>/evidence.md]
+    produces: >
+      One result per repo: build, tests, and each applicable holdout scenario as pass or fail with its
+      evidence. Run by someone other than the implementer; at L0 that is the owner or a separate session
+      allowed to run the scenarios.
+    gate:
+      kind: evidence
+      passes_when: every repo has a result and every result passes
+      blocks: true
+
+  - id: review
+    role: reviewer
+    independent_of: implementer
+    inputs: [the diff in each of <repos>, work/<issue>/spec.md, work/<issue>/evidence.md, method/rubrics/reviewer.md]
+    outputs: [work/<issue>/review.md]
+    produces: >
+      Findings against the spec and the reviewer rubric, each citing the rubric item or the spec line it
+      breaks. A finding is fixed in code or explicitly accepted by the owner.
+    gate:
+      kind: human
+      who: owner
+      passes_when: no open findings, and the owner accepts
+
+  - id: compound
+    role: compounder
+    inputs: [everything in work/<issue>/]
+    outputs: [work/<issue>/lessons.md, proposed changes to method/ as a separate commit]
+    produces: >
+      What the method caught, what it missed, and what to change in a pipeline, the rubric or AGENTS.md
+      so it is caught next time. Proposals only; the owner decides.
+    gate: {kind: none}

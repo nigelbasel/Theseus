@@ -1,0 +1,43 @@
+# A defect: behaviour that differs from what was decided or documented.
+# Paths are relative to the project's home repo. <issue> is the tracker item or card slug.
+# <repos> are every repo the workstream changes, on one branch name, one worktree each.
+name: bug
+version: 0
+mode: project
+artefacts: work/<issue>/
+
+stages:
+  - id: reproduce
+    role: implementer
+    inputs: [the report, the code in <repos>]
+    outputs: [a failing test committed on the branch, work/<issue>/reproduction.md]
+    produces: >
+      A test that fails for the reported reason, committed before any fix. reproduction.md gives the
+      steps, the expected and actual behaviour, the decision or document that says what is expected, and
+      the test's failing output.
+    gate:
+      kind: evidence
+      passes_when: the new test fails, for the reported reason, on the unfixed code
+      blocks: true
+
+  - id: fix
+    role: implementer
+    inputs: [work/<issue>/reproduction.md]
+    outputs: [commits on the branch in each of <repos>, work/<issue>/fix.md]
+    produces: >
+      The smallest change that makes the test pass without weakening it. fix.md says the cause and why
+      the change addresses the cause rather than the symptom.
+    gate: {kind: none}
+
+  - id: verify
+    role: verifier
+    independent_of: implementer
+    inputs: [the branch in each of <repos>, work/<issue>/reproduction.md]
+    outputs: [work/<issue>/evidence.md]
+    produces: >
+      One result per repo: build, the full test suite, the reproduction test passing unchanged, and any
+      holdout scenario covering the behaviour. Run by someone other than the implementer.
+    gate:
+      kind: evidence
+      passes_when: every repo has a result, every result passes, and the reproduction test is unchanged since it failed
+      blocks: true
