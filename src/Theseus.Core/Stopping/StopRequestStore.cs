@@ -101,16 +101,23 @@ public sealed class StopRequestStore : IStopRequestStore
         }
 
         // The stamp is a record, not part of the delivery: the request is already claimed, and failing to
-        // note when must never stop the session being told.
+        // note when must never stop the session being told, so nothing thrown here escapes. It is written
+        // whole (AtomicFile), so Theseus never reads half of it, and only while the file is still there, so a
+        // request Theseus has just removed is not written back.
         var stamped = request with { DeliveredUtc = when };
 
         try
         {
-            File.WriteAllText(delivered, JsonSerializer.Serialize(stamped, TheseusJson.Compact));
+            if (!File.Exists(delivered))
+            {
+                return request;
+            }
+
+            AtomicFile.WriteAllText(delivered, JsonSerializer.Serialize(stamped, TheseusJson.Compact));
 
             return stamped;
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or NotSupportedException)
+        catch (Exception)
         {
             return request;
         }

@@ -116,6 +116,45 @@ public class StopRequestStoreTests
     }
 
     [Test]
+    public void Claim_StillDeliversWhenTheDeliveryTimeCannotBeWritten()
+    {
+        _store.Write(Request());
+        var pending = StopRequestPath.For(_root, SessionId)!;
+        File.SetAttributes(pending, FileAttributes.ReadOnly);
+
+        try
+        {
+            var claimed = _store.Claim(SessionId, DateTimeOffset.UtcNow);
+
+            Assert.That(claimed, Is.Not.Null, "recording the time must never stop the session being told");
+            Assert.That(claimed!.DeliveredUtc, Is.Null);
+            Assert.That(_store.Delivered(SessionId), Is.Not.Null, "the request is still claimed");
+        }
+        finally
+        {
+            foreach (var file in Directory.EnumerateFiles(_root, "*", SearchOption.AllDirectories))
+            {
+                File.SetAttributes(file, FileAttributes.Normal);
+            }
+        }
+    }
+
+    [Test]
+    public void ARequestFileWrittenBeforeDeliveryTimesExisted_IsStillRead()
+    {
+        var pending = StopRequestPath.For(_root, SessionId)!;
+        Directory.CreateDirectory(Path.GetDirectoryName(pending)!);
+        File.WriteAllText(pending,
+            $$"""{"sessionId":"{{SessionId}}","workstreamKey":"contact-forms","workstreamTitle":"Contact forms","text":"Write a handoff and stop.","requestedUtc":"2026-11-18T13:45:00+00:00","expiresUtc":"2026-11-18T17:45:00+00:00"}""");
+
+        var claimed = _store.Claim(SessionId);
+
+        Assert.That(claimed, Is.Not.Null);
+        Assert.That(claimed!.WorkstreamKey, Is.EqualTo("contact-forms"));
+        Assert.That(claimed.DeliveredUtc, Is.Null);
+    }
+
+    [Test]
     public void ARequestDeliveredByAnOlderHook_HasNoDeliveryTime()
     {
         _store.Write(Request());

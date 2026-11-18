@@ -82,6 +82,73 @@ public class StopTimingTests
         Assert.That(StopTiming.Describe(progress), Is.EqualTo(wording));
     }
 
+    [Test]
+    public void AFinishedStopWithEveryTime_SaysEachStep()
+    {
+        var text = StopTiming.FinishedText(new StopDurations(
+            TimeSpan.FromSeconds(54.2), TimeSpan.FromSeconds(31), TimeSpan.FromSeconds(2.4),
+            TimeSpan.FromSeconds(33.4), TimeSpan.FromSeconds(20.8)));
+
+        Assert.That(text, Is.EqualTo("finished in 54.2s: delivered after 31.0s, handoff 2.4s later, /exit 20.8s after that"));
+    }
+
+    [Test]
+    public void AFinishedStopWithNoDeliveryTime_SaysSo()
+    {
+        var text = StopTiming.FinishedText(new StopDurations(
+            TimeSpan.FromSeconds(61), null, null, TimeSpan.FromSeconds(40), TimeSpan.FromSeconds(21)));
+
+        Assert.That(text, Is.EqualTo(
+            "finished in 61.0s: delivery time not recorded, handoff 40.0s after the request, /exit 21.0s after that"));
+    }
+
+    [Test]
+    public void AFinishedStopWhoseHandoffTimeCannotBeRead_DoesNotBlameTheDeliveryTime()
+    {
+        var text = StopTiming.FinishedText(new StopDurations(
+            TimeSpan.FromSeconds(61), TimeSpan.FromSeconds(30), null, null, null));
+
+        Assert.That(text, Is.EqualTo("finished in 61.0s: delivered after 30.0s, handoff time could not be read"));
+    }
+
+    [Test]
+    public void AFinishedStopWithNeitherTime_StillGivesItsTotal()
+    {
+        Assert.That(StopTiming.FinishedText(new StopDurations(TimeSpan.FromSeconds(61), null, null, null, null)),
+            Is.EqualTo("finished in 61.0s: delivery time not recorded, handoff time could not be read"));
+    }
+
+    [Test]
+    public void ANegativeFigure_IsFlaggedRatherThanPassedOffAsATime()
+    {
+        var text = StopTiming.FinishedText(new StopDurations(
+            TimeSpan.FromSeconds(50), TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(-5),
+            TimeSpan.FromSeconds(25), TimeSpan.FromSeconds(25)));
+
+        Assert.That(text, Does.EndWith("(a negative figure means the clock or a file time moved)"));
+    }
+
+    [TestCase(StopRemoval.StartedAgain, "its card was started again")]
+    [TestCase(StopRemoval.NewerSession, "a newer session is running")]
+    [TestCase(StopRemoval.Declined, "declined when the board opened")]
+    [TestCase(StopRemoval.Expired, "it expired")]
+    public void AnUnfinishedStop_SaysWhyItWasRemovedAndHowFarItGot(StopRemoval removal, string why)
+    {
+        Assert.That(StopTiming.UnfinishedText(removal, TimeSpan.FromHours(4), StopProgress.DeliveredNoHandoff),
+            Is.EqualTo($"did not finish ({why}, 4.0h after it was asked): delivered, but no handoff was written"));
+    }
+
+    [TestCase(0.4, "0s")]
+    [TestCase(45, "45s")]
+    [TestCase(89, "89s")]
+    [TestCase(3599, "59m")]
+    [TestCase(5399, "89m")]
+    [TestCase(14400, "4.0h")]
+    public void AnAge_IsGivenInAUnitThatReadsNaturally(double seconds, string wording)
+    {
+        Assert.That(StopTiming.Age(TimeSpan.FromSeconds(seconds)), Is.EqualTo(wording));
+    }
+
     private static PendingStopRequest Request() =>
         new("11111111-2222-3333-4444-555555555555", "contact-forms", "Contact forms", "Write a handoff and stop.",
             Asked, Asked.AddHours(4));

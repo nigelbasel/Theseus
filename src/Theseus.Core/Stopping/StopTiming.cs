@@ -57,26 +57,63 @@ public static class StopTiming
         _ => "handed over, but /exit was never typed",
     };
 
+    /// <summary>
+    /// What a finished stop's log line says after the workstream's name. Each missing time is named as missing
+    /// on its own, so a handoff time that could not be read is never reported as a missing delivery time.
+    /// </summary>
+    public static string FinishedText(StopDurations durations)
+    {
+        ArgumentNullException.ThrowIfNull(durations);
+
+        var delivery = durations.RequestToDelivery is { } toDelivery
+            ? $"delivered after {Seconds(toDelivery)}"
+            : "delivery time not recorded";
+
+        var handoff = (durations.RequestToDelivery, durations.DeliveryToHandoff, durations.RequestToHandoff, durations.HandoffToExit) switch
+        {
+            ({ }, { } toHandoff, _, { } toExit) => $", handoff {Seconds(toHandoff)} later, /exit {Seconds(toExit)} after that",
+            (null, _, { } fromRequest, { } toExit) => $", handoff {Seconds(fromRequest)} after the request, /exit {Seconds(toExit)} after that",
+            _ => ", handoff time could not be read",
+        };
+
+        var negative = new[] { durations.Total, durations.RequestToDelivery, durations.DeliveryToHandoff, durations.RequestToHandoff, durations.HandoffToExit }
+            .Any(span => span < TimeSpan.Zero)
+            ? " (a negative figure means the clock or a file time moved)"
+            : string.Empty;
+
+        return $"finished in {Seconds(durations.Total)}: {delivery}{handoff}{negative}";
+    }
+
+    /// <summary>What an unfinished stop's log line says after the workstream's name.</summary>
+    public static string UnfinishedText(StopRemoval removal, TimeSpan age, StopProgress progress)
+    {
+        var why = removal switch
+        {
+            StopRemoval.StartedAgain => "its card was started again",
+            StopRemoval.NewerSession => "a newer session is running",
+            StopRemoval.Declined => "declined when the board opened",
+            _ => "it expired",
+        };
+
+        return $"did not finish ({why}, {Age(age)} after it was asked): {Describe(progress)}";
+    }
+
+    /// <summary>
+    /// An age in a unit that reads naturally: whole seconds under 90 seconds, whole minutes under 90 minutes,
+    /// hours to one decimal after that. Truncated, never rounded up, so 59.9 minutes is not shown as an hour.
+    /// </summary>
+    public static string Age(TimeSpan age) =>
+        age.TotalSeconds < 90 ? $"{(long)age.TotalSeconds}s"
+        : age.TotalMinutes < 90 ? $"{(long)age.TotalMinutes}m"
+        : $"{(Math.Floor(age.TotalHours * 10) / 10).ToString("0.0", CultureInfo.InvariantCulture)}h";
+
     /// <summary>Logs how long a stop took, at the moment /exit is typed.</summary>
     public static void ReportFinished(PendingStopRequest request, DateTimeOffset exitUtc)
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var durations = Finished(request, HandoffWrittenUtc(request), exitUtc);
-
-        if (durations.RequestToDelivery is { } toDelivery && durations.DeliveryToHandoff is { } toHandoff
-            && durations.HandoffToExit is { } toExit)
-        {
-            TheseusLog.Information(
-                "Stop of {Workstream} finished in {Total}s: delivered after {ToDelivery}s, handoff {ToHandoff}s later, /exit {ToExit}s after that",
-                request.WorkstreamKey, Seconds(durations.Total), Seconds(toDelivery), Seconds(toHandoff), Seconds(toExit));
-
-            return;
-        }
-
-        TheseusLog.Information(
-            "Stop of {Workstream} finished in {Total}s: delivery time not recorded, handoff {RequestToHandoff}s after the request, /exit {ToExit}s after that",
-            request.WorkstreamKey, Seconds(durations.Total), Seconds(durations.RequestToHandoff), Seconds(durations.HandoffToExit));
+        TheseusLog.Information("Stop of {Workstream} {Outcome}",
+            request.WorkstreamKey, FinishedText(Finished(request, HandoffWrittenUtc(request), exitUtc)));
     }
 
     /// <summary>Logs how far a stop got, at the moment its request is removed without the session being closed.</summary>
@@ -84,10 +121,9 @@ public static class StopTiming
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        TheseusLog.Information(
-            "Stop of {Workstream} did not finish ({Removal}, {Age} after it was asked): {Progress}",
-            request.WorkstreamKey, removal, Age(nowUtc - request.RequestedUtc),
-            Describe(Progress(request, delivered, HandoffWrittenUtc(request))));
+        TheseusLog.Information("Stop of {Workstream} {Outcome}",
+            request.WorkstreamKey,
+            UnfinishedText(removal, nowUtc - request.RequestedUtc, Progress(request, delivered, HandoffWrittenUtc(request))));
     }
 
     private static DateTimeOffset? HandoffWrittenUtc(PendingStopRequest request)
@@ -104,11 +140,6 @@ public static class StopTiming
         }
     }
 
-    private static string Seconds(TimeSpan? span) =>
-        span is { } value ? value.TotalSeconds.ToString("0.0", CultureInfo.InvariantCulture) : "(not recorded)";
-
-    private static string Age(TimeSpan span) =>
-        span.TotalHours >= 1
-            ? $"{span.TotalHours.ToString("0.0", CultureInfo.InvariantCulture)}h"
-            : $"{span.TotalMinutes.ToString("0.0", CultureInfo.InvariantCulture)}m";
+    private static string Seconds(TimeSpan span) =>
+        $"{span.TotalSeconds.ToString("0.0", CultureInfo.InvariantCulture)}s";
 }

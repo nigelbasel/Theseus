@@ -1319,8 +1319,11 @@ public sealed class ShellViewModel : ObservableObject
 
             if (delivered is not null && SessionClosing.StartedSince(delivered, session.StartedUtc))
             {
-                _stopRequests.Retire(sessionId);
-                StopTiming.ReportUnfinished(delivered, delivered: true, StopRemoval.NewerSession, DateTimeOffset.UtcNow);
+                if (_stopRequests.Retire(sessionId))
+                {
+                    StopTiming.ReportUnfinished(delivered, delivered: true, StopRemoval.NewerSession, DateTimeOffset.UtcNow);
+                }
+
                 TheseusLog.Information(
                     "Retired the stop request for {Workstream}: the session running now started after it was asked, so it is not the one that was asked",
                     card.Key);

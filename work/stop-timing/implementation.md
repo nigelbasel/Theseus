@@ -41,10 +41,29 @@ Follows `plan.md` (approved by Nigel, 2026-11-18).
 - **The old Debug line "Discarded N stop request(s)" is gone,** replaced by one Information line per request
   (AC 5). Nothing read that line.
 
+## Pass 2 (after verify part 1, `evidence-part1-attempt1.md`)
+
+Part 1 passed, with two gaps and five notes. Nigel chose to fix F1-F3 now and the notes where trivial.
+
+| Finding | What was wrong | Done |
+|---|---|---|
+| F1 (gap) | When the handoff's time could not be read, the finished line said "delivery time not recorded" even when it was | `FinishedText` names each missing time on its own; tested for all four combinations |
+| F2 (note) | The plan said the stamp would be written with `AtomicFile`; it was written with `File.WriteAllText`, and **this implementation note did not say so**. A reader could see half a file; a just-removed request could be written back | `AtomicFile`, and only while the delivered file still exists. A window of microseconds between that check and the write remains |
+| F3 (gap) | No test of the stamp failing, of the wording and choice of line, or of a real older request file (the "older hook" test wrote the current shape) | Tests added for each: a read-only request still delivers without a stamp; every wording; a hand-written JSON file in the old shape |
+| F4 (note) | Two `Retire` results ignored | The newer-session report now happens only if the retire succeeded. The finished report still does not depend on it (a known limit, below) |
+| F5 (note) | The stamp's catch was narrower than "nothing escapes" | It now catches everything; the comment says why |
+| F6 (note) | Negative figures shown without a flag | The line ends "(a negative figure means the clock or a file time moved)" |
+| F7 (note) | "60.0m" for 59.98 minutes, "0.0m" for under a second, the reason shown as a code name; the plan promised queryable numbers | Ages truncate: whole seconds under 90 s, whole minutes under 90 m, then hours to one decimal. Reasons in words. The lines are now one sentence in a single `{Outcome}` property, so the wording can be tested; **the plan's "structured properties, so the log can be queried" is withdrawn**, and figures are read from the text |
+
+Full suite after pass 2: **1465 of 1465**, 0 warnings. The new tests failed to build before the fix (logged at
+"implement pass 2").
+
 ## For the verifier and reviewer
 
-- The fail-safe in `Claim` (a stamp that cannot be written) is a try/catch that returns the unstamped request. It
-  is hard to force in a test; read it.
+- The fail-safe in `Claim` is now tested (a read-only request file). A failed atomic write can leave a `.tmp`
+  file beside the delivered request; it is not read as a request.
+- If the `Retire` after a finished close fails, that request stays on disk, and a later start of the card reports
+  it as unfinished as well. The store already logs the failed retire as a warning.
 - The installed hook (`Theseus.Hook.exe`, shipped with the app) only changes when Theseus is updated. Until then,
   finished stops log "delivery time not recorded" (AC 4).
 - The App wiring has no unit tests. The live check in `spec.md` covers it.
@@ -53,4 +72,6 @@ Follows `plan.md` (approved by Nigel, 2026-11-18).
 
 | Stage | Started | Finished | Notes |
 |---|---|---|---|
-| implement | 2026-11-18 14:03:32 (logged) | this commit's time | Full suite 1448/1448 |
+| implement | 2026-11-18 14:03:32 (logged) | 14:08:32 (commit a565dd7) | Full suite 1448/1448 |
+| verify part 1, attempt 1 | 14:14:34 | 14:19:18 | Sub-agent: 156,570 tokens, 24 tool calls. Passed with gaps F1-F3 |
+| implement, pass 2 | 14:22:18 (logged) | this commit's time | Full suite 1465/1465 |
