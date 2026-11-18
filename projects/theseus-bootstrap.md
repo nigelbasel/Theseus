@@ -57,7 +57,14 @@ method layer for agentic development, usable from one developer to a team, by us
   ad hoc work), and time and cost.
 
 **Pipeline:** feature or bug, per change
-**Workstreams:** [to be chosen with the owner]
+**Workstreams:** all run by card git-22 on `main`, in the Theseus repo, one after another (chosen 2026-11-18):
+| Slug | Change | Pipeline |
+|---|---|---|
+| readme-runtime | The README asks for the .NET 10 runtime; the app targets .NET 11 and ships framework-dependent | bug |
+| guard-mentions | The lock guard refuses PowerShell commands that only mention the lock script | bug |
+| stop-timing | Record how long a stop takes, from Stop pressed to handoff written and session closed | feature |
+| card-branches | A card shows the branch of every repo it covers, not only its working directory's | feature |
+| parked-cores | Warn in the status bar when most cores are parked under load | feature |
 
 ## Phase 1: Evidence
 
