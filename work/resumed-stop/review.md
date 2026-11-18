@@ -93,3 +93,10 @@ again). Neither types `/exit` twice. The rest is simplification and wording (C1-
 
 Tests: new file `tests/Theseus.Tests/Stopping/StopFinishedTests.cs` (6 tests), failing to build before the change. No
 existing test file changed. Full suite 1491 of 1491, 0 warnings.
+
+**After the re-verify of these fixes (`verify-review-fixes.md`, PASS with notes), accepted by Nigel as known limits (option A):**
+V1, S2's fix rarely takes effect: the press's own refresh runs the close step, which still judges by request time and
+retires the request first. V2, S1's notice part is open: a second press on a stop whose /exit was tried but did not
+land still says it will close. V3, the App call sites are untested. V4, "That stop" in the one-stop held-back notice.
+None can type /exit twice. V1, V2, S2's close-step half, L1 and L2 are proposed as one follow-up feature ("close
+step") rather than further bug passes.
