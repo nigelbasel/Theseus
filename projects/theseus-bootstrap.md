@@ -65,6 +65,10 @@ method layer for agentic development, usable from one developer to a team, by us
 | stop-timing | Record how long a stop takes, from Stop pressed to handoff written and session closed | feature |
 | card-branches | A card shows the branch of every repo it covers, not only its working directory's | feature |
 | parked-cores | Warn in the status bar when most cores are parked under load | feature |
+| resumed-stop | A session resumed under the same id is never closed by a second stop (found in stop-timing's live check; added 2026-11-18) | bug, with review and compound added |
+
+Proposed, not scheduled: **close-step**, a feature covering when the close step runs and which run of a session a stop
+belongs to (L1, L2, and the limits left by resumed-stop). See `work/resumed-stop/lessons.md`.
 
 ## Phase 1: Evidence
 
