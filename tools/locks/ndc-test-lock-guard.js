@@ -55,6 +55,30 @@ function announceWaitIfHeldByAnother(command, finish) {
   });
 }
 
+// The program a command segment starts, and its first argument, after any PowerShell call operator and any
+// VAR=value prefixes.
+function programAndArgument(segment) {
+  const text = segment.trim().replace(/^&\s*/, '').replace(/^(?:[A-Za-z_][A-Za-z0-9_]*=\S*\s+)*/, '');
+  const token = /^\s*(?:"([^"]*)"|'([^']*)'|(\S+))/;
+  const first = token.exec(text);
+  if (!first) {
+    return { program: '', argument: '' };
+  }
+  const second = token.exec(text.slice(first[0].length)) || [];
+  return { program: first[1] ?? first[2] ?? first[3], argument: second[1] ?? second[2] ?? second[3] ?? '' };
+}
+
+// Whether a segment executes the lock script: through bash or sh, or by calling the script itself.
+function runsLockScript(segment) {
+  const { program, argument } = programAndArgument(segment);
+  const isScript = path => /(^|[\\/])ndc-test-lock\.sh$/.test(path);
+  return isScript(program) || (/(^|[\\/])(bash|sh)(\.exe)?$/i.test(program) && isScript(argument));
+}
+
+function viaGitBash(segment) {
+  return /Git[\\/](usr[\\/])?bin[\\/]bash(\.exe)?$/i.test(programAndArgument(segment).program);
+}
+
 let raw = '';
 process.stdin.on('data', chunk => { raw += chunk; });
 process.stdin.on('end', () => {
@@ -79,37 +103,44 @@ process.stdin.on('end', () => {
     process.exit(0);
   };
 
-  if (/ndc-test-lock\.sh/.test(command)) {
-    const usesGitBash = /Git[\\/](usr[\\/])?bin[\\/]bash(\.exe)?/i.test(command);
-    if (toolName === 'PowerShell' && !usesGitBash) {
-      deny(
-        'Blocked: in PowerShell, "bash" is WSL\'s bash, which sees a different home directory and process ' +
-        'table, so the lock would not exclude anyone. Call Git Bash explicitly:\n' +
-        '  & "C:\\Program Files\\Git\\bin\\bash.exe" "$HOME/.claude/bin/ndc-test-lock.sh" run "<your session name>" "<suite>" -- <command>');
-    }
-    announceWaitIfHeldByAnother(command, () => process.exit(0));
-    return;
+  // Only a segment that RUNS the lock script is a locked run. A command that merely mentions it (a commit
+  // message, a grep, a git log) is checked like any other, and every other segment of a command that does run
+  // it is still checked: mentioning the script must neither refuse a harmless command nor excuse an unlocked one.
+  const segments = command.split(/\r?\n|&&|\|\||;|\|/);
+  const lockRuns = segments.filter(runsLockScript);
+  const rest = segments.filter(segment => !runsLockScript(segment)).join('\n');
+
+  if (lockRuns.length > 0 && toolName === 'PowerShell' && !lockRuns.every(viaGitBash)) {
+    deny(
+      'Blocked: in PowerShell, "bash" is WSL\'s bash, which sees a different home directory and process ' +
+      'table, so the lock would not exclude anyone. Call Git Bash explicitly:\n' +
+      '  & "C:\\Program Files\\Git\\bin\\bash.exe" "$HOME/.claude/bin/ndc-test-lock.sh" run "<your session name>" "<suite>" -- <command>');
   }
 
   if (/NDC_TEST_LOCK_BYPASS=1/.test(command)) {
     process.exit(0);
   }
 
+  const lockedOrNothing = () => lockRuns.length > 0
+    ? announceWaitIfHeldByAnother(command, () => process.exit(0))
+    : process.exit(0);
+
   const containerSuite = /dotnet(\.exe)?\s+test\b[^\n;&|]*(Api\.Tests|Api\.[A-Za-z]+\.Tests|Persistence\.?Tests|IntegrationTests|Content\.Service\.UnitTests|\.slnf?\b)/i;
   const composeBuild = /docker(-compose|\s+compose)\b[^\n;&|]*(\sbuild\b|\sup\b[^\n;&|]*--build)/i;
   const solutionBuild = /dotnet(\.exe)?\s+build\b[^\n;&|]*\.slnf?\b/i;
 
-  const withoutUnitOnlySuites = command
+  const withoutUnitOnlySuites = rest
     .replace(/Api\.Mcp\.Tests/gi, 'McpUnitSuite')
     .replace(/\bTheseus\.slnx\b/gi, 'TheseusSolution');
 
   let what = null;
   if (containerSuite.test(withoutUnitOnlySuites)) { what = 'a container-backed test suite (or a whole-solution test run)'; }
-  else if (composeBuild.test(command)) { what = 'a docker compose build'; }
+  else if (composeBuild.test(rest)) { what = 'a docker compose build'; }
   else if (solutionBuild.test(withoutUnitOnlySuites)) { what = 'a whole-solution build'; }
 
   if (!what) {
-    process.exit(0);
+    lockedOrNothing();
+    return;
   }
 
   const runner = toolName === 'PowerShell'
