@@ -24,7 +24,7 @@ yesterday's work.
 ## Requirements
 
 - Windows 10 1809 or later
-- [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) (unless you build a
+- [.NET 11 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/11.0) (unless you build a
   self-contained installer)
 - Windows Terminal
 - Claude Code

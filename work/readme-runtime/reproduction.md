@@ -46,4 +46,4 @@ the README names, which is the defect.
 
 | Stage | Started | Finished | Notes |
 |---|---|---|---|
-| reproduce | 2026-11-18 11:27 | 2026-11-18 11:36 | The test is committed before any fix |
+| reproduce | [not recorded] | 2026-11-18 11:35:06 (commit 1f1d73c) | Failing run logged at 11:34:35. The test is committed before any fix. Neither time first written here (11:27 start, 11:36 finish) was measured; both were estimates and have been replaced by the log and git times |
