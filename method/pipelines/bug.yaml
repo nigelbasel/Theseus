@@ -12,13 +12,29 @@ stages:
     inputs: [the report, the code in <repos>]
     outputs: [a failing test committed on the branch, work/<issue>/reproduction.md]
     produces: >
-      A test that fails for the reported reason, committed before any fix. reproduction.md gives the
-      steps, the expected and actual behaviour, the decision or document that says what is expected, and
-      the test's failing output.
+      A test that fails for the reported reason, committed on its own before any fix. reproduction.md gives
+      the steps, the expected and actual behaviour, the decision or document that says what is expected, and
+      the test's failing output. Do not push between this commit and the fix on a branch that CI builds and
+      releases from.
     gate:
       kind: evidence
       passes_when: the new test fails, for the reported reason, on the unfixed code
       blocks: true
+
+  - id: rule
+    role: specifier
+    when: the fix needs a rule the code does not already state (a parser, a policy, a threshold)
+    inputs: [work/<issue>/reproduction.md]
+    outputs: [work/<issue>/fix.md, its "Spec" section]
+    produces: >
+      The rule the fix will follow, in a few numbered lines, including what the code is protecting against
+      and what it does when it cannot be sure. Skipped when the expected behaviour is already stated.
+      (guard-mentions: three fix passes each closed one class of input and opened another until the rule was
+      written down.)
+    gate:
+      kind: human
+      who: owner
+      passes_when: the owner approves the rule
 
   - id: fix
     role: implementer
@@ -36,7 +52,8 @@ stages:
     outputs: [work/<issue>/evidence.md]
     produces: >
       One result per repo: build, the full test suite, the reproduction test passing unchanged, and any
-      holdout scenario covering the behaviour. Run by someone other than the implementer.
+      holdout scenario covering the behaviour. Run by someone other than the implementer. Steps a person is
+      asked to carry out are checked against the code before they are given.
     gate:
       kind: evidence
       passes_when: every repo has a result, every result passes, and the reproduction test is unchanged since it failed

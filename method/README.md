@@ -13,7 +13,7 @@ built with it (the bootstrap) and will run it for others.
 | [`project.md`](project.md) | The project format: objective, phases, derived objectives, exit gates, workstreams, repos |
 | [`pipelines/freeform.yaml`](pipelines/freeform.yaml) | Ad hoc work: one stage, no gates. Today's Theseus exactly |
 | [`pipelines/feature.yaml`](pipelines/feature.yaml) | research → spec → plan → implement → verify → review → compound |
-| [`pipelines/bug.yaml`](pipelines/bug.yaml) | reproduce (failing test first) → fix → verify |
+| [`pipelines/bug.yaml`](pipelines/bug.yaml) | reproduce (failing test first) → rule (only when the fix needs one; owner's gate) → fix → verify |
 | [`rubrics/reviewer.md`](rubrics/reviewer.md) | What a reviewer checks a Theseus change against, each item traced to a dated decision |
 
 ## Two modes
@@ -38,6 +38,12 @@ Ad hoc work can be promoted to a project. Its handoff becomes the project's firs
 - **The implementer never judges its own work alone.** Verification includes holdout scenarios the
   implementer cannot see or change, and review is done by a different session or person.
 - **Never invent a figure.** Write a bracketed placeholder and list it.
+- **Stage times are measured, never estimated.** A stage's start comes from a log line written when it starts, its
+  end from the commit that closes it. A time that was not captured is written "[not recorded]". (stop-timing P1;
+  agents asked to record times wrote estimates twice in stage 0.)
+- **A sub-agent's brief carries the owner's standing rules it needs:** no deletes of any kind (temp files
+  included), the exact files it may write, no tracker writes, no commits or pushes, and the holdout's
+  off-limits. A sub-agent does not inherit the rules its parent holds. (stop-timing P2.)
 
 ## Decisions recorded here
 

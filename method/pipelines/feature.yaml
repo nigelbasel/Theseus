@@ -46,7 +46,8 @@ stages:
     outputs: [commits on the workstream's branch in each of <repos>, work/<issue>/implementation.md]
     produces: >
       Tests first, then the code, then the build and tests green in every repo changed.
-      implementation.md says what was done, what differs from the plan and why.
+      implementation.md says what was done, and lists every difference from the plan, however small, including
+      anything the plan promised that the code does not do, with the reason.
     gate: {kind: none}
 
   - id: verify
@@ -57,7 +58,8 @@ stages:
     produces: >
       One result per repo: build, tests, and each applicable holdout scenario as pass or fail with its
       evidence. Run by someone other than the implementer; at L0 that is the owner or a separate session
-      allowed to run the scenarios.
+      allowed to run the scenarios. Steps a person is asked to carry out are checked against the code before
+      they are given, and each says what it should produce.
     gate:
       kind: evidence
       passes_when: every repo has a result and every result passes
