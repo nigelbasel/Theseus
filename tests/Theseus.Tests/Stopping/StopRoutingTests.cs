@@ -105,4 +105,24 @@ public class StopRoutingTests
         Assert.That(StopRouting.For(SessionLifecycle.Running, hookInstalled: false, alreadyAsked: true),
             Is.EqualTo(StopRoute.PasteYourself));
     }
+
+    /// <summary>
+    /// resumed-stop rule 3: a session that has already been handed its stop is not asked again, whatever it is
+    /// doing. Telling it twice can interrupt it while it writes the handoff.
+    /// </summary>
+    [TestCase(SessionLifecycle.Running)]
+    [TestCase(SessionLifecycle.Idle)]
+    [TestCase(SessionLifecycle.NeedsAttention)]
+    public void For_NeverAsksASessionThatHasAlreadyBeenHandedItsStop(SessionLifecycle lifecycle)
+    {
+        Assert.That(StopRouting.For(lifecycle, hookInstalled: true, alreadyDelivered: true),
+            Is.EqualTo(StopRoute.AlreadyDelivered));
+    }
+
+    [Test]
+    public void For_HasNothingToDoForASessionThatIsNotRunning_EvenIfAStopWasDelivered()
+    {
+        Assert.That(StopRouting.For(SessionLifecycle.Ended, hookInstalled: true, alreadyDelivered: true),
+            Is.EqualTo(StopRoute.None));
+    }
 }

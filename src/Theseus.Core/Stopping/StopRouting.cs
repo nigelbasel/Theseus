@@ -26,12 +26,21 @@ public static class StopRouting
     /// while the first has not landed is how somebody says they would rather have the session back
     /// than have it finish, so the second ask cuts the turn short where the first waited for it.
     /// </param>
-    public static StopRoute For(SessionLifecycle lifecycle, bool hookInstalled, bool alreadyAsked = false)
+    /// <param name="alreadyDelivered">
+    /// Whether this session has already been handed a stop it has not finished. It is then not asked again.
+    /// </param>
+    public static StopRoute For(SessionLifecycle lifecycle, bool hookInstalled, bool alreadyAsked = false,
+        bool alreadyDelivered = false)
     {
         if (lifecycle is not (SessionLifecycle.Running or SessionLifecycle.Idle
             or SessionLifecycle.NeedsAttention or SessionLifecycle.Launching))
         {
             return StopRoute.None;
+        }
+
+        if (alreadyDelivered)
+        {
+            return StopRoute.AlreadyDelivered;
         }
 
         if (!hookInstalled)

@@ -635,7 +635,7 @@ public sealed class ShellViewModel : ObservableObject
         // changes both. Without this it would still name a session that had gone.
         Timed("stops", StopsChanged);
         Timed("account", () => SyncAccount());
-        _stopRequests.Sweep(DateTimeOffset.UtcNow);
+        _stopRequests.Sweep(DateTimeOffset.UtcNow, _closed.AlreadyTyped);
     }
 
     // Start-up has taken anything from 4 seconds to over 2 minutes on the same machine, with nothing
@@ -931,13 +931,26 @@ public sealed class ShellViewModel : ObservableObject
         var unreached = 0;
         var blocked = 0;
         var interrupted = 0;
+        var underway = 0;
 
         foreach (var step in steps)
         {
             var alreadyAsked = _stopRequests.Waiting(step.SessionId) is not null;
 
-            switch (StopRouting.For(step.Lifecycle, installed, alreadyAsked))
+            // Handed a stop it has not finished, by this very process: a request from before the session now
+            // running started belongs to an earlier one, and the close step retires it as such.
+            var alreadyDelivered = _stopRequests.Delivered(step.SessionId) is { } handed
+                                   && Sessions.Find(step.SessionId) is { } running
+                                   && !SessionClosing.StartedSince(handed, running.StartedUtc);
+
+            switch (StopRouting.For(step.Lifecycle, installed, alreadyAsked, alreadyDelivered))
             {
+                case StopRoute.AlreadyDelivered:
+                    TheseusLog.Information(
+                        "Did not ask {Workstream} again: it has already been handed its stop", step.WorkstreamKey);
+                    underway++;
+                    break;
+
                 case StopRoute.WaitForTurnEnd:
                     Ask(step);
                     asked++;
@@ -997,22 +1010,32 @@ public sealed class ShellViewModel : ObservableObject
             return;
         }
 
+        // The refresh runs the close step, so a session already handed over and quiet is closed on this press.
         Refresh();
-        Notice = Describe(asked, waiting, unreached, blocked, interrupted);
+        Notice = Describe(asked, waiting, unreached, blocked, interrupted, underway);
     }
 
     /// <summary>
     /// What was actually set in motion. A session that has been asked has not yet been told: the
     /// request waits until its next turn ends, so saying it has stopped would be ahead of the facts.
     /// </summary>
-    private static string Describe(int asked, int waiting, int unreached, int blocked, int interrupted)
+    private static string Describe(int asked, int waiting, int unreached, int blocked, int interrupted, int underway = 0)
     {
-        if (asked == 0 && unreached == 0 && blocked == 0 && interrupted == 0)
+        if (asked == 0 && unreached == 0 && blocked == 0 && interrupted == 0 && underway == 0)
         {
             return "Nothing to stop.";
         }
 
         var said = new List<string>();
+
+        if (underway == 1)
+        {
+            said.Add("That session already has its stop and is finishing it; it closes once it has handed over and gone quiet.");
+        }
+        else if (underway > 1)
+        {
+            said.Add($"{underway} sessions already have their stops and are finishing them; each closes once it has handed over and gone quiet.");
+        }
 
         if (interrupted == 1)
         {
@@ -1316,7 +1339,7 @@ public sealed class ShellViewModel : ObservableObject
 
             if (delivered is not null && SessionClosing.StartedSince(delivered, session.StartedUtc))
             {
-                if (_stopRequests.Retire(sessionId))
+                if (_stopRequests.Retire(sessionId) && !_closed.AlreadyTyped(delivered))
                 {
                     StopTiming.ReportUnfinished(delivered, delivered: true, StopRemoval.NewerSession, DateTimeOffset.UtcNow);
                 }
@@ -1690,7 +1713,7 @@ public sealed class ShellViewModel : ObservableObject
                 TheseusLog.Information(
                     "Retired the delivered stop request for {Workstream}, which is being started again", workstream.Key);
 
-                if (handed is not null)
+                if (handed is not null && !_closed.AlreadyTyped(handed))
                 {
                     StopTiming.ReportUnfinished(handed, delivered: true, StopRemoval.StartedAgain, DateTimeOffset.UtcNow);
                 }

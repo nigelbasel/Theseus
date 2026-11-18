@@ -103,6 +103,31 @@ public class StopRequestStoreTests
         Assert.That(_store.Pending(), Is.Empty);
     }
 
+    /// <summary>resumed-stop rule 4: asking again while a request waits keeps the stop's first time.</summary>
+    [Test]
+    public void Write_KeepsTheFirstRequestTime_WhenAStopIsAskedForAgainBeforeItIsDelivered()
+    {
+        var first = new DateTimeOffset(2026, 11, 18, 15, 19, 15, TimeSpan.Zero);
+        _store.Write(Request() with { RequestedUtc = first });
+
+        _store.Write(Request() with { RequestedUtc = first.AddSeconds(37) });
+
+        Assert.That(_store.Waiting(SessionId)!.RequestedUtc, Is.EqualTo(first));
+    }
+
+    [Test]
+    public void Write_StartsANewStop_WhenNoneIsWaiting()
+    {
+        var first = new DateTimeOffset(2026, 11, 18, 15, 19, 15, TimeSpan.Zero);
+        _store.Write(Request() with { RequestedUtc = first });
+        _store.Claim(SessionId);
+
+        _store.Write(Request() with { RequestedUtc = first.AddMinutes(4) });
+
+        Assert.That(_store.Waiting(SessionId)!.RequestedUtc, Is.EqualTo(first.AddMinutes(4)),
+            "a stop asked after the last one was handed over is a stop of its own");
+    }
+
     [Test]
     public void Claim_RecordsWhenTheRequestWasDelivered()
     {

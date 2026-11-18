@@ -42,4 +42,11 @@ public enum StopRoute
     /// request goes on the clipboard and the tab comes forward.
     /// </summary>
     PasteYourself,
+
+    /// <summary>
+    /// The session has already been handed its stop and is finishing it. It is not asked again: telling it twice
+    /// can interrupt it while it writes the handoff (resumed-stop rule 3, Nigel 2026-11-18). The board checks at
+    /// once whether it can now be closed.
+    /// </summary>
+    AlreadyDelivered,
 }

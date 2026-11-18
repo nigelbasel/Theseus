@@ -51,6 +51,17 @@ public class ExitsTypedTests
             "a stop asked after the last /exit is a new stop of a resumed session");
     }
 
+    [Test]
+    public void AStopOfAnotherSessionAtTheSameMoment_IsAStopOfItsOwn()
+    {
+        var exits = new ExitsTyped();
+
+        exits.Typed(Request(FirstStop));
+
+        Assert.That(exits.AlreadyTyped(Request(FirstStop) with { SessionId = "7349cf18-7efe-417e-92f5-bbc8c4d513a0" }),
+            Is.False, "nine sessions were stopped within three seconds on 2026-11-11");
+    }
+
     private static PendingStopRequest Request(DateTimeOffset requested) =>
         new(SessionId, "stop-check-stays-idle", "Stop check: stays idle", "Write a handoff and stop.",
             requested, requested.AddHours(4));

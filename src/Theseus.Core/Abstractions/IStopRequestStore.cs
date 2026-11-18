@@ -33,8 +33,11 @@ public interface IStopRequestStore
     /// </summary>
     IReadOnlyList<PendingStopRequest> Handed();
 
-    /// <summary>Discards requests too old to be worth delivering, and says how many went.</summary>
-    int Sweep(DateTimeOffset now);
+    /// <summary>
+    /// Discards requests too old to be worth delivering, and says how many went. A stop
+    /// <paramref name="finished"/> says was already closed is removed without being reported as unfinished.
+    /// </summary>
+    int Sweep(DateTimeOffset now, Func<PendingStopRequest, bool>? finished = null);
 
     /// <summary>The request this session was handed, if it has been handed one.</summary>
     PendingStopRequest? Delivered(string? sessionId);

@@ -36,6 +36,13 @@ public sealed class StopRequestStore : IStopRequestStore
             return;
         }
 
+        // Asking again while the request still waits is the same stop: it keeps the moment it was first asked, so
+        // its figures run from the first press (resumed-stop rule 4, Nigel 2026-11-18).
+        if (Waiting(request.SessionId) is { } waiting)
+        {
+            request = request with { RequestedUtc = waiting.RequestedUtc };
+        }
+
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
@@ -205,7 +212,7 @@ public sealed class StopRequestStore : IStopRequestStore
     }
 
     /// <inheritdoc />
-    public int Sweep(DateTimeOffset now)
+    public int Sweep(DateTimeOffset now, Func<PendingStopRequest, bool>? finished = null)
     {
         var gone = 0;
 
@@ -225,6 +232,12 @@ public sealed class StopRequestStore : IStopRequestStore
         {
             if (Retire(stale.SessionId))
             {
+                if (finished?.Invoke(stale) == true)
+                {
+                    gone++;
+                    continue;
+                }
+
                 StopTiming.ReportUnfinished(stale, delivered: true, StopRemoval.Expired, now);
                 gone++;
             }
