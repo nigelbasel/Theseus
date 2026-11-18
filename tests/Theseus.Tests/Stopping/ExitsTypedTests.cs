@@ -35,6 +35,22 @@ public class ExitsTypedTests
         Assert.That(new ExitsTyped().AlreadyTyped(null), Is.False);
     }
 
+    /// <summary>
+    /// The defect seen live on 2026-11-18: a session closed by one stop, resumed under the same id, and stopped
+    /// again handed over and was then never closed, because the first stop's /exit was remembered against the
+    /// session rather than the stop.
+    /// </summary>
+    [Test]
+    public void ALaterStopOfTheSameResumedSession_CanStillBeClosed()
+    {
+        var exits = new ExitsTyped();
+
+        exits.Typed(Request(FirstStop));
+
+        Assert.That(exits.AlreadyTyped(Request(FirstStop.AddMinutes(4))), Is.False,
+            "a stop asked after the last /exit is a new stop of a resumed session");
+    }
+
     private static PendingStopRequest Request(DateTimeOffset requested) =>
         new(SessionId, "stop-check-stays-idle", "Stop check: stays idle", "Write a handoff and stop.",
             requested, requested.AddHours(4));
