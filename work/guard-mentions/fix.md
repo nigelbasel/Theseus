@@ -35,12 +35,30 @@ symptoms came from the text test, and both cases now go through the same rule.
 
 All 80 tests under `Theseus.Tests.Locks` pass (logged at the `<guard-mentions> ===== fix` banner).
 
+## Pass 2 (after the verify gate failed)
+
+The first verifier (`evidence-1-failed.md`) found that pass 1 **refused correct locked runs** whose own quoted
+arguments held a separator, for example `... run "s" "suite" -- bash -c "cd x && dotnet test X.sln"` (its L4,
+L5, L10, L11). The old guard allowed them, so this was a regression. Pass 1's notes were also wrong: they said a
+quoted separator could only cause "a needless WSL warning", and from PowerShell it was a refusal (its F13), and
+they did not list the bypasses that remain.
+
+Change in pass 2: `splitOutsideQuotes` splits only at separators outside single or double quotes (a backslash
+escapes inside double quotes). New tests in `tests/Theseus.Tests/Locks/LockGuardLockedRunTests.cs` cover all 11 of
+the verifier's locked runs and F13; 5 failed before the change (logged at the pass 2 banner) and pass after it.
+The reproduction tests in `LockGuardTests.cs` are still unchanged since they failed. All 92 lock tests pass.
+
 ## Known limits (for the verifier and the reviewer)
 
-- Splitting ignores quoting: a separator inside a quoted string (for example a commit message containing
-  `; bash ndc-test-lock.sh run`) splits the segment there. That can make a quoted mention look like a run.
-  It can only cause a needless WSL warning or a lock-busy notice, never let an unlocked run through, because
-  every segment that is not a run is still checked.
+- **Bypasses that remain, all present before this fix** (found by the first verifier, not closed here because
+  closing them changes what the guard is meant to cover; Nigel to decide separately):
+  - a single `&` after a lock-run segment (`bash <script> status & dotnet test X.sln`);
+  - command substitution inside a lock-run segment (`$(...)` or backticks);
+  - any path ending in `ndc-test-lock.sh` counts as the script (`/tmp/ndc-test-lock.sh`, a fake `Git\bin\bash.exe`).
+  The common cause: whatever follows the script inside its own segment is never checked.
+- A segment that does **not** run the script is still checked as text, quotes and all, so a commit message that
+  contains `dotnet test X.sln` is still refused. That was true before this fix as well.
+- Quote handling is bash-like. PowerShell's backtick escape is not treated as an escape.
 - Only the repo copy is changed. Sessions run the copy in `~/.claude/bin`, which the installer replaces. It is
   not installed by this stage: installing changes the hook every session on the machine runs, so that is
   Nigel's call.
@@ -50,4 +68,6 @@ All 80 tests under `Theseus.Tests.Locks` pass (logged at the `<guard-mentions> =
 
 | Stage | Started | Finished | Notes |
 |---|---|---|---|
-| fix | 2026-11-18 12:13:17 (logged) | this commit's time | Lock tests passing, logged under `<guard-mentions>` |
+| fix, pass 1 | 2026-11-18 12:13:17 (logged) | 12:15:36 (commit 7036ae2) | Lock tests passing; the verify gate then failed |
+| verify, attempt 1 | 12:18:40 | 12:23:19 | Sub-agent: 133,237 tokens, 16 tool calls. Gate failed: 4 new false refusals |
+| fix, pass 2 | 12:43:55 (logged) | this commit's time | Quote-aware split; 92 lock tests pass |

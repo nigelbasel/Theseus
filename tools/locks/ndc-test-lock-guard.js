@@ -55,6 +55,48 @@ function announceWaitIfHeldByAnother(command, finish) {
   });
 }
 
+// Splits a command line at newlines, &&, ||, ; and | that are outside quotes. A separator inside quotes
+// belongs to the argument it is in (a commit message, a label, the script given to bash -c), not to the line.
+function splitOutsideQuotes(command) {
+  const segments = [];
+  let current = '';
+  let quote = null;
+  for (let index = 0; index < command.length; index++) {
+    const character = command[index];
+    if (quote) {
+      if (character === '\\' && quote === '"' && index + 1 < command.length) {
+        current += character + command[++index];
+        continue;
+      }
+      if (character === quote) {
+        quote = null;
+      }
+      current += character;
+      continue;
+    }
+    if (character === '"' || character === "'") {
+      quote = character;
+      current += character;
+      continue;
+    }
+    const pair = command.slice(index, index + 2);
+    if (pair === '&&' || pair === '||') {
+      segments.push(current);
+      current = '';
+      index++;
+      continue;
+    }
+    if (character === ';' || character === '|' || character === '\n' || character === '\r') {
+      segments.push(current);
+      current = '';
+      continue;
+    }
+    current += character;
+  }
+  segments.push(current);
+  return segments;
+}
+
 // The program a command segment starts, and its first argument, after any PowerShell call operator and any
 // VAR=value prefixes.
 function programAndArgument(segment) {
@@ -106,7 +148,7 @@ process.stdin.on('end', () => {
   // Only a segment that RUNS the lock script is a locked run. A command that merely mentions it (a commit
   // message, a grep, a git log) is checked like any other, and every other segment of a command that does run
   // it is still checked: mentioning the script must neither refuse a harmless command nor excuse an unlocked one.
-  const segments = command.split(/\r?\n|&&|\|\||;|\|/);
+  const segments = splitOutsideQuotes(command);
   const lockRuns = segments.filter(runsLockScript);
   const rest = segments.filter(segment => !runsLockScript(segment)).join('\n');
 
