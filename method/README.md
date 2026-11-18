@@ -13,7 +13,7 @@ built with it (the bootstrap) and will run it for others.
 | [`project.md`](project.md) | The project format: objective, phases, derived objectives, exit gates, workstreams, repos |
 | [`pipelines/freeform.yaml`](pipelines/freeform.yaml) | Ad hoc work: one stage, no gates. Today's Theseus exactly |
 | [`pipelines/feature.yaml`](pipelines/feature.yaml) | research → spec → plan → implement → verify → review → compound |
-| [`pipelines/bug.yaml`](pipelines/bug.yaml) | reproduce (failing test first) → rule (only when the fix needs one; owner's gate) → fix → verify |
+| [`pipelines/bug.yaml`](pipelines/bug.yaml) | reproduce (failing test first) → rule (only when the fix needs one; owner's gate) → fix → verify, then review and compound when the rule stage ran |
 | [`rubrics/reviewer.md`](rubrics/reviewer.md) | What a reviewer checks a Theseus change against, each item traced to a dated decision |
 
 ## Two modes
@@ -44,6 +44,11 @@ Ad hoc work can be promoted to a project. Its handoff becomes the project's firs
 - **A sub-agent's brief carries the owner's standing rules it needs:** no deletes of any kind (temp files
   included), the exact files it may write, no tracker writes, no commits or pushes, and the holdout's
   off-limits. A sub-agent does not inherit the rules its parent holds. (stop-timing P2.)
+- **Stop patching when the edges keep coming.** When fix passes keep uncovering the next edge in the same place (a
+  third pass is the signal), stop: record what is known as limits and propose a feature with a spec instead.
+  (resumed-stop P10; guard-mentions and resumed-stop both took three passes.)
+- **New tests go in a new file,** never beside a reproduction test, so "the reproduction test is unchanged since it
+  failed" stays a plain diff check. (resumed-stop P9.)
 
 ## Decisions recorded here
 

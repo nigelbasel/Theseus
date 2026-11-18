@@ -12,7 +12,9 @@ stages:
     inputs: [the report, the code in <repos>]
     outputs: [a failing test committed on the branch, work/<issue>/reproduction.md]
     produces: >
-      A test that fails for the reported reason, committed on its own before any fix. reproduction.md gives
+      A test that fails for the reported reason, committed on its own before any fix. If the defect sits in code no
+      test can reach, a refactor that changes no behaviour may come first, as its own commit with characterisation
+      tests; the reviewer checks it separately (resumed-stop P8). reproduction.md gives
       the steps, the expected and actual behaviour, the decision or document that says what is expected, and
       the test's failing output. Do not push between this commit and the fix on a branch that CI builds and
       releases from.
@@ -58,3 +60,28 @@ stages:
       kind: evidence
       passes_when: every repo has a result, every result passes, and the reproduction test is unchanged since it failed
       blocks: true
+
+  # Only when the fix needed a rule stage: a rule means new behaviour, which is what review is for (resumed-stop P7).
+  - id: review
+    role: reviewer
+    when: the rule stage ran
+    independent_of: implementer
+    inputs: [the diff in each of <repos>, work/<issue>/fix.md, work/<issue>/evidence.md, method/rubrics/reviewer.md]
+    outputs: [work/<issue>/review.md]
+    produces: >
+      Findings against the rule and the reviewer rubric, each citing the rule or rubric item it breaks. A finding is
+      fixed in code or explicitly accepted by the owner.
+    gate:
+      kind: human
+      who: owner
+      passes_when: no open findings, and the owner accepts
+
+  - id: compound
+    role: compounder
+    when: the rule stage ran
+    inputs: [everything in work/<issue>/]
+    outputs: [work/<issue>/lessons.md, proposed changes to method/ as a separate commit]
+    produces: >
+      What the method caught, what it missed, and what to change so it is caught next time. Proposals only; the
+      owner decides.
+    gate: {kind: none}
