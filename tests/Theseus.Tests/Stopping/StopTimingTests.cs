@@ -149,6 +149,38 @@ public class StopTimingTests
         Assert.That(StopTiming.Age(TimeSpan.FromSeconds(seconds)), Is.EqualTo(wording));
     }
 
+    [TestCase(null)]
+    [TestCase("")]
+    [TestCase("   ")]
+    public void AHandoffWithNoPath_HasNoWriteTime(string? path)
+    {
+        Assert.That(StopTiming.HandoffWrittenUtc(path), Is.Null);
+    }
+
+    [Test]
+    public void AHandoffThatIsNotThere_HasNoWriteTime()
+    {
+        Assert.That(StopTiming.HandoffWrittenUtc(Path.Combine(Path.GetTempPath(), $"no-such-{Guid.NewGuid():N}.md")), Is.Null);
+    }
+
+    [Test]
+    public void AHandoffThatIsThere_HasItsFilesWriteTime()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"theseus-handoff-{Guid.NewGuid():N}.md");
+        File.WriteAllText(path, "handed over");
+        var written = new DateTime(2026, 11, 18, 13, 46, 21, DateTimeKind.Utc);
+        File.SetLastWriteTimeUtc(path, written);
+
+        try
+        {
+            Assert.That(StopTiming.HandoffWrittenUtc(path), Is.EqualTo(new DateTimeOffset(written)));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     private static PendingStopRequest Request() =>
         new("11111111-2222-3333-4444-555555555555", "contact-forms", "Contact forms", "Write a handoff and stop.",
             Asked, Asked.AddHours(4));

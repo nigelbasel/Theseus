@@ -1330,7 +1330,9 @@ public sealed class ShellViewModel : ObservableObject
                 continue;
             }
 
-            if (!SessionClosing.ShouldClose(delivered, WrittenUtc(delivered?.HandoffPath), session.Status,
+            var handoffWritten = StopTiming.HandoffWrittenUtc(delivered?.HandoffPath);
+
+            if (!SessionClosing.ShouldClose(delivered, handoffWritten, session.Status,
                     session.StatusSinceUtc, DateTimeOffset.UtcNow, _closed.Contains(sessionId)))
             {
                 continue;
@@ -1351,7 +1353,7 @@ public sealed class ShellViewModel : ObservableObject
             if (outcome == NudgeOutcome.Sent)
             {
                 _stopRequests.Retire(sessionId);
-                StopTiming.ReportFinished(delivered!, DateTimeOffset.UtcNow);
+                StopTiming.ReportFinished(delivered!, handoffWritten, DateTimeOffset.UtcNow);
 
                 // The one ending Theseus can be certain of, recorded at the moment it is caused.
                 // Nothing else was recording it: the reconcile only writes an ending when a session
@@ -1375,27 +1377,6 @@ public sealed class ShellViewModel : ObservableObject
     }
 
     /// <summary>
-    /// When the handover document a stop request named was last written, or null if it is not there.
-    /// The path comes from the request rather than being worked out again, so what is checked is the
-    /// file the session was actually told to write.
-    /// </summary>
-    private static DateTimeOffset? WrittenUtc(string? path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            return null;
-        }
-
-        try
-        {
-            return File.Exists(path) ? File.GetLastWriteTimeUtc(path) : null;
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            return null;
-        }
-    }
-
     /// <summary>
     /// Tells each card what it shares with another that it should not.
     ///

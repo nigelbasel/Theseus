@@ -9,7 +9,7 @@ public enum StopRemoval
     /// <summary>The session running now started after the request, so it is not the one that was asked.</summary>
     NewerSession,
 
-    /// <summary>Nigel declined the stops held back when the board opened.</summary>
+    /// <summary>The board's owner declined the stops held back when the board opened.</summary>
     Declined,
 
     /// <summary>It was four hours old.</summary>

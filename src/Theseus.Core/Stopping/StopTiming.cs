@@ -107,13 +107,16 @@ public static class StopTiming
         : age.TotalMinutes < 90 ? $"{(long)age.TotalMinutes}m"
         : $"{(Math.Floor(age.TotalHours * 10) / 10).ToString("0.0", CultureInfo.InvariantCulture)}h";
 
-    /// <summary>Logs how long a stop took, at the moment /exit is typed.</summary>
-    public static void ReportFinished(PendingStopRequest request, DateTimeOffset exitUtc)
+    /// <summary>
+    /// Logs how long a stop took, at the moment /exit is typed. <paramref name="handoffWrittenUtc"/> is the handoff
+    /// time the close was decided on, passed in rather than read again.
+    /// </summary>
+    public static void ReportFinished(PendingStopRequest request, DateTimeOffset? handoffWrittenUtc, DateTimeOffset exitUtc)
     {
         ArgumentNullException.ThrowIfNull(request);
 
         TheseusLog.Information("Stop of {Workstream} {Outcome}",
-            request.WorkstreamKey, FinishedText(Finished(request, HandoffWrittenUtc(request), exitUtc)));
+            request.WorkstreamKey, FinishedText(Finished(request, handoffWrittenUtc, exitUtc)));
     }
 
     /// <summary>Logs how far a stop got, at the moment its request is removed without the session being closed.</summary>
@@ -126,19 +129,30 @@ public static class StopTiming
             UnfinishedText(removal, nowUtc - request.RequestedUtc, Progress(request, delivered, HandoffWrittenUtc(request))));
     }
 
-    private static DateTimeOffset? HandoffWrittenUtc(PendingStopRequest request)
+    /// <summary>
+    /// When a handoff was last written, or null if there is no path, no file, or the time cannot be read. The one
+    /// place this is read, so the time the close step decides on and the time the log reports are the same
+    /// (stop-timing review, F2).
+    /// </summary>
+    public static DateTimeOffset? HandoffWrittenUtc(string? path)
     {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return null;
+        }
+
         try
         {
-            return request.HandoffPath is { } path && File.Exists(path)
-                ? new DateTimeOffset(File.GetLastWriteTimeUtc(path), TimeSpan.Zero)
-                : null;
+            return File.Exists(path) ? new DateTimeOffset(File.GetLastWriteTimeUtc(path), TimeSpan.Zero) : null;
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException
+                                              or NotSupportedException)
         {
             return null;
         }
     }
+
+    private static DateTimeOffset? HandoffWrittenUtc(PendingStopRequest request) => HandoffWrittenUtc(request.HandoffPath);
 
     private static string Seconds(TimeSpan span) =>
         $"{span.TotalSeconds.ToString("0.0", CultureInfo.InvariantCulture)}s";
