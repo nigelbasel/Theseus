@@ -40,6 +40,14 @@ symptom (moving the bar).
   failed after the first two changes, which is how the template problem was found, and pass after the third.
 - Full suite 1553 of 1553.
 
+## After verify (PASS, `evidence.md`)
+
+| Finding | Disposition |
+|---|---|
+| Should fix 1: the row template's own behaviour untested | **Fixed.** `ChainsTreeRowTemplateTests` (new file): a chevron for a row with children, hidden but keeping its place on a row without, collapsing hides the children, children indented 16 px. Written after the template, so the review mutates them (P16). 1557 of 1557 |
+| Should fix 2: the panel's "Ready" list has the same untrimmed button | **Left alone on purpose:** it has no scrollbar problem (a plain list in the panel's scroller), and the rule covers the tree. A long title there is cut at the edge with no "…". Question 3 for Nigel |
+| Considers | The keyboard case is noted here: with the standard selection highlight gone, arrow keys show only the focus rectangle. `HorizontalAlignment="Stretch"` is the default and is kept for clarity. The tooltip's title line is a live check |
+
 ## Not reachable by the tests
 
 How it looks on the real board (the chevron's look, spacing, the tooltip): Nigel's live look in the morning.
