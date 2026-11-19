@@ -1600,6 +1600,7 @@
                                         <Setter.Value>
                                             <ControlTemplate TargetType="TreeViewItem">
                                                 <StackPanel>
+                                                    <Border x:Name="Highlight" Background="Transparent" CornerRadius="4">
                                                     <Grid>
                                                         <Grid.ColumnDefinitions>
                                                             <ColumnDefinition Width="16" />
@@ -1626,9 +1627,15 @@
                                                         </ToggleButton>
                                                         <ContentPresenter Grid.Column="1" ContentSource="Header" HorizontalAlignment="Stretch" />
                                                     </Grid>
+                                                    </Border>
                                                     <ItemsPresenter x:Name="Children" Margin="16,0,0,0" />
                                                 </StackPanel>
                                                 <ControlTemplate.Triggers>
+                                                    <!-- The arrow keys move the selection: the row they are on shows (review should-fix 1). -->
+                                                    <Trigger Property="IsSelected" Value="True">
+                                                        <Setter TargetName="Highlight" Property="Background"
+                                                                Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+                                                    </Trigger>
                                                     <Trigger Property="IsExpanded" Value="False">
                                                         <Setter TargetName="Children" Property="Visibility" Value="Collapsed" />
                                                     </Trigger>
@@ -1662,6 +1669,7 @@
                                                 <Button FontSize="12" Padding="0" HorizontalAlignment="Left"
                                                         HorizontalContentAlignment="Left"
                                                         Background="Transparent" BorderThickness="0" Cursor="Hand"
+                                                        AutomationProperties.HelpText="Open this card's details"
                                                         Command="{Binding Show}">
                                                     <Button.ToolTip>
                                                         <StackPanel>

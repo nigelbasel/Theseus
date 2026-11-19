@@ -45,6 +45,18 @@ public class ChainsTreeTitleTests
             "the state is not pushed off the panel's edge");
     }
 
+    [Test]
+    public void ALongTitle_LeavesTheStateItsFullWidth()
+    {
+        var state = Descendants<TextBlock>(LaidOut()).First(text => text.Text == "waiting");
+
+        var wanted = state.DesiredSize.Width - state.Margin.Left - state.Margin.Right;
+
+        TestContext.Out.WriteLine($"state actual {state.ActualWidth:0.##}, wanted {wanted:0.##}");
+        Assert.That(state.ActualWidth, Is.GreaterThanOrEqualTo(wanted - 0.5),
+            "the title gives way, not the state (rule 4; review should-fix 3: a sliver would pass the other test)");
+    }
+
     private static TreeView LaidOut()
     {
         var node = new ChainNodeViewModel("long", LongTitle, "#C0392B", "waiting", IsReady: false,
