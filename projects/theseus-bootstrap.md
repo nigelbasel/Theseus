@@ -83,8 +83,8 @@ belongs to (L1, L2, and the limits left by resumed-stop). See `work/resumed-stop
   Its first real test is running all three holdout scenarios against the stage 0 changes. (Nigel, 2026-11-19: the
   scenarios were written in stage 0 and never run, because no verifier could run them.)
 
-**Criteria below are a draft (2026-11-19), awaiting Nigel's approval. Items marked [decision] wait on one of his
-decisions.**
+**Criteria approved by Nigel, 2026-11-19.** Expect 1.4 to finish last: running scenarios with nobody at the board
+needs a way to drive Theseus unattended, and Windows minutes in a private repo are paid for.
 
 ### Objective 1.0: A verifier card
 - [ ] From a project workstream at `verify`, the owner starts a verifier card with one action on the board. Nothing
@@ -132,7 +132,7 @@ decisions.**
 - [ ] One change spans two repos, on one branch name with a worktree per repo, through its pipeline.
 - [ ] Each stage records the implementer's own tokens and the owner's time at its gate, measured and not estimated.
 
-**Exit gate (draft):** every change made in phase 1 carries evidence that the evidence check passed. The holdout
+**Exit gate:** every change made in phase 1 carries evidence that the evidence check passed. The holdout
 scenarios that need no person run in CI on Windows for every release. The verifier card has run all three scenarios.
 
 **Changes go through pull requests from phase 1** (Nigel, 2026-11-19). Each change goes on a short-lived branch, whose
