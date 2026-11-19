@@ -53,7 +53,7 @@ Pipeline: `feature` (method kit v0, P1 to P18), stage **implement**, autonomy L0
 | F3 | **Fixed.** Close now's notice says why it did not close, and promises a second press only where one can help |
 | F5 | **Accepted by Nigel:** the retire log line keeps its new wording ("handed to an earlier run") |
 | F6 | **Fixed.** "Could not be confirmed", as the spec says. One existing test changed (P12): `StopStageTextTests` asserted my wrong word, "found" |
-| F7 | **Fixed.** A stop held back when the board opened says "Held back when the board opened. Close them, in the banner, finishes this stop." and never offers Close now. The spec's AC 6 list did not have this stage; added because the 20 s promise was false for it (P17) |
+| F7 | **Fixed.** A stop held back when the board opened says "Held back when the board opened. Close them, in the banner, finishes this stop." and never offers Close now. The spec's AC 6 list did not have this stage; added because the 20 s promise was false for it (P17). **Wording accepted by Nigel, 2026-11-19** (attempt 2's S1) |
 | F4 | **Fixed in passing:** the second-press notice names each stuck session |
 | F8, F9 | **Known limits:** the stopping icon is the Stop glyph in amber; the details drawer hides Stop while stopping but shows neither the stage nor Close now |
 
