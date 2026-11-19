@@ -52,7 +52,7 @@ Full suite **1542 of 1542**, 0 warnings. No existing test file changed.
 | F1 (defect) | The tooltip named the power plan's "minimum processor state", a clock-speed setting; the spec says the minimum **cores** setting, which governs parking. Now "the power plan's minimum cores setting (core parking)" |
 | F2 | `Read` catches any exception: logged once, then the reader stops, and the board carries on without the warning |
 | F3 | A failed array read is a failure, logged once, not a silent null on every sample |
-| F4 | Tests added for a hold of zero or less (acts as one), a parked share above one (never warns), and every processor parked (no clamp) |
+| F4 | Tests added for a hold of zero or less (acts as one), a parked share above one (never warns), and every processor parked (no clamp). *Corrected after the re-verify: these tests covered behaviour that was already right but did not fail when the guards were removed, so F4 was not closed by this pass; see pass 3* |
 | Shutdown race | `Read` and `Dispose` take the same lock |
 
 Tests: new file `tests/Theseus.Tests/Resources/ParkedCoresFixTests.cs` (5). The wording test failed before the fix; the
@@ -64,3 +64,19 @@ Recorded, not fixed: the layout and "logged once" behaviour have no unit test (t
 layout); a running core with no valid busy value counts as 0%; and **a failed read stops the reader until the board
 restarts**, so a transient PDH error would leave the warning off: the safe direction (a missed warning, never a false
 one).
+
+## Pass 3 (after the re-verify, `evidence-part1-attempt2.md`; option A, Nigel)
+
+| Finding | Done |
+|---|---|
+| N1 (a regression from pass 2) | PDH sometimes returns a warning-level status for one calculation (`PDH_CALC_NEGATIVE_DENOMINATOR`, 0x800007D6: 4 of 300 back-to-back reads on this machine), and pass 2 treated it as a failure, which turned the warning off for the rest of the board's run. New `PdhStatus.IsTemporary` (severity bits 0x8xxxxxxx): such a status skips that sample; only error-level statuses stop the reader, logged once with the status in hex |
+| F4 (not closed in pass 2) | Tests that fail when a guard is removed: a hold of zero with an idle sample stays silent (fails without `Math.Max(1, ...)`); every processor parked at 100% busy is no clamp (fails without `Parked < Total`) |
+
+Tests: new file `tests/Theseus.Tests/Resources/ParkedCoresPass3Tests.cs` (8). **A slip against tests-first:** the
+`PdhStatus` classifier and its test were written in the same step, so that test never failed before the code. The two
+guard tests are meant to pass on the code as it is; their job is to fail if a guard goes. No existing test file changed.
+Full suite **1555 of 1555**, 0 warnings.
+
+Still recorded, not fixed: the layout and "logged once" have no unit test; a running core with no valid busy value counts
+as 0%; an error-level status still stops the reader until the board restarts; a read queued after `Dispose` reopens the
+query (one handle until the process exits).

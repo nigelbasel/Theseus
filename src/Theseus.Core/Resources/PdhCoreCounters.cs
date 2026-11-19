@@ -49,9 +49,11 @@ public sealed class PdhCoreCounters : ICoreCounters
                 return null;
             }
 
-            if (PdhCollectQueryData(_query) != 0)
+            var collected = PdhCollectQueryData(_query);
+
+            if (collected != 0)
             {
-                return Fail("could not be collected");
+                return PdhStatus.IsTemporary(collected) ? null : Fail($"could not be collected (0x{collected:X8})");
             }
 
             if (!_primed)
@@ -61,12 +63,16 @@ public sealed class PdhCoreCounters : ICoreCounters
                 return null;
             }
 
-            var parked = Values(_parking, FormatLarge);
-            var busy = Values(_busy, FormatDouble);
+            var parked = Values(_parking, FormatLarge, out var parkedStatus);
+            var busy = Values(_busy, FormatDouble, out var busyStatus);
 
+            // A warning-level status (such as a negative denominator in one rate) costs this sample only; anything
+            // else stops the reader, logged once (parked-cores pass 3).
             if (parked is null || busy is null)
             {
-                return Fail("could not be read");
+                var status = parked is null ? parkedStatus : busyStatus;
+
+                return PdhStatus.IsTemporary(status) ? null : Fail($"could not be read (0x{status:X8})");
             }
 
             if (parked.Count == 0)
@@ -145,12 +151,12 @@ public sealed class PdhCoreCounters : ICoreCounters
     /// Each processor's value by its instance name ("group,index"), leaving out the totals; null when the array could
     /// not be read, which the caller treats as a failure (pass 2, F3).
     /// </summary>
-    private static Dictionary<string, double>? Values(IntPtr counter, uint format)
+    private static Dictionary<string, double>? Values(IntPtr counter, uint format, out uint status)
     {
         var values = new Dictionary<string, double>(StringComparer.Ordinal);
         uint size = 0;
 
-        PdhGetFormattedCounterArray(counter, format, ref size, out _, IntPtr.Zero);
+        status = PdhGetFormattedCounterArray(counter, format, ref size, out _, IntPtr.Zero);
 
         if (size == 0)
         {
@@ -161,7 +167,9 @@ public sealed class PdhCoreCounters : ICoreCounters
 
         try
         {
-            if (PdhGetFormattedCounterArray(counter, format, ref size, out var count, buffer) != 0)
+            status = PdhGetFormattedCounterArray(counter, format, ref size, out var count, buffer);
+
+            if (status != 0)
             {
                 return null;
             }
@@ -173,9 +181,9 @@ public sealed class PdhCoreCounters : ICoreCounters
             {
                 var item = buffer + (index * stride);
                 var name = Marshal.PtrToStringUni(Marshal.ReadIntPtr(item)) ?? string.Empty;
-                var status = (uint)Marshal.ReadInt32(item + IntPtr.Size);
+                var itemStatus = (uint)Marshal.ReadInt32(item + IntPtr.Size);
 
-                if (name.Contains("_Total", StringComparison.Ordinal) || status is not (ValidData or NewData))
+                if (name.Contains("_Total", StringComparison.Ordinal) || itemStatus is not (ValidData or NewData))
                 {
                     continue;
                 }
