@@ -105,7 +105,20 @@ needs a way to drive Theseus unattended, and Windows minutes in a private repo a
       released as `method-v0.2`.
 - [ ] A project workstream's card shows its current stage and whether that stage's gate has passed, read from
       `work/<slug>/`. A stage with no evidence shows as "no evidence", never as passed.
-- [ ] An ad hoc card is unchanged: no new element and no new click. Checked against what is rendered (P11).
+- [ ] **The board shows a row per project** (Nigel, 2026-11-19), with that project's cards laid out by pipeline stage
+      across the row, so a card moves right as its gates pass and a verifier card sits in `verify` beside the work
+      it checks. The row header shows the project's phase and progress against its exit gate, can be folded to one
+      line, and brings the project's terminal window forward.
+- [ ] **Each project's sessions open in one Windows Terminal window of their own**, named after the project, and
+      resuming tomorrow reopens that window with its tabs. Ad hoc sessions open where they do today.
+- [ ] A card created for a project (from an approved proposal, or a verifier card) appears in its project's row at
+      its stage, in view. This replaces the separate fix for approved cards landing in a folded column; if ad hoc
+      approvals still go missing, that becomes a small bug of its own.
+- [ ] Ad hoc work is unchanged: shown below the project rows as today, with no new element and no new click. Checked
+      against what is rendered (P11).
+- To settle in this objective's spec: whether a card belongs to exactly one project; how the bug pipeline's stages
+  share columns with the feature pipeline's; what a promoted ad hoc card does; how project rows sit with today's
+  views and folded columns; and how Theseus chooses a terminal window today (check the launcher first).
 
 ### Objective 1.2: Read-only pull request and CI status on cards
 - [ ] A card shows, for each repo it covers, its pull request (if any) and the latest CI run for its branch. Theseus
