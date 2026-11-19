@@ -14,6 +14,9 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     private string _resources = string.Empty;
     private string _resourcesTooltip = string.Empty;
     private bool _stopPending;
+    private bool _isStopping;
+    private string _stopTooltip = string.Empty;
+    private bool _canCloseNow;
     private string _runningAs = string.Empty;
     private string _clash = string.Empty;
     private string _linkedShare = string.Empty;
@@ -216,12 +219,53 @@ public sealed class WorkstreamCardViewModel : ObservableObject
                 Raise(nameof(PlayTooltip));
                 Raise(nameof(PauseTooltip));
                 Raise(nameof(IsLive));
+                Raise(nameof(ShowStop));
                 Raise(nameof(IsWorking));
                 Raise(nameof(IsRunning));
                 Raise(nameof(StatusLine));
             }
         }
     }
+
+    /// <summary>
+    /// Whether a stop is under way for this card's session, from the moment it is asked until the session exits or
+    /// the request is retired. The Stop icon gives way to a stopping icon that cannot be pressed, so a stop cannot be
+    /// asked twice from the card (close-step AC 5).
+    /// </summary>
+    public bool IsStopping
+    {
+        get => _isStopping;
+        set
+        {
+            if (Set(ref _isStopping, value))
+            {
+                Raise(nameof(ShowStop));
+            }
+        }
+    }
+
+    /// <summary>Whether the card offers its Stop icon: a live session with no stop under way.</summary>
+    public bool ShowStop => IsLive && !IsStopping;
+
+    /// <summary>Where the stop under way has got to, in the spec's words (close-step AC 6).</summary>
+    public string StopTooltip
+    {
+        get => _stopTooltip;
+        set => Set(ref _stopTooltip, value);
+    }
+
+    /// <summary>
+    /// Whether Close now is offered: /exit was tried and typed nothing for certain. It tries once, only when pressed,
+    /// and raises the terminal as it does (close-step AC 9).
+    /// </summary>
+    public bool CanCloseNow
+    {
+        get => _canCloseNow;
+        set => Set(ref _canCloseNow, value);
+    }
+
+    /// <summary>Tries /exit once more for a stop whose last attempt typed nothing.</summary>
+    public RelayCommand? CloseNowCommand { get; set; }
 
     /// <summary>When the current lifecycle state began, for the card's relative time line.</summary>
     public DateTimeOffset? LifecycleSinceUtc

@@ -27,7 +27,8 @@ the work itself are not Theseus's files and are left alone. It is refused while 
 | Button | What it does |
 |---|---|
 | ▷ **Play** | Starts or restarts this workstream's session. |
-| □ **Stop** | Asks the session to write its handover notes when its turn ends. When the notes appear and the session has been quiet for a moment, Theseus types `/exit` into the tab so it closes. Nothing is ever killed: a killed session writes nothing. |
+| □ **Stop** | Asks the session to write its handover notes when its turn ends. When the notes appear and the session has been quiet for 20 seconds, Theseus types `/exit` into the tab so it closes. Nothing is ever killed: a killed session writes nothing. While the stop is under way the card's icon turns amber and does nothing when clicked; hover over it to see how far the stop has got. |
+| **Close now** | Appears only when Theseus could not type `/exit` and nothing was typed, for example because the terminal was not in front. It tries once more, bringing the terminal to the front, and types only if the session is idle and quiet at that moment. If Windows refused the keystrokes, or the terminal runs as administrator, the amber icon says to close the session yourself instead. |
 | ‖ **Pause** | On a running card: stops the session the same way and marks the card paused. On a stopped card: turns the paused mark on or off. Amber while the card is paused. |
 | ↗ **Focus** | Brings this session's tab to the front. The taskbar icon's menu does this too. |
 | **Archive** | Takes the workstream off the board without losing anything. In the archive view it restores it instead. Refused while a session is running. |
