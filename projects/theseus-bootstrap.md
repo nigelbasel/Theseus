@@ -81,11 +81,58 @@ belongs to (L1, L2, and the limits left by resumed-stop). See `work/resumed-stop
   session sees only that verdict. The owner never relays results between sessions. Needs a verifier card type
   (Theseus starts it with holdout access, which a card cannot have today) and a read-only mode in the holdout guard.
   Its first real test is running all three holdout scenarios against the stage 0 changes. (Nigel, 2026-11-19: the
-  scenarios were written in stage 0 and never run, because no verifier could run them.) [criteria to be written at
-  the phase 0 exit]
-- Objective 1.1: checks shown on cards. [criteria to be written at the phase 0 exit]
-- Objective 1.2: read-only pull request and CI status on cards. [criteria to be written]
-- Objective 1.3: a `theseus/evidence` status check. [criteria to be written]
+  scenarios were written in stage 0 and never run, because no verifier could run them.)
+
+**Criteria below are a draft (2026-11-19), awaiting Nigel's approval. Items marked [decision] wait on one of his
+decisions.**
+
+### Objective 1.0: A verifier card
+- [ ] From a project workstream at `verify`, the owner starts a verifier card with one action on the board. Nothing
+      starts it on its own.
+- [ ] The verifier session starts fresh: no resumed session, nothing from the implementer's conversation.
+- [ ] The verifier can read the holdout repository and cannot change it or any code repository. A write attempt is
+      refused, and a test proves it. An implementing session is still refused any access, and the existing guard
+      tests still pass.
+- [ ] The verifier hands back each scenario's name, pass or fail and a one-line reason through `report_back`. The
+      owner confirms it on the board, and the implementing session sees only that verdict through `related`.
+- [ ] All three holdout scenarios are run this way against the stage 0 changes, with results recorded against
+      criterion 6 of `bootstrap/stage-0.md`. Each failure becomes a bug through the method.
+
+### Objective 1.1: Checks shown on cards
+- [ ] The kit defines a machine-readable result block in `evidence.md` (stage, result per repo, scenarios run),
+      released as `method-v0.2`.
+- [ ] A project workstream's card shows its current stage and whether that stage's gate has passed, read from
+      `work/<slug>/`. A stage with no evidence shows as "no evidence", never as passed.
+- [ ] An ad hoc card is unchanged: no new element and no new click. Checked against what is rendered (P11).
+
+### Objective 1.2: Read-only pull request and CI status on cards
+- [ ] A card shows, for each repo it covers, its pull request (if any) and the latest CI run for its branch. Theseus
+      only reads.
+- [ ] It works with no token stored on the machine. [decision: GitHub only in stage 1, or Azure DevOps as well, and
+      how Azure DevOps would authenticate]
+- [ ] When the status cannot be read it shows as unknown, with the reason in the tooltip, never as passing.
+
+### Objective 1.3: The evidence check
+- [ ] A CI job in each project repo fails when a change's `work/<slug>/evidence.md` is missing, malformed or not
+      passing. It runs in that repo's own CI, so Theseus writes nothing to GitHub and needs no token.
+      [decision: whether this replaces a `theseus/evidence` status set by Theseus]
+- [ ] The job is in the kit, so any project repo can adopt it.
+
+### Objective 1.4: Holdout scenarios in CI on Windows
+- [ ] The scenarios that need no person run in the holdout repository's own GitHub Actions, on Windows, against
+      each new Theseus release. Their steps and logs therefore stay private, and nothing about them reaches the
+      public repo's CI.
+- [ ] A failure is visible on the board for the release it tested.
+- [ ] Scenarios that need a person stay with the verifier card.
+
+### Objective 1.5: Carried over from stage 0
+- [ ] One change spans two repos, on one branch name with a worktree per repo, through its pipeline.
+- [ ] Each stage records the implementer's own tokens and the owner's time at its gate, measured and not estimated.
+
+**Exit gate (draft):** every change made in phase 1 carries evidence that the evidence check passed. The holdout
+scenarios that need no person run in CI on Windows for every release. The verifier card has run all three scenarios.
+[decision: whether Theseus's own changes move to pull requests in phase 1, since "every pull request carries
+evidence" assumes them and stage 0 committed straight to `main`]
 
 ## Phase 2: Unattended
 
