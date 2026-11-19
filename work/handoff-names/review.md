@@ -47,15 +47,15 @@ it against the AC.
 
 ### M3. Employer and internal system names, and a real card key, in a public repo
 
-- `tests/Theseus.Tests/Stopping/HandoffOwnerTests.cs:9`, `:16`-`:18`: "configure-the-nurtur-ndc-mcp-server-in-the-claude-directory",
-  "Configure the Nurtur NDC mcp server…", "NDC MCP Server".
-- `src/Theseus.Core/Stopping/HandoffOwner.cs:7`-`:8`: "…-ndc-mcp-server-in-the-claude-directory", "ndc-mcp-server".
-- `tests/Theseus.Tests/Stopping/HandoffPointerTests.cs:19`-`:20`: "ndc-mcp-server".
+- `tests/Theseus.Tests/Stopping/HandoffOwnerTests.cs:9`, `:16`-`:18`: "<long key of the first real card>",
+  "<title of the first real card>", "<title of the second real card>".
+- `src/Theseus.Core/Stopping/HandoffOwner.cs:7`-`:8`: "<long key of the first real card>", "<key of the second real card>".
+- `tests/Theseus.Tests/Stopping/HandoffPointerTests.cs:19`-`:20`: "<key of the second real card>".
 - `src/Theseus.Core/Stopping/HandoffRename.cs:7` and `HandoffRenameTests.cs:12`, `:25`, `:34`, `HandoffOwnerTests.cs:25`-`:26`:
-  `git-22`, the key of a real card on the owner's board.
-- `work/handoff-names/plan.md:18`-`:19` and `implementation.md:15`: "NDC MCP Server", "the NDC MCP pair on Nigel's board".
+  `<a real card key>`, the key of a real card on the owner's board.
+- `work/handoff-names/plan.md:18`-`:19` and `implementation.md:15`: "<title of the second real card>", "the real pair on Nigel's board".
 
-AGENTS.md, "The repo is public": no names of employers' internal systems. `git grep -i nurtur main` finds nothing
+AGENTS.md, "The repo is public": no names of employers' internal systems. a search of `main` for the employer's name finds nothing
 today, so this change introduces it. No automated public-files test exists in this worktree to catch it.
 
 Fix: replace with invented placeholders (`set-up-the-ledger-server-in-the-directory` / `ledger-server`;
@@ -69,7 +69,7 @@ owner's private notes).
 `src/Theseus.Core/Stopping/HandoffOwner.cs:29`-`:33`.
 
 AC 1: "the owner is the one whose key, or whose title written as a key, appears in the file's name. If that is not
-exactly one card, nothing changes." In the motivating pair both keys appear in the file name (`ndc-mcp-server` is a
+exactly one card, nothing changes." In the motivating pair both keys appear in the file name (`<key of the second real card>` is a
 substring of the longer key), so the AC as written says nothing changes. The code adds a tie-break the spec does not
 contain: the card whose match contains every other's wins. The plan's live check expects the tie-break, so the
 intent is probably right, but the rule was decided by the implementer, not recorded as the owner's.
