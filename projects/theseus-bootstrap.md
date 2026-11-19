@@ -116,8 +116,9 @@ decisions.**
 
 ### Objective 1.3: The evidence check
 - [ ] A CI job in each project repo fails when a change's `work/<slug>/evidence.md` is missing, malformed or not
-      passing. It runs in that repo's own CI, so Theseus writes nothing to GitHub and needs no token.
-      [decision: whether this replaces a `theseus/evidence` status set by Theseus]
+      passing. It runs in that repo's own CI, so Theseus writes nothing to GitHub and needs no token. It replaces
+      the `theseus/evidence` status first planned (Nigel, 2026-11-19), and branch protection makes it required.
+- [ ] The owner's acceptance of each gate (who and when) is recorded in the evidence file, and the job checks it.
 - [ ] The job is in the kit, so any project repo can adopt it.
 
 ### Objective 1.4: Holdout scenarios in CI on Windows
