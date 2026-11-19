@@ -13,10 +13,15 @@ that made the change learns whether it passed, not what the check was.
    tool in your Claude Code settings, the same way as the lock guard. It reads the folder and address from Theseus's
    settings, so it holds no path of its own.
 
-With the guard installed, a session with no role cannot read, search or fetch anything in the holdout. A verifier
-can read the scenarios and write only its report, in the holdout's `results` folder. No session runs a shell command
-inside the holdout folder. A session started with `THESEUS_HOLDOUT_AUTHOR=1` can change the scenarios. The guard is a
-tripwire against accidents, not a wall.
+With the guard installed, a session with no role is refused reading, searching or fetching in the holdout. A verifier
+can read the scenarios and write only its report and its handoff, in the holdout's `results` folder. No session runs a
+shell command inside the holdout folder, and none writes Theseus's own settings or board with the file tools. A session
+started with `THESEUS_HOLDOUT_AUTHOR=1` can change the scenarios. With no holdout folder set, the guard refuses
+nothing.
+
+The guard is a tripwire against accidents, not a wall. It reads the paths, commands and addresses a tool is given, and
+the session's working directory. A search rooted in a folder above the holdout is not refused, so it could return
+scenario lines; and a shell command can still do what the file tools are refused.
 
 ## Verifying a change
 

@@ -139,8 +139,14 @@ process.stdin.on('end', () => {
         process.exit(0);
     }
 
-    // Theseus's own settings decide the holdout, and its board decides a card's role, so no session writes them with
-    // the file tools (verifier-card review S5). Shell commands are not policed here: a tripwire, not a wall.
+    // With no holdout set, nothing is refused at all (AC 4).
+    if (!holdout.folder && !holdout.remote) {
+        process.exit(0);
+    }
+
+    // Theseus's own settings decide the holdout, and its board decides a card's role, so while a holdout is set no
+    // session writes them with the file tools (verifier-card review S5). Shell commands are not policed here: a
+    // tripwire, not a wall.
     if (WRITING.has(tool)) {
         const target = input.file_path || input.notebook_path || '';
         const own = theseusFolder();
@@ -148,10 +154,6 @@ process.stdin.on('end', () => {
             .some(file => normalise(resolve(target, cwd)) === normalise(file))) {
             deny('Theseus\'s settings and board are changed from Theseus, not by a session.');
         }
-    }
-
-    if (!holdout.folder && !holdout.remote) {
-        process.exit(0);
     }
 
     // Where the tool acts: its path fields resolved against the working directory, and the working directory itself

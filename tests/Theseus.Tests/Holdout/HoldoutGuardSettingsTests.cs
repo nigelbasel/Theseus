@@ -7,8 +7,9 @@ namespace Theseus.Tests.Holdout;
 
 /// <summary>
 /// The holdout guard and the settings it trusts (verifier-card review S3 and S5): a holdout folder that is not an
-/// absolute path, or is a whole drive, would refuse unrelated work, so it counts as unset; and no session may write
-/// Theseus's own settings or board files with the file tools, since those decide the holdout and a card's role.
+/// absolute path, or is a whole drive, would refuse unrelated work, so it counts as unset; and while a holdout is set no
+/// session may write Theseus's own settings or board files with the file tools, since those decide the holdout and a
+/// card's role. With no holdout set the guard allows everything (AC 4).
 /// </summary>
 [TestFixture]
 public class HoldoutGuardSettingsTests
@@ -42,6 +43,34 @@ public class HoldoutGuardSettingsTests
     }
 
     [Test]
+    public void ARelativeHoldoutFolder_IsNotReadAsAFolderBesideTheGuard()
+    {
+        Assert.That(Guard("Read", "file_path", Path.Combine(_folder, "holdout", "stop.md"), "holdout",
+            workingDirectory: _folder), Is.False, "a relative setting counts as unset, wherever the guard happens to run");
+    }
+
+    [Test]
+    public void TheseusOwnBoard_CannotBeWrittenAsANotebook()
+    {
+        Assert.That(Guard("NotebookEdit", "notebook_path", Path.Combine(_folder, "Theseus", "board.json"), @"C:\holdout",
+            localAppData: _folder), Is.True);
+    }
+
+    [Test]
+    public void TheseusOwnBoard_CannotBeWrittenByARelativePath()
+    {
+        Assert.That(Guard("Write", "file_path", "board.json", @"C:\holdout", cwd: Path.Combine(_folder, "Theseus"),
+            localAppData: _folder), Is.True);
+    }
+
+    [Test]
+    public void WithNoHoldoutSet_EvenTheseusOwnFilesAreNotRefused()
+    {
+        Assert.That(Guard("Write", "file_path", Path.Combine(_folder, "Theseus", "board.json"), string.Empty,
+            localAppData: _folder), Is.False, "AC 4: with no holdout set, the guard allows everything");
+    }
+
+    [Test]
     public void TheseusOwnSettings_CanStillBeRead()
     {
         Assert.That(Guard("Read", "file_path", Path.Combine(_folder, "Theseus", "settings.json"), @"C:\holdout",
@@ -49,7 +78,7 @@ public class HoldoutGuardSettingsTests
     }
 
     private bool Guard(string tool, string field, string value, string holdoutFolder, string cwd = @"C:\work\repo",
-        string? localAppData = null)
+        string? localAppData = null, string? workingDirectory = null)
     {
         var node = FindNode();
         if (node is null)
@@ -66,6 +95,7 @@ public class HoldoutGuardSettingsTests
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
             UseShellExecute = false,
+            WorkingDirectory = workingDirectory ?? string.Empty,
         };
         start.Environment["THESEUS_SETTINGS"] = settingsFile;
         start.Environment.Remove("THESEUS_ROLE");
