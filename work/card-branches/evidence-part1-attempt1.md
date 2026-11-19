@@ -1,7 +1,7 @@
 # card-branches: evidence
 
 Pipeline: `feature` (method kit v0), stage **verify, part 1 of 2** (code and tests; part 2 is a live check on a
-running board by Nigel), autonomy L0. Card git-22, branch `main`, repo Theseus, commit `4054624`.
+running board by Nigel), autonomy L0. Branch `main`, repo Theseus, commit `4054624`.
 Verifier: a fresh sub-agent started by the implementer. It did not write the code, but it was briefed by the
 implementing session, so independence is partial.
 
@@ -14,7 +14,7 @@ outside the repo (`...\scratchpad\verify-card-branches\probe` against a copy of 
 
 | # | Check | Result | Evidence |
 |---|---|---|---|
-| 1 | Full suite, `dotnet test Theseus.slnx --nologo --logger "console;verbosity=normal"` | **PASS** | `Total tests: 1508`, `Passed: 1508`, `Test Run Successful.`, exit 0, `Total time: 1.5691 Minutes`. Run 2026-11-18 22:06:21.876 to 22:08:24.751, every line in `C:\Users\nigel\.claude\logs\git-22.log` (lines 102809 to 104339). No compiler warnings in the output. Built first time; no CS0009 or file-in-use rerun was needed. All 17 new tests appear as passed by name. |
+| 1 | Full suite, `dotnet test Theseus.slnx --nologo --logger "console;verbosity=normal"` | **PASS** | `Total tests: 1508`, `Passed: 1508`, `Test Run Successful.`, exit 0, `Total time: 1.5691 Minutes`. Run 2026-11-18 22:06:21.876 to 22:08:24.751, every line in the workstream log (lines 102809 to 104339). No compiler warnings in the output. Built first time; no CS0009 or file-in-use rerun was needed. All 17 new tests appear as passed by name. |
 | 2 | Each AC 1 to 13 | **AC 3 not met** (tooltip text changed), others met or left to the live check | Table below |
 | 3 | Tests test the spec's points; existing tests unchanged | **PASS with gaps** | `git show 4054624 --stat`: only the three new test files under `tests/`; no existing test changed. Gaps in finding F6. |
 | 4 | Edge cases (30 subfolders, drive root, whole `E:\`, unreadable HEAD, and others) | **Mixed**: no defect, three gaps | Probe output in findings F2 to F5 and F8 |

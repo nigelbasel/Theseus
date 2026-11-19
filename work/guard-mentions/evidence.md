@@ -1,6 +1,6 @@
 # guard-mentions: verify evidence (attempt 3)
 
-Pipeline: `bug` (method kit v0), stage **verify, attempt 3**, autonomy L0. Card git-22, branch `main`, repo
+Pipeline: `bug` (method kit v0), stage **verify, attempt 3**, autonomy L0. Branch `main`, repo
 Theseus. Code verified: pass 3, commit b994bbb.
 
 **How this file was made, so it can be weighed properly.** Verify attempt 3 was run by a fresh sub-agent. It

@@ -49,7 +49,7 @@ smaller. Whether and how to take them on is Nigel's decision.
 ## Part 1, attempt 2
 
 Pipeline: `feature` (method kit v0), stage **verify, part 1 of 2**, **attempt 2** (a re-verify of the fix round).
-Part 2 is a live check on a running board, by Nigel. Autonomy L0. Card git-22, branch `main`, repo Theseus, commit
+Part 2 is a live check on a running board, by Nigel. Autonomy L0. Branch `main`, repo Theseus, commit
 `ee9a529` (the fix round), compared with `a565dd7`. The first attempt is in `evidence-part1-attempt1.md`.
 Verifier: a fresh sub-agent started by the implementer. Independence is partial: same model, briefed by the
 implementer, but it did not write the code. It read `implementation.md` only after checks 1 to 3.
@@ -58,7 +58,7 @@ implementer, but it did not write the code. It read `implementation.md` only aft
 
 | # | Check | Result | Evidence |
 |---|---|---|---|
-| 1 | Full suite `dotnet test Theseus.slnx --nologo --logger "console;verbosity=normal"` | PASS | Total 1465, passed 1465, failed 0, total time 1.5121 min, exit 0. No compiler warning in the output: the only lines containing "warning" are the names of six tests. `Theseus.Core` and `Theseus.Tests` were rebuilt in this run. No CS0009 or file-in-use error, so no rerun. Every line is in `C:\Users\nigel\.claude\logs\git-22.log` under `<stop-timing-verify-2>`, from 14:26:47.513 (banner) to 14:29:12.994 (exit line). The 17 new test cases all ran and passed. |
+| 1 | Full suite `dotnet test Theseus.slnx --nologo --logger "console;verbosity=normal"` | PASS | Total 1465, passed 1465, failed 0, total time 1.5121 min, exit 0. No compiler warning in the output: the only lines containing "warning" are the names of six tests. `Theseus.Core` and `Theseus.Tests` were rebuilt in this run. No CS0009 or file-in-use error, so no rerun. Every line is in the workstream log under `<stop-timing-verify-2>`, from 14:26:47.513 (banner) to 14:29:12.994 (exit line). The 17 new test cases all ran and passed. |
 | 2 | F1 to F7 | PASS | Table below. F1, F3, F5, F6 and F7 are fixed. F2 is mostly fixed and F4 is partly fixed. What is left is stated in `implementation.md` and is reasonable. |
 | 3 | Nothing else changed | PASS | `git show ee9a529 --stat` touches only `ShellViewModel.cs`, `StopRequestStore.cs`, `StopTiming.cs`, the two test files and two `work/` notes. `git diff a565dd7 ee9a529 --numstat -- tests/` gives 39 and 67 lines added, 0 removed, so no existing test was changed. Stopping behaviour: `SessionClosing` is not in the diff. The close conditions, the 20 s quiet period, the expiry and `Sweep` are unchanged. In `ShellViewModel.cs:1322` `Retire` is still called under the same condition, and only the report is now guarded by its result. In `Claim`, the move and the parse are unchanged (`StopRequestStore.cs:86-101`). The new `File.Exists` early return (`:111-114`) returns the already-parsed request, so the delivery is unchanged. |
 | 4 | `implementation.md` "Pass 2" against what was found | Matches | See the section at the end. |

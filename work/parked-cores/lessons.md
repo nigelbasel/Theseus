@@ -1,6 +1,6 @@
 # parked-cores: lessons
 
-Pipeline: `feature` (method kit v0), stage **compound**, autonomy L0. Card git-22, branch `main`, repo Theseus.
+Pipeline: `feature` (method kit v0), stage **compound**, autonomy L0. Branch `main`, repo Theseus.
 Proposals only: Nigel decides which, if any, become changes to `method/`.
 
 ## Time and cost (measured)

@@ -57,6 +57,7 @@ stages:
       holdout scenario covering the behaviour. Run by someone other than the implementer. Steps a person is
       asked to carry out are checked against the code before they are given. The verifier removes each guard
       or condition the fix adds, in a copy, and reports any test that still passes (parked-cores P16).
+      Live-check steps are given to the owner exactly as the verifier wrote and checked them (close-step P20).
     gate:
       kind: evidence
       passes_when: >

@@ -1,6 +1,6 @@
 # card-branches: implementation
 
-Pipeline: `feature` (method kit v0), stage **implement**, autonomy L0. Card git-22, branch `main`, repo Theseus.
+Pipeline: `feature` (method kit v0), stage **implement**, autonomy L0. Branch `main`, repo Theseus.
 Follows `plan.md` (approved by Nigel, 2026-11-18).
 
 ## What was done

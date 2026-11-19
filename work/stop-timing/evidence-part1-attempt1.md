@@ -1,7 +1,7 @@
 # stop-timing: evidence
 
 Pipeline: `feature` (method kit v0), stage **verify, part 1 of 2** (code and tests; part 2 is a live check on a
-running board by Nigel), autonomy L0. Card git-22, branch `main`, repo Theseus, commit `a565dd7`.
+running board by Nigel), autonomy L0. Branch `main`, repo Theseus, commit `a565dd7`.
 Verifier: a fresh sub-agent started by the implementer. Independence is partial: same model, briefed by the
 implementer, but it did not write the code and read `implementation.md` and `plan.md` only after checks 1 to 4.
 
@@ -9,7 +9,7 @@ implementer, but it did not write the code and read `implementation.md` and `pla
 
 | # | Check | Result | Evidence |
 |---|---|---|---|
-| 1 | Full suite `dotnet test Theseus.slnx --nologo --logger "console;verbosity=normal"` | PASS | Total 1448, passed 1448, failed 0, total time 1.6376 min, exit 0. No compiler warnings in the output (`TreatWarningsAsErrors` is on, `Directory.Build.props:22`). The build was incremental, so a project that was not recompiled would not re-emit warnings. No CS0009 or file-in-use error, no rerun. Every line is in `C:\Users\nigel\.claude\logs\git-22.log` under `<stop-timing-verify>`, from 14:14:59.292 to 14:17:05.924. All 12 new tests ran and passed. |
+| 1 | Full suite `dotnet test Theseus.slnx --nologo --logger "console;verbosity=normal"` | PASS | Total 1448, passed 1448, failed 0, total time 1.6376 min, exit 0. No compiler warnings in the output (`TreatWarningsAsErrors` is on, `Directory.Build.props:22`). The build was incremental, so a project that was not recompiled would not re-emit warnings. No CS0009 or file-in-use error, no rerun. Every line is in the workstream log under `<stop-timing-verify>`, from 14:14:59.292 to 14:17:05.924. All 12 new tests ran and passed. |
 | 2 | AC 1 to 9 against the code | PASS with gaps | Table below. No AC is unmet on the normal path. Gaps are in failure or race paths only. |
 | 3 | Tests cover the spec | PARTIAL | The durations and progress logic is tested. Not tested: the two log lines, the stamp-failure path, an old-shape JSON file, and all App call sites (AC 5 exactly once, AC 6). No pre-existing test was changed: `git show a565dd7 --numstat` gives 20 added and 0 removed in `StopRequestStoreTests.cs`, and the diff has no removed lines under `tests/`. |
 | 4 | Edge cases (throwaway probe in the scratchpad, referencing the built `Theseus.Core.dll`, culture set to de-DE) | PASS with notes | Output quoted under Findings. |

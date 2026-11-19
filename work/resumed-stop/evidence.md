@@ -33,7 +33,7 @@ step 1 the card showed "Not running" while its session was alive and idle; not e
 
 Pipeline: `bug` (method kit v0), stage **verify, part 1 of 2, attempt 2** (re-verify of the fix round `d43d6ff`;
 attempt 1 is `evidence-part1-attempt1.md`, which passed `a33e527` with gaps G1-G5). Part 2 is a live check on a
-running board by Nigel. Autonomy L0. Card git-22, branch `main`, repo Theseus, at `d43d6ff` (working tree clean).
+running board by Nigel. Autonomy L0. Branch `main`, repo Theseus, at `d43d6ff` (working tree clean).
 
 Verifier: a fresh sub-agent started by the implementer. **Partial independence**: it did not write the code, but it
 was briefed by the implementer, on the same model. It read the Spec and attempt 1's evidence, then the code; the
@@ -45,7 +45,7 @@ Contract: rules 1-6 of the "Spec" section of `work/resumed-stop/fix.md`.
 
 | # | Check | Result | Evidence |
 |---|---|---|---|
-| 1 | Full suite | **PASS** | `dotnet test Theseus.slnx --nologo --logger "console;verbosity=normal"` from the repo root, run once (no CS0009 or file-in-use error, so no rerun). Banner 17:12:16.264; `Test Run Successful.` 17:14:27.269; `Total tests: 1485`, `Passed: 1485`. Every line appended to `C:\Users\nigel\.claude\logs\git-22.log` under `<resumed-stop-verify-2>`. No `warning CS/NU/MSB` lines in the output (0 matches). The four new tests passed: `Sweep_DoesNotReportAStopWhoseExitWasAlreadyTyped`, `Sweep_ReportsAnExpiredStopThatWasNeverClosed`, `Write_KeepsTheFirstTime_WhenTheWaitingOneIsFromThisRunOfTheSession`, `Write_StartsAFreshStop_WhenTheWaitingOneIsFromAnEarlierRunOfTheSession`. |
+| 1 | Full suite | **PASS** | `dotnet test Theseus.slnx --nologo --logger "console;verbosity=normal"` from the repo root, run once (no CS0009 or file-in-use error, so no rerun). Banner 17:12:16.264; `Test Run Successful.` 17:14:27.269; `Total tests: 1485`, `Passed: 1485`. Every line appended to the workstream log under `<resumed-stop-verify-2>`. No `warning CS/NU/MSB` lines in the output (0 matches). The four new tests passed: `Sweep_DoesNotReportAStopWhoseExitWasAlreadyTyped`, `Sweep_ReportsAnExpiredStopThatWasNeverClosed`, `Write_KeepsTheFirstTime_WhenTheWaitingOneIsFromThisRunOfTheSession`, `Write_StartsAFreshStop_WhenTheWaitingOneIsFromAnEarlierRunOfTheSession`. |
 | 2 | G1, G3, G5 fixed? | **G3 fixed (one residual case), G1 fixed, G5 fixed** | See the G1-G5 table. |
 | 3a | Existing tests changed or removed | **None** | `git show d43d6ff --stat`: the only test file is the new `StopRequestStoreLoggingTests.cs` (+100). Other files: `ShellViewModel.cs`, `IStopRequestStore.cs`, `StopRequestStore.cs`, `evidence-part1-attempt1.md`, `fix.md`. |
 | 3b | Stopping behaviour beyond G1/G3 | **None** | `Write` differs only when `sessionStartedUtc` is given *and* the waiting request was asked before it; otherwise it is the `a33e527` code (keep the first time). `Ask` is the only caller of `Write` (`ShellViewModel.cs:1099`), and no other `IStopRequestStore` implementation exists in `src` or `tests`. `Describe`'s new `heldBack` argument defaults to 0; the routes, close step, `Sweep`, expiry and existing log lines are untouched. Added log output: the "did not finish (a newer session is running ...)" line from `Write` in the G3 case, which is an existing `StopTiming.ReportUnfinished` message. |
@@ -97,4 +97,4 @@ the owner; G1's notice remains for the live check.
 
 | Stage | Started | Finished | Notes |
 |---|---|---|---|
-| verify part 1, attempt 2 | 2026-11-18 17:12:04.022 (clock) | 2026-11-18 17:14:47.183 (clock, before writing this file) | Suite 17:12:16.264-17:14:27.269 (logged). No worktree created. Run output kept at `C:\Users\nigel\AppData\Local\Temp\claude\3c9e613a9d1facbc\233623bc-2f72-4934-ba2b-c4a52669d270\scratchpad\verify-resumed-2\test-run.txt`. |
+| verify part 1, attempt 2 | 2026-11-18 17:12:04.022 (clock) | 2026-11-18 17:14:47.183 (clock, before writing this file) | Suite 17:12:16.264-17:14:27.269 (logged). No worktree created. Run output kept at `<scratch>\verify-resumed-2\test-run.txt`. |

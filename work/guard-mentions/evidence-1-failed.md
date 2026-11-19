@@ -1,6 +1,6 @@
 # guard-mentions: verify evidence
 
-Pipeline: `bug` (method kit v0), stage **verify**, autonomy L0. Card git-22, branch `main`, repo Theseus.
+Pipeline: `bug` (method kit v0), stage **verify**, autonomy L0. Branch `main`, repo Theseus.
 Verifier: a sub-agent started by the implementer (partial independence: same machine, same parent session; it
 did not write the fix and read `fix.md` only after checks 1 to 5).
 
@@ -21,7 +21,7 @@ Commits checked: `f3418f6` (failing tests), `7036ae2` (fix). HEAD at verificatio
 
 | # | Check | Result | Evidence |
 |---|---|---|---|
-| 1 | Full suite `dotnet test Theseus.slnx --nologo --logger "console;verbosity=normal"` | PASS | 1409 total, 1409 passed, 0 failed, 0 skipped, exit 0, "Total time: 1.7695 Minutes". Build did not fail; no rerun needed. Logged line by line in `C:\Users\nigel\.claude\logs\git-22.log` under `<guard-mentions-verify>`, from 12:19:29.400 to 12:21:46.469. |
+| 1 | Full suite `dotnet test Theseus.slnx --nologo --logger "console;verbosity=normal"` | PASS | 1409 total, 1409 passed, 0 failed, 0 skipped, exit 0, "Total time: 1.7695 Minutes". Build did not fail; no rerun needed. Logged line by line in the workstream log under `<guard-mentions-verify>`, from 12:19:29.400 to 12:21:46.469. |
 | 2 | Reproduction tests unchanged | PASS | `git diff f3418f6 HEAD -- tests/Theseus.Tests/Locks/LockGuardTests.cs` is empty (0 lines). |
 | 3 | Adversarial: unlocked runs past the fixed guard | PASS for the gate (no NEW bypass); 9 PRE-EXISTING bypasses | 32 adversarial commands (20 Bash, 12 PowerShell) plus A21. 23 refused as they should be, 12 of them were let through by the pre-fix guard (the reported defect, now fixed). 9 still get through, all also through the pre-fix guard: single `&`, `$(...)`, backticks, and a lock-script path that is not the real script (`/tmp/...`, `./...`, `C:\fake\...`). |
 | 4 | False refusals of harmless mentions | PASS | 12 commands (F1 to F12, 5 Bash, 7 PowerShell): none refused. 6 PowerShell ones were refused by the pre-fix guard. |
@@ -58,7 +58,7 @@ Tool is the `tool_name` fed to the guard. "Fix" is the decision of `7036ae2`, "B
 | A17 | Bash | `"ndc-test-lock.sh" status && dotnet test X.Api.Tests` | deny | allow | OK |
 | A18 | Bash | `./ndc-test-lock.sh status\r\ndotnet test X.sln` | deny | allow | OK |
 | A19 | Bash | `node ndc-test-lock.sh && dotnet test X.sln` | deny | allow | OK |
-| A20 | Bash | `bash L run a b -- echo hi; NDC=1 dotnet test X.sln` | deny | allow | OK |
+| A20 | Bash | `bash L run a b -- echo hi; FLAG=1 dotnet test X.sln` | deny | allow | OK |
 | A21 | Bash | `bash L run s s -- dotnet build X.sln && dotnet test X.sln` | deny | allow | OK |
 | P1 | PowerShell | `Write-Output "ndc-test-lock.sh"; dotnet test X.sln` | deny | deny | OK |
 | P2 | PowerShell | `GB "$HOME/.claude/bin/ndc-test-lock.sh" status; dotnet test X.sln` | deny | allow | OK |
@@ -163,4 +163,4 @@ address finding 2; finding 3 is pre-existing and is Nigel's call.
 
 | Stage | Started | Finished | Notes |
 |---|---|---|---|
-| verify | 2026-11-18 12:18:40 | 2026-11-18 12:23:19 | Full suite 12:19:29.400 to 12:21:46.469 in `C:\Users\nigel\.claude\logs\git-22.log`; harness and pre-fix guard in the session scratchpad (`harness.js`, `extra.js`, `extra2.js`, `guard-old.js`, `results.json`). |
+| verify | 2026-11-18 12:18:40 | 2026-11-18 12:23:19 | Full suite 12:19:29.400 to 12:21:46.469 in the workstream log; harness and pre-fix guard in the session scratchpad (`harness.js`, `extra.js`, `extra2.js`, `guard-old.js`, `results.json`). |

@@ -1,7 +1,7 @@
 # parked-cores: evidence
 
 Pipeline: `feature` (method kit v0), stage **verify, part 1 of 2** (code and tests; part 2 is a live check on a running
-board by Nigel), autonomy L0. Card git-22, branch `main`, repo Theseus. Change under test: commit `ce2eecf`.
+board by Nigel), autonomy L0. Branch `main`, repo Theseus. Change under test: commit `ce2eecf`.
 Verifier: a fresh sub-agent started by the implementer (partial independence: same model, briefed by the implementer,
 did not write the code). Contract: `work/parked-cores/spec.md` AC 1 to 9. The three figures (50%, 90%, 3) are taken as
 approved; only whether the code implements them was checked.
@@ -10,7 +10,7 @@ approved; only whether the code implements them was checked.
 
 | # | Check | Result | Evidence |
 |---|---|---|---|
-| 1 | Full suite `dotnet test Theseus.slnx --nologo --logger "console;verbosity=normal"` | **PASS** | Started 2026-11-19 09:59:10, finished 10:01:25. "Test Run Successful. Total tests: 1542, Passed: 1542", exit code 0. No warning or error lines in the build output; no CS0009 or file-in-use, so no rerun. Every line appended, timestamped, to `C:\Users\nigel\.claude\logs\git-22.log` under `<parked-cores-verify>`. `PdhCoreCountersTests.TwoReads_GiveEveryLogicalProcessor_WithTheParkedOnesAmongThem` **ran and passed [2 s]**, not ignored |
+| 1 | Full suite `dotnet test Theseus.slnx --nologo --logger "console;verbosity=normal"` | **PASS** | Started 2026-11-19 09:59:10, finished 10:01:25. "Test Run Successful. Total tests: 1542, Passed: 1542", exit code 0. No warning or error lines in the build output; no CS0009 or file-in-use, so no rerun. Every line appended, timestamped, to the workstream log under `<parked-cores-verify>`. `PdhCoreCountersTests.TwoReads_GiveEveryLogicalProcessor_WithTheParkedOnesAmongThem` **ran and passed [2 s]**, not ignored |
 | 2 | AC 1 to 9 against the code | **FAIL on AC 7**, rest met or left to the live check | Table below |
 | 3 | Code's reading against `Get-Counter`, same moment, this machine | **PASS** (parked count); busy and clock consistent within the sampling noise | Below |
 | 4 | Do the new tests test the spec's points; could they pass with wrong code; existing tests changed? | **PASS with gaps** | No existing test file changed (`git show ce2eecf --stat`: only the four new test files under `tests/`). Gaps under Findings |

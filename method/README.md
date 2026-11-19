@@ -63,6 +63,14 @@ Ad hoc work can be promoted to a project. Its handoff becomes the project's firs
 - **An existing test changes only to correct a wrong expectation.** The change gets its own line in
   `implementation.md` saying what the test asserted and why that was wrong, and the verifier judges whether it is a
   correction or a weakening. (card-branches P12.)
+- **No machine paths or card ids in a public repo's records.** Use placeholders (`<scratch>`, `<worktree>`, "the
+  workstream log") or a description. Sub-agent briefs carry this rule, and a check in the suite
+  (`PublicFilesTests`) fails any change whose `work/`, `bootstrap/`, `projects/` or `method/` files contain a
+  user-profile path, a session scratch path, a drive path with folders, or a card id. (close-step P19, Nigel
+  2026-11-19; every stage 0 record broke it before it existed.)
+- **A test of a decision moved out of the UI feeds it the state the caller actually holds,** step by step through the
+  sequence it serves, not inputs chosen for convenience. (close-step P22; a test passed because it handed in a request
+  the App had already retired.)
 
 ## Decisions recorded here
 

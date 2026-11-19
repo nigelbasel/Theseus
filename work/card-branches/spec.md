@@ -1,6 +1,6 @@
 # card-branches: spec
 
-Pipeline: `feature` (method kit v0), stage **spec**, autonomy L0. Card git-22, branch `main`, repo Theseus.
+Pipeline: `feature` (method kit v0), stage **spec**, autonomy L0. Branch `main`, repo Theseus.
 Scope: option B of `research.md`, with a card's repos taken from its extra directories (`addDirs`), both chosen by
 Nigel on 2026-11-18.
 

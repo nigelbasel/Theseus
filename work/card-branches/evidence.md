@@ -26,7 +26,7 @@ briefed by the implementing session, so independence is partial.
 
 Method: `evidence-part1-attempt1.md` and `git show 38ea687` read; the changed code read directly; the full suite run;
 one throwaway probe outside the repo
-(`C:\Users\nigel\AppData\Local\Temp\claude\3c9e613a9d1facbc\233623bc-2f72-4934-ba2b-c4a52669d270\scratchpad\verify-card-branches-2\probe`,
+(`<scratch>\verify-card-branches-2\probe`,
 against a copy of the built `Theseus.Core.dll`, output in `...\verify-card-branches-2\probe-output.txt`). It parses
 the old and new branch `TextBlock` bindings in WPF, calls the private `PullRequestResolver.OriginKey` by reflection,
 and makes junctions and a symlink. The "Pass 2" section of `implementation.md` was read only after checks 1 to 3.
@@ -35,7 +35,7 @@ and makes junctions and a symlink. The "Pass 2" section of `implementation.md` w
 
 | # | Check | Result | Evidence |
 |---|---|---|---|
-| 1 | Full suite, `dotnet test Theseus.slnx --nologo --logger "console;verbosity=normal"` | **PASS** | `Total tests: 1520`, `Passed: 1520`, `Test Run Successful.`, exit 0, `Total time: 1.6157 Minutes`. Logged 2026-11-19 06:47:02.137 (banner) to 06:49:10.354 (exit code) in `C:\Users\nigel\.claude\logs\git-22.log`, lines 107447 to 108989. Built first time: no CS0009 or file-in-use rerun. 0 compiler warnings (`warning XX0000` pattern: 0 matches). All 12 new tests passed by name. **`ALinkToARepo_IsTheSameRepo` ran and passed (6 ms); it was not ignored.** |
+| 1 | Full suite, `dotnet test Theseus.slnx --nologo --logger "console;verbosity=normal"` | **PASS** | `Total tests: 1520`, `Passed: 1520`, `Test Run Successful.`, exit 0, `Total time: 1.6157 Minutes`. Logged 2026-11-19 06:47:02.137 (banner) to 06:49:10.354 (exit code) in the workstream log, lines 107447 to 108989. Built first time: no CS0009 or file-in-use rerun. 0 compiler warnings (`warning XX0000` pattern: 0 matches). All 12 new tests passed by name. **`ALinkToARepo_IsTheSameRepo` ran and passed (6 ms); it was not ignored.** |
 | 2 | F1, F2, F3, F5, F6, F9, F10 | F1 fixed; F9 fixed; F2, F3, F5, F6 partly; F10 recorded, not changed | Findings table |
 | 3 | Anything else changed | **PASS**, two small behaviour notes (N1, N2) | `git diff 4054624 38ea687 --numstat -- tests`: `1 1 BranchLinesTests.cs`, `141 0 CardBranchesFixTests.cs`, `28 0 CardItemRowNoLinkTests.cs`. No test removed; one assertion line changed (see F1). Source changes are only the six files named in the commit. |
 | 4 | Pass 2 section of `implementation.md` | **Matches, with omissions** | Section below |
