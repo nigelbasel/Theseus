@@ -99,9 +99,48 @@ minutes; elapsed time per feature was hours, mostly gates, CI releases, board up
 | 2026-11-19 | Stop patching at the third pass that still finds edges; propose a feature instead (P10) |
 | 2026-11-19 | Terminology in conversation: Agentic Factory Projects and Agentic Factory Workstreams; ad hoc work stays a plain workstream. Words only |
 
+## How the method is organised (worked out with Nigel, 2026-11-19, after the changes)
+
+These questions came up at the end of stage 0. They are proposals for the planning chat, not decisions.
+
+**Three layers, each with its own home.**
+
+| Layer | Holds | Where it lives | Changes |
+|---|---|---|---|
+| **The kit** (common) | Pipelines, the project format, the general rules | One shared, versioned place for everyone using the method: its own repo or a plugin | Rarely; improved by approved lessons |
+| **Per repo** | The repo's map (`AGENTS.md`) and its own rubric, drawn from that codebase's dated decisions | In that repo | Once per codebase, then small additions |
+| **Per project** | Objective, phases, exit gates, which pipelines and **which kit version**, autonomy per repo, the work artefacts | The project's home repo | Every project: this is the part that is genuinely the owner's |
+
+Today `method/` in the Theseus repo holds both the common kit and Theseus's own rubric (every rubric item cites a Theseus
+decision). That is fine while Theseus is the only project; before a second codebase uses the method, the kit should move
+to its own home and Theseus keep only its rubric. Lessons go to the layer they belong to: general rules to the kit,
+codebase lessons to that repo's rubric or AGENTS.md, project lessons to the project file. A project pins a kit version,
+so improving the kit never changes a project already running underneath it.
+
+**Starting a project needs no method work.** The owner states the objective; an agent drafts the project file from the
+kit's template and, for a repo that lacks them, its AGENTS.md and rubric; the owner approves once; workstreams then run
+the standard pipelines and the owner meets their gates. The owner selects, and does not create.
+
+**How stable it is, on stage 0's evidence (one codebase):** six changes used the same two pipelines; all 17 lessons were
+general rules, none specific to Theseus's code; the rubric was written once and used unchanged by four reviews. The
+expectation is that the kit stays stable and the per-repo layer carries the differences between codebases. The team
+pilot (phase 5) is where that is tested.
+
+**A new method, from small to large:**
+
+| Size | When | What it takes |
+|---|---|---|
+| A new pipeline in the existing kit (the common case) | A different kind of work: incidents, migrations, research, documentation, legacy ports | One pipeline file; two or three real items through it at L0; compound refines it |
+| A fork of the kit | A different team or context with different ground rules | Copy, change what differs, version separately; projects choose their kit |
+| From scratch | A different way of working, where the kit's assumptions do not hold | The stage 0 recipe: seed kit v0 from the conventions already practised (an agent drafts it in minutes); shake it down on about five real changes at L0, which is where the cost is (stage 0: six changes, about a day and a half); let compound grow it; raise autonomy only on evidence |
+
+A method is trusted only once it has carried real work: a drafted method is a hypothesis, and the shakedown is the test.
+
 ## For stage 1
 
 - Run the three holdout scenarios, by an author session or by Nigel, and automate them on Windows CI.
 - Do one change that spans two repos.
 - Measure the implementer's own tokens, and Nigel's time at gates.
 - Decide whether verifier and reviewer independence needs more than a fresh sub-agent.
+- Decide where the kit lives (its own repo or a plugin), split Theseus's rubric from it, and have the project file name
+  the kit and version it runs, before a second codebase uses the method.
