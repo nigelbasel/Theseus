@@ -72,12 +72,19 @@ public class StopViewTests
     }
 
     [Test]
-    public void AHeldBackStop_NeverOffersCloseNow_AndSaysItWaitsForCloseThem()
+    public void AHeldBackStop_NeverOffersCloseNow()
     {
         var view = StopView.Of(null, Request(), Asked.AddMinutes(1), Failed(ExitResult.FocusLost), SessionId, Started,
             heldBack: true);
 
-        Assert.That(view.CanCloseNow, Is.False);
+        Assert.That(view.CanCloseNow, Is.False, "Close them, in the banner, is how a held-back stop is finished");
+    }
+
+    [Test]
+    public void AHeldBackStop_SaysItWaitsForCloseThem()
+    {
+        var view = StopView.Of(null, Request(), Asked.AddMinutes(1), new ExitsTyped(), SessionId, Started, heldBack: true);
+
         Assert.That(StopStageText.For(view, TimeZoneInfo.Utc),
             Is.EqualTo("Held back when the board opened. Close them, in the banner, finishes this stop."),
             "verify F7: it does not close after 20 s of quiet until the owner agrees");

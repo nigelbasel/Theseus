@@ -935,7 +935,7 @@ public sealed class ShellViewModel : ObservableObject
         var interrupted = 0;
         var underway = 0;
         var heldBack = 0;
-        var stuck = new List<string>();
+        var stuck = new List<(string Title, StopState State)>();
 
         foreach (var step in steps)
         {
@@ -958,13 +958,13 @@ public sealed class ShellViewModel : ObservableObject
                     {
                         heldBack++;
                     }
-                    else if (_stopRequests.Delivered(step.SessionId) is { } given
-                             && _closed.LastAttempt(given) is { Result: not ExitResult.Sent } failed)
+                    else if (Board.Cards.FirstOrDefault(card => string.Equals(card.Key, step.WorkstreamKey, StringComparison.OrdinalIgnoreCase)) is { } stopping
+                             && StopViewOf(stopping)?.State is { } state
+                             && SecondPressNotice.IsStuck(state))
                     {
                         // Its last /exit did not land, so promising a close would be wrong: say what its card says
                         // (close-step AC 10).
-                        stuck.Add(StopStageText.For(
-                            new StopState(StopStage.ExitFailed, failed.AtUtc, failed.Result), TimeZoneInfo.Local));
+                        stuck.Add((stopping.Title, state));
                     }
                     else
                     {
@@ -1034,13 +1034,8 @@ public sealed class ShellViewModel : ObservableObject
 
         // The refresh runs the close step, so a session already handed over and quiet is closed on this press.
         Refresh();
-        var described = Describe(asked, waiting, unreached, blocked, interrupted, underway, heldBack);
-
-        Notice = stuck.Count == 0
-            ? described
-            : stuck.Count == steps.Count
-                ? string.Join(" ", stuck)
-                : $"{string.Join(" ", stuck)} {described}";
+        Notice = SecondPressNotice.For(stuck, Describe(asked, waiting, unreached, blocked, interrupted, underway, heldBack),
+            othersDescribed: stuck.Count < steps.Count, TimeZoneInfo.Local);
     }
 
     /// <summary>
@@ -1494,29 +1489,27 @@ public sealed class ShellViewModel : ObservableObject
     {
         foreach (var card in Board.Cards)
         {
-            var state = StopStateOf(card, out var delivered);
+            var view = StopViewOf(card);
 
-            card.IsStopping = state is not null;
-            card.StopTooltip = state is null ? string.Empty : StopStageText.For(state, TimeZoneInfo.Local);
-            card.CanCloseNow = state is not null && _closed.MayCloseNow(delivered);
+            card.IsStopping = view?.State is not null;
+            card.StopTooltip = view is null ? string.Empty : StopStageText.For(view, TimeZoneInfo.Local);
+            card.CanCloseNow = view?.CanCloseNow == true;
         }
 
         System.Windows.Input.CommandManager.InvalidateRequerySuggested();
     }
 
-    private StopState? StopStateOf(WorkstreamCardViewModel card, out PendingStopRequest? delivered)
+    private StopView? StopViewOf(WorkstreamCardViewModel card)
     {
-        delivered = null;
-
-        if (card.Workstream.LastSessionId is not { } sessionId || Sessions.Find(sessionId) is null)
+        if (card.Workstream.LastSessionId is not { } sessionId || Sessions.Find(sessionId) is not { } session)
         {
             return null;
         }
 
-        delivered = _stopRequests.Delivered(sessionId);
+        var delivered = _stopRequests.Delivered(sessionId);
 
-        return StopState.Of(_stopRequests.Waiting(sessionId), delivered,
-            StopTiming.HandoffWrittenUtc(delivered?.HandoffPath), _closed.LastAttempt(delivered));
+        return StopView.Of(_stopRequests.Waiting(sessionId), delivered, StopTiming.HandoffWrittenUtc(delivered?.HandoffPath),
+            _closed, sessionId, session.StartedUtc, _unconfirmed.Contains(sessionId));
     }
 
     /// <summary>
@@ -1526,16 +1519,14 @@ public sealed class ShellViewModel : ObservableObject
     private void CloseNow(WorkstreamCardViewModel card)
     {
         if (card.Workstream.LastSessionId is not { } sessionId
-            || _stopRequests.Delivered(sessionId) is not { } delivered
-            || !_closed.AllowCloseNow(delivered))
+            || _stopRequests.Delivered(sessionId) is not { } delivered)
         {
             return;
         }
 
-        if (CloseOne(card, DateTimeOffset.UtcNow).Verdict != CloseVerdict.Close)
+        if (_closed.TryCloseNow(delivered, () => CloseOne(card, DateTimeOffset.UtcNow)) is { Verdict: not CloseVerdict.Close } decision)
         {
-            _closed.Typed(delivered);
-            Notice = $"{card.Title} was not closed: it is no longer idle and quiet. Close now can be pressed again once it is.";
+            Notice = CloseNowText.NotClosed(card.Title, decision.Verdict);
         }
 
         SyncStopStates();
