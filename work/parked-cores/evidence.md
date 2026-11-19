@@ -1,5 +1,31 @@
 # parked-cores: evidence
 
+## Part 2: live check on a running board (2026-11-19, Nigel)
+
+Board 2026.11.19.20315 (built from c720cca, all three passes), started 11:21:40. Counters sampled by the implementer with
+`Get-Counter` every 5 s and logged under `<parked-cores-live>` in the workstream log; the board's own log read for its
+start, stop and failure lines.
+
+| Step | What happened | Result |
+|---|---|---|
+| Healthy everyday load (other sessions), 11:22 | 2 of 20 parked, 68% busy; no warning in the board's log; no counter failure logged | Pass (silent; AC 1, 2) |
+| 60 s of full load, 20 self-ending workers, 11:24:14 to 11:25:19 | Every sample 0 of 20 parked, 100% busy, clock 103 to 118% of base; no "Cores held back" or failure line in the board's log | Pass by the log; Nigel was not watching |
+| Rerun with Nigel watching, 11:30:31 to 11:31:40 | Every sample 0 of 20 parked, 100% busy, clock 99 to 123%; **Nigel: "no warning showed, the status bar looked normal"**; no warning or failure line in the board's log | Pass (AC 6, 9: silent under healthy full load) |
+
+What a healthy machine does under full load, seen here: it wakes every core. The clamp this feature watches for kept 16
+of 20 parked under the same kind of load.
+
+**Not exercised live, as the plan said (method rule P13):** the warning firing, its amber text and tooltip, and the
+start and stop log lines. A clamp came from heat and cannot be produced on demand on a cool machine; imitating one
+through the power plan would change system settings, which was not done. Those rest on part 1's tests with the
+recorded figures.
+
+**Verdict, part 2: passes** on everything it can reach.
+
+---
+
+## Part 1, attempt 3
+
 Pipeline: `feature` (method kit v0), stage **verify, part 1 of 2, attempt 3** (re-verify of pass 3). Part 2 is a live
 check on a running board by Nigel. Autonomy L0. Card git-22, branch `main`, repo Theseus. Change under test: commit
 `f21d57c` ("parked-cores: a temporary PDH status skips one sample instead of stopping the reader"), against N1 and F4 in
