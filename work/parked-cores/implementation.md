@@ -77,6 +77,12 @@ Tests: new file `tests/Theseus.Tests/Resources/ParkedCoresPass3Tests.cs` (8). **
 guard tests are meant to pass on the code as it is; their job is to fail if a guard goes. No existing test file changed.
 Full suite **1555 of 1555**, 0 warnings.
 
+After the third verify (`evidence.md`, attempt 3, PASS), accepted by Nigel as known limits (2026-11-19): N4, a
+warning-level status that came back on every read would leave the warning off with no log line; N5, a skipped sample
+(about 4% at back-to-back reads) restarts the three-sample count, so one skip delays a standing warning by about 15 s;
+N6, no unit test would fail if `Read()` stopped using the status check; and "only error-level statuses stop the reader"
+is imprecise: a non-PDH status, or an empty array, also stops it (the safe way).
+
 Still recorded, not fixed: the layout and "logged once" have no unit test; a running core with no valid busy value counts
 as 0%; an error-level status still stops the reader until the board restarts; a read queued after `Dispose` reopens the
 query (one handle until the process exits).
