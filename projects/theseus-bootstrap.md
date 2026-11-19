@@ -131,8 +131,10 @@ decisions.**
 
 **Exit gate (draft):** every change made in phase 1 carries evidence that the evidence check passed. The holdout
 scenarios that need no person run in CI on Windows for every release. The verifier card has run all three scenarios.
-[decision: whether Theseus's own changes move to pull requests in phase 1, since "every pull request carries
-evidence" assumes them and stage 0 committed straight to `main`]
+
+**Changes go through pull requests from phase 1** (Nigel, 2026-11-19). Each change goes on a short-lived branch, whose
+name the owner approves before it is created, and opens a pull request. CI and the evidence check gate the merge. The
+owner merges every pull request himself; no session does. Stage 0's commits straight to `main` end here.
 
 ## Phase 2: Unattended
 
