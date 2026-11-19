@@ -1590,9 +1590,20 @@
                                                 BorderBrush="{Binding ColorHex, Converter={StaticResource HexToBrush}}"
                                                 Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
                                             <StackPanel>
-                                                <Button Content="{Binding Title}" FontSize="12" Padding="0" HorizontalAlignment="Left"
+                                                <!-- A long title ends in "…", as in the tree (links-tree-scrollbar question 3, Nigel 2026-11-19). -->
+                                                <Button FontSize="12" Padding="0" HorizontalAlignment="Left"
+                                                        HorizontalContentAlignment="Left"
                                                         Background="Transparent" BorderThickness="0" Cursor="Hand"
-                                                        ToolTip="Open this card's details" Command="{Binding Show}" />
+                                                        AutomationProperties.HelpText="Open this card's details"
+                                                        Command="{Binding Show}">
+                                                    <Button.ToolTip>
+                                                        <StackPanel>
+                                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                                                            <TextBlock Text="Open this card's details" />
+                                                        </StackPanel>
+                                                    </Button.ToolTip>
+                                                    <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+                                                </Button>
                                                 <TextBlock Text="{Binding WaitsOn}" FontSize="11" TextWrapping="Wrap"
                                                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
                                             </StackPanel>
@@ -1606,11 +1617,76 @@
                         <TextBlock Text="CHAINS" FontSize="11" FontWeight="SemiBold" Margin="4,0,0,6"
                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                    Visibility="{Binding Chains.Roots.Count, Converter={StaticResource CountToVisibility}}" />
+                        <!--
+                            No sideways scrolling: under the Fluent theme the tree's own horizontal bar was drawn over
+                            its bottom row (links-tree-scrollbar, Nigel 2026-11-19). A long title trims instead.
+                        -->
                         <TreeView ItemsSource="{Binding Chains.Roots}" BorderThickness="0" Background="Transparent"
+                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                   Visibility="{Binding Chains.Roots.Count, Converter={StaticResource CountToVisibility}}">
+                            <!--
+                                The standard item lays its header out in an auto-width column, so a row was never held
+                                to the tree's width and a long title could not trim. This one stretches the header,
+                                keeps a chevron for rows with children, and indents children.
+                            -->
                             <TreeView.ItemContainerStyle>
                                 <Style TargetType="TreeViewItem">
                                     <Setter Property="IsExpanded" Value="True" />
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="TreeViewItem">
+                                                <StackPanel>
+                                                    <Border x:Name="Highlight" Background="Transparent" CornerRadius="4">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="16" />
+                                                            <ColumnDefinition Width="*" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <ToggleButton x:Name="Expander" Focusable="False" Cursor="Hand"
+                                                                      VerticalAlignment="Top" Margin="0,5,0,0"
+                                                                      AutomationProperties.Name="Show or hide the cards this one hands over to"
+                                                                      IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}}">
+                                                            <ToggleButton.Template>
+                                                                <ControlTemplate TargetType="ToggleButton">
+                                                                    <Border Background="Transparent">
+                                                                        <TextBlock x:Name="Chevron" Text="&#xE76C;" FontFamily="Segoe MDL2 Assets"
+                                                                                   FontSize="8" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                                                   HorizontalAlignment="Center" />
+                                                                    </Border>
+                                                                    <ControlTemplate.Triggers>
+                                                                        <Trigger Property="IsChecked" Value="True">
+                                                                            <Setter TargetName="Chevron" Property="Text" Value="&#xE70D;" />
+                                                                        </Trigger>
+                                                                    </ControlTemplate.Triggers>
+                                                                </ControlTemplate>
+                                                            </ToggleButton.Template>
+                                                        </ToggleButton>
+                                                        <ContentPresenter Grid.Column="1" ContentSource="Header" HorizontalAlignment="Stretch" />
+                                                        <!-- Fluent's own selection mark: the fill alone is too faint to see (re-verify should-fix 1). -->
+                                                        <Border x:Name="SelectionBar" Grid.Column="0" Width="3" Height="16" CornerRadius="1.5"
+                                                                HorizontalAlignment="Left" VerticalAlignment="Center" Visibility="Collapsed"
+                                                                Background="{DynamicResource AccentFillColorDefaultBrush}" />
+                                                    </Grid>
+                                                    </Border>
+                                                    <ItemsPresenter x:Name="Children" Margin="16,0,0,0" />
+                                                </StackPanel>
+                                                <ControlTemplate.Triggers>
+                                                    <!-- The arrow keys move the selection: the row they are on shows (review should-fix 1). -->
+                                                    <Trigger Property="IsSelected" Value="True">
+                                                        <Setter TargetName="Highlight" Property="Background"
+                                                                Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+                                                        <Setter TargetName="SelectionBar" Property="Visibility" Value="Visible" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsExpanded" Value="False">
+                                                        <Setter TargetName="Children" Property="Visibility" Value="Collapsed" />
+                                                    </Trigger>
+                                                    <Trigger Property="HasItems" Value="False">
+                                                        <Setter TargetName="Expander" Property="Visibility" Value="Hidden" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
                                 </Style>
                             </TreeView.ItemContainerStyle>
                             <TreeView.ItemTemplate>
@@ -1631,9 +1707,19 @@
                                                         </Style>
                                                     </TextBlock.Style>
                                                 </TextBlock>
-                                                <Button Content="{Binding Title}" FontSize="12" Padding="0" HorizontalAlignment="Left"
+                                                <Button FontSize="12" Padding="0" HorizontalAlignment="Left"
+                                                        HorizontalContentAlignment="Left"
                                                         Background="Transparent" BorderThickness="0" Cursor="Hand"
-                                                        ToolTip="Open this card's details" Command="{Binding Show}" />
+                                                        AutomationProperties.HelpText="Open this card's details"
+                                                        Command="{Binding Show}">
+                                                    <Button.ToolTip>
+                                                        <StackPanel>
+                                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                                                            <TextBlock Text="Open this card's details" />
+                                                        </StackPanel>
+                                                    </Button.ToolTip>
+                                                    <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+                                                </Button>
                                             </DockPanel>
                                             <TextBlock Text="{Binding WaitsOn}" FontSize="11" TextWrapping="Wrap"
                                                        Foreground="{DynamicResource TextFillColorTertiaryBrush}"
