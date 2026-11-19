@@ -14,7 +14,7 @@ built with it (the bootstrap) and will run it for others.
 | [`pipelines/freeform.yaml`](pipelines/freeform.yaml) | Ad hoc work: one stage, no gates. Today's Theseus exactly |
 | [`pipelines/feature.yaml`](pipelines/feature.yaml) | research → spec → plan → implement → verify → review → compound |
 | [`pipelines/bug.yaml`](pipelines/bug.yaml) | reproduce (failing test first) → rule (only when the fix needs one; owner's gate) → fix → verify, then review and compound when the rule stage ran |
-| [`rubrics/reviewer.md`](rubrics/reviewer.md) | What a reviewer checks a Theseus change against, each item traced to a dated decision |
+| *(per repo)* | Each repo keeps its own reviewer rubric, drawn from that codebase's dated decisions, and names it in its `AGENTS.md`. The kit has none: a rubric is the repo's, not the method's. Theseus's is `.agents/reviewer-rubric.md` |
 
 ## Two modes
 

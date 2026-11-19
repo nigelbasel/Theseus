@@ -12,7 +12,7 @@ report. Where one is missing it says so.
 | # | Criterion | Evidence | State |
 |---|---|---|---|
 | 1 | AGENTS.md exists, CLAUDE.md points to it, nothing lost | `AGENTS.md`, `CLAUDE.md` (c85f1ac); there was no earlier CLAUDE.md | **Met** |
-| 2 | Reviewer rubric exists, every item traced to a dated decision | `method/rubrics/reviewer.md`, 19 items, each citing file and date; used by four reviews, none found an untraced item | **Met** |
+| 2 | Reviewer rubric exists, every item traced to a dated decision | `.agents/reviewer-rubric.md` (moved out of `method/` on 2026-11-19, as Theseus's own), 19 items, each citing file and date; used by four reviews, none found an untraced item | **Met** |
 | 3 | `freeform`, `feature` and `bug` defined; `freeform` matches ad hoc with no added steps | `method/pipelines/`; `freeform` is one stage, no gates | **Met** in writing. Ad hoc work was not run through it in stage 0 (below) |
 | 4 | Pipelines and artefact paths work for a workstream spanning several repos | Artefacts and evidence are defined per workstream with one result per repo (`method/project.md`); card-branches made the board show several repos | **Partly met.** The format allows it, but no change in stage 0 touched more than one repo, so it is untested in use |
 | 5 | A plain-file project format, with the bootstrap as the first example, stages 0 to 5 as phases | `method/project.md`, `projects/theseus-bootstrap.md` | **Met** |
@@ -111,9 +111,9 @@ These questions came up at the end of stage 0. They are proposals for the planni
 | **Per repo** | The repo's map (`AGENTS.md`) and its own rubric, drawn from that codebase's dated decisions | In that repo | Once per codebase, then small additions |
 | **Per project** | Objective, phases, exit gates, which pipelines and **which kit version**, autonomy per repo, the work artefacts | The project's home repo | Every project: this is the part that is genuinely the owner's |
 
-Today `method/` in the Theseus repo holds both the common kit and Theseus's own rubric (every rubric item cites a Theseus
-decision). That is fine while Theseus is the only project; before a second codebase uses the method, the kit should move
-to its own home and Theseus keep only its rubric. Lessons go to the layer they belong to: general rules to the kit,
+On 2026-11-19 Theseus's own rubric was moved out of `method/` to `.agents/reviewer-rubric.md` (Nigel), so `method/` now
+holds only the common kit and can later be split into its own repo with its history (for example a public
+`theseus-method` repo). The split itself waits until a second codebase is about to use the method. Lessons go to the layer they belong to: general rules to the kit,
 codebase lessons to that repo's rubric or AGENTS.md, project lessons to the project file. A project pins a kit version,
 so improving the kit never changes a project already running underneath it.
 

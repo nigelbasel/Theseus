@@ -67,7 +67,7 @@ stages:
     role: reviewer
     when: the rule stage ran
     independent_of: implementer
-    inputs: [the diff in each of <repos>, work/<issue>/fix.md, work/<issue>/evidence.md, method/rubrics/reviewer.md]
+    inputs: [the diff in each of <repos>, work/<issue>/fix.md, work/<issue>/evidence.md, the reviewer rubric of each of <repos> (named in its AGENTS.md)]
     outputs: [work/<issue>/review.md]
     produces: >
       Findings against the rule and the reviewer rubric, each citing the rule or rubric item it breaks. A finding is

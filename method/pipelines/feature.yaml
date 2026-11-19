@@ -74,7 +74,7 @@ stages:
   - id: review
     role: reviewer
     independent_of: implementer
-    inputs: [the diff in each of <repos>, work/<issue>/spec.md, work/<issue>/evidence.md, method/rubrics/reviewer.md]
+    inputs: [the diff in each of <repos>, work/<issue>/spec.md, work/<issue>/evidence.md, the reviewer rubric of each of <repos> (named in its AGENTS.md)]
     outputs: [work/<issue>/review.md]
     produces: >
       Findings against the spec and the reviewer rubric, each citing the rubric item or the spec line it

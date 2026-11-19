@@ -55,7 +55,8 @@ dotnet test Theseus.slnx
 ## Invariants
 
 These are the decisions most often at risk. The full list, with sources, is the reviewer rubric:
-[`method/rubrics/reviewer.md`](method/rubrics/reviewer.md).
+[`.agents/reviewer-rubric.md`](.agents/reviewer-rubric.md). It is this repo's own: every item cites a Theseus decision,
+so it is not part of the generic kit in `method/`.
 
 - Anything that changes the board (a link, a proposal, an approval, a report) passes the person in the tab
   first. A report is a claim, never a fact, until confirmed on the board.
