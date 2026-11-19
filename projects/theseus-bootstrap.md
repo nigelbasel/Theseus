@@ -108,8 +108,10 @@ decisions.**
 ### Objective 1.2: Read-only pull request and CI status on cards
 - [ ] A card shows, for each repo it covers, its pull request (if any) and the latest CI run for its branch. Theseus
       only reads.
-- [ ] It works with no token stored on the machine. [decision: GitHub only in stage 1, or Azure DevOps as well, and
-      how Azure DevOps would authenticate]
+- [ ] It works with no token stored on the machine, reading GitHub only, within GitHub's limit for calls without a
+      token (conditional requests, so an unchanged status costs nothing). A repo on any other host shows its status
+      as "unknown: <host> not read yet". Azure DevOps comes with the adapters in phase 3, when its authentication is
+      designed (Nigel, 2026-11-19: GitHub only in phase 1; a session's report is never shown as CI status).
 - [ ] When the status cannot be read it shows as unknown, with the reason in the tooltip, never as passing.
 
 ### Objective 1.3: The evidence check
