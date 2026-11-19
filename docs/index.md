@@ -16,6 +16,8 @@ session can carry on where it left off.
   at when one of them does nothing.
 - [Chains and proposals](chains.md): workstreams that hand over to each other, and sessions that
   propose new ones.
+- [Verifying with holdouts](holdouts.md): a verifier card that runs your private holdout scenarios and reports
+  only a verdict.
 - [Locks](locks.md): the machine's shared locks for test runs, the docker stack and the local model
   server.
 - [Updates](updates.md): how Theseus finds and installs a newer version.

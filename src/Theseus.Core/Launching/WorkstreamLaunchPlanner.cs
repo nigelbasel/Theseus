@@ -25,6 +25,7 @@ public static class WorkstreamLaunchPlanner
             McpConfig = request.McpConfig,
             Settings = request.Settings,
             PromptIfReminted = request.OpeningIfReminted,
+            Environment = RoleEnvironment.For(workstream.Role),
         };
 
         var tab = new TerminalTabRequest(

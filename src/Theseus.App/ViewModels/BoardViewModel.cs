@@ -937,6 +937,7 @@ public sealed class BoardViewModel : ObservableObject
                   StatusDocumentPath = card.Workstream.StatusDocumentPath,
                   LastSessionId = card.Workstream.LastSessionId,
                   EveryStartPrompt = card.Workstream.EveryStartPrompt,
+                  Role = card.Workstream.Role,
                   UpdatedUtc = now,
               }
             : new WorkstreamSidecar(card.Key, card.Column, card.Workstream.IsBlocked, IsArchived: false,
@@ -948,6 +949,7 @@ public sealed class BoardViewModel : ObservableObject
                   Area = card.Workstream.Area,
                   EveryStartPrompt = card.Workstream.EveryStartPrompt,
                   IsPaused = card.Workstream.IsPaused,
+                  Role = card.Workstream.Role,
               };
 
         if (index >= 0)

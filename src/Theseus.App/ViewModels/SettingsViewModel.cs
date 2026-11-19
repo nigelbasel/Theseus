@@ -20,6 +20,8 @@ public sealed class SettingsViewModel : ObservableObject
     private string _terminalExecutablePath = string.Empty;
     private string _claudeExecutablePath = string.Empty;
     private string _jiraBaseUrl = string.Empty;
+    private string _holdoutFolder = string.Empty;
+    private string _holdoutRemote = string.Empty;
     private string _sessionPreamble = string.Empty;
     private string _continuePrompt = string.Empty;
     private string _stopPrompt = string.Empty;
@@ -162,6 +164,20 @@ public sealed class SettingsViewModel : ObservableObject
     /// <summary>What the Claude Code setting resolves to right now.</summary>
     public string ClaudeState =>
         new ClaudeLocator(_claudeExecutablePath).Locate() ?? "not found";
+
+    /// <summary>The holdout scenarios' clone, read by the holdout guard and used by Verify with holdouts….</summary>
+    public string HoldoutFolder
+    {
+        get => _holdoutFolder;
+        set => Set(ref _holdoutFolder, value);
+    }
+
+    /// <summary>The holdout's remote address, which the guard also keeps from implementing sessions.</summary>
+    public string HoldoutRemote
+    {
+        get => _holdoutRemote;
+        set => Set(ref _holdoutRemote, value);
+    }
 
     /// <summary>The Jira instance issue keys link to. Empty leaves the keys as plain labels.</summary>
     public string JiraBaseUrl
@@ -358,6 +374,8 @@ public sealed class SettingsViewModel : ObservableObject
         TerminalExecutablePath = settings.TerminalExecutablePath;
         ClaudeExecutablePath = settings.ClaudeExecutablePath;
         JiraBaseUrl = settings.JiraBaseUrl;
+        HoldoutFolder = settings.HoldoutFolder;
+        HoldoutRemote = settings.HoldoutRemote;
         SessionPreamble = settings.SessionPreamble;
         ContinuePrompt = settings.ContinuePrompt;
         StopPrompt = settings.StopPrompt;
@@ -378,6 +396,8 @@ public sealed class SettingsViewModel : ObservableObject
             TerminalExecutablePath = TerminalExecutablePath,
             ClaudeExecutablePath = ClaudeExecutablePath,
             JiraBaseUrl = JiraBaseUrl,
+            HoldoutFolder = HoldoutFolder.Trim(),
+            HoldoutRemote = HoldoutRemote.Trim(),
             SessionPreamble = SessionPreamble,
             ContinuePrompt = ContinuePrompt,
             StopPrompt = StopPrompt,

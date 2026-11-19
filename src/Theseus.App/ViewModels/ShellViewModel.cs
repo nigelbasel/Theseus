@@ -7,6 +7,7 @@ using Theseus.Core.Diagnostics;
 using Theseus.Core.Domain;
 using Theseus.Core.Colour;
 using Theseus.Core.Launching;
+using Theseus.Core.Links;
 using Theseus.Core.Sessions;
 using Theseus.Core.Settings;
 using Theseus.Core.Stopping;
@@ -18,6 +19,7 @@ namespace Theseus.App.ViewModels;
 public sealed class ShellViewModel : ObservableObject
 {
     private readonly ISettingsStore _settings;
+    private string _holdoutFolder = string.Empty;
     private readonly LaunchCoordinator _launcher;
     private readonly IPlanStore _plans;
     private readonly ITabColourAllocator _colours;
@@ -25,6 +27,7 @@ public sealed class ShellViewModel : ObservableObject
     private readonly List<StopStep> _stopQueue = [];
     private readonly IStopRequestStore _stopRequests = new StopRequestStore(StopRequestRoot.Default);
     private readonly IRunLog _runs;
+    private readonly HashSet<string> _handoffWriteFailures = new(StringComparer.OrdinalIgnoreCase);
     private readonly ISessionTodoReader _todos;
     private readonly RunEndings _endings;
     private readonly IWorkflowActivityReader _activity =
@@ -122,6 +125,8 @@ public sealed class ShellViewModel : ObservableObject
         InvertSelectionCommand = new RelayCommand(_ => Invert(), _ => Board.Cards.Any());
         SelectLiveCommand = new RelayCommand(_ => SelectLive(), _ => Board.Cards.Any(card => card.IsLive));
         ArchiveSelectedCommand = new RelayCommand(_ => ArchiveSelected(), _ => Chosen().Any(card => !card.IsLive));
+        VerifySelectedWithHoldoutsCommand = new RelayCommand(_ => VerifyWithHoldouts(Chosen()[0]),
+            _ => Chosen() is [var only] && CanVerify(only));
         MarkSelectedPausedCommand = new RelayCommand(_ => MarkSelected(workstream => workstream with { IsPaused = true }, "paused"),
             _ => Chosen().Any(card => !card.IsPaused));
         MarkSelectedBlockedCommand = new RelayCommand(_ => MarkSelected(workstream => workstream with { IsBlocked = true }, "blocked"),
@@ -560,6 +565,9 @@ public sealed class ShellViewModel : ObservableObject
     /// <summary>Asks the ticked cards' running sessions to write a handoff and exit.</summary>
     public RelayCommand StopSelectedCommand { get; }
 
+    /// <summary>Creates a verifier card for the one ticked card (verifier-card AC 9).</summary>
+    public RelayCommand VerifySelectedWithHoldoutsCommand { get; }
+
     /// <summary>Folds the live sessions panel away, or brings it back.</summary>
     public RelayCommand ToggleSessionsPanelCommand { get; }
 
@@ -621,6 +629,8 @@ public sealed class ShellViewModel : ObservableObject
     /// <summary>Re-reads the plans, the board and the live sessions.</summary>
     public void Refresh()
     {
+        // Read here, not on every command check: saving Settings refreshes the shell, and a check runs on every input.
+        _holdoutFolder = _settings.Read().HoldoutFolder;
         Timed("board", Board.Refresh);
 
         // A refresh replaces every card, so the new ones need telling where to report a tick. Wiring
@@ -761,6 +771,75 @@ public sealed class ShellViewModel : ObservableObject
 
         Board.RememberFolds();
         System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+    }
+
+    // Unavailable while no holdout folder is set, as the spec says (AC 7; verify part 1, M2).
+    private bool CanVerify(WorkstreamCardViewModel card) =>
+        !string.IsNullOrWhiteSpace(_holdoutFolder) && !card.IsArchived && card.Workstream.Role != WorkstreamRole.Verifier;
+
+    /// <summary>
+    /// Creates a verifier card for this card: a follow-on in the checked card's folder with the holdout clone in reach,
+    /// role verifier, linked both ways, with its fixed brief. It starts nothing (verifier-card AC 7, 9, 10 and 12).
+    /// </summary>
+    private void VerifyWithHoldouts(WorkstreamCardViewModel card)
+    {
+        var holdout = _settings.Read().HoldoutFolder;
+
+        if (string.IsNullOrWhiteSpace(holdout))
+        {
+            Notice = "Set the holdout scenarios folder in Tools > Options first: a verifier card reads the scenarios there.";
+
+            return;
+        }
+
+        if (!CanVerify(card))
+        {
+            Notice = $"{card.Title} cannot be verified: it is a verifier itself, or archived.";
+
+            return;
+        }
+
+        var verifier = VerifierCard.For(card.Workstream, holdout, DateTimeOffset.Now);
+        var key = WorkstreamKey.Unique(verifier.Title, [.. _plans.Keys(), .. Chains?.TakenKeys ?? []]);
+
+        _plans.Write(key, new SessionPlan(_plans.Keys().Count + 1, verifier.Title, card.Workstream.ColorHex,
+            verifier.WorkingDirectory, verifier.AddDirectories, null, DateTimeOffset.Now.ToString("s"), verifier.Prompt));
+
+        Refresh();
+        Board.Place(key, card.Column, card.Workstream.Area);
+
+        if (Board.Card(key) is { } created)
+        {
+            created.Workstream = created.Workstream with
+            {
+                Role = VerifierCard.Role,
+                StatusDocumentPath = verifier.HandoffPath,
+            };
+            Board.Persist(created);
+        }
+
+        Chains?.FollowedOn(card.Key, key, verifier.ReportPath);
+
+        TheseusLog.Information("Created {Verifier} to verify {Workstream} with the holdout scenarios", key, card.Key);
+        Notice = $"Created {verifier.Title}. Start it when you are ready.";
+    }
+
+    /// <summary>
+    /// A report was confirmed on the board. A verifier's job ends there, so its card is stopped as a Stop press would
+    /// stop it; no other card ever stops without a press (verifier-card AC 13).
+    /// </summary>
+    public void ReportConfirmed(Link link)
+    {
+        ArgumentNullException.ThrowIfNull(link);
+
+        if (Board.Card(link.From) is not { IsLive: true } card
+            || !VerifierEnding.StopsOnConfirm(link.Kind, card.Workstream.Role))
+        {
+            return;
+        }
+
+        TheseusLog.Information("Stopping {Verifier}: its report was confirmed, so its job is done", card.Key);
+        BeginStop(CardSteps(card));
     }
 
     /// <summary>
@@ -1305,6 +1384,8 @@ public sealed class ShellViewModel : ObservableObject
             card.CloseNowCommand ??= new RelayCommand(_ => CloseNow(card), _ => card.CanCloseNow);
             card.MenuPauseCommand ??= new RelayCommand(_ => PauseAll(Targets(card), pause: !card.IsPaused));
             card.PropertiesCommand ??= new RelayCommand(_ => ShowCard(card));
+            card.VerifyWithHoldoutsCommand ??= new RelayCommand(_ => VerifyWithHoldouts(card), _ => CanVerify(card));
+            card.RenameHandoffCommand ??= new RelayCommand(_ => RenameHandoff(card), _ => card.HandoffRenameTo.Length > 0);
         }
 
         // Every card with a transcript, live or not: which model a stopped session was on is worth
@@ -1315,7 +1396,11 @@ public sealed class ShellViewModel : ObservableObject
 
         var handoffs = Board.Cards.ToDictionary(card => card, card => HandoffPath.For(card.Workstream));
 
+        var busy = BusyCards();
+
+        ResolveSharedHandoffs(handoffs, busy);
         SyncClashes(handoffs);
+        SyncHandoffRenames(handoffs, busy);
         PublishSnapshot(handoffs);
         CloseFinishedSessions();
     }
@@ -1564,6 +1649,120 @@ public sealed class ShellViewModel : ObservableObject
         Notice = archived
             ? $"Archived {title}. It is under Archived until you restore it."
             : $"Restored {title}.";
+    }
+
+    /// <summary>The cards whose sessions are running or being started, read once per refresh (AC 3).</summary>
+    private HashSet<string> BusyCards()
+    {
+        var runs = _runs.Read();
+        var now = DateTimeOffset.UtcNow;
+
+        return Board.Cards
+            .Where(card => HandoffBusy.Of(card.Key, card.IsLive, runs, now))
+            .Select(card => card.Key)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>Makes the moves <see cref="SharedHandoffs.Plan"/> decides (handoff-names AC 1 to 4).</summary>
+    private void ResolveSharedHandoffs(Dictionary<WorkstreamCardViewModel, string> handoffs, HashSet<string> busy)
+    {
+        var moves = SharedHandoffs.Plan(
+            [.. handoffs.Select(entry => new HandoffCard(entry.Key.Key, entry.Key.Title, entry.Value,
+                !string.IsNullOrWhiteSpace(entry.Key.Workstream.StatusDocumentPath), busy.Contains(entry.Key.Key)))],
+            File.Exists, GitWorkingTree.Contains, DateOnly.FromDateTime(DateTime.Now));
+
+        var notices = new List<string>();
+
+        foreach (var move in moves)
+        {
+            var card = handoffs.Keys.First(candidate => string.Equals(candidate.Key, move.Key, StringComparison.OrdinalIgnoreCase));
+
+            try
+            {
+                if (move.PointerText is { } text)
+                {
+                    File.WriteAllText(move.OwnFile, text + Environment.NewLine, new System.Text.UTF8Encoding(false));
+                }
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                // Refresh runs on every registry change: one warning per file, not one per refresh.
+                if (_handoffWriteFailures.Add(move.OwnFile))
+                {
+                    TheseusLog.Warning(exception, "Could not give {Workstream} a handover file of its own at {File}", card.Key, move.OwnFile);
+                }
+
+                continue;
+            }
+
+            card.Workstream = card.Workstream with { StatusDocumentPath = move.OwnFile };
+            Board.Persist(card);
+            handoffs[card] = move.OwnFile;
+
+            TheseusLog.Information("{Notice}", move.Notice);
+            notices.Add(move.Notice);
+        }
+
+        if (notices.Count > 0)
+        {
+            Notice = string.Join(" · ", notices);
+        }
+    }
+
+    /// <summary>Tells each card whether its menu offers to rename its handover file to match its title (AC 5).</summary>
+    private static void SyncHandoffRenames(Dictionary<WorkstreamCardViewModel, string> handoffs, HashSet<string> busy)
+    {
+        foreach (var (card, file) in handoffs)
+        {
+            card.HandoffRenameTo = RenameOffer(card, file, handoffs, busy) ?? string.Empty;
+        }
+    }
+
+    private static string? RenameOffer(
+        WorkstreamCardViewModel card, string file, Dictionary<WorkstreamCardViewModel, string> handoffs, HashSet<string> busy)
+    {
+        var target = HandoffRename.Target(file, card.Title);
+        var shared = handoffs.Any(entry => entry.Key != card && string.Equals(entry.Value, file, StringComparison.OrdinalIgnoreCase));
+
+        return HandoffRename.Offered(file, card.Title, busy.Contains(card.Key), shared, File.Exists(file), File.Exists(target));
+    }
+
+    /// <summary>
+    /// Moves a card's handover file to the name its title gives, and makes that its handover file: one move, nothing
+    /// copied or deleted. Checked again here, since the menu was built at the last refresh (AC 6).
+    /// </summary>
+    private void RenameHandoff(WorkstreamCardViewModel card)
+    {
+        var handoffs = Board.Cards.ToDictionary(other => other, other => HandoffPath.For(other.Workstream));
+        var current = handoffs[card];
+        var target = HandoffRename.Target(current, card.Title);
+
+        if (RenameOffer(card, current, handoffs, BusyCards()) is null)
+        {
+            Notice = $"{card.Title}'s handover file was not renamed: its session is running or starting, another card uses the file, "
+                     + "the file is missing, or the new name is taken.";
+
+            return;
+        }
+
+        try
+        {
+            HandoffRename.Apply(current, target);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            TheseusLog.Warning(exception, "Could not rename {Current} to {Target}", current, target);
+            Notice = $"{card.Title}'s handover file could not be renamed: {exception.Message}";
+
+            return;
+        }
+
+        card.Workstream = card.Workstream with { StatusDocumentPath = target };
+        Board.Persist(card);
+
+        TheseusLog.Information("Renamed {Workstream}'s handover file from {Current} to {Target}", card.Key, current, target);
+        Notice = $"Renamed {card.Title}'s handover file to {Path.GetFileName(target)}.";
+        Refresh();
     }
 
     private void SyncClashes(Dictionary<WorkstreamCardViewModel, string> handoffs)
