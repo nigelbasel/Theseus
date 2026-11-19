@@ -9,8 +9,13 @@
 //                              write anywhere else, nor run a shell command naming the holdout;
 //   THESEUS_HOLDOUT_AUTHOR=1   may do anything.
 //
+// For every role but author, no shell command runs with its working directory inside the holdout, and no file tool
+// writes Theseus's own settings or board.
+//
 // A tripwire for accidents by cooperating sessions, like the lock guard: it reads the fields a tool acts on (paths,
-// commands, URLs, patterns), not file contents, and shell commands in the code repos are not policed.
+// commands, URLs, patterns) and the working directory, not file contents, and shell commands in the code repos are not
+// policed. A search rooted above the holdout (a parent folder) is not refused, so it can return scenario lines: a
+// known limit (verifier-card review S2).
 
 const fs = require('fs');
 const path = require('path');
@@ -22,19 +27,25 @@ const READING = new Set(['Read', 'Grep', 'Glob', 'LS']);
 const SEARCHING_FROM_CWD = new Set(['Grep', 'Glob']);
 const SHELLS = new Set(['Bash', 'PowerShell']);
 
-function settingsPath() {
-    if (process.env.THESEUS_SETTINGS) {
-        return process.env.THESEUS_SETTINGS;
-    }
+// Theseus's own data folder, where its settings and board live.
+function theseusFolder() {
     const local = process.env.LOCALAPPDATA || path.join(process.env.USERPROFILE || '', 'AppData', 'Local');
-    return path.join(local, 'Theseus', 'settings.json');
+    return path.join(local, 'Theseus');
+}
+
+function settingsPath() {
+    return process.env.THESEUS_SETTINGS || path.join(theseusFolder(), 'settings.json');
 }
 
 function readHoldout() {
     try {
         // A settings file saved with a byte order mark is still a valid one (verify part 1, consider).
         const settings = JSON.parse(fs.readFileSync(settingsPath(), 'utf8').replace(/^﻿/, ''));
-        const folder = typeof settings.holdoutFolder === 'string' ? settings.holdoutFolder.trim() : '';
+        const typed = typeof settings.holdoutFolder === 'string' ? settings.holdoutFolder.trim() : '';
+        // A folder that is not an absolute path, or is a whole drive, would refuse unrelated work everywhere: it
+        // counts as unset (verifier-card review S3).
+        const resolved = typed && path.win32.isAbsolute(typed) ? path.win32.resolve(typed) : '';
+        const folder = resolved && resolved !== path.win32.parse(resolved).root ? resolved : '';
         const remote = typeof settings.holdoutRemote === 'string' ? settings.holdoutRemote.trim() : '';
         return { folder, remote };
     } catch {
@@ -115,9 +126,6 @@ process.stdin.on('end', () => {
     }
 
     const holdout = readHoldout();
-    if (!holdout.folder && !holdout.remote) {
-        process.exit(0);
-    }
 
     let tool = '';
     let input = {};
@@ -128,6 +136,21 @@ process.stdin.on('end', () => {
         input = parsed.tool_input || {};
         cwd = typeof parsed.cwd === 'string' ? parsed.cwd : '';
     } catch {
+        process.exit(0);
+    }
+
+    // Theseus's own settings decide the holdout, and its board decides a card's role, so no session writes them with
+    // the file tools (verifier-card review S5). Shell commands are not policed here: a tripwire, not a wall.
+    if (WRITING.has(tool)) {
+        const target = input.file_path || input.notebook_path || '';
+        const own = theseusFolder();
+        if (target && [path.win32.join(own, 'settings.json'), path.win32.join(own, 'board.json')]
+            .some(file => normalise(resolve(target, cwd)) === normalise(file))) {
+            deny('Theseus\'s settings and board are changed from Theseus, not by a session.');
+        }
+    }
+
+    if (!holdout.folder && !holdout.remote) {
         process.exit(0);
     }
 

@@ -61,6 +61,13 @@ public class VerifierCardTests
     }
 
     [Test]
+    public void ItsHandoff_GoesInTheHoldoutsResults_WhereItMayWrite()
+    {
+        Assert.That(For().HandoffPath, Is.EqualTo(@"C:\holdout\results\close-step-20261119-1805-handoff.md"),
+            "the stop its confirmed report starts asks for a handoff; anywhere else the guard refuses it, and it never closes (review M1)");
+    }
+
+    [Test]
     public void ARepoNamedTwice_IsInReachOnce()
     {
         var twice = Checked() with { AddDirectories = [@"C:\work\close-step\other", @"c:\WORK\close-step\other"] };

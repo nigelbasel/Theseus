@@ -397,7 +397,7 @@
                       ToolTip="Create a new card this one hands over to, in the same working directory" />
             <MenuItem Header="_Verify with holdouts…"
                       Command="{Binding VerifyWithHoldoutsCommand}" ToolTipService.ShowOnDisabled="True"
-                      ToolTip="Create a verifier card that runs the holdout scenarios this card's spec names, and reports only a verdict back. Needs the holdout scenarios folder set in Tools > Options" />
+                      ToolTip="Create a verifier card that runs the holdout scenarios this card's spec names, and reports only a verdict back. Needs the holdout scenarios folder set in Tools > Options; not offered for a verifier card or an archived one" />
         </ContextMenu>
 
         <DataTemplate x:Key="CardTemplate" DataType="{x:Type vm:WorkstreamCardViewModel}">
@@ -1215,7 +1215,7 @@
                 <Separator />
                 <MenuItem Header="_Verify with holdouts…" Command="{Binding VerifySelectedWithHoldoutsCommand}"
                           ToolTipService.ShowOnDisabled="True"
-                          ToolTip="Create a verifier card for the one ticked card: it runs the holdout scenarios its spec names, and reports only a verdict back. Needs the holdout scenarios folder set in Tools > Options" />
+                          ToolTip="Create a verifier card for the one ticked card: it runs the holdout scenarios its spec names, and reports only a verdict back. Needs one card ticked and the holdout scenarios folder set in Tools > Options; not offered for a verifier card or an archived one" />
                 <Separator />
                 <MenuItem Header="_Archive selected" Command="{Binding ArchiveSelectedCommand}"
                           ToolTip="Archive the ticked cards with no session running, or restore them when the archive is showing">

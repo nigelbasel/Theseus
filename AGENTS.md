@@ -73,7 +73,9 @@ so it is not part of the generic kit in `method/`.
 - No screenshots of a real board, no secrets, no names of employers' internal systems, repos, issue keys or
   machine paths. Examples use placeholders such as `<root>\<feature>\<repo>`.
 - Independent holdout scenarios judge changes to Theseus. They are kept outside this repo on purpose.
-  Do not look for them; if you think one is needed or wrong, say so to the owner.
+  Do not look for them; if you think one is needed or wrong, say so to the owner. The one exception is a verifier
+  card (its session runs with `THESEUS_ROLE=verifier`): it reads them as its brief says, and writes only in the
+  holdout's results folder.
 
 ## Working through the method
 

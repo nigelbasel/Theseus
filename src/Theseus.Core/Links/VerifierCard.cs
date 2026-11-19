@@ -14,12 +14,17 @@ namespace Theseus.Core.Links;
 /// <param name="AddDirectories">The holdout clone, then the checked card's other extra directories.</param>
 /// <param name="Prompt">The fixed brief.</param>
 /// <param name="ReportPath">The report document, in the holdout's results folder.</param>
+/// <param name="HandoffPath">
+/// Its handoff, also in the results folder: the stop that confirming its report starts asks for a handoff, and the
+/// guard refuses a verifier's writes anywhere else, so without this it could never close (verifier-card review M1).
+/// </param>
 public sealed record VerifierCard(
     string Title,
     string WorkingDirectory,
     IReadOnlyList<string> AddDirectories,
     string Prompt,
-    string ReportPath)
+    string ReportPath,
+    string HandoffPath)
 {
     /// <summary>The role every verifier card has.</summary>
     public const WorkstreamRole Role = WorkstreamRole.Verifier;
@@ -36,8 +41,9 @@ public sealed record VerifierCard(
         ArgumentNullException.ThrowIfNull(checkedCard);
         ArgumentException.ThrowIfNullOrWhiteSpace(holdoutFolder);
 
-        var report = Path.Combine(holdoutFolder, ResultsFolder,
-            $"{checkedCard.Key}-{now.ToString("yyyyMMdd-HHmm", CultureInfo.InvariantCulture)}.md");
+        var stem = Path.Combine(holdoutFolder, ResultsFolder,
+            $"{checkedCard.Key}-{now.ToString("yyyyMMdd-HHmm", CultureInfo.InvariantCulture)}");
+        var report = stem + ".md";
 
         // It starts in the checked card's own folder, with the holdout as an extra directory: the holdout guard refuses
         // any shell command run inside the holdout, so its builds and tests run in the code, and it reads the scenarios
@@ -48,6 +54,6 @@ public sealed record VerifierCard(
             .Distinct(StringComparer.OrdinalIgnoreCase)];
 
         return new VerifierCard($"Verify: {checkedCard.Title}", checkedCard.WorkingDirectory, reach,
-            VerifierBrief.For(checkedCard.Title, report), report);
+            VerifierBrief.For(checkedCard.Title, report), report, stem + "-handoff.md");
     }
 }

@@ -807,7 +807,11 @@ public sealed class ShellViewModel : ObservableObject
 
         if (Board.Card(key) is { } created)
         {
-            created.Workstream = created.Workstream with { Role = VerifierCard.Role };
+            created.Workstream = created.Workstream with
+            {
+                Role = VerifierCard.Role,
+                StatusDocumentPath = verifier.HandoffPath,
+            };
             Board.Persist(created);
         }
 
