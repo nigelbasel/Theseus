@@ -4,13 +4,14 @@ using Theseus.Core.Domain;
 namespace Theseus.Core.Links;
 
 /// <summary>
-/// The card Verify with holdouts… creates for a card whose change is ready to verify: it runs in the holdout clone,
-/// reaches the checked card's repos as extra directories, and reports to a dated file in the holdout's results folder,
-/// where the scenarios' details stay private (verifier-card AC 10 and 11; decisions D3 and D4, Nigel 2026-11-19).
+/// The card Verify with holdouts… creates for a card whose change is ready to verify: it runs in the checked card's
+/// folder, reaches the holdout clone and the checked card's other repos as extra directories, and reports to a dated
+/// file in the holdout's results folder, where the scenarios' details stay private (verifier-card AC 10 and 11;
+/// decisions D3 and D4, Nigel 2026-11-19; directories swapped in fix pass 2).
 /// </summary>
 /// <param name="Title">"Verify: " and the checked card's title.</param>
-/// <param name="WorkingDirectory">The holdout clone.</param>
-/// <param name="AddDirectories">The checked card's working directory and extra directories.</param>
+/// <param name="WorkingDirectory">The checked card's working directory.</param>
+/// <param name="AddDirectories">The holdout clone, then the checked card's other extra directories.</param>
 /// <param name="Prompt">The fixed brief.</param>
 /// <param name="ReportPath">The report document, in the holdout's results folder.</param>
 public sealed record VerifierCard(
@@ -38,11 +39,15 @@ public sealed record VerifierCard(
         var report = Path.Combine(holdoutFolder, ResultsFolder,
             $"{checkedCard.Key}-{now.ToString("yyyyMMdd-HHmm", CultureInfo.InvariantCulture)}.md");
 
-        IReadOnlyList<string> reach = [.. new[] { checkedCard.WorkingDirectory }
+        // It starts in the checked card's own folder, with the holdout as an extra directory: the holdout guard refuses
+        // any shell command run inside the holdout, so its builds and tests run in the code, and it reads the scenarios
+        // by path (verifier-card fix pass 2, overnight decision 3, 2026-11-19).
+        IReadOnlyList<string> reach = [.. new[] { holdoutFolder }
             .Concat(checkedCard.AddDirectories)
+            .Where(directory => !string.Equals(directory, checkedCard.WorkingDirectory, StringComparison.OrdinalIgnoreCase))
             .Distinct(StringComparer.OrdinalIgnoreCase)];
 
-        return new VerifierCard($"Verify: {checkedCard.Title}", holdoutFolder, reach,
+        return new VerifierCard($"Verify: {checkedCard.Title}", checkedCard.WorkingDirectory, reach,
             VerifierBrief.For(checkedCard.Title, report), report);
     }
 }

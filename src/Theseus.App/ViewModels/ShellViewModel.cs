@@ -18,6 +18,7 @@ namespace Theseus.App.ViewModels;
 public sealed class ShellViewModel : ObservableObject
 {
     private readonly ISettingsStore _settings;
+    private string _holdoutFolder = string.Empty;
     private readonly LaunchCoordinator _launcher;
     private readonly IPlanStore _plans;
     private readonly ITabColourAllocator _colours;
@@ -625,6 +626,8 @@ public sealed class ShellViewModel : ObservableObject
     /// <summary>Re-reads the plans, the board and the live sessions.</summary>
     public void Refresh()
     {
+        // Read here, not on every command check: saving Settings refreshes the shell, and a check runs on every input.
+        _holdoutFolder = _settings.Read().HoldoutFolder;
         Timed("board", Board.Refresh);
 
         // A refresh replaces every card, so the new ones need telling where to report a tick. Wiring
@@ -767,8 +770,9 @@ public sealed class ShellViewModel : ObservableObject
         System.Windows.Input.CommandManager.InvalidateRequerySuggested();
     }
 
-    private static bool CanVerify(WorkstreamCardViewModel card) =>
-        !card.IsArchived && card.Workstream.Role != WorkstreamRole.Verifier;
+    // Unavailable while no holdout folder is set, as the spec says (AC 7; verify part 1, M2).
+    private bool CanVerify(WorkstreamCardViewModel card) =>
+        !string.IsNullOrWhiteSpace(_holdoutFolder) && !card.IsArchived && card.Workstream.Role != WorkstreamRole.Verifier;
 
     /// <summary>
     /// Creates a verifier card for this card: a follow-on in the holdout clone with the checked card's repos in reach,

@@ -20,12 +20,13 @@ public class VerifierCardTests
     }
 
     [Test]
-    public void ItRunsInTheHoldoutWithTheCheckedCardsRepos()
+    public void ItRunsInTheCheckedCardsFolder_WithTheHoldoutAndItsOtherReposInReach()
     {
         var card = For();
 
-        Assert.That(card.WorkingDirectory, Is.EqualTo(Holdout));
-        Assert.That(card.AddDirectories, Is.EqualTo(new[] { @"C:\work\close-step\repo", @"C:\work\close-step\other" }));
+        Assert.That(card.WorkingDirectory, Is.EqualTo(@"C:\work\close-step\repo"),
+            "no shell command may run inside the holdout, so its builds run in the code (fix pass 2)");
+        Assert.That(card.AddDirectories, Is.EqualTo(new[] { Holdout, @"C:\work\close-step\other" }));
     }
 
     [Test]
@@ -41,7 +42,9 @@ public class VerifierCardTests
 
         Assert.That(brief, Does.Contain("You are a verifier for close-step."));
         Assert.That(brief, Does.Contain(
-            "Find the checked change's spec under work/ in its repos, and its section naming the holdout scenarios that apply."));
+            "Find the checked change's spec under work/ in the checked card's repos, and its section naming the holdout scenarios that apply."));
+        Assert.That(brief, Does.Contain(
+            "Read the scenarios with the file tools; run builds and tests from the checked card's folder, never from inside the holdout."));
         Assert.That(brief, Does.Contain("Run each named scenario."));
         Assert.That(brief, Does.Contain(
             "Ask the owner in this tab for any step only a person can do, quoting the scenario's step."));

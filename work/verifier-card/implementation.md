@@ -34,6 +34,29 @@ Pipeline: `feature` (method kit v0), stage **implement**, autonomy L0. Branch `n
 7. **The live check depends on close-step's Stop and close**, which is on pull request #1 and not on this branch.
    Ending a verifier still uses the close step as it is on `main` until both are merged.
 
+## Pass 2 (verify part 1 failed; run overnight under Nigel's overnight autonomy brief, 2026-11-19)
+
+| Finding | Disposition |
+|---|---|
+| M1 (must fix) | **Fixed.** The guard reads the hook's `cwd`: path fields resolve against it, a search with no path acts on it, and **any shell command run with its working directory inside the holdout is refused** for every role but author. So the verifier card now **starts in the checked card's folder, with the holdout as an extra directory** (overnight decision 3; spec AC 10 changed and marked as awaiting Nigel; question 1). The brief adds "Read the scenarios with the file tools; run builds and tests from the checked card's folder, never from inside the holdout." |
+| M2 (must fix) | **Fixed.** Verify with holdouts… is unavailable (disabled, both menus) while no holdout folder is set; the folder is read on each shell refresh, which saving Settings triggers. Both tooltips show while disabled and say it needs the folder set in Tools > Options |
+| S1 | **Fixed.** `ProcessLauncherEnvironmentTests` runs the real launcher (`cmd /c exit %VAR%`); the guard's no-settings allow and trailing separator now have tests. Mutation 6 (Persist's new-entry branch) is left: that branch is not reached by this flow |
+| S2 | **Fixed.** Git Bash `/c/...` paths are read as `C:/...` |
+| S3 | **Fixed.** A remote matches with `.git` after it and in SSH form (`host:owner/repo`); a name only counts whole on both sides, so `notexample.com/...` does not match |
+| S4 | **Fixed.** A verifier's write target is resolved (`..` removed) and must be strictly inside `results`: `results\..\scenarios`, `results old\` and a file named `results` are refused |
+| S5 | **Fixed.** The docs say Tools > Options |
+| S6 | **Fixed.** The doc comments are on the right properties |
+| Considers | Fixed in passing: a settings file with a byte order mark is read; the brief says "the checked card's repos" as the spec does; the docs no longer promise more than this branch delivers about closing. The rest recorded as they are |
+
+**Existing tests changed (P12):** `VerifierCardTests.ItRunsInTheHoldoutWithTheCheckedCardsRepos` became
+`ItRunsInTheCheckedCardsFolder_WithTheHoldoutAndItsOtherReposInReach`, because decision 3 reversed the directories it
+asserted. The brief test asserted my own wording, "its repos", where the spec says "the checked card's repos", and now
+also asserts the new line.
+
+**Tests first:** the 18 new guard cases and the launcher test were written before the fix: 14 failed on the old
+guard, and the 5 that passed cover behaviour that was already right (the launcher, a trailing separator, and three
+allowed cases). Full suite 1608 of 1608, no warnings.
+
 ## Not done, as planned (P13)
 
 - The Settings fields, the action and the confirm hook are App code with no tests; the live check covers them.

@@ -15,9 +15,12 @@
 const fs = require('fs');
 const path = require('path');
 
-const FIELDS = ['file_path', 'path', 'notebook_path', 'command', 'url', 'glob', 'pattern'];
+const PATH_FIELDS = ['file_path', 'path', 'notebook_path'];
+const TEXT_FIELDS = ['command', 'url', 'glob', 'pattern'];
 const WRITING = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
 const READING = new Set(['Read', 'Grep', 'Glob', 'LS']);
+const SEARCHING_FROM_CWD = new Set(['Grep', 'Glob']);
+const SHELLS = new Set(['Bash', 'PowerShell']);
 
 function settingsPath() {
     if (process.env.THESEUS_SETTINGS) {
@@ -29,7 +32,8 @@ function settingsPath() {
 
 function readHoldout() {
     try {
-        const settings = JSON.parse(fs.readFileSync(settingsPath(), 'utf8'));
+        // A settings file saved with a byte order mark is still a valid one (verify part 1, consider).
+        const settings = JSON.parse(fs.readFileSync(settingsPath(), 'utf8').replace(/^﻿/, ''));
         const folder = typeof settings.holdoutFolder === 'string' ? settings.holdoutFolder.trim() : '';
         const remote = typeof settings.holdoutRemote === 'string' ? settings.holdoutRemote.trim() : '';
         return { folder, remote };
@@ -38,27 +42,58 @@ function readHoldout() {
     }
 }
 
-function normalise(value) {
-    return value.replace(/\\/g, '/').replace(/\/+/g, '/').replace(/\/$/, '').toLowerCase();
+// Git Bash writes C:\x as /c/x (verify part 1, S2).
+function windowsPaths(text) {
+    return text.replace(/(^|[\s'"=(])\/([a-z])\//gi, '$1$2:/');
 }
 
-// Whether text names the location: the location itself, or anything inside it. "holdout" does not name
-// "holdout-notes".
+function normalise(value) {
+    return windowsPaths(value.replace(/\\/g, '/')).replace(/\/+/g, '/').replace(/\/$/, '').toLowerCase();
+}
+
+const NAME_CHARACTER = /[a-z0-9_-]/;
+
+// Whether text names the location, or anything inside it, as a path, a URL or an SSH remote (host:owner/repo). A
+// name only counts whole: "holdout" names neither "holdout-notes" nor "notexample.com/owner/holdout", while
+// "holdout.git" is the same repo (verify part 1, S3).
 function names(text, location) {
     if (!location) {
         return false;
     }
-    const haystack = normalise(text);
     const needle = normalise(location);
-    let index = haystack.indexOf(needle);
-    while (index !== -1) {
-        const after = haystack.charAt(index + needle.length);
-        if (after === '' || after === '/' || !/[a-z0-9_.-]/.test(after)) {
-            return true;
+    const written = normalise(text);
+    for (const haystack of [written, written.replace(/:/g, '/')]) {
+        let index = haystack.indexOf(needle);
+        while (index !== -1) {
+            const before = index === 0 ? '' : haystack.charAt(index - 1);
+            const rest = haystack.slice(index + needle.length);
+            const wholeBefore = before === '' || !(NAME_CHARACTER.test(before) || before === '.');
+            const wholeAfter = rest === '' || !(NAME_CHARACTER.test(rest.charAt(0)) || rest.charAt(0) === '.')
+                || /^\.git(?![a-z0-9_.-])/.test(rest);
+            if (wholeBefore && wholeAfter) {
+                return true;
+            }
+            index = haystack.indexOf(needle, index + 1);
         }
-        index = haystack.indexOf(needle, index + 1);
     }
     return false;
+}
+
+// A path as the tool will use it: relative to the session's working directory, with any .. resolved, so that
+// "results\..\scenarios" is not under results and "scenarios\x" typed inside the holdout is in it (M1, S4).
+function resolve(value, cwd) {
+    const written = windowsPaths(value.replace(/\\/g, '/'));
+    return path.win32.isAbsolute(written) || !cwd ? path.win32.resolve(written) : path.win32.resolve(cwd, written);
+}
+
+// Whether a resolved path is the folder or inside it. "results old" is not inside "results".
+function under(target, folder) {
+    if (!target || !folder) {
+        return false;
+    }
+    const inside = normalise(path.win32.resolve(target));
+    const container = normalise(path.win32.resolve(folder));
+    return inside === container || inside.startsWith(container + '/');
 }
 
 function deny(reason) {
@@ -86,18 +121,37 @@ process.stdin.on('end', () => {
 
     let tool = '';
     let input = {};
+    let cwd = '';
     try {
         const parsed = JSON.parse(raw);
         tool = parsed.tool_name || '';
         input = parsed.tool_input || {};
+        cwd = typeof parsed.cwd === 'string' ? parsed.cwd : '';
     } catch {
         process.exit(0);
     }
 
-    const values = FIELDS.map(field => input[field]).filter(value => typeof value === 'string');
-    const touches = values.some(value => names(value, holdout.folder) || names(value, holdout.remote));
-    const results = holdout.folder ? path.join(holdout.folder, 'results') : '';
+    // Where the tool acts: its path fields resolved against the working directory, and the working directory itself
+    // for a search given no path. The session's working directory is not something its own commands name, which is
+    // how a shell command inside the holdout went unchecked (verify part 1, M1).
+    const located = PATH_FIELDS.map(field => input[field]).filter(value => typeof value === 'string' && value)
+        .map(value => resolve(value, cwd));
+    if (SEARCHING_FROM_CWD.has(tool) && !input.path && cwd) {
+        located.push(cwd);
+    }
+
+    const texts = [...PATH_FIELDS, ...TEXT_FIELDS].map(field => input[field]).filter(value => typeof value === 'string');
+    const touches = located.some(where => under(where, holdout.folder))
+        || texts.some(text => names(text, holdout.folder) || names(text, holdout.remote));
+    const results = holdout.folder ? path.win32.join(holdout.folder, 'results') : '';
     const verifier = process.env.THESEUS_ROLE === 'verifier';
+
+    // No shell command runs inside the holdout, for any role but author: there is no telling what it would change.
+    // A verifier reads the scenarios with the file tools and runs its builds in the code it checks.
+    if (SHELLS.has(tool) && cwd && under(cwd, holdout.folder)) {
+        deny('No shell command runs inside the holdout folder. Read the scenarios with the file tools, and run builds '
+            + 'and tests from the code\'s own folder.');
+    }
 
     if (!verifier) {
         if (touches) {
@@ -110,7 +164,7 @@ process.stdin.on('end', () => {
 
     if (WRITING.has(tool)) {
         const target = input.file_path || input.notebook_path || '';
-        if (!names(target, results)) {
+        if (!target || !under(resolve(target, cwd), results) || normalise(resolve(target, cwd)) === normalise(results)) {
             deny('A verifier writes only its report, in the holdout\'s results folder. It changes no scenario and '
                 + 'nothing in the code it checks.');
         }

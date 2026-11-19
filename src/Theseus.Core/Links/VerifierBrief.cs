@@ -13,7 +13,8 @@ public static class VerifierBrief
         [
             $"You are a verifier for {checkedTitle}.",
             string.Empty,
-            "Find the checked change's spec under work/ in its repos, and its section naming the holdout scenarios that apply.",
+            "Find the checked change's spec under work/ in the checked card's repos, and its section naming the holdout scenarios that apply.",
+            "Read the scenarios with the file tools; run builds and tests from the checked card's folder, never from inside the holdout.",
             "Run each named scenario.",
             "Ask the owner in this tab for any step only a person can do, quoting the scenario's step.",
             $"Write the details, steps and observations to {reportPath}.",

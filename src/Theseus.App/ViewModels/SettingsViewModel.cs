@@ -165,7 +165,6 @@ public sealed class SettingsViewModel : ObservableObject
     public string ClaudeState =>
         new ClaudeLocator(_claudeExecutablePath).Locate() ?? "not found";
 
-    /// <summary>The Jira instance issue keys link to. Empty leaves the keys as plain labels.</summary>
     /// <summary>The holdout scenarios' clone, read by the holdout guard and used by Verify with holdouts….</summary>
     public string HoldoutFolder
     {
@@ -180,6 +179,7 @@ public sealed class SettingsViewModel : ObservableObject
         set => Set(ref _holdoutRemote, value);
     }
 
+    /// <summary>The Jira instance issue keys link to. Empty leaves the keys as plain labels.</summary>
     public string JiraBaseUrl
     {
         get => _jiraBaseUrl;
