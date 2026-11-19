@@ -70,15 +70,15 @@ folder (`<scratch>\copy3\probe`); no real settings or board file touched. **275 
 explained below.**
 
 **S3, holdout folder not a folder path.** For each of `holdout`, `C:\`, `C:`, `C:/`, `\`, `.\holdout`, `..\holdout`,
-`D:\`, `  holdout  `, `C:holdout`: a no-role Read of `C:\work\repo\tools\holdout\holdout-guard.js` is allowed, a no-role
-`dotnet test` in `C:\work\repo` is allowed, and a verifier's Write in the code is allowed (folder counts as unset). A UNC
+`D:\`, `  holdout  `, `C:holdout`: a no-role Read of `<repo>\tools\holdout\holdout-guard.js` is allowed, a no-role
+`dotnet test` in `<repo>` is allowed, and a verifier's Write in the code is allowed (folder counts as unset). A UNC
 share root (`\\server\share`) also counts as unset; a UNC folder under it still guards. Absolute folders still guard,
 including with a trailing separator, forward slashes and `x\..\`. With a relative folder but a remote set, a fetch of
 the remote is still refused (the remote is checked on its own).
 
 Not as expected, one probe: `/c/holdout` (a Git Bash form) and `\holdout` count as absolute (`path.win32.isAbsolute`
 accepts a rooted path with no drive) and resolve against the guard process's current drive: `/c/holdout` becomes
-`<drive>:\c\holdout`, so a Read of the real `C:\holdout\scenarios\a.md` is **allowed** while `C:\c\holdout\a.md` is
+`<drive>:\c\holdout`, so a Read of the real `<holdout>\scenarios\a.md` is **allowed** while `<drive-c-folder>\holdout\a.md` is
 refused. A silent wrong guard, from a setting the owner types; see consider C1.
 
 **S5, Theseus's own files.** With no holdout, with a holdout, and with no settings file at all; for no role and
@@ -131,7 +131,7 @@ survived.
 Why the survivors live: **m1** is App code with no test of `VerifyWithHoldouts` (the same gap as attempt 2's mutation
 16), so the M1 fix itself is untested end to end; only its Core half (m2) is pinned. **m3a**: the tests run node in the
 test process's folder, so a relative `holdout` resolved there never matches the probed path; the test passes with or
-without the check. **m4c**: every own-files test sets a holdout (`C:\holdout`), so the case that changes AC 4 for every
+without the check. **m4c**: every own-files test sets a holdout (`<holdout>`), so the case that changes AC 4 for every
 session, a refusal with no holdout set, is not tested. **m4d** and **m4e**: no test uses `notebook_path` or a relative
 path for the own files. The probes above show all four behave as written; the tests do not hold them.
 
@@ -183,7 +183,7 @@ None.
 
 - **C1. A rooted folder with no drive counts as set but guards the wrong place.** `holdout-guard.js:47`:
   `path.win32.isAbsolute('/c/holdout')` and `('\holdout')` are true, and resolving them uses the guard process's current
-  drive; `/c/holdout` guards `<drive>:\c\holdout` and lets a Read of `C:\holdout\...` through. Treat a path with no
+  drive; `/c/holdout` guards `<drive>:\c\holdout` and lets a Read of `<holdout>\...` through. Treat a path with no
   drive letter or UNC prefix as unset (or translate `/x/...`), with a test.
 - **C2. Verify with holdouts… accepts a folder the guard ignores.** `CanVerify` checks only that the setting is not
   blank, so with a relative or drive-root folder (now unset for the guard) a verifier card is created and its sessions,
@@ -223,3 +223,5 @@ surviving mutations, including the M1 fix's App half and the no-holdout refusal)
 | Considers | Recorded: C1 a rooted folder with no drive letter; C2 an untrimmed setting; C3 two verifications in one minute share paths; C4, C5 |
 
 Full suite 1621 of 1621.
+
+> P19: the made-up probe paths in this record (a holdout at the root of drive C, a repository under C:\work) are written as `<holdout>` and `<repo>` (overnight decision 5, 2026-11-19).

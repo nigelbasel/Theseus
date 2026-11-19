@@ -127,8 +127,8 @@ AC 10 is judged against its changed text.
 ## Guard probes
 
 The guard ran under node, with JSON on stdin carrying a top-level `cwd`, and `THESEUS_SETTINGS` pointing at settings
-files written in the copy in `<scratch>`. The holdout folder is `C:\holdout` (or `C:\My Holdout`, or a UNC share, where
-said), the remote `example.com/owner/holdout`, the code `C:\work\repo`. The full outputs are in the copy's `probe`
+files written in the copy in `<scratch>`. The holdout folder is `<holdout>` (or `C:\My Holdout`, or a UNC share, where
+said), the remote `example.com/owner/holdout`, the code `<repo>`. The full outputs are in the copy's `probe`
 folder. "Careless?" says whether a cooperating but careless session would plausibly do it.
 
 ### The attempt-1 table, rerun
@@ -177,12 +177,12 @@ folder. "Careless?" says whether a cooperating but careless session would plausi
 | n02 | Verifier, `cwd` the code: `cd ../../holdout && rm scenarios/a.md` (the cd inside one command line) | deny | **allow** | Unlikely but possible: the verifier is given the holdout as an absolute extra directory and an absolute report path, so it would write the absolute path (refused, a12, x06). A relative route needs it to work out where the holdout sits relative to the code |
 | n02b-d | Verifier: `cd ../../holdout`; `git -C ../../holdout commit -am x`; PowerShell `Set-Location ..\..\holdout; Remove-Item ...` | deny | **allow** | As n02. After a bare `cd`, later commands are refused if Claude Code reports the new directory as `cwd` [unverified: the guard relies on it] |
 | n34, x19 | Verifier `cp report.md ../../holdout/results/`; no role `cat ./../../holdout/a.md` | deny | **allow** | As n02 |
-| x06, n27 | Verifier: `cd "C:\holdout" && git status`; `cat C:/holdout/scenarios/a.md` | deny | deny | The likely form |
+| x06, n27 | Verifier: `cd "<holdout>" && git status`; `cat C:/holdout/scenarios/a.md` | deny | deny | The likely form |
 | x07, n26, x09, x14 | Verifier in the code: `git status`, `dotnet test`, `echo $THESEUS_ROLE`, Grep with no path | allow | allow | |
 | x08 | Verifier: `mkdir -p C:/holdout/results` | deny (difference 4) | deny | Write creates the folder |
-| n03 | No role: `\\?\C:\holdout\...` | deny | deny | |
+| n03 | No role: `\\?\<holdout>\...` | deny | deny | |
 | n04 | No role: `\\localhost\C$\holdout\...` | deny | **allow** | No |
-| n05 | No role: 8.3 short name `C:\MYHOLD~1\...` for `C:\My Holdout` | deny | **allow** | No; only if a tool printed the short name |
+| n05 | No role: 8.3 short name `<holdout-short-name>\...` for `C:\My Holdout` | deny | **allow** | No; only if a tool printed the short name |
 | n05b-c | No role: `C:\My Holdout\...`; `cat "/c/My Holdout/..."` | deny | deny | |
 | n05d | No role: `cat /c/My\ Holdout/scenarios/a.md` (escaped space) | deny | **allow** | Possible if the holdout path has a space: the backslash is read as a separator (C12) |
 | n06, n07a-c | Mixed slashes; double-quoted, single-quoted, doubled backslashes | deny | deny | |
@@ -190,14 +190,14 @@ folder. "Careless?" says whether a cooperating but careless session would plausi
 | n08d | PowerShell `gc "$env:SystemDrive\holdout\a.md"` | deny | **allow** | No (an evasion) |
 | n09, x16, x17 | `git -C C:/holdout log`; `git -C /c/holdout log`; `(cd /c/holdout; ls)` | deny | deny | |
 | n10 | Verifier: WebFetch of a raw scenario on the remote | allow (AC 5) | deny | C2 |
-| n11, n16-n18, n49 | Shell with `cwd` `C:\holdout\results`, `C:\holdout\`, `c:\HOLDOUT\scenarios`, PowerShell `Get-ChildItem` | deny | deny, except **n16** (`cwd` written `/c/holdout`: allow) | n16: no, Claude Code gives a Windows `cwd` |
+| n11, n16-n18, n49 | Shell with `cwd` `<holdout>\results`, `<holdout>\`, `<holdout>\scenarios`, PowerShell `Get-ChildItem` | deny | deny, except **n16** (`cwd` written `/c/holdout`: allow) | n16: no, Claude Code gives a Windows `cwd` |
 | n12, n13 | Grep `path` `../../holdout` from the code: verifier / no role | allow / deny | allow / deny | |
 | n14 | No role: Glob `pattern` `../holdout/**/*.md` from `C:\work` | deny | **allow** | Unlikely, as n01 |
 | n14b | No role: Glob `path` `../holdout` | deny | deny | |
 | n15, n35 | No `cwd` field: relative Read; Bash `ls` | - | allow | Claude Code sends `cwd`; without it a relative path resolves against the guard process's own directory |
 | n19 | No role: NotebookEdit in the holdout | deny | deny | |
 | n20, n41 | `cat C:/hold""out/a.md`; `cat ~/../../holdout/a.md` | deny | **allow** | No (evasions) |
-| n21, n22 | Drive-relative `C:holdout\a.md`; trailing dot `C:\holdout.\a.md` | deny | **allow** | No |
+| n21, n22 | Drive-relative `C:holdout\a.md`; trailing dot `<holdout>.\a.md` | deny | **allow** | No |
 | n28 | No role: `gh api repos/owner/holdout/contents/scenarios` | deny | **allow** | Unlikely: needs the owner and repo name (C3) |
 | n29 | Setting `https://...`: `git clone git@example.com:owner/holdout` | deny | **allow** | Only with the setting in the wrong form (C3) |
 | n30, x10-x12 | `ssh://git@.../holdout.git`; `git ls-remote https://.../holdout.git` (and with `/`); `example.com:owner/holdout.git` | deny | deny | |
@@ -367,3 +367,5 @@ and M2 are closed. Should fix: S7 (text the swap left wrong), S8 (the AC 6 addit
 10's does) and S9 (`Distinct` untested again). Surviving mutations: 16 (`CanVerify`'s folder check, App code, planned
 for the live check) and 17 (`Distinct`); attempt 1's mutation 6 stands as recorded. The AC 10 and AC 6 changes still
 need the owner's OK, and verify as a whole stays open until the holdout scenarios are run (P18).
+
+> P19: the made-up probe paths in this record (a holdout at the root of drive C, a repository under C:\work) are written as `<holdout>` and `<repo>` (overnight decision 5, 2026-11-19).

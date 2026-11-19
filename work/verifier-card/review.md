@@ -122,7 +122,7 @@ the guard refuses Write/Edit of `board.json` and `settings.json` in Theseus's da
 - **C5. The two guard test classes duplicate their harness** (`Guard`, `FindNode`, `RepositoryRoot` in
   `HoldoutGuardTests.cs:100-151` and `HoldoutGuardWorkingDirectoryTests.cs:107-158`). One helper type would halve it.
   The second class also writes a settings file per call to the temp folder and never removes it.
-- **C6. Stale fixture.** `LaunchEnvironmentTests.cs:50` builds its verifier with working directory `C:\holdout`, the
+- **C6. Stale fixture.** `LaunchEnvironmentTests.cs:50` builds its verifier with working directory `<holdout>`, the
   pre-swap layout. Harmless to the assertion; misleading to a reader.
 - **C7. The brief test uses `Does.Contain`** (`VerifierCardTests.cs:40-55`), so an extra or reordered instruction in a
   "fixed brief" would pass. An equality on the whole text would hold AC 11 exactly.
@@ -183,3 +183,5 @@ guarded or the limit written down (S5). The AC 6, AC 10 and brief-line changes a
 | Considers | The guard's header now states the shell rule. The rest recorded as they are, including the inherited `THESEUS_ROLE` (C7) for a review by Nigel |
 
 Full suite 1617 of 1617. The review fixes and dae8d1a still need a re-verify.
+
+> P19: the made-up probe paths in this record (a holdout at the root of drive C, a repository under C:\work) are written as `<holdout>` and `<repo>` (overnight decision 5, 2026-11-19).

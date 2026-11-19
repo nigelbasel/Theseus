@@ -70,12 +70,12 @@ any tool output this session holds, so it is written here as [not recorded].
 ## Guard probes (inputs the tests do not cover)
 
 I ran the guard with node, with JSON on stdin and `THESEUS_SETTINGS` pointing at settings files written in `<scratch>`.
-The holdout folder was `C:\holdout` and the remote `example.com/owner/holdout`. "Ideal" is what the spec's words call
+The holdout folder was `<holdout>` and the remote `example.com/owner/holdout`. "Ideal" is what the spec's words call
 for; rows where the guard did something else are in bold.
 
 | Input | Ideal | Guard |
 |---|---|---|
-| No role: Read `C:/holdout/...` (forward slashes); `c:\HOLDOUT\...`; the folder itself; doubled backslashes | deny | deny |
+| No role: Read `C:/holdout/...` (forward slashes); `<holdout>\...`; the folder itself; doubled backslashes | deny | deny |
 | No role: folder setting with a trailing `\`; setting `C:/Holdout/` | deny | deny |
 | No role: Glob `pattern`, Grep `glob`, LS `path`, MCP tool `path`, Write into the holdout | deny | deny |
 | No role: Bash `cd C:/holdout && cat scenarios/a.md` | deny | deny |
@@ -99,7 +99,7 @@ for; rows where the guard did something else are in bold.
 | Verifier: Write to `results-old\`, or to `C:/other/results/` | deny | deny |
 | **Verifier: Write to `results old\` (a space)** | deny | **allow** (S4) |
 | **Verifier: Write to `results\..\scenarios\a.md`** | deny | **allow** (S4) |
-| **Verifier: Write a file named `C:\holdout\results`** | deny | **allow** (S4) |
+| **Verifier: Write a file named `<holdout>\results`** | deny | **allow** (S4) |
 | Verifier: Write relative `results/a.md` | (Write takes absolute paths) | deny |
 | Verifier: Bash `ls C:/holdout` | deny | deny |
 | **Verifier: Bash `rm scenarios/a.md` with `cwd` the holdout** | deny | **allow** (M1) |
@@ -299,3 +299,5 @@ Do these on the pull request's build. Do not run them until the owner says so. `
 **FAIL.** Build, the full suite (1589 of 1589), zero warnings, tests first and most criteria pass. M1 (a verifier's
 shell commands can change the holdout it runs in) and M2 (AC 7's "unavailable" is not met, and the difference is not
 recorded) block. Mutations 2, 6, 12 and 20 survive. The holdout scenarios are still to be run, in the live check.
+
+> P19: the made-up probe paths in this record (a holdout at the root of drive C, a repository under C:\work) are written as `<holdout>` and `<repo>` (overnight decision 5, 2026-11-19).
