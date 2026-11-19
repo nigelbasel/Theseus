@@ -1,7 +1,7 @@
 # verifier-card: spec
 
 Pipeline: `feature` (method kit v0), stage **spec**, autonomy L0. Branch `nigel/verifier-card`, repo Theseus. From
-`research.md`, with Nigel's five decisions of 2026-11-19 (all option A). **Awaiting Nigel's approval.**
+`research.md`, with Nigel's five decisions of 2026-11-19 (all option A). **Approved by Nigel, 2026-11-19.**
 
 ## What changes, from the owner's side
 
