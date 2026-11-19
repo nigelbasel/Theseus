@@ -55,7 +55,8 @@ stages:
     produces: >
       One result per repo: build, the full test suite, the reproduction test passing unchanged, and any
       holdout scenario covering the behaviour. Run by someone other than the implementer. Steps a person is
-      asked to carry out are checked against the code before they are given.
+      asked to carry out are checked against the code before they are given. The verifier removes each guard
+      or condition the fix adds, in a copy, and reports any test that still passes (parked-cores P16).
     gate:
       kind: evidence
       passes_when: every repo has a result, every result passes, and the reproduction test is unchanged since it failed

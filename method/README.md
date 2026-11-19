@@ -49,6 +49,12 @@ Ad hoc work can be promoted to a project. Its handoff becomes the project's firs
   (resumed-stop P10; guard-mentions and resumed-stop both took three passes.)
 - **New tests go in a new file,** never beside a reproduction test, so "the reproduction test is unchanged since it
   failed" stays a plain diff check. (resumed-stop P9.)
+- **Never rewrite a text file by reading it with Windows PowerShell's `Get-Content` and writing it back.** Version 5.1
+  reads UTF-8 without a BOM as ANSI, so the write-back double-encodes every non-ASCII character. Use the editor tool, or
+  .NET with an explicit UTF-8 encoding. Sub-agent briefs carry this rule. (parked-cores P14.)
+- **Text a user acts on is checked against its source,** not against the code that prints it: an instruction, the name
+  of a setting, a cause to check. Compare it with the spec or the vendor's documentation. (parked-cores P17; twice in one
+  day a test asserted the implementer's own wrong words.)
 - **An existing test changes only to correct a wrong expectation.** The change gets its own line in
   `implementation.md` saying what the test asserted and why that was wrong, and the verifier judges whether it is a
   correction or a weakening. (card-branches P12.)
