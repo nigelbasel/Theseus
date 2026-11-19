@@ -39,7 +39,7 @@ Pipeline: `feature` (method kit v0), stage **re-verify of review fixes**. Branch
 
 ## 2. S4: no machine paths or card id under `work/close-step/`
 
-**Result: not fully fixed.** No drive-letter path, no user-profile path, no worktree path and no `git-22` remains in
+**Result: not fully fixed.** No drive-letter path, no user-profile path, no worktree path and no card id remains in
 any file, `review.md` included. The full scratch paths were replaced by `<scratch>`. But two path fragments remain
 that the replacement missed, and one of them carries the session id:
 
