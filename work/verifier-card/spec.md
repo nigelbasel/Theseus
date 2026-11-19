@@ -39,7 +39,7 @@ No implementing session can read the scenarios, and the verifier can read them b
      clone's `results/` folder; shell commands naming the holdout are denied;
    - **author** (`THESEUS_HOLDOUT_AUTHOR=1`, as today): allowed.
 6. No shell command runs with its working directory inside the holdout, for any role but author. **Added in fix pass
-   2 (M1), awaiting Nigel's OK:** it also binds a session with no role, such as the owner's own session working in
+   2 (M1), approved by Nigel 2026-11-19:** it also binds a session with no role, such as the owner's own session working in
    the holdout without `THESEUS_HOLDOUT_AUTHOR=1`. A verifier may not write or edit any file outside the holdout's `results/` folder. This is a tripwire for accidents,
    like the lock guard: shell commands in the code repos (building, testing) are not policed.
 7. The holdout folder and remote address are set in Settings. Verify with holdouts… is unavailable while the folder
@@ -53,15 +53,16 @@ No implementing session can read the scenarios, and the verifier can read them b
    itself a verifier.
 10. It creates a card titled "Verify: <card title>" with role verifier, its working directory the checked card's
     working directory, and the holdout clone and the checked card's other extra directories as its extra directories.
-    **Changed in fix pass 2 (overnight decision 3, awaiting Nigel's OK):** approved as "working directory the holdout
-    clone"; swapped so the guard can refuse every shell command run inside the holdout (verify part 1, M1). It adds a hands-over link
+    **Changed in fix pass 2 (overnight decision 3), approved by Nigel 2026-11-19:** first approved as "working
+    directory the holdout clone"; swapped so the guard can refuse every shell command run inside the holdout (verify
+    part 1, M1). It adds a hands-over link
     from the checked card and a reports-back link to it, whose document is
     `results/<checked card key>-<yyyyMMdd-HHmm>.md` in the holdout clone.
 11. Its prompt is a fixed brief:
     - find the checked change's spec under `work/` in the checked card's repos, and its section naming the holdout
       scenarios that apply;
     - read the scenarios with the file tools, and run builds and tests from the checked card's folder, never from
-      inside the holdout (**added in fix pass 2 with AC 10's change, awaiting Nigel's OK**);
+      inside the holdout (**added in fix pass 2 with AC 10's change, approved by Nigel 2026-11-19**);
     - run each named scenario;
     - ask the owner in this tab for any step only a person can do, quoting the scenario's step;
     - write the details, steps and observations to the report document;
