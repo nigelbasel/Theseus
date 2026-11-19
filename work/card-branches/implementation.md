@@ -68,3 +68,10 @@ which was the F1 defect; it now asserts the bare branch. Full suite **1520 of 15
 
 Not fixed, recorded: a mapped network drive (a letter, not `\\`) is read like a local folder and can still be slow;
 the repo name keeps the case of the first path given (F7); "on branch not readable" for a single unreadable repo (F4).
+
+**After the re-verify (`evidence.md`, attempt 2, PASS), accepted by Nigel as known limits (2026-11-19):** a junction on a
+folder above a repo still counts it twice (F3); ports, Azure DevOps https against ssh, and visualstudio.com against
+dev.azure.com still count as two origins, so those PRs stay unlinked (F5), and a case-sensitive git server could merge
+two repos whose names differ only in case; no tests for the App wiring or for `CardItemRows` passing the note (F6); a
+local path written `\\?\...` is skipped like a network path (N1); an untitled unlinkable PR shows just "PR 42" in the
+menu, with the repos in its tooltip (N2). Stopped here by method rule P10 rather than a third fix pass.
