@@ -1,5 +1,24 @@
 # card-branches: evidence
 
+## Part 2: live check on a running board (2026-11-19, Nigel)
+
+Board 2026.11.19.12835 (built from 5e0b882), started 08:48:13. Scratch feature folder in the implementer's scratch area
+holding two local repos with no remotes, `scratch-api` and `scratch-ui`, both on `nigel/scratch-feature`; added by Nigel
+to the extra directories of the scratch card "Stop check: hands over".
+
+| Step | What Nigel saw | Result |
+|---|---|---|
+| 1-2. Feature folder added | "on nigel/scratch-feature · 2 repos"; the tooltip listed both repos and their branch | Pass (AC 1, 6, 9) |
+| 3. `scratch-ui` switched to `nigel/other-branch` (08:50:47), then F5 | "branches differ" in amber; the tooltip listed each repo with its branch | Pass (AC 7, 10) |
+| 4. A card with no extra directories | The branch line's tooltip shows the bare branch name, as before | Pass (AC 3, 12; the F1 defect, seen fixed live) |
+
+Not exercised live: PR links across repos with several origins (the scratch repos have no remotes); part 1's tests cover
+them. **Verdict, part 2: passes.**
+
+---
+
+## Part 1, attempt 2
+
 Pipeline: `feature` (method kit v0), stage **verify, part 1 of 2, attempt 2** (re-verify of the fix round). Part 2 is
 a live check on a running board by Nigel. Autonomy L0. Repo Theseus, branch `main`, commit `38ea687` (fix round on
 top of `4054624`). Verifier: a fresh sub-agent started by the implementer. It did not write the code, but it was
