@@ -66,6 +66,53 @@ public static class SessionClosing
     }
 
     /// <summary>
+    /// What the close step does with one session. A stop handed to an earlier run of the session is retired, judged by
+    /// when it was handed over, the same rule the Stop press uses (close-step AC 8; resumed-stop review S2). A session
+    /// that meets every condition but quiet is waited for: the refresh its own change to idle caused always comes
+    /// before its quiet ends, and an idle session writes nothing more, so without a wait nothing checks again until
+    /// something unrelated refreshes the board (close-step AC 1; seen as closes 87 s to 11 minutes late).
+    /// </summary>
+    /// <param name="delivered">The stop request this session was handed, if any.</param>
+    /// <param name="sessionStartedUtc">When the session running now started.</param>
+    /// <param name="handoffWrittenUtc">When the handover document was last written, if it exists.</param>
+    /// <param name="status">What the session reports it is doing.</param>
+    /// <param name="statusSinceUtc">When it last changed to that.</param>
+    /// <param name="now">The current moment.</param>
+    /// <param name="alreadyAsked">Whether /exit has already been tried for this stop.</param>
+    public static CloseDecision Decide(
+        PendingStopRequest? delivered,
+        DateTimeOffset sessionStartedUtc,
+        DateTimeOffset? handoffWrittenUtc,
+        string? status,
+        DateTimeOffset? statusSinceUtc,
+        DateTimeOffset now,
+        bool alreadyAsked)
+    {
+        if (delivered is null)
+        {
+            return new CloseDecision(CloseVerdict.Skip);
+        }
+
+        if (HandedBefore(delivered, sessionStartedUtc))
+        {
+            return new CloseDecision(CloseVerdict.Retire);
+        }
+
+        if (ShouldClose(delivered, handoffWrittenUtc, status, statusSinceUtc, now, alreadyAsked))
+        {
+            return new CloseDecision(CloseVerdict.Close);
+        }
+
+        if (statusSinceUtc is { } since
+            && ShouldClose(delivered, handoffWrittenUtc, status, statusSinceUtc, since + Quiet, alreadyAsked))
+        {
+            return new CloseDecision(CloseVerdict.Wait, since + Quiet);
+        }
+
+        return new CloseDecision(CloseVerdict.Skip);
+    }
+
+    /// <summary>
     /// Whether the session running now started after the stop was asked, and so cannot be the session
     /// that was asked. A resumed session keeps its identifier, so the identifier alone does not say
     /// which process a request was for; the process's start does.
