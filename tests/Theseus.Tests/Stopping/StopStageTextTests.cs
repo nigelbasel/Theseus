@@ -63,7 +63,7 @@ public class StopStageTextTests
         Assert.That(Text(state), Is.EqualTo("Typed /exit at 13:08. Closing."));
     }
 
-    [TestCase(ExitResult.TabNotConfirmed, "Could not type /exit: its tab could not be found. Close now tries again.")]
+    [TestCase(ExitResult.TabNotConfirmed, "Could not type /exit: its tab could not be confirmed. Close now tries again.")]
     [TestCase(ExitResult.FocusLost, "Could not type /exit: the terminal was not in front. Close now tries again.")]
     [TestCase(ExitResult.Refused, "Could not type /exit: Windows refused the keystrokes. Close it yourself.")]
     [TestCase(ExitResult.Elevated, "Could not type /exit: the terminal runs as administrator and Theseus does not. Close it yourself.")]
