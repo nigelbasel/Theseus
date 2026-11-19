@@ -56,6 +56,10 @@ Ad hoc work can be promoted to a project. Its handoff becomes the project's firs
 - **Text a user acts on is checked against its source,** not against the code that prints it: an instruction, the name
   of a setting, a cause to check. Compare it with the spec or the vendor's documentation. (parked-cores P17; twice in one
   day a test asserted the implementer's own wrong words.)
+- **A named holdout scenario is run, or verify stays open.** Verify cannot pass while a holdout scenario the spec names
+  has not been run by an independent verifier. If nobody can run it, the stage stays open, so the gap shows instead
+  of being passed over. The owner is not the relay between sessions: running scenarios is the verifier's job. (P18,
+  Nigel, 2026-11-19; in stage 0 every spec named scenarios and none was run.)
 - **An existing test changes only to correct a wrong expectation.** The change gets its own line in
   `implementation.md` saying what the test asserted and why that was wrong, and the verifier judges whether it is a
   correction or a weakening. (card-branches P12.)

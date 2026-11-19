@@ -59,7 +59,10 @@ stages:
       or condition the fix adds, in a copy, and reports any test that still passes (parked-cores P16).
     gate:
       kind: evidence
-      passes_when: every repo has a result, every result passes, and the reproduction test is unchanged since it failed
+      passes_when: >
+        every repo has a result, every result passes, the reproduction test is unchanged since it failed, and every
+        holdout scenario covering the behaviour has been run by an independent verifier and passed. A scenario
+        nobody could run keeps the stage open (P18).
       blocks: true
 
   # Only when the fix needed a rule stage: a rule means new behaviour, which is what review is for (resumed-stop P7).

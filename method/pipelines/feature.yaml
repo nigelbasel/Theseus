@@ -68,7 +68,9 @@ stages:
       condition the change adds, in a copy, and reports any test that still passes (parked-cores P16).
     gate:
       kind: evidence
-      passes_when: every repo has a result and every result passes
+      passes_when: >
+        every repo has a result, every result passes, and every holdout scenario the spec names has been run by
+        an independent verifier and passed. A named scenario nobody could run keeps the stage open (P18).
       blocks: true
 
   - id: review

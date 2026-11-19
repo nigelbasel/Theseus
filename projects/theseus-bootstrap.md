@@ -74,6 +74,15 @@ belongs to (L1, L2, and the limits left by resumed-stop). See `work/resumed-stop
 
 **Exit gate:** every pull request carries evidence, and the holdout scenarios run in CI on Windows.
 
+- **Objective 1.0 (first): a verifier card.** When a workstream reaches `verify` and its spec names a holdout scenario,
+  Theseus itself launches a fresh verifier session that can read the holdout repository and cannot change the code.
+  The verifier runs the scenario, asks the owner in its own tab for any step only a person can do, and hands back the
+  scenario name, pass or fail and a one-line reason through `report_back`, confirmed on the board. The implementing
+  session sees only that verdict. The owner never relays results between sessions. Needs a verifier card type
+  (Theseus starts it with holdout access, which a card cannot have today) and a read-only mode in the holdout guard.
+  Its first real test is running all three holdout scenarios against the stage 0 changes. (Nigel, 2026-11-19: the
+  scenarios were written in stage 0 and never run, because no verifier could run them.) [criteria to be written at
+  the phase 0 exit]
 - Objective 1.1: checks shown on cards. [criteria to be written at the phase 0 exit]
 - Objective 1.2: read-only pull request and CI status on cards. [criteria to be written]
 - Objective 1.3: a `theseus/evidence` status check. [criteria to be written]

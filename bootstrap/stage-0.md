@@ -16,7 +16,7 @@ report. Where one is missing it says so.
 | 3 | `freeform`, `feature` and `bug` defined; `freeform` matches ad hoc with no added steps | `method/pipelines/`; `freeform` is one stage, no gates | **Met** in writing. Ad hoc work was not run through it in stage 0 (below) |
 | 4 | Pipelines and artefact paths work for a workstream spanning several repos | Artefacts and evidence are defined per workstream with one result per repo (`method/project.md`); card-branches made the board show several repos | **Partly met.** The format allows it, but no change in stage 0 touched more than one repo, so it is untested in use |
 | 5 | A plain-file project format, with the bootstrap as the first example, stages 0 to 5 as phases | `method/project.md`, `projects/theseus-bootstrap.md` | **Met** |
-| 6 | Three holdout scenarios written, stored outside agent-writable paths, with pass/fail | Private repo `nigelbasel/Theseus-holdout` (resume tomorrow, stop with handoff, lock contention), each with pass and fail criteria; a user-level hook refuses access unless a session is started as the author | **Met** as written. **None was run** (below) |
+| 6 | Three holdout scenarios written, stored outside agent-writable paths, with pass/fail | Private repo `nigelbasel/Theseus-holdout` (resume tomorrow, stop with handoff, lock contention), each with pass and fail criteria; a user-level hook refuses access unless a session is started as the author | **Not met** (Nigel, 2026-11-19). Written and protected, but **never run**: no verifier could run them, and nothing in the method noticed. Writing a safeguard and not running it is cost without protection. Moved to stage 1 as its first objective (below) |
 | 7 | Five Theseus changes through the pipeline, artefacts in the repo | Six: readme-runtime, guard-mentions, stop-timing, resumed-stop, card-branches, parked-cores, each with `work/<slug>/` | **Met** |
 | 8 | This file written, and reviewed by Nigel against these criteria | This file | **Waiting for Nigel** |
 
@@ -49,12 +49,16 @@ minutes; elapsed time per feature was hours, mostly gates, CI releases, board up
   down; the bug pipeline gained a rule stage from it, and resumed-stop used it.
 - **Review found what verifiers missed,** in every change it ran on: a fallback to a guessed link, a stale tooltip, a
   record that meant two things.
-- **The method revised itself 17 times** (P1 to P17 in `method/`), every one from something a change taught.
+- **The method revised itself 18 times** (P1 to P18 in `method/`): 17 from something a change taught, and P18 from this retrospective.
 
 ## What it missed, or got wrong
 
-- **The holdout scenarios were never run.** They were written first, protected, named in specs, and then not exercised:
-  no session was started as the author, and live checks were done ad hoc instead. Stage 1 must run them.
+- **The holdout scenarios were never run.** They were written first, protected, named in specs, and then not exercised.
+  The cause is structural: verify said the scenarios are run by "the owner or a separate session allowed to run
+  them", but every verifier was a sub-agent of the implementing session, which the guard rightly refuses, and Theseus
+  cannot launch a session that is allowed. So nobody doing verification could run them, and each verify passed
+  without them. Handing the job to Nigel would make him the relay between sessions, which is the wrong fix. Became P18
+  (a named scenario that was not run keeps verify open) and stage 1's first objective (a verifier card).
 - **Independence was partial.** Every verifier and reviewer was a sub-agent briefed by the implementer. They found a lot,
   but their brief set what they looked at.
 - **The implementer's own errors were frequent and recurring:** estimated times written into records (twice), tests that
@@ -121,7 +125,7 @@ so improving the kit never changes a project already running underneath it.
 kit's template and, for a repo that lacks them, its AGENTS.md and rubric; the owner approves once; workstreams then run
 the standard pipelines and the owner meets their gates. The owner selects, and does not create.
 
-**How stable it is, on stage 0's evidence (one codebase):** six changes used the same two pipelines; all 17 lessons were
+**How stable it is, on stage 0's evidence (one codebase):** six changes used the same two pipelines; all 18 lessons were
 general rules, none specific to Theseus's code; the rubric was written once and used unchanged by four reviews. The
 expectation is that the kit stays stable and the per-repo layer carries the differences between codebases. The team
 pilot (phase 5) is where that is tested.
@@ -138,7 +142,10 @@ A method is trusted only once it has carried real work: a drafted method is a hy
 
 ## For stage 1
 
-- Run the three holdout scenarios, by an author session or by Nigel, and automate them on Windows CI.
+- **First: a verifier card** (`projects/theseus-bootstrap.md`, objective 1.0). At `verify`, Theseus launches a fresh
+  verifier with read access to the holdouts and none to the code; it runs the named scenarios, asks Nigel in its own
+  tab for any step only a person can do, and hands back pass or fail through `report_back`. Its first real test is the
+  three scenarios against the stage 0 changes. Then run the scenarios that need no person on Windows CI.
 - Do one change that spans two repos.
 - Measure the implementer's own tokens, and Nigel's time at gates.
 - Decide whether verifier and reviewer independence needs more than a fresh sub-agent.
