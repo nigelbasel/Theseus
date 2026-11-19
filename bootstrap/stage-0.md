@@ -1,8 +1,8 @@
 # Bootstrap stage 0: retrospective
 
 Stage 0 of the Theseus bootstrap (`projects/theseus-bootstrap.md`): seed method kit v0, then take real changes through
-it by hand, at autonomy L0. Run 18 to 19 November 2026 in one workstream. **A draft for Nigel's review against the exit
-criteria below**; nothing here is accepted until he says so.
+it by hand, at autonomy L0. Run 18 to 19 November 2026 in one workstream. **Accepted by Nigel on 2026-11-19**, with criterion 6
+recorded as not met and moved to stage 1. Stage 0 is closed.
 
 Every figure comes from a record: the stage tables in `work/<slug>/`, the workstream log, git, or a sub-agent's own
 report. Where one is missing it says so.
@@ -18,7 +18,7 @@ report. Where one is missing it says so.
 | 5 | A plain-file project format, with the bootstrap as the first example, stages 0 to 5 as phases | `method/project.md`, `projects/theseus-bootstrap.md` | **Met** |
 | 6 | Three holdout scenarios written, stored outside agent-writable paths, with pass/fail | Private repo `nigelbasel/Theseus-holdout` (resume tomorrow, stop with handoff, lock contention), each with pass and fail criteria; a user-level hook refuses access unless a session is started as the author | **Not met** (Nigel, 2026-11-19). Written and protected, but **never run**: no verifier could run them, and nothing in the method noticed. Writing a safeguard and not running it is cost without protection. Moved to stage 1 as its first objective (below) |
 | 7 | Five Theseus changes through the pipeline, artefacts in the repo | Six: readme-runtime, guard-mentions, stop-timing, resumed-stop, card-branches, parked-cores, each with `work/<slug>/` | **Met** |
-| 8 | This file written, and reviewed by Nigel against these criteria | This file | **Waiting for Nigel** |
+| 8 | This file written, and reviewed by Nigel against these criteria | This file; Nigel accepted 3 and 4 as recorded and had 6 changed to not met | **Met** (2026-11-19) |
 
 ## The six changes
 
