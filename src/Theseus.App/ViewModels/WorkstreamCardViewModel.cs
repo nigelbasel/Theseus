@@ -165,7 +165,10 @@ public sealed class WorkstreamCardViewModel : ObservableObject
             JiraItems = jira;
         }
 
-        if (!pullRequests.Select(row => row.Display + row.Url).SequenceEqual(PullRequestItems.Select(row => row.Display + row.Url)))
+        // The tooltip is compared too: a PR that cannot be opened says why there, and the reason changes with the
+        // card's repos (card-branches review should-fix 2, 2026-11-19).
+        if (!pullRequests.Select(row => row.Display + row.Url + row.Tooltip)
+                .SequenceEqual(PullRequestItems.Select(row => row.Display + row.Url + row.Tooltip)))
         {
             PullRequestItems = pullRequests;
         }

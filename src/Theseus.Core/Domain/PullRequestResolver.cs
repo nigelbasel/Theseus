@@ -53,6 +53,13 @@ public sealed class PullRequestResolver
             {
                 return [.. numbers.Select(number => new PullRequestLink(number, PullRequestSite.Url(origins[0], number)))];
             }
+
+            // Declared repos replace the working directory (spec AC 4), so with none of them able to say where its
+            // pull requests live, the working directory is not asked either: that would be the guessed link AC 11
+            // rules out (review should-fix 1, 2026-11-19).
+            var unlinked = string.Join(", ", repos.Select(repo => new DirectoryInfo(repo).Name));
+
+            return [.. numbers.Select(number => new PullRequestLink(number, null) { Note = $"{unlinked} have no remote to link to" })];
         }
 
         var remote = Candidates(workstream)

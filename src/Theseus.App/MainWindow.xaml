@@ -671,7 +671,7 @@
 
                         <!--
                             Jira issues and pull requests in drop-downs, with titles where a session
-                            reported them, and the branch the working directory has checked out
+                            reported them, and the branch line (the card's repos' branches, or the working directory's)
                             (Nigel, 2026-10-30). They were chips, and a workstream with twenty-five
                             issues grew a card taller than everything around it.
                         -->

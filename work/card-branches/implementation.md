@@ -24,8 +24,8 @@ Full suite: **1508 of 1508**, 0 warnings. No existing test file changed.
 
 ## Every difference from the plan
 
-- **The PR note is shown as the row's title, not as a tooltip fallback in XAML.** PR rows already show a title; when a
-  session has reported none, the note ("in one of api, ui") takes its place. No XAML change for PRs was needed.
+- **The PR note was first shown as the row's title, not as a tooltip fallback in XAML** (pass 1). *Superseded in pass 2
+  (F9): it is the tooltip's second line, through `CardItemRow`'s `whyNoLink`, and a reported title stays the title.*
 - **The amber is the literal `#D68910`, not a theme brush.** It is the colour the board already uses for Paused and
   Blocked (`docs/cards.md`: "in amber"); `SystemFillColorCautionBrush` is not used anywhere in this theme and would
   have failed silently if missing.
