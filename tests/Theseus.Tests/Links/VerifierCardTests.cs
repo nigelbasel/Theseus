@@ -60,6 +60,15 @@ public class VerifierCardTests
         Assert.That(VerifierCard.Role, Is.EqualTo(WorkstreamRole.Verifier));
     }
 
+    [Test]
+    public void ARepoNamedTwice_IsInReachOnce()
+    {
+        var twice = Checked() with { AddDirectories = [@"C:\work\close-step\other", @"c:\WORK\close-step\other"] };
+
+        Assert.That(VerifierCard.For(twice, Holdout, Now).AddDirectories,
+            Is.EqualTo(new[] { Holdout, @"C:\work\close-step\other" }), "verify part 1 attempt 2, S9");
+    }
+
     private static VerifierCard For() => VerifierCard.For(Checked(), Holdout, Now);
 
     private static Workstream Checked() => new("close-step", "close-step", "#C0392B", ColorIsManual: true,

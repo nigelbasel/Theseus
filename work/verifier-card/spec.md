@@ -38,8 +38,9 @@ No implementing session can read the scenarios, and the verifier can read them b
    - **verifier:** reading, searching and listing are allowed; writing and editing are allowed only under the holdout
      clone's `results/` folder; shell commands naming the holdout are denied;
    - **author** (`THESEUS_HOLDOUT_AUTHOR=1`, as today): allowed.
-6. No shell command runs with its working directory inside the holdout, for any role but author (added in fix pass
-   2, M1). A verifier may not write or edit any file outside the holdout's `results/` folder. This is a tripwire for accidents,
+6. No shell command runs with its working directory inside the holdout, for any role but author. **Added in fix pass
+   2 (M1), awaiting Nigel's OK:** it also binds a session with no role, such as the owner's own session working in
+   the holdout without `THESEUS_HOLDOUT_AUTHOR=1`. A verifier may not write or edit any file outside the holdout's `results/` folder. This is a tripwire for accidents,
    like the lock guard: shell commands in the code repos (building, testing) are not policed.
 7. The holdout folder and remote address are set in Settings. Verify with holdouts… is unavailable while the folder
    is not set, and says why.
@@ -59,6 +60,8 @@ No implementing session can read the scenarios, and the verifier can read them b
 11. Its prompt is a fixed brief:
     - find the checked change's spec under `work/` in the checked card's repos, and its section naming the holdout
       scenarios that apply;
+    - read the scenarios with the file tools, and run builds and tests from the checked card's folder, never from
+      inside the holdout (**added in fix pass 2 with AC 10's change, awaiting Nigel's OK**);
     - run each named scenario;
     - ask the owner in this tab for any step only a person can do, quoting the scenario's step;
     - write the details, steps and observations to the report document;

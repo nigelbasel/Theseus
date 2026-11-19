@@ -775,7 +775,7 @@ public sealed class ShellViewModel : ObservableObject
         !string.IsNullOrWhiteSpace(_holdoutFolder) && !card.IsArchived && card.Workstream.Role != WorkstreamRole.Verifier;
 
     /// <summary>
-    /// Creates a verifier card for this card: a follow-on in the holdout clone with the checked card's repos in reach,
+    /// Creates a verifier card for this card: a follow-on in the checked card's folder with the holdout clone in reach,
     /// role verifier, linked both ways, with its fixed brief. It starts nothing (verifier-card AC 7, 9, 10 and 12).
     /// </summary>
     private void VerifyWithHoldouts(WorkstreamCardViewModel card)
@@ -784,7 +784,7 @@ public sealed class ShellViewModel : ObservableObject
 
         if (string.IsNullOrWhiteSpace(holdout))
         {
-            Notice = "Set the holdout scenarios folder in Settings first: a verifier card runs there.";
+            Notice = "Set the holdout scenarios folder in Tools > Options first: a verifier card reads the scenarios there.";
 
             return;
         }

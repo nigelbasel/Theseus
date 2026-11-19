@@ -63,10 +63,11 @@ public class HoldoutGuardWorkingDirectoryTests
         Assert.That(Guard("Write", "file_path", target, cwd: Code, role: "verifier"), Is.True);
     }
 
-    [Test]
-    public void NoRole_IsRefusedAGitBashPathToTheHoldout()
+    [TestCase("cat /c/holdout/scenarios/stop.md")]
+    [TestCase("echo x >/c/holdout/scenarios/stop.md")]
+    public void NoRole_IsRefusedAGitBashPathToTheHoldout(string command)
     {
-        Assert.That(Guard("Bash", "command", "cat /c/holdout/scenarios/stop.md", cwd: Code), Is.True);
+        Assert.That(Guard("Bash", "command", command, cwd: Code), Is.True);
     }
 
     [TestCase("WebFetch", "url", "https://example.com/owner/holdout.git")]

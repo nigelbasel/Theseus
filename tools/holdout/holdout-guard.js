@@ -44,7 +44,7 @@ function readHoldout() {
 
 // Git Bash writes C:\x as /c/x (verify part 1, S2).
 function windowsPaths(text) {
-    return text.replace(/(^|[\s'"=(])\/([a-z])\//gi, '$1$2:/');
+    return text.replace(/(^|[\s'"=(<>|;&])\/([a-z])\//gi, '$1$2:/');
 }
 
 function normalise(value) {

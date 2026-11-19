@@ -85,7 +85,8 @@ public sealed record TheseusSettings(
 
     /// <summary>
     /// The clone of the private holdout scenarios. The holdout guard reads it from this file (it keeps no path of its
-    /// own, P19), and Verify with holdouts… runs a verifier there. Empty: no holdout, and the guard allows everything
+    /// own, P19), and a verifier card has it in reach to read the scenarios and write its report. Empty: no holdout, and
+    /// the guard allows everything
     /// (verifier-card AC 4 and 7, Nigel 2026-11-19).
     /// </summary>
     public string HoldoutFolder { get; init; } = string.Empty;

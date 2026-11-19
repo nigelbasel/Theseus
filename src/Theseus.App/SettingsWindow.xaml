@@ -141,7 +141,7 @@
                 <TextBlock Text="Holdout remote address" Style="{StaticResource FieldLabel}" />
                 <TextBox Text="{Binding HoldoutRemote, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock Style="{StaticResource FieldHint}"
-                           Text="The clone of the private scenarios that judge changes, and its address such as host/owner/repo. The holdout guard keeps both from implementing sessions; a verifier card runs in the folder. Leave empty for no holdout." />
+                           Text="The clone of the private scenarios that judge changes, and its address such as host/owner/repo. The holdout guard keeps both from implementing sessions; a verifier card reads the scenarios there and writes its report to the results folder. Leave empty for no holdout." />
                     </StackPanel>
                 </Expander>
 
