@@ -67,8 +67,10 @@ method layer for agentic development, usable from one developer to a team, by us
 | parked-cores | Warn in the status bar when most cores are parked under load | feature |
 | resumed-stop | A session resumed under the same id is never closed by a second stop (found in stop-timing's live check; added 2026-11-18) | bug, with review and compound added |
 
-Proposed, not scheduled: **close-step**, a feature covering when the close step runs and which run of a session a stop
-belongs to (L1, L2, and the limits left by resumed-stop). See `work/resumed-stop/lessons.md`.
+**close-step** is scheduled as the first pull request of phase 1, before the verifier card (Nigel, 2026-11-19). It is a
+feature covering when the close step runs (L1: closes wait for an unrelated refresh), showing that a stop is under way
+(L2), and which run of a session a stop belongs to (resumed-stop V1, V2). See `work/resumed-stop/lessons.md`. The
+parked-cores blink (`work/parked-cores/review.md`, finding 4) follows it as a separate small change.
 
 ## Phase 1: Evidence
 
