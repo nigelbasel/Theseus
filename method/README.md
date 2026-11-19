@@ -67,6 +67,7 @@ Ad hoc work can be promoted to a project. Its handoff becomes the project's firs
 | 2026-11-18 | Work artefacts go in top-level `work/<issue>/`, retrospectives in `bootstrap/`, both outside the `docs/` Pages site | Nigel |
 | 2026-11-18 | Holdout scenarios live in a separate private repository, which implementing sessions are refused access to | Nigel |
 | 2026-11-18 | Projects sit above workstreams; standalone workstreams are unchanged; both may span repos | Nigel |
+| 2026-11-19 | The kit stays generic in `method/` on GitHub for now, ships with Theseus as the default, and moves only if other team members start using it. A repo's own rubric and AGENTS.md live in that repo | Nigel |
 
 ## Open questions
 
@@ -74,5 +75,7 @@ Ad hoc work can be promoted to a project. Its handoff becomes the project's firs
   AGENTS.md, a project file or a pipeline is done by an agent started from Theseus, reviewed as a pull
   request, rather than in a form; Theseus's UI is for seeing where work is, its evidence, and approving
   gates and promotions; Theseus reports malformed method files rather than ignoring them.
-- **Where the kit lives long-term:** here, or in its own repository distributed as a plugin.
+- **Where the kit lives long-term:** here for now (decided 2026-11-19); revisit when other team members use it.
+- **Pinning:** a project names the kit version it follows, so a change to the kit does not reach a running project
+  unannounced. [tag scheme not yet decided]
 - **L1 Prepared:** [definition not yet written].
