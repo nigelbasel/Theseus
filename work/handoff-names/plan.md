@@ -15,6 +15,6 @@ the design he approved; recorded as overnight decision 7.
 **P21 (code moved out of a sequence):** none moved. **P23 (a restriction added):** none added; a file is created or
 moved only for a card with no live session, so no running session is told one path and finds another.
 
-**Live check:** the NDC MCP pair on Nigel's board resolves (the "Configure…" card keeps its file; "NDC MCP Server" gets
-`HANDOFF-ndc-mcp-server.md` with a pointer line); the Theseus card offers "Rename handover to HANDOFF-theseus.md" when
-its session is not running.
+**Live check:** the pair of cards on Nigel's board that share a chosen file resolves (the card the file is named after
+keeps it; the other gets `HANDOFF-<its key>.md` with a pointer line); a card whose handover file is named for an old
+key offers the rename when its session is not running.

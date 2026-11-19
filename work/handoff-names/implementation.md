@@ -1,17 +1,21 @@
 # handoff-names: implementation
 
-Pipeline: `feature`, stage **implement**, from `plan.md`.
+Pipeline: `feature`, stage **implement**, from `plan.md`, reworked after `review.md` (AC numbers are the spec's after
+that rework).
 
 | AC | Where |
 |---|---|
-| 1 | `HandoffOwner.Of`: the sharer whose key or title-as-key the file name contains; when several, the one whose match contains every other's; otherwise none |
-| 2, 3, 4 | `ShellViewModel.ResolveSharedHandoffs`, run on every refresh before the clash check: for each other sharer with no live session, `HandoffPointer.OwnFile` is created with `HandoffPointer.Text` if absent (never overwritten), set as the card's handover file and persisted; logged and shown in the status bar. A write failure is logged and the card left as it was |
-| 5 | `HandoffRename.Offered`, set on each card as `HandoffRenameTo` after the clash check; the card menu item is shown only when it is set |
-| 6 | `ShellViewModel.RenameHandoff`: re-checks the offer, one `File.Move` without overwrite, then sets and persists the card's handover file |
-| 7 | Keys are untouched |
+| 1 | `HandoffOwner.Of`: the one sharer the file is named exactly after, by key or title as a key |
+| 2, 4, 5 | `SharedHandoffs.Plan` decides the moves and their notice (`HandoffMove.Notice`), tested in `SharedHandoffsTests`; `ShellViewModel.ResolveSharedHandoffs` writes the pointer files, persists each card and shows the notices. A failed write is logged once per file |
+| 3 | `HandoffBusy.Of`: live, or a run not ended, or one begun within the launch window, tested in `HandoffBusyTests` |
+| 5 (repository) | `GitWorkingTree.Contains`, tested on temp folders |
+| 6 | `HandoffRename.Offered` (busy, shared, missing, taken), set on each card as `HandoffRenameTo`; the menu item shows only when set |
+| 7 | `ShellViewModel.RenameHandoff` re-checks the offer against the board now, then `HandoffRename.Apply` (one move, never replacing a file), tested on a temp folder |
+| 8 | Keys are untouched |
 
-Full suite: **1634 of 1634** (1621 before, 13 new).
+Review findings: M1 (AC 3), M2 (AC 4), M3 (real names removed from tests and records), S1 and S2 (exact naming), S3
+(AC 5), S4 (AC 6), S5 (repository check), S6 (one warning per file), S7 (the decisions moved to Core and tested).
 
-Live check (for Nigel, after installing): the "NDC MCP Server" card gets `HANDOFF-ndc-mcp-server.md` beside the shared
-file, starting with the pointer line, and its warning goes; the Theseus card's menu offers "Rename handover to
-HANDOFF-theseus.md" while its session is stopped.
+Live check (for Nigel, after installing): the pair of cards on his board that share a chosen file resolves, the second
+card getting `HANDOFF-<its key>.md` with the pointer line; a card whose handover file is named for an old key offers
+the rename while its session is stopped.

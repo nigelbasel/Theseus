@@ -16,7 +16,7 @@ public class HandoffPointerTests
     [Test]
     public void ACardsOwnFile_IsNamedForItsKey_BesideTheSharedOne()
     {
-        Assert.That(HandoffPointer.OwnFile(@"C:\notes\HANDOFF-shared.md", "ndc-mcp-server"),
-            Is.EqualTo(@"C:\notes\HANDOFF-ndc-mcp-server.md"));
+        Assert.That(HandoffPointer.OwnFile(@"C:\notes\HANDOFF-shared.md", "widget-service"),
+            Is.EqualTo(@"C:\notes\HANDOFF-widget-service.md"));
     }
 }

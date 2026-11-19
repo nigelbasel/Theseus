@@ -4,8 +4,8 @@ namespace Theseus.Core.Stopping;
 
 /// <summary>
 /// Renaming a card's handover file to match its title, offered in its menu: a card keeps the name it was created with
-/// (<c>HANDOFF-git-22.md</c> for a card now titled Theseus) until the owner chooses this (handoff-names AC 5,
-/// Nigel 2026-11-19). Only while no session runs, since a running one holds the old path.
+/// until the owner chooses this (handoff-names AC 5 and 6). Never while a session holds the path, and never for a file
+/// another card also uses.
 /// </summary>
 public static class HandoffRename
 {
@@ -14,13 +14,16 @@ public static class HandoffRename
         Path.Combine(Path.GetDirectoryName(currentFile) ?? string.Empty, $"HANDOFF-{WorkstreamKey.FromTitle(title)}.md");
 
     /// <summary>The new path to offer, or null when no rename should be offered.</summary>
-    public static string? Offered(string currentFile, string title, bool isLive, bool fileExists, bool targetExists)
+    public static string? Offered(string currentFile, string title, bool isBusy, bool isShared, bool fileExists, bool targetExists)
     {
         var target = Target(currentFile, title);
 
-        return !isLive && fileExists && !targetExists
+        return !isBusy && !isShared && fileExists && !targetExists
                && !string.Equals(Path.GetFileName(currentFile), Path.GetFileName(target), StringComparison.OrdinalIgnoreCase)
             ? target
             : null;
     }
+
+    /// <summary>Moves the file, refusing to replace one already at the new name.</summary>
+    public static void Apply(string currentFile, string target) => File.Move(currentFile, target, overwrite: false);
 }

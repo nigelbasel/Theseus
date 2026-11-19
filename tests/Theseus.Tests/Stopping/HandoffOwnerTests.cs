@@ -2,40 +2,50 @@ using Theseus.Core.Stopping;
 
 namespace Theseus.Tests.Stopping;
 
-/// <summary>Whose a shared handover file is: the one card its name names (handoff-names AC 1).</summary>
+/// <summary>Whose a shared handover file is: the one card it is named exactly after (handoff-names AC 1).</summary>
 [TestFixture]
 public class HandoffOwnerTests
 {
-    private const string Shared = @"C:\notes\HANDOFF-configure-the-nurtur-ndc-mcp-server-in-the-claude-directory.md";
-
     [Test]
-    public void TheCardTheFileIsNamedAfter_OwnsIt()
+    public void TheCardTheFileIsNamedAfterByKey_OwnsIt_EvenWhenAnotherKeyIsInsideTheName()
     {
-        Assert.That(HandoffOwner.Of(Shared,
+        Assert.That(HandoffOwner.Of(@"C:\notes\HANDOFF-configure-the-widget-service-in-the-catalogue.md",
         [
-            ("configure-the-nurtur-ndc-mcp-server-in-the-claude-directory", "Configure the Nurtur NDC mcp server in the claude directory"),
-            ("ndc-mcp-server", "NDC MCP Server"),
-        ]), Is.EqualTo("configure-the-nurtur-ndc-mcp-server-in-the-claude-directory"),
-            "the longer name contains the shorter one; the closer match owns it");
+            ("configure-the-widget-service-in-the-catalogue", "Configure the widget service in the catalogue"),
+            ("widget-service", "Widget service"),
+        ]), Is.EqualTo("configure-the-widget-service-in-the-catalogue"));
     }
 
     [Test]
     public void ACardNamedByItsTitle_OwnsIt()
     {
-        Assert.That(HandoffOwner.Of(@"C:\notes\HANDOFF-theseus.md", [("git-22", "Theseus"), ("other", "Other work")]),
-            Is.EqualTo("git-22"));
+        Assert.That(HandoffOwner.Of(@"C:\notes\HANDOFF-ledger.md", [("old-key", "Ledger"), ("other", "Other work")]),
+            Is.EqualTo("old-key"));
+    }
+
+    [Test]
+    public void TheKeyAlone_IsEnough_WhenTheTitleDiffers()
+    {
+        Assert.That(HandoffOwner.Of(@"C:\notes\HANDOFF-old-key.md", [("old-key", "Ledger"), ("other", "Other work")]),
+            Is.EqualTo("old-key"));
+    }
+
+    [Test]
+    public void AKeyThatIsOnlyPartOfTheName_DoesNotOwnIt()
+    {
+        Assert.That(HandoffOwner.Of(@"C:\notes\HANDOFF-latest.md", [("test", "Test"), ("other", "Other")]), Is.Null,
+            "a short key inside a longer name is not the file's name");
     }
 
     [Test]
     public void AFileThatNamesNoSharer_HasNoOwner()
     {
-        Assert.That(HandoffOwner.Of(@"C:\notes\HANDOFF.md", [("one", "One"), ("two", "Two")]), Is.Null,
-            "nothing changes; the warning stays");
+        Assert.That(HandoffOwner.Of(@"C:\notes\HANDOFF.md", [("one", "One"), ("two", "Two")]), Is.Null);
     }
 
     [Test]
-    public void AFileThatNamesTwoSharersEqually_HasNoOwner()
+    public void TwoSharersWithTheSameName_LeaveItWithoutAnOwner()
     {
-        Assert.That(HandoffOwner.Of(@"C:\notes\HANDOFF-alpha-beta.md", [("alpha", "Alpha"), ("beta", "Beta")]), Is.Null);
+        Assert.That(HandoffOwner.Of(@"C:\notes\HANDOFF-alpha.md", [("alpha", "Beta"), ("beta", "Alpha")]), Is.Null);
     }
 }
