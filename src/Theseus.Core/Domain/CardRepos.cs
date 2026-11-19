@@ -19,11 +19,11 @@ public static class CardRepos
         var found = new List<string>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var directory in addDirectories.Where(directory => !string.IsNullOrWhiteSpace(directory)))
+        foreach (var directory in addDirectories.Where(directory => !string.IsNullOrWhiteSpace(directory) && !IsNetwork(directory)))
         {
             foreach (var root in RootsFrom(directory))
             {
-                if (seen.Add(root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)))
+                if (seen.Add(RealLocation(root)))
                 {
                     found.Add(root);
                 }
@@ -31,6 +31,30 @@ public static class CardRepos
         }
 
         return found;
+    }
+
+    /// <summary>
+    /// A folder on another machine is skipped without being touched: the board reads repos on every refresh, and an
+    /// unreachable server stalled one for 2.5 s in verification (card-branches pass 2, F2).
+    /// </summary>
+    private static bool IsNetwork(string directory) =>
+        directory.StartsWith(@"\\", StringComparison.Ordinal) || directory.StartsWith("//", StringComparison.Ordinal);
+
+    /// <summary>Where a repository really is, so a link or junction to it does not count it twice (F3).</summary>
+    private static string RealLocation(string root)
+    {
+        var trimmed = root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+        try
+        {
+            return new DirectoryInfo(trimmed).ResolveLinkTarget(returnFinalTarget: true)?.FullName
+                       .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                   ?? trimmed;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return trimmed;
+        }
     }
 
     /// <summary>The repositories the directories lead to, each with the branch it has checked out.</summary>
@@ -47,7 +71,8 @@ public static class CardRepos
         try
         {
             return Directory.Exists(directory)
-                ? [.. Directory.EnumerateDirectories(directory).Where(GitRepository.IsRoot).Select(Path.GetFullPath)]
+                ? [.. Directory.EnumerateDirectories(directory).Where(GitRepository.IsRoot).Select(Path.GetFullPath)
+                    .Order(StringComparer.OrdinalIgnoreCase)]
                 : [];
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)

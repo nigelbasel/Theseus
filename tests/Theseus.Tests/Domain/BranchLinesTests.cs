@@ -37,7 +37,7 @@ public class BranchLinesTests
         var line = BranchLines.For(working, []);
 
         Assert.That(line.Text, Is.EqualTo("on main"));
-        Assert.That(line.Tooltip, Is.EqualTo("The branch checked out in this working directory: main"));
+        Assert.That(line.Tooltip, Is.EqualTo("main"), "what the board showed: WPF ignores StringFormat on a ToolTip");
         Assert.That(line.Differs, Is.False);
     }
 

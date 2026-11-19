@@ -48,3 +48,23 @@ Full suite: **1508 of 1508**, 0 warnings. No existing test file changed.
 | Stage | Started | Finished | Notes |
 |---|---|---|---|
 | implement | 2026-11-18 21:06:36 (logged) | this commit's time | 1508/1508 |
+
+## Pass 2 (after verify part 1 failed, `evidence-part1-attempt1.md`; option A, Nigel)
+
+| Finding | Done |
+|---|---|
+| F1 (defect) | A card with no repos had gained a longer tooltip. The old XAML's `StringFormat` on a `ToolTip` is ignored by WPF, so the board always showed the bare branch; the pass-1 code and its test copied the format string instead of what was shown. Now the bare branch, as before |
+| F2 | A card's repos are found once per refresh and used for both the PR links and the branch line (`PullRequestResolver.Resolve` takes them). Network folders (`\\server\...`) are skipped without being touched; such a card behaves as one with no repos there |
+| F3 | A repo is counted once by its real location (`ResolveLinkTarget`), so a link or junction to it does not add a second |
+| F5 | Origins are compared without scheme, user, `.git`, trailing slash or case, and with `host:path` read as `host/path`, so one origin written two ways links |
+| F6 | Tests added: a working directory that is a repo is not shown when the card declares others (AC 4); a worktree with a relative gitdir; a feature folder's repos listed by name (they were in file-system order; now sorted) |
+| F9 | A PR row that cannot be opened says why ("in one of api, ui") on its second line, and keeps a reported title as the title. Jira rows still point to Tools > Options |
+| F10 | Recorded here: for a card that lists one repo, PR links now go to that repo's origin rather than the working directory's. This is the spec's intent (AC 11 reads declared repos) but was missing from the list of differences above |
+
+Tests: new files `tests/Theseus.Tests/Domain/CardBranchesFixTests.cs` (10 tests) and
+`tests/Theseus.Tests/ViewModels/CardItemRowNoLinkTests.cs` (2). They failed to build before the change. **One existing test
+changed:** `BranchLinesTests.NoReposDeclared_ReadsTheWorkingDirectoryAsBefore` asserted the sentence WPF never showed,
+which was the F1 defect; it now asserts the bare branch. Full suite **1520 of 1520**, 0 warnings.
+
+Not fixed, recorded: a mapped network drive (a letter, not `\\`) is read like a local folder and can still be slow;
+the repo name keeps the case of the first path given (F7); "on branch not readable" for a single unreadable repo (F4).

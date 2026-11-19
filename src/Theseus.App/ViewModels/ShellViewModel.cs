@@ -1193,8 +1193,10 @@ public sealed class ShellViewModel : ObservableObject
         {
             var recorded = WorkItems?.For(card.Key) ?? [];
 
-            card.PullRequests = _pullRequests.Resolve(card.Workstream);
-            var line = BranchLines.For(card.Workstream.WorkingDirectory, CardRepos.Read(card.Workstream.AddDirectories));
+            // The card's repos are found once per refresh and used for both its PR links and its branch line.
+            var repos = CardRepos.Read(card.Workstream.AddDirectories);
+            card.PullRequests = _pullRequests.Resolve(card.Workstream, [.. repos.Select(repo => repo.Path)]);
+            var line = BranchLines.For(card.Workstream.WorkingDirectory, repos);
             card.Branch = line.Text;
             card.BranchTooltip = line.Tooltip;
             card.BranchesDiffer = line.Differs;

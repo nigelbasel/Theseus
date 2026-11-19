@@ -9,11 +9,16 @@ public sealed class CardItemRow
     /// <param name="id">The Jira key or "PR 22174".</param>
     /// <param name="title">Its title, when a session reported one.</param>
     /// <param name="url">Where it opens, or null when the board cannot work that out.</param>
-    public CardItemRow(string id, string? title, string? url)
+    /// <param name="whyNoLink">
+    /// Why it cannot be opened, when there is a reason more specific than a missing Jira address (card-branches pass
+    /// 2, F9): for a pull request whose number could be in any of a card's repos.
+    /// </param>
+    public CardItemRow(string id, string? title, string? url, string? whyNoLink = null)
     {
         Id = id;
         Title = title;
         Url = url;
+        _whyNoLink = whyNoLink;
         OpenCommand = new RelayCommand(_ => Process.Start(new ProcessStartInfo(url!) { UseShellExecute = true }), _ => url is not null);
     }
 
@@ -33,8 +38,10 @@ public sealed class CardItemRow
     public string Tooltip => string.Join("\n", new[]
     {
         Title ?? "No title yet. A session reports it when it works on this item.",
-        Url ?? "Set your Jira address in Tools > Options to open it from here.",
+        Url ?? _whyNoLink ?? "Set your Jira address in Tools > Options to open it from here.",
     });
+
+    private readonly string? _whyNoLink;
 
     /// <summary>Opens it in the browser.</summary>
     public RelayCommand OpenCommand { get; }

@@ -13,7 +13,11 @@ public sealed class PullRequestResolver
     public PullRequestResolver(IGitRemoteReader remotes) => _remotes = remotes;
 
     /// <summary>The pull requests this workstream mentions.</summary>
-    public IReadOnlyList<PullRequestLink> Resolve(Workstream workstream)
+    /// <param name="workstream">The card.</param>
+    /// <param name="repos">
+    /// The card's repos if already found this refresh (<see cref="CardRepos.Find"/>), so they are not looked for twice.
+    /// </param>
+    public IReadOnlyList<PullRequestLink> Resolve(Workstream workstream, IReadOnlyList<string>? repos = null)
     {
         ArgumentNullException.ThrowIfNull(workstream);
 
@@ -24,14 +28,16 @@ public sealed class PullRequestResolver
             return [];
         }
 
-        var repos = CardRepos.Find(workstream.AddDirectories);
+        repos ??= CardRepos.Find(workstream.AddDirectories);
 
         if (repos.Count > 0)
         {
+            // One origin written two ways (".git" or not, a trailing slash, ssh or https) is one origin (pass 2, F5).
             var origins = repos
                 .Select(_remotes.ReadOriginUrl)
+                .OfType<string>()
                 .Where(url => !string.IsNullOrWhiteSpace(url))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .DistinctBy(OriginKey)
                 .ToList();
 
             // A number in a prompt does not say which repository it is in. With one origin between the card's repos
@@ -54,6 +60,31 @@ public sealed class PullRequestResolver
             .FirstOrDefault(url => !string.IsNullOrWhiteSpace(url));
 
         return [.. numbers.Select(number => new PullRequestLink(number, PullRequestSite.Url(remote, number)))];
+    }
+
+    /// <summary>An origin reduced to host and path, lower case, without scheme, user, port separator or ".git".</summary>
+    private static string OriginKey(string url)
+    {
+        var key = url.Trim().ToLowerInvariant();
+        var scheme = key.IndexOf("://", StringComparison.Ordinal);
+
+        if (scheme >= 0)
+        {
+            key = key[(scheme + 3)..];
+        }
+        else if (key.IndexOf(':') is var colon and > 0 && !key[..colon].Contains('/'))
+        {
+            key = $"{key[..colon]}/{key[(colon + 1)..]}";
+        }
+
+        if (key.IndexOf('@') is var at and >= 0 && at < key.IndexOf('/'))
+        {
+            key = key[(at + 1)..];
+        }
+
+        key = key.TrimEnd('/');
+
+        return key.EndsWith(".git", StringComparison.Ordinal) ? key[..^4] : key;
     }
 
     private static IEnumerable<string> Candidates(Workstream workstream)

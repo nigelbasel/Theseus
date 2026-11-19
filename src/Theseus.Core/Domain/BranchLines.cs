@@ -16,8 +16,10 @@ public static class BranchLines
 
         if (repos.Count == 0)
         {
+            // Word for word what the card showed before: the tooltip was the bare branch, because WPF ignores a
+            // StringFormat on a ToolTip binding (card-branches verify part 1, F1).
             return GitBranchReader.Read(workingDirectory) is { } branch
-                ? new BranchLine($"on {branch}", $"The branch checked out in this working directory: {branch}", false)
+                ? new BranchLine($"on {branch}", branch, false)
                 : new BranchLine(string.Empty, string.Empty, false);
         }
 
