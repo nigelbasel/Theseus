@@ -395,6 +395,9 @@
             <MenuItem Header="Spawn follow-on…"
                       Command="{Binding SpawnFollowOnCommand}"
                       ToolTip="Create a new card this one hands over to, in the same working directory" />
+            <MenuItem Header="{Binding HandoffRenameMenuText}" Command="{Binding RenameHandoffCommand}"
+                      ToolTip="Rename this card's handover file to match its title. Only while its session is not running"
+                      Visibility="{Binding HandoffRenameTo, Converter={StaticResource NotEmptyToVisibility}}" />
             <MenuItem Header="_Verify with holdouts…"
                       Command="{Binding VerifyWithHoldoutsCommand}" ToolTipService.ShowOnDisabled="True"
                       ToolTip="Create a verifier card that runs the holdout scenarios this card's spec names, and reports only a verdict back. Needs the holdout scenarios folder set in Tools > Options; not offered for a verifier card or an archived one" />

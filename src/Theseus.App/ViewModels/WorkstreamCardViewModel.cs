@@ -14,6 +14,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     private string _resources = string.Empty;
     private string _resourcesTooltip = string.Empty;
     private bool _stopPending;
+    private string _handoffRenameTo = string.Empty;
     private string _runningAs = string.Empty;
     private string _clash = string.Empty;
     private string _linkedShare = string.Empty;
@@ -577,6 +578,28 @@ public sealed class WorkstreamCardViewModel : ObservableObject
 
     /// <summary>Creates a verifier card for this card's change, from its menu (verifier-card AC 9).</summary>
     public RelayCommand? VerifyWithHoldoutsCommand { get; set; }
+
+    /// <summary>
+    /// The handover file name the card's menu offers to rename to, to match its title, or empty when none is offered
+    /// (handoff-names AC 5).
+    /// </summary>
+    public string HandoffRenameTo
+    {
+        get => _handoffRenameTo;
+        set
+        {
+            if (Set(ref _handoffRenameTo, value))
+            {
+                Raise(nameof(HandoffRenameMenuText));
+            }
+        }
+    }
+
+    /// <summary>What the menu item says.</summary>
+    public string HandoffRenameMenuText => $"Rename handover to {System.IO.Path.GetFileName(_handoffRenameTo)}";
+
+    /// <summary>Renames the card's handover file to match its title (handoff-names AC 6).</summary>
+    public RelayCommand? RenameHandoffCommand { get; set; }
 
     /// <summary>Opens the New dialog with this card as the parent, from the card's menu.</summary>
     public RelayCommand? SpawnFollowOnCommand

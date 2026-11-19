@@ -1371,6 +1371,7 @@ public sealed class ShellViewModel : ObservableObject
             card.MenuPauseCommand ??= new RelayCommand(_ => PauseAll(Targets(card), pause: !card.IsPaused));
             card.PropertiesCommand ??= new RelayCommand(_ => ShowCard(card));
             card.VerifyWithHoldoutsCommand ??= new RelayCommand(_ => VerifyWithHoldouts(card), _ => CanVerify(card));
+            card.RenameHandoffCommand ??= new RelayCommand(_ => RenameHandoff(card), _ => card.HandoffRenameTo.Length > 0);
         }
 
         // Every card with a transcript, live or not: which model a stopped session was on is worth
@@ -1381,7 +1382,9 @@ public sealed class ShellViewModel : ObservableObject
 
         var handoffs = Board.Cards.ToDictionary(card => card, card => HandoffPath.For(card.Workstream));
 
+        ResolveSharedHandoffs(handoffs);
         SyncClashes(handoffs);
+        SyncHandoffRenames(handoffs);
         PublishSnapshot(handoffs);
         CloseFinishedSessions();
     }
@@ -1525,6 +1528,108 @@ public sealed class ShellViewModel : ObservableObject
         Notice = archived
             ? $"Archived {title}. It is under Archived until you restore it."
             : $"Restored {title}.";
+    }
+
+    /// <summary>
+    /// Gives each card that shares a handover file with the card the file is named after a file of its own, starting
+    /// with a line that points at the shared one. Only for cards with no running session, which was told the old path;
+    /// a file already there is never overwritten; a file that names no one card is left, with today's warning
+    /// (handoff-names AC 1 to 4, Nigel 2026-11-19).
+    /// </summary>
+    private void ResolveSharedHandoffs(Dictionary<WorkstreamCardViewModel, string> handoffs)
+    {
+        var shared = handoffs
+            .GroupBy(entry => entry.Value, StringComparer.OrdinalIgnoreCase)
+            .Where(group => group.Count() > 1)
+            .ToList();
+
+        foreach (var group in shared)
+        {
+            var owner = HandoffOwner.Of(group.Key, [.. group.Select(entry => (entry.Key.Key, entry.Key.Title))]);
+
+            if (owner is null)
+            {
+                continue;
+            }
+
+            foreach (var card in group.Select(entry => entry.Key)
+                         .Where(card => !string.Equals(card.Key, owner, StringComparison.OrdinalIgnoreCase) && !card.IsLive))
+            {
+                var own = HandoffPointer.OwnFile(group.Key, card.Key);
+
+                try
+                {
+                    if (!File.Exists(own))
+                    {
+                        File.WriteAllText(own, HandoffPointer.Text(group.Key, DateOnly.FromDateTime(DateTime.Now))
+                            + Environment.NewLine, new System.Text.UTF8Encoding(false));
+                    }
+                }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+                {
+                    TheseusLog.Warning(exception, "Could not give {Workstream} a handover file of its own at {File}", card.Key, own);
+
+                    continue;
+                }
+
+                card.Workstream = card.Workstream with { StatusDocumentPath = own };
+                Board.Persist(card);
+                handoffs[card] = own;
+
+                TheseusLog.Information(
+                    "{Workstream} shared its handover file {Shared} with {Owner}, which it is named after; its notes now go to {Own}",
+                    card.Key, group.Key, owner, own);
+                Notice = $"{card.Title} has its own handover file now, {Path.GetFileName(own)}: it was sharing one with another card.";
+            }
+        }
+    }
+
+    /// <summary>Tells each card whether its menu offers to rename its handover file to match its title (AC 5).</summary>
+    private static void SyncHandoffRenames(Dictionary<WorkstreamCardViewModel, string> handoffs)
+    {
+        foreach (var (card, file) in handoffs)
+        {
+            var target = HandoffRename.Target(file, card.Title);
+
+            card.HandoffRenameTo = HandoffRename.Offered(file, card.Title, card.IsLive, File.Exists(file), File.Exists(target))
+                                   ?? string.Empty;
+        }
+    }
+
+    /// <summary>
+    /// Moves a card's handover file to the name its title gives, and makes that its handover file: one move, nothing
+    /// copied or deleted, and only while nothing is running (AC 6).
+    /// </summary>
+    private void RenameHandoff(WorkstreamCardViewModel card)
+    {
+        var current = HandoffPath.For(card.Workstream);
+        var target = HandoffRename.Target(current, card.Title);
+
+        if (HandoffRename.Offered(current, card.Title, card.IsLive, File.Exists(current), File.Exists(target)) is null)
+        {
+            Notice = $"{card.Title}'s handover file was not renamed: its session is running, the file is missing, or the new name is taken.";
+
+            return;
+        }
+
+        try
+        {
+            File.Move(current, target, overwrite: false);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            TheseusLog.Warning(exception, "Could not rename {Current} to {Target}", current, target);
+            Notice = $"{card.Title}'s handover file could not be renamed: {exception.Message}";
+
+            return;
+        }
+
+        card.Workstream = card.Workstream with { StatusDocumentPath = target };
+        Board.Persist(card);
+
+        TheseusLog.Information("Renamed {Workstream}'s handover file from {Current} to {Target}", card.Key, current, target);
+        Notice = $"Renamed {card.Title}'s handover file to {Path.GetFileName(target)}.";
+        Refresh();
     }
 
     private void SyncClashes(Dictionary<WorkstreamCardViewModel, string> handoffs)
