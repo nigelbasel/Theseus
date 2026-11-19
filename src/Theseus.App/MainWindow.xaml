@@ -1626,6 +1626,10 @@
                                                             </ToggleButton.Template>
                                                         </ToggleButton>
                                                         <ContentPresenter Grid.Column="1" ContentSource="Header" HorizontalAlignment="Stretch" />
+                                                        <!-- Fluent's own selection mark: the fill alone is too faint to see (re-verify should-fix 1). -->
+                                                        <Border x:Name="SelectionBar" Grid.Column="0" Width="3" Height="16" CornerRadius="1.5"
+                                                                HorizontalAlignment="Left" VerticalAlignment="Center" Visibility="Collapsed"
+                                                                Background="{DynamicResource AccentFillColorDefaultBrush}" />
                                                     </Grid>
                                                     </Border>
                                                     <ItemsPresenter x:Name="Children" Margin="16,0,0,0" />
@@ -1635,6 +1639,7 @@
                                                     <Trigger Property="IsSelected" Value="True">
                                                         <Setter TargetName="Highlight" Property="Background"
                                                                 Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+                                                        <Setter TargetName="SelectionBar" Property="Visibility" Value="Visible" />
                                                     </Trigger>
                                                     <Trigger Property="IsExpanded" Value="False">
                                                         <Setter TargetName="Children" Property="Visibility" Value="Collapsed" />

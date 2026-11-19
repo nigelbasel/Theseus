@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Markup;
 using System.Windows.Media;
 using System.Xml.Linq;
@@ -50,11 +51,17 @@ public class ChainsTreeTitleTests
     {
         var state = Descendants<TextBlock>(LaidOut()).First(text => text.Text == "waiting");
 
-        var wanted = state.DesiredSize.Width - state.Margin.Left - state.Margin.Right;
+        // The width the state's text needs with nothing pressing on it, against the room it was laid out in and the
+        // size it was drawn at. Its desired size shrinks with the room offered, so it cannot show a squeeze
+        // (re-verify should-fix 2).
+        var alone = new TextBlock { Text = state.Text, FontSize = state.FontSize, FontFamily = state.FontFamily };
+        alone.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        var needed = alone.DesiredSize.Width;
+        var room = LayoutInformation.GetLayoutSlot(state).Width - state.Margin.Left - state.Margin.Right;
 
-        TestContext.Out.WriteLine($"state actual {state.ActualWidth:0.##}, wanted {wanted:0.##}");
-        Assert.That(state.ActualWidth, Is.GreaterThanOrEqualTo(wanted - 0.5),
-            "the title gives way, not the state (rule 4; review should-fix 3: a sliver would pass the other test)");
+        TestContext.Out.WriteLine($"state needs {needed:0.##}, has room {room:0.##}, drawn {state.RenderSize.Width:0.##}");
+        Assert.That(room, Is.GreaterThanOrEqualTo(needed - 0.5), "the title gives way, not the state (rule 4)");
+        Assert.That(state.RenderSize.Width, Is.GreaterThanOrEqualTo(needed - 0.5), "and it is drawn whole");
     }
 
     private static TreeView LaidOut()

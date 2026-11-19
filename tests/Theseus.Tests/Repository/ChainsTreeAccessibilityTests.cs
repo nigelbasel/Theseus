@@ -38,6 +38,23 @@ public class ChainsTreeAccessibilityTests
     }
 
     [Test]
+    public void TheSelectedRow_CarriesTheAccentSelectionBar()
+    {
+        var (tree, host) = LaidOut();
+        var row = Descendants<TreeViewItem>(tree).First();
+        var bar = Descendants<Border>(row).First(border => border.Name == "SelectionBar");
+
+        Assert.That(bar.Visibility, Is.EqualTo(Visibility.Collapsed), "no mark before it is selected");
+
+        row.IsSelected = true;
+        host.UpdateLayout();
+
+        Assert.That(bar.Visibility, Is.EqualTo(Visibility.Visible),
+            "the fill alone is a contrast of about 1.1:1; Fluent marks a selected row with an accent bar (re-verify should-fix 1)");
+        Assert.That(bar.ActualWidth, Is.EqualTo(3).Within(0.5));
+    }
+
+    [Test]
     public void AnUnselectedRow_IsNotHighlighted()
     {
         var (tree, _) = LaidOut();
