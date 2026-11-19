@@ -163,7 +163,8 @@ public partial class App : Application
 
         _resources = new ResourcesViewModel(
             () => [.. shell.Board.Cards],
-            sessionId => shell.Sessions.Find(sessionId)?.Pid);
+            sessionId => shell.Sessions.Find(sessionId)?.Pid,
+            current.CoreClamp);
         shell.Resources = _resources;
 
         _attention = new AttentionSampler(

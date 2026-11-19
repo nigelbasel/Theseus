@@ -74,6 +74,9 @@ public sealed record TheseusSettings(
     /// </summary>
     public IReadOnlyList<string> Areas { get; init; } = [];
 
+    /// <summary>The figures behind the cores-held-back warning in the status bar (parked-cores, 2026-11-19).</summary>
+    public CoreClampSettings CoreClamp { get; init; } = new();
+
     /// <summary>
     /// The folder a spawned workstream's brief and report go in, named relative to the working
     /// directory of the workstream that spawned it, never as an absolute path (Nigel, 2026-10-21).

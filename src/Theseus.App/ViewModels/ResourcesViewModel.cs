@@ -31,7 +31,11 @@ public sealed class ResourcesViewModel : ObservableObject, IDisposable
     private readonly SubagentActivityReader _subagents = new(WorkflowRunReader.DefaultDirectory);
     private readonly WorkflowActivityReader _workflows = new(WorkflowRunReader.DefaultDirectory);
     private readonly DispatcherTimer _timer;
+    private readonly ICoreCounters _cores = new PdhCoreCounters();
+    private readonly CoreClampWatch _clamp;
     private string _machineText = string.Empty;
+    private string _clampText = string.Empty;
+    private string _clampTooltip = string.Empty;
     private bool _sampling;
     private bool _disposed;
 
@@ -39,10 +43,13 @@ public sealed class ResourcesViewModel : ObservableObject, IDisposable
     /// Creates the reading over the board's cards. <paramref name="processFor"/> gives the Claude Code
     /// process of a running session, by session id.
     /// </summary>
-    public ResourcesViewModel(Func<IReadOnlyList<WorkstreamCardViewModel>> cards, Func<string?, int?> processFor)
+    /// <param name="clamp">The figures for the cores-held-back warning, from the settings file.</param>
+    public ResourcesViewModel(Func<IReadOnlyList<WorkstreamCardViewModel>> cards, Func<string?, int?> processFor,
+        Theseus.Core.Settings.CoreClampSettings? clamp = null)
     {
         _cards = cards;
         _processFor = processFor;
+        _clamp = new CoreClampWatch(clamp ?? new Theseus.Core.Settings.CoreClampSettings());
         _timer = new DispatcherTimer(DispatcherPriority.Background) { Interval = Interval };
         _timer.Tick += async (_, _) => await SampleAsync();
         _timer.Start();
@@ -58,11 +65,29 @@ public sealed class ResourcesViewModel : ObservableObject, IDisposable
     /// <summary>What the status bar's figures mean.</summary>
     public string MachineTooltip => MachineExplanation;
 
+    /// <summary>
+    /// The cores-held-back warning, for example "Cores held back: 16 of 20 parked under load", or empty when there is
+    /// none (parked-cores, 2026-11-19).
+    /// </summary>
+    public string ClampText
+    {
+        get => _clampText;
+        private set => Set(ref _clampText, value);
+    }
+
+    /// <summary>What the warning means, what to check, and the figures behind it.</summary>
+    public string ClampTooltip
+    {
+        get => _clampTooltip;
+        private set => Set(ref _clampTooltip, value);
+    }
+
     /// <summary>Stops reading.</summary>
     public void Dispose()
     {
         _disposed = true;
         _timer.Stop();
+        _cores.Dispose();
     }
 
     private async Task SampleAsync()
@@ -83,14 +108,14 @@ public sealed class ResourcesViewModel : ObservableObject, IDisposable
                     Process: _processFor(card.Workstream.LastSessionId)))
                 .ToList();
 
-            var (reading, agents) = await Task.Run(() =>
+            var (reading, agents, cores) = await Task.Run(() =>
             {
                 var now = DateTimeOffset.UtcNow;
                 var taken = _sampler.Take(SystemProcessTable.Capture(),
                     targets.Select(target => target.Process).OfType<int>());
                 var running = targets.ToDictionary(target => target.Card, target => Agents(target.SessionId, now));
 
-                return (taken, running);
+                return (taken, running, _cores.Read());
             });
 
             if (_disposed)
@@ -108,6 +133,7 @@ public sealed class ResourcesViewModel : ObservableObject, IDisposable
             }
 
             MachineText = ResourceText.Machine(reading.Machine, reading.HasRates);
+            ShowClamp(cores);
         }
         catch (Exception exception)
         {
@@ -117,6 +143,23 @@ public sealed class ResourcesViewModel : ObservableObject, IDisposable
         {
             _sampling = false;
         }
+    }
+
+    private void ShowClamp(CoreSample? cores)
+    {
+        var state = _clamp.Observe(cores);
+
+        if (state.Started && cores is not null)
+        {
+            TheseusLog.Warning("{Line}", CoreClampText.Started(cores));
+        }
+        else if (state.Stopped)
+        {
+            TheseusLog.Information("{Line}", CoreClampText.Stopped(cores));
+        }
+
+        ClampText = state.Standing && cores is not null ? CoreClampText.Status(cores) : string.Empty;
+        ClampTooltip = state.Standing && cores is not null ? CoreClampText.Tooltip(cores) : string.Empty;
     }
 
     private int Agents(string? sessionId, DateTimeOffset now)

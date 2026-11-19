@@ -1890,6 +1890,16 @@
                                Visibility="{Binding Resources.MachineText, Converter={StaticResource NotEmptyToVisibility}}"
                                Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
 
+                    <!--
+                        Cores held back (parked-cores, Nigel 2026-11-19): shown only while most processors are parked
+                        and the rest saturated, in the board's amber, with the likely cause in the tooltip.
+                    -->
+                    <TextBlock Text="{Binding Resources.ClampText}" FontSize="11" Margin="12,0,0,0"
+                               VerticalAlignment="Center"
+                               ToolTip="{Binding Resources.ClampTooltip}"
+                               Visibility="{Binding Resources.ClampText, Converter={StaticResource NotEmptyToVisibility}}"
+                               Foreground="#D68910" />
+
                     <StackPanel Orientation="Horizontal" Margin="18,0,0,0" VerticalAlignment="Center"
                                 Visibility="{Binding Usage.HasReading, Converter={StaticResource BoolToVisibility}}">
                         <TextBlock Text="{Binding Usage.SessionText}" FontSize="11"
