@@ -36,7 +36,9 @@ stages:
     outputs: [work/<issue>/plan.md]
     produces: >
       The steps, the files in each repo, the tests to write first, and the risks. Each step names how it
-      will be verified.
+      will be verified. When code moves out of an existing sequence (a refresh, a pipeline, a lock), the plan
+      lists what that sequence guaranteed (fresh reads, order, locks held) and how the new path keeps each
+      (close-step P21).
     gate:
       kind: human
       who: owner
@@ -66,6 +68,8 @@ stages:
       live check's scratch setup exercises every criterion it claims; criteria it cannot reach are named in
       plan.md, so review knows where to look (card-branches P13). The verifier removes each guard or
       condition the change adds, in a copy, and reports any test that still passes (parked-cores P16).
+      Live-check steps are given to the owner exactly as the verifier wrote and checked them; a step that has to
+      change is checked against the code again first (close-step P20).
     gate:
       kind: evidence
       passes_when: >

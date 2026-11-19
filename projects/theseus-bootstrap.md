@@ -37,7 +37,7 @@ method layer for agentic development, usable from one developer to a team, by us
 **Workstreams:**
 | Card | Branch | Repos | Artefacts |
 |---|---|---|---|
-| git-22 | main | Theseus | none (this objective's output is `method/`) |
+| the Theseus workstream | main | Theseus | none (this objective's output is `method/`) |
 
 ### Objective 0.2: Holdout scenarios
 
@@ -46,7 +46,7 @@ method layer for agentic development, usable from one developer to a team, by us
 - [ ] They are stored where implementing sessions can neither read nor change them.
 
 **Pipeline:** freeform
-**Workstreams:** git-22, writing to the holdout repository before its access guard was installed.
+**Workstreams:** the Theseus workstream, writing to the holdout repository before its access guard was installed.
 
 ### Objective 0.3: Five changes through the method by hand
 
@@ -57,7 +57,7 @@ method layer for agentic development, usable from one developer to a team, by us
   ad hoc work), and time and cost.
 
 **Pipeline:** feature or bug, per change
-**Workstreams:** all run by card git-22 on `main`, in the Theseus repo, one after another (chosen 2026-11-18):
+**Workstreams:** all run by the Theseus workstream on `main`, in the Theseus repo, one after another (chosen 2026-11-18):
 | Slug | Change | Pipeline |
 |---|---|---|
 | readme-runtime | The README asks for the .NET 10 runtime; the app targets .NET 11 and ships framework-dependent | bug |

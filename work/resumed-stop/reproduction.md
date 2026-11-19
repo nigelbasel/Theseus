@@ -1,6 +1,6 @@
 # resumed-stop: reproduction
 
-Pipeline: `bug` (method kit v0), stage **reproduce**, autonomy L0. Card git-22, branch `main`, repo Theseus.
+Pipeline: `bug` (method kit v0), stage **reproduce**, autonomy L0. Branch `main`, repo Theseus.
 Chosen by Nigel on 2026-11-18 as an extra stage 0 change, from L3 in `work/stop-timing/evidence.md`, taking with it
 F1, F3 and F4 from `work/stop-timing/review.md`.
 

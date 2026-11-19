@@ -1,7 +1,7 @@
 # resumed-stop: lessons
 
 Pipeline: `bug` (method kit v0), with a review and this compound stage added by Nigel's decision (2026-11-18), autonomy
-L0. Card git-22, branch `main`, repo Theseus. Proposals only: Nigel decides which, if any, become changes to `method/`.
+L0. Branch `main`, repo Theseus. Proposals only: Nigel decides which, if any, become changes to `method/`.
 
 ## Time and cost (measured)
 

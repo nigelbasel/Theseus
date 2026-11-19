@@ -1,6 +1,6 @@
 # parked-cores: research
 
-Pipeline: `feature` (method kit v0), stage **research**, autonomy L0. Card git-22, branch `main`, repo Theseus.
+Pipeline: `feature` (method kit v0), stage **research**, autonomy L0. Branch `main`, repo Theseus.
 No code changes in this stage.
 
 ## The ask

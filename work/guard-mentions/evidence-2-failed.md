@@ -1,6 +1,6 @@
 # guard-mentions: verify evidence (attempt 2)
 
-Pipeline: `bug` (method kit v0), stage **verify, attempt 2**, autonomy L0. Card git-22, branch `main`, repo Theseus.
+Pipeline: `bug` (method kit v0), stage **verify, attempt 2**, autonomy L0. Branch `main`, repo Theseus.
 Verifier: a fresh sub-agent started by the implementer (partial independence: same machine, same parent session;
 it did not write the fix, and read `fix.md` only after checks 1 to 5).
 
@@ -25,7 +25,7 @@ Commits checked: `f3418f6` (failing tests), `7036ae2` (pass 1), `de8619a` (pass 
 
 | # | Check | Result | Evidence |
 |---|---|---|---|
-| 1 | Full suite `dotnet test Theseus.slnx --nologo --logger "console;verbosity=normal"` | PASS | 1421 total, 1421 passed, 0 failed, 0 skipped, exit 0, "Total time: 1.5237 Minutes". No build error, no rerun. Logged line by line to `C:\Users\nigel\.claude\logs\git-22.log` under `<guard-mentions-verify-2>`, banner 12:47:51.384, last line 12:50:16.058. |
+| 1 | Full suite `dotnet test Theseus.slnx --nologo --logger "console;verbosity=normal"` | PASS | 1421 total, 1421 passed, 0 failed, 0 skipped, exit 0, "Total time: 1.5237 Minutes". No build error, no rerun. Logged line by line to the workstream log under `<guard-mentions-verify-2>`, banner 12:47:51.384, last line 12:50:16.058. |
 | 2 | Reproduction tests unchanged | PASS | `git diff f3418f6 HEAD -- tests/Theseus.Tests/Locks/LockGuardTests.cs` is empty (0 bytes). |
 | 3 | Regressions: locked runs and harmless mentions allowed | **FAIL** | 31 locked runs (11 from attempt 1, 20 new) and 27 mentions (14 from attempt 1, 13 new). All 11 attempt-1 locked runs and F13 now allowed (pass 2 fixed them). **2 NEW false refusals (M4, M5)**: a locked run with a quoted, multi-word `VAR=` prefix, `NDC_TEST_LOCK_REASON="two words" bash ~/.claude/bin/ndc-test-lock.sh run ...`. The pre-fix guard allowed them; pass 1 and pass 2 refuse them, because `programAndArgument` strips `VAR=\S*`, so the program becomes `words"`. CLAUDE.md tells sessions to set `NDC_TEST_LOCK_REASON="..."`, so this is a realistic form. 1 PRE-EXISTING false refusal (H9, a PowerShell here-string commit message containing an apostrophe and a line starting `bash ndc-test-lock.sh`). |
 | 4 | Adversarial, quote handling | **FAIL** | 59 commands expected to be refused (33 from attempt 1, 26 new X1 to X26) plus 3 controls. **12 NEW bypasses, each confirmed in the real shell** (the unlocked command executed): X1, X2, X3, X4, X8, X19, X21, X23 (Bash) and X9, X10, X20, X22 (PowerShell). Pass 1 refused all 12; the pre-fix guard allowed all 12. Mechanism: a quote character that the shell does not treat as opening a quote (`\"` or `\'` outside quotes in bash, a quote in a bash `#` comment, bash `$'it\'s'`, PowerShell `` `" ``, PowerShell `"x\"` where `\` is not an escape) makes `splitOutsideQuotes` think a quote is open, so the following `;` or newline is not split, the unlocked command stays inside the lock-run segment, and lock-run segments are never checked. X20 also hides a WSL `bash` lock run behind a Git Bash one. X24 and X25 (unterminated quotes) are allowed by the guard but the shell refuses to run them (syntax error), so not bypasses. 8 PRE-EXISTING bypasses from attempt 1 remain (A6, A8, A9, A14, A15, A16, P6, P7). |
@@ -37,7 +37,7 @@ Commits checked: `f3418f6` (failing tests), `7036ae2` (pass 1), `de8619a` (pass 
 `L` = `~/.claude/bin/ndc-test-lock.sh`; `GB` = `& "C:\Program Files\Git\bin\bash.exe" "$HOME/.claude/bin/ndc-test-lock.sh"`;
 `T` = `dotnet test X.sln`; `\n` / `\r\n` are real line breaks. "Shell" is the real-shell check: **ran** = the
 unlocked command executed. Full data: `results.json` and `semantics.json` in
-`C:\Users\nigel\AppData\Local\Temp\claude\3c9e613a9d1facbc\233623bc-2f72-4934-ba2b-c4a52669d270\scratchpad\verify2\`.
+`<scratch>\verify2\`.
 
 ### Adversarial (expected: deny)
 
@@ -62,7 +62,7 @@ unlocked command executed. Full data: `results.json` and `semantics.json` in
 | A17 | Bash | `"ndc-test-lock.sh" status && dotnet test X.Api.Tests` | deny | deny | allow | | OK |
 | A18 | Bash | `./ndc-test-lock.sh status\r\nT` | deny | deny | allow | | OK |
 | A19 | Bash | `node ndc-test-lock.sh && T` | deny | deny | allow | | OK |
-| A20 | Bash | `bash L run a b -- echo hi; NDC=1 T` | deny | deny | allow | | OK |
+| A20 | Bash | `bash L run a b -- echo hi; FLAG=1 T` | deny | deny | allow | | OK |
 | A21 | Bash | `bash L run s s -- dotnet build X.sln && T` | deny | deny | allow | | OK |
 | P1 | PowerShell | `Write-Output "ndc-test-lock.sh"; T` | deny | deny | deny | | OK |
 | P2 | PowerShell | `GB status; T` | deny | deny | allow | | OK |
@@ -241,4 +241,4 @@ strip quoted `VAR="..."` values in `programAndArgument`.
 
 | Stage | Started | Finished | Notes |
 |---|---|---|---|
-| verify, attempt 2 | 2026-11-18 12:47:08 | 2026-11-18 12:54:27 | Full suite 12:47:51.384 to 12:50:16.058 in `C:\Users\nigel\.claude\logs\git-22.log`. Harness, guard copies (`guard-now.js`, `guard-pass1.js`, `guard-prefix.js`), `harness.js`, `semantics.js`, `results.json`, `semantics.json` and `sem-*.sh`/`sem-*.ps1` in `C:\Users\nigel\AppData\Local\Temp\claude\3c9e613a9d1facbc\233623bc-2f72-4934-ba2b-c4a52669d270\scratchpad\verify2\`. |
+| verify, attempt 2 | 2026-11-18 12:47:08 | 2026-11-18 12:54:27 | Full suite 12:47:51.384 to 12:50:16.058 in the workstream log. Harness, guard copies (`guard-now.js`, `guard-pass1.js`, `guard-prefix.js`), `harness.js`, `semantics.js`, `results.json`, `semantics.json` and `sem-*.sh`/`sem-*.ps1` in `<scratch>\verify2\`. |

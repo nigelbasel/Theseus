@@ -1,6 +1,6 @@
 # readme-runtime: fix
 
-Pipeline: `bug` (method kit v0), stage **fix**, autonomy L0. Card git-22, branch `main`, repo Theseus.
+Pipeline: `bug` (method kit v0), stage **fix**, autonomy L0. Branch `main`, repo Theseus.
 Started on Nigel's acceptance of the reproduce stage ("yes, go ahead with the fix").
 
 ## Cause

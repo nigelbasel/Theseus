@@ -1,6 +1,6 @@
 # parked-cores: plan
 
-Pipeline: `feature` (method kit v0), stage **plan**, autonomy L0. Card git-22, branch `main`, repo Theseus.
+Pipeline: `feature` (method kit v0), stage **plan**, autonomy L0. Branch `main`, repo Theseus.
 Implements `spec.md` (approved by Nigel, 2026-11-19, with its three provisional defaults). One repo.
 
 ## Design

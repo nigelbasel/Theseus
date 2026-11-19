@@ -1,6 +1,6 @@
 ﻿# parked-cores: spec
 
-Pipeline: `feature` (method kit v0), stage **spec**, autonomy L0. Card git-22, branch `main`, repo Theseus.
+Pipeline: `feature` (method kit v0), stage **spec**, autonomy L0. Branch `main`, repo Theseus.
 Scope: option A of `research.md`, chosen by Nigel on 2026-11-19.
 
 ## Goal

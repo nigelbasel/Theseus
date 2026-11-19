@@ -1,6 +1,6 @@
 # resumed-stop: fix
 
-Pipeline: `bug` (method kit v0), autonomy L0. Card git-22, branch `main`, repo Theseus.
+Pipeline: `bug` (method kit v0), autonomy L0. Branch `main`, repo Theseus.
 
 ## Spec (stage **rule**, for Nigel's approval)
 

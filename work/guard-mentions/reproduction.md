@@ -1,6 +1,6 @@
 # guard-mentions: reproduction
 
-Pipeline: `bug` (method kit v0), stage **reproduce**, autonomy L0. Card git-22, branch `main`, repo Theseus.
+Pipeline: `bug` (method kit v0), stage **reproduce**, autonomy L0. Branch `main`, repo Theseus.
 
 ## The report
 
