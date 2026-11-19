@@ -227,9 +227,9 @@ be done.
 
 ## Notes on this verification
 
-- Files written: this file, and inside `...\scratchpad\close-step-verify\copy2\` only (`tree\`, `bb9b753\`,
-  `_verify\`). Nothing was deleted. The background-task output files the tool harness keeps under
-  `...\233623bc-2f72-4934-ba2b-c4a52669d270\tasks\` are written by the harness for every background command, not by
+- Files written: this file, and inside `<scratch>\close-step-verify\copy2\` only (`tree\`, `bb9b753\`,
+  `_verify\`). Nothing was deleted. The background-task output files the tool harness keeps under the session's
+  own `tasks` folder are written by the harness for every background command, not by
   this verification; they are named here so the owner is not surprised by them.
 - `dotnet test` and `dotnet build` in the worktree wrote their usual `bin` / `obj` output there; `git status` stayed
   clean.

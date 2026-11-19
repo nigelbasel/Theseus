@@ -200,7 +200,7 @@ exits, and the "Typed /exit" stage can never be shown. Separately, the stage can
 
 - Files written besides this one: build and test logs and the mutation script, all under the scratchpad
   (`<scratch>\fullsuite.txt`,
-  `...\scratchpad\close-step-verify\build-924e0e4.txt`, `...\build-head-clean.txt`, and `copy\_verify\`). Two of the
-  logs sit beside the copy folder rather than inside it. Nothing was deleted. The workstream log in
-  the workstream log was not written, since the brief allowed only this file.
+  `<scratch>\close-step-verify\build-924e0e4.txt`, `<scratch>\close-step-verify\build-head-clean.txt`, and
+  `copy\_verify\`). Two of the logs sit beside the copy folder rather than inside it. Nothing was deleted. The
+  workstream log was not written, since the brief allowed only this file.
 - `dotnet test` in the worktree wrote its usual `bin` / `obj` output there.
