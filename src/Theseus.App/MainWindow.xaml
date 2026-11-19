@@ -1565,9 +1565,20 @@
                                                 BorderBrush="{Binding ColorHex, Converter={StaticResource HexToBrush}}"
                                                 Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
                                             <StackPanel>
-                                                <Button Content="{Binding Title}" FontSize="12" Padding="0" HorizontalAlignment="Left"
+                                                <!-- A long title ends in "…", as in the tree (links-tree-scrollbar question 3, Nigel 2026-11-19). -->
+                                                <Button FontSize="12" Padding="0" HorizontalAlignment="Left"
+                                                        HorizontalContentAlignment="Left"
                                                         Background="Transparent" BorderThickness="0" Cursor="Hand"
-                                                        ToolTip="Open this card's details" Command="{Binding Show}" />
+                                                        AutomationProperties.HelpText="Open this card's details"
+                                                        Command="{Binding Show}">
+                                                    <Button.ToolTip>
+                                                        <StackPanel>
+                                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                                                            <TextBlock Text="Open this card's details" />
+                                                        </StackPanel>
+                                                    </Button.ToolTip>
+                                                    <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+                                                </Button>
                                                 <TextBlock Text="{Binding WaitsOn}" FontSize="11" TextWrapping="Wrap"
                                                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
                                             </StackPanel>

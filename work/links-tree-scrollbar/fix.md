@@ -48,6 +48,14 @@ symptom (moving the bar).
 | Should fix 2: the panel's "Ready" list has the same untrimmed button | **Left alone on purpose:** it has no scrollbar problem (a plain list in the panel's scroller), and the rule covers the tree. A long title there is cut at the edge with no "…". Question 3 for Nigel |
 | Considers | The keyboard case is noted here: with the standard selection highlight gone, arrow keys show only the focus rectangle. `HorizontalAlignment="Stretch"` is the default and is kept for clarity. The tooltip's title line is a live check |
 
+## The "Ready" list (question 3; Nigel chose A, 2026-11-19 20:58)
+
+The panel's "Ready" list gets the same title treatment, in this change: the title is a trimming `TextBlock` ("…"
+inside the panel), the tooltip gives the full title above "Open this card's details", and the button has
+`AutomationProperties.HelpText`. Tests `ChainsReadyListTests` (new file): the trimming test failed before the change;
+the help-text test passed before it (the old tooltip was a string, which WPF reads as help text) and is the guard for
+the richer tooltip, checked by removing the help text by hand (it fails; restored, P27). Full suite 1564 of 1564.
+
 ## Not reachable by the tests
 
 How it looks on the real board (the chevron's look, spacing, the tooltip): Nigel's live look in the morning.
