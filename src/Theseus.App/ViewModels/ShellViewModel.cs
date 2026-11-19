@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.Windows.Threading;
 using Theseus.App.Services;
 using Theseus.Core.Abstractions;
 using Theseus.Core.Diagnostics;
@@ -39,6 +40,7 @@ public sealed class ShellViewModel : ObservableObject
 
     /// <summary>The stops already told to exit (<see cref="ExitsTyped"/>).</summary>
     private readonly ExitsTyped _closed = new();
+    private DispatcherTimer? _closeRecheck;
 
     /// <summary>
     /// Stops that were asked for before this Theseus started, and have not been agreed to yet.
@@ -933,6 +935,7 @@ public sealed class ShellViewModel : ObservableObject
         var interrupted = 0;
         var underway = 0;
         var heldBack = 0;
+        var stuck = new List<string>();
 
         foreach (var step in steps)
         {
@@ -954,6 +957,14 @@ public sealed class ShellViewModel : ObservableObject
                     if (_unconfirmed.Contains(step.SessionId))
                     {
                         heldBack++;
+                    }
+                    else if (_stopRequests.Delivered(step.SessionId) is { } given
+                             && _closed.LastAttempt(given) is { Result: not ExitResult.Sent } failed)
+                    {
+                        // Its last /exit did not land, so promising a close would be wrong: say what its card says
+                        // (close-step AC 10).
+                        stuck.Add(StopStageText.For(
+                            new StopState(StopStage.ExitFailed, failed.AtUtc, failed.Result), TimeZoneInfo.Local));
                     }
                     else
                     {
@@ -1023,7 +1034,13 @@ public sealed class ShellViewModel : ObservableObject
 
         // The refresh runs the close step, so a session already handed over and quiet is closed on this press.
         Refresh();
-        Notice = Describe(asked, waiting, unreached, blocked, interrupted, underway, heldBack);
+        var described = Describe(asked, waiting, unreached, blocked, interrupted, underway, heldBack);
+
+        Notice = stuck.Count == 0
+            ? described
+            : stuck.Count == steps.Count
+                ? string.Join(" ", stuck)
+                : $"{string.Join(" ", stuck)} {described}";
     }
 
     /// <summary>
@@ -1290,6 +1307,7 @@ public sealed class ShellViewModel : ObservableObject
                 _ => SpawnFollowOnCommand.Execute(card),
                 _ => Targets(card).Count == 1 && SpawnFollowOnCommand.CanExecute(card));
             card.PauseCommand ??= new RelayCommand(_ => Pause(card));
+            card.CloseNowCommand ??= new RelayCommand(_ => CloseNow(card), _ => card.CanCloseNow);
             card.MenuPauseCommand ??= new RelayCommand(_ => PauseAll(Targets(card), pause: !card.IsPaused));
             card.PropertiesCommand ??= new RelayCommand(_ => ShowCard(card));
         }
@@ -1350,75 +1368,177 @@ public sealed class ShellViewModel : ObservableObject
     /// </summary>
     private void CloseFinishedSessions()
     {
+        var now = DateTimeOffset.UtcNow;
+        var waiting = new List<DateTimeOffset>();
+
         foreach (var card in Board.Cards)
         {
-            if (card.Workstream.LastSessionId is not { } sessionId
-                || Sessions.Find(sessionId) is not { } session
-                || _unconfirmed.Contains(sessionId))
+            if (CloseOne(card, now) is { Verdict: CloseVerdict.Wait, QuietEndsUtc: { } quietEnds })
             {
-                continue;
+                waiting.Add(quietEnds);
             }
+        }
 
-            var delivered = _stopRequests.Delivered(sessionId);
+        ArmCloseRecheck(CloseRecheck.Next(waiting));
+        SyncStopStates();
+    }
 
-            if (delivered is not null && SessionClosing.StartedSince(delivered, session.StartedUtc))
+    /// <summary>The close step for one card: retires, closes, or says when it should be looked at again.</summary>
+    private CloseDecision CloseOne(WorkstreamCardViewModel card, DateTimeOffset now)
+    {
+        if (card.Workstream.LastSessionId is not { } sessionId
+            || Sessions.Find(sessionId) is not { } session
+            || _unconfirmed.Contains(sessionId))
+        {
+            return new CloseDecision(CloseVerdict.Skip);
+        }
+
+        var delivered = _stopRequests.Delivered(sessionId);
+        var handoffWritten = StopTiming.HandoffWrittenUtc(delivered?.HandoffPath);
+        var decision = SessionClosing.Decide(delivered, session.StartedUtc, handoffWritten, session.Status,
+            session.StatusSinceUtc, now, _closed.AlreadyTyped(delivered));
+
+        if (decision.Verdict == CloseVerdict.Retire)
+        {
+            if (_stopRequests.Retire(sessionId) && !_closed.IsFinished(delivered))
             {
-                if (_stopRequests.Retire(sessionId) && !_closed.IsFinished(delivered))
-                {
-                    StopTiming.ReportUnfinished(delivered, delivered: true, StopRemoval.NewerSession, DateTimeOffset.UtcNow);
-                }
-
-                TheseusLog.Information(
-                    "Retired the stop request for {Workstream}: the session running now started after it was asked, so it is not the one that was asked",
-                    card.Key);
-                continue;
-            }
-
-            var handoffWritten = StopTiming.HandoffWrittenUtc(delivered?.HandoffPath);
-
-            if (!SessionClosing.ShouldClose(delivered, handoffWritten, session.Status,
-                    session.StatusSinceUtc, DateTimeOffset.UtcNow, _closed.AlreadyTyped(delivered)))
-            {
-                continue;
-            }
-
-            _closed.Typed(delivered!);
-
-            var outcome = TabNudge.Nudge(session.Pid, session.Name, SessionClosing.ExitCommand);
-
-            // The request is finished with the moment the exit is typed, and is taken off disk here
-            // rather than left to expire. `_closed` above only stops a second attempt inside this
-            // process; it is empty again in the next one, so a request left lying about was acted on
-            // by every Theseus that started for the next four hours. On 2026-09-02 that closed this
-            // very session twice, hours apart, the second time long after it had been resumed.
-            //
-            // A request whose keystrokes never landed is deliberately left alone: nothing was told to
-            // exit, so there is still something to do, and Sweep expires it if that never happens.
-            if (outcome == NudgeOutcome.Sent)
-            {
-                _closed.Finished(delivered!);
-                _stopRequests.Retire(sessionId);
-                StopTiming.ReportFinished(delivered!, handoffWritten, DateTimeOffset.UtcNow);
-
-                // The one ending Theseus can be certain of, recorded at the moment it is caused.
-                // Nothing else was recording it: the reconcile only writes an ending when a session
-                // it watched vanishes, and files it as a crash. Of 168 endings in the log, 134 said
-                // CrashedOrKilled and 11 ClosedCleanly, and the six sessions stopped on the evening
-                // of 2026-09-03 had no ending at all - which is what let the day report credit a
-                // resumed session with the days it had been dead.
-                if (_runs.Read()
-                        .Where(run => run.EndedUtc is null
-                                      && string.Equals(run.ClaudeSessionId, sessionId, StringComparison.OrdinalIgnoreCase))
-                        .MaxBy(run => run.StartedUtc) is { } open)
-                {
-                    _runs.AppendEnd(new RunEnd(open.Id, DateTimeOffset.UtcNow, null, SessionExitReason.ClosedCleanly));
-                }
+                StopTiming.ReportUnfinished(delivered!, delivered: true, StopRemoval.NewerSession, DateTimeOffset.UtcNow);
             }
 
             TheseusLog.Information(
-                "Closing {Workstream}, which was asked to stop and has handed over: {Outcome}",
-                card.Key, outcome);
+                "Retired the stop request for {Workstream}: it was handed to an earlier run of the session, not the one running now",
+                card.Key);
+
+            return decision;
         }
+
+        if (decision.Verdict != CloseVerdict.Close)
+        {
+            return decision;
+        }
+
+        _closed.Typed(delivered!);
+
+        var outcome = TabNudge.Nudge(session.Pid, session.Name, SessionClosing.ExitCommand);
+
+        _closed.Attempted(delivered!, new ExitAttempt(ExitResults.From(outcome), DateTimeOffset.UtcNow));
+
+        // The request is finished with the moment the exit is typed, and is taken off disk here
+        // rather than left to expire. `_closed` above only stops a second attempt inside this
+        // process; it is empty again in the next one, so a request left lying about was acted on
+        // by every Theseus that started for the next four hours. On 2026-09-02 that closed this
+        // very session twice, hours apart, the second time long after it had been resumed.
+        //
+        // A request whose keystrokes never landed is deliberately left alone: nothing was told to
+        // exit, so there is still something to do, and Sweep expires it if that never happens.
+        if (outcome == NudgeOutcome.Sent)
+        {
+            _stopRequests.Retire(sessionId);
+            StopTiming.ReportFinished(delivered!, handoffWritten, DateTimeOffset.UtcNow);
+
+            // The one ending Theseus can be certain of, recorded at the moment it is caused.
+            // Nothing else was recording it: the reconcile only writes an ending when a session
+            // it watched vanishes, and files it as a crash. Of 168 endings in the log, 134 said
+            // CrashedOrKilled and 11 ClosedCleanly, and the six sessions stopped on the evening
+            // of 2026-09-03 had no ending at all - which is what let the day report credit a
+            // resumed session with the days it had been dead.
+            if (_runs.Read()
+                    .Where(run => run.EndedUtc is null
+                                  && string.Equals(run.ClaudeSessionId, sessionId, StringComparison.OrdinalIgnoreCase))
+                    .MaxBy(run => run.StartedUtc) is { } open)
+            {
+                _runs.AppendEnd(new RunEnd(open.Id, DateTimeOffset.UtcNow, null, SessionExitReason.ClosedCleanly));
+            }
+        }
+
+        TheseusLog.Information(
+            "Closing {Workstream}, which was asked to stop and has handed over: {Outcome}",
+            card.Key, outcome);
+
+        return decision;
+    }
+
+    /// <summary>
+    /// Runs the close step again at the given moment, or cancels the run when nothing is waiting. One timer, re-armed
+    /// on every pass for the earliest waiting session, and running the close step only: a full refresh has taken
+    /// seconds on this machine (close-step AC 1 to 3).
+    /// </summary>
+    private void ArmCloseRecheck(DateTimeOffset? when)
+    {
+        if (when is not { } due)
+        {
+            _closeRecheck?.Stop();
+
+            return;
+        }
+
+        if (_closeRecheck is null)
+        {
+            _closeRecheck = new DispatcherTimer(DispatcherPriority.Background);
+            _closeRecheck.Tick += (_, _) =>
+            {
+                _closeRecheck.Stop();
+                CloseFinishedSessions();
+            };
+        }
+
+        var delay = due - DateTimeOffset.UtcNow;
+
+        _closeRecheck.Stop();
+        _closeRecheck.Interval = delay > TimeSpan.Zero ? delay : TimeSpan.Zero;
+        _closeRecheck.Start();
+    }
+
+    /// <summary>Tells each card whether a stop is under way for it, how far it has got, and whether Close now is offered.</summary>
+    private void SyncStopStates()
+    {
+        foreach (var card in Board.Cards)
+        {
+            var state = StopStateOf(card, out var delivered);
+
+            card.IsStopping = state is not null;
+            card.StopTooltip = state is null ? string.Empty : StopStageText.For(state, TimeZoneInfo.Local);
+            card.CanCloseNow = state is not null && _closed.MayCloseNow(delivered);
+        }
+
+        System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+    }
+
+    private StopState? StopStateOf(WorkstreamCardViewModel card, out PendingStopRequest? delivered)
+    {
+        delivered = null;
+
+        if (card.Workstream.LastSessionId is not { } sessionId || Sessions.Find(sessionId) is null)
+        {
+            return null;
+        }
+
+        delivered = _stopRequests.Delivered(sessionId);
+
+        return StopState.Of(_stopRequests.Waiting(sessionId), delivered,
+            StopTiming.HandoffWrittenUtc(delivered?.HandoffPath), _closed.LastAttempt(delivered));
+    }
+
+    /// <summary>
+    /// The owner pressed Close now: one more attempt at /exit, made only if the session is ready to close at this
+    /// moment. Otherwise nothing is typed and nothing will retry it later on its own (close-step AC 9).
+    /// </summary>
+    private void CloseNow(WorkstreamCardViewModel card)
+    {
+        if (card.Workstream.LastSessionId is not { } sessionId
+            || _stopRequests.Delivered(sessionId) is not { } delivered
+            || !_closed.AllowCloseNow(delivered))
+        {
+            return;
+        }
+
+        if (CloseOne(card, DateTimeOffset.UtcNow).Verdict != CloseVerdict.Close)
+        {
+            _closed.Typed(delivered);
+            Notice = $"{card.Title} was not closed: it is no longer idle and quiet. Close now can be pressed again once it is.";
+        }
+
+        SyncStopStates();
     }
 
     /// <summary>

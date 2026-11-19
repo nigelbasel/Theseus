@@ -639,9 +639,21 @@
                             <Button Style="{StaticResource CardIcon}" Content="&#xE71A;"
                                     ToolTip="Stop: ask this session to write a handoff and exit when its turn ends"
                                     AutomationProperties.Name="Stop"
-                                    Visibility="{Binding IsLive, Converter={StaticResource BoolToVisibility}}"
+                                    Visibility="{Binding ShowStop, Converter={StaticResource BoolToVisibility}}"
                                     Command="{Binding DataContext.StopCardCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                     CommandParameter="{Binding}" />
+                            <!--
+                                While a stop is under way the Stop icon gives way to this, which cannot be pressed,
+                                in the board's amber, saying how far the stop has got (close-step AC 5 and 6).
+                            -->
+                            <TextBlock Text="&#xE71A;" FontFamily="Segoe MDL2 Assets" FontSize="13" Foreground="#D68910"
+                                       Width="28" Height="24" TextAlignment="Center" Padding="0,5,0,0" Background="Transparent"
+                                       ToolTip="{Binding StopTooltip}" AutomationProperties.Name="Stopping"
+                                       Visibility="{Binding IsStopping, Converter={StaticResource BoolToVisibility}}" />
+                            <Button Content="Close now" Padding="6,0" Height="24" Margin="2,0,0,0"
+                                    ToolTip="Type /exit into this session once more. Brings its terminal to the front."
+                                    Visibility="{Binding CanCloseNow, Converter={StaticResource BoolToVisibility}}"
+                                    Command="{Binding CloseNowCommand}" />
                             <Button Content="&#xE769;" ToolTip="{Binding PauseTooltip}" AutomationProperties.Name="Pause"
                                     Command="{Binding PauseCommand}">
                                 <Button.Style>
@@ -2265,7 +2277,7 @@
                                                 CommandParameter="{Binding Drawer.Card}" />
                                         <Button Content="Stop" Padding="12,3" Margin="0,0,6,0"
                                                 ToolTip="Ask this session to write a handoff and exit when its turn ends"
-                                                Visibility="{Binding Drawer.Card.IsLive, Converter={StaticResource BoolToVisibility}}"
+                                                Visibility="{Binding Drawer.Card.ShowStop, Converter={StaticResource BoolToVisibility}}"
                                                 Command="{Binding StopCardCommand}"
                                                 CommandParameter="{Binding Drawer.Card}" />
                                         <Button Content="Focus" Padding="12,3" Margin="0,0,6,0"
