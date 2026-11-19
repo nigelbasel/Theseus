@@ -4,7 +4,8 @@ A small, versioned set of plain files that says how agentic work is run: which s
 goes through, who does each, what each produces, and what has to be true before it moves on. Theseus is
 built with it (the bootstrap) and will run it for others.
 
-**Version:** v0, stage 0 of the Theseus bootstrap. Expect it to change after the five hand-run changes.
+**Version:** `method-v0.1` (2026-11-19), the kit as it stood at the end of stage 0 of the Theseus bootstrap, after six
+hand-run changes and 17 lessons.
 
 ## What is in it
 
@@ -76,6 +77,8 @@ Ad hoc work can be promoted to a project. Its handoff becomes the project's firs
   request, rather than in a form; Theseus's UI is for seeing where work is, its evidence, and approving
   gates and promotions; Theseus reports malformed method files rather than ignoring them.
 - **Where the kit lives long-term:** here for now (decided 2026-11-19); revisit when other team members use it.
-- **Pinning:** a project names the kit version it follows, so a change to the kit does not reach a running project
-  unannounced. [tag scheme not yet decided]
+- **Pinning, by hand for now:** a project names the kit version it follows, as a `Kit:` line in its project file, so
+  a change to the kit does not reach a running project unannounced. Versions are git tags `method-v<major>.<minor>`
+  in this repo, separate from app releases; the first is `method-v0.1` (2026-11-19). A project moves to a newer
+  version deliberately. Theseus does not yet read the `Kit:` line.
 - **L1 Prepared:** [definition not yet written].
