@@ -24,7 +24,7 @@ public static class CoreClampText
         return string.Join("\n",
             "The machine is keeping most of its cores parked while the rest are saturated, so work waits.",
             "Usually heat: blocked vents, dusty fans, or a laptop on a soft surface.",
-            "Sometimes the power plan's minimum processor state.",
+            "Sometimes the power plan's minimum cores setting (core parking).",
             figures);
     }
 

@@ -44,3 +44,23 @@ Full suite **1542 of 1542**, 0 warnings. No existing test file changed.
 | Stage | Started | Finished | Notes |
 |---|---|---|---|
 | implement | 2026-11-19 09:27:44 (logged) | this commit's time | 1542/1542 |
+
+## Pass 2 (after verify part 1 failed, `evidence-part1-attempt1.md`; option A, Nigel)
+
+| Finding | Done |
+|---|---|
+| F1 (defect) | The tooltip named the power plan's "minimum processor state", a clock-speed setting; the spec says the minimum **cores** setting, which governs parking. Now "the power plan's minimum cores setting (core parking)" |
+| F2 | `Read` catches any exception: logged once, then the reader stops, and the board carries on without the warning |
+| F3 | A failed array read is a failure, logged once, not a silent null on every sample |
+| F4 | Tests added for a hold of zero or less (acts as one), a parked share above one (never warns), and every processor parked (no clamp) |
+| Shutdown race | `Read` and `Dispose` take the same lock |
+
+Tests: new file `tests/Theseus.Tests/Resources/ParkedCoresFixTests.cs` (5). The wording test failed before the fix; the
+four rule tests cover behaviour that was already right and had no test. **One existing test changed** (rule P12):
+`CoreClampTextTests.TheTooltip_SaysWhatItMeansWhatToCheckAndTheFigures` asserted the wrong setting's name, which was the
+F1 defect; it now asserts the minimum cores setting. Full suite **1547 of 1547**, 0 warnings.
+
+Recorded, not fixed: the layout and "logged once" behaviour have no unit test (the live Get-Counter comparison checks the
+layout); a running core with no valid busy value counts as 0%; and **a failed read stops the reader until the board
+restarts**, so a transient PDH error would leave the warning off: the safe direction (a missed warning, never a false
+one).

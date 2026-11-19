@@ -21,7 +21,8 @@ public class CoreClampTextTests
 
         Assert.That(tooltip, Does.StartWith("The machine is keeping most of its cores parked while the rest are saturated, so work waits."));
         Assert.That(tooltip, Does.Contain("Usually heat: blocked vents, dusty fans, or a laptop on a soft surface."));
-        Assert.That(tooltip, Does.Contain("Sometimes the power plan's minimum processor state."));
+        Assert.That(tooltip, Does.Contain("Sometimes the power plan's minimum cores setting (core parking)."),
+            "the setting that governs parking; minimum processor state, asserted here before, is a different one");
         Assert.That(tooltip, Does.Contain("16 of 20 parked; the rest 98% busy; clock 122% of base."));
     }
 
