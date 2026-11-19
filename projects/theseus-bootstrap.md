@@ -158,6 +158,12 @@ owner merges every pull request himself; no session does. Stage 0's commits stra
 
 **Exit gate:** 10 pull requests produced at L2 have been merged, with their rework and cost known.
 
+- Proposed objective (Nigel, 2026-11-19): **effort ranges from recorded times.** At the spec and plan gates a card
+  shows a range drawn from similar finished work (owner's time, elapsed time, tokens, and how often a second fix
+  pass was needed), always with the number of past items behind it, never a single figure. Actuals are recorded
+  against it, and nothing is written to a tracker. It rests on the measurements 1.5 adds and the result blocks 1.1
+  adds, so it waits until there are dozens of items, not six. [criteria to be written]
+
 - Objective 2.1: a worktree per repo for each workstream, one branch name across its repos. [criteria to be written]
 - Objective 2.2: a headless runner, with budgets and circuit breakers. [criteria to be written]
 - Objective 2.3: an overnight queue. [criteria to be written]
