@@ -58,4 +58,7 @@ public sealed record Workstream(
     /// so without this there is nowhere to tell one workstream's sessions something every time.
     /// </summary>
     public string? EveryStartPrompt { get; init; }
+
+    /// <summary>What this card's sessions are for: none, or verifier (verifier-card, 2026-11-19).</summary>
+    public WorkstreamRole Role { get; init; }
 }

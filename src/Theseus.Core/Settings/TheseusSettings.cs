@@ -83,6 +83,16 @@ public sealed record TheseusSettings(
     /// </summary>
     public string BriefFolderName { get; init; } = Links.BriefFolder.DefaultName;
 
+    /// <summary>
+    /// The clone of the private holdout scenarios. The holdout guard reads it from this file (it keeps no path of its
+    /// own, P19), and Verify with holdouts… runs a verifier there. Empty: no holdout, and the guard allows everything
+    /// (verifier-card AC 4 and 7, Nigel 2026-11-19).
+    /// </summary>
+    public string HoldoutFolder { get; init; } = string.Empty;
+
+    /// <summary>The holdout's remote address, such as host/owner/repo, which the guard also refuses to non-verifiers.</summary>
+    public string HoldoutRemote { get; init; } = string.Empty;
+
     /// <summary>Which rows were folded away, so a board left tidy opens tidy.</summary>
     public IReadOnlyList<string> CollapsedAreas { get; init; } = [];
 

@@ -90,6 +90,9 @@ public sealed class ChainsViewModel : ObservableObject
     /// <summary>Told, in words, when a report arrives that the board has not shown before.</summary>
     public Action<string>? ReportArrived { get; set; }
 
+    /// <summary>Told when the owner confirms a report, after the link is satisfied (verifier-card AC 13).</summary>
+    public Action<Link>? ReportConfirmed { get; set; }
+
     /// <summary>Whether no card has a link yet, so the tab explains how to make one.</summary>
     public bool HasNoChains => Roots.Count == 0;
 
@@ -550,7 +553,18 @@ public sealed class ChainsViewModel : ObservableObject
 
     private string? Satisfy(string id, string reason) => Changed(_book.Satisfy(id, reason));
 
-    private string? Confirm(string id) => Changed(_book.Confirm(id));
+    private string? Confirm(string id)
+    {
+        var link = _book.All.FirstOrDefault(each => string.Equals(each.Id, id, StringComparison.Ordinal));
+        var refusal = Changed(_book.Confirm(id));
+
+        if (refusal is null && link is not null)
+        {
+            ReportConfirmed?.Invoke(link);
+        }
+
+        return refusal;
+    }
 
     private static string Mark(LinkState state) => state switch
     {

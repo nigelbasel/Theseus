@@ -25,6 +25,11 @@ public sealed class ProcessLauncher : IProcessLauncher
             startInfo.ArgumentList.Add(argument);
         }
 
+        foreach (var (name, value) in request.Environment)
+        {
+            startInfo.Environment[name] = value;
+        }
+
         var process = Process.Start(startInfo)
             ?? throw new InvalidOperationException($"Could not start '{request.ExecutablePath}'.");
 

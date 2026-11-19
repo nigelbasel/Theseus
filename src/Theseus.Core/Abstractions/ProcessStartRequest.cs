@@ -9,4 +9,8 @@ namespace Theseus.Core.Abstractions;
 public sealed record ProcessStartRequest(
     string ExecutablePath,
     IReadOnlyList<string> Arguments,
-    string WorkingDirectory);
+    string WorkingDirectory)
+{
+    /// <summary>Variables set on the child, on top of what it inherits. Empty to change nothing.</summary>
+    public IReadOnlyDictionary<string, string> Environment { get; init; } = new Dictionary<string, string>();
+}

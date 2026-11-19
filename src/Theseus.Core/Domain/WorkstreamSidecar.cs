@@ -53,4 +53,10 @@ public sealed record WorkstreamSidecar(
     /// because sessions rewrite their plan files and would drop a field they do not know about.
     /// </summary>
     public string? EveryStartPrompt { get; init; }
+
+    /// <summary>
+    /// What the card's sessions are for. Kept here, as the every-start prompt is, because sessions rewrite their plan
+    /// files; and because only the board may set it (verifier-card AC 1 and 3).
+    /// </summary>
+    public WorkstreamRole Role { get; init; }
 }

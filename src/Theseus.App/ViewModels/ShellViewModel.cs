@@ -6,6 +6,7 @@ using Theseus.Core.Diagnostics;
 using Theseus.Core.Domain;
 using Theseus.Core.Colour;
 using Theseus.Core.Launching;
+using Theseus.Core.Links;
 using Theseus.Core.Sessions;
 using Theseus.Core.Settings;
 using Theseus.Core.Stopping;
@@ -120,6 +121,8 @@ public sealed class ShellViewModel : ObservableObject
         InvertSelectionCommand = new RelayCommand(_ => Invert(), _ => Board.Cards.Any());
         SelectLiveCommand = new RelayCommand(_ => SelectLive(), _ => Board.Cards.Any(card => card.IsLive));
         ArchiveSelectedCommand = new RelayCommand(_ => ArchiveSelected(), _ => Chosen().Any(card => !card.IsLive));
+        VerifySelectedWithHoldoutsCommand = new RelayCommand(_ => VerifyWithHoldouts(Chosen()[0]),
+            _ => Chosen() is [var only] && CanVerify(only));
         MarkSelectedPausedCommand = new RelayCommand(_ => MarkSelected(workstream => workstream with { IsPaused = true }, "paused"),
             _ => Chosen().Any(card => !card.IsPaused));
         MarkSelectedBlockedCommand = new RelayCommand(_ => MarkSelected(workstream => workstream with { IsBlocked = true }, "blocked"),
@@ -558,6 +561,9 @@ public sealed class ShellViewModel : ObservableObject
     /// <summary>Asks the ticked cards' running sessions to write a handoff and exit.</summary>
     public RelayCommand StopSelectedCommand { get; }
 
+    /// <summary>Creates a verifier card for the one ticked card (verifier-card AC 9).</summary>
+    public RelayCommand VerifySelectedWithHoldoutsCommand { get; }
+
     /// <summary>Folds the live sessions panel away, or brings it back.</summary>
     public RelayCommand ToggleSessionsPanelCommand { get; }
 
@@ -759,6 +765,70 @@ public sealed class ShellViewModel : ObservableObject
 
         Board.RememberFolds();
         System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+    }
+
+    private static bool CanVerify(WorkstreamCardViewModel card) =>
+        !card.IsArchived && card.Workstream.Role != WorkstreamRole.Verifier;
+
+    /// <summary>
+    /// Creates a verifier card for this card: a follow-on in the holdout clone with the checked card's repos in reach,
+    /// role verifier, linked both ways, with its fixed brief. It starts nothing (verifier-card AC 7, 9, 10 and 12).
+    /// </summary>
+    private void VerifyWithHoldouts(WorkstreamCardViewModel card)
+    {
+        var holdout = _settings.Read().HoldoutFolder;
+
+        if (string.IsNullOrWhiteSpace(holdout))
+        {
+            Notice = "Set the holdout scenarios folder in Settings first: a verifier card runs there.";
+
+            return;
+        }
+
+        if (!CanVerify(card))
+        {
+            Notice = $"{card.Title} cannot be verified: it is a verifier itself, or archived.";
+
+            return;
+        }
+
+        var verifier = VerifierCard.For(card.Workstream, holdout, DateTimeOffset.Now);
+        var key = WorkstreamKey.Unique(verifier.Title, [.. _plans.Keys(), .. Chains?.TakenKeys ?? []]);
+
+        _plans.Write(key, new SessionPlan(_plans.Keys().Count + 1, verifier.Title, card.Workstream.ColorHex,
+            verifier.WorkingDirectory, verifier.AddDirectories, null, DateTimeOffset.Now.ToString("s"), verifier.Prompt));
+
+        Refresh();
+        Board.Place(key, card.Column, card.Workstream.Area);
+
+        if (Board.Card(key) is { } created)
+        {
+            created.Workstream = created.Workstream with { Role = VerifierCard.Role };
+            Board.Persist(created);
+        }
+
+        Chains?.FollowedOn(card.Key, key, verifier.ReportPath);
+
+        TheseusLog.Information("Created {Verifier} to verify {Workstream} with the holdout scenarios", key, card.Key);
+        Notice = $"Created {verifier.Title}. Start it when you are ready.";
+    }
+
+    /// <summary>
+    /// A report was confirmed on the board. A verifier's job ends there, so its card is stopped as a Stop press would
+    /// stop it; no other card ever stops without a press (verifier-card AC 13).
+    /// </summary>
+    public void ReportConfirmed(Link link)
+    {
+        ArgumentNullException.ThrowIfNull(link);
+
+        if (Board.Card(link.From) is not { IsLive: true } card
+            || !VerifierEnding.StopsOnConfirm(link.Kind, card.Workstream.Role))
+        {
+            return;
+        }
+
+        TheseusLog.Information("Stopping {Verifier}: its report was confirmed, so its job is done", card.Key);
+        BeginStop(CardSteps(card));
     }
 
     /// <summary>
@@ -1292,6 +1362,7 @@ public sealed class ShellViewModel : ObservableObject
             card.PauseCommand ??= new RelayCommand(_ => Pause(card));
             card.MenuPauseCommand ??= new RelayCommand(_ => PauseAll(Targets(card), pause: !card.IsPaused));
             card.PropertiesCommand ??= new RelayCommand(_ => ShowCard(card));
+            card.VerifyWithHoldoutsCommand ??= new RelayCommand(_ => VerifyWithHoldouts(card), _ => CanVerify(card));
         }
 
         // Every card with a transcript, live or not: which model a stopped session was on is worth

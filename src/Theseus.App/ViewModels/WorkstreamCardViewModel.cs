@@ -575,6 +575,9 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     /// <summary>Opens the card's properties, from its menu or Alt+Enter.</summary>
     public RelayCommand? PropertiesCommand { get; set; }
 
+    /// <summary>Creates a verifier card for this card's change, from its menu (verifier-card AC 9).</summary>
+    public RelayCommand? VerifyWithHoldoutsCommand { get; set; }
+
     /// <summary>Opens the New dialog with this card as the parent, from the card's menu.</summary>
     public RelayCommand? SpawnFollowOnCommand
     {
