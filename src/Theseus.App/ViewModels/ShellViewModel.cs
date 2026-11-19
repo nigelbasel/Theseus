@@ -1473,6 +1473,10 @@ public sealed class ShellViewModel : ObservableObject
             _closeRecheck.Tick += (_, _) =>
             {
                 _closeRecheck.Stop();
+
+                // The sessions are re-read first: the snapshot from the last refresh can be about 20 s old, and a
+                // session that left idle since would still look idle (close-step review S1).
+                Sessions.Refresh();
                 CloseFinishedSessions();
             };
         }
@@ -1523,6 +1527,9 @@ public sealed class ShellViewModel : ObservableObject
         {
             return;
         }
+
+        // Read fresh, as on the timer: the press may come long after the last refresh (close-step review S1).
+        Sessions.Refresh();
 
         if (_closed.TryCloseNow(delivered, () => CloseOne(card, DateTimeOffset.UtcNow)) is { Verdict: not CloseVerdict.Close } decision)
         {

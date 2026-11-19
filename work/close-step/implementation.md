@@ -65,4 +65,4 @@ two tests of states that can occur, and the code was not changed for it. Full su
 
 | Stage | Started | Finished | Notes |
 |---|---|---|---|
-| implement | logged at the stage start in `C:\Users\nigel\.claude\logs\git-22.log` | this stage's commit | |
+| implement | logged at the stage start in the workstream log | this stage's commit | |

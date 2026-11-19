@@ -1,7 +1,7 @@
 # close-step: evidence, part 1
 
 Pipeline: `feature` (method kit v0, P1 to P18), stage **verify, part 1**. Branch `nigel/close-step`, repo Theseus,
-worktree `E:\work\close-step\Theseus`, HEAD `5e4fe15`, compared with `origin/main` (`git diff origin/main...HEAD`).
+the feature worktree, HEAD `5e4fe15`, compared with `origin/main` (`git diff origin/main...HEAD`).
 
 - **Verifier:** an independent sub-agent session that did not write the change. **Partial independence:** it was
   briefed by the implementing workstream's session and read the implementer's plan and implementation notes.
@@ -75,7 +75,7 @@ worktree `E:\work\close-step\Theseus`, HEAD `5e4fe15`, compared with `origin/mai
 
 ## Mutation (P16)
 
-Done in a copy, `C:\Users\nigel\AppData\Local\Temp\claude\3c9e613a9d1facbc\233623bc-2f72-4934-ba2b-c4a52669d270\scratchpad\close-step-verify\copy`
+Done in a copy, `<scratch>\close-step-verify\copy`
 (robocopy of the worktree without `bin`, `obj`, `.git`), one mutation at a time, each file restored from the worktree
 after its run (`diff -rq` of `src` against the worktree empty afterwards). Script and per-run logs are in `copy\_verify\`.
 Core mutations ran the `Theseus.Tests.Stopping` tests (203); App mutations ran the full suite (1587).
@@ -199,8 +199,8 @@ exits, and the "Typed /exit" stage can never be shown. Separately, the stage can
 ## Notes on this verification
 
 - Files written besides this one: build and test logs and the mutation script, all under the scratchpad
-  (`C:\Users\nigel\AppData\Local\Temp\claude\3c9e613a9d1facbc\233623bc-2f72-4934-ba2b-c4a52669d270\scratchpad\fullsuite.txt`,
+  (`<scratch>\fullsuite.txt`,
   `...\scratchpad\close-step-verify\build-924e0e4.txt`, `...\build-head-clean.txt`, and `copy\_verify\`). Two of the
   logs sit beside the copy folder rather than inside it. Nothing was deleted. The workstream log in
-  `C:\Users\nigel\.claude\logs\` was not written, since the brief allowed only this file.
+  the workstream log was not written, since the brief allowed only this file.
 - `dotnet test` in the worktree wrote its usual `bin` / `obj` output there.

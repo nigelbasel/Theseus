@@ -46,4 +46,4 @@ On a released build of the branch, with a scratch card:
 
 | Stage | Started | Finished | Notes |
 |---|---|---|---|
-| plan | logged at the stage start in `C:\Users\nigel\.claude\logs\git-22.log` | this commit's time | |
+| plan | logged at the stage start in the workstream log | this commit's time | |

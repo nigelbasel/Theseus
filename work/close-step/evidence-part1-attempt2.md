@@ -1,7 +1,7 @@
 # close-step: evidence, part 1, attempt 2
 
 Pipeline: `feature` (method kit v0, P1 to P18), stage **verify, part 1, attempt 2**. Branch `nigel/close-step`, repo
-Theseus, worktree `E:\work\close-step\Theseus`, HEAD `279692b`, compared with `origin/main` (`1c5d59e`,
+Theseus, the feature worktree, HEAD `279692b`, compared with `origin/main` (`1c5d59e`,
 `git diff origin/main...HEAD`). The fix pass under test is `bb9b753` (tests first) and `8cfc051`.
 
 - **Verifier:** an independent sub-agent session that did not write the change. **Partial independence:** it was
@@ -111,7 +111,7 @@ adds a user-facing string the approved spec does not contain, **the owner should
 
 ## Mutation (P16)
 
-Copy: `C:\Users\nigel\AppData\Local\Temp\claude\3c9e613a9d1facbc\233623bc-2f72-4934-ba2b-c4a52669d270\scratchpad\close-step-verify\copy2\tree`
+Copy: `<scratch>\close-step-verify\copy2\tree`
 (robocopy of the worktree without `bin`, `obj`, `.git`; `diff -rq` of `src` and `tests` against the worktree empty
 before the runs and after them). One mutation at a time, each file copied back from the worktree after its run.
 Script `copy2\_verify\mutate.sh`, log `copy2\_verify\mutations.log`, one `.diff` and one `.txt` per mutation beside

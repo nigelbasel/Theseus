@@ -101,4 +101,4 @@ spec.
 
 | Stage | Started | Finished | Notes |
 |---|---|---|---|
-| research | logged at the stage start in `C:\Users\nigel\.claude\logs\git-22.log` | this commit's time | Code read in the worktree at 1c5d59e |
+| research | logged at the stage start in the workstream log | this commit's time | Code read in the worktree at 1c5d59e |
