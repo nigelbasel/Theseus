@@ -102,7 +102,8 @@ needs a way to drive Theseus unattended, and Windows minutes in a private repo a
 
 ### Objective 1.1: Checks shown on cards
 - [ ] The kit defines a machine-readable result block in `evidence.md` (stage, result per repo, scenarios run),
-      released as `method-v0.2`.
+      released as `method-v0.2` together with P18. The projects pinned to `method-v0.1` move up then, once, and not
+      before (Nigel, 2026-11-19).
 - [ ] A project workstream's card shows its current stage and whether that stage's gate has passed, read from
       `work/<slug>/`. A stage with no evidence shows as "no evidence", never as passed.
 - [ ] **The board shows a row per project** (Nigel, 2026-11-19), with that project's cards laid out by pipeline stage
