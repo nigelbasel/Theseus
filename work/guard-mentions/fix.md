@@ -98,6 +98,9 @@ The reproduction tests in `LockGuardTests.cs` are still unchanged since they fai
   - command substitution inside a lock-run segment (`$(...)` or backticks);
   - any path ending in `ndc-test-lock.sh` counts as the script (`/tmp/ndc-test-lock.sh`, a fake `Git\bin\bash.exe`).
   The common cause: whatever follows the script inside its own segment is never checked.
+  **Accepted as limits** (Nigel, 2026-11-19), under spec rule 0: the guard protects against accidents by cooperating
+  sessions, and none of these is how such a session writes a test run by accident. Revisit only if one appears in a
+  real transcript.
 - A segment that does **not** run the script is still checked as text, quotes and all, so a commit message that
   contains `dotnet test X.sln` is still refused. That was true before this fix as well.
 - Quotes are honoured only when the quoting is simple (spec rule 2). Otherwise a quoted separator can refuse a

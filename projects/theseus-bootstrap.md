@@ -174,3 +174,4 @@ owner merges every pull request himself; no session does. Stage 0's commits stra
 | 2026-11-18 | A project runs in phases; each phase has derived objectives with acceptance criteria and one exit gate; workstreams serve one derived objective and may run in parallel | Nigel |
 | 2026-11-18 | Projects and workstreams may span repos: one branch name, a worktree per repo; autonomy per repo, lowest wins | Nigel |
 | 2026-11-18 | Method kit in `method/`; artefacts in `work/`; retrospectives in `bootstrap/`; holdouts in a private repository | Nigel |
+| 2026-11-19 | The lock guard's older bypasses (`&`, `$(...)`, backticks, a script path that is not the real one) are accepted limits under the guard's rule 0; revisit only if one appears in a real transcript (`work/guard-mentions/fix.md`) | Nigel |
