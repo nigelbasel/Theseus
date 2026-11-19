@@ -49,6 +49,9 @@ Ad hoc work can be promoted to a project. Its handoff becomes the project's firs
   (resumed-stop P10; guard-mentions and resumed-stop both took three passes.)
 - **New tests go in a new file,** never beside a reproduction test, so "the reproduction test is unchanged since it
   failed" stays a plain diff check. (resumed-stop P9.)
+- **An existing test changes only to correct a wrong expectation.** The change gets its own line in
+  `implementation.md` saying what the test asserted and why that was wrong, and the verifier judges whether it is a
+  correction or a weakening. (card-branches P12.)
 
 ## Decisions recorded here
 
