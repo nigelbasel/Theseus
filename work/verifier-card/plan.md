@@ -1,7 +1,7 @@
 # verifier-card: plan
 
 Pipeline: `feature` (method kit v0), stage **plan**, autonomy L0. Branch `nigel/verifier-card`, repo Theseus. From the
-approved `spec.md`. **Awaiting Nigel's approval.**
+approved `spec.md`. **Approved by Nigel, 2026-11-19, including step 0's headless measurement.**
 
 ## Steps
 
