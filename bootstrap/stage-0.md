@@ -142,5 +142,5 @@ A method is trusted only once it has carried real work: a drafted method is a hy
 - Do one change that spans two repos.
 - Measure the implementer's own tokens, and Nigel's time at gates.
 - Decide whether verifier and reviewer independence needs more than a fresh sub-agent.
-- Decide where the kit lives (its own repo or a plugin), split Theseus's rubric from it, and have the project file name
-  the kit and version it runs, before a second codebase uses the method.
+- Decide where the kit lives (its own repo or a plugin) and have the project file name the kit and version it runs,
+  before a second codebase uses the method. (Theseus's rubric is already out of `method/`.)

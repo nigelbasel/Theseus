@@ -21,7 +21,8 @@ development; the method kit is in [`method/`](method/README.md).
 | `tests/Theseus.Tests` | NUnit tests for all of the above | One test project |
 | `tools/locks` | `ndc-test-lock.sh`, the wrapper script that asks Theseus for a lock | Tested from `tests/Theseus.Tests/Locks` |
 | `docs/` | The user help, published as the GitHub Pages site | User-facing only. Nothing internal, no work artefacts |
-| `method/` | Method kit v0: pipelines, project format, reviewer rubric | Changes to it are reviewed like code |
+| `method/` | Method kit v0, generic: pipelines, project format, rules | Changes to it are reviewed like code. Nothing Theseus-specific |
+| `.agents/` | This repo's own method files: the reviewer rubric | |
 | `projects/` | Project files in the method's format | |
 | `work/<issue>/` | Artefacts of one piece of work run through a pipeline | Kept off the Pages site |
 | `bootstrap/` | Retrospectives of the bootstrap stages | Kept off the Pages site |
