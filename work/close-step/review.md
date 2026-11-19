@@ -138,7 +138,7 @@ public-repo clean-up of the work artefacts. S3 is simplification and can follow.
 | Finding | Disposition |
 |---|---|
 | S1 | **Fixed.** The timer's tick and a Close now press re-read the sessions (`Sessions.Refresh`, not a full board refresh) before the close step decides, so it never acts on a snapshot up to about 20 s old. App code, untested like the rest of the App wiring; checked by the re-verify |
-| S2 | **Decision for Nigel**, asked next: Close now in the menus, or button-only like Focus, recorded dated |
+| S2 | **Fixed (Nigel chose to add it, 2026-11-19).** Close now is in the card's context menu, shown exactly when the card's button is (`CanCloseNow`), with the same command. `tests/Theseus.Tests/Repository/CardMenuTests.cs` failed before the change and passes after. Full suite 1615 of 1615 |
 | S3 | **Recorded as a follow-up simplification:** `ExitsTyped` keeps overlapping records (`_finished` can be derived from the last attempt) and holds the Close now orchestration (`TryCloseNow`). Behaviour is right and tested |
 | S4 | **Fixed for this pull request:** machine paths and the card id removed from `work/close-step/` (worktree, scratch and log paths replaced by descriptions or `<scratch>`). The same problem in the stage 0 work files already on `main` is a separate decision for Nigel |
 | docs wording | **Fixed:** `docs/cards.md` no longer says the icon "cannot be pressed again" (Stop selected still works), and says Close now types only if the session is idle and quiet |
