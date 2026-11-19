@@ -1,7 +1,7 @@
 # close-step: spec
 
 Pipeline: `feature` (method kit v0, P1 to P18), stage **spec**, autonomy L0. Branch `nigel/close-step`, repo Theseus.
-From `research.md`. **Awaiting Nigel's approval.**
+From `research.md`. **Approved by Nigel, 2026-11-19.**
 
 ## What changes, from the owner's side
 
