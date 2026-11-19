@@ -115,4 +115,20 @@ public class CoreClampWatchTests
         Assert.That(watch.Observe(Clamp).Standing, Is.False, "16 of 20 is 80%, below the 90% asked for");
         Assert.That(watch.Observe(new CoreSample(20, 19, 99.5, null)).Standing, Is.True, "one sample is enough when the hold is one");
     }
+
+    [TestCase(0)]
+    [TestCase(-2)]
+    public void AHoldOfZeroOrLess_StillNeedsAClamp_IdleNeverWarns(int held)
+    {
+        var watch = new CoreClampWatch(new CoreClampSettings { HeldSamples = held });
+
+        Assert.That(watch.Observe(Idle).Standing, Is.False, "a hand-edited hold of zero must not make every sample a warning");
+    }
+
+    [Test]
+    public void EveryProcessorParked_IsNoClamp_EvenIfItsBusyFigureIsHigh()
+    {
+        Assert.That(CoreClampWatch.ShowsClamp(new CoreSample(20, 20, 100, null), new CoreClampSettings()), Is.False,
+            "with nothing running there is nothing to be saturated");
+    }
 }
