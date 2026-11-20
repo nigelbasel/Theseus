@@ -152,3 +152,65 @@ named so.
 - AC 9's "before method-v0.2" is measured from the commit that added `**Kit:** method-v0.2`. Once a v0.3 exists and the
   project moves to it, the label will need measuring from that next move (and the reader will need to read v0.3).
 - The workstreams not yet placed under an objective: close-step, handoff-names, links-tree-scrollbar, prerelease-channel.
+
+# Pull request 2
+
+Pipeline `feature`, stage **implement**, from `plan.md` ("Pull request 2"), for `spec.md` ACs 12 to 18 and pull
+request 1's remainders.
+
+## What was built, per AC
+
+| AC | State | Where |
+|---|---|---|
+| 12 | done | `ProjectCardViewModel` and `ProjectCardTemplate` in a cell's project strip (`ColumnViewModel.Projects`): name, current phase, n of m objectives done, the waiting count with its list on hover (`ProjectWaiting`: sessions waiting for input, reports waiting for confirmation, proposals pending, specs waiting). Dragged like a card; its cell is kept in settings (`ProjectCardPlaces`) |
+| 13 | done | `BoardViewModel.KeepOutOfGrid`, from `ProjectGridRule`: a readable project's cards leave the grid and stay in `Board.Cards`, so Start, Stop and selection reach them; an unreadable, pinned or unlisted project's come back. The session drawer and Sessions panel are untouched. An open view whose project stops reading closes with a notice |
+| 14 | done | `Views/ProjectView.xaml`, its own user control, in place of the board in the main grid (`IsBoardShown`, `IsProjectOpen`); opened by double-click, Open on the project card's menu, or View › Open project; breadcrumb **Board › <project>** back. The drawer, side panels and status bar are outside it and stay |
+| 15 | done | Tree of phases (current marked), objectives (ticked n of m) and slugs (stage, gates passed, Waiting on you); selecting scrolls to the row. A row per objective with workstreams across the seven columns; cards use the board's `CardTemplate`, so face, menu and click selection are the board's, and Shift follows the view's order (`Board.SelectionOrder`). Cards are not dragged in the view. Waiting on you with Open spec and Accept spec. Every command is on the menu bar: View › Open project, View › Back to the board, Workstream › Open spec, Workstream › Accept spec, and the existing Start selected and the rest |
+| 16 | done | The view has no fold; folding on the board is unchanged |
+| 17 | done | View › Rows › **Folder** (was Project); the setting is still saved as `Project`; `docs/board.md` says so |
+| 18 | done | A promoted ad hoc card joins through PR 1's Project menu, keeps its key, and from then on is in the view and out of the grid (it is the same rule as AC 13) |
+| 4 (rest) | done | No slug yet and Not in the project file are rows of the view; not started and earlier slugs show at their own stage, not as cards |
+| 5 (rest) | done | `WorkstreamCardViewModel.FaceTooltip`: the working directory, then for a project card the branch and commit read; an ad hoc card's tooltip is unchanged |
+| 7 (rest) | done | Accept spec asks with `SpecAtGate.ConfirmationQuestion` (slug, project, short commit, source) and only a yes writes `SpecAcceptanceStore` (`AcceptIfConfirmed`) |
+| 10 (rest) | done | `VerifierEnding.HasEnded`: a verifier has ended once its report back is accepted, the moment it is also stopped; it then leaves its subject's row |
+| 22 | done | With no project repositories nothing runs, no rule keeps a card out of the grid, no cell holds a project card, the menu items are hidden, and tooltips are unchanged; the strip with no project card lays out at no height (`ProjectViewMarkupTests`) |
+
+The stages' git reads run inside the background read (`ProjectArtefacts.Attach`, per slug, after the catalogue); the
+UI thread only combines them with the acceptance store.
+
+## Decisions
+
+1. **`Board.Cards` is every card loaded**, not the cards in cells. Before this the two were the same set; now a
+   project's cards are kept out of the cells and must still be started, stopped, selected and refreshed.
+2. **The project card's place** is remembered by project name in settings. It is dropped on a cell's cards or its
+   project strip. A column or row the current view does not have puts it in the first cell; dragging follows the
+   board's rule (only in the stages view).
+3. **The waiting count's reports** are those waiting for confirmation (state Reported) on a link that touches one of
+   the project's cards; lost reports are not counted.
+4. **Waiting on you sits on the waiting entry in the spec column**, with its two buttons, rather than on a line drawn
+   between columns: the view draws no lines (departure 4).
+5. **Open spec opens a copy** of the spec as it was read, at the commit Accept names, in Theseus's data folder
+   (`specs/<project>-<slug>-<commit>.md`): the folder's checkout may hold another version.
+6. **Placement of slugs with no stage**: a slug with nothing written, or not on this machine, shows in the first column
+   with its note; a freeform slug, or one whose objective has no pipeline chosen, shows only in the tree unless a card
+   holds it.
+7. **The view is rebuilt only when what it shows changes** (`Signature`), so the tree's selection and the scroll stay
+   put across refreshes.
+8. **The rubber band selects on the board only**; in the view, selection is by click, Ctrl+click and Shift+click.
+9. **The menu bar's project items are hidden** while there is nothing to offer (no readable project, no open project,
+   no waiting spec), which keeps a board with no projects exactly as it was.
+10. **Read cost.** Each background read now also reads every slug's artefacts, several git commands a slug, every 30
+    seconds while repositories are listed; none of it on the UI thread.
+
+## Not checked
+
+- The whole window was not rendered: the user control is laid out in a test (tree, columns, rows, Waiting on you), the
+  window's wiring is checked in its markup, and the empty project strip is laid out alone.
+- Dragging a project card, the double-click, Open spec's launching of an editor and the message box are not covered by
+  tests: they are code-behind and App wiring around tested view models.
+
+## Suite
+
+`dotnet test Theseus.slnx -p:NuGetAudit=false` at the pull request 2 commit: **1964 of 1964 passed, 0 warnings** (the
+workstream log); 36 tests are new since pull request 1's 1928. One existing test changed: the settings round-trip
+copies the new `ProjectCardPlaces` dictionary across, as it does every other collection, and asserts it round-trips.
