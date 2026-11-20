@@ -61,6 +61,9 @@ public sealed class ProposalsViewModel : ObservableObject
         Updated?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>A proposal by its id, decided or not, or null.</summary>
+    public WorkstreamProposal? Find(string proposalId) => _book.Find(proposalId);
+
     /// <summary>Marks a proposal approved once the composer has created its card.</summary>
     public void Approved(string proposalId, string key)
     {

@@ -8,6 +8,7 @@ using Theseus.Core.Domain;
 using Theseus.Core.Colour;
 using Theseus.Core.Launching;
 using Theseus.Core.Links;
+using Theseus.Core.Projects;
 using Theseus.Core.Sessions;
 using Theseus.Core.Settings;
 using Theseus.Core.Stopping;
@@ -20,6 +21,13 @@ public sealed class ShellViewModel : ObservableObject
 {
     private readonly ISettingsStore _settings;
     private string _holdoutFolder = string.Empty;
+    private readonly IGitReader _git = new GitCli();
+    private IReadOnlyList<ProjectFileReading> _projectReadings = [];
+    private string _projectSummary = string.Empty;
+    private IReadOnlyList<ProjectChoice> _projectChoices = [];
+    private string? _projectFolders;
+    private DateTimeOffset _projectsReadUtc;
+    private static readonly TimeSpan ProjectReadInterval = TimeSpan.FromSeconds(30);
     private readonly LaunchCoordinator _launcher;
     private readonly IPlanStore _plans;
     private readonly ITabColourAllocator _colours;
@@ -187,8 +195,11 @@ public sealed class ShellViewModel : ObservableObject
                     Chains?.FollowedOn(parent, created.Key, created.ReportTo);
                 }
 
+                Theseus.Core.Proposals.WorkstreamProposal? approved = null;
+
                 if (created.ProposalId is { } proposal)
                 {
+                    approved = Chains?.Proposals?.Find(proposal);
                     Chains?.Proposals?.Approved(proposal, created.Key);
                 }
 
@@ -197,6 +208,11 @@ public sealed class ShellViewModel : ObservableObject
                     Notice = "The workstream was created but is not on the board yet.";
 
                     return;
+                }
+
+                if (approved is not null)
+                {
+                    JoinProposersProject(card, approved);
                 }
 
                 if (created.StartNow)
@@ -639,6 +655,7 @@ public sealed class ShellViewModel : ObservableObject
         WireLanes();
         Timed("sessions", Sessions.Refresh);
         Timed("lifecycles", SyncLifecycles);
+        Timed("projects", WireProjects);
         Timed("regroup", Board.Regroup);
         Timed("pull requests", SyncPullRequests);
         WireAdoption();
@@ -810,11 +827,11 @@ public sealed class ShellViewModel : ObservableObject
 
         if (Board.Card(key) is { } created)
         {
-            created.Workstream = created.Workstream with
+            created.Workstream = ProjectMembership.ForVerifier(created.Workstream with
             {
                 Role = VerifierCard.Role,
                 StatusDocumentPath = verifier.HandoffPath,
-            };
+            }, card.Workstream);
             Board.Persist(created);
         }
 
@@ -822,6 +839,124 @@ public sealed class ShellViewModel : ObservableObject
 
         TheseusLog.Information("Created {Verifier} to verify {Workstream} with the holdout scenarios", key, card.Key);
         Notice = $"Created {verifier.Title}. Start it when you are ready.";
+    }
+
+    /// <summary>The menu bar's Project items, acting on the ticked cards; empty while no project is readable (AC 4, 22).</summary>
+    public IReadOnlyList<ProjectChoice> ProjectChoices
+    {
+        get => _projectChoices;
+        private set
+        {
+            if (Set(ref _projectChoices, value))
+            {
+                Raise(nameof(HasProjectChoices));
+            }
+        }
+    }
+
+    /// <summary>Whether the menu bar shows Project at all.</summary>
+    public bool HasProjectChoices => _projectChoices.Count > 0;
+
+    /// <summary>
+    /// Reads the projects in the listed repositories and offers their slugs on every card's menu and the menu bar.
+    /// With no repositories listed nothing runs and nothing is offered (project-view AC 1, 4 and 22).
+    /// </summary>
+    private void WireProjects()
+    {
+        var folders = _settings.Read().ProjectRepositories;
+        var key = string.Join("\n", folders);
+
+        // Each read is several git processes, and a refresh can come every few seconds while sessions write their plans.
+        if (!string.Equals(key, _projectFolders, StringComparison.OrdinalIgnoreCase)
+            || DateTimeOffset.UtcNow - _projectsReadUtc > ProjectReadInterval)
+        {
+            _projectReadings = ProjectCatalog.Read(folders, _git);
+            _projectFolders = key;
+            _projectsReadUtc = DateTimeOffset.UtcNow;
+        }
+
+        // Logged when what is read changes, not on every refresh, so an unreadable project is in the log once.
+        var summary = string.Join("; ", _projectReadings.Select(reading => reading.Describe));
+
+        if (!string.Equals(summary, _projectSummary, StringComparison.Ordinal))
+        {
+            _projectSummary = summary;
+
+            foreach (var reading in _projectReadings.Where(reading => !reading.IsReadable))
+            {
+                TheseusLog.Warning("Project {Project} in {Folder} is {Reading}", reading.Name, reading.Folder, reading.Describe);
+            }
+        }
+
+        foreach (var card in Board.Cards)
+        {
+            var target = card;
+            card.ProjectChoices = ProjectMenu.For(_projectReadings, card.Workstream,
+                (project, slug) => SetProject(Targets(target), project, slug));
+        }
+
+        ProjectChoices = ProjectMenu.For(_projectReadings, null, (project, slug) => SetProject(Chosen(), project, slug));
+    }
+
+    /// <summary>
+    /// Puts cards in a project under a slug, in one with no slug yet, or in none. A slug another card already works
+    /// under is refused for every card but a verifier (AC 4 and 10).
+    /// </summary>
+    private void SetProject(IReadOnlyList<WorkstreamCardViewModel> cards, string? project, string? slug)
+    {
+        if (cards.Count == 0)
+        {
+            Notice = "Tick a card first: Project acts on the ticked cards.";
+
+            return;
+        }
+
+        var refusals = new List<string>();
+
+        foreach (var card in cards)
+        {
+            if (ProjectMembership.Refusal(Board.Cards.Select(other => other.Workstream), card.Workstream, project, slug) is { } refusal)
+            {
+                refusals.Add(refusal);
+
+                continue;
+            }
+
+            card.Workstream = ProjectMembership.Join(card.Workstream, project, slug);
+            Board.Persist(card);
+        }
+
+        Refresh();
+
+        var where = project is null ? "in no project" : slug is null ? $"in {project}, with no slug yet" : $"in {project} as {slug}";
+        var moved = cards.Count - refusals.Count;
+
+        Notice = refusals.Count == 0
+            ? $"{(moved == 1 ? cards[0].Title + " is" : $"{moved} cards are")} now {where}."
+            : string.Join(" ", refusals);
+    }
+
+    /// <summary>
+    /// A card made from a proposal joins its proposer's project, under the slug the proposal named. A slug another card
+    /// already holds is left off, so the card waits under No slug yet rather than sharing it (AC 4).
+    /// </summary>
+    private void JoinProposersProject(WorkstreamCardViewModel card, Theseus.Core.Proposals.WorkstreamProposal proposal)
+    {
+        if (Board.Card(proposal.RequesterKey) is not { Workstream.Project: not null } proposer)
+        {
+            return;
+        }
+
+        var joined = ProjectMembership.FromProposal(card.Workstream, proposer.Workstream, proposal.Request.Slug);
+
+        if (ProjectMembership.Refusal(Board.Cards.Select(other => other.Workstream), joined, joined.Project, joined.Slug) is { } refusal)
+        {
+            joined = joined with { Slug = null };
+            TheseusLog.Information("{Card} joined {Project} with no slug yet: {Refusal}", card.Key, joined.Project, refusal);
+        }
+
+        card.Workstream = joined;
+        Board.Persist(card);
     }
 
     /// <summary>

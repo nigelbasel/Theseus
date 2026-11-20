@@ -43,6 +43,12 @@ public static partial class ProposalCheck
             return ProposalCheckResult.Refused("done_criteria is required: what the new workstream must produce to be finished.");
         }
 
+        if (request.Slug is { } slug && !Projects.ProjectMembership.IsSlug(slug))
+        {
+            return ProposalCheckResult.Refused(
+                $"slug '{slug}' is not a workstream slug: lower-case letters, digits and hyphens, as in the project file's table.");
+        }
+
         if (board.Card(requesterKey) is not { } requester)
         {
             return ProposalCheckResult.Refused($"{requesterKey} is not on the board, so it cannot propose a workstream.");

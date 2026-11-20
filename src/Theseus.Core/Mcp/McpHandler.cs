@@ -254,6 +254,7 @@ public sealed partial class McpHandler
                         ["description"] = "Optional: issues it carries. Each must already be on this workstream's card.",
                     },
                     ["reason"] = Property("Optional: why it is wanted, shown to the user."),
+                    ["slug"] = Property("Optional, for a workstream in a project: the slug it works under, as listed in the project file's workstreams table (it names work/<slug>/ and its branch). The new card joins this workstream's project."),
                 },
                 "title", "brief", "done_criteria", "report_back"),
             Tool("proposal_status",
@@ -671,7 +672,10 @@ public sealed partial class McpHandler
             Text(arguments["expected_output"])?.Trim() is { Length: > 0 } output ? output : null,
             Text(arguments["done_criteria"])?.Trim() ?? string.Empty,
             [.. Ids(arguments["jira_keys"]).Select(key => key.ToUpperInvariant())],
-            Text(arguments["reason"])?.Trim() is { Length: > 0 } reason ? reason : null);
+            Text(arguments["reason"])?.Trim() is { Length: > 0 } reason ? reason : null)
+        {
+            Slug = Text(arguments["slug"])?.Trim() is { Length: > 0 } slug ? slug : null,
+        };
 
         var check = ProposalCheck.Check(request, session.WorkstreamKey, _board(), _links.All, _paths, _briefFolderName());
         var outcome = _proposals.Propose(session.WorkstreamKey, session.SessionId, request, check);
@@ -721,6 +725,7 @@ public sealed partial class McpHandler
             ["expectedOutput"] = proposal.Request.ExpectedOutput,
             ["jiraKeys"] = new JsonArray([.. proposal.Request.JiraKeys.Select(key => (JsonNode?)key)]),
             ["reason"] = proposal.Request.Reason,
+            ["slug"] = proposal.Request.Slug,
             ["warnings"] = new JsonArray([.. proposal.Warnings.Select(warning => (JsonNode?)warning)]),
         })]);
 

@@ -176,6 +176,40 @@ public class McpProposalToolsTests
     }
 
     [Test]
+    public void ProposeWorkstream_KeepsAnOptionalSlug_ForACardInAProject()
+    {
+        var arguments = Proposal();
+        arguments["slug"] = "cache-spike";
+        Call("propose_workstream", arguments, "research-session");
+
+        var entry = JsonNode.Parse(Text(Call("proposal_status", new JsonObject(), "research-session")))!["proposals"]![0]!;
+
+        Assert.That(_proposals.Pending.Single().Request.Slug, Is.EqualTo("cache-spike"));
+        Assert.That(entry["slug"]!.GetValue<string>(), Is.EqualTo("cache-spike"));
+    }
+
+    [Test]
+    public void ProposeWorkstream_WithNoSlug_HasNone()
+    {
+        Call("propose_workstream", Proposal(), "research-session");
+
+        Assert.That(_proposals.Pending.Single().Request.Slug, Is.Null);
+    }
+
+    [Test]
+    public void ProposeWorkstream_RefusesASlugThatIsNotOne()
+    {
+        var arguments = Proposal();
+        arguments["slug"] = "Cache Spike";
+
+        var result = Call("propose_workstream", arguments, "research-session");
+
+        Assert.That(result["isError"]!.GetValue<bool>(), Is.True);
+        Assert.That(Text(result), Does.Contain("slug 'Cache Spike' is not a workstream slug"));
+        Assert.That(_proposals.All, Is.Empty);
+    }
+
+    [Test]
     public void ApproveProposal_CreatesTheCardThroughTheBoard()
     {
         Call("propose_workstream", Proposal(), "research-session");

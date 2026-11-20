@@ -136,6 +136,13 @@
                 <TextBox Text="{Binding JiraBaseUrl, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock Text="{Binding JiraState}" Style="{StaticResource FieldHint}" />
 
+                <TextBlock Text="Project repositories" Style="{StaticResource FieldLabel}" />
+                <TextBox Text="{Binding ProjectRepositories, UpdateSourceTrigger=PropertyChanged}"
+                         AcceptsReturn="True" MinHeight="56" VerticalScrollBarVisibility="Auto"
+                         FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12" />
+                <TextBlock Style="{StaticResource FieldHint}"
+                           Text="Folders, one per line, each a clone or worktree of a project's home repo. Theseus reads its projects/ files with git from the project's primary branch, whichever branch the folder has checked out, and fetches nothing. Leave empty for no projects." />
+
                 <TextBlock Text="Holdout scenarios folder" Style="{StaticResource FieldLabel}" />
                 <TextBox Text="{Binding HoldoutFolder, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock Text="Holdout remote address" Style="{StaticResource FieldLabel}" />

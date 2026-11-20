@@ -22,6 +22,16 @@ While Properties is open it follows the card you click.
 **Delete** is only in Properties, and asks first. It destroys the plan file. The handover notes and
 the work itself are not Theseus's files and are left alone. It is refused while a session is running.
 
+## Projects
+
+A card can belong to a project: a project file, in the method's format, in a repository you list under **Project
+repositories** in **Tools > Options**, one folder per line. Theseus reads each project from its primary branch with
+git, whichever branch the folder has checked out, and fetches nothing. While at least one project can be read, the
+card's menu and the **Workstream** menu have **Project**: choose a project, then the workstream slug the card works
+under there (the slugs its project file lists), or **No slug yet**, or **Not in a project**. A slug another card
+already works under is refused, except for a verifier card, which shares the slug of the card it checks. With no
+project repositories listed, nothing here appears.
+
 ## The buttons on a card
 
 | Button | What it does |

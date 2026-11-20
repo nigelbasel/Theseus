@@ -82,9 +82,6 @@ public static partial class ProjectFileReader
     [GeneratedRegex(@"^- \[( |x|X)\] (.*)$")]
     private static partial Regex CriterionLine();
 
-    [GeneratedRegex(@"^[a-z0-9]+(-[a-z0-9]+)*$")]
-    private static partial Regex SlugShape();
-
     [GeneratedRegex(@"^\|(\s*:?-+:?\s*\|)+$")]
     private static partial Regex SeparatorRow();
 
@@ -416,7 +413,7 @@ public static partial class ProjectFileReader
 
             var slug = cells[1].Trim('`');
 
-            if (!SlugShape().IsMatch(slug))
+            if (!ProjectMembership.IsSlug(slug))
             {
                 throw new RefusalException(number, $"slug '{slug}' is not lower-case letters, digits and hyphens");
             }
