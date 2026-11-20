@@ -195,6 +195,13 @@ owner merges every pull request himself; no session does. Stage 0's commits stra
 
 **Exit gate:** [to be written at the phase 3 exit]
 
+### Objective 5.1: Getting-started documentation (the final requirement)
+Written once the features of phases 1 to 4 work, not before (Nigel, 2026-11-20).
+- [ ] Detailed documentation of the process (the method: pipelines, gates, evidence, holdouts, autonomy levels,
+      lessons), with references to the relevant papers and articles on the web.
+- [ ] How each part is applied in Theseus, so that someone new to the tool can get going quickly.
+- [ ] Published on the help site the app links to.
+
 ## Decisions
 
 | Date | Decision | By |
