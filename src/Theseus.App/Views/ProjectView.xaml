@@ -81,10 +81,33 @@
                 </TreeView.ItemContainerStyle>
                 <TreeView.ItemTemplate>
                     <HierarchicalDataTemplate DataType="{x:Type vm:ProjectTreeNodeViewModel}" ItemsSource="{Binding Children}">
-                        <StackPanel Margin="0,1">
+                        <!-- A criterion ticks in the project file; an objective is edited and a phase given an objective from
+                             the right-click menu (1.1c AC 8). The file is the truth: the box shows what it says. -->
+                        <DockPanel Margin="0,1" Background="Transparent">
+                            <DockPanel.ContextMenu>
+                                <ContextMenu FontFamily="{x:Static SystemFonts.MessageFontFamily}"
+                                             Visibility="{Binding HasMenu, Converter={StaticResource Visible}}">
+                                    <MenuItem Header="_Edit…" Command="{Binding EditCommand}"
+                                              Visibility="{Binding HasEdit, Converter={StaticResource Visible}}"
+                                              ToolTip="Change this objective's title in project.md" />
+                                    <MenuItem Header="_Add objective…" Command="{Binding AddObjectiveCommand}"
+                                              Visibility="{Binding HasAddObjective, Converter={StaticResource Visible}}"
+                                              ToolTip="Add an objective at the end of this phase in project.md" />
+                                    <MenuItem Header="Open project._md" Command="{Binding OpenFileCommand}"
+                                              Visibility="{Binding HasOpenFile, Converter={StaticResource Visible}}"
+                                              ToolTip="Open the project's file in its editor" />
+                                </ContextMenu>
+                            </DockPanel.ContextMenu>
+                            <Button DockPanel.Dock="Left" VerticalAlignment="Top" Margin="0,0,6,0" Padding="2,0" MinWidth="0"
+                                    Background="Transparent" BorderThickness="0" FontSize="14"
+                                    Content="{Binding TickGlyph}" Command="{Binding ToggleCommand}"
+                                    ToolTip="Tick or untick this criterion in project.md"
+                                    Visibility="{Binding IsCriterion, Converter={StaticResource Visible}}" />
+                        <StackPanel>
                             <TextBlock Text="{Binding Text}" FontSize="12" TextWrapping="Wrap"
                                        Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                            <TextBlock Text="{Binding Detail}" FontSize="11" TextWrapping="Wrap">
+                            <TextBlock Text="{Binding Detail}" FontSize="11" TextWrapping="Wrap"
+                                       Visibility="{Binding HasDetail, Converter={StaticResource Visible}}">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="Foreground" Value="{DynamicResource TextFillColorTertiaryBrush}" />
@@ -98,6 +121,7 @@
                                 </TextBlock.Style>
                             </TextBlock>
                         </StackPanel>
+                        </DockPanel>
                     </HierarchicalDataTemplate>
                 </TreeView.ItemTemplate>
             </TreeView>

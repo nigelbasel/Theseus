@@ -58,7 +58,13 @@ D:\work\payment-step\shop-web\        worktree on dana/payment-step
 
 ## Starting a project
 
-**Project > New project…** asks for a name (lower-case letters, digits and hyphens, such as `checkout-redesign`),
-makes its folder in the projects folder, and puts in a `project.md` to fill in and an empty `work` folder. The project
-card appears on the board once its `project.md` reads. See [Cards](cards.md#projects) for what the project card and
-the project view show.
+**File > New project…**, or the toolbar's New project button beside New workstream, asks for a name (lower-case
+letters, digits and hyphens, such as `checkout-redesign`), and optionally a title, the objective and the primary
+branch. It makes the project's folder in the projects folder, with a `project.md` filled in from what you gave and an
+empty `work` folder, and its project card appears on the board.
+
+A workstream card's right-click menu has **Add to project…** (a row naming it under one of a project's objectives),
+**Remove from project** (its rows go; its records stay), and **Convert to project…** (a new project with the card as
+its first workstream, and its handoff copied in as the first record). Each changes `project.md` itself, so what you see
+is always what the file says, and a session can make the same changes by editing the file. See
+[Cards](cards.md#projects) for the project card and the project view.

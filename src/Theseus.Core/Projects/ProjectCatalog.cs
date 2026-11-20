@@ -58,7 +58,8 @@ public static class ProjectCatalog
     private static ProjectFileReading ReadProject(string home)
     {
         var name = FolderName(home);
-        var reading = ProjectFileReader.Read(name, File.ReadAllText(Path.Combine(home, ProjectFileName))) with { Folder = home };
+        var text = File.ReadAllText(Path.Combine(home, ProjectFileName));
+        var reading = ProjectFileReader.Read(name, text) with { Folder = home, Text = text };
 
         if (reading.File is not { } file)
         {

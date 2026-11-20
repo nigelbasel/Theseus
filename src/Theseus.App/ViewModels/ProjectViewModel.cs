@@ -71,7 +71,7 @@ public sealed class ProjectViewModel
     /// <param name="back">Closes the view.</param>
     public static ProjectViewModel Build(ProjectFileReading reading, IReadOnlyList<WorkstreamCardViewModel> cards,
         Func<string, string, SpecAcceptance?> acceptance, Func<Workstream, bool> hasEnded,
-        Action<SpecAtGate> openSpec, Action<SpecAtGate> acceptSpec, ICommand? back)
+        Action<SpecAtGate> openSpec, Action<SpecAtGate> acceptSpec, ICommand? back, ProjectViewEdits? edits = null)
     {
         ArgumentNullException.ThrowIfNull(reading);
         ArgumentNullException.ThrowIfNull(cards);
@@ -192,15 +192,33 @@ public sealed class ProjectViewModel
                     ? "done"
                     : $"{objective.TickedCount} of {objective.Criteria.Count} ticked";
 
-                return new ProjectTreeNodeViewModel($"{objective.Number} {objective.Title}", ticked, slugs, row,
-                    slugs.Any(slug => slug.IsWaitingOnYou));
+                // Its criteria first, each with a tick box that writes the file (1.1c AC 8), then its slugs.
+                var criteria = objective.Criteria.Select(criterion => new ProjectTreeNodeViewModel(criterion.Text, string.Empty, [], row, false)
+                {
+                    IsTicked = criterion.IsTicked,
+                    ToggleCommand = edits is null ? null : new RelayCommand(_ => edits.TickCriterion(criterion.Line, !criterion.IsTicked)),
+                }).ToList();
+                var number = objective.Number;
+
+                return new ProjectTreeNodeViewModel($"{objective.Number} {objective.Title}", ticked, [.. criteria, .. slugs], row,
+                    slugs.Any(slug => slug.IsWaitingOnYou))
+                {
+                    EditCommand = edits is null ? null : new RelayCommand(_ => edits.EditObjective(number)),
+                    OpenFileCommand = edits is null ? null : new RelayCommand(_ => edits.OpenFile()),
+                };
             }).ToList();
 
             var current = ReferenceEquals(phase, file.CurrentPhase) ? "current" : phase.HasOpenObjective ? string.Empty : "done";
 
+            var phaseNumber = phase.Number;
+
             tree.Add(new ProjectTreeNodeViewModel($"Phase {phase.Number}: {phase.Name}", current, objectives,
                 objectives.Select(node => node.Row).FirstOrDefault(row => row is not null),
-                objectives.Any(node => node.IsWaitingOnYou)));
+                objectives.Any(node => node.IsWaitingOnYou))
+            {
+                AddObjectiveCommand = edits is null ? null : new RelayCommand(_ => edits.AddObjective(phaseNumber)),
+                OpenFileCommand = edits is null ? null : new RelayCommand(_ => edits.OpenFile()),
+            });
         }
 
         foreach (var group in rows.Where(row => row.IsGroup))
@@ -334,7 +352,7 @@ public sealed class ProjectViewModel
         string.Join("|", new[] { file.Name, file.Title }
             .Concat(rows.Select(row => row.Heading + ":" + string.Join(",", row.Loose.Select(Shape))
                                        + ":" + string.Join(";", row.Cells.Select(cell => string.Join(",", cell.Entries.Select(Shape))))))
-            .Concat(Flatten(tree).Select(node => $"{node.Text}={node.Detail}")));
+            .Concat(Flatten(tree).Select(node => $"{node.Text}={node.Detail}={node.IsTicked}")));
 
     private static string Shape(ProjectEntryViewModel entry) =>
         $"{entry.Slug}/{entry.Card?.Key}/{entry.Note}/{entry.IsWaitingOnYou}/{entry.WaitingText}/{entry.Detail}";

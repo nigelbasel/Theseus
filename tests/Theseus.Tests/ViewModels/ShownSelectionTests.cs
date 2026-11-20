@@ -15,13 +15,9 @@ public class ShownSelectionTests
         var fixture = new BoardFixture().With("ad-hoc").With("other-ad-hoc").With("member");
         fixture.Board.Refresh();
 
-        var member = fixture.Card("member")!;
-        member.Workstream = member.Workstream with { Project = "p", Slug = "a-slug" };
-        fixture.Board.Persist(member);
-
         if (projectReads)
         {
-            fixture.Board.KeepOutOfGrid = card => card.Workstream.Project == "p";
+            fixture.Board.KeepOutOfGrid = card => card.Key == "member";
         }
 
         fixture.Board.Refresh();

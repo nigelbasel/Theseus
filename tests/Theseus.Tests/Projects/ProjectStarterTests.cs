@@ -3,7 +3,7 @@ using Theseus.Core.Projects;
 namespace Theseus.Tests.Projects;
 
 /// <summary>
-/// Project › New project… (1.1b AC 7 and 8): a new home folder with the shipped starter, its title filled in, read as a
+/// New project… (1.1b AC 7 and 8; 1.1c AC 6): a new home folder with the shipped starter, its title filled in, read as a
 /// project at once; a name that exists, or is not a folder-and-identity shape, is refused.
 /// </summary>
 [TestFixture]
@@ -37,6 +37,24 @@ public class ProjectStarterTests
 
         Assert.That((reading.Name, reading.Reason, reading.File!.Title, reading.File.Kit),
             Is.EqualTo(("my-project", (string?)null, "my-project", MethodKits.Current)));
+    }
+
+    [Test]
+    public void ANewProjectsDetails_FillTheStarter_OnOneLineEach_AndWhatIsLeftEmptyKeepsItsPrompt()
+    {
+        var home = ProjectStarter.Start(_projects.Folder,
+            new NewProjectDetails("shop", "The shop", "Customers pay\r\nwithout calling us.", "dana/shop"));
+        var file = ProjectCatalog.Read(_projects.Folder).Single().File!;
+        var text = File.ReadAllText(Path.Combine(home, "project.md"));
+
+        Assert.That((file.Title, file.PrimaryBranch), Is.EqualTo(("The shop", "dana/shop")));
+        Assert.That(text, Does.Contain("Customers pay without calling us."));
+
+        var bare = ProjectStarter.Filled(new NewProjectDetails("bare", "", "", ""));
+
+        Assert.That(bare, Does.StartWith("# bare"));
+        Assert.That(bare, Does.Contain("One paragraph: the outcome the whole project exists for."));
+        Assert.That(bare, Does.Contain("**Primary branch:** <user>/<project>"));
     }
 
     [Test]

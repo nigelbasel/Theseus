@@ -18,8 +18,8 @@ public sealed record ProposalRequest(
     string? Reason)
 {
     /// <summary>
-    /// The workstream slug the new card works under, when the proposer is in a project; the card inherits the
-    /// proposer's project (project-view AC 4). Null for none yet.
+    /// The slug of the new card's records folder, when the proposer is in a project: a new one, not in the project's
+    /// table yet. On approval its row is added to the project file under the proposer's objective (1.1c AC 3).
     /// </summary>
     public string? Slug { get; init; }
 }

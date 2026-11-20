@@ -59,13 +59,4 @@ public sealed record WorkstreamSidecar(
     /// files; and because only the board may set it (verifier-card AC 1 and 3).
     /// </summary>
     public WorkstreamRole Role { get; init; }
-
-    /// <summary>
-    /// The project the card belongs to, and its current slug there. Recorded on this machine, in the board file, and
-    /// never in the plan file a session rewrites (project-view AC 4).
-    /// </summary>
-    public string? Project { get; init; }
-
-    /// <summary>The card's current slug in its project.</summary>
-    public string? Slug { get; init; }
 }

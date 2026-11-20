@@ -269,11 +269,29 @@ public partial class App : Application
         shell.ConfirmAcceptSpec = question =>
             MessageBox.Show(MainWindow, question, "Accept spec?", MessageBoxButton.YesNo, MessageBoxImage.Question,
                 MessageBoxResult.No) == MessageBoxResult.Yes;
-        shell.AskProjectName = () =>
+        shell.AskNewProject = (name, title) =>
         {
-            var window = new NewProjectWindow { Owner = MainWindow };
+            var window = new NewProjectWindow(name, title) { Owner = MainWindow };
 
-            return window.ShowDialog() == true ? window.ProjectName : null;
+            return window.ShowDialog() == true ? window.Details : null;
+        };
+        shell.AskText = (title, label, initial) =>
+        {
+            var window = new TextPromptWindow(title, label, initial) { Owner = MainWindow };
+
+            return window.ShowDialog() == true ? window.Text : null;
+        };
+        shell.AskObjective = () =>
+        {
+            var window = new AddObjectiveWindow { Owner = MainWindow };
+
+            return window.ShowDialog() == true ? window.Objective : null;
+        };
+        shell.AskAddToProject = (projects, slug) =>
+        {
+            var window = new AddToProjectWindow(projects, slug) { Owner = MainWindow };
+
+            return window.ShowDialog() == true ? window.Choice : null;
         };
         MainWindow.Show();
     }

@@ -5,54 +5,59 @@ using Theseus.Core.Persistence;
 namespace Theseus.Core.Projects;
 
 /// <summary>
-/// <c>readable-projects.json</c>: the names of the projects that read when a catalogue last landed, so a start in the
-/// first seconds after launch, before this run's first catalogue, still opens a project's card in the project's window
-/// (PR 3 review, item 2). Which cards belong to which project is already in the board file. Kept in Theseus's data
-/// folder; an unreadable file reads as none, which opens cards where they would open with no projects.
+/// <c>project-members.json</c>: which card was in which project when the projects were last read, so a start in the
+/// first moment after launch, before this run's first read lands, still opens a project's card in the project's window
+/// (1.1 PR 3 review, item 2). Membership is read from the project files (1.1c); this is only the last reading of them.
+/// Kept in Theseus's data folder; an unreadable file reads as no members, which opens cards where they would open with
+/// no projects.
 /// </summary>
 public sealed class RememberedProjects
 {
     /// <summary>Creates a store over a file.</summary>
     public RememberedProjects(string filePath) => FilePath = filePath;
 
-    /// <summary>Where the names are kept.</summary>
+    /// <summary>Where the members are kept.</summary>
     public string FilePath { get; }
 
-    /// <summary>The names last remembered.</summary>
-    public IReadOnlySet<string> Load()
+    /// <summary>The members last remembered.</summary>
+    public ProjectMembers Load()
     {
         var text = AtomicFile.TryReadAllText(FilePath);
 
         if (string.IsNullOrWhiteSpace(text))
         {
-            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            return ProjectMembers.None;
         }
 
         try
         {
-            return (JsonSerializer.Deserialize<List<string>>(text, TheseusJson.Readable) ?? [])
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            return ProjectMembers.Remembered(
+                JsonSerializer.Deserialize<Dictionary<string, ProjectMember>>(text, TheseusJson.Readable) ?? []);
         }
         catch (JsonException exception)
         {
-            TheseusLog.Warning(exception, "The remembered projects in {Path} could not be read", FilePath);
+            TheseusLog.Warning(exception, "The remembered project members in {Path} could not be read", FilePath);
 
-            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            return ProjectMembers.None;
         }
     }
 
-    /// <summary>Remembers these names, replacing the last.</summary>
-    public void Remember(IEnumerable<string> names)
+    /// <summary>Remembers these members, replacing the last.</summary>
+    public void Remember(ProjectMembers members)
     {
-        ArgumentNullException.ThrowIfNull(names);
+        ArgumentNullException.ThrowIfNull(members);
 
         try
         {
-            AtomicFile.WriteAllText(FilePath, JsonSerializer.Serialize(names.Order(StringComparer.OrdinalIgnoreCase).ToList(), TheseusJson.Readable));
+            var ordered = members.ByCard
+                .OrderBy(member => member.Key, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(member => member.Key, member => member.Value);
+
+            AtomicFile.WriteAllText(FilePath, JsonSerializer.Serialize(ordered, TheseusJson.Readable));
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            TheseusLog.Warning(exception, "Could not remember the readable projects in {Path}", FilePath);
+            TheseusLog.Warning(exception, "Could not remember the project members in {Path}", FilePath);
         }
     }
 }

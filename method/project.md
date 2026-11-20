@@ -40,7 +40,7 @@ What this part of the work must achieve.
 **Pipeline:** feature | bug | freeform
 | Workstream | Slug | Branch | Repos |
 |---|---|---|---|
-| <plain name> | <slug> | <user>/<slug> | <repo>, <other-repo> |
+| <card> | <slug> | <user>/<slug> | <repo>, <other-repo> |
 
 ## Decisions
 | Date | Decision | By |
@@ -63,8 +63,9 @@ What this part of the work must achieve.
 
 In the workstreams table:
 
-- **Workstream** is a plain name for the workstream, never a card id (P19). Several rows with the same name are one
-  workstream that has worked under several slugs, one after another.
+- **Workstream** names the workstream's card, by its name on the Theseus board. The table alone puts a card in the
+  project. Several rows naming the same card are one workstream that has worked under several slugs, one after another;
+  its current slug is its last row. (Project files are no longer in a public repo, so P19 does not apply to them.)
 - **Slug** names the workstream's artefacts folder, `work/<slug>/`, and its branch, `<user>/<slug>`. It is lower-case
   letters, digits and hyphens, and appears once in the file.
 - **Branch** is the branch its work is on until it is merged into the primary branch.
@@ -138,8 +139,9 @@ The `<n>` in the example are placeholders for measured figures: a block records 
 
 ## Promotion
 
-Ad hoc work becomes a project by adding the workstream, under a slug, to the table of the objective it serves. The
-card joins the project on the board and keeps its key; its handoff is linked as the project's first document. Nothing
+Ad hoc work joins a project by adding its card, under a slug, to the table of the objective it serves: by hand, or with
+Theseus's **Add to project…**. The card joins the project on the board and keeps its key. **Convert to project…** makes
+a new project with the card as its first workstream, and its handoff as the project's first record. Nothing
 about the card's work changes until it next starts a stage of a pipeline.
 
 ## Example
