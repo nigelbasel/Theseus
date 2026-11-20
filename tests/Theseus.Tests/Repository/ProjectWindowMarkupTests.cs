@@ -4,28 +4,26 @@ using System.Xml.Linq;
 namespace Theseus.Tests.Repository;
 
 /// <summary>
-/// Bring the window forward is in the project view and on the menu bar (project-view AC 21; rubric R16), and says why
-/// when it cannot act, in a tooltip shown on the disabled command.
+/// Bring the window forward is on the menu bar (project-view AC 21; rubric R16), and says why when it cannot act, in a
+/// tooltip shown on the disabled command. The project view's own button went in 1.1d (AC 16).
 /// </summary>
 [TestFixture]
 public class ProjectWindowMarkupTests
 {
     private static readonly XNamespace Presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
-    private static readonly XName Name = XName.Get("Name", "http://schemas.microsoft.com/winfx/2006/xaml");
     private static readonly XName ShowOnDisabled = XName.Get("ToolTipService.ShowOnDisabled");
 
     private static XDocument Load(params string[] path) =>
         XDocument.Load(Path.Combine([RepositoryRoot(), "src", "Theseus.App", .. path]));
 
+    // Changed by 1.1d AC 16: the header's Bring window forward button is removed; View › Bring project window forward stays.
     [Test]
-    public void TheProjectView_HasBringWindowForward_WithItsReasonOnTheDisabledButton()
+    public void TheProjectView_HasNoBringWindowForwardButton_ItIsOnTheViewMenuOnly()
     {
-        var button = Load("Views", "ProjectView.xaml").Descendants(Presentation + "Button")
-            .Single(element => (string?)element.Attribute(Name) == "BringWindowForward");
+        var view = Load("Views", "ProjectView.xaml");
 
-        Assert.That((string?)button.Attribute("Command"), Does.Contain("BringProjectWindowForwardCommand"));
-        Assert.That((string?)button.Attribute("ToolTip"), Does.Contain("ProjectWindowTooltip"));
-        Assert.That((string?)button.Attribute(ShowOnDisabled), Is.EqualTo("True"));
+        Assert.That(view.Descendants().Attributes().Select(attribute => attribute.Value),
+            Has.None.Contains("BringProjectWindowForwardCommand"));
     }
 
     [Test]

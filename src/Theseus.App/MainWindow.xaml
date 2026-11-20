@@ -31,6 +31,8 @@
         <KeyBinding Gesture="F1" Command="{Binding Help.OpenCommand}" />
         <KeyBinding Gesture="Alt+Enter" Command="{Binding PropertiesCommand}" />
         <KeyBinding Gesture="Escape" Command="{Binding ClearSelectionCommand}" />
+        <!-- Back to the board from a project view (1.1d AC 16); CloseProjectCommand runs only while a project is open. -->
+        <KeyBinding Gesture="Alt+Left" Command="{Binding CloseProjectCommand}" />
     </Window.InputBindings>
 
     <Window.Resources>
@@ -1271,8 +1273,8 @@
                 <MenuItem Header="Open pro_ject" ItemsSource="{Binding OpenProjectChoices}"
                           ItemContainerStyle="{StaticResource ProjectChoiceItem}"
                           Visibility="{Binding HasOpenProjectChoices, Converter={StaticResource BoolToVisibility}}"
-                          ToolTip="Fill the main area with a project: its phases, objectives and workstreams by stage" />
-                <MenuItem Header="Back to the boar_d" Command="{Binding CloseProjectCommand}"
+                          ToolTip="Fill the main area with a project: where it is, and its pieces of work as they run down the page" />
+                <MenuItem Header="Back to the boar_d" Command="{Binding CloseProjectCommand}" InputGestureText="Alt+Left"
                           Visibility="{Binding IsProjectOpen, Converter={StaticResource BoolToVisibility}}"
                           ToolTip="Close the project view and show the board again" />
                 <MenuItem Header="Bring project _window forward" Command="{Binding BringProjectWindowForwardCommand}"
@@ -1323,7 +1325,7 @@
                 <MenuItem Header="Acc_ept spec" ItemsSource="{Binding AcceptSpecChoices}"
                           ItemContainerStyle="{StaticResource ProjectChoiceItem}"
                           Visibility="{Binding HasSpecChoices, Converter={StaticResource BoolToVisibility}}"
-                          ToolTip="Accept a spec waiting on you in the open project; asks first, naming the slug and the commit" />
+                          ToolTip="Accept a spec waiting on you in the open project; asks first, naming the piece of work and the commit" />
                 <Separator />
                 <MenuItem Header="_Archive selected" Command="{Binding ArchiveSelectedCommand}"
                           ToolTip="Archive the ticked cards with no session running, or restore them when the archive is showing">

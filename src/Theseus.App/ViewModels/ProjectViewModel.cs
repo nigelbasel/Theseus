@@ -1,33 +1,62 @@
 using System.Globalization;
 using System.Windows.Input;
-using Theseus.Core.Domain;
+using Theseus.Core.Links;
 using Theseus.Core.Projects;
+using Theseus.Core.Settings;
 
 namespace Theseus.App.ViewModels;
 
 /// <summary>
-/// The whole-screen view of one project (project-view AC 14 to 16): the tree of phases, objectives and workstreams on
-/// the left; on the right a row per objective with workstreams across the stage columns, with the gates marked and the
-/// specs waiting on the owner actionable. It does not fold, and cards are not dragged in it: a stage comes from the
-/// artefacts.
+/// The whole-screen view of one project (1.1d AC 15 to 37; Nigel accepted the mockup, 2026-11-20): where the project is
+/// in one sentence and six counts, then its pieces of work as a tree of boxes that runs down the page, beside a
+/// Properties pane. Every state it shows comes from the model in <c>Theseus.Core.Projects</c>; the view model only
+/// lays it out, remembers what is folded and what is selected, and runs the shell's commands.
 /// </summary>
-public sealed class ProjectViewModel
+public sealed class ProjectViewModel : ObservableObject
 {
-    /// <summary>The columns, in order (AC 6).</summary>
-    public static IReadOnlyList<PipelineStage> Stages { get; } =
+    /// <summary>Accept spec's tooltip, on the box and in Properties.</summary>
+    internal const string AcceptSpecToolTip = "Pass this gate: asks first, naming the piece of work and the commit";
+
+    private static readonly StageAction[] BoxActionOrder =
     [
-        PipelineStage.Research, PipelineStage.Spec, PipelineStage.Plan, PipelineStage.Implement,
-        PipelineStage.Verify, PipelineStage.Review, PipelineStage.Compound,
+        StageAction.OpenSpec, StageAction.AcceptSpec, StageAction.VerifyWithHoldouts, StageAction.Focus, StageAction.Start,
+        StageAction.Stop, StageAction.OpenRecords,
     ];
 
-    /// <summary>The column headings, with a bug's stage under each feature stage it shares a column with (AC 6).</summary>
-    public static IReadOnlyList<string> ColumnHeadings { get; } =
-        ["Research · reproduce", "Spec · rule", "Plan", "Implement · fix", "Verify", "Review", "Compound"];
+    private static readonly (StageNodeState State, string Words)[] CountOrder =
+    [
+        (StageNodeState.Done, "done"), (StageNodeState.Busy, "busy"), (StageNodeState.WaitingOnYou, "waiting on you"),
+        (StageNodeState.HoldoutsNotRun, "holdouts not run"), (StageNodeState.Stuck, "stuck"), (StageNodeState.ToDo, "to do"),
+    ];
 
-    private ProjectViewModel(ProjectFile file)
+    private static readonly StageNodeState[] NeedsAttention =
+        [StageNodeState.Busy, StageNodeState.WaitingOnYou, StageNodeState.Stuck, StageNodeState.HoldoutsNotRun];
+
+    private readonly ISettingsStore _settings;
+    private readonly ProjectViewActions _actions;
+    private readonly ProjectViewEdits? _edits;
+    private IReadOnlyList<string> _folds;
+    private object? _selection;
+    private PropertiesViewModel _properties = PropertiesViewModel.Empty;
+
+    private ProjectViewModel(ProjectFile file, ProjectSummary summary, ISettingsStore settings, ProjectViewActions actions,
+        ProjectViewEdits? edits)
     {
         Name = file.Name;
         Title = file.Title;
+        Summary = summary;
+        _settings = settings;
+        _actions = actions;
+        _edits = edits;
+
+        var stored = settings.Read();
+        _folds = stored.ViewFolds.GetValueOrDefault(PieceFolds.KeyFor(file.Name)) ?? [];
+        PaneWidth = stored.PaneSizes.TryGetValue(ProjectPaneWidth.SettingsKey, out var width) ? width : ProjectPaneWidth.Default;
+
+        CollapseAllCommand = new RelayCommand(_ => SetAll(false));
+        ExpandAllCommand = new RelayCommand(_ => SetAll(true));
+        OpenWhatNeedsAttentionCommand = new RelayCommand(_ => OpenWhatNeedsAttention());
+        ClearSelectionCommand = new RelayCommand(_ => Select(null), _ => _selection is not null);
     }
 
     /// <summary>The project's name.</summary>
@@ -36,327 +65,439 @@ public sealed class ProjectViewModel
     /// <summary>Its title.</summary>
     public string Title { get; }
 
-    /// <summary>The current phase and its exit gate.</summary>
-    public string PhaseText { get; private init; } = string.Empty;
+    /// <summary>Where the project is (AC 8): the only source of its counts and sentence.</summary>
+    public ProjectSummary Summary { get; }
 
-    /// <summary>The tree (AC 15).</summary>
-    public IReadOnlyList<ProjectTreeNodeViewModel> Tree { get; private init; } = [];
+    /// <summary>The summary's sentence.</summary>
+    public string Sentence => Summary.Sentence;
 
-    /// <summary>The pipeline's rows, then the groups at no stage (AC 4, 15).</summary>
-    public IReadOnlyList<ProjectPipelineRowViewModel> Rows { get; private init; } = [];
+    /// <summary>The six count chips, zeros included (AC 19).</summary>
+    public IReadOnlyList<StateCountViewModel> Counts =>
+        [.. CountOrder.Select(entry => new StateCountViewModel(entry.State, Summary.CountOf(entry.State), entry.Words))];
 
-    /// <summary>Every card in the view, in reading order, for Shift+click (AC 15).</summary>
-    public IReadOnlyList<WorkstreamCardViewModel> CardsInOrder { get; private init; } = [];
+    /// <summary>The Waiting on you band's buttons, one per waiting piece in file order (AC 20).</summary>
+    public IReadOnlyList<WaitingButtonViewModel> Waiting { get; private set; } = [];
+
+    /// <summary>Whether the band shows: only while something waits on the owner.</summary>
+    public bool HasWaiting => Waiting.Count > 0;
+
+    /// <summary>The legend's states, in the order AC 22 gives.</summary>
+    public static IReadOnlyList<LegendItemViewModel> Legend { get; } =
+    [
+        new(StageNodeState.Done), new(StageNodeState.WaitingOnYou), new(StageNodeState.Busy), new(StageNodeState.Stuck),
+        new(StageNodeState.HoldoutsNotRun), new(StageNodeState.ToDo),
+    ];
+
+    /// <summary>The tree's roots, in file order (AC 23).</summary>
+    public IReadOnlyList<PieceNodeViewModel> Roots { get; private set; } = [];
+
+    /// <summary>Every box, depth first.</summary>
+    public IEnumerable<PieceNodeViewModel> AllNodes => Roots.SelectMany(root => root.SelfAndDescendants);
+
+    /// <summary>The lines to draw between boxes (AC 25): hands work to, then then worked on.</summary>
+    public IReadOnlyList<ConnectorLink> Connectors { get; private set; } = [];
+
+    /// <summary>One tab per project that reads (AC 17).</summary>
+    public IReadOnlyList<ProjectTabViewModel> Tabs { get; private set; } = [];
 
     /// <summary>The specs waiting on the owner, for the menu bar's Open spec and Accept spec (R16).</summary>
-    public IReadOnlyList<SpecAtGate> WaitingSpecs { get; private init; } = [];
+    public IReadOnlyList<SpecAtGate> WaitingSpecs { get; private set; } = [];
 
+    /// <summary>What is selected: a <see cref="PieceNodeViewModel"/>, a <see cref="StageNodeViewModel"/>, or null.</summary>
+    public object? Selection => _selection;
 
-    /// <summary>The primary's pull request into the trunk, which has no Accept (AC 7).</summary>
-    public string MainPullRequestText => "Pull request into the trunk: not read yet (objective 1.2 reads it once built)";
-
-    /// <summary>What the view shows, as text, so an unchanged view is not rebuilt (and its tree and scroll kept).</summary>
-    public string Signature { get; private init; } = string.Empty;
-
-    /// <summary>Back to the board, from the breadcrumb (AC 14).</summary>
-    public ICommand? BackCommand { get; init; }
-
-    /// <summary>Builds the view of a readable project.</summary>
-    /// <param name="reading">The project, with its slugs' artefacts read in the background.</param>
-    /// <param name="cards">Every card on the board; the project's own are picked out.</param>
-    /// <param name="acceptance">The owner's latest acceptance of a slug's spec, from Theseus's store.</param>
-    /// <param name="hasEnded">Whether a verifier card's job is over.</param>
-    /// <param name="openSpec">Opens a spec as read.</param>
-    /// <param name="acceptSpec">Accepts a spec, after asking.</param>
-    /// <param name="back">Closes the view.</param>
-    public static ProjectViewModel Build(ProjectFileReading reading, IReadOnlyList<WorkstreamCardViewModel> cards,
-        Func<string, string, SpecAcceptance?> acceptance, Func<Workstream, bool> hasEnded,
-        Action<SpecAtGate> openSpec, Action<SpecAtGate> acceptSpec, ICommand? back, ProjectViewEdits? edits = null)
+    /// <summary>What the Properties pane shows.</summary>
+    public PropertiesViewModel Properties
     {
-        ArgumentNullException.ThrowIfNull(reading);
-        ArgumentNullException.ThrowIfNull(cards);
-
-        var file = reading.File ?? throw new ArgumentException("Only a readable project has a view.", nameof(reading));
-        var byKey = cards.ToDictionary(card => card.Key, StringComparer.OrdinalIgnoreCase);
-        var stages = new Dictionary<string, WorkstreamStage>(StringComparer.OrdinalIgnoreCase);
-        var specs = new Dictionary<string, SpecAtGate?>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var objective in file.Objectives)
-        {
-            foreach (var row in objective.Workstreams)
-            {
-                var artefacts = reading.Artefacts.GetValueOrDefault(row.Slug) ?? WorkstreamArtefacts.NotStarted(row.Slug);
-                var stage = StageCalculator.Calculate(objective.Pipelines, artefacts, acceptance(file.Name, row.Slug));
-
-                stages[row.Slug] = stage;
-                specs[row.Slug] = SpecAtGate.For(file.Name, row.Slug, stage.Pipeline, artefacts);
-            }
-        }
-
-        var layout = ProjectLayout.Build(file, [.. cards.Select(card => card.Workstream)], (_, row) => stages[row.Slug], hasEnded);
-        var rows = new List<ProjectPipelineRowViewModel>();
-        var tree = new List<ProjectTreeNodeViewModel>();
-        var rowOf = new Dictionary<string, ProjectPipelineRowViewModel>(StringComparer.Ordinal);
-        var waiting = new List<SpecAtGate>();
-
-        ProjectEntryViewModel Entry(SlugEntry entry, WorkstreamCardViewModel? card)
-        {
-            var stage = entry.Stage;
-            var spec = specs.GetValueOrDefault(entry.Row.Slug);
-            var isWaiting = stage.IsWaitingOnOwner && spec is not null;
-
-            if (card is not null)
-            {
-                card.ProjectSource = stage.Source.Describe;
-            }
-
-            return new ProjectEntryViewModel(entry.Row.Slug, $"{entry.Row.Slug} · {entry.Row.Workstream}", card, stage, false)
-            {
-                Note = Note(entry, card is not null),
-                Detail = Detail(stage),
-                IsWaitingOnYou = isWaiting,
-                WaitingText = stage.GateAfter(PipelineStage.Spec)?.State == GateState.ChangedSinceAccepted
-                    ? "Changed since accepted: waiting on you"
-                    : "Waiting on you",
-                OpenSpecCommand = spec is null ? null : new RelayCommand(_ => openSpec(spec)),
-                AcceptSpecCommand = isWaiting ? new RelayCommand(_ => acceptSpec(spec!)) : null,
-            };
-        }
-
-        foreach (var objectiveLayout in layout.Objectives.Where(each => each.Entries.Count > 0))
-        {
-            var cells = Stages.ToDictionary(stage => stage, _ => new List<ProjectEntryViewModel>());
-
-            foreach (var entry in objectiveLayout.Entries)
-            {
-                var column = entry.Stage.Position ?? PipelineStage.Research;
-                var holders = entry.CardKeys.Select(key => byKey.GetValueOrDefault(key)).OfType<WorkstreamCardViewModel>().ToList();
-
-                if (entry.Stage.Pipeline is null or PipelineKind.Freeform && holders.Count == 0)
-                {
-                    continue;
-                }
-
-                if (holders.Count == 0)
-                {
-                    cells[column].Add(Entry(entry, null));
-                }
-
-                foreach (var holder in holders)
-                {
-                    cells[column].Add(Entry(entry, holder));
-                }
-
-                foreach (var verifier in entry.VerifierKeys.Select(key => byKey.GetValueOrDefault(key)).OfType<WorkstreamCardViewModel>())
-                {
-                    verifier.ProjectSource = entry.Stage.Source.Describe;
-                    cells[SlugEntry.VerifierStage].Add(new ProjectEntryViewModel(entry.Row.Slug, entry.Row.Slug, verifier, entry.Stage, true)
-                    {
-                        Note = $"verifying {entry.Row.Slug}",
-                        Detail = Detail(entry.Stage),
-                    });
-                }
-
-                if (entry.Stage.IsWaitingOnOwner && specs.GetValueOrDefault(entry.Row.Slug) is { } spec)
-                {
-                    waiting.Add(spec);
-                }
-            }
-
-            var objective = objectiveLayout.Objective;
-            var pipelineRow = new ProjectPipelineRowViewModel($"{objective.Number} {objective.Title}",
-                [.. Stages.Select(stage => new ProjectStageCellViewModel(stage, cells[stage]))], []);
-
-            rows.Add(pipelineRow);
-            rowOf[objective.Number] = pipelineRow;
-        }
-
-        AddGroup(rows, "No slug yet", layout.NoSlugYet, byKey);
-        AddGroup(rows, "Not in the project file", layout.NotInProjectFile, byKey);
-
-        foreach (var phase in file.Phases)
-        {
-            var objectives = phase.Objectives.Select(objective =>
-            {
-                var row = rowOf.GetValueOrDefault(objective.Number);
-                var slugs = objective.Workstreams.Select(each =>
-                {
-                    var stage = stages[each.Slug];
-                    var waits = stage.IsWaitingOnOwner;
-
-                    return new ProjectTreeNodeViewModel($"{each.Slug} ({each.Workstream})",
-                        Where(stage, waits), [], row, waits);
-                }).ToList();
-
-                var ticked = objective.IsDone
-                    ? "done"
-                    : $"{objective.TickedCount} of {objective.Criteria.Count} ticked";
-
-                // Its criteria first, each with a tick box that writes the file (1.1c AC 8), then its slugs.
-                var criteria = objective.Criteria.Select(criterion => new ProjectTreeNodeViewModel(criterion.Text, string.Empty, [], row, false)
-                {
-                    IsTicked = criterion.IsTicked,
-                    ToggleCommand = edits is null ? null : new RelayCommand(_ => edits.TickCriterion(criterion.Line, !criterion.IsTicked)),
-                }).ToList();
-                var number = objective.Number;
-
-                return new ProjectTreeNodeViewModel($"{objective.Number} {objective.Title}", ticked, [.. criteria, .. slugs], row,
-                    slugs.Any(slug => slug.IsWaitingOnYou))
-                {
-                    EditCommand = edits is null ? null : new RelayCommand(_ => edits.EditObjective(number)),
-                    OpenFileCommand = edits is null ? null : new RelayCommand(_ => edits.OpenFile()),
-                };
-            }).ToList();
-
-            var current = ReferenceEquals(phase, file.CurrentPhase) ? "current" : phase.HasOpenObjective ? string.Empty : "done";
-
-            var phaseNumber = phase.Number;
-
-            tree.Add(new ProjectTreeNodeViewModel($"Phase {phase.Number}: {phase.Name}", current, objectives,
-                objectives.Select(node => node.Row).FirstOrDefault(row => row is not null),
-                objectives.Any(node => node.IsWaitingOnYou))
-            {
-                AddObjectiveCommand = edits is null ? null : new RelayCommand(_ => edits.AddObjective(phaseNumber)),
-                OpenFileCommand = edits is null ? null : new RelayCommand(_ => edits.OpenFile()),
-            });
-        }
-
-        foreach (var group in rows.Where(row => row.IsGroup))
-        {
-            tree.Add(new ProjectTreeNodeViewModel(group.Heading, $"{group.Loose.Count} card(s)", [], group, false));
-        }
-
-        var phaseText = file.CurrentPhase is { } currentPhase
-            ? $"Phase {currentPhase.Number}: {currentPhase.Name}. Exit gate: {(currentPhase.ExitGate.Length > 0 ? currentPhase.ExitGate : "[not written]")}"
-            : "Every objective is done";
-
-        var inOrder = rows
-            .SelectMany(row => row.IsGroup ? row.Loose : row.Cells.SelectMany(cell => cell.Entries))
-            .Select(entry => entry.Card)
-            .OfType<WorkstreamCardViewModel>()
-            .Distinct()
-            .ToList();
-
-        return new ProjectViewModel(file)
-        {
-            PhaseText = phaseText,
-            Tree = tree,
-            Rows = rows,
-            CardsInOrder = inOrder,
-            WaitingSpecs = waiting,
-            BackCommand = back,
-            Signature = SignatureOf(file, rows, tree),
-        };
+        get => _properties;
+        private set => Set(ref _properties, value);
     }
 
-    private static void AddGroup(List<ProjectPipelineRowViewModel> rows, string heading, IReadOnlyList<string> keys,
-        IReadOnlyDictionary<string, WorkstreamCardViewModel> byKey)
-    {
-        var cards = keys.Select(key => byKey.GetValueOrDefault(key)).OfType<WorkstreamCardViewModel>().ToList();
+    /// <summary>The Properties pane's width as last left (AC 35).</summary>
+    public double PaneWidth { get; private set; }
 
-        if (cards.Count == 0)
-        {
-            return;
-        }
+    /// <summary>Folds every box (AC 21).</summary>
+    public ICommand CollapseAllCommand { get; }
 
-        rows.Add(new ProjectPipelineRowViewModel(heading, [],
-        [
-            .. cards.Select(card => new ProjectEntryViewModel(card.Workstream.Slug ?? string.Empty, card.Title, card,
-                StageCalculator.Calculate([], WorkstreamArtefacts.NotStarted(string.Empty), null), false)
-            {
-                Note = card.Workstream.Slug is { } slug ? $"{slug} is not in the project file" : "no slug yet",
-            }),
-        ]));
-    }
+    /// <summary>Opens every box.</summary>
+    public ICommand ExpandAllCommand { get; }
 
-    private static string Note(SlugEntry entry, bool hasCard)
-    {
-        var stage = entry.Stage;
+    /// <summary>Opens the boxes that are busy, waiting on you, stuck or waiting for their holdouts, and folds the rest.</summary>
+    public ICommand OpenWhatNeedsAttentionCommand { get; }
 
-        if (stage.Note is { } note)
-        {
-            return note;
-        }
+    /// <summary>Esc: nothing selected (AC 16, 32).</summary>
+    public ICommand ClearSelectionCommand { get; }
 
-        if (!stage.HasStarted)
-        {
-            return hasCard ? "nothing written yet" : entry.IsEarlierSlug ? "earlier slug, nothing written" : "not started";
-        }
-
-        var verify = stage.GateAfter(PipelineStage.Verify);
-
-        if (stage.Position >= PipelineStage.Verify && verify?.Note is { } evidence)
-        {
-            return evidence;
-        }
-
-        return entry.IsEarlierSlug ? "earlier slug" : hasCard ? string.Empty : "no card";
-    }
-
-    private static string Detail(WorkstreamStage stage)
-    {
-        var passed = stage.Gates.Where(gate => gate.State == GateState.Passed).Select(gate => StageName(gate.Stage)).ToList();
-        var lines = new List<string>
-        {
-            stage.Gates.Count == 0 ? "No gate marks" : passed.Count == 0 ? "No gate passed yet" : $"Passed: {string.Join(", ", passed)}",
-        };
-
-        if (stage.EvidenceClaims.Count > 0)
-        {
-            lines.Add("The evidence block claims (information only): "
-                      + string.Join(", ", stage.EvidenceClaims.Select(claim => $"{claim.Gate} {claim.Accepted ?? "not accepted"}")));
-        }
-
-        return string.Join(Environment.NewLine, lines);
-    }
-
-    private static string Where(WorkstreamStage stage, bool waits)
-    {
-        if (stage.Pipeline is null or PipelineKind.Freeform)
-        {
-            return stage.Pipeline is null ? "no pipeline chosen" : "freeform";
-        }
-
-        var at = stage.Position is { } position ? $"at {StageName(position)}" : stage.Note ?? "not started";
-        var passed = stage.Gates.Count(gate => gate.State == GateState.Passed);
-
-        return string.Join(" · ", new[]
-        {
-            at,
-            stage.Gates.Count > 0 ? $"{passed} gate(s) passed" : stage.Note ?? string.Empty,
-            waits ? "Waiting on you" : string.Empty,
-        }.Where(part => part.Length > 0).Distinct());
-    }
-
-    private static string StageName(PipelineStage stage) => stage.ToString().ToLower(CultureInfo.InvariantCulture);
+    /// <summary>Back to the board: ← Board, Alt+Left and View › Back to the board (AC 16).</summary>
+    public ICommand? BackCommand { get; private set; }
 
     /// <summary>
-    /// Takes the read sources from a newer build of the same view, which has the same signature and so the same entries
-    /// in the same order: a new commit updates the tooltips in place, without a rebuild (PR 2 review, item 4).
+    /// What the view draws, as text: a refresh rebuilds the view only when it changes (AC 36), so it covers every stage
+    /// state and reason, status, mark, action, link, criterion and live session the view shows.
     /// </summary>
-    public void TakeSourcesFrom(ProjectViewModel newer)
-    {
-        ArgumentNullException.ThrowIfNull(newer);
+    public string Signature { get; private set; } = string.Empty;
 
-        foreach (var (mine, theirs) in Entries(this).Zip(Entries(newer)))
+    /// <summary>Builds the view of a readable project.</summary>
+    /// <param name="reading">The project as read.</param>
+    /// <param name="pieces">Its pieces of work, as <see cref="PiecesOfWork.Build"/> gave them.</param>
+    /// <param name="links">The links read against the board.</param>
+    /// <param name="tabs">One tab per project that reads.</param>
+    /// <param name="settings">Where its folds and the pane's width are kept.</param>
+    /// <param name="actions">What its buttons run.</param>
+    /// <param name="back">Back to the board.</param>
+    /// <param name="edits">The edits it offers on the project file, or null.</param>
+    /// <param name="previous">The view it replaces, whose selection it keeps while the piece and stage still exist.</param>
+    public static ProjectViewModel Build(ProjectFileReading reading, IReadOnlyList<PieceOfWork> pieces, LinkStatus links,
+        IReadOnlyList<ProjectTabViewModel> tabs, ISettingsStore settings, ProjectViewActions actions, ICommand? back = null,
+        ProjectViewEdits? edits = null, ProjectViewModel? previous = null)
+    {
+        ArgumentNullException.ThrowIfNull(reading);
+        ArgumentNullException.ThrowIfNull(pieces);
+        ArgumentNullException.ThrowIfNull(links);
+        ArgumentNullException.ThrowIfNull(tabs);
+        ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(actions);
+
+        var file = reading.File ?? throw new ArgumentException("Only a readable project has a view.", nameof(reading));
+        var tree = PieceTree.Build(pieces, links);
+        var view = new ProjectViewModel(file, ProjectSummary.For(pieces), settings, actions, edits) { BackCommand = back };
+        var specs = SpecsOf(reading, file.Name, pieces);
+        var parents = tree.All.SelectMany(node => node.Children.Select(child => (Child: child.Piece, Parent: node.Piece)))
+            .ToDictionary(pair => pair.Child, pair => pair.Parent);
+
+        PieceNodeViewModel Node(PieceNode node) => view.NodeFor(node, [.. node.Children.Select(Node)], reading, file, links,
+            tree, parents, specs.GetValueOrDefault(node.Piece.Name));
+
+        view.Roots = [.. tree.Roots.Select(Node)];
+        view.Tabs = tabs;
+        view.WaitingSpecs = [.. pieces.Select(piece => specs.GetValueOrDefault(piece.Name)).OfType<SpecAtGate>()];
+
+        var byPiece = view.AllNodes.ToDictionary(node => node.Piece);
+
+        view.Connectors =
+        [
+            .. view.AllNodes.SelectMany(node => node.Children.Select(child => new ConnectorLink(node, child, ConnectorKind.HandsOver))),
+            .. tree.ThenWorkedOn.Select(link => new ConnectorLink(byPiece[link.From], byPiece[link.To], ConnectorKind.ThenWorkedOn)),
+        ];
+        view.Waiting = [.. pieces.Select(piece => view.WaitingButton(byPiece[piece])).OfType<WaitingButtonViewModel>()];
+        view.Signature = SignatureOf(view, tree);
+
+        if (previous is not null && string.Equals(previous.Name, view.Name, StringComparison.OrdinalIgnoreCase))
         {
-            mine.Source = theirs.Source;
+            view.Select(view.Find(previous._selection));
+        }
+
+        return view;
+    }
+
+    /// <summary>
+    /// The specs of a project's pieces that wait at their gate, for a project card's waiting count (project-view AC 12)
+    /// without building the whole view.
+    /// </summary>
+    public static IReadOnlyList<SpecAtGate> SpecsWaiting(ProjectFileReading reading, IReadOnlyList<PieceOfWork> pieces)
+    {
+        ArgumentNullException.ThrowIfNull(reading);
+        ArgumentNullException.ThrowIfNull(pieces);
+
+        var specs = SpecsOf(reading, reading.Name, pieces);
+
+        return [.. pieces.Select(piece => specs.GetValueOrDefault(piece.Name)).OfType<SpecAtGate>()];
+    }
+
+    /// <summary>Selects a box, a stage, or nothing, and shows it in Properties (AC 32).</summary>
+    public void Select(object? item)
+    {
+        if (_selection is PieceNodeViewModel oldPiece)
+        {
+            oldPiece.IsSelected = false;
+        }
+        else if (_selection is StageNodeViewModel oldStage)
+        {
+            oldStage.IsSelected = false;
+            oldStage.Piece.IsSelected = false;
+        }
+
+        _selection = item is PieceNodeViewModel or StageNodeViewModel ? item : null;
+
+        switch (_selection)
+        {
+            case PieceNodeViewModel piece:
+                piece.IsSelected = true;
+                Properties = PropertiesViewModel.ForPiece(piece, _actions, _edits);
+                break;
+            case StageNodeViewModel stage:
+                stage.IsSelected = true;
+                stage.Piece.IsSelected = true;
+                Properties = PropertiesViewModel.ForStage(stage, _actions, _edits);
+                break;
+            default:
+                Properties = PropertiesViewModel.Empty;
+                break;
+        }
+
+        Raise(nameof(Selection));
+        CommandManager.InvalidateRequerySuggested();
+    }
+
+    /// <summary>Folds or opens one box, and remembers it (AC 33).</summary>
+    public void Toggle(PieceNodeViewModel node)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+
+        node.IsOpen = !node.IsOpen;
+        RememberFolds(PieceFolds.With(_folds, node.Name, node.IsOpen));
+    }
+
+    /// <summary>Saves the pane's width as the splitter left it, kept within its bounds by the view (AC 35).</summary>
+    public void RememberPaneWidth(double width)
+    {
+        PaneWidth = width;
+
+        var settings = _settings.Read();
+        var sizes = new Dictionary<string, double>(settings.PaneSizes) { [ProjectPaneWidth.SettingsKey] = width };
+
+        _settings.Write(settings with { PaneSizes = sizes });
+    }
+
+    /// <summary>A double-click on the splitter: the pane back to 320 px, and remembered.</summary>
+    public double ResetPaneWidth()
+    {
+        RememberPaneWidth(ProjectPaneWidth.Default);
+
+        return PaneWidth;
+    }
+
+    /// <summary>Open records, disabled with its reason when the piece has no records folder (AC 27).</summary>
+    internal static PieceActionViewModel OpenRecords(PieceOfWork piece, ProjectViewActions actions) =>
+        piece.RecordsFolder is { } folder
+            ? new PieceActionViewModel("Open records", () => actions.OpenPath(folder), toolTip: folder)
+            : new PieceActionViewModel("Open records", () => { }, false, "No records folder in the project yet");
+
+    private PieceNodeViewModel NodeFor(PieceNode node, IReadOnlyList<PieceNodeViewModel> children, ProjectFileReading reading,
+        ProjectFile file, LinkStatus links, PieceTree tree, IReadOnlyDictionary<PieceOfWork, PieceOfWork> parents, SpecAtGate? spec)
+    {
+        var piece = node.Piece;
+        var stages = piece.Stages
+            .Select((stage, index) => new StageNodeViewModel(stage, index, Select,
+                [.. stage.Actions.Select(offer => Action(offer, piece, stage, spec))]))
+            .ToList();
+
+        // Each kind of action once, in AC 27's order; a stage's own record is opened from its menu or Properties.
+        var boxActions = piece.Stages
+            .SelectMany(stage => stage.Actions.Where(offer => offer.Action != StageAction.OpenRecord).Select(offer => (Offer: offer, Stage: stage)))
+            .GroupBy(entry => entry.Offer.Action)
+            .OrderBy(group => Array.IndexOf(BoxActionOrder, group.Key))
+            .Select(group => Action(group.First().Offer, piece, group.First().Stage, spec))
+            .ToList();
+
+        return new PieceNodeViewModel(node, children, stages, boxActions, PieceFolds.IsOpen(_folds, piece.Name), Toggle, Select)
+        {
+            LinkLines = LinkLines(node, links, tree, parents),
+            Evidence = EvidenceOf(reading.Artefacts.GetValueOrDefault(piece.Name)),
+            Objective = piece.ObjectiveNumber is { } number
+                ? file.Objectives.FirstOrDefault(objective => objective.Number == number)
+                : null,
+            Spec = spec,
+        };
+    }
+
+    private PieceActionViewModel Action(StageActionOffer offer, PieceOfWork piece, StageNode stage, SpecAtGate? spec)
+    {
+        var key = piece.CardKey;
+
+        (Action Run, string? ToolTip) what = offer.Action switch
+        {
+            StageAction.OpenSpec => (() => Run(spec, _actions.OpenSpec), "Open the spec as it was read, at the commit Accept spec names"),
+            StageAction.AcceptSpec => (() => Run(spec, _actions.AcceptSpec), AcceptSpecToolTip),
+            StageAction.VerifyWithHoldouts => (() => _actions.VerifyWithHoldouts(key),
+                $"Create a verifier card for {piece.Workstream}: it runs the holdout scenarios and reports only a verdict"),
+            StageAction.Focus => (() => _actions.Focus(key), "Bring its terminal forward"),
+            StageAction.Start => (() => _actions.Start(key), $"Start {piece.Workstream}"),
+            StageAction.Stop => (() => _actions.Stop(key), $"Ask {piece.Workstream} to write its handover and stop"),
+            StageAction.OpenRecord => (() => _actions.OpenPath(stage.RecordFile!), stage.RecordFile),
+            _ => (() => _actions.OpenPath(piece.RecordsFolder!), piece.RecordsFolder),
+        };
+
+        return new PieceActionViewModel(offer.Label, what.Run, offer.IsEnabled, offer.DisabledReason ?? what.ToolTip);
+    }
+
+    private static void Run(SpecAtGate? spec, Action<SpecAtGate> action)
+    {
+        if (spec is not null)
+        {
+            action(spec);
         }
     }
 
-    private static IEnumerable<ProjectEntryViewModel> Entries(ProjectViewModel view) =>
-        view.Rows.SelectMany(row => row.Loose.Concat(row.Cells.SelectMany(cell => cell.Entries)));
+    private WaitingButtonViewModel? WaitingButton(PieceNodeViewModel node)
+    {
+        if (node.State != StageNodeState.WaitingOnYou
+            || node.Stages.FirstOrDefault(stage => stage.State == StageNodeState.WaitingOnYou) is not { } stage)
+        {
+            return null;
+        }
 
-    // The signature leaves out where each slug was read: a new commit is not a new view.
-    private static string SignatureOf(ProjectFile file, IReadOnlyList<ProjectPipelineRowViewModel> rows, IReadOnlyList<ProjectTreeNodeViewModel> tree) =>
-        string.Join("|", new[] { file.Name, file.Title }
-            .Concat(rows.Select(row => row.Heading + ":" + string.Join(",", row.Loose.Select(Shape))
-                                       + ":" + string.Join(";", row.Cells.Select(cell => string.Join(",", cell.Entries.Select(Shape))))))
-            .Concat(Flatten(tree).Select(node => $"{node.Text}={node.Detail}={node.IsTicked}")));
+        if (stage.Node is SpecStageNode { AwaitsAcceptance: true } && node.Spec is { } spec)
+        {
+            var noun = node.Piece.Pipeline == PipelineKind.Bug ? "rule" : "spec";
 
-    private static string Shape(ProjectEntryViewModel entry) =>
-        $"{entry.Slug}/{entry.Card?.Key}/{entry.Note}/{entry.IsWaitingOnYou}/{entry.WaitingText}/{entry.Detail}";
+            return new WaitingButtonViewModel($"Accept the {noun} of {node.Name}…", new RelayCommand(_ =>
+            {
+                Reveal(stage);
+                _actions.AcceptSpec(spec);
+            }));
+        }
 
-    private static IEnumerable<ProjectTreeNodeViewModel> Flatten(IEnumerable<ProjectTreeNodeViewModel> nodes) =>
-        nodes.SelectMany(node => new[] { node }.Concat(Flatten(node.Children)));
+        return new WaitingButtonViewModel($"Answer {node.Workstream} in its terminal", new RelayCommand(_ =>
+        {
+            Reveal(stage);
+            _actions.Focus(node.Piece.CardKey);
+        }));
+    }
+
+    // The owner's own press opens the box, so it is remembered like any other toggle (AC 20, 33).
+    private void Reveal(StageNodeViewModel stage)
+    {
+        if (!stage.Piece.IsOpen)
+        {
+            Toggle(stage.Piece);
+        }
+
+        Select(stage);
+    }
+
+    private void SetAll(bool open)
+    {
+        foreach (var node in AllNodes)
+        {
+            node.IsOpen = open;
+        }
+
+        RememberFolds(PieceFolds.All(open));
+    }
+
+    private void OpenWhatNeedsAttention()
+    {
+        foreach (var node in AllNodes)
+        {
+            node.IsOpen = NeedsAttention.Contains(node.State);
+        }
+
+        RememberFolds(PieceFolds.Each(AllNodes.Select(node => (node.Name, node.IsOpen))));
+    }
+
+    private void RememberFolds(IReadOnlyList<string> folds)
+    {
+        _folds = folds;
+
+        var settings = _settings.Read();
+        var views = new Dictionary<string, IReadOnlyList<string>>(settings.ViewFolds) { [PieceFolds.KeyFor(Name)] = folds };
+
+        _settings.Write(settings with { ViewFolds = views });
+    }
+
+    private object? Find(object? older) => older switch
+    {
+        PieceNodeViewModel piece => AllNodes.FirstOrDefault(node => node.Name == piece.Name),
+        StageNodeViewModel stage => AllNodes.FirstOrDefault(node => node.Name == stage.Piece.Name)?.Stages
+            .FirstOrDefault(each => each.Name == stage.Name),
+        _ => null,
+    };
+
+    private static Dictionary<string, SpecAtGate> SpecsOf(ProjectFileReading reading, string project, IReadOnlyList<PieceOfWork> pieces)
+    {
+        var specs = new Dictionary<string, SpecAtGate>(StringComparer.Ordinal);
+
+        foreach (var piece in pieces.Where(piece => piece.Stages.OfType<SpecStageNode>().Any(stage => stage.AwaitsAcceptance)))
+        {
+            if (reading.Artefacts.GetValueOrDefault(piece.Name) is { } artefacts
+                && SpecAtGate.For(project, piece.Name, piece.Pipeline, artefacts) is { } spec)
+            {
+                specs[piece.Name] = spec;
+            }
+        }
+
+        return specs;
+    }
+
+    private static string EvidenceOf(WorkstreamArtefacts? artefacts)
+    {
+        if (artefacts?.EvidenceText is not { } text)
+        {
+            return "none written";
+        }
+
+        return EvidenceBlockReader.Last(text) switch
+        {
+            null => "no block",
+            { Result: { } result } => result,
+            { Problem: var problem } => problem ?? "no result",
+        };
+    }
+
+    private static IReadOnlyList<string> LinkLines(PieceNode node, LinkStatus links, PieceTree tree,
+        IReadOnlyDictionary<PieceOfWork, PieceOfWork> parents)
+    {
+        var piece = node.Piece;
+        var lines = new List<string>();
+
+        if (parents.TryGetValue(piece, out var parent))
+        {
+            lines.Add($"{parent.Name} hands work to this{StateWords(HandOver(links, parent, piece), links)}");
+        }
+
+        lines.AddRange(node.Children.Select(child =>
+            $"hands work to {child.Piece.Name}{StateWords(HandOver(links, piece, child.Piece), links)}"));
+
+        if (node.ReportBack is { } mark)
+        {
+            lines.Add($"reports back to {mark.ParentPiece}{StateWords(mark.State)}");
+        }
+
+        lines.AddRange(tree.ThenWorkedOn.Where(link => link.From == piece).Select(link => $"then worked on {link.To.Name}"));
+
+        return lines;
+    }
+
+    private static Link? HandOver(LinkStatus links, PieceOfWork from, PieceOfWork to) =>
+        links.Links.LastOrDefault(link => link.IsActive && link.Kind == LinkKind.HandsOver
+                                          && string.Equals(link.From, from.CardKey, StringComparison.OrdinalIgnoreCase)
+                                          && string.Equals(link.To, to.CardKey, StringComparison.OrdinalIgnoreCase));
+
+    private static string StateWords(Link? link, LinkStatus links) => link is null ? string.Empty : StateWords(links.StateOf(link));
+
+    // The board's own words for a link's state (LinkLine), so the view and a card's link line agree.
+    private static string StateWords(LinkState state) => state switch
+    {
+        LinkState.Lineage => string.Empty,
+        LinkState.Satisfied => ": accepted",
+        LinkState.Reported => ": reported, not confirmed yet",
+        LinkState.NoReportYet => ": ran since, no report yet",
+        LinkState.ReportLost => ": report lost",
+        LinkState.CardMissing => ": card missing",
+        _ => ": not accepted yet",
+    };
+
+    private static string SignatureOf(ProjectViewModel view, PieceTree tree)
+    {
+        IEnumerable<string> Lines(PieceNodeViewModel node, int depth) =>
+            node.Children.SelectMany(child => Lines(child, depth + 1)).Prepend(string.Join("/",
+                depth.ToString(CultureInfo.InvariantCulture), node.Name, node.Workstream, node.ColourHex, node.KindWord,
+                node.ObjectiveLabel, node.StatusText, node.ReportBackText, node.IsReportLost, node.Piece.RecordsFolder,
+                node.Evidence, node.Spec?.ContentHash,
+                node.Objective is { } objective
+                    ? $"{objective.Title}:{string.Join(",", objective.Criteria.Select(each => $"{each.Text}={each.IsTicked}"))}"
+                    : string.Empty,
+                string.Join(";", node.LinkLines),
+                string.Join(";", node.Actions.Select(action => $"{action.Label}:{action.IsEnabled}:{action.ToolTip}")),
+                string.Join(";", node.Stages.Select(stage =>
+                    $"{stage.Name}={stage.State}={stage.Node.Reason}={stage.Node.RecordFile}"
+                    + $"={string.Join(",", (stage.Node as VerifyStageNode)?.Verifiers ?? [])}"
+                    + "=" + string.Join(",", stage.MenuItems.Select(item => $"{item.Label}:{item.IsEnabled}:{item.ToolTip}"))))));
+
+        return string.Join("|", new[] { view.Name, view.Title, view.Sentence }
+            .Concat(view.Tabs.Select(tab => $"{tab.Name}:{tab.Title}:{tab.IsOpen}"))
+            .Concat(view.Roots.SelectMany(root => Lines(root, 0)))
+            .Concat(tree.ThenWorkedOn.Select(link => $"{link.From.Name}>{link.To.Name}")));
+    }
 }

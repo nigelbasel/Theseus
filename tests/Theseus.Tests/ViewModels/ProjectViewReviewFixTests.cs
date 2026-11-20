@@ -1,65 +1,14 @@
 using Theseus.App.ViewModels;
-using Theseus.Core.Domain;
-using Theseus.Core.Projects;
-using static Theseus.Tests.Projects.ProjectCards;
 
 namespace Theseus.Tests.ViewModels;
 
 /// <summary>
-/// The project view and card after the review of PR 2: a new reading is not a new view, its source updates in place
-/// (item 4); and a project card moves only where cards do (item 7).
+/// The project card after the review of 1.1's PR 2: a project card moves only where cards do (item 7). Item 4's tests,
+/// of the pipeline grid's sources updated in place, went with the grid (1.1d PR 2).
 /// </summary>
 [TestFixture]
 public class ProjectViewReviewFixTests
 {
-    private static ProjectFileReading Reading(string commit) =>
-        ProjectFileReader.Read("p", """
-            # P
-
-            **Kit:** method-v0.2
-            **Primary branch:** owner/p
-
-            ## Phase 0: Seed
-
-            ### Objective 0.1: First
-            - [ ] One.
-
-            **Pipeline:** feature
-            | Workstream | Slug | Branch | Repos |
-            |---|---|---|---|
-            | Work | a-slug | owner/a-slug | Repo |
-            | Other | b-slug | owner/b-slug | Repo |
-            """) with
-        {
-            Artefacts = new Dictionary<string, WorkstreamArtefacts>
-            {
-                ["a-slug"] = new("a-slug", new WorkstreamSource($"{commit}/a-slug"), new HashSet<string> { "research.md" }),
-                ["b-slug"] = new("b-slug", new WorkstreamSource($"{commit}/b-slug"), new HashSet<string> { "research.md" }),
-            },
-        };
-
-    private static ProjectViewModel Build(string commit, IReadOnlyList<WorkstreamCardViewModel>? cards = null) =>
-        ProjectViewModel.Build(Reading(commit), cards ?? [], (_, _) => null, (Workstream _) => false, _ => { }, _ => { }, null);
-
-    [Test]
-    public void ANewCommit_KeepsTheSignature_SoTheViewIsNotRebuilt()
-    {
-        Assert.That(Build("2222222222222").Signature, Is.EqualTo(Build("1111111111111").Signature));
-    }
-
-    [Test]
-    public void ANewCommit_UpdatesWhereEachSlugWasRead_InPlace()
-    {
-        var shown = Build("1111111111111");
-        var entry = shown.Rows[0].Cells[0].Entries.Single(each => each.Slug == "b-slug");
-
-        shown.TakeSourcesFrom(Build("2222222222222"));
-
-        Assert.That(entry.Source, Is.EqualTo("read from 2222222222222/b-slug"));
-        Assert.That(entry.ToolTipText, Does.EndWith("read from 2222222222222/b-slug"));
-    }
-
-
     [Test]
     public void AProjectCard_IsNotMoved_WhereCardsCannotBeDropped()
     {
