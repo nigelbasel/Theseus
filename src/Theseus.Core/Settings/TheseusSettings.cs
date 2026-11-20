@@ -103,6 +103,12 @@ public sealed record TheseusSettings(
     /// </summary>
     public int BoardRevision { get; init; }
 
+    /// <summary>
+    /// Whether the update check also offers pre-releases: the builds CI publishes from a project's primary branch, so
+    /// the owner can try them live before merging into main (Nigel, 2026-11-20). Off reads releases from main only.
+    /// </summary>
+    public bool IncludePreReleases { get; init; }
+
     /// <summary>Whether the toolbar was hidden from View. Named for hidden so an older file reads as shown.</summary>
     public bool ToolbarHidden { get; init; }
 

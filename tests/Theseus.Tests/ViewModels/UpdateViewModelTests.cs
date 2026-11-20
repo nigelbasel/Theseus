@@ -97,6 +97,46 @@ public class UpdateViewModelTests
         Assert.That(script, Does.Contain("-Verb RunAs -Wait"));
     }
 
+    [Test]
+    public async Task CheckAsync_WithdrawsAnOfferWhenTheFeedNoLongerAnswersWithANewerRelease()
+    {
+        var feed = new Feed(Release("2026.10.29.100"));
+        var updates = new UpdateViewModel(feed, Running, Path.GetTempPath(), _ => { });
+        await updates.CheckAsync();
+
+        feed.Latest = Release(Running);
+        await updates.CheckAsync();
+
+        Assert.That(updates.IsOffered, Is.False);
+    }
+
+    [Test]
+    public async Task CheckAsync_KeepsAnOfferWhenTheCheckFails()
+    {
+        var feed = new Feed(Release("2026.10.29.100"));
+        var updates = new UpdateViewModel(feed, Running, Path.GetTempPath(), _ => { });
+        await updates.CheckAsync();
+
+        feed.Latest = null;
+        await updates.CheckAsync();
+
+        Assert.That(updates.IsOffered, Is.True);
+    }
+
+    [Test]
+    public async Task CheckNowAsync_SayingUpToDateWithdrawsAnEarlierOffer()
+    {
+        var feed = new Feed(Release("2026.10.29.100"));
+        var updates = new UpdateViewModel(feed, Running, Path.GetTempPath(), _ => { });
+        await updates.CheckAsync();
+
+        feed.Latest = Release(Running);
+        var answer = await updates.CheckNowAsync();
+
+        Assert.That(answer, Is.EqualTo($"Theseus {Running} is up to date."));
+        Assert.That(updates.IsOffered, Is.False);
+    }
+
     private static UpdateViewModel Updates(AvailableRelease latest) =>
         new(new Feed(latest), Running, Path.GetTempPath(), _ => { });
 

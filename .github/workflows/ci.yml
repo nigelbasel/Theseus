@@ -2,16 +2,16 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, nigel/theseus]
   pull_request:
   workflow_dispatch:
 
-# One run per branch at a time, and on main the newer push cancels the older: two pushes a minute
-# apart would otherwise race to publish, and the one that finished last would become "latest" -
-# the older build, half the time. The same reasoning as TailHawk's workflow.
+# One run per branch at a time, and on a publishing branch the newer push cancels the older: two pushes a minute
+# apart would otherwise race to publish, and the one that finished last would become the newest - the older build,
+# half the time. The same reasoning as TailHawk's workflow.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref == 'refs/heads/main' }}
+  cancel-in-progress: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/nigel/theseus' }}
 
 env:
   DOTNET_NOLOGO: true
@@ -76,10 +76,11 @@ jobs:
   #
   #   https://github.com/nigelbasel/Theseus/releases/latest/download/Theseus.msi
   #
-  # A pull request builds and is never published.
+  # A pull request builds and is never published. A push to the project's primary branch, nigel/theseus, that builds
+  # and tests green becomes a pre-release, offered only to an app with "Include pre-releases" set (Nigel, 2026-11-20).
   release:
     needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/nigel/theseus')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -93,9 +94,17 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ needs.build.outputs.version }}
+          BRANCH: ${{ github.ref_name }}
+        # A pre-release is never "latest", so releases/latest (the default update check and the download link
+        # above) keeps answering with main's newest release.
         run: |
+          if [ "$BRANCH" = "main" ]; then
+            channel=(--title "Theseus $VERSION")
+          else
+            channel=(--prerelease --latest=false --title "Theseus $VERSION (pre-release from $BRANCH)")
+          fi
           gh release create "v$VERSION" dist/Theseus.msi dist/SHA256SUMS.txt \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
-            --title "Theseus $VERSION" \
-            --notes "Built from $GITHUB_SHA. Install by running Theseus.msi; it replaces any earlier version. SHA-256 sums are in SHA256SUMS.txt."
+            "${channel[@]}" \
+            --notes "Built from $GITHUB_SHA on $BRANCH. Install by running Theseus.msi; it replaces any earlier version. SHA-256 sums are in SHA256SUMS.txt."

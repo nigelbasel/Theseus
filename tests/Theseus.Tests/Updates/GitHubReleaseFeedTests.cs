@@ -37,6 +37,44 @@ public class GitHubReleaseFeedTests
         Assert.That(GitHubReleaseFeed.Parse(Release("nightly")), Is.Null);
     }
 
+    [Test]
+    public void Newest_PicksTheNewestBuildStamp_PreReleasesIncluded()
+    {
+        var list = $"[{Release("v2026.11.19.29130")},{Release("v2026.11.20.12909", flag: "prerelease")},{Release("v2026.11.18.31498")}]";
+
+        Assert.That(GitHubReleaseFeed.Newest(list)!.Version, Is.EqualTo("2026.11.20.12909"));
+    }
+
+    [Test]
+    public void Newest_PicksAReleaseFromMainWhenItIsNewerThanEveryPreRelease()
+    {
+        var list = $"[{Release("v2026.11.20.12909", flag: "prerelease")},{Release("v2026.11.21.01000")}]";
+
+        Assert.That(GitHubReleaseFeed.Newest(list)!.Version, Is.EqualTo("2026.11.21.01000"));
+    }
+
+    [Test]
+    public void Newest_SkipsDraftsAndReleasesWithNoInstaller()
+    {
+        var list = $"[{Release("v2026.11.22.01000", flag: "draft")},{Release("v2026.11.21.01000", installer: false)},{Release("v2026.11.20.12909")}]";
+
+        Assert.That(GitHubReleaseFeed.Newest(list)!.Version, Is.EqualTo("2026.11.20.12909"));
+    }
+
+    [TestCase("[]")]
+    [TestCase("{\"message\":\"Not Found\"}")]
+    public void Newest_IsNullForAnEmptyListOrNoList(string json)
+    {
+        Assert.That(GitHubReleaseFeed.Newest(json), Is.Null);
+    }
+
+    [Test]
+    public void TheListEndpointAsksTheSameRepository()
+    {
+        Assert.That(GitHubReleaseFeed.ListEndpoint, Does.StartWith("https://api.github.com/repos/nigelbasel/Theseus/releases"));
+        Assert.That(GitHubReleaseFeed.ListEndpoint, Is.Not.EqualTo(GitHubReleaseFeed.LatestEndpoint));
+    }
+
     private static string Release(string tag, bool installer = true, string? flag = null)
     {
         var assets = installer

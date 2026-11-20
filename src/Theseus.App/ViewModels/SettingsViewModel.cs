@@ -22,6 +22,7 @@ public sealed class SettingsViewModel : ObservableObject
     private string _jiraBaseUrl = string.Empty;
     private string _holdoutFolder = string.Empty;
     private string _holdoutRemote = string.Empty;
+    private bool _includePreReleases;
     private string _sessionPreamble = string.Empty;
     private string _continuePrompt = string.Empty;
     private string _stopPrompt = string.Empty;
@@ -177,6 +178,13 @@ public sealed class SettingsViewModel : ObservableObject
     {
         get => _holdoutRemote;
         set => Set(ref _holdoutRemote, value);
+    }
+
+    /// <summary>Whether Check for updates also offers the pre-releases built from a project's primary branch.</summary>
+    public bool IncludePreReleases
+    {
+        get => _includePreReleases;
+        set => Set(ref _includePreReleases, value);
     }
 
     /// <summary>The Jira instance issue keys link to. Empty leaves the keys as plain labels.</summary>
@@ -376,6 +384,7 @@ public sealed class SettingsViewModel : ObservableObject
         JiraBaseUrl = settings.JiraBaseUrl;
         HoldoutFolder = settings.HoldoutFolder;
         HoldoutRemote = settings.HoldoutRemote;
+        IncludePreReleases = settings.IncludePreReleases;
         SessionPreamble = settings.SessionPreamble;
         ContinuePrompt = settings.ContinuePrompt;
         StopPrompt = settings.StopPrompt;
@@ -398,6 +407,7 @@ public sealed class SettingsViewModel : ObservableObject
             JiraBaseUrl = JiraBaseUrl,
             HoldoutFolder = HoldoutFolder.Trim(),
             HoldoutRemote = HoldoutRemote.Trim(),
+            IncludePreReleases = IncludePreReleases,
             SessionPreamble = SessionPreamble,
             ContinuePrompt = ContinuePrompt,
             StopPrompt = StopPrompt,
