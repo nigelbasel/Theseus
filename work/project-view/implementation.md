@@ -131,6 +131,9 @@ asserted the reason was exactly "not a git repository", Theseus's own words. The
 asserts the reason starts with git's `fatal: not a git repository`. That is a correction of what the owner is told, not
 a weakening: the folder is still unreadable and the reason still says why.
 
+Suite after the review fixes, at their commit: **1925 of 1925 passed, 0 warnings** (the workstream log); 18 tests are
+new.
+
 A branch name that is all hex digits (seven or more) is taken for a commit id by `Ref`; no branch in this repository is
 named so.
 
