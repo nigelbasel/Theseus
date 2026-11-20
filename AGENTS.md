@@ -61,7 +61,9 @@ so it is not part of the generic kit in `method/`.
 
 - Anything that changes the board (a link, a proposal, an approval, a report) passes the person in the tab
   first. A report is a claim, never a fact, until confirmed on the board.
-- Nothing starts a session on its own. Ready is shown, never acted on.
+- Nothing starts a session on its own. Ready is shown, never acted on. The one exception (Nigel, 2026-11-20): inside
+  a project at autonomy level L1 or above, Theseus starts and stops that project's workstreams for objectives already
+  in its approved project file. Until the levels are built (phase 2), there is no such project.
 - Theseus reads trackers and never writes to them. Sessions never report durations.
 - Only the owner reorders, cancels or releases a lock, from the board. Clean-up touches only what can be
   proved to belong to the run being cleaned up.

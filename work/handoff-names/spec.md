@@ -31,7 +31,7 @@ explicitly; Theseus's own search did not cause it. A card keeps the handover nam
    working tree; and no card is moved onto a file another card uses, or whose name a card finding its notes by search
    would match.**
 
-> **Departures from the design Nigel approved (P24), made after review (`review.md`), for him to confirm:** AC 1 was
+> **Departures from the design Nigel approved (P24), made after review (`review.md`). Confirmed by Nigel, 2026-11-20:** AC 1 was
 > "appears in the file's name", which gave false owners (a card keyed `test` owned `HANDOFF-latest.md`) and needed an
 > unapproved tie-break; exact naming still resolves the case on his board, whose file is named exactly after one card.
 > AC 3 adds "being started" (a just-launched card was movable). AC 5 is new: each limit closes a way the automatic move
