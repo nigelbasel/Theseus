@@ -1,0 +1,20 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!--
+        The project view's state colours, dark theme (1.1d, Words and marks; Nigel accepted the mockup,
+        2026-11-20). ThemeApplier swaps this dictionary for its other-theme twin; both define the same keys.
+    -->
+    <SolidColorBrush x:Key="StateDoneBrush" Color="#5cc58c" />
+    <SolidColorBrush x:Key="StateDoneSoftBrush" Color="#183026" />
+    <SolidColorBrush x:Key="StateWaitingBrush" Color="#e3aa4f" />
+    <SolidColorBrush x:Key="StateWaitingSoftBrush" Color="#33281a" />
+    <SolidColorBrush x:Key="StateBusyBrush" Color="#6d9cf0" />
+    <SolidColorBrush x:Key="StateBusySoftBrush" Color="#1a2640" />
+    <SolidColorBrush x:Key="StateStuckBrush" Color="#f07a6e" />
+    <SolidColorBrush x:Key="StateStuckSoftBrush" Color="#3a1f1c" />
+    <SolidColorBrush x:Key="StateHoldoutsBrush" Color="#b392ea" />
+    <SolidColorBrush x:Key="StateHoldoutsSoftBrush" Color="#2a2238" />
+    <SolidColorBrush x:Key="StateToDoBrush" Color="#7d8884" />
+    <SolidColorBrush x:Key="StateToDoSoftBrush" Color="#222a27" />
+    <SolidColorBrush x:Key="ConnectorBrush" Color="#8d9994" />
+</ResourceDictionary>

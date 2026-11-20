@@ -30,22 +30,20 @@ files kept outside your code repositories. Theseus watches the folder and reads 
 changes. With no projects folder set, nothing here appears.
 
 The project file says which cards are in the project: each row of its workstreams table names a card by its name on the
-board, with the slug of the records folder it works in. A card named in several rows has worked under several slugs,
-and its last row is its current one. A verifier card goes with the card it checks. To change it, use a card's
+board, with the name of the piece of work it does, which is also the name of its records folder. A card named in
+several rows has worked on several pieces of work, and its last row is its current one. A verifier card goes with the card it checks. To change it, use a card's
 **Add to project…**, **Remove from project** or **Convert to project…**, or edit `project.md`: both change the file,
-and the board follows within a couple of seconds. In the project view, tick a criterion's box to tick it in the file,
-right-click an objective for **Edit…**, and right-click a phase, or use the project card's menu, for **Add objective…**.
+and the board follows within a couple of seconds. In the project view, select a piece of work to tick its objective's
+criteria and **Edit objective…** in the Properties pane; use the project card's menu for **Add objective…**.
 
 Every project in the folder shows on the board as one **project card**, which you drag to the column you want. One
 whose `project.md` does not read is dimmed and says why; double-click it to open the file. A project that reads shows
 the project's current phase, how many objectives are done, and a count of what is waiting on you; hover over the count
 to list it. The project's own cards leave the board while the card stands for them, and come back if the project can no
 longer be read. Double-click the project card, choose **Open** on its menu, or **View > Open project**, to fill the main
-area with the project: its phases, objectives and workstreams on the left, and on the right each objective's
-workstreams at the stage their files have reached. A spec waiting for you shows **Waiting on you**, with **Open spec**
-and **Accept spec**, which asks first and names the version it accepts; a spec changed after you accept it waits for
-you again. **Board** at the top, or **View > Back to the
-board**, goes back.
+area with the project: see [The project view](project-view.md). A spec waiting for you shows **Waiting on you**, with
+**Open spec** and **Accept spec…**, which asks first and names the version it accepts; a spec changed after you accept
+it waits for you again. **← Board** at the top, **Alt+Left**, or **View > Back to the board**, goes back.
 
 ## The buttons on a card
 

@@ -12,6 +12,8 @@ session can carry on where it left off.
 - [The board](board.md): columns and rows, folding, the Paused and Blocked marks, and the menus,
   toolbar and status bar.
 - [Cards](cards.md): what each button on a card does, and what a card is telling you.
+- [The project view](project-view.md): where a project is, its pieces of work as they run down the page, their
+  stages and links, and the Properties pane.
 - [How your work is laid out](project-layout.md): the projects folder, your source clones and the worktrees
   folder, and why a project's records are kept outside your code repos.
 - [Starting and stopping](starting-and-stopping.md): how a session starts and stops, and what to look

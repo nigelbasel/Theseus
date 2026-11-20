@@ -157,6 +157,12 @@ public sealed record TheseusSettings(
     public IReadOnlyDictionary<string, double> RowHeights { get; init; } = new Dictionary<string, double>();
 
     /// <summary>
+    /// How wide each resizable pane was left in pixels, keyed by view and pane such as "ProjectView:Pane" (1.1d AC 35).
+    /// A pane not listed takes its default width.
+    /// </summary>
+    public IReadOnlyDictionary<string, double> PaneSizes { get; init; } = new Dictionary<string, double>();
+
+    /// <summary>
     /// The terminal window an area's sessions start in, where it is not named after the area itself:
     /// an area renamed by <see cref="Domain.BoardTidy"/> keeps its old window, so its new sessions
     /// join the tabs already open rather than starting a window of their own.

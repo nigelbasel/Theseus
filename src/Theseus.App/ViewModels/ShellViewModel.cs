@@ -28,6 +28,8 @@ public sealed class ShellViewModel : ObservableObject
     private IReadOnlyList<SessionRun>? _refreshRuns;
     private string? _openProjectName;
     private ProjectViewModel? _projectView;
+    private ProjectViewActions? _projectActions;
+    private readonly ProjectViewHost _viewHost;
     private IReadOnlyList<ProjectChoice> _openProjectChoices = [];
     private IReadOnlyList<ProjectChoice> _openSpecChoices = [];
     private IReadOnlyList<ProjectChoice> _acceptSpecChoices = [];
@@ -100,6 +102,7 @@ public sealed class ShellViewModel : ObservableObject
         RunEndings endings)
     {
         Board = board;
+        _viewHost = new ProjectViewHost(board);
         _runs = runs;
         _todos = todos;
         _endings = endings;
@@ -152,7 +155,13 @@ public sealed class ShellViewModel : ObservableObject
         StopSelectedCommand = new RelayCommand(_ => BeginStop(ChosenSteps()),
             _ => ChosenSteps().Count > 0);
         SelectAllCommand = new RelayCommand(_ => ChooseAll(true), _ => Board.ShownCards.Any(card => !card.IsSelected));
-        ClearSelectionCommand = new RelayCommand(_ => ChooseAll(false), _ => Board.Cards.Any(card => card.IsSelected));
+        ClearSelectionCommand = new RelayCommand(_ =>
+        {
+            if (!ProjectViewHost.ClearViewSelection(ProjectView))
+            {
+                ChooseAll(false);
+            }
+        }, _ => _viewHost.CanClearSelection(ProjectView));
         InvertSelectionCommand = new RelayCommand(_ => Invert(), _ => Board.ShownCards.Any());
         SelectLiveCommand = new RelayCommand(_ => SelectLive(), _ => Board.ShownCards.Any(card => card.IsLive));
         ArchiveSelectedCommand = new RelayCommand(_ => ArchiveSelected(), _ => Chosen().Any(card => !card.IsLive));
@@ -1251,13 +1260,28 @@ public sealed class ShellViewModel : ObservableObject
         var projectCards = new List<ProjectCardViewModel>();
         ProjectViewModel? openView = null;
 
-        // Read once per wiring, not once per slug.
+        // Read once per wiring, not once per project.
         IReadOnlyList<SpecAcceptance> acceptances = readable.Count == 0 ? [] : _acceptances.Load();
+        IReadOnlyList<PieceCard> pieceCards = readable.Count == 0 ? [] : [.. cards.Select(PieceCardOf)];
+        var links = Chains?.AllLinks ?? [];
+        var tabs = ProjectTabViewModel.For(readable, _openProjectName, name => new RelayCommand(_ => OpenProject(name)));
 
         foreach (var reading in readable)
         {
-            var view = BuildView(reading, cards, acceptances);
+            var pieces = PiecesOfWork.Build(reading, slug => acceptances.LastOrDefault(acceptance =>
+                    string.Equals(acceptance.Project, reading.Name, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(acceptance.Slug, slug, StringComparison.OrdinalIgnoreCase)),
+                pieceCards, links, _projectReads.Members);
+            var waitingSpecs = ProjectViewModel.SpecsWaiting(reading, pieces);
             var file = reading.File!;
+
+            foreach (var piece in pieces.Where(piece => piece.IsCurrentPiece && piece.Card is not null))
+            {
+                if (Board.Card(piece.CardKey) is { } card && reading.Artefacts.GetValueOrDefault(piece.Name) is { } artefacts)
+                {
+                    card.ProjectSource = artefacts.Source.Describe;
+                }
+            }
             var projectCard = Board.ProjectCards.FirstOrDefault(existing =>
                                   string.Equals(existing.Name, reading.Name, StringComparison.OrdinalIgnoreCase) && !existing.IsDimmed)
                               ?? new ProjectCardViewModel(reading.Name, file.Title);
@@ -1275,7 +1299,7 @@ public sealed class ShellViewModel : ObservableObject
 
             var waiting = ProjectWaiting.For(
                 [.. cards.Where(card => string.Equals(card.Workstream.Project, name, StringComparison.OrdinalIgnoreCase))],
-                reports, proposals, view.WaitingSpecs);
+                reports, proposals, waitingSpecs);
 
             if (!waiting.SequenceEqual(projectCard.Waiting))
             {
@@ -1286,7 +1310,7 @@ public sealed class ShellViewModel : ObservableObject
 
             if (string.Equals(name, _openProjectName, StringComparison.OrdinalIgnoreCase))
             {
-                openView = view;
+                openView = BuildView(reading, pieces, tabs);
             }
         }
 
@@ -1340,10 +1364,6 @@ public sealed class ShellViewModel : ObservableObject
         {
             ProjectView = openView;
         }
-        else if (openView is not null)
-        {
-            ProjectView?.TakeSourcesFrom(openView);
-        }
 
         WireSpecChoices();
         WireProjectWindow(cards);
@@ -1396,20 +1416,26 @@ public sealed class ShellViewModel : ObservableObject
         Notice = Describe(TerminalFocus.FocusSession(session.Pid, session.Name), session.Name);
     }
 
-    private ProjectViewModel BuildView(ProjectFileReading reading, IReadOnlyList<WorkstreamCardViewModel> cards,
-        IReadOnlyList<SpecAcceptance> acceptances) =>
-        ProjectViewModel.Build(reading, cards,
-            (project, slug) => acceptances.LastOrDefault(acceptance =>
-                string.Equals(acceptance.Project, project, StringComparison.OrdinalIgnoreCase)
-                && string.Equals(acceptance.Slug, slug, StringComparison.OrdinalIgnoreCase)),
-            workstream => VerifierEnding.HasEnded(Chains?.AllLinks ?? [], workstream.Key),
-            OpenSpec, AcceptSpec, CloseProjectCommand,
+    /// <summary>
+    /// The open project's view, on the model's pieces of work (1.1d PR 1). The view it replaces passes on its selection,
+    /// so a refresh that changes what is drawn keeps what the owner was looking at (AC 36).
+    /// </summary>
+    private ProjectViewModel BuildView(ProjectFileReading reading, IReadOnlyList<PieceOfWork> pieces,
+        IReadOnlyList<ProjectTabViewModel> tabs) =>
+        ProjectViewModel.Build(reading, pieces, Chains?.Status ?? new LinkStatus([], []), tabs, _settings,
+            _projectActions ??= ProjectViewCommands.For(Board.Card, FocusCardCommand, StartCardCommand, StopCardCommand, OpenSpec,
+                AcceptSpec, OpenFile, text => Notice = text),
+            CloseProjectCommand,
             new ProjectViewEdits(
                 (line, ticked) => EditProject(reading.Name, text => ProjectFileEditor.SetCriterion(text, line, ticked),
                     ticked ? $"Ticked a criterion of {reading.Name}." : $"Unticked a criterion of {reading.Name}."),
-                number => EditObjective(reading.Name, number),
-                phase => AddObjective(reading.Name, phase),
-                () => OpenFile(Path.Combine(reading.Folder!, ProjectCatalog.ProjectFileName))));
+                number => EditObjective(reading.Name, number)),
+            ProjectView);
+
+    /// <summary>What the project view knows of a board card (1.1d AC 1): its session, marks, role and whether Start would start it.</summary>
+    private PieceCard PieceCardOf(WorkstreamCardViewModel card) =>
+        new(card.Key, card.Title, card.ColorHex, card.Lifecycle, card.IsBlocked, card.Workstream.Role,
+            StartSelection.IsEligible(card.Workstream, Sessions.Snapshot));
 
     /// <summary>Open spec and Accept spec on the menu bar, for the open project's waiting specs (R16).</summary>
     private void WireSpecChoices()
@@ -1446,21 +1472,19 @@ public sealed class ShellViewModel : ObservableObject
             return;
         }
 
-        Board.SelectionOrder = () => ProjectView?.CardsInOrder ?? [];
-        Board.DeselectUnshown();
+        _viewHost.Opened();
         SelectionMoved();
         Raise(nameof(IsProjectOpen));
         Raise(nameof(IsBoardShown));
         System.Windows.Input.CommandManager.InvalidateRequerySuggested();
     }
 
-    /// <summary>Back to the board, from the breadcrumb or View › Back to the board.</summary>
+    /// <summary>Back to the board, from ← Board, Alt+Left or View › Back to the board (1.1d AC 16).</summary>
     public void CloseProject()
     {
         _openProjectName = null;
         ProjectView = null;
-        Board.SelectionOrder = null;
-        Board.DeselectUnshown();
+        _viewHost.Closed();
         SelectionMoved();
         WireSpecChoices();
         Raise(nameof(IsProjectOpen));

@@ -1,0 +1,88 @@
+using Theseus.App.ViewModels;
+using Theseus.Core.Domain;
+using Theseus.Core.Links;
+using Theseus.Core.Projects;
+using Theseus.Tests.Projects;
+using static Theseus.Tests.Projects.ProjectViewFixtures;
+
+namespace Theseus.Tests.ViewModels;
+
+/// <summary>
+/// Project views over the accepted mockup's two projects (1.1d PR 1's fixtures), with what their buttons ran recorded,
+/// for the view model, layout and markup tests of PR 2.
+/// </summary>
+internal sealed class ProjectViews
+{
+    private readonly TestProjectsFolder _folder;
+
+    public ProjectViews(TestProjectsFolder folder) => _folder = folder;
+
+    /// <summary>Where folds and the pane's width are kept; a view built again over it is Theseus restarted.</summary>
+    public MemorySettingsStore Settings { get; } = new();
+
+    /// <summary>What the buttons ran, in order, such as "AcceptSpec:project-view" or "Focus:git-22".</summary>
+    public List<string> Ran { get; } = [];
+
+    /// <summary>The criteria ticked and objectives edited, in order, such as "Tick:12:True" or "Edit:1.1".</summary>
+    public List<string> Edited { get; } = [];
+
+    public ProjectViewActions Actions => new(
+        spec => Ran.Add($"OpenSpec:{spec.Slug}"),
+        spec => Ran.Add($"AcceptSpec:{spec.Slug}"),
+        key => Ran.Add($"Verify:{key}"),
+        key => Ran.Add($"Focus:{key}"),
+        key => Ran.Add($"Start:{key}"),
+        key => Ran.Add($"Stop:{key}"),
+        path => Ran.Add($"Open:{path}"));
+
+    public ProjectViewEdits Edits => new((line, ticked) => Edited.Add($"Tick:{line}:{ticked}"), number => Edited.Add($"Edit:{number}"));
+
+    /// <summary>Theseus bootstrap, with git-22 in this state, open in its tab beside BuildYourMarket's.</summary>
+    public ProjectViewModel Theseus(SessionLifecycle git22 = SessionLifecycle.Idle, ProjectViewModel? previous = null,
+        bool canStart = true, ProjectViewActions? actions = null)
+    {
+        var reading = WriteTheseus(_folder);
+        IReadOnlyList<PieceCard> cards = [Card(Git22, git22) with { CanStart = canStart }];
+        var pieces = PiecesOfWork.Build(reading, _ => null, cards, []);
+
+        return ProjectViewModel.Build(reading, pieces, LinksOn([], cards), Tabs(TheseusProject), Settings, actions ?? Actions, null,
+            Edits, previous);
+    }
+
+    /// <summary>BuildYourMarket MCP with its fifteen links and no session.</summary>
+    public ProjectViewModel BuildYourMarket(ProjectViewModel? previous = null)
+    {
+        var links = BuildYourMarketLinks();
+        var cards = BuildYourMarketBoard();
+        var pieces = BuildYourMarketPieces(_folder, cards, links);
+        var reading = Read(_folder, ProjectViewFixtures.BuildYourMarket);
+
+        return ProjectViewModel.Build(reading, pieces, LinksOn(links, cards), Tabs(ProjectViewFixtures.BuildYourMarket), Settings,
+            Actions, null, Edits, previous);
+    }
+
+    /// <summary>The one-piece project of <see cref="ProjectViewFixtures.WriteOne"/>, its card in this state.</summary>
+    public ProjectViewModel One(string pipeline, IReadOnlyDictionary<string, string>? records = null,
+        SessionLifecycle lifecycle = SessionLifecycle.NotStarted, ProjectViewModel? previous = null)
+    {
+        var reading = WriteOne(_folder, pipeline, records);
+        IReadOnlyList<PieceCard> cards = [Card(ACard, lifecycle)];
+        var pieces = PiecesOfWork.Build(reading, _ => null, cards, []);
+
+        return ProjectViewModel.Build(reading, pieces, LinksOn([], cards), Tabs(OneProject), Settings, Actions, null, Edits, previous);
+    }
+
+    /// <summary>A view of any readable project, its pieces built against these cards and links.</summary>
+    public ProjectViewModel Of(ProjectFileReading reading, IReadOnlyList<PieceCard> cards, IReadOnlyList<Link>? links = null,
+        ProjectViewModel? previous = null)
+    {
+        var pieces = PiecesOfWork.Build(reading, _ => null, cards, links ?? []);
+
+        return ProjectViewModel.Build(reading, pieces, LinksOn(links ?? [], cards), Tabs(reading.Name), Settings, Actions, null,
+            Edits, previous);
+    }
+
+    /// <summary>One tab per project in the folder that reads, this one open.</summary>
+    public IReadOnlyList<ProjectTabViewModel> Tabs(string open) =>
+        ProjectTabViewModel.For(ProjectCatalog.Read(_folder.Folder), open, _ => null);
+}

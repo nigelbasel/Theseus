@@ -1,212 +1,433 @@
 using Theseus.App.ViewModels;
 using Theseus.Core.Domain;
 using Theseus.Core.Projects;
-using static Theseus.Tests.Projects.ProjectCards;
+using Theseus.Tests.Projects;
+using static Theseus.Tests.Projects.ProjectViewFixtures;
 
 namespace Theseus.Tests.ViewModels;
 
 /// <summary>
-/// The project view (project-view AC 4, 5, 7, 10, 15): rows per objective with workstreams across the seven columns,
-/// cards at their stage with the source in their tooltip, slugs with no card at their own stage, the groups at no
-/// stage, the verifier beside its subject until it ends, and the spec waiting on the owner with Open and Accept.
+/// The project view's model (1.1d AC 17 to 22, 26 to 30, 32 and 36), on the accepted mockup's two projects: the summary
+/// and its counts, the Waiting on you band, the toolbar and legend, the tabs, each box's stages and actions, selection,
+/// and the signature that decides a rebuild.
 /// </summary>
 [TestFixture]
 public class ProjectViewModelTests
 {
-    private static readonly WorkstreamSource OnBranch = new("work/x");
+    private TestProjectsFolder _folder = null!;
+    private ProjectViews _views = null!;
 
-    private static ProjectFileReading Reading()
+    [SetUp]
+    public void SetUp()
     {
-        var reading = ProjectFileReader.Read("p", """
-            # P
+        _folder = TestProjectsFolder.Create();
+        _views = new ProjectViews(_folder);
+    }
 
-            **Kit:** method-v0.2
-            **Primary branch:** owner/p
+    [TearDown]
+    public void TearDown() => _folder.Dispose();
 
-            ## Phase 0: Seed
-            **Exit gate:** the owner accepts.
+    private static PieceNodeViewModel Box(ProjectViewModel view, string piece) => view.AllNodes.Single(node => node.Name == piece);
 
-            ### Objective 0.1: First
-            - [x] One.
-            - [ ] Two.
+    private static StageNodeViewModel StageOf(ProjectViewModel view, string piece, string stage) =>
+        Box(view, piece).Stages.Single(each => each.Name == stage);
 
-            **Pipeline:** feature
-            | Workstream | Slug | Branch | Repos |
-            |---|---|---|---|
-            | Spec work | old-slug | owner/old-slug | Repo |
-            | Spec work | spec-slug | owner/spec-slug | Repo |
-            | Done work | done-slug | owner/done-slug | Repo |
-            | Idle work | idle-slug | owner/idle-slug | Repo |
+    [Test]
+    public void TheSummary_IsTheModelsSentence_AndSixChipsZerosIncluded()
+    {
+        var view = _views.Theseus();
 
-            ### Objective 0.2: Nothing yet
-            [criteria to be written]
-
-            **Pipeline:** [to be chosen]
-            | Workstream | Slug | Branch | Repos |
-            |---|---|---|---|
-            """);
-
-        return reading with
+        Assert.That(view.Sentence, Is.EqualTo("12 pieces of work across 5 objectives: 7 done, 3 waiting on you, 2 still to do or "
+                                              + "not started. git-22 is idle on projects-and-method-ui. Next: you accept the spec of "
+                                              + "projects-and-method-ui."));
+        Assert.That(view.Counts.Select(chip => chip.Text), Is.EqualTo(new[]
         {
-            Artefacts = new Dictionary<string, WorkstreamArtefacts>
+            "✓ 7 done", "● 0 busy", "◆ 3 waiting on you", "◐ 0 holdouts not run", "⚠ 0 stuck", "– 2 to do",
+        }));
+        Assert.That(view.Counts.Select(chip => chip.Count), Is.EqualTo(view.Counts.Select(chip => view.Summary.CountOf(chip.State))),
+            "the counts are the model's, not worked out again (AC 10)");
+    }
+
+    [Test]
+    public void TheWaitingBand_HasOneButtonPerWaitingPiece_InFileOrder()
+    {
+        var view = _views.Theseus();
+
+        Assert.That(view.HasWaiting, Is.True);
+        Assert.That(view.Waiting.Select(button => button.Label), Is.EqualTo(new[]
+        {
+            "Accept the spec of project-view…", "Accept the spec of project-home-folders…", "Accept the spec of projects-and-method-ui…",
+        }));
+        Assert.That(_views.BuildYourMarket().HasWaiting, Is.False, "only while something waits on you");
+    }
+
+    [Test]
+    public void AWaitingButton_OpensTheBox_SelectsTheWaitingStage_ThenAcceptsThatSpec()
+    {
+        var view = _views.Theseus();
+
+        view.Waiting[0].Command.Execute(null);
+
+        Assert.That(Box(view, "project-view").IsOpen, Is.True);
+        Assert.That(view.Selection, Is.SameAs(StageOf(view, "project-view", "Spec")));
+        Assert.That(_views.Ran, Is.EqualTo(new[] { "AcceptSpec:project-view" }));
+    }
+
+    [Test]
+    public void ASessionAsking_HasAnAnswerButton_ThatFocusesItsTerminal()
+    {
+        var view = _views.One("feature", Files("research.md"), SessionLifecycle.NeedsAttention);
+
+        Assert.That(view.Waiting.Single().Label, Is.EqualTo("Answer a-card in its terminal"));
+
+        view.Waiting.Single().Command.Execute(null);
+
+        Assert.That(view.Selection, Is.SameAs(StageOf(view, APiece, "Spec")));
+        Assert.That(_views.Ran, Is.EqualTo(new[] { "Focus:a-card" }));
+    }
+
+    [Test]
+    public void ABugsWaitingButton_AcceptsTheRule()
+    {
+        var view = _views.One("bug", new Dictionary<string, string>
+        {
+            ["reproduction.md"] = "# Reproduction\n", ["fix.md"] = "# Fix\n\n## Spec\nThe rule.\n",
+        });
+
+        Assert.That(view.Waiting.Single().Label, Is.EqualTo("Accept the rule of a-piece…"));
+    }
+
+    [Test]
+    public void CollapseAllAndExpandAll_FoldAndOpenEveryBox()
+    {
+        var view = _views.Theseus();
+
+        view.ExpandAllCommand.Execute(null);
+        Assert.That(view.AllNodes, Has.All.Matches<PieceNodeViewModel>(node => node.IsOpen));
+
+        view.CollapseAllCommand.Execute(null);
+        Assert.That(view.AllNodes, Has.None.Matches<PieceNodeViewModel>(node => node.IsOpen));
+    }
+
+    [Test]
+    public void OpenWhatNeedsAttention_OpensBusyWaitingStuckAndHoldouts_AndFoldsTheRest()
+    {
+        var view = _views.Theseus(SessionLifecycle.Running);
+        view.ExpandAllCommand.Execute(null);
+
+        view.OpenWhatNeedsAttentionCommand.Execute(null);
+
+        Assert.That(view.AllNodes.Where(node => node.IsOpen).Select(node => node.Name),
+            Is.EqualTo(new[] { "project-view", "project-home-folders", "projects-and-method-ui" }));
+        Assert.That(view.AllNodes.Where(node => node.IsOpen).Select(node => node.State),
+            Has.All.AnyOf(StageNodeState.Busy, StageNodeState.WaitingOnYou, StageNodeState.Stuck, StageNodeState.HoldoutsNotRun));
+    }
+
+    [Test]
+    public void TheToolbar_ActsOnTheOpenProjectOnly()
+    {
+        var theseus = _views.Theseus();
+        var buildYourMarket = _views.BuildYourMarket();
+
+        theseus.ExpandAllCommand.Execute(null);
+
+        Assert.That(buildYourMarket.AllNodes, Has.None.Matches<PieceNodeViewModel>(node => node.IsOpen));
+        Assert.That(_views.Settings.Settings.ViewFolds.Keys, Is.EquivalentTo(new[] { PieceFolds.KeyFor(TheseusProject) }));
+    }
+
+    [Test]
+    public void TheLegend_NamesEachStateWithItsMark_InTheSpecsOrder()
+    {
+        Assert.That(ProjectViewModel.Legend.Select(item => $"{item.Mark} {item.Word}"), Is.EqualTo(new[]
+        {
+            "✓ Done", "◆ Waiting on you", "● Busy", "⚠ Stuck", "◐ Holdouts not run yet", "– To do",
+        }));
+    }
+
+    [Test]
+    public void TheTabs_AreOnePerProjectThatReads_TheOpenOneMarked()
+    {
+        WriteBuildYourMarket(_folder);
+        _folder.Write("broken/project.md", "# Not a project file in any shape\n");
+
+        var view = _views.Theseus();
+
+        Assert.That(view.Tabs.Select(tab => (tab.Title, tab.IsOpen)), Is.EquivalentTo(new[]
+        {
+            ("Theseus bootstrap", true), ("BuildYourMarket MCP server", false),
+        }));
+    }
+
+    [Test]
+    public void AProjectTab_OpensItsProject()
+    {
+        var opened = new List<string>();
+        WriteTheseus(_folder);
+
+        var tabs = ProjectTabViewModel.For(ProjectCatalog.Read(_folder.Folder), "elsewhere",
+            name => new RelayCommand(_ => opened.Add(name)));
+        tabs.Single().OpenCommand!.Execute(null);
+
+        Assert.That(opened, Is.EqualTo(new[] { TheseusProject }));
+        Assert.That(tabs.Single().IsOpen, Is.False);
+    }
+
+    [Test]
+    public void AFoldedBox_ShowsItsNameMetaStatusAndAStripOfStages()
+    {
+        var box = Box(_views.Theseus(), "readme-runtime");
+
+        Assert.That((box.IsOpen, box.BoxWidth, box.Chevron, box.ChevronToolTip), Is.EqualTo((false, 290.0, "▸", "Open into its stages")));
+        Assert.That((box.Workstream, box.KindWord, box.ObjectiveLabel), Is.EqualTo(("git-22", "bug", "objective 0.3")));
+        Assert.That(box.ColourHex, Is.EqualTo("#2f80ed"));
+        Assert.That(box.StatusText, Is.EqualTo("– Next: Review"));
+        Assert.That(box.Stages.Select(stage => stage.Abbreviation), Is.EqualTo(new[] { "Rep", "Rul", "Fix", "Ver", "Rev", "Com" }));
+        Assert.That(box.Stages[0].ToolTip, Is.EqualTo("Reproduce: Done"));
+    }
+
+    [Test]
+    public void AReportBack_IsAMarkOnTheChildsBox_WithItsTooltip()
+    {
+        var view = _views.BuildYourMarket();
+        var identity = Box(view, "bym-mcp-identity");
+        var fixes = Box(view, ClientFixes);
+
+        Assert.That((identity.ReportBackText, identity.ReportBackToolTip), Is.EqualTo(
+            ("↩ reported back to buildyourmarket-mcp-server-spec", "Reported back to buildyourmarket-mcp-server-spec")));
+        Assert.That(fixes.ReportBackText, Is.EqualTo("↩ reports back to buildyourmarket-mcp-server-spec"));
+        Assert.That(Box(view, ServerSpec).HasReportBack, Is.False);
+    }
+
+    [Test]
+    public void APieceWhoseCardIsNotOnTheBoard_IsGrey()
+    {
+        var view = _views.Of(WriteTheseus(_folder), []);
+
+        Assert.That(view.AllNodes.Select(node => node.ColourHex).Distinct(), Is.EqualTo(new[] { PieceNodeViewModel.NoCardColour }));
+    }
+
+    [Test]
+    public void AnOpenBox_Is640Wide_WithItsActionsInOrder()
+    {
+        var view = _views.Theseus();
+        var box = Box(view, "projects-and-method-ui");
+
+        view.Toggle(box);
+
+        Assert.That((box.IsOpen, box.BoxWidth, box.Chevron, box.ChevronToolTip), Is.EqualTo((true, 640.0, "▾", "Fold this piece of work")));
+        Assert.That(box.Actions.Select(action => action.Label), Is.EqualTo(new[]
+        {
+            "Open spec", "Accept spec…", "Verify with holdouts…", "⧉ Focus git-22", "■ Stop", "Open records",
+        }));
+        Assert.That(box.Actions.Single(action => action.Label.StartsWith('⧉')).ToolTip, Is.EqualTo("Bring its terminal forward"));
+    }
+
+    [Test]
+    public void ACardWithNoSession_OffersStart_NotFocusOrStop()
+    {
+        var box = Box(_views.Theseus(SessionLifecycle.NotStarted), "projects-and-method-ui");
+
+        Assert.That(box.Actions.Select(action => action.Label), Is.EqualTo(new[]
+        {
+            "Open spec", "Accept spec…", "Verify with holdouts…", "▶ Start", "Open records",
+        }));
+    }
+
+    [Test]
+    public void TheActions_RunTheShellsCommands_ForTheirCard()
+    {
+        var view = _views.Theseus(SessionLifecycle.NotStarted);
+        var box = Box(view, "projects-and-method-ui");
+
+        foreach (var action in box.Actions)
+        {
+            action.Command.Execute(null);
+        }
+
+        Assert.That(_views.Ran, Is.EqualTo(new[]
+        {
+            "OpenSpec:projects-and-method-ui", "AcceptSpec:projects-and-method-ui", "Verify:git-22", "Start:git-22",
+            $"Open:{_folder.Home(TheseusProject)}\\work\\projects-and-method-ui",
+        }));
+    }
+
+    [Test]
+    public void OpenRecords_WithNoRecordsFolder_IsDisabledSayingSo()
+    {
+        var records = Box(_views.BuildYourMarket(), ClientFixes).Actions.Single(action => action.Label == "Open records");
+
+        Assert.That((records.IsEnabled, records.ToolTip), Is.EqualTo((false, "No records folder in the project yet")));
+        Assert.That(records.Command.CanExecute(null), Is.False);
+    }
+
+    [Test]
+    public void VerifyWithHoldouts_OnAPieceItsCardHasLeft_IsDisabledSayingWhy()
+    {
+        var verify = Box(_views.Theseus(), "project-view").Actions.Single(action => action.Label == "Verify with holdouts…");
+
+        Assert.That(verify.IsEnabled, Is.False);
+        Assert.That(verify.ToolTip, Is.EqualTo(
+            "git-22 has moved on to projects-and-method-ui; Verify with holdouts checks a card's current work"));
+    }
+
+    [Test]
+    public void AStagesMenu_HoldsPropertiesFirstAndBold_ThenItsActions()
+    {
+        var view = _views.Theseus();
+        var spec = StageOf(view, "project-view", "Spec");
+
+        Assert.That(spec.MenuItems.Select(item => item.Label), Is.EqualTo(new[]
+        {
+            "Properties", "Open spec", "Accept spec…", "Open records", "Open spec.md",
+        }));
+        Assert.That(spec.MenuItems.Select(item => item.IsDefault), Is.EqualTo(new[] { true, false, false, false, false }));
+
+        spec.MenuItems[0].Command.Execute(null);
+
+        Assert.That(view.Selection, Is.SameAs(spec));
+    }
+
+    [Test]
+    public void StateIsNeverColourAlone_EveryStageChipAndStatusHasItsMarkAndWord()
+    {
+        var view = _views.Theseus(SessionLifecycle.Running);
+
+        foreach (var node in view.AllNodes)
+        {
+            Assert.That(node.StatusText, Does.StartWith(StageNodeStates.Mark(node.State) + " "));
+
+            foreach (var stage in node.Stages)
             {
-                ["old-slug"] = Files("old-slug", "research.md"),
-                ["spec-slug"] = Files("spec-slug", "research.md", "spec.md") with
-                {
-                    SpecText = "# The spec\n", SpecHash = "spec-now",
-                },
-                ["done-slug"] = Files("done-slug", "research.md", "spec.md", "plan.md", "implementation.md") with
-                {
-                    SpecText = "# Done spec\n", SpecHash = "done-spec",
-                },
-                ["idle-slug"] = WorkstreamArtefacts.NotStarted("idle-slug") with
-                {
-                    Source = new WorkstreamSource("work/idle-slug"),
-                },
-            },
-        };
-    }
-
-    private static WorkstreamArtefacts Files(string slug, params string[] files) => new(slug, OnBranch, files.ToHashSet());
-
-    private readonly List<SpecAtGate> _opened = [];
-    private readonly List<SpecAtGate> _accepted = [];
-
-    private ProjectViewModel Build(IReadOnlyList<WorkstreamCardViewModel> cards, Func<Workstream, bool>? hasEnded = null) =>
-        ProjectViewModel.Build(Reading(), cards,
-            (_, slug) => slug == "done-slug" ? new SpecAcceptance("p", slug, "done-spec", DateTimeOffset.UnixEpoch) : null,
-            hasEnded ?? (_ => false), _opened.Add, _accepted.Add, null);
-
-    private static WorkstreamCardViewModel Vm(Workstream workstream) => new(workstream);
-
-    private static IReadOnlyList<WorkstreamCardViewModel> Cards() =>
-    [
-        Vm(Card("card-spec", "p", "spec-slug")),
-        Vm(Card("card-done", "p", "done-slug")),
-        Vm(Card("checker", "p", "done-slug", WorkstreamRole.Verifier)),
-        Vm(Card("fresh", "p")),
-        Vm(Card("stray", "p", "gone-slug")),
-        Vm(Card("ad-hoc")),
-    ];
-
-    private static ProjectStageCellViewModel Cell(ProjectViewModel view, PipelineStage stage) =>
-        view.Rows.First(row => !row.IsGroup).Cells.Single(cell => cell.Stage == stage);
-
-    [Test]
-    public void ThereIsARowPerObjectiveWithWorkstreams_AcrossTheSevenColumns_ThenTheGroups()
-    {
-        var view = Build(Cards());
-
-        Assert.That(view.Rows.Select(row => row.Heading), Is.EqualTo(new[] { "0.1 First", "No slug yet", "Not in the project file" }));
-        Assert.That(view.Rows[0].Cells.Select(cell => cell.Stage), Is.EqualTo(ProjectViewModel.Stages));
-        Assert.That(ProjectViewModel.ColumnHeadings, Has.Count.EqualTo(7));
+                Assert.That(stage.Label, Is.EqualTo($"{stage.Mark} {stage.Name}"));
+                Assert.That(stage.ToolTip, Is.EqualTo($"{stage.Name}: {StageNodeStates.Word(stage.State)}"));
+            }
+        }
     }
 
     [Test]
-    public void ACard_SitsAtItsStage_WithWhereItWasReadInItsTooltip()
+    public void SelectingAPiece_SelectsItsBox_AndAStage_SelectsTheStageAndItsBox()
     {
-        var cards = Cards();
-        var view = Build(cards);
-        var done = cards.Single(card => card.Key == "card-done");
+        var view = _views.Theseus();
+        var box = Box(view, "stop-timing");
 
-        Assert.That(Cell(view, PipelineStage.Implement).Entries.Select(entry => entry.Card), Does.Contain(done));
-        Assert.That(done.FaceTooltip, Is.EqualTo(@"C:\work" + Environment.NewLine + "read from work/x"));
+        box.SelectCommand.Execute(null);
+        Assert.That((view.Selection, box.IsSelected), Is.EqualTo(((object)box, true)));
+
+        box.Stages[2].SelectCommand.Execute(null);
+        Assert.That(view.Selection, Is.SameAs(box.Stages[2]));
+        Assert.That((box.Stages[2].IsSelected, box.IsSelected), Is.EqualTo((true, true)));
+
+        Box(view, "card-branches").SelectCommand.Execute(null);
+        Assert.That((box.Stages[2].IsSelected, box.IsSelected), Is.EqualTo((false, false)), "one thing is selected at a time");
     }
 
     [Test]
-    public void AnAdHocCard_IsNotInTheView_AndItsTooltipIsUnchanged()
+    public void Esc_ClearsTheSelection()
     {
-        var cards = Cards();
-        var view = Build(cards);
-        var adHoc = cards.Single(card => card.Key == "ad-hoc");
+        var view = _views.Theseus();
+        Assert.That(view.ClearSelectionCommand.CanExecute(null), Is.False);
 
-        Assert.That(view.CardsInOrder, Does.Not.Contain(adHoc));
-        Assert.That(adHoc.FaceTooltip, Is.EqualTo(@"C:\work"));
+        Box(view, "stop-timing").SelectCommand.Execute(null);
+        view.ClearSelectionCommand.Execute(null);
+
+        Assert.That(view.Selection, Is.Null);
+        Assert.That(view.Properties, Is.SameAs(PropertiesViewModel.Empty));
+        Assert.That(Box(view, "stop-timing").IsSelected, Is.False);
     }
 
     [Test]
-    public void AReachedSpec_ShowsWaitingOnYou_WithOpenAndAccept()
+    public void AChevron_OnlyFoldsOrOpens_ItNeverSelects()
     {
-        var view = Build(Cards());
-        var entry = Cell(view, PipelineStage.Spec).Entries.Single(each => each.Slug == "spec-slug");
+        var view = _views.Theseus();
 
-        Assert.That((entry.IsWaitingOnYou, entry.WaitingText), Is.EqualTo((true, "Waiting on you")));
+        Box(view, "stop-timing").ToggleCommand.Execute(null);
 
-        entry.OpenSpecCommand!.Execute(null);
-        entry.AcceptSpecCommand!.Execute(null);
-
-        Assert.That(_opened.Single().Text, Is.EqualTo("# The spec\n"));
-        Assert.That((_accepted.Single().Slug, _accepted.Single().ContentHash), Is.EqualTo(("spec-slug", "spec-now")));
-        Assert.That(view.WaitingSpecs.Select(spec => spec.Slug), Is.EqualTo(new[] { "spec-slug" }));
+        Assert.That(view.Selection, Is.Null);
     }
 
     [Test]
-    public void AnAcceptedSpec_WaitsOnNoOne_AndHasNoAccept()
+    public void ARefresh_KeepsTheSelection_WhileThePieceAndStageStillExist()
     {
-        var view = Build(Cards());
-        var done = Cell(view, PipelineStage.Implement).Entries.Single(each => each.Card?.Key == "card-done");
+        var first = _views.Theseus();
+        StageOf(first, "stop-timing", "Plan").SelectCommand.Execute(null);
 
-        Assert.That((done.IsWaitingOnYou, done.AcceptSpecCommand), Is.EqualTo((false, (System.Windows.Input.ICommand?)null)));
-        Assert.That(done.Detail, Does.StartWith("Passed: research, spec, plan"));
+        var second = _views.Theseus(SessionLifecycle.Running, previous: first);
+
+        Assert.That(second.Selection, Is.SameAs(StageOf(second, "stop-timing", "Plan")));
+        Assert.That(second.Properties.Heading, Is.EqualTo("Plan of stop-timing"));
     }
 
     [Test]
-    public void AnEarlierSlug_ShowsAtItsOwnStage_NotAsACard_AndAnUnstartedSlugSaysSo()
+    public void SwitchingProject_ClearsTheSelection()
     {
-        var view = Build(Cards());
-        var old = Cell(view, PipelineStage.Research).Entries.Single(each => each.Slug == "old-slug");
-        var idle = Cell(view, PipelineStage.Research).Entries.Single(each => each.Slug == "idle-slug");
+        var theseus = _views.Theseus();
+        Box(theseus, "stop-timing").SelectCommand.Execute(null);
 
-        Assert.That((old.HasCard, old.Note), Is.EqualTo((false, "earlier slug")));
-        Assert.That((idle.HasCard, idle.Note), Is.EqualTo((false, "not started")));
-    }
+        var other = _views.BuildYourMarket(previous: theseus);
 
-    [Test]
-    public void CardsWithNoSlugOrAnUnlistedSlug_AreInTheirGroups()
-    {
-        var view = Build(Cards());
-
-        Assert.That(view.Rows.Single(row => row.Heading == "No slug yet").Loose.Select(entry => entry.Card!.Key),
-            Is.EqualTo(new[] { "fresh" }));
-        Assert.That(view.Rows.Single(row => row.Heading == "Not in the project file").Loose.Single().Note,
-            Is.EqualTo("gone-slug is not in the project file"));
-    }
-
-    [Test]
-    public void AVerifier_SitsInVerify_UntilItEnds()
-    {
-        Assert.That(Cell(Build(Cards()), PipelineStage.Verify).Entries.Single().Card!.Key, Is.EqualTo("checker"));
-        Assert.That(Cell(Build(Cards(), card => card.Key == "checker"), PipelineStage.Verify).Entries, Is.Empty);
-    }
-
-    [Test]
-    public void TheTree_HasPhasesObjectivesAndSlugs_WithTicksAndWhatWaits()
-    {
-        var view = Build(Cards());
-        var phase = view.Tree.First();
-        var objective = phase.Children.First();
-
-        Assert.That((phase.Text, phase.Detail, phase.IsWaitingOnYou), Is.EqualTo(("Phase 0: Seed", "current", true)));
-        Assert.That((objective.Text, objective.Detail), Is.EqualTo(("0.1 First", "1 of 2 ticked")));
-        Assert.That(objective.Children.Single(slug => slug.Text.StartsWith("spec-slug", StringComparison.Ordinal)).Detail,
-            Does.Contain("Waiting on you"));
-        Assert.That(objective.Row, Is.SameAs(view.Rows[0]), "selecting it scrolls to its row");
-        Assert.That(phase.Children[1].Row, Is.Null, "an objective with no workstreams has no row");
-    }
-
-    [Test]
-    public void TheCardsInReadingOrder_AreTheViewsCards()
-    {
-        Assert.That(Build(Cards()).CardsInOrder.Select(card => card.Key),
-            Is.EquivalentTo(new[] { "card-spec", "card-done", "checker", "fresh", "stray" }));
+        Assert.That(other.Selection, Is.Null);
     }
 
     [Test]
     public void TheSameProjectBuiltTwice_HasTheSameSignature()
     {
-        var first = Build(Cards()).Signature;
-        var second = Build(Cards()).Signature;
+        var first = _views.Theseus().Signature;
+        var second = _views.Theseus().Signature;
 
         Assert.That(second, Is.EqualTo(first));
+    }
+
+    // 1.1 PR 2 review, item 4, kept for the rebuilt view: what is read but not drawn never rebuilds it. Records are now
+    // plain files in the project's home (1.1b), with no branch or commit, so a rewrite and a fresh read are the cases.
+    [Test]
+    public void ARecordRewrittenWithoutChangingWhatIsDrawn_OrAFreshRead_KeepsTheSignature_SoTheViewIsNotRebuilt()
+    {
+        var before = _views.Theseus().Signature;
+
+        _folder.Write($"{TheseusProject}/work/stop-timing/plan.md", "# A plan, rewritten in other words\n");
+        _folder.Write($"{TheseusProject}/work/project-view/review.md", "# A review, rewritten\n");
+
+        Assert.That(_views.Of(Read(_folder, TheseusProject), [Card(Git22, SessionLifecycle.Idle)]).Signature, Is.EqualTo(before),
+            "records rewritten");
+        Assert.That(_views.Of(Read(_folder, TheseusProject), [Card(Git22, SessionLifecycle.Idle)]).Signature, Is.EqualTo(before),
+            "read again");
+    }
+
+    [Test]
+    public void TheSignature_ChangesWithALiveSessionsState()
+    {
+        Assert.That(_views.Theseus(SessionLifecycle.Running).Signature, Is.Not.EqualTo(_views.Theseus(SessionLifecycle.Idle).Signature));
+        Assert.That(_views.Theseus(SessionLifecycle.NotStarted).Signature, Is.Not.EqualTo(_views.Theseus(SessionLifecycle.Idle).Signature));
+    }
+
+    [Test]
+    public void TheSignature_ChangesWithAStageState_AMarkAndAStart()
+    {
+        var before = _views.BuildYourMarket().Signature;
+        _folder.Write($"{ProjectViewFixtures.BuildYourMarket}/work/bym-mcp-host/evidence.md", FailedEvidence);
+        var reading = Read(_folder, ProjectViewFixtures.BuildYourMarket);
+        var cards = BuildYourMarketBoard();
+        var links = BuildYourMarketLinks();
+
+        var stuck = _views.Of(reading, cards, links).Signature;
+        var noMarks = _views.Of(reading, cards, [.. links.Where(link => link.Kind != Theseus.Core.Links.LinkKind.ReportsBack)]).Signature;
+
+        Assert.That(stuck, Is.Not.EqualTo(before));
+        Assert.That(noMarks, Is.Not.EqualTo(stuck));
+        Assert.That(_views.Theseus(SessionLifecycle.NotStarted, canStart: false).Signature,
+            Is.Not.EqualTo(_views.Theseus(SessionLifecycle.NotStarted).Signature), "Start offered or not");
+    }
+
+    [Test]
+    public void TheSignature_ChangesWhenACriterionIsTicked()
+    {
+        var before = _views.Theseus().Signature;
+        var path = Path.Combine(_folder.Home(TheseusProject), "project.md");
+        File.WriteAllText(path, File.ReadAllText(path).Replace("- [ ] A criterion.", "- [x] A criterion.", StringComparison.Ordinal));
+
+        var reading = Read(_folder, TheseusProject);
+        var view = _views.Of(reading, [Card(Git22, SessionLifecycle.Idle)]);
+
+        Assert.That(view.Signature, Is.Not.EqualTo(before));
     }
 }
