@@ -17,3 +17,23 @@ background read touches shared state only on the UI thread; a board with no proj
 tests run against real throwaway repositories and none is weakened.
 
 **Open for the owner:** listed in `implementation.md`.
+
+# Review, pull request 2
+
+The same reviewer read pull request 2 (ACs 12 to 18, 22, and PR 1's remainders) on 2026-11-20, then re-reviewed twice.
+
+**First pass:** one must-fix (Select all, Invert and Select live reached the project's hidden cards, so Stop or
+Archive selected acted on cards not shown), two should-fix (project cards on the grid for seconds after launch until
+every slug was read; a stale comment), six to consider. All fixed.
+
+**Second pass, with the artefact cache added to remove the background read's cost:** every item resolved; two new
+should-fix (ticked cards leaving the grid still ticked; a tag named like a branch broke the cache's tips) and three to
+consider (cache growth, reading at the snapshotted commit, "reading…" before the first artefacts). All fixed and
+tested; see `implementation.md`.
+
+**Judged fine:** AC 22 holds (no readable project, no change on screen apart from AC 17's label); unreadable,
+pinned and unlisted projects return their cards to the grid; only the owner's Yes writes the acceptance store and no
+tool, hook or file reaches it; the view is its own control and every command is on the menu bar (R16); the cache is
+keyed by commit and tree ids, so rewinds and merges stay correct.
+
+**Owner's decision recorded:** one failed read keeps the last good reading (AC 13 softened by one read).
