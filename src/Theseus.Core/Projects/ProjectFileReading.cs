@@ -1,24 +1,18 @@
 namespace Theseus.Core.Projects;
 
 /// <summary>A project file as read: readable with its contents, pinned to an older kit, or unreadable with a reason.</summary>
-/// <param name="Name">The project's name: the file's name without <c>.md</c>, or the folder's when no file was reached.</param>
+/// <param name="Name">The project's name: its home folder's name, or the projects folder's when that could not be read.</param>
 /// <param name="Status">What became of it.</param>
 /// <param name="File">The file's contents, when readable.</param>
 /// <param name="Reason">Why it is pinned or unreadable, naming the line where there is one.</param>
 public sealed record ProjectFileReading(string Name, ProjectReadingStatus Status, ProjectFile? File, string? Reason)
 {
-    /// <summary>The listed repository folder it was read from, when it came from one.</summary>
+    /// <summary>The project home folder it was read from, when it came from one.</summary>
     public string? Folder { get; init; }
 
-    /// <summary>Each listed slug's artefacts, read from its source branch, when they have been read; keyed by slug.</summary>
+    /// <summary>Each listed slug's artefacts, read from the project home; keyed by slug.</summary>
     public IReadOnlyDictionary<string, WorkstreamArtefacts> Artefacts { get; init; } =
         new Dictionary<string, WorkstreamArtefacts>(StringComparer.OrdinalIgnoreCase);
-
-    /// <summary>
-    /// Why the last read failed, when this is the reading before it, kept through one failed read; null when it is
-    /// current (PR 2 review, item 9).
-    /// </summary>
-    public string? LastFailure { get; init; }
 
     /// <summary>Whether it was read in the current shape.</summary>
     public bool IsReadable => Status == ProjectReadingStatus.Readable && File is not null;

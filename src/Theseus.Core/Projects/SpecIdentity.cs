@@ -4,8 +4,8 @@ using System.Text;
 namespace Theseus.Core.Projects;
 
 /// <summary>
-/// What a spec's acceptance is compared by: its content, not its commit, so merging the workstream's branch into the
-/// primary (a new commit, the same spec) does not undo an acceptance, and any change to the text does (spec AC 7).
+/// What a spec's acceptance is compared by: its content, so any change to the text undoes an acceptance and nothing
+/// else does (spec AC 7, 1.1b AC 5).
 /// </summary>
 public static class SpecIdentity
 {

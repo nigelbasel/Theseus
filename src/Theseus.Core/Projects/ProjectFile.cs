@@ -1,13 +1,19 @@
 namespace Theseus.Core.Projects;
 
 /// <summary>A project file read in the <c>method-v0.2</c> shape (method/project.md).</summary>
-/// <param name="Name">The file's name without <c>.md</c>: the project's identity on this machine.</param>
+/// <param name="Name">The project home folder's name: the project's identity on this machine.</param>
 /// <param name="Title">The file's title.</param>
 /// <param name="Kit">The kit version its <c>Kit:</c> line names.</param>
 /// <param name="PrimaryBranch">The project's primary branch, from its <c>Primary branch:</c> line.</param>
 /// <param name="Phases">Its phases, in order.</param>
 public sealed record ProjectFile(string Name, string Title, string Kit, string PrimaryBranch, IReadOnlyList<ProjectPhase> Phases)
 {
+    /// <summary>
+    /// The slugs its <c>**Before method-v0.2:**</c> line names: work finished before the project moved to method-v0.2,
+    /// shown at its stage with no gate markers (1.1 AC 9).
+    /// </summary>
+    public IReadOnlySet<string> BeforeKit { get; init; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>Every objective, in file order.</summary>
     public IReadOnlyList<ProjectObjective> Objectives => [.. Phases.SelectMany(phase => phase.Objectives)];
 

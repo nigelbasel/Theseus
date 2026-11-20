@@ -9,7 +9,7 @@ namespace Theseus.Tests.Projects;
 [TestFixture]
 public class StageCalculatorTests
 {
-    private static readonly WorkstreamSource OnBranch = new("owner/a-slug", "0123456789abcdef", false);
+    private static readonly WorkstreamSource OnBranch = new("work/a-slug");
 
     private const string PassingEvidence = "Prose.\n\n```theseus-evidence\n{ \"result\": \"pass\" }\n```\n";
 
@@ -22,7 +22,7 @@ public class StageCalculatorTests
     private static WorkstreamStage Bug(WorkstreamArtefacts artefacts, SpecAcceptance? acceptance = null) =>
         StageCalculator.Calculate([PipelineKind.Bug], artefacts, acceptance);
 
-    private static SpecAcceptance Accepted(string hash) => new("a-project", "a-slug", "abc", hash, DateTimeOffset.UnixEpoch);
+    private static SpecAcceptance Accepted(string hash) => new("a-project", "a-slug", hash, DateTimeOffset.UnixEpoch);
 
     [TestCase("research.md", PipelineStage.Research)]
     [TestCase("spec.md", PipelineStage.Spec)]
@@ -210,12 +210,12 @@ public class StageCalculatorTests
     }
 
     [Test]
-    public void WorkNotOnThisMachine_HasNoStage()
+    public void AWorkstreamWithNoWorkFolder_HasNoStage()
     {
-        var stage = Feature(WorkstreamArtefacts.NotOnMachine("a-slug"));
+        var stage = Feature(WorkstreamArtefacts.NotStarted("a-slug"));
 
         Assert.That(stage.Position, Is.Null);
-        Assert.That(stage.Note, Is.EqualTo("not on this machine"));
+        Assert.That(stage.Note, Is.Null);
     }
 
     [Test]

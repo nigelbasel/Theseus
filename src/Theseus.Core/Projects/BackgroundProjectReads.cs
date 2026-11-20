@@ -3,57 +3,43 @@ using Theseus.Core.Diagnostics;
 namespace Theseus.Core.Projects;
 
 /// <summary>
-/// Reads the projects off the caller's thread, because each read is several git processes and the board refreshes on
-/// the UI thread. One read at a time; the same folders are read again only after <c>interval</c>, other folders at once
-/// (after any read under way). Results come back through <c>post</c>, on the caller's thread, and raise
-/// <see cref="Changed"/>. With no folders listed nothing runs (AC 22).
-/// A read lands in two steps: the catalogue first, which is what decides which cards leave the grid, then each slug's
-/// artefacts, which take longer (PR 2 review, item 2). Before the first catalogue lands nothing is read, so no card is
-/// held out of the grid (AC 13). A project carries over one failed read (<see cref="ReadingContinuity"/>).
+/// Reads the projects off the caller's thread, one read at a time, when the projects folder in Settings changes or
+/// <see cref="MarkStale"/> says a file in it did (<see cref="ProjectFolderWatcher"/>, 1.1b AC 3). Results come back
+/// through <c>post</c>, on the caller's thread, and raise <see cref="Changed"/>. With no folder set nothing runs (AC 13).
 /// </summary>
 public sealed class BackgroundProjectReads
 {
-    private readonly Func<IReadOnlyList<string>, IReadOnlyList<ProjectFileReading>> _read;
+    private readonly Func<string, IReadOnlyList<ProjectFileReading>> _read;
     private readonly Action<Action> _post;
-    private readonly TimeSpan _interval;
-    private readonly Func<DateTimeOffset> _now;
-    private readonly Func<IReadOnlyList<ProjectFileReading>, IReadOnlyList<ProjectFileReading>>? _attach;
-    private readonly Dictionary<string, int> _failures = new(StringComparer.OrdinalIgnoreCase);
     private readonly RememberedProjects? _remembered;
 
-    private string? _key;
-    private DateTimeOffset _readAt;
-    private IReadOnlyList<string>? _pending;
+    private string? _folder;
+    private bool _hasRequested;
+    private bool _stale;
+    private bool _hasPending;
+    private string? _pending;
 
     /// <summary>Creates the reader.</summary>
-    /// <param name="read">Reads the listed folders; runs on a worker thread.</param>
+    /// <param name="read">Reads the projects folder; runs on a worker thread.</param>
     /// <param name="post">Runs an action on the caller's thread, such as the dispatcher's BeginInvoke.</param>
-    /// <param name="interval">How long a read of the same folders stands.</param>
-    /// <param name="now">The clock.</param>
-    /// <param name="attach">Reads the slugs' artefacts onto the readings, as a second step; null for none.</param>
     /// <param name="remembered">Where the readable projects' names are kept between runs; null keeps none.</param>
-    public BackgroundProjectReads(Func<IReadOnlyList<string>, IReadOnlyList<ProjectFileReading>> read, Action<Action> post,
-        TimeSpan interval, Func<DateTimeOffset>? now = null,
-        Func<IReadOnlyList<ProjectFileReading>, IReadOnlyList<ProjectFileReading>>? attach = null,
+    public BackgroundProjectReads(Func<string, IReadOnlyList<ProjectFileReading>> read, Action<Action> post,
         RememberedProjects? remembered = null)
     {
-        _remembered = remembered;
-        _attach = attach;
         _read = read;
         _post = post;
-        _interval = interval;
-        _now = now ?? (() => DateTimeOffset.UtcNow);
+        _remembered = remembered;
     }
 
     /// <summary>The projects as last read.</summary>
     public IReadOnlyList<ProjectFileReading> Current { get; private set; } = [];
 
-    /// <summary>Whether this run's first catalogue has landed.</summary>
+    /// <summary>Whether this run's first read has landed.</summary>
     public bool HasLanded { get; private set; }
 
     /// <summary>
-    /// The projects that read: from the latest catalogue once one has landed; until then, the ones remembered from the
-    /// last run, so a start at launch is not held back and still opens in the project's window (PR 3 review, item 2).
+    /// The projects that read: from the latest read once one has landed; until then, the ones remembered from the last
+    /// run, so a start at launch is not held back and still opens in the project's window (1.1 PR 3 review, item 2).
     /// </summary>
     public IReadOnlySet<string> ReadableNames => HasLanded
         ? Current.Where(reading => reading.IsReadable).Select(reading => reading.Name).ToHashSet(StringComparer.OrdinalIgnoreCase)
@@ -65,34 +51,36 @@ public sealed class BackgroundProjectReads
     /// <summary>Raised on the caller's thread when <see cref="Current"/> has been replaced.</summary>
     public event EventHandler? Changed;
 
-    /// <summary>Asks for the folders to be read, if they are due. Never waits for git.</summary>
-    public void Request(IReadOnlyList<string> folders)
-    {
-        ArgumentNullException.ThrowIfNull(folders);
+    /// <summary>Says something in the projects folder changed, so the next <see cref="Request"/> reads it again.</summary>
+    public void MarkStale() => _stale = true;
 
-        var key = string.Join("\n", folders);
+    /// <summary>Asks for the projects folder to be read, if it changed or is stale. Never waits for the read.</summary>
+    public void Request(string? folder)
+    {
+        var key = string.IsNullOrWhiteSpace(folder) ? null : folder.Trim();
 
         if (IsReading)
         {
-            // Back to the folders being read: what was asked for in between is no longer wanted.
-            _pending = string.Equals(key, _key, StringComparison.OrdinalIgnoreCase) ? null : folders;
+            // Asked during a read: decided again once it lands, since the files may have moved under it.
+            _hasPending = true;
+            _pending = key;
 
             return;
         }
 
-        var due = !string.Equals(key, _key, StringComparison.OrdinalIgnoreCase) || _now() - _readAt > _interval;
+        var due = !_hasRequested || _stale || !string.Equals(key, _folder, StringComparison.OrdinalIgnoreCase);
 
         if (!due)
         {
             return;
         }
 
-        _key = key;
-        _readAt = _now();
+        _hasRequested = true;
+        _stale = false;
+        _folder = key;
 
-        if (folders.Count == 0)
+        if (key is null)
         {
-            _failures.Clear();
             Landed([]);
 
             return;
@@ -100,84 +88,39 @@ public sealed class BackgroundProjectReads
 
         IsReading = true;
 
-        Task.Run(() => ReadSafely(folders)).ContinueWith(task =>
+        Task.Run(() => ReadSafely(key)).ContinueWith(task => _post(() =>
         {
-            var catalogue = task.Result;
+            Landed(task.Result);
+            IsReading = false;
 
-            if (_attach is null)
+            if (_hasPending)
             {
-                _post(() =>
-                {
-                    Landed(ReadingContinuity.Merge(Current, catalogue, _failures));
-                    Finished();
-                });
-
-                return;
+                _hasPending = false;
+                Request(_pending);
             }
-
-            _post(() => Landed(ReadingContinuity.Merge(Current, catalogue, _failures)));
-
-            var attached = AttachSafely(catalogue);
-
-            _post(() =>
-            {
-                Replace(ReadingContinuity.WithArtefacts(Current, attached));
-                Finished();
-            });
-        }, TaskScheduler.Default);
+        }), TaskScheduler.Default);
     }
 
-    private void Finished()
-    {
-        IsReading = false;
-
-        if (_pending is { } next)
-        {
-            _pending = null;
-            Request(next);
-        }
-    }
-
-    private IReadOnlyList<ProjectFileReading> AttachSafely(IReadOnlyList<ProjectFileReading> catalogue)
+    private IReadOnlyList<ProjectFileReading> ReadSafely(string folder)
     {
         try
         {
-            return _attach!(catalogue);
-        }
-        catch (Exception exception)
-        {
-            TheseusLog.Error(exception, "Reading the projects' artefacts failed");
-
-            return catalogue;
-        }
-    }
-
-    private IReadOnlyList<ProjectFileReading> ReadSafely(IReadOnlyList<string> folders)
-    {
-        try
-        {
-            return _read(folders);
+            return _read(folder);
         }
         catch (Exception exception)
         {
             TheseusLog.Error(exception, "Reading the projects failed");
 
-            return [.. folders.Select(folder =>
-                ProjectFileReading.Unreadable(Path.GetFileName(folder.TrimEnd('\\', '/')), $"could not be read: {exception.Message}")
-                    with { Folder = folder })];
+            return [ProjectFileReading.Unreadable(Path.GetFileName(folder.TrimEnd('\\', '/')), $"could not be read: {exception.Message}")
+                with { Folder = folder }];
         }
     }
 
-    // A catalogue landed: what reads now is remembered for the next run's first seconds.
+    // A read landed: what reads now is remembered for the next run's first seconds.
     private void Landed(IReadOnlyList<ProjectFileReading> readings)
     {
         HasLanded = true;
         _remembered?.Remember(readings.Where(reading => reading.IsReadable).Select(reading => reading.Name));
-        Replace(readings);
-    }
-
-    private void Replace(IReadOnlyList<ProjectFileReading> readings)
-    {
         Current = readings;
         Changed?.Invoke(this, EventArgs.Empty);
     }

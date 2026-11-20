@@ -17,7 +17,7 @@ public class ProjectWaitingTests
     {
         var waiting = new WorkstreamCardViewModel(Card("member", "p", "a-slug")) { Lifecycle = SessionLifecycle.NeedsAttention };
         var quiet = new WorkstreamCardViewModel(Card("quiet", "p", "b-slug"));
-        var spec = new SpecAtGate("p", "b-slug", "abcdef1", "hash", "# Spec", WorkstreamSource.NotOnMachine);
+        var spec = new SpecAtGate("p", "b-slug", "hash", "# Spec", WorkstreamSource.None);
 
         var lines = ProjectWaiting.For([waiting, quiet],
             [

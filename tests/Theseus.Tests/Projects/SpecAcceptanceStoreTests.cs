@@ -20,8 +20,8 @@ public class SpecAcceptanceStoreTests
 
     private SpecAcceptanceStore Store() => new(Path.Combine(_folder, "spec-acceptances.json"));
 
-    private static SpecAcceptance Acceptance(string slug, string commit, string hash) =>
-        new("a-project", slug, commit, hash, new DateTimeOffset(2026, 11, 20, 9, 0, 0, TimeSpan.Zero));
+    private static SpecAcceptance Acceptance(string slug, string hash) =>
+        new("a-project", slug, hash, new DateTimeOffset(2026, 11, 20, 9, 0, 0, TimeSpan.Zero));
 
     [Test]
     public void NothingAccepted_IsNoAcceptance()
@@ -32,29 +32,29 @@ public class SpecAcceptanceStoreTests
     [Test]
     public void AnAcceptance_IsReadBackByANewStore()
     {
-        Store().Accept(Acceptance("a-slug", "abc", "hash-1"));
+        Store().Accept(Acceptance("a-slug", "hash-1"));
 
-        Assert.That(Store().Latest("a-project", "a-slug"), Is.EqualTo(Acceptance("a-slug", "abc", "hash-1")));
+        Assert.That(Store().Latest("a-project", "a-slug"), Is.EqualTo(Acceptance("a-slug", "hash-1")));
     }
 
     [Test]
     public void TheLatestAcceptanceOfASlug_IsTheOneCompared()
     {
         var store = Store();
-        store.Accept(Acceptance("a-slug", "abc", "hash-1"));
-        store.Accept(Acceptance("other-slug", "def", "hash-9"));
-        store.Accept(Acceptance("a-slug", "ghi", "hash-2"));
+        store.Accept(Acceptance("a-slug", "hash-1"));
+        store.Accept(Acceptance("other-slug", "hash-9"));
+        store.Accept(Acceptance("a-slug", "hash-2"));
 
-        Assert.That(store.Latest("a-project", "a-slug")!.Commit, Is.EqualTo("ghi"));
-        Assert.That(store.Load(), Has.Count.EqualTo(3), "earlier acceptances are kept, keyed by their commit");
+        Assert.That(store.Latest("a-project", "a-slug")!.ContentHash, Is.EqualTo("hash-2"));
+        Assert.That(store.Load(), Has.Count.EqualTo(3), "earlier acceptances are kept, keyed by their text");
     }
 
     [Test]
-    public void AcceptingTheSameCommitAgain_ReplacesItsRecord()
+    public void AcceptingTheSameTextAgain_ReplacesItsRecord()
     {
         var store = Store();
-        store.Accept(Acceptance("a-slug", "abc", "hash-1"));
-        store.Accept(Acceptance("a-slug", "abc", "hash-1"));
+        store.Accept(Acceptance("a-slug", "hash-1"));
+        store.Accept(Acceptance("a-slug", "hash-1"));
 
         Assert.That(store.Load(), Has.Count.EqualTo(1));
     }

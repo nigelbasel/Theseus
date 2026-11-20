@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 namespace Theseus.Tests.Repository;
 
 /// <summary>
-/// The repo is public, and the method's records under work/, bootstrap/, projects/ and method/ are written by
+/// The repo is public, and the method kit under method/ is written by
 /// sessions working on the owner's machine. They carry no machine paths and no card ids: placeholders such as
 /// &lt;scratch&gt;, &lt;worktree&gt; and "the workstream log" instead (method rule P19, Nigel, 2026-11-19). Every
 /// stage 0 record broke this before the rule existed.
@@ -12,7 +12,7 @@ namespace Theseus.Tests.Repository;
 [TestFixture]
 public class PublicFilesTests
 {
-    private static readonly string[] Folders = ["work", "bootstrap", "projects", "method"];
+    private static readonly string[] Folders = ["method"];
 
     private static readonly Regex MachineSpecific = new(
         @"\\Users\\(?![<%])\w"

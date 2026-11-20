@@ -13,7 +13,7 @@ namespace Theseus.Tests.ViewModels;
 [TestFixture]
 public class ProjectViewModelTests
 {
-    private static readonly WorkstreamSource OnBranch = new("owner/x", "abcdef1234567", false);
+    private static readonly WorkstreamSource OnBranch = new("work/x");
 
     private static ProjectFileReading Reading()
     {
@@ -53,15 +53,15 @@ public class ProjectViewModelTests
                 ["old-slug"] = Files("old-slug", "research.md"),
                 ["spec-slug"] = Files("spec-slug", "research.md", "spec.md") with
                 {
-                    SpecText = "# The spec\n", SpecHash = "spec-now", SpecCommit = "abcdef1234567",
+                    SpecText = "# The spec\n", SpecHash = "spec-now",
                 },
                 ["done-slug"] = Files("done-slug", "research.md", "spec.md", "plan.md", "implementation.md") with
                 {
-                    SpecText = "# Done spec\n", SpecHash = "done-spec", SpecCommit = "1234567abcdef",
+                    SpecText = "# Done spec\n", SpecHash = "done-spec",
                 },
-                ["idle-slug"] = WorkstreamArtefacts.NotOnMachine("idle-slug") with
+                ["idle-slug"] = WorkstreamArtefacts.NotStarted("idle-slug") with
                 {
-                    Source = new WorkstreamSource("owner/p", "fedcba9876543", true),
+                    Source = new WorkstreamSource("work/idle-slug"),
                 },
             },
         };
@@ -74,7 +74,7 @@ public class ProjectViewModelTests
 
     private ProjectViewModel Build(IReadOnlyList<WorkstreamCardViewModel> cards, Func<Workstream, bool>? hasEnded = null) =>
         ProjectViewModel.Build(Reading(), cards,
-            (_, slug) => slug == "done-slug" ? new SpecAcceptance("p", slug, "1234567abcdef", "done-spec", DateTimeOffset.UnixEpoch) : null,
+            (_, slug) => slug == "done-slug" ? new SpecAcceptance("p", slug, "done-spec", DateTimeOffset.UnixEpoch) : null,
             hasEnded ?? (_ => false), _opened.Add, _accepted.Add, null);
 
     private static WorkstreamCardViewModel Vm(Workstream workstream) => new(workstream);
@@ -110,7 +110,7 @@ public class ProjectViewModelTests
         var done = cards.Single(card => card.Key == "card-done");
 
         Assert.That(Cell(view, PipelineStage.Implement).Entries.Select(entry => entry.Card), Does.Contain(done));
-        Assert.That(done.FaceTooltip, Is.EqualTo(@"C:\work" + Environment.NewLine + "read from owner/x at abcdef1"));
+        Assert.That(done.FaceTooltip, Is.EqualTo(@"C:\work" + Environment.NewLine + "read from work/x"));
     }
 
     [Test]
@@ -136,7 +136,7 @@ public class ProjectViewModelTests
         entry.AcceptSpecCommand!.Execute(null);
 
         Assert.That(_opened.Single().Text, Is.EqualTo("# The spec\n"));
-        Assert.That((_accepted.Single().Slug, _accepted.Single().Commit), Is.EqualTo(("spec-slug", "abcdef1234567")));
+        Assert.That((_accepted.Single().Slug, _accepted.Single().ContentHash), Is.EqualTo(("spec-slug", "spec-now")));
         Assert.That(view.WaitingSpecs.Select(spec => spec.Slug), Is.EqualTo(new[] { "spec-slug" }));
     }
 

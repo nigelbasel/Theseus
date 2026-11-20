@@ -51,14 +51,6 @@ public sealed class ProjectViewModel
     /// <summary>The specs waiting on the owner, for the menu bar's Open spec and Accept spec (R16).</summary>
     public IReadOnlyList<SpecAtGate> WaitingSpecs { get; private init; } = [];
 
-    /// <summary>What a slug shows while its files are still being read for the first time.</summary>
-    public const string ReadingNote = "reading…";
-
-    /// <summary>
-    /// Whether some slug's files have not been read yet, so its stage, and any spec waiting, are not known (PR 2
-    /// re-review, item 5).
-    /// </summary>
-    public bool IsReading { get; private init; }
 
     /// <summary>The primary's pull request into the trunk, which has no Accept (AC 7).</summary>
     public string MainPullRequestText => "Pull request into the trunk: not read yet (objective 1.2 reads it once built)";
@@ -89,15 +81,11 @@ public sealed class ProjectViewModel
         var stages = new Dictionary<string, WorkstreamStage>(StringComparer.OrdinalIgnoreCase);
         var specs = new Dictionary<string, SpecAtGate?>(StringComparer.OrdinalIgnoreCase);
 
-        // Before the first artefacts land a slug is still being read, which is not the same as not on this machine.
-        var stillReading = file.Workstreams.Where(row => !reading.Artefacts.ContainsKey(row.Slug)).Select(row => row.Slug)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
         foreach (var objective in file.Objectives)
         {
             foreach (var row in objective.Workstreams)
             {
-                var artefacts = reading.Artefacts.GetValueOrDefault(row.Slug) ?? WorkstreamArtefacts.NotOnMachine(row.Slug);
+                var artefacts = reading.Artefacts.GetValueOrDefault(row.Slug) ?? WorkstreamArtefacts.NotStarted(row.Slug);
                 var stage = StageCalculator.Calculate(objective.Pipelines, artefacts, acceptance(file.Name, row.Slug));
 
                 stages[row.Slug] = stage;
@@ -124,7 +112,7 @@ public sealed class ProjectViewModel
 
             return new ProjectEntryViewModel(entry.Row.Slug, $"{entry.Row.Slug} · {entry.Row.Workstream}", card, stage, false)
             {
-                Note = stillReading.Contains(entry.Row.Slug) ? ReadingNote : Note(entry, card is not null),
+                Note = Note(entry, card is not null),
                 Detail = Detail(stage),
                 IsWaitingOnYou = isWaiting,
                 WaitingText = stage.GateAfter(PipelineStage.Spec)?.State == GateState.ChangedSinceAccepted
@@ -197,7 +185,7 @@ public sealed class ProjectViewModel
                     var waits = stage.IsWaitingOnOwner;
 
                     return new ProjectTreeNodeViewModel($"{each.Slug} ({each.Workstream})",
-                        stillReading.Contains(each.Slug) ? ReadingNote : Where(stage, waits), [], row, waits);
+                        Where(stage, waits), [], row, waits);
                 }).ToList();
 
                 var ticked = objective.IsDone
@@ -238,7 +226,6 @@ public sealed class ProjectViewModel
             Rows = rows,
             CardsInOrder = inOrder,
             WaitingSpecs = waiting,
-            IsReading = stillReading.Count > 0,
             BackCommand = back,
             Signature = SignatureOf(file, rows, tree),
         };
@@ -257,7 +244,7 @@ public sealed class ProjectViewModel
         rows.Add(new ProjectPipelineRowViewModel(heading, [],
         [
             .. cards.Select(card => new ProjectEntryViewModel(card.Workstream.Slug ?? string.Empty, card.Title, card,
-                StageCalculator.Calculate([], WorkstreamArtefacts.NotOnMachine(string.Empty), null), false)
+                StageCalculator.Calculate([], WorkstreamArtefacts.NotStarted(string.Empty), null), false)
             {
                 Note = card.Workstream.Slug is { } slug ? $"{slug} is not in the project file" : "no slug yet",
             }),

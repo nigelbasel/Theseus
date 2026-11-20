@@ -13,7 +13,7 @@ public static partial class ProjectFileReader
 
     private const string TableHeaderText = "| Workstream | Slug | Branch | Repos |";
 
-    /// <summary>Reads a project file's text. <paramref name="name"/> is the file's name without <c>.md</c>.</summary>
+    /// <summary>Reads a project file's text. <paramref name="name"/> is the project home folder's name.</summary>
     public static ProjectFileReading Read(string name, string text)
     {
         ArgumentNullException.ThrowIfNull(name);
@@ -27,26 +27,6 @@ public static partial class ProjectFileReader
         {
             return ProjectFileReading.Unreadable(name, $"line {refusal.Line}: {refusal.Message}");
         }
-    }
-
-    /// <summary>
-    /// The <c>Kit:</c> and <c>Primary branch:</c> lines alone, read even when the rest of the file is out of shape, so
-    /// the primary branch can be found from the default branch's copy of a file (AC 2).
-    /// </summary>
-    public static (string? Kit, string? PrimaryBranch) Header(string text)
-    {
-        ArgumentNullException.ThrowIfNull(text);
-
-        string? kit = null;
-        string? primary = null;
-
-        foreach (var line in Lines(text).TakeWhile(line => !line.StartsWith("## ", StringComparison.Ordinal)))
-        {
-            kit ??= Value(line, "**Kit:**");
-            primary ??= Value(line, "**Primary branch:**");
-        }
-
-        return (kit, primary);
     }
 
     private static string[] Lines(string text) => text.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
@@ -110,7 +90,7 @@ public static partial class ProjectFileReader
 
             var title = lines[titleIndex][2..].Trim();
             var titleLine = titleIndex + 1;
-            var (kit, kitLine, primary) = ReadHeader(titleIndex + 1);
+            var (kit, kitLine, primary, beforeKit) = ReadHeader(titleIndex + 1);
 
             if (kit is null)
             {
@@ -134,14 +114,18 @@ public static partial class ProjectFileReader
 
             ReadBody(titleIndex + 1);
 
-            return ProjectFileReading.Read(new ProjectFile(name, title, MethodKits.Current, primary, _phases));
+            return ProjectFileReading.Read(new ProjectFile(name, title, MethodKits.Current, primary, _phases)
+            {
+                BeforeKit = beforeKit,
+            });
         }
 
-        private (string? Kit, int KitLine, string? Primary) ReadHeader(int start)
+        private (string? Kit, int KitLine, string? Primary, IReadOnlySet<string> BeforeKit) ReadHeader(int start)
         {
             string? kit = null;
             string? primary = null;
             var kitLine = 0;
+            var beforeKit = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             for (var index = start; index < lines.Length && !lines[index].StartsWith("## ", StringComparison.Ordinal); index++)
             {
@@ -152,9 +136,14 @@ public static partial class ProjectFileReader
                 }
 
                 primary ??= Value(lines[index], "**Primary branch:**");
+
+                if (Value(lines[index], "**Before method-v0.2:**") is { } slugs)
+                {
+                    beforeKit.UnionWith(slugs.Split(',').Select(slug => slug.Trim().Trim('`')).Where(slug => slug.Length > 0));
+                }
             }
 
-            return (kit, kitLine, primary);
+            return (kit, kitLine, primary, beforeKit);
         }
 
         private void ReadBody(int start)

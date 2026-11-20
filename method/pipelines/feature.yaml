@@ -1,5 +1,5 @@
 # A new capability, or a change in behaviour, inside a project.
-# Paths are relative to the project's home repo. <slug> is the workstream's slug in the project file (method/project.md).
+# Paths are relative to the project's home folder. <slug> is the workstream's slug in the project file (method/project.md).
 # <repos> are every repo the workstream changes, on one branch name, one worktree each.
 name: feature
 version: 1  # method-v0.2: plan and review are evidence gates inside a project

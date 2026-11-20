@@ -36,7 +36,11 @@ public sealed record VerifierCard(
     /// <param name="checkedCard">The card whose change is verified.</param>
     /// <param name="holdoutFolder">The holdout clone, from Settings.</param>
     /// <param name="now">The moment it is created, in the zone its report name should read in.</param>
-    public static VerifierCard For(Workstream checkedCard, string holdoutFolder, DateTimeOffset now)
+    /// <param name="recordsFolder">
+    /// The checked workstream's records folder in its project home, when it has one: reached as an extra directory and
+    /// named in the brief, since the spec is no longer in the checked card's repos (1.1b AC 9).
+    /// </param>
+    public static VerifierCard For(Workstream checkedCard, string holdoutFolder, DateTimeOffset now, string? recordsFolder = null)
     {
         ArgumentNullException.ThrowIfNull(checkedCard);
         ArgumentException.ThrowIfNullOrWhiteSpace(holdoutFolder);
@@ -50,10 +54,11 @@ public sealed record VerifierCard(
         // by path (verifier-card fix pass 2, overnight decision 3, 2026-11-19).
         IReadOnlyList<string> reach = [.. new[] { holdoutFolder }
             .Concat(checkedCard.AddDirectories)
+            .Concat(recordsFolder is null ? [] : [recordsFolder])
             .Where(directory => !string.Equals(directory, checkedCard.WorkingDirectory, StringComparison.OrdinalIgnoreCase))
             .Distinct(StringComparer.OrdinalIgnoreCase)];
 
         return new VerifierCard($"Verify: {checkedCard.Title}", checkedCard.WorkingDirectory, reach,
-            VerifierBrief.For(checkedCard.Title, report), report, stem + "-handoff.md");
+            VerifierBrief.For(checkedCard.Title, report, recordsFolder), report, stem + "-handoff.md");
     }
 }
