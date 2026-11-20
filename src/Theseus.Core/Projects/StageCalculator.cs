@@ -21,6 +21,34 @@ public static class StageCalculator
     ];
 
     /// <summary>
+    /// A pipeline's stages in order: a bug has no plan, and freeform work has none at all (project-view-redesign spec,
+    /// code fact 1, 2026-11-20).
+    /// </summary>
+    public static IReadOnlyList<PipelineStage> StagesOf(PipelineKind pipeline) => pipeline switch
+    {
+        PipelineKind.Feature => FeatureStages.AsReadOnly(),
+        PipelineKind.Bug => BugStages.AsReadOnly(),
+        _ => [],
+    };
+
+    /// <summary>
+    /// The file in <c>work\&lt;slug&gt;\</c> that records a stage: a bug's rule and fix are both sections of fix.md
+    /// (<see cref="BugArtefacts"/>), so for them the file existing is not the stage being reached.
+    /// </summary>
+    public static string RecordFileOf(PipelineKind pipeline, PipelineStage stage) => (pipeline, stage) switch
+    {
+        (PipelineKind.Bug, PipelineStage.Research) => "reproduction.md",
+        (PipelineKind.Bug, PipelineStage.Spec or PipelineStage.Implement) => "fix.md",
+        (_, PipelineStage.Research) => "research.md",
+        (_, PipelineStage.Spec) => "spec.md",
+        (_, PipelineStage.Plan) => "plan.md",
+        (_, PipelineStage.Implement) => "implementation.md",
+        (_, PipelineStage.Verify) => "evidence.md",
+        (_, PipelineStage.Review) => "review.md",
+        _ => "lessons.md",
+    };
+
+    /// <summary>
     /// The pipeline a slug runs: its objective's, or, where the objective names several, bug when the slug has a
     /// reproduction.md or fix.md and the other one named otherwise. Null when none is chosen yet.
     /// </summary>
@@ -102,25 +130,13 @@ public static class StageCalculator
         return new WorkstreamStage(pipeline, reached, gates, position, note, artefacts.Source) { EvidenceClaims = claims };
     }
 
-    private static bool IsReached(PipelineKind pipeline, PipelineStage stage, WorkstreamArtefacts artefacts)
-    {
-        var files = artefacts.Files;
-
-        return (pipeline, stage) switch
+    private static bool IsReached(PipelineKind pipeline, PipelineStage stage, WorkstreamArtefacts artefacts) =>
+        (pipeline, stage) switch
         {
-            (PipelineKind.Bug, PipelineStage.Research) => files.Contains("reproduction.md"),
             (PipelineKind.Bug, PipelineStage.Spec) => BugArtefacts.HasRule(artefacts.FixText),
             (PipelineKind.Bug, PipelineStage.Implement) => BugArtefacts.HasFix(artefacts.FixText),
-            (_, PipelineStage.Research) => files.Contains("research.md"),
-            (_, PipelineStage.Spec) => files.Contains("spec.md"),
-            (_, PipelineStage.Plan) => files.Contains("plan.md"),
-            (_, PipelineStage.Implement) => files.Contains("implementation.md"),
-            (_, PipelineStage.Verify) => files.Contains("evidence.md"),
-            (_, PipelineStage.Review) => files.Contains("review.md"),
-            (_, PipelineStage.Compound) => files.Contains("lessons.md"),
-            _ => false,
+            _ => artefacts.Files.Contains(RecordFileOf(pipeline, stage)),
         };
-    }
 
     private static StageGate Gate(PipelineKind pipeline, PipelineStage stage, IReadOnlyList<PipelineStage> reached,
         WorkstreamArtefacts artefacts, EvidenceBlock? evidence, SpecAcceptance? acceptance)
