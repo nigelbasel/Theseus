@@ -1,6 +1,7 @@
 using System.IO;
 using Theseus.Core.Domain;
 using Theseus.Core.Launching;
+using Theseus.Core.Projects;
 using Theseus.Core.Settings;
 using Theseus.Core.Terminal;
 
@@ -437,8 +438,8 @@ public sealed class SettingsViewModel : ObservableObject
             JiraBaseUrl = JiraBaseUrl,
             HoldoutFolder = HoldoutFolder.Trim(),
             HoldoutRemote = HoldoutRemote.Trim(),
-            ProjectsFolder = ProjectsFolder.Trim(),
-            WorktreesFolder = WorktreesFolder.Trim(),
+            ProjectsFolder = ProjectsFolderPath.Normalize(ProjectsFolder),
+            WorktreesFolder = ProjectsFolderPath.Normalize(WorktreesFolder),
             IncludePreReleases = IncludePreReleases,
             SessionPreamble = SessionPreamble,
             ContinuePrompt = ContinuePrompt,

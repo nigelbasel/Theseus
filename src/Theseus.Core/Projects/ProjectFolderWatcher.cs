@@ -18,6 +18,7 @@ public sealed class ProjectFolderWatcher : IDisposable
 
     private FileSystemWatcher? _watcher;
     private string? _folder;
+    private string? _unwatchable;
     private DateTimeOffset? _firstChange;
 
     /// <summary>Creates a watcher that watches nothing until <see cref="Watch"/>.</summary>
@@ -50,7 +51,7 @@ public sealed class ProjectFolderWatcher : IDisposable
     /// </summary>
     public ProjectFolderWatch Watch(string? folder)
     {
-        var key = string.IsNullOrWhiteSpace(folder) ? null : folder.Trim();
+        var key = ProjectsFolderPath.Normalize(folder) is { Length: > 0 } normal ? normal : null;
 
         lock (_gate)
         {
@@ -75,9 +76,11 @@ public sealed class ProjectFolderWatcher : IDisposable
                 return ProjectFolderWatch.NotWatching;
             }
 
+            FileSystemWatcher? watcher = null;
+
             try
             {
-                var watcher = new FileSystemWatcher(key)
+                watcher = new FileSystemWatcher(key)
                 {
                     IncludeSubdirectories = true,
                     InternalBufferSize = 64 * 1024,
@@ -88,15 +91,24 @@ public sealed class ProjectFolderWatcher : IDisposable
                 watcher.Created += (_, _) => Poke();
                 watcher.Deleted += (_, _) => Poke();
                 watcher.Renamed += (_, _) => Poke();
-                watcher.Error += (_, args) => Failed(watcher, key, args.GetException());
+                var started = watcher;
+                watcher.Error += (_, args) => Failed(started, key, args.GetException());
                 watcher.EnableRaisingEvents = true;
                 _watcher = watcher;
+                _unwatchable = null;
 
                 return ProjectFolderWatch.Started;
             }
             catch (Exception exception) when (exception is IOException or ArgumentException or UnauthorizedAccessException)
             {
-                TheseusLog.Warning(exception, "Could not watch the projects folder {Folder}", key);
+                watcher?.Dispose();
+
+                // Asked again on every board refresh, so said once per folder, not every time.
+                if (!string.Equals(_unwatchable, key, StringComparison.OrdinalIgnoreCase))
+                {
+                    _unwatchable = key;
+                    TheseusLog.Warning(exception, "Could not watch the projects folder {Folder}; it is read on every refresh instead", key);
+                }
 
                 return ProjectFolderWatch.NotWatching;
             }

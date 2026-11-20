@@ -15,12 +15,12 @@ public static class ProjectCatalog
     /// <summary>Reads every project in a projects folder; none when no folder is set (AC 13).</summary>
     public static IReadOnlyList<ProjectFileReading> Read(string? projectsFolder)
     {
-        if (string.IsNullOrWhiteSpace(projectsFolder))
+        var folder = ProjectsFolderPath.Normalize(projectsFolder);
+
+        if (folder.Length == 0)
         {
             return [];
         }
-
-        var folder = projectsFolder.Trim();
 
         try
         {
