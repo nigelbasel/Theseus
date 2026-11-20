@@ -10,7 +10,10 @@ namespace Theseus.Core.Projects;
 public static class ProjectArtefacts
 {
     /// <summary>The reading with its slugs' artefacts; an unreadable reading is returned as it is.</summary>
-    public static ProjectFileReading Attach(ProjectFileReading reading, IGitReader git)
+    /// <param name="reading">The project as read.</param>
+    /// <param name="git">Runs git.</param>
+    /// <param name="cache">Keeps each slug's last artefacts and re-reads only what moved; null reads everything.</param>
+    public static ProjectFileReading Attach(ProjectFileReading reading, IGitReader git, ArtefactCache? cache = null)
     {
         ArgumentNullException.ThrowIfNull(reading);
         ArgumentNullException.ThrowIfNull(git);
@@ -21,6 +24,21 @@ public static class ProjectArtefacts
         }
 
         var repository = new GitRepositoryReader(git, folder);
+
+        if (cache is not null)
+        {
+            try
+            {
+                return reading with { Artefacts = cache.Read(repository, file) };
+            }
+            catch (Exception exception)
+            {
+                TheseusLog.Error(exception, "Reading the artefacts of {Project} failed", file.Name);
+
+                return reading;
+            }
+        }
+
         var kitMoveParent = WorkstreamArtefactReader.KitMoveParent(repository, file);
         var artefacts = new Dictionary<string, WorkstreamArtefacts>(StringComparer.OrdinalIgnoreCase);
 

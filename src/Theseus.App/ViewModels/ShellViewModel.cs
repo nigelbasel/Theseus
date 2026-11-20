@@ -110,12 +110,13 @@ public sealed class ShellViewModel : ObservableObject
         var git = new GitCli();
         var primaries = new ProjectPrimaryStore(Path.Combine(App.DataDirectory, "project-primaries.json"));
         var dispatcher = Dispatcher.CurrentDispatcher;
+        var artefactCache = new ArtefactCache();
         // The stages' git reads ride the same background read, so the project view runs no git on this thread; they
         // land after the catalogue, which alone decides which cards leave the grid.
         _projectReads = new BackgroundProjectReads(
             folders => ProjectCatalog.Read(folders, git, primaries),
             action => dispatcher.BeginInvoke(action), TimeSpan.FromSeconds(30),
-            attach: readings => [.. readings.Select(reading => ProjectArtefacts.Attach(reading, git))]);
+            attach: readings => [.. readings.Select(reading => ProjectArtefacts.Attach(reading, git, artefactCache))]);
         _acceptances = new SpecAcceptanceStore(Path.Combine(App.DataDirectory, "spec-acceptances.json"));
         CloseProjectCommand = new RelayCommand(_ => CloseProject(), _ => IsProjectOpen);
         _projectReads.Changed += (_, _) => WireProjectChoices();

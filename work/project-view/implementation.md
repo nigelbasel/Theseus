@@ -245,8 +245,32 @@ returns its cards at once.
 `Board.VisibleCards` (which leaves folded ones out), so Select all with no projects ticks exactly what it always did
 (AC 22).
 
-### Open for the owner
+### The background read's cost (was open; closed)
 
-- **The background read's cost**: with about 15 slugs the artefact step is roughly 9 seconds of git (several commands
-  a slug) every 30 seconds while project repositories are listed. None of it is on the UI thread, but it is continuous.
-  A longer interval for the artefact step, or reading only slugs whose branch tip moved, would cut it.
+With about 15 slugs the artefact step was roughly 9 seconds of git every 30 seconds. `ArtefactCache` now re-reads a
+slug's files only when what they are read from has moved:
+
+- each read starts with every branch tip in one command (`for-each-ref refs/heads`); with no tip moved that is the
+  only command run;
+- whether a workstream branch is merged is worked out again (`merge-base --is-ancestor`) only when its tip or the
+  primary's moves, so a merge moves the slug to the primary as before;
+- each source's `work/` subtree ids are read in one `ls-tree` per branch tip, and a slug's files are read again only
+  when its subtree on the source actually used, the source itself, its merged state, or (for a merged slug) the move to
+  method-v0.2 differs from the last read. Otherwise the last artefacts are kept with the source's new tip, so the
+  tooltip still names the current commit.
+
+The spec's identity and "before method-v0.2" come from those artefacts, so they are right whenever only the primary
+moves: an unmerged slug keeps its branch's files; a merged one is re-read when its subtree changes; the move to
+method-v0.2 is looked up again for each primary tip.
+
+| Test | What it shows |
+|---|---|
+| `ArtefactCacheTests.WithNoTipMoved_…` | a second read with nothing moved runs one git command (`for-each-ref`) |
+| `ArtefactCacheTests.AMovedBranchTip_…` | a moved branch re-reads its slug and no other |
+| `ArtefactCacheTests.AMerge_MovesTheSlugToThePrimary_…` | a merge moves the source to the primary, merged, at its tip, with the spec's identity unchanged |
+| `ArtefactCacheTests.OnlyThePrimaryMoving_…` | the primary moving re-checks the merge but reads none of an unmerged slug's files |
+| `ArtefactCacheTests.TheCachedArtefacts_…` | the cache gives what the uncached reader gives |
+
+Known edge: a commit that changes a slug's folder and then restores its exact tree is not re-read, so a "last commit"
+within it can lag until the folder next changes. The cache keeps entries per tip for as long as the board runs; they
+are small.

@@ -33,13 +33,22 @@ public static class WorkstreamArtefactReader
         ArgumentNullException.ThrowIfNull(project);
         ArgumentNullException.ThrowIfNull(row);
 
-        var folder = $"work/{row.Slug}";
-        var primary = project.PrimaryBranch;
-        var source = Source(repository, primary, row.Branch, folder);
+        var source = Source(repository, project.PrimaryBranch, row.Branch, $"work/{row.Slug}");
+
+        return ReadFrom(repository, row.Slug, source, kitMoveParent);
+    }
+
+    /// <summary>Reads one slug's artefacts from a source already chosen, as <see cref="ArtefactCache"/> does.</summary>
+    public static WorkstreamArtefacts ReadFrom(GitRepositoryReader repository, string slug, WorkstreamSource source, string? kitMoveParent)
+    {
+        ArgumentNullException.ThrowIfNull(repository);
+        ArgumentNullException.ThrowIfNull(source);
+
+        var folder = $"work/{slug}";
 
         if (source.Branch is not { } branch)
         {
-            return WorkstreamArtefacts.NotOnMachine(row.Slug);
+            return WorkstreamArtefacts.NotOnMachine(slug);
         }
 
         var files = repository.Names(branch, folder).ToHashSet(StringComparer.Ordinal);
@@ -50,7 +59,7 @@ public static class WorkstreamArtefactReader
         var fix = Text("fix.md");
         var rule = BugArtefacts.RuleText(fix);
 
-        return new WorkstreamArtefacts(row.Slug, source, files)
+        return new WorkstreamArtefacts(slug, source, files)
         {
             FixText = fix,
             SpecText = spec,
