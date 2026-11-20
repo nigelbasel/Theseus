@@ -324,5 +324,8 @@ them.
 
 ## Suite
 
-[filled in when the final run completes]
+`dotnet test Theseus.slnx -p:NuGetAudit=false` at the pull request 3 commit: **2022 of 2022 passed, 0 warnings** (the
+workstream log); 27 tests are new since 1995. One test of pull request 2 changed: the view's layout test found the
+breadcrumb as the first button, and the new Bring window forward button now comes first in the tree, so it finds the
+breadcrumb by its name instead; what it asserts is unchanged.
 

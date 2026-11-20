@@ -45,3 +45,36 @@ confirmation box are not covered by tests; the owner sees them first on the pre-
   ]
 }
 ```
+
+# Evidence, pull request 3
+
+Written by the implementer, not a verifier: it records the implementer's own run and what is still open, so verify is
+not passed here.
+
+**Local, 2026-11-20:** `dotnet test Theseus.slnx -p:NuGetAudit=false` on `nigel/project-view`: 2022 of 2022 passed,
+0 warnings, run by the implementer.
+
+**Holdout:** the spec names **resume tomorrow** for this pull request, which changes the window a resumed session opens
+in. It has **not been run**: this session cannot reach the holdout scenarios. Verify stays open until a verifier card
+has run it and it passes (P18). Nothing here claims it.
+
+**Live:** not run as an app; raising a real terminal window was not tried.
+
+```theseus-evidence
+{
+  "kit": "method-v0.2",
+  "pipeline": "feature",
+  "stage": "verify",
+  "result": "open",
+  "repos": [
+    { "repo": "Theseus", "build": "pass", "tests": { "passed": 2022, "total": 2022 }, "warnings": 0 }
+  ],
+  "scenarios": [
+    { "name": "resume tomorrow", "result": "not-run", "by": null }
+  ],
+  "gates": [
+    { "gate": "spec", "accepted": "2026-11-20" }
+  ]
+}
+```
+
