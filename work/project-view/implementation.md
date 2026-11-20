@@ -230,6 +230,8 @@ copies the new `ProjectCardPlaces` dictionary across, as it does every other col
 | 8 | Workstream › **Ope_n spec** (n is free beside St_op, Acc_ept and the rest) | `ProjectViewMarkupTests` |
 | 9 | `ReadingContinuity`: a project that read and then fails keeps its last good reading, with the failure in the project card's tooltip; a second failure in a row makes it unreadable; a folder no longer listed drops at once | `ReadingContinuityTests`, `ProjectViewReviewFixTests.AProjectCard_SaysWhenItsLastReadFailed` |
 
+Suite after these fixes: **1982 of 1982 passed, 0 warnings** (the workstream log); 18 tests are new.
+
 **An expectation of this pull request's own test changed (item 6):** `ProjectArtefactsTests.AVerifier_HasEnded_…`
 asserted that removing an accepted report link brought the verifier back; the review judged that wrong, and it now
 asserts the verifier stays ended.
