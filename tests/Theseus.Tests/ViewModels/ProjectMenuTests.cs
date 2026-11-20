@@ -75,6 +75,16 @@ public class ProjectMenuTests
     }
 
     [Test]
+    public void TheSameMenuBuiltTwice_IsEqual_SoARefreshNeedNotReplaceIt()
+    {
+        var card = Card("one", "a_project", "first-slug");
+
+        Assert.That(Menu([Readable], card).SequenceEqual(Menu([Readable], card)), Is.True,
+            "the commands differ on every build; what the menu shows does not");
+        Assert.That(Menu([Readable], card).SequenceEqual(Menu([Readable], Card("one"))), Is.False);
+    }
+
+    [Test]
     public void AnUnreadableProject_BesideAReadableOne_IsListedDisabled_WithItsReason()
     {
         var menu = Menu([Readable, ProjectFileReading.Unreadable("broken", "line 1: no **Kit:** line under the title")]);

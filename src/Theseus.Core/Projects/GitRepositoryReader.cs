@@ -1,10 +1,12 @@
+using System.Text.RegularExpressions;
+
 namespace Theseus.Core.Projects;
 
 /// <summary>
 /// The reads a project needs from one repository folder, each one git command. Branches are local ones: Theseus reads
 /// what is on the machine and fetches nothing (spec AC 2).
 /// </summary>
-public sealed class GitRepositoryReader
+public sealed partial class GitRepositoryReader
 {
     private readonly IGitReader _git;
 
@@ -18,7 +20,7 @@ public sealed class GitRepositoryReader
     /// <summary>The folder read.</summary>
     public string Folder { get; }
 
-    /// <summary>Why the folder cannot be read as a repository, or null when it can.</summary>
+    /// <summary>Why the folder cannot be read as a repository, in git's own words, or null when it can.</summary>
     public string? Problem()
     {
         if (!Directory.Exists(Folder))
@@ -31,20 +33,23 @@ public sealed class GitRepositoryReader
         return probe switch
         {
             { Ran: false } => probe.Error,
-            { Succeeded: false } => "not a git repository",
+            { Succeeded: false } => string.Join(" ", probe.Error.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                                    is { Length: > 0 } said ? said : "git refused the folder",
             _ => null,
         };
     }
 
     /// <summary>
     /// The repository's default branch: the one its origin's HEAD names, else a local <c>main</c> or <c>master</c>.
-    /// The local branch when there is one, else origin's copy of it, which is also on the machine.
+    /// The local branch when there is one, else origin's copy of it as a full ref, which is also on the machine.
     /// </summary>
     public string? DefaultBranch()
     {
-        if (Line(Run("symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD")) is { } remoteHead)
+        if (Line(Run("symbolic-ref", "--quiet", "refs/remotes/origin/HEAD")) is { } remoteHead)
         {
-            var name = remoteHead.StartsWith("origin/", StringComparison.Ordinal) ? remoteHead["origin/".Length..] : remoteHead;
+            var name = remoteHead.StartsWith("refs/remotes/origin/", StringComparison.Ordinal)
+                ? remoteHead["refs/remotes/origin/".Length..]
+                : remoteHead;
 
             return HasBranch(name) ? name : remoteHead;
         }
@@ -58,45 +63,67 @@ public sealed class GitRepositoryReader
     /// <summary>Whether a local branch of this name exists.</summary>
     public bool HasBranch(string branch) => Run("rev-parse", "--verify", "--quiet", $"refs/heads/{branch}").Succeeded;
 
-    /// <summary>The commit a revision names, or null.</summary>
-    public string? Commit(string revision) => Line(Run("rev-parse", "--verify", "--quiet", $"{revision}^{{commit}}"));
+    /// <summary>The commit a branch or commit names, or null.</summary>
+    public string? Commit(string revision) => Line(Run("rev-parse", "--verify", "--quiet", $"{Ref(revision)}^{{commit}}"));
 
-    /// <summary>A file's text at a revision, or null when it is not there.</summary>
+    /// <summary>A file's text at a branch or commit, or null when it is not there.</summary>
     public string? Text(string revision, string path)
     {
-        var output = Run("cat-file", "blob", $"{revision}:{path}");
+        var output = Run("cat-file", "blob", $"{Ref(revision)}:{path}");
 
         return output.Succeeded ? output.Output : null;
     }
 
-    /// <summary>The names directly inside a folder at a revision; empty when it is not there.</summary>
+    /// <summary>The files (not folders) directly inside a folder at a branch or commit; empty when it is not there.</summary>
     public IReadOnlyList<string> Names(string revision, string directory)
     {
         var prefix = directory.TrimEnd('/') + "/";
-        var output = Run("ls-tree", "--name-only", revision, "--", prefix);
+        var output = Run("ls-tree", Ref(revision), "--", prefix);
 
-        return output.Succeeded
-            ? [.. Lines(output).Select(line => line.StartsWith(prefix, StringComparison.Ordinal) ? line[prefix.Length..] : line)]
-            : [];
+        return
+        [
+            .. Lines(output)
+                .Select(line => TreeEntry().Match(line))
+                .Where(entry => entry.Success && entry.Groups["type"].Value == "blob")
+                .Select(entry => entry.Groups["path"].Value)
+                .Select(path => path.StartsWith(prefix, StringComparison.Ordinal) ? path[prefix.Length..] : path),
+        ];
     }
 
-    /// <summary>The last commit at or before a revision that changed a path, or null.</summary>
-    public string? LastCommit(string revision, string path) => Line(Run("log", "-1", "--format=%H", revision, "--", path));
+    /// <summary>The last commit at or before a branch or commit that changed a path, or null.</summary>
+    public string? LastCommit(string revision, string path) => Line(Run("log", "-1", "--format=%H", Ref(revision), "--", path));
 
-    /// <summary>Whether one commit is an ancestor of (or the same as) another; null when git could not say.</summary>
+    /// <summary>Whether one branch or commit is an ancestor of (or the same as) another; null when git could not say.</summary>
     public bool? IsAncestor(string ancestor, string descendant)
     {
-        var output = Run("merge-base", "--is-ancestor", ancestor, descendant);
+        var output = Run("merge-base", "--is-ancestor", Ref(ancestor), Ref(descendant));
 
         return output.Ran && output.ExitCode is 0 or 1 ? output.ExitCode == 0 : null;
     }
 
-    /// <summary>The oldest commit at or before a revision that added or removed <paramref name="text"/> in a path.</summary>
+    /// <summary>
+    /// The oldest commit on a branch's first-parent line that added or removed <paramref name="text"/> in a path: for a
+    /// change merged in, the merge, so its first parent is the branch as it stood before the change arrived.
+    /// </summary>
     public string? FirstCommitChanging(string revision, string path, string text) =>
-        Lines(Run("log", "--reverse", "--format=%H", $"-S{text}", revision, "--", path)).FirstOrDefault();
+        Lines(Run("log", "--first-parent", "--diff-merges=first-parent", "--reverse", "--format=%H", $"-S{text}", Ref(revision),
+            "--", path)).FirstOrDefault();
 
     /// <summary>A commit's first parent, or null for a root commit.</summary>
     public string? Parent(string commit) => Commit($"{commit}^");
+
+    /// <summary>
+    /// A branch name as its full ref, so a tag of the same name cannot win and a name from a table can never reach git as
+    /// an option. A commit id, a full ref, or a revision already built from one (such as a parent) is left alone.
+    /// </summary>
+    public static string Ref(string revision)
+    {
+        ArgumentNullException.ThrowIfNull(revision);
+
+        return revision.StartsWith("refs/", StringComparison.Ordinal) || CommitId().IsMatch(revision)
+            ? revision
+            : $"refs/heads/{revision}";
+    }
 
     private GitOutput Run(params string[] arguments) => _git.Run(Folder, arguments);
 
@@ -107,4 +134,10 @@ public sealed class GitRepositoryReader
         output.Succeeded
             ? output.Output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             : [];
+
+    [GeneratedRegex(@"^[0-9a-f]{7,64}(\^.*)?$")]
+    private static partial Regex CommitId();
+
+    [GeneratedRegex(@"^\d+ (?<type>\w+) [0-9a-f]+\t(?<path>.+)$")]
+    private static partial Regex TreeEntry();
 }

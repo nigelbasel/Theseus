@@ -60,6 +60,8 @@ public sealed class GitCli : IGitReader
             var output = process.StandardOutput.ReadToEndAsync();
             var error = process.StandardError.ReadToEndAsync();
 
+            var elapsed = Stopwatch.StartNew();
+
             if (!process.WaitForExit(_timeout))
             {
                 process.Kill(entireProcessTree: true);
@@ -67,7 +69,15 @@ public sealed class GitCli : IGitReader
                 return GitOutput.NotRun($"git did not answer within {_timeout.TotalSeconds:0} s");
             }
 
-            return new GitOutput(true, process.ExitCode, output.GetAwaiter().GetResult(), error.GetAwaiter().GetResult());
+            // A child that git leaves behind can hold the pipes open after git itself has exited.
+            var left = _timeout - elapsed.Elapsed;
+
+            if (!Task.WaitAll([output, error], left > TimeSpan.Zero ? left : TimeSpan.Zero))
+            {
+                return GitOutput.NotRun($"git's output did not close within {_timeout.TotalSeconds:0} s");
+            }
+
+            return new GitOutput(true, process.ExitCode, output.Result, error.Result);
         }
         catch (Exception exception) when (exception is Win32Exception or InvalidOperationException)
         {

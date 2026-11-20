@@ -21,13 +21,9 @@ public sealed class ShellViewModel : ObservableObject
 {
     private readonly ISettingsStore _settings;
     private string _holdoutFolder = string.Empty;
-    private readonly IGitReader _git = new GitCli();
-    private IReadOnlyList<ProjectFileReading> _projectReadings = [];
+    private readonly BackgroundProjectReads _projectReads;
     private string _projectSummary = string.Empty;
     private IReadOnlyList<ProjectChoice> _projectChoices = [];
-    private string? _projectFolders;
-    private DateTimeOffset _projectsReadUtc;
-    private static readonly TimeSpan ProjectReadInterval = TimeSpan.FromSeconds(30);
     private readonly LaunchCoordinator _launcher;
     private readonly IPlanStore _plans;
     private readonly ITabColourAllocator _colours;
@@ -104,6 +100,13 @@ public sealed class ShellViewModel : ObservableObject
         _plans = plans;
         _colours = colours;
         _pullRequests = new PullRequestResolver(new GitRemoteReader());
+
+        var git = new GitCli();
+        var primaries = new ProjectPrimaryStore(Path.Combine(App.DataDirectory, "project-primaries.json"));
+        var dispatcher = Dispatcher.CurrentDispatcher;
+        _projectReads = new BackgroundProjectReads(folders => ProjectCatalog.Read(folders, git, primaries),
+            action => dispatcher.BeginInvoke(action), TimeSpan.FromSeconds(30));
+        _projectReads.Changed += (_, _) => WireProjectChoices();
         _theme = settings.Read().Theme;
         _isSessionsPanelOpen = !settings.Read().SessionsPanelCollapsed;
         _isToolbarVisible = !settings.Read().ToolbarHidden;
@@ -210,19 +213,21 @@ public sealed class ShellViewModel : ObservableObject
                     return;
                 }
 
-                if (approved is not null)
-                {
-                    JoinProposersProject(card, approved);
-                }
+                var slugDropped = approved is null ? null : JoinProposersProject(card, approved);
 
                 if (created.StartNow)
                 {
                     StartMany([card.Workstream]);
 
+                    if (slugDropped is not null)
+                    {
+                        Notice = slugDropped;
+                    }
+
                     return;
                 }
 
-                Notice = $"Created {card.Title} in {card.Column}.";
+                Notice = $"Created {card.Title} in {card.Column}." + (slugDropped is null ? string.Empty : $" {slugDropped}");
             },
             () => Chains?.TakenKeys ?? [],
             () => _settings.Read().BriefFolderName);
@@ -863,39 +868,47 @@ public sealed class ShellViewModel : ObservableObject
     /// </summary>
     private void WireProjects()
     {
-        var folders = _settings.Read().ProjectRepositories;
-        var key = string.Join("\n", folders);
+        // Each read is several git processes, so it runs off this thread and WireProjectChoices follows when it lands.
+        _projectReads.Request(_settings.Read().ProjectRepositories);
+        WireProjectChoices();
+    }
 
-        // Each read is several git processes, and a refresh can come every few seconds while sessions write their plans.
-        if (!string.Equals(key, _projectFolders, StringComparison.OrdinalIgnoreCase)
-            || DateTimeOffset.UtcNow - _projectsReadUtc > ProjectReadInterval)
-        {
-            _projectReadings = ProjectCatalog.Read(folders, _git);
-            _projectFolders = key;
-            _projectsReadUtc = DateTimeOffset.UtcNow;
-        }
+    /// <summary>Offers the projects as last read on every card's menu and the menu bar, replacing only what changed.</summary>
+    private void WireProjectChoices()
+    {
+        var readings = _projectReads.Current;
 
         // Logged when what is read changes, not on every refresh, so an unreadable project is in the log once.
-        var summary = string.Join("; ", _projectReadings.Select(reading => reading.Describe));
+        var summary = string.Join("; ", readings.Select(reading => reading.Describe));
 
         if (!string.Equals(summary, _projectSummary, StringComparison.Ordinal))
         {
             _projectSummary = summary;
 
-            foreach (var reading in _projectReadings.Where(reading => !reading.IsReadable))
+            foreach (var reading in readings.Where(reading => !reading.IsReadable))
             {
                 TheseusLog.Warning("Project {Project} in {Folder} is {Reading}", reading.Name, reading.Folder, reading.Describe);
             }
         }
 
+        // Compared by what they show: replacing an unchanged menu would close a submenu the owner has open.
         foreach (var card in Board.Cards)
         {
             var target = card;
-            card.ProjectChoices = ProjectMenu.For(_projectReadings, card.Workstream,
-                (project, slug) => SetProject(Targets(target), project, slug));
+            var choices = ProjectMenu.For(readings, card.Workstream, (project, slug) => SetProject(Targets(target), project, slug));
+
+            if (!choices.SequenceEqual(card.ProjectChoices))
+            {
+                card.ProjectChoices = choices;
+            }
         }
 
-        ProjectChoices = ProjectMenu.For(_projectReadings, null, (project, slug) => SetProject(Chosen(), project, slug));
+        var bar = ProjectMenu.For(readings, null, (project, slug) => SetProject(Chosen(), project, slug));
+
+        if (!bar.SequenceEqual(ProjectChoices))
+        {
+            ProjectChoices = bar;
+        }
     }
 
     /// <summary>
@@ -938,25 +951,30 @@ public sealed class ShellViewModel : ObservableObject
 
     /// <summary>
     /// A card made from a proposal joins its proposer's project, under the slug the proposal named. A slug another card
-    /// already holds is left off, so the card waits under No slug yet rather than sharing it (AC 4).
+    /// already holds is left off, so the card waits under No slug yet rather than sharing it (AC 4); what to tell the owner
+    /// about that is returned, else null.
     /// </summary>
-    private void JoinProposersProject(WorkstreamCardViewModel card, Theseus.Core.Proposals.WorkstreamProposal proposal)
+    private string? JoinProposersProject(WorkstreamCardViewModel card, Theseus.Core.Proposals.WorkstreamProposal proposal)
     {
         if (Board.Card(proposal.RequesterKey) is not { Workstream.Project: not null } proposer)
         {
-            return;
+            return null;
         }
 
         var joined = ProjectMembership.FromProposal(card.Workstream, proposer.Workstream, proposal.Request.Slug);
+        string? dropped = null;
 
         if (ProjectMembership.Refusal(Board.Cards.Select(other => other.Workstream), joined, joined.Project, joined.Slug) is { } refusal)
         {
+            dropped = $"{card.Title} joined {joined.Project} with no slug yet: {refusal}";
             joined = joined with { Slug = null };
             TheseusLog.Information("{Card} joined {Project} with no slug yet: {Refusal}", card.Key, joined.Project, refusal);
         }
 
         card.Workstream = joined;
         Board.Persist(card);
+
+        return dropped;
     }
 
     /// <summary>

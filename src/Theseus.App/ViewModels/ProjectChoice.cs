@@ -19,4 +19,17 @@ public sealed record ProjectChoice(
 {
     /// <summary>Whether it shows a tick box: a choice does, a project that only opens its slugs does not.</summary>
     public bool IsCheckable => Command is not null;
+
+    /// <summary>
+    /// Equal when it shows the same, whatever its command: a refresh builds new commands for an unchanged menu, and
+    /// replacing the menu then would close a submenu the owner has open.
+    /// </summary>
+    public bool Equals(ProjectChoice? other) =>
+        other is not null
+        && Header == other.Header && IsChecked == other.IsChecked && IsCheckable == other.IsCheckable
+        && ToolTip == other.ToolTip && IsEnabled == other.IsEnabled
+        && Children.SequenceEqual(other.Children);
+
+    /// <inheritdoc />
+    public override int GetHashCode() => HashCode.Combine(Header, IsChecked, ToolTip, IsEnabled, Children.Count);
 }

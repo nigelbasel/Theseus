@@ -1,10 +1,12 @@
+using Theseus.Core.Diagnostics;
+
 namespace Theseus.Core.Projects;
 
 /// <summary>
-/// Reads the projects in the repositories listed in Settings (spec AC 1 and 2). Each project file is found on the
-/// repository's default branch, which names the project's primary branch; the file is then read from the primary
-/// branch itself, so it does not matter which branch the folder has checked out. A folder or file that cannot be read
-/// is listed as unreadable with its reason, never left out.
+/// Reads the projects in the repositories listed in Settings (spec AC 1 and 2), always from each project's primary
+/// branch, so it does not matter which branch the folder has checked out. The primary is the one remembered from an
+/// earlier read while that branch is still here; otherwise it is found on the default branch's copy of the file, then on
+/// the checked-out branch's. A folder or file that cannot be read is listed as unreadable with its reason, never left out.
 /// </summary>
 public static class ProjectCatalog
 {
@@ -12,7 +14,10 @@ public static class ProjectCatalog
     public const string ProjectsFolder = "projects";
 
     /// <summary>Reads every listed folder. A folder listed twice is read once.</summary>
-    public static IReadOnlyList<ProjectFileReading> Read(IReadOnlyList<string> folders, IGitReader git)
+    /// <param name="folders">The listed folders.</param>
+    /// <param name="git">Runs git.</param>
+    /// <param name="primaries">Where primaries found are remembered, or null to find them afresh each time.</param>
+    public static IReadOnlyList<ProjectFileReading> Read(IReadOnlyList<string> folders, IGitReader git, ProjectPrimaryStore? primaries = null)
     {
         ArgumentNullException.ThrowIfNull(folders);
         ArgumentNullException.ThrowIfNull(git);
@@ -21,17 +26,39 @@ public static class ProjectCatalog
             .Select(folder => folder.Trim())
             .Where(folder => folder.Length > 0)
             .Distinct(StringComparer.OrdinalIgnoreCase)
-            .SelectMany(folder => ReadFolder(new GitRepositoryReader(git, folder)))];
+            .SelectMany(folder => ReadFolderSafely(new GitRepositoryReader(git, folder), primaries))];
     }
 
-    private static IEnumerable<ProjectFileReading> ReadFolder(GitRepositoryReader repository)
+    // Reading runs on every refresh of the board; nothing it meets in a repository may take the board down with it.
+    private static IReadOnlyList<ProjectFileReading> ReadFolderSafely(GitRepositoryReader repository, ProjectPrimaryStore? primaries)
     {
-        var folderName = Path.GetFileName(repository.Folder.TrimEnd('\\', '/'));
+        try
+        {
+            return [.. ReadFolder(repository, primaries)];
+        }
+        catch (Exception exception)
+        {
+            TheseusLog.Error(exception, "Reading the projects in {Folder} failed", repository.Folder);
+
+            return [ProjectFileReading.Unreadable(FolderName(repository), $"could not be read: {exception.Message}")
+                with { Folder = repository.Folder }];
+        }
+    }
+
+    private static string FolderName(GitRepositoryReader repository) => Path.GetFileName(repository.Folder.TrimEnd('\\', '/'));
+
+    private static IEnumerable<ProjectFileReading> ReadFolder(GitRepositoryReader repository, ProjectPrimaryStore? primaries)
+    {
+        var folderName = FolderName(repository);
 
         if (repository.Problem() is { } problem)
         {
             return [ProjectFileReading.Unreadable(folderName, problem) with { Folder = repository.Folder }];
         }
+
+        var remembered = (primaries?.For(repository.Folder) ?? [])
+            .Where(entry => repository.HasBranch(entry.Branch))
+            .ToDictionary(entry => entry.Project, entry => entry.Branch, StringComparer.OrdinalIgnoreCase);
 
         // The default branch first, as the spec says. The checked-out branch is the fallback for a project whose file
         // has not reached the default branch in this shape yet, which is every project until its primary is merged.
@@ -40,13 +67,14 @@ public static class ProjectCatalog
             .Distinct(StringComparer.Ordinal)
             .ToList();
 
-        if (discovery.Count == 0)
+        if (discovery.Count == 0 && remembered.Count == 0)
         {
             return [ProjectFileReading.Unreadable(folderName, "no default branch (origin's HEAD, main or master) and no branch checked out")
                 with { Folder = repository.Folder }];
         }
 
         var names = discovery
+            .Concat(remembered.Values)
             .SelectMany(branch => repository.Names(branch, ProjectsFolder))
             .Where(name => name.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -55,21 +83,33 @@ public static class ProjectCatalog
 
         if (names.Count == 0)
         {
-            return [ProjectFileReading.Unreadable(folderName, $"no project files in {ProjectsFolder}/ on {discovery[0]}")
+            return [ProjectFileReading.Unreadable(folderName, $"no project files in {ProjectsFolder}/ on {discovery.FirstOrDefault() ?? remembered.Values.First()}")
                 with { Folder = repository.Folder }];
         }
 
-        return names.Select(name => ReadProject(repository, discovery, name) with { Folder = repository.Folder });
+        return names.Select(name => ReadProject(repository, discovery, remembered, primaries, name) with { Folder = repository.Folder });
     }
 
-    private static ProjectFileReading ReadProject(GitRepositoryReader repository, IReadOnlyList<string> discovery, string fileName)
+    private static ProjectFileReading ReadProject(GitRepositoryReader repository, IReadOnlyList<string> discovery,
+        IReadOnlyDictionary<string, string> remembered, ProjectPrimaryStore? primaries, string fileName)
     {
         var name = Path.GetFileNameWithoutExtension(fileName);
         var path = $"{ProjectsFolder}/{fileName}";
+
+        if (remembered.TryGetValue(name, out var known) && repository.Text(known, path) is { } knownText)
+        {
+            return FromPrimary(name, known, knownText);
+        }
+
         var copies = discovery
             .Select(branch => (Branch: branch, Text: repository.Text(branch, path)))
             .Where(copy => copy.Text is not null)
             .ToList();
+
+        if (copies.Count == 0)
+        {
+            return ProjectFileReading.Unreadable(name, $"{path} could not be read on any branch");
+        }
 
         var named = copies
             .Select(copy => (copy.Branch, Header: ProjectFileReader.Header(copy.Text!)))
@@ -96,10 +136,17 @@ public static class ProjectCatalog
             return ProjectFileReading.Unreadable(name, $"{path} is not on its primary branch {primary}");
         }
 
-        var fromPrimary = ProjectFileReader.Read(name, primaryText);
+        primaries?.Remember(repository.Folder, name, primary);
 
-        return fromPrimary.Status == ProjectReadingStatus.Unreadable
-            ? fromPrimary with { Reason = $"{fromPrimary.Reason} (on {primary})" }
-            : fromPrimary;
+        return FromPrimary(name, primary, primaryText);
+    }
+
+    private static ProjectFileReading FromPrimary(string name, string primary, string text)
+    {
+        var reading = ProjectFileReader.Read(name, text);
+
+        return reading.Status == ProjectReadingStatus.Unreadable
+            ? reading with { Reason = $"{reading.Reason} (on {primary})" }
+            : reading;
     }
 }

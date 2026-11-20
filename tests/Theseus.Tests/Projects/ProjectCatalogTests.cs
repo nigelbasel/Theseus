@@ -47,7 +47,7 @@ public class ProjectCatalogTests
     }
 
     [Test]
-    public void TheBranchTheFolderHasCheckedOut_DoesNotMatter()
+    public void AFileGoneFromTheCheckedOutBranch_IsStillReadFromThePrimaryTheDefaultBranchNames()
     {
         _repository.Commit("projects/a-project.md", ProjectText("As on main"));
         _repository.Branch("owner/project");
@@ -134,7 +134,8 @@ public class ProjectCatalogTests
 
         try
         {
-            Assert.That(ProjectCatalog.Read([plain], new GitCli()).Single().Reason, Is.EqualTo("not a git repository"));
+            Assert.That(ProjectCatalog.Read([plain], new GitCli()).Single().Reason, Does.StartWith("fatal: not a git repository"),
+                "git's own words, so a refusal such as dubious ownership is reported as git gives it");
         }
         finally
         {

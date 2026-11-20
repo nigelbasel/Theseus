@@ -31,7 +31,7 @@ Each is the most reversible reading of the spec I could find; the owner may want
    Until the primary is merged into `main`, `main`'s copy is the v0.1 file, which names no primary, so the project
    could never be read. The reader therefore also looks at the branch the folder has checked out, after the default
    branch, and uses the first copy at v0.2 that names a primary. Once `main` carries a v0.2 file, the default branch
-   decides, as the spec says.
+   decides, as the spec says. (Changed by review fix 4: a primary once found is remembered and read first.)
 2. **Default branch:** the one origin's HEAD names (the local branch of that name if there is one, else origin's copy),
    else a local `main`, else `master`. The primary and workstream branches are local branches only.
 3. **A spec acceptance is compared by content, not commit.** The store keeps the commit the spec was accepted at (as
@@ -70,9 +70,10 @@ Each is the most reversible reading of the spec I could find; the owner may want
     tooltip, when at least one other project is readable, and logged once whenever the readings change. Showing them on
     the project card is pull request 2.
 13. **Reading cost.** A read is several git processes; the board reads the projects again on a refresh only when the
-    folders changed or 30 seconds have passed.
+    folders changed or 30 seconds have passed. (Review fix 2 moved the read off the UI thread.)
 14. **A proposed slug** is checked only for its shape. If another card holds it when the proposal is approved, the new
-    card joins the project with no slug yet (logged), rather than the approval failing.
+    card joins the project with no slug yet (logged, and since review fix 11 said on the board), rather than the
+    approval failing.
 15. **Project identity** is the project file's name without `.md`; two listed repositories with a project file of the
     same name are not told apart.
 16. **A slug with no card whose work exists** (an earlier slug, or stage 0 work with no card on this machine) is shown at
@@ -105,3 +106,38 @@ Each is the most reversible reading of the spec I could find; the owner may want
 `dotnet test Theseus.slnx -p:NuGetAudit=false` on `nigel/project-view` at the membership commit: **1907 of 1907 passed,
 0 warnings** (the workstream log). The base was 1762; 145 tests are new. `ProjectMenuMarkupTests` checks the menu
 markup on both menus; the rendered board was not checked.
+
+## Review fixes
+
+From the review of pull request 1. Each has its test first, in a new file named `*ReviewFixTests` where the area had
+one, else beside the area's tests.
+
+| Item | Fix | Test |
+|---|---|---|
+| 1 (must) | `GitRepositoryReader.Names` lists files only (`ls-tree` entries of type `blob`), so a folder named `notes.md` under `projects/` is not taken for a project file. A file no branch can give is **unreadable: … could not be read on any branch** instead of an index out of range. Each folder's read is wrapped: anything thrown is logged and that folder shows unreadable with the message; `BackgroundProjectReads` wraps the whole read the same way, so nothing from project reading can reach `Refresh` | `ProjectCatalogReviewFixTests`, `BackgroundProjectReadsTests.AReadThatThrows_…` |
+| 2 | `BackgroundProjectReads` (Core) runs the read on a worker thread and posts the result back through the dispatcher; one read at a time, other folders read straight after the one under way, the same folders again only after 30 seconds, nothing run with no folders. The shell asks for a read on each refresh and rebuilds the menus when the result lands | `BackgroundProjectReadsTests` (a reader that blocks until released) |
+| 3 | The move to method-v0.2 is found with `log --first-parent --diff-merges=first-parent -S…` on the primary, so a move merged in is the merge commit and its first parent is the primary as it stood | `WorkstreamArtefactReaderReviewFixTests.WorkMergedWhileTheKitMoveWasOnItsOwnBranch_…` |
+| 4 | `ProjectPrimaryStore` (`project-primaries.json` in Theseus's data folder) remembers each project's primary per listed folder. The order is now: the remembered primary while that branch is still here, then the default branch's copy, then the checked-out branch's. The old test `TheBranchTheFolderHasCheckedOut_DoesNotMatter` is renamed `AFileGoneFromTheCheckedOutBranch_IsStillReadFromThePrimaryTheDefaultBranchNames`, which is what it proves | `ProjectCatalogReviewFixTests.OnceFound_ThePrimaryIsRemembered_…`, `ARememberedPrimaryThatIsGone_IsFoundAgain` |
+| 5 | A pipeline is exactly `feature`, `bug` or `freeform` (any case), joined by ` or `, or `[to be chosen]`; `feature, bug` and numbers are refused | `ProjectFileReaderReviewFixTests` |
+| 6 | An indented tick box is a criterion of its own (the reversible choice: it is counted, so an unticked one keeps the objective open), not a continuation of the one above | `ProjectFileReaderReviewFixTests.AnIndentedTickBox_…` |
+| 7 | `ProjectChoice` compares by what it shows, ignoring its command; the shell replaces a card's or the menu bar's choices only when they differ, so an open submenu stays open across a refresh | `ProjectMenuTests.TheSameMenuBuiltTwice_IsEqual_…` |
+| 8 | `GitRepositoryReader.Ref` turns every branch name into `refs/heads/<name>` (commit ids and full refs are left alone; a default branch found only as origin's copy is returned as its full ref), so a tag of the same name cannot win and a table cell starting with `-` never reaches git as an option | `ProjectCatalogReviewFixTests.ATagNamedLikeThePrimary_DoesNotWin`, `WorkstreamArtefactReaderReviewFixTests.ABranchCellThatLooksLikeAnOption_…` |
+| 9 | A folder git refuses is reported in git's own words (its standard error), so "detected dubious ownership" reads as such | `ProjectCatalogTests.AFolderThatIsNotARepository_IsUnreadable` |
+| 10 | `GitCli` waits for git's output pipes only for what is left of its timeout after git exits, and reports that it did not close | (no test: it needs a child that outlives git) |
+| 11 | A dropped proposed slug is also said on the board, after Created, or after the start when the card starts at once | (the shell's create path has no test fixture; the logic it uses is `ProjectMembership`'s, tested) |
+
+**An existing test's expectation changed (item 9):** `ProjectCatalogTests.AFolderThatIsNotARepository_IsUnreadable`
+asserted the reason was exactly "not a git repository", Theseus's own words. The review asked for git's words, so it now
+asserts the reason starts with git's `fatal: not a git repository`. That is a correction of what the owner is told, not
+a weakening: the folder is still unreadable and the reason still says why.
+
+A branch name that is all hex digits (seven or more) is taken for a commit id by `Ref`; no branch in this repository is
+named so.
+
+## Open for the owner
+
+- The slugs `method-kit` (objective 0.1) and `holdout-scenarios` (0.2) were invented, since neither had a `work/`
+  folder, and 0.2's branch is `[not recorded]`. Rename or confirm them.
+- AC 9's "before method-v0.2" is measured from the commit that added `**Kit:** method-v0.2`. Once a v0.3 exists and the
+  project moves to it, the label will need measuring from that next move (and the reader will need to read v0.3).
+- The workstreams not yet placed under an objective: close-step, handoff-names, links-tree-scrollbar, prerelease-channel.

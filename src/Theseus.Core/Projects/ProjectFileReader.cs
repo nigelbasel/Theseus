@@ -79,7 +79,7 @@ public static partial class ProjectFileReader
     [GeneratedRegex(@"^### Objective (\d+)\.(\d+): (.+)$")]
     private static partial Regex ObjectiveHeading();
 
-    [GeneratedRegex(@"^- \[( |x|X)\] (.*)$")]
+    [GeneratedRegex(@"^[ \t]*- \[( |x|X)\] (.*)$")]
     private static partial Regex CriterionLine();
 
     [GeneratedRegex(@"^\|(\s*:?-+:?\s*\|)+$")]
@@ -310,8 +310,10 @@ public static partial class ProjectFileReader
             {
                 var parts = new List<string> { criterion.Groups[2].Value.Trim() };
 
+                // An indented tick box is a criterion of its own, not more of this one: joined in, an unticked
+                // sub-criterion would count as met.
                 while (index + 1 < lines.Length && lines[index + 1].Length > 0 && char.IsWhiteSpace(lines[index + 1][0])
-                       && lines[index + 1].Trim().Length > 0)
+                       && lines[index + 1].Trim().Length > 0 && !CriterionLine().IsMatch(lines[index + 1]))
                 {
                     index++;
                     parts.Add(lines[index].Trim());
@@ -350,10 +352,13 @@ public static partial class ProjectFileReader
                 return [];
             }
 
-            return value.Split(" or ", StringSplitOptions.TrimEntries).Select(written =>
-                Enum.TryParse<PipelineKind>(written, ignoreCase: true, out var kind) && !int.TryParse(written, out _)
-                    ? kind
-                    : throw new RefusalException(number, $"pipeline '{written}' is not feature, bug or freeform"));
+            return value.Split(" or ", StringSplitOptions.TrimEntries).Select(written => written.ToLowerInvariant() switch
+            {
+                "feature" => PipelineKind.Feature,
+                "bug" => PipelineKind.Bug,
+                "freeform" => PipelineKind.Freeform,
+                _ => throw new RefusalException(number, $"pipeline '{written}' is not feature, bug or freeform"),
+            });
         }
 
         private int ReadTable(int index)
