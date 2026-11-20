@@ -98,6 +98,12 @@ public sealed record TheseusSettings(
     public IReadOnlyList<string> CollapsedAreas { get; init; } = [];
 
     /// <summary>
+    /// The folders of project home repos, each a clone or worktree, whose <c>projects/*.md</c> Theseus reads with git
+    /// (project-view AC 1 and 2). Empty by default, so a board with none set behaves exactly as before (AC 22).
+    /// </summary>
+    public IReadOnlyList<string> ProjectRepositories { get; init; } = [];
+
+    /// <summary>
     /// Which one-off tidies of the grid this board has had. Zero for a board from before any; see
     /// <see cref="Domain.BoardTidy"/>.
     /// </summary>

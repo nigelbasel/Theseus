@@ -4,17 +4,24 @@ A small, versioned set of plain files that says how agentic work is run: which s
 goes through, who does each, what each produces, and what has to be true before it moves on. Theseus is
 built with it (the bootstrap) and will run it for others.
 
-**Version:** `method-v0.1` (2026-11-19), the kit as it stood at the end of stage 0 of the Theseus bootstrap, after six
-hand-run changes and 17 lessons.
+**Version:** `method-v0.2` (2026-11-20). `method-v0.1` (2026-11-19) was the kit as it stood at the end of stage 0 of
+the Theseus bootstrap, after six hand-run changes and 17 lessons. `method-v0.2` adds, together:
+
+- the **evidence result block**, a machine-readable `theseus-evidence` block in `evidence.md` ([`project.md`](project.md));
+- **P18** (below): a named holdout scenario is run, or verify stays open;
+- the **project file's shape tightened** so Theseus can read it: `Kit:` and `Primary branch:` lines, every objective a
+  heading with its pipeline and one workstreams table, and the artefacts folder named by the workstream's slug;
+- **the owner's gates inside a project** are each workstream's spec (a bug's rule) and the primary branch's pull request
+  into the trunk; plan and review become evidence gates (Nigel, 2026-11-20, decision 4A).
 
 ## What is in it
 
 | File | What it defines |
 |---|---|
-| [`project.md`](project.md) | The project format: objective, phases, derived objectives, exit gates, workstreams, repos |
+| [`project.md`](project.md) | The project format: objective, phases, derived objectives, exit gates, workstreams, repos; the owner's gates in a project; the evidence result block |
 | [`pipelines/freeform.yaml`](pipelines/freeform.yaml) | Ad hoc work: one stage, no gates. Today's Theseus exactly |
 | [`pipelines/feature.yaml`](pipelines/feature.yaml) | research → spec → plan → implement → verify → review → compound |
-| [`pipelines/bug.yaml`](pipelines/bug.yaml) | reproduce (failing test first) → rule (only when the fix needs one; owner's gate) → fix → verify, then review and compound when the rule stage ran |
+| [`pipelines/bug.yaml`](pipelines/bug.yaml) | reproduce (failing test first) → rule (only when the fix needs one; the owner's gate, as the bug's spec) → fix → verify, then review and compound when the rule stage ran |
 | *(per repo)* | Each repo keeps its own reviewer rubric, drawn from that codebase's dated decisions, and names it in its `AGENTS.md`. The kit has none: a rubric is the repo's, not the method's. Theseus's is `.agents/reviewer-rubric.md` |
 
 ## Two modes
@@ -81,6 +88,8 @@ Ad hoc work can be promoted to a project. Its handoff becomes the project's firs
 | 2026-11-18 | Holdout scenarios live in a separate private repository, which implementing sessions are refused access to | Nigel |
 | 2026-11-18 | Projects sit above workstreams; standalone workstreams are unchanged; both may span repos | Nigel |
 | 2026-11-19 | The kit stays generic in `method/` on GitHub for now, ships with Theseus as the default, and moves only if other team members start using it. A repo's own rubric and AGENTS.md live in that repo | Nigel |
+| 2026-11-20 | Inside a project the owner's gates are each workstream's spec (a bug's rule) and the primary branch's pull request into the trunk, which passes when he merges it; plan and review pass on evidence (decision 4A, released in `method-v0.2`) | Nigel |
+| 2026-11-20 | The evidence result block is JSON in a fenced `theseus-evidence` block; its `gates` field is information only, never proof | Nigel |
 
 ## Open questions
 
@@ -92,5 +101,6 @@ Ad hoc work can be promoted to a project. Its handoff becomes the project's firs
 - **Pinning, by hand for now:** a project names the kit version it follows, as a `Kit:` line in its project file, so
   a change to the kit does not reach a running project unannounced. Versions are git tags `method-v<major>.<minor>`
   in this repo, separate from app releases; the first is `method-v0.1` (2026-11-19). A project moves to a newer
-  version deliberately. Theseus does not yet read the `Kit:` line.
+  version deliberately. From `method-v0.2` Theseus reads the `Kit:` line: a project still at `method-v0.1` is shown as
+  pinned to it and not read further.
 - **L1 Prepared:** [definition not yet written].

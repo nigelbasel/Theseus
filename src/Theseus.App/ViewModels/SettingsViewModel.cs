@@ -22,6 +22,7 @@ public sealed class SettingsViewModel : ObservableObject
     private string _jiraBaseUrl = string.Empty;
     private string _holdoutFolder = string.Empty;
     private string _holdoutRemote = string.Empty;
+    private string _projectRepositories = string.Empty;
     private bool _includePreReleases;
     private string _sessionPreamble = string.Empty;
     private string _continuePrompt = string.Empty;
@@ -178,6 +179,13 @@ public sealed class SettingsViewModel : ObservableObject
     {
         get => _holdoutRemote;
         set => Set(ref _holdoutRemote, value);
+    }
+
+    /// <summary>The project repositories' folders, one per line, as typed (project-view AC 1).</summary>
+    public string ProjectRepositories
+    {
+        get => _projectRepositories;
+        set => Set(ref _projectRepositories, value);
     }
 
     /// <summary>Whether Check for updates also offers the pre-releases built from a project's primary branch.</summary>
@@ -384,6 +392,7 @@ public sealed class SettingsViewModel : ObservableObject
         JiraBaseUrl = settings.JiraBaseUrl;
         HoldoutFolder = settings.HoldoutFolder;
         HoldoutRemote = settings.HoldoutRemote;
+        ProjectRepositories = string.Join(Environment.NewLine, settings.ProjectRepositories);
         IncludePreReleases = settings.IncludePreReleases;
         SessionPreamble = settings.SessionPreamble;
         ContinuePrompt = settings.ContinuePrompt;
@@ -407,6 +416,10 @@ public sealed class SettingsViewModel : ObservableObject
             JiraBaseUrl = JiraBaseUrl,
             HoldoutFolder = HoldoutFolder.Trim(),
             HoldoutRemote = HoldoutRemote.Trim(),
+            ProjectRepositories = [.. ProjectRepositories.Split('\n')
+                .Select(line => line.Trim())
+                .Where(line => line.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)],
             IncludePreReleases = IncludePreReleases,
             SessionPreamble = SessionPreamble,
             ContinuePrompt = ContinuePrompt,

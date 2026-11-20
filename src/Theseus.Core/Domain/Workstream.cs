@@ -61,4 +61,13 @@ public sealed record Workstream(
 
     /// <summary>What this card's sessions are for: none, or verifier (verifier-card, 2026-11-19).</summary>
     public WorkstreamRole Role { get; init; }
+
+    /// <summary>
+    /// The project this card belongs to, by its project file's name, or null for ad hoc work. At most one (decision 2,
+    /// Nigel 2026-11-20; project-view AC 4).
+    /// </summary>
+    public string? Project { get; init; }
+
+    /// <summary>The workstream slug it currently works under in its project, or null while it has none yet.</summary>
+    public string? Slug { get; init; }
 }

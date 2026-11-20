@@ -210,6 +210,22 @@
             <Setter Property="ToolTip" Value="{Binding Tooltip}" />
         </Style>
 
+        <!--
+            One item of the Project menu (project-view AC 4): a project opens its slugs, which use this style in turn.
+            An unreadable project is listed disabled, its reason in the tooltip.
+        -->
+        <Style x:Key="ProjectChoiceItem" TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+            <Setter Property="Header" Value="{Binding Header}" />
+            <Setter Property="IsCheckable" Value="{Binding IsCheckable}" />
+            <Setter Property="IsChecked" Value="{Binding IsChecked, Mode=OneWay}" />
+            <Setter Property="Command" Value="{Binding Command}" />
+            <Setter Property="ItemsSource" Value="{Binding Children}" />
+            <Setter Property="ToolTip" Value="{Binding ToolTip}" />
+            <Setter Property="IsEnabled" Value="{Binding IsEnabled}" />
+            <Setter Property="ToolTipService.ShowOnDisabled" Value="True" />
+            <Setter Property="ItemContainerStyle" Value="{DynamicResource ProjectChoiceItem}" />
+        </Style>
+
         <!-- A card's own buttons: the toolbar's flat icon button, sized for a card. -->
         <Style x:Key="CardIcon" TargetType="Button" BasedOn="{StaticResource ToolButton}">
             <Setter Property="Width" Value="28" />
@@ -404,6 +420,10 @@
             <MenuItem Header="_Verify with holdouts…"
                       Command="{Binding VerifyWithHoldoutsCommand}" ToolTipService.ShowOnDisabled="True"
                       ToolTip="Create a verifier card that runs the holdout scenarios this card's spec names, and reports only a verdict back. Needs the holdout scenarios folder set in Tools > Options; not offered for a verifier card or an archived one" />
+            <MenuItem Header="Pro_ject" ItemsSource="{Binding ProjectChoices}"
+                      ItemContainerStyle="{StaticResource ProjectChoiceItem}"
+                      Visibility="{Binding HasProjectChoices, Converter={StaticResource BoolToVisibility}}"
+                      ToolTip="Which project this card belongs to, and the workstream slug it works under there. Acts on the selection when this card is in it" />
         </ContextMenu>
 
         <DataTemplate x:Key="CardTemplate" DataType="{x:Type vm:WorkstreamCardViewModel}">
@@ -1234,6 +1254,10 @@
                 <MenuItem Header="_Verify with holdouts…" Command="{Binding VerifySelectedWithHoldoutsCommand}"
                           ToolTipService.ShowOnDisabled="True"
                           ToolTip="Create a verifier card for the one ticked card: it runs the holdout scenarios its spec names, and reports only a verdict back. Needs one card ticked and the holdout scenarios folder set in Tools > Options; not offered for a verifier card or an archived one" />
+                <MenuItem Header="Pro_ject" ItemsSource="{Binding ProjectChoices}"
+                          ItemContainerStyle="{StaticResource ProjectChoiceItem}"
+                          Visibility="{Binding HasProjectChoices, Converter={StaticResource BoolToVisibility}}"
+                          ToolTip="Put the ticked cards in a project, under one of the slugs its project file lists, or take them out of it" />
                 <Separator />
                 <MenuItem Header="_Archive selected" Command="{Binding ArchiveSelectedCommand}"
                           ToolTip="Archive the ticked cards with no session running, or restore them when the archive is showing">

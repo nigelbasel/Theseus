@@ -15,4 +15,11 @@ public sealed record ProposalRequest(
     string? ExpectedOutput,
     string DoneCriteria,
     IReadOnlyList<string> JiraKeys,
-    string? Reason);
+    string? Reason)
+{
+    /// <summary>
+    /// The workstream slug the new card works under, when the proposer is in a project; the card inherits the
+    /// proposer's project (project-view AC 4). Null for none yet.
+    /// </summary>
+    public string? Slug { get; init; }
+}

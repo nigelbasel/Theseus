@@ -1,5 +1,8 @@
 # Theseus bootstrap
 
+**Kit:** method-v0.2
+**Primary branch:** nigel/theseus
+
 The first project written in the method's format ([`method/project.md`](../method/project.md)). Each
 stage is delivered through the method the previous stage made possible.
 
@@ -34,10 +37,11 @@ method layer for agentic development, usable from one developer to a team, by us
 - [ ] The project format exists and this file uses it, with stages 0–5 as its phases.
 
 **Pipeline:** freeform
-**Workstreams:**
-| Card | Branch | Repos | Artefacts |
+| Workstream | Slug | Branch | Repos |
 |---|---|---|---|
-| the Theseus workstream | main | Theseus | none (this objective's output is `method/`) |
+| the Theseus workstream | method-kit | main | Theseus |
+
+No artefacts folder: this objective's output is `method/`.
 
 ### Objective 0.2: Holdout scenarios
 
@@ -46,7 +50,11 @@ method layer for agentic development, usable from one developer to a team, by us
 - [ ] They are stored where implementing sessions can neither read nor change them.
 
 **Pipeline:** freeform
-**Workstreams:** the Theseus workstream, writing to the holdout repository before its access guard was installed.
+| Workstream | Slug | Branch | Repos |
+|---|---|---|---|
+| the Theseus workstream | holdout-scenarios | [not recorded] | the holdout repository |
+
+The Theseus workstream wrote to the holdout repository before its access guard was installed.
 
 ### Objective 0.3: Five changes through the method by hand
 
@@ -56,16 +64,26 @@ method layer for agentic development, usable from one developer to a team, by us
 - [ ] `bootstrap/stage-0.md` records what the method caught, what it missed, the friction (especially for
   ad hoc work), and time and cost.
 
-**Pipeline:** feature or bug, per change
-**Workstreams:** all run by the Theseus workstream on `main`, in the Theseus repo, one after another (chosen 2026-11-18):
-| Slug | Change | Pipeline |
-|---|---|---|
-| readme-runtime | The README asks for the .NET 10 runtime; the app targets .NET 11 and ships framework-dependent | bug |
-| guard-mentions | The lock guard refuses PowerShell commands that only mention the lock script | bug |
-| stop-timing | Record how long a stop takes, from Stop pressed to handoff written and session closed | feature |
-| card-branches | A card shows the branch of every repo it covers, not only its working directory's | feature |
-| parked-cores | Warn in the status bar when most cores are parked under load | feature |
-| resumed-stop | A session resumed under the same id is never closed by a second stop (found in stop-timing's live check; added 2026-11-18) | bug, with review and compound added |
+**Pipeline:** feature or bug
+| Workstream | Slug | Branch | Repos |
+|---|---|---|---|
+| the Theseus workstream | readme-runtime | main | Theseus |
+| the Theseus workstream | guard-mentions | main | Theseus |
+| the Theseus workstream | stop-timing | main | Theseus |
+| the Theseus workstream | card-branches | main | Theseus |
+| the Theseus workstream | parked-cores | main | Theseus |
+| the Theseus workstream | resumed-stop | main | Theseus |
+
+All run by the Theseus workstream on `main`, in the Theseus repo, one after another (chosen 2026-11-18), each through
+its own pipeline:
+
+- readme-runtime (bug): The README asks for the .NET 10 runtime; the app targets .NET 11 and ships framework-dependent.
+- guard-mentions (bug): The lock guard refuses PowerShell commands that only mention the lock script.
+- stop-timing (feature): Record how long a stop takes, from Stop pressed to handoff written and session closed.
+- card-branches (feature): A card shows the branch of every repo it covers, not only its working directory's.
+- parked-cores (feature): Warn in the status bar when most cores are parked under load.
+- resumed-stop (bug, with review and compound added): A session resumed under the same id is never closed by a second
+  stop (found in stop-timing's live check; added 2026-11-18).
 
 **close-step** is scheduled as the first pull request of phase 1, before the verifier card (Nigel, 2026-11-19). It is a
 feature covering when the close step runs (L1: closes wait for an unrelated refresh), showing that a stop is under way
@@ -76,19 +94,20 @@ parked-cores blink (`work/parked-cores/review.md`, finding 4) follows it as a se
 
 **Exit gate:** every pull request carries evidence, and the holdout scenarios run in CI on Windows.
 
-- **Objective 1.0 (first): a verifier card.** When a workstream reaches `verify` and its spec names a holdout scenario,
-  Theseus itself launches a fresh verifier session that can read the holdout repository and cannot change the code.
-  The verifier runs the scenario, asks the owner in its own tab for any step only a person can do, and hands back the
-  scenario name, pass or fail and a one-line reason through `report_back`, confirmed on the board. The implementing
-  session sees only that verdict. The owner never relays results between sessions. Needs a verifier card type
-  (Theseus starts it with holdout access, which a card cannot have today) and a read-only mode in the holdout guard.
-  Its first real test is running all three holdout scenarios against the stage 0 changes. (Nigel, 2026-11-19: the
-  scenarios were written in stage 0 and never run, because no verifier could run them.)
-
 **Criteria approved by Nigel, 2026-11-19.** Expect 1.4 to finish last: running scenarios with nobody at the board
 needs a way to drive Theseus unattended, and Windows minutes in a private repo are paid for.
 
 ### Objective 1.0: A verifier card
+
+First. When a workstream reaches `verify` and its spec names a holdout scenario,
+Theseus itself launches a fresh verifier session that can read the holdout repository and cannot change the code.
+The verifier runs the scenario, asks the owner in its own tab for any step only a person can do, and hands back the
+scenario name, pass or fail and a one-line reason through `report_back`, confirmed on the board. The implementing
+session sees only that verdict. The owner never relays results between sessions. Needs a verifier card type
+(Theseus starts it with holdout access, which a card cannot have today) and a read-only mode in the holdout guard.
+Its first real test is running all three holdout scenarios against the stage 0 changes. (Nigel, 2026-11-19: the
+scenarios were written in stage 0 and never run, because no verifier could run them.)
+
 - [ ] From a project workstream at `verify`, the owner starts a verifier card with one action on the board. Nothing
       starts it on its own.
 - [ ] The verifier session starts fresh: no resumed session, nothing from the implementer's conversation.
@@ -99,6 +118,11 @@ needs a way to drive Theseus unattended, and Windows minutes in a private repo a
       owner confirms it on the board, and the implementing session sees only that verdict through `related`.
 - [ ] All three holdout scenarios are run this way against the stage 0 changes, with results recorded against
       criterion 6 of `bootstrap/stage-0.md`. Each failure becomes a bug through the method.
+
+**Pipeline:** feature
+| Workstream | Slug | Branch | Repos |
+|---|---|---|---|
+| Verifier card | verifier-card | nigel/verifier-card | Theseus |
 
 ### Objective 1.1: Checks shown on cards
 - [ ] The kit defines a machine-readable result block in `evidence.md` (stage, result per repo, scenarios run),
@@ -126,6 +150,11 @@ needs a way to drive Theseus unattended, and Windows minutes in a private repo a
   joins the project and keeps its key; the view does not fold, and folding on the board is unchanged. Still to
   settle in the spec: how Theseus chooses a terminal window today (check the launcher first).
 
+**Pipeline:** feature
+| Workstream | Slug | Branch | Repos |
+|---|---|---|---|
+| Project view | project-view | nigel/project-view | Theseus |
+
 ### Objective 1.2: Read-only pull request and CI status on cards
 - [ ] A card shows, for each repo it covers, its pull request (if any) and the latest CI run for its branch. Theseus
       only reads.
@@ -136,12 +165,20 @@ needs a way to drive Theseus unattended, and Windows minutes in a private repo a
       designed (Nigel, 2026-11-19: GitHub only in phase 1; a session's report is never shown as CI status).
 - [ ] When the status cannot be read it shows as unknown, with the reason in the tooltip, never as passing.
 
+**Pipeline:** [to be chosen]
+| Workstream | Slug | Branch | Repos |
+|---|---|---|---|
+
 ### Objective 1.3: The evidence check
 - [ ] A CI job in each project repo fails when a change's `work/<slug>/evidence.md` is missing, malformed or not
       passing. It runs in that repo's own CI, so Theseus writes nothing to GitHub and needs no token. It replaces
       the `theseus/evidence` status first planned (Nigel, 2026-11-19), and branch protection makes it required.
 - [ ] The owner's acceptance of each gate (who and when) is recorded in the evidence file, and the job checks it.
 - [ ] The job is in the kit, so any project repo can adopt it.
+
+**Pipeline:** [to be chosen]
+| Workstream | Slug | Branch | Repos |
+|---|---|---|---|
 
 ### Objective 1.4: Holdout scenarios in CI on Windows
 - [ ] The scenarios that need no person run in the holdout repository's own GitHub Actions, on Windows, against
@@ -153,9 +190,17 @@ needs a way to drive Theseus unattended, and Windows minutes in a private repo a
       scenario name, step or log leaves the holdout (Nigel, 2026-11-20).
 - [ ] Scenarios that need a person stay with the verifier card.
 
+**Pipeline:** [to be chosen]
+| Workstream | Slug | Branch | Repos |
+|---|---|---|---|
+
 ### Objective 1.5: Carried over from stage 0
 - [ ] One change spans two repos, on one branch name with a worktree per repo, through its pipeline.
 - [ ] Each stage records the implementer's own tokens and the owner's time at its gate, measured and not estimated.
+
+**Pipeline:** [to be chosen]
+| Workstream | Slug | Branch | Repos |
+|---|---|---|---|
 
 **Exit gate:** every change made in phase 1 carries evidence that the evidence check passed. The holdout
 scenarios that need no person run in CI on Windows for every release. The verifier card has run all three scenarios.
@@ -174,22 +219,52 @@ owner merges every pull request himself; no session does. Stage 0's commits stra
   against it, and nothing is written to a tracker. It rests on the measurements 1.5 adds and the result blocks 1.1
   adds, so it waits until there are dozens of items, not six. [criteria to be written]
 
-- Objective 2.1: a worktree per repo for each workstream, one branch name across its repos. [criteria to be written]
-- Objective 2.2: a headless runner, with budgets and circuit breakers. [criteria to be written]
-- Objective 2.3: an overnight queue. [criteria to be written]
+### Objective 2.1: A worktree per repo for each workstream, one branch name across its repos
+[criteria to be written]
+
+**Pipeline:** [to be chosen]
+| Workstream | Slug | Branch | Repos |
+|---|---|---|---|
+### Objective 2.2: A headless runner, with budgets and circuit breakers
+[criteria to be written]
+
+**Pipeline:** [to be chosen]
+| Workstream | Slug | Branch | Repos |
+|---|---|---|---|
+### Objective 2.3: An overnight queue
+[criteria to be written]
+
+**Pipeline:** [to be chosen]
+| Workstream | Slug | Branch | Repos |
+|---|---|---|---|
 
 ## Phase 3: The Hub
 
 **Exit gate:** a second person works through it for two weeks.
 
-- Objective 3.1: shared state and multiple users. [criteria to be written]
-- Objective 3.2: GitHub Issues and tracker adapters. [criteria to be written]
+### Objective 3.1: Shared state and multiple users
+[criteria to be written]
+
+**Pipeline:** [to be chosen]
+| Workstream | Slug | Branch | Repos |
+|---|---|---|---|
+### Objective 3.2: GitHub Issues and tracker adapters
+[criteria to be written]
+
+**Pipeline:** [to be chosen]
+| Workstream | Slug | Branch | Repos |
+|---|---|---|---|
 
 ## Phase 4: Compound (alongside phases 1–3)
 
 **Exit gate:** 10 lessons accepted into the method kit.
 
-- Objective 4.1: lessons proposed as pull requests to `method/`. [criteria to be written]
+### Objective 4.1: Lessons proposed as pull requests to `method/`
+[criteria to be written]
+
+**Pipeline:** [to be chosen]
+| Workstream | Slug | Branch | Repos |
+|---|---|---|---|
 
 ## Phase 5: Team pilot
 
@@ -201,6 +276,10 @@ Written once the features of phases 1 to 4 work, not before (Nigel, 2026-11-20).
       lessons), with references to the relevant papers and articles on the web.
 - [ ] How each part is applied in Theseus, so that someone new to the tool can get going quickly.
 - [ ] Published on the help site the app links to.
+
+**Pipeline:** [to be chosen]
+| Workstream | Slug | Branch | Repos |
+|---|---|---|---|
 
 ## Decisions
 
