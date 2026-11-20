@@ -28,6 +28,7 @@ public sealed class ShellViewModel : ObservableObject
     private IReadOnlyList<ProjectChoice> _openProjectChoices = [];
     private IReadOnlyList<ProjectChoice> _openSpecChoices = [];
     private IReadOnlyList<ProjectChoice> _acceptSpecChoices = [];
+    private Theseus.Core.Terminal.ProjectWindowTarget _projectWindow = new(null, "Open a project first");
     private string _projectSummary = string.Empty;
     private IReadOnlyList<ProjectChoice> _projectChoices = [];
     private readonly LaunchCoordinator _launcher;
@@ -119,6 +120,12 @@ public sealed class ShellViewModel : ObservableObject
             attach: readings => [.. readings.Select(reading => ProjectArtefacts.Attach(reading, git, artefactCache))]);
         _acceptances = new SpecAcceptanceStore(Path.Combine(App.DataDirectory, "spec-acceptances.json"));
         CloseProjectCommand = new RelayCommand(_ => CloseProject(), _ => IsProjectOpen);
+        BringProjectWindowForwardCommand = new RelayCommand(_ => BringProjectWindowForward(),
+            _ => IsProjectOpen && _projectWindow.SessionId is not null && Sessions.Find(_projectWindow.SessionId) is not null);
+        launcher.ReadableProjects = () => _projectReads.Current
+            .Where(reading => reading.IsReadable)
+            .Select(reading => reading.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         _projectReads.Changed += (_, _) => WireProjectChoices();
         _theme = settings.Read().Theme;
         _isSessionsPanelOpen = !settings.Read().SessionsPanelCollapsed;
@@ -1009,6 +1016,48 @@ public sealed class ShellViewModel : ObservableObject
         }
 
         WireSpecChoices();
+        WireProjectWindow(cards);
+    }
+
+    /// <summary>
+    /// Which live session can bring the open project's window forward, or why none can (AC 21); asked each refresh, as
+    /// sessions start and stop.
+    /// </summary>
+    private void WireProjectWindow(IReadOnlyList<WorkstreamCardViewModel> cards)
+    {
+        var target = _openProjectName is { } name
+                     && Theseus.Core.Terminal.WindowGroupName.ForProject(_settings.Read().TerminalWindowName, name) is { } window
+            ? Theseus.Core.Terminal.ProjectWindowTarget.For(name, window,
+                [.. cards
+                    .Where(card => string.Equals(card.Workstream.Project, name, StringComparison.OrdinalIgnoreCase))
+                    .Select(card => (card.Key, card.Workstream.LastSessionId, card.IsLive))],
+                _runs.Read())
+            : new Theseus.Core.Terminal.ProjectWindowTarget(null, "Open a project first");
+
+        if (target != _projectWindow)
+        {
+            _projectWindow = target;
+            Raise(nameof(ProjectWindowTooltip));
+            System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+        }
+    }
+
+    /// <summary>Brings the open project's terminal window forward, through one of its live sessions (AC 21).</summary>
+    public RelayCommand BringProjectWindowForwardCommand { get; }
+
+    /// <summary>What Bring the window forward does, or why it cannot, for its tooltip.</summary>
+    public string ProjectWindowTooltip => _projectWindow.Reason;
+
+    private void BringProjectWindowForward()
+    {
+        if (Sessions.Find(_projectWindow.SessionId) is not { } session)
+        {
+            Notice = "The session that would bring the project's window forward is no longer running.";
+
+            return;
+        }
+
+        Notice = Describe(TerminalFocus.FocusSession(session.Pid, session.Name), session.Name);
     }
 
     private ProjectViewModel BuildView(ProjectFileReading reading, IReadOnlyList<WorkstreamCardViewModel> cards,

@@ -98,6 +98,12 @@ public sealed class LaunchCoordinator : IAsyncDisposable
     /// <summary>The related-workstreams paragraph a fresh session of a workstream is given, by key.</summary>
     public Func<string, string?>? RelatedFor { get; set; }
 
+    /// <summary>
+    /// The projects that read now, asked at each start, so a card that joined a project mid-session opens in the
+    /// project's window at its next start (project-view AC 20). Null or empty: every card opens where it always did.
+    /// </summary>
+    public Func<IReadOnlySet<string>>? ReadableProjects { get; set; }
+
     /// <summary>What changed in a workstream's links since a moment, for a resumed session.</summary>
     public Func<string, DateTimeOffset, string?>? RelatedSince { get; set; }
 
@@ -149,7 +155,7 @@ public sealed class LaunchCoordinator : IAsyncDisposable
 
         // Which window this tab joins is the whole of grouping: same name, same window; a name
         // nothing is using yet makes a new one. Nothing else has to exist for sessions to be grouped.
-        var windowName = WindowGroupName.For(settings.TerminalWindowName, workstream, settings.AreaWindows);
+        var windowName = WindowGroupName.For(settings.TerminalWindowName, workstream, settings.AreaWindows, ReadableProjects?.Invoke());
 
         var request = new WorkstreamLaunchRequest(workstream, Guid.NewGuid().ToString("N"), sessionId,
             mode, claudePath, terminal.ExecutablePath, _launcherPath, _pipeName,
@@ -193,7 +199,10 @@ public sealed class LaunchCoordinator : IAsyncDisposable
         _runs.Append(new SessionRun(runId, sessionId, workstream.Key, workstream.WorkingDirectory,
             null, resume ? SessionLaunchMode.Resume : SessionLaunchMode.FirstRun, workstream.Prompt,
             workstream.Title, workstream.ColorHex, DateTimeOffset.UtcNow, null, null, null, null,
-            SessionExitReason.Unknown));
+            SessionExitReason.Unknown)
+        {
+            WindowName = windowName,
+        });
 
         return sessionId;
     }

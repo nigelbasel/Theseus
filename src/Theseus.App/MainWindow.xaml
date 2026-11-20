@@ -1265,6 +1265,9 @@
                 <MenuItem Header="Back to the boar_d" Command="{Binding CloseProjectCommand}"
                           Visibility="{Binding IsProjectOpen, Converter={StaticResource BoolToVisibility}}"
                           ToolTip="Close the project view and show the board again" />
+                <MenuItem Header="Bring project _window forward" Command="{Binding BringProjectWindowForwardCommand}"
+                          Visibility="{Binding IsProjectOpen, Converter={StaticResource BoolToVisibility}}"
+                          ToolTip="{Binding ProjectWindowTooltip}" ToolTipService.ShowOnDisabled="True" />
                 <Separator />
                 <MenuItem Header="_Fold cards with no session" Command="{Binding CollapseInactiveCommand}">
                     <MenuItem.Icon><TextBlock Text="&#xF165;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>

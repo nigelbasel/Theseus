@@ -19,8 +19,12 @@ public static class WindowGroupName
     /// <param name="configured">The base name, which every window is named after.</param>
     /// <param name="workstream">The workstream being started, for its lane and any override.</param>
     /// <param name="areaWindows">Areas whose window keeps an earlier name, from the settings.</param>
+    /// <param name="readableProjects">
+    /// The projects that read now. A card in one of them opens in its project's window; with none, every card gets the
+    /// name it always did (project-view AC 22).
+    /// </param>
     public static string For(string? configured, Workstream workstream,
-        IReadOnlyDictionary<string, string>? areaWindows = null)
+        IReadOnlyDictionary<string, string>? areaWindows = null, IReadOnlySet<string>? readableProjects = null)
     {
         ArgumentNullException.ThrowIfNull(workstream);
 
@@ -29,6 +33,15 @@ public static class WindowGroupName
         if (!string.IsNullOrWhiteSpace(workstream.WindowGroup))
         {
             return Sanitise(workstream.WindowGroup!) is { Length: > 0 } chosen ? chosen : fallback;
+        }
+
+        // A project's cards share one window, after a card's own override and before its area (project-view AC 19).
+        // "-project-" keeps it apart from an area of the same name. An unreadable project's card is placed as before,
+        // as it sits on the grid as before (AC 13).
+        if (workstream.Project is { } project && readableProjects?.Contains(project) == true
+            && ForProject(configured, project) is { } projectWindow)
+        {
+            return projectWindow;
         }
 
         // The area names the window, not the stage. A window called after a stage would want
@@ -43,6 +56,14 @@ public static class WindowGroupName
             : Sanitise(workstream.Column);
 
         return row.Length > 0 ? $"{fallback}-{row}" : fallback;
+    }
+
+    /// <summary>A project's window, <c>&lt;base&gt;-project-&lt;project&gt;</c>, or null for a name that sanitises to nothing.</summary>
+    public static string? ForProject(string? configured, string project)
+    {
+        var fallback = string.IsNullOrWhiteSpace(configured) ? "theseus" : configured.Trim();
+
+        return Sanitise(project) is { Length: > 0 } named ? $"{fallback}-project-{named}" : null;
     }
 
     /// <summary>

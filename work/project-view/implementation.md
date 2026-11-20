@@ -288,3 +288,41 @@ Suite after the cache: **1987 of 1987 passed, 0 warnings** (the workstream log).
 Known edge: a commit that changes a slug's folder and then restores its exact tree is not re-read, so a "last commit"
 within it can lag until the folder next changes. The cache keeps entries per tip for as long as the board runs; they
 are small.
+
+# Pull request 3
+
+Pipeline `feature`, stage **implement**, from `plan.md` ("Pull request 3"), for `spec.md` ACs 19 to 21 and AC 22 for
+them.
+
+## What was built, per AC
+
+| AC | State | Where |
+|---|---|---|
+| 19 | done | `WindowGroupName.For` takes the readable projects: after a card's own window override and before its area (and the area's kept name) and column, a card in a readable project opens in `<Settings' terminal window name>-project-<project file name>` (`WindowGroupName.ForProject`). The `-project-` keeps it apart from an area of the same name |
+| 20 | done | `LaunchCoordinator.ReadableProjects` is asked at each start, so a card that joined a project mid-session opens in its window at its next start, and resuming tomorrow opens it there. `SessionRun.WindowName` records the window each run was launched into; run log lines from before it load with no window |
+| 21 | done | `ProjectWindowTarget`: a live session of the project's cards whose latest run was launched into the project's window, else the reason. **Bring window forward** beside the project view's breadcrumb and View › **Bring project window forward** use it, through Focus's own `TerminalFocus.FocusSession`; disabled with the reason in the tooltip, shown on the disabled control |
+| 22 | done | With no project readable, every card's window name is exactly what it was, project field or not, across lanes, areas and kept area names (`ProjectWindowNameTests.WithNoProjectReadable_…`, 12 cases); the menu item shows only while a project is open |
+
+## Decisions
+
+1. **The project window is for readable projects only.** A card whose project is unreadable, pinned or unlisted opens
+   where it did before, as it sits on the grid as before (AC 13). A verifier card, which carries its subject's project,
+   opens in the project's window too.
+2. **"Launched into the project's window" is read from the session's latest run.** A session resumed into another
+   window (say, before its card joined the project) does not count, and neither does a run from before windows were
+   recorded.
+3. **Bring window forward focuses that session's tab**, as Focus does; landing on the window but not the tab is
+   reported as Focus reports it.
+
+## Not checked
+
+- `LaunchCoordinator` has no test harness (it starts processes and a pipe server); the window it passes to the
+  launch is `WindowGroupName.For`'s, which is tested, and the run it records carries that name (code read, not tested).
+- Raising a real Windows Terminal window was not tried.
+- **The holdout scenario "resume tomorrow" applies to this pull request and has not been run**: this session cannot
+  reach the holdouts. Verify stays open until a verifier card has run it (P18).
+
+## Suite
+
+[filled in when the final run completes]
+

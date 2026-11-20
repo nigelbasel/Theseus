@@ -43,8 +43,13 @@
     </UserControl.Resources>
 
     <DockPanel>
-        <!-- The breadcrumb back to the board (AC 14). -->
-        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="4,0,4,8">
+        <!-- The breadcrumb back to the board (AC 14), and the project's terminal window brought forward (AC 21). -->
+        <DockPanel DockPanel.Dock="Top" Margin="4,0,4,8">
+        <Button x:Name="BringWindowForward" DockPanel.Dock="Right" Content="Bring window forward" Padding="8,2"
+                Command="{Binding DataContext.BringProjectWindowForwardCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                ToolTip="{Binding DataContext.ProjectWindowTooltip, RelativeSource={RelativeSource AncestorType=Window}}"
+                ToolTipService.ShowOnDisabled="True" />
+        <StackPanel Orientation="Horizontal">
             <Button x:Name="BoardCrumb" Content="Board" Command="{Binding BackCommand}" Padding="8,2"
                     ToolTip="Back to the board (View › Back to the board)" />
             <TextBlock Text="›" Margin="8,0" VerticalAlignment="Center" FontSize="14"
@@ -55,6 +60,7 @@
                        TextTrimming="CharacterEllipsis" ToolTip="{Binding PhaseText}"
                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
         </StackPanel>
+        </DockPanel>
 
         <TextBlock DockPanel.Dock="Bottom" Text="{Binding MainPullRequestText}" FontSize="11" Margin="4,6,4,0"
                    Foreground="{DynamicResource TextFillColorTertiaryBrush}" />

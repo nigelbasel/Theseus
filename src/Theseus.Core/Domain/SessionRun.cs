@@ -50,6 +50,12 @@ public sealed record SessionRun(
     public bool HasEnded => ExitReason is not SessionExitReason.Unknown;
 
     /// <summary>
+    /// The terminal window the run was launched into, so the window can be brought forward through it later
+    /// (project-view AC 20, 21). Null for a run recorded before this was kept.
+    /// </summary>
+    public string? WindowName { get; init; }
+
+    /// <summary>
     /// How long the run lasted, where both ends were observed. Null whenever either was not, so an
     /// unmeasured run is absent from a total rather than counted as nothing.
     /// </summary>
