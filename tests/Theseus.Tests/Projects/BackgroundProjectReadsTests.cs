@@ -93,6 +93,22 @@ public class BackgroundProjectReadsTests
     }
 
     [Test]
+    public void FoldersChangedAndChangedBack_DuringARead_AreNotReadAgainAfterIt()
+    {
+        var reads = Reads();
+
+        reads.Request([@"C:\repos\home"]);
+        reads.Request([@"C:\repos\other"]);
+        reads.Request([@"C:\repos\home"]);
+
+        _gitAnswers.Set();
+        WaitForTheResult();
+
+        Assert.That(_posted.Wait(TimeSpan.FromMilliseconds(500)), Is.False, "no second read follows");
+        Assert.That(_reads.Select(folders => folders.Single()), Is.EqualTo(new[] { @"C:\repos\home" }));
+    }
+
+    [Test]
     public void TheSameFolders_AreReadAgainOnlyAfterTheInterval()
     {
         _gitAnswers.Set();

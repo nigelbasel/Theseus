@@ -94,6 +94,40 @@ public class ProjectCatalogReviewFixTests
     }
 
     [Test]
+    public void APrimaryWhoseFileNamesANewPrimary_IsFollowed_WhileTheOldBranchIsKept()
+    {
+        _repository.Commit("projects/a-project.md", ProjectText("As on main"));
+        _repository.Branch("owner/project");
+        _repository.Commit("projects/a-project.md", ProjectText("As on the old primary"));
+        var primaries = Primaries();
+        Read(primaries);
+
+        _repository.Commit("projects/a-project.md", ProjectText("Moving on", primary: "owner/project-2"));
+        _repository.Branch("owner/project-2");
+        _repository.Commit("projects/a-project.md", ProjectText("As on the new primary", primary: "owner/project-2"));
+        _repository.Checkout("main");
+
+        Assert.That(Read(primaries).Single().File!.Title, Is.EqualTo("As on the new primary"));
+        Assert.That(primaries.For(_repository.Folder).Single().Branch, Is.EqualTo("owner/project-2"));
+    }
+
+    [Test]
+    public void ANewPrimaryNotOnThisMachine_FallsThroughToFindingItAgain()
+    {
+        _repository.Commit("projects/a-project.md", ProjectText("As on main"));
+        _repository.Branch("owner/project");
+        _repository.Commit("projects/a-project.md", ProjectText("As on the old primary"));
+        var primaries = Primaries();
+        Read(primaries);
+
+        _repository.Commit("projects/a-project.md", ProjectText("Moving on", primary: "owner/elsewhere"));
+        _repository.Checkout("main");
+
+        Assert.That(Read(primaries).Single().File!.Title, Is.EqualTo("Moving on"),
+            "main still names the old primary, so finding it again lands there and reads it as it now stands");
+    }
+
+    [Test]
     public void ATagNamedLikeThePrimary_DoesNotWin()
     {
         _repository.Commit("projects/a-project.md", ProjectText("As on main"));

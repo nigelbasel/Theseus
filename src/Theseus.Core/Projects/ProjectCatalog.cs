@@ -98,7 +98,20 @@ public static class ProjectCatalog
 
         if (remembered.TryGetValue(name, out var known) && repository.Text(known, path) is { } knownText)
         {
-            return FromPrimary(name, known, knownText);
+            var renamed = ProjectFileReader.Header(knownText).PrimaryBranch;
+
+            if (renamed is null || string.Equals(renamed, known, StringComparison.Ordinal))
+            {
+                return FromPrimary(name, known, knownText);
+            }
+
+            // The primary's own file has moved the project to another branch: follow it when that branch is here.
+            if (repository.HasBranch(renamed) && repository.Text(renamed, path) is { } movedText)
+            {
+                primaries?.Remember(repository.Folder, name, renamed);
+
+                return FromPrimary(name, renamed, movedText);
+            }
         }
 
         var copies = discovery

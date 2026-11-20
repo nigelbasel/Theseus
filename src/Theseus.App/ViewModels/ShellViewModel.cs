@@ -221,7 +221,7 @@ public sealed class ShellViewModel : ObservableObject
 
                     if (slugDropped is not null)
                     {
-                        Notice = slugDropped;
+                        Notice = string.IsNullOrWhiteSpace(Notice) ? slugDropped : $"{Notice} {slugDropped}";
                     }
 
                     return;

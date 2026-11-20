@@ -51,10 +51,8 @@ public sealed class BackgroundProjectReads
 
         if (IsReading)
         {
-            if (!string.Equals(key, _key, StringComparison.OrdinalIgnoreCase))
-            {
-                _pending = folders;
-            }
+            // Back to the folders being read: what was asked for in between is no longer wanted.
+            _pending = string.Equals(key, _key, StringComparison.OrdinalIgnoreCase) ? null : folders;
 
             return;
         }
