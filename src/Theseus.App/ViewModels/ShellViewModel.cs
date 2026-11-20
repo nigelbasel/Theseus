@@ -23,6 +23,7 @@ public sealed class ShellViewModel : ObservableObject
     private string _holdoutFolder = string.Empty;
     private readonly BackgroundProjectReads _projectReads;
     private readonly ProjectFolderWatcher _projectWatcher;
+    private bool _hasProjectsFolder;
     private readonly SpecAcceptanceStore _acceptances;
     private IReadOnlyList<SessionRun>? _refreshRuns;
     private string? _openProjectName;
@@ -122,6 +123,7 @@ public sealed class ShellViewModel : ObservableObject
         }), TimeSpan.FromMilliseconds(500), TimeSpan.FromSeconds(1.5));
         _acceptances = new SpecAcceptanceStore(Path.Combine(App.DataDirectory, "spec-acceptances.json"));
         CloseProjectCommand = new RelayCommand(_ => CloseProject(), _ => IsProjectOpen);
+        NewProjectCommand = new RelayCommand(_ => NewProject());
         BringProjectWindowForwardCommand = new RelayCommand(_ => BringProjectWindowForward(),
             _ => IsProjectOpen && _projectWindow.SessionId is not null && Sessions.Find(_projectWindow.SessionId) is not null);
         launcher.ReadableProjects = () => _projectReads.ReadableNames;
@@ -882,8 +884,54 @@ public sealed class ShellViewModel : ObservableObject
             ? Path.Combine(home, WorkstreamArtefactReader.WorkFolder, slug)
             : null;
 
-    /// <summary>Whether the menu bar shows Project at all.</summary>
+    /// <summary>Whether Workstream › Project (and the card menu's) shows: some project is readable.</summary>
     public bool HasProjectChoices => _projectChoices.Count > 0;
+
+    /// <summary>Whether a projects folder is set, so the menu bar shows Project › New project… (1.1b AC 7 and 13).</summary>
+    public bool HasProjectsFolder => _hasProjectsFolder;
+
+    /// <summary>Project › New project…: a project home from the starter, named by the owner (1.1b AC 7).</summary>
+    public RelayCommand NewProjectCommand { get; }
+
+    /// <summary>Asks the owner the new project's name; null when he cancels. Set by the app.</summary>
+    public Func<string?>? AskProjectName { get; set; }
+
+    private void NewProject()
+    {
+        var folder = _settings.Read().ProjectsFolder;
+
+        if (ProjectStarter.FolderRefusal(folder) is { } noFolder)
+        {
+            Notice = noFolder;
+
+            return;
+        }
+
+        if (AskProjectName?.Invoke() is not { } name)
+        {
+            return;
+        }
+
+        if (ProjectStarter.Refusal(folder, name) is { } refusal)
+        {
+            Notice = refusal;
+
+            return;
+        }
+
+        try
+        {
+            var home = ProjectStarter.Start(folder, name);
+            TheseusLog.Information("Started project {Project} in {Folder}", name, home);
+            Notice = $"Started project {name} in {home}. Its project card is on the board; fill in its project.md.";
+            _projectReads.MarkStale();
+            WireProjects();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            Notice = $"Project {name} could not be started: {exception.Message}";
+        }
+    }
 
     /// <summary>
     /// Reads the projects in the projects folder and offers their slugs on every card's menu and the menu bar. With no
@@ -892,6 +940,12 @@ public sealed class ShellViewModel : ObservableObject
     private void WireProjects()
     {
         var folder = _settings.Read().ProjectsFolder;
+
+        if (_hasProjectsFolder != !string.IsNullOrWhiteSpace(folder))
+        {
+            _hasProjectsFolder = !_hasProjectsFolder;
+            Raise(nameof(HasProjectsFolder));
+        }
 
         // The watcher asks for a read when a file changes. A folder it has only just started watching is read, since
         // nothing told it of changes while unwatched; one it cannot watch (not there, or gone) is read on every refresh,

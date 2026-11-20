@@ -136,6 +136,29 @@
                 <TextBox Text="{Binding JiraBaseUrl, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock Text="{Binding JiraState}" Style="{StaticResource FieldHint}" />
 
+                <!-- Shown until a projects folder is saved: how Theseus lays out your work (1.1b AC 11). -->
+                <Border Margin="0,12,0,0" Padding="12" CornerRadius="4" BorderThickness="1"
+                        BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                        Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                        Visibility="{Binding ShowsProjectsIntro, Converter={StaticResource BoolToVisibility}}">
+                    <StackPanel>
+                        <TextBlock FontWeight="SemiBold" Text="How Theseus lays out your work" />
+                        <TextBlock Margin="0,6,0,0" TextWrapping="Wrap"
+                                   Text="Three places, three jobs. A project home says what the work is and where it has got to; your source clones are the code as it is upstream; worktrees are the code each workstream is changing. Records never go in a code repo, so they never need a branch, a merge or a pull request." />
+                        <TextBlock Margin="0,8,0,0" FontFamily="Cascadia Mono, Consolas, monospace" FontSize="11" xml:space="preserve"
+                                   Text="&lt;projects folder&gt;\&lt;project&gt;\     project.md, and work\&lt;slug&gt;\ records&#x0a;&lt;your source clones&gt;             wherever you keep them&#x0a;&lt;worktrees folder&gt;\&lt;slug&gt;\&lt;repo&gt; a worktree per repo, branch &lt;you&gt;/&lt;slug&gt;" />
+                        <TextBlock Margin="0,8,0,0" TextWrapping="Wrap"
+                                   Text="Nothing is set for you. If you have no layout of your own yet, Documents\Theseus\projects and Documents\Theseus\work are a good start; the folder pickers open in Documents." />
+                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                            <Button Content="Choose _projects folder…" Click="OnChooseProjectsFolder" />
+                            <Button Content="Choose _worktrees folder…" Margin="8,0,0,0" Click="OnChooseWorktreesFolder" />
+                        </StackPanel>
+                        <TextBlock Margin="0,8,0,0">
+                            <Hyperlink NavigateUri="https://nigelbasel.github.io/Theseus/project-layout.html" RequestNavigate="OnLink">How your work is laid out</Hyperlink>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+
                 <TextBlock Text="Projects folder" Style="{StaticResource FieldLabel}" />
                 <TextBox Text="{Binding ProjectsFolder, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock Style="{StaticResource FieldHint}"

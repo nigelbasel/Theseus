@@ -269,6 +269,12 @@ public partial class App : Application
         shell.ConfirmAcceptSpec = question =>
             MessageBox.Show(MainWindow, question, "Accept spec?", MessageBoxButton.YesNo, MessageBoxImage.Question,
                 MessageBoxResult.No) == MessageBoxResult.Yes;
+        shell.AskProjectName = () =>
+        {
+            var window = new NewProjectWindow { Owner = MainWindow };
+
+            return window.ShowDialog() == true ? window.ProjectName : null;
+        };
         MainWindow.Show();
     }
 

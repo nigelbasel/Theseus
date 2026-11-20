@@ -11,4 +11,9 @@
     <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- The kit's starter files ship inside Theseus, so a new project gets the kit this build reads (1.1b AC 8). -->
+    <EmbeddedResource Include="..\..\method\starter\project.md" LogicalName="Theseus.Core.Starter.project.md" />
+  </ItemGroup>
+
 </Project>
