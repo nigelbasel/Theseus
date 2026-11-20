@@ -22,6 +22,12 @@ public sealed class ShellViewModel : ObservableObject
     private readonly ISettingsStore _settings;
     private string _holdoutFolder = string.Empty;
     private readonly BackgroundProjectReads _projectReads;
+    private readonly SpecAcceptanceStore _acceptances;
+    private string? _openProjectName;
+    private ProjectViewModel? _projectView;
+    private IReadOnlyList<ProjectChoice> _openProjectChoices = [];
+    private IReadOnlyList<ProjectChoice> _openSpecChoices = [];
+    private IReadOnlyList<ProjectChoice> _acceptSpecChoices = [];
     private string _projectSummary = string.Empty;
     private IReadOnlyList<ProjectChoice> _projectChoices = [];
     private readonly LaunchCoordinator _launcher;
@@ -104,8 +110,15 @@ public sealed class ShellViewModel : ObservableObject
         var git = new GitCli();
         var primaries = new ProjectPrimaryStore(Path.Combine(App.DataDirectory, "project-primaries.json"));
         var dispatcher = Dispatcher.CurrentDispatcher;
-        _projectReads = new BackgroundProjectReads(folders => ProjectCatalog.Read(folders, git, primaries),
-            action => dispatcher.BeginInvoke(action), TimeSpan.FromSeconds(30));
+        var artefactCache = new ArtefactCache();
+        // The stages' git reads ride the same background read, so the project view runs no git on this thread; they
+        // land after the catalogue, which alone decides which cards leave the grid.
+        _projectReads = new BackgroundProjectReads(
+            folders => ProjectCatalog.Read(folders, git, primaries),
+            action => dispatcher.BeginInvoke(action), TimeSpan.FromSeconds(30),
+            attach: readings => [.. readings.Select(reading => ProjectArtefacts.Attach(reading, git, artefactCache))]);
+        _acceptances = new SpecAcceptanceStore(Path.Combine(App.DataDirectory, "spec-acceptances.json"));
+        CloseProjectCommand = new RelayCommand(_ => CloseProject(), _ => IsProjectOpen);
         _projectReads.Changed += (_, _) => WireProjectChoices();
         _theme = settings.Read().Theme;
         _isSessionsPanelOpen = !settings.Read().SessionsPanelCollapsed;
@@ -131,10 +144,10 @@ public sealed class ShellViewModel : ObservableObject
             _ => ChosenToStart().Count > 0);
         StopSelectedCommand = new RelayCommand(_ => BeginStop(ChosenSteps()),
             _ => ChosenSteps().Count > 0);
-        SelectAllCommand = new RelayCommand(_ => ChooseAll(true), _ => Board.Cards.Any(card => !card.IsSelected));
+        SelectAllCommand = new RelayCommand(_ => ChooseAll(true), _ => Board.ShownCards.Any(card => !card.IsSelected));
         ClearSelectionCommand = new RelayCommand(_ => ChooseAll(false), _ => Board.Cards.Any(card => card.IsSelected));
-        InvertSelectionCommand = new RelayCommand(_ => Invert(), _ => Board.Cards.Any());
-        SelectLiveCommand = new RelayCommand(_ => SelectLive(), _ => Board.Cards.Any(card => card.IsLive));
+        InvertSelectionCommand = new RelayCommand(_ => Invert(), _ => Board.ShownCards.Any());
+        SelectLiveCommand = new RelayCommand(_ => SelectLive(), _ => Board.ShownCards.Any(card => card.IsLive));
         ArchiveSelectedCommand = new RelayCommand(_ => ArchiveSelected(), _ => Chosen().Any(card => !card.IsLive));
         VerifySelectedWithHoldoutsCommand = new RelayCommand(_ => VerifyWithHoldouts(Chosen()[0]),
             _ => Chosen() is [var only] && CanVerify(only));
@@ -374,7 +387,7 @@ public sealed class ShellViewModel : ObservableObject
     /// <summary>Starts the ticked cards that can be started.</summary>
     public RelayCommand StartSelectedCommand { get; }
 
-    /// <summary>Ticks every card on the board.</summary>
+    /// <summary>Ticks every card shown: the board's, or the open project view's.</summary>
     public RelayCommand SelectAllCommand { get; }
 
     /// <summary>Unticks every card.</summary>
@@ -446,7 +459,7 @@ public sealed class ShellViewModel : ObservableObject
     }
 
     /// <summary>How many cards are ticked, so the buttons can say what they would act on.</summary>
-    public string SelectionSummary => Board.Cards.Count(card => card.IsSelected) is var count && count > 0
+    public string SelectionSummary => Board.ShownCards.Count(card => card.IsSelected) is var count && count > 0
         ? $"{count} selected"
         : "none selected";
 
@@ -770,17 +783,13 @@ public sealed class ShellViewModel : ObservableObject
         StepsFor(Chosen());
 
     /// <summary>
-    /// Ticks or unticks every card, including the ones in the last column. Nothing is held back:
-    /// hiding a card from Select all would be the same guess about the board's shape that this
-    /// replaced, and a tick the user can see and remove is honest where a silent exclusion is not.
+    /// Ticks every card shown whose session is running, and unticks the rest of them, the last column's
+    /// included: a tick the user can see and remove is honest where a silent exclusion is not. A card
+    /// behind its project card is not shown, so it is left alone (PR 2 review, item 1).
     /// </summary>
     private void SelectLive()
     {
-        foreach (var card in Board.Cards)
-        {
-            card.IsSelected = card.IsLive;
-        }
-
+        Board.SelectLiveShown();
         SelectionMoved();
     }
 
@@ -908,6 +917,263 @@ public sealed class ShellViewModel : ObservableObject
         if (!bar.SequenceEqual(ProjectChoices))
         {
             ProjectChoices = bar;
+        }
+
+        WireProjectBoard(readings);
+    }
+
+    /// <summary>
+    /// The project cards on the board and the open project view (project-view AC 12 to 16). A readable project's cards
+    /// leave the grid; an unreadable or unlisted project's come back to it (AC 13). With no readable project the board is
+    /// exactly as before (AC 22).
+    /// </summary>
+    private void WireProjectBoard(IReadOnlyList<ProjectFileReading> readings)
+    {
+        var readable = readings.Where(reading => reading.IsReadable).ToList();
+        var names = readable.Select(reading => reading.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var cards = Board.Cards.ToList();
+
+        foreach (var card in cards.Where(card => card.Workstream.Project is not { } project || !names.Contains(project)))
+        {
+            card.ProjectSource = string.Empty;
+        }
+
+        Board.KeepOutOfGrid = ProjectGridRule.KeepOutOfGrid(readings);
+
+        var reports = Chains?.NeedsYou.Where(row => row.IsReported).Select(row => row.Link).ToList() ?? [];
+        var proposals = Chains?.Proposals?.Pending.Select(row => (row.Proposal.RequesterKey, row.Proposal.Request.Title)).ToList() ?? [];
+        var projectCards = new List<ProjectCardViewModel>();
+        ProjectViewModel? openView = null;
+
+        // Read once per wiring, not once per slug.
+        IReadOnlyList<SpecAcceptance> acceptances = readable.Count == 0 ? [] : _acceptances.Load();
+
+        foreach (var reading in readable)
+        {
+            var view = BuildView(reading, cards, acceptances);
+            var file = reading.File!;
+            var projectCard = Board.ProjectCards.FirstOrDefault(existing => existing.Name == reading.Name)
+                              ?? new ProjectCardViewModel(reading.Name, file.Title);
+            var name = reading.Name;
+
+            projectCard.OpenCommand ??= new RelayCommand(_ => OpenProject(name));
+            projectCard.LastFailure = reading.LastFailure;
+            projectCard.IsReading = view.IsReading;
+            projectCard.PhaseText = file.CurrentPhase is { } phase ? $"Phase {phase.Number}: {phase.Name}" : "Every objective done";
+            projectCard.ObjectivesText = $"{file.ObjectivesDone} of {file.Objectives.Count} objectives done";
+
+            var waiting = ProjectWaiting.For(
+                [.. cards.Where(card => string.Equals(card.Workstream.Project, name, StringComparison.OrdinalIgnoreCase))],
+                reports, proposals, view.WaitingSpecs);
+
+            if (!waiting.SequenceEqual(projectCard.Waiting))
+            {
+                projectCard.Waiting = waiting;
+            }
+
+            projectCards.Add(projectCard);
+
+            if (string.Equals(name, _openProjectName, StringComparison.OrdinalIgnoreCase))
+            {
+                openView = view;
+            }
+        }
+
+        Board.ShowProjects(projectCards);
+
+        var openChoices = projectCards
+            .Select(card => new ProjectChoice(card.Name.Replace("_", "__", StringComparison.Ordinal), false, card.OpenCommand,
+                [], $"Open {card.Title} in the main area") { ShowsTick = false })
+            .ToList();
+
+        if (!openChoices.SequenceEqual(OpenProjectChoices))
+        {
+            OpenProjectChoices = openChoices;
+        }
+
+        if (_openProjectName is not null && openView is null)
+        {
+            Notice = $"{_openProjectName} can no longer be read, so its cards are back on the board.";
+            CloseProject();
+
+            return;
+        }
+
+        if (openView is not null && openView.Signature != ProjectView?.Signature)
+        {
+            ProjectView = openView;
+        }
+        else if (openView is not null)
+        {
+            ProjectView?.TakeSourcesFrom(openView);
+        }
+
+        WireSpecChoices();
+    }
+
+    private ProjectViewModel BuildView(ProjectFileReading reading, IReadOnlyList<WorkstreamCardViewModel> cards,
+        IReadOnlyList<SpecAcceptance> acceptances) =>
+        ProjectViewModel.Build(reading, cards,
+            (project, slug) => acceptances.LastOrDefault(acceptance =>
+                string.Equals(acceptance.Project, project, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(acceptance.Slug, slug, StringComparison.OrdinalIgnoreCase)),
+            workstream => VerifierEnding.HasEnded(Chains?.AllLinks ?? [], workstream.Key),
+            OpenSpec, AcceptSpec, CloseProjectCommand);
+
+    /// <summary>Open spec and Accept spec on the menu bar, for the open project's waiting specs (R16).</summary>
+    private void WireSpecChoices()
+    {
+        var specs = ProjectView?.WaitingSpecs ?? [];
+        var open = specs.Select(spec => new ProjectChoice(spec.Slug, false, new RelayCommand(_ => OpenSpec(spec)), [],
+            $"Open the spec of {spec.Slug} as read, at {spec.ShortCommit}") { ShowsTick = false }).ToList();
+        var accept = specs.Select(spec => new ProjectChoice(spec.Slug, false, new RelayCommand(_ => AcceptSpec(spec)), [],
+            $"Accept the spec of {spec.Slug}, at {spec.ShortCommit}, after a confirmation") { ShowsTick = false }).ToList();
+
+        if (!open.SequenceEqual(OpenSpecChoices))
+        {
+            OpenSpecChoices = open;
+        }
+
+        if (!accept.SequenceEqual(AcceptSpecChoices))
+        {
+            AcceptSpecChoices = accept;
+        }
+    }
+
+    /// <summary>Replaces the board with a project's view (AC 14). The drawer, side panels and status bar stay.</summary>
+    public void OpenProject(string name)
+    {
+        _openProjectName = name;
+        ProjectView = null;
+        WireProjectChoices();
+
+        if (ProjectView is null)
+        {
+            _openProjectName = null;
+            Notice = $"{name} cannot be read just now.";
+
+            return;
+        }
+
+        Board.SelectionOrder = () => ProjectView?.CardsInOrder ?? [];
+        Board.DeselectUnshown();
+        SelectionMoved();
+        Raise(nameof(IsProjectOpen));
+        Raise(nameof(IsBoardShown));
+        System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+    }
+
+    /// <summary>Back to the board, from the breadcrumb or View › Back to the board.</summary>
+    public void CloseProject()
+    {
+        _openProjectName = null;
+        ProjectView = null;
+        Board.SelectionOrder = null;
+        Board.DeselectUnshown();
+        SelectionMoved();
+        WireSpecChoices();
+        Raise(nameof(IsProjectOpen));
+        Raise(nameof(IsBoardShown));
+        System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+    }
+
+    /// <summary>The open project's view, or null while the board shows.</summary>
+    public ProjectViewModel? ProjectView
+    {
+        get => _projectView;
+        private set
+        {
+            if (Set(ref _projectView, value))
+            {
+                Raise(nameof(IsProjectOpen));
+                Raise(nameof(IsBoardShown));
+            }
+        }
+    }
+
+    /// <summary>Whether a project view fills the main area.</summary>
+    public bool IsProjectOpen => _openProjectName is not null && _projectView is not null;
+
+    /// <summary>Whether the board fills the main area.</summary>
+    public bool IsBoardShown => !IsProjectOpen;
+
+    /// <summary>Back to the board (AC 14).</summary>
+    public RelayCommand CloseProjectCommand { get; }
+
+    /// <summary>View › Open project: one item per readable project.</summary>
+    public IReadOnlyList<ProjectChoice> OpenProjectChoices
+    {
+        get => _openProjectChoices;
+        private set
+        {
+            if (Set(ref _openProjectChoices, value))
+            {
+                Raise(nameof(HasOpenProjectChoices));
+            }
+        }
+    }
+
+    /// <summary>Whether View shows Open project.</summary>
+    public bool HasOpenProjectChoices => _openProjectChoices.Count > 0;
+
+    /// <summary>Workstream › Open spec, for the open project's waiting specs.</summary>
+    public IReadOnlyList<ProjectChoice> OpenSpecChoices
+    {
+        get => _openSpecChoices;
+        private set
+        {
+            if (Set(ref _openSpecChoices, value))
+            {
+                Raise(nameof(HasSpecChoices));
+            }
+        }
+    }
+
+    /// <summary>Workstream › Accept spec, likewise.</summary>
+    public IReadOnlyList<ProjectChoice> AcceptSpecChoices
+    {
+        get => _acceptSpecChoices;
+        private set => Set(ref _acceptSpecChoices, value);
+    }
+
+    /// <summary>Whether the Workstream menu shows Open spec and Accept spec.</summary>
+    public bool HasSpecChoices => _openSpecChoices.Count > 0;
+
+    /// <summary>Asks the owner to accept a spec; true to accept. Set by the App to a message box.</summary>
+    public Func<string, bool>? ConfirmAcceptSpec { get; set; }
+
+    /// <summary>
+    /// Accepts a spec on the board after a confirmation naming the slug and the commit, recording it in Theseus's own
+    /// store and never in a file a session can write (AC 7, 15).
+    /// </summary>
+    public void AcceptSpec(SpecAtGate spec)
+    {
+        ArgumentNullException.ThrowIfNull(spec);
+
+        if (!_acceptances.AcceptIfConfirmed(spec, ConfirmAcceptSpec, DateTimeOffset.UtcNow))
+        {
+            return;
+        }
+
+        TheseusLog.Information("Accepted the spec of {Slug} in {Project} at {Commit}", spec.Slug, spec.Project, spec.Commit);
+        Notice = $"Accepted the spec of {spec.Slug} at {spec.ShortCommit}.";
+        WireProjectChoices();
+    }
+
+    /// <summary>Opens a spec as it was read: a copy in Theseus's data folder, named for its slug and commit.</summary>
+    private void OpenSpec(SpecAtGate spec)
+    {
+        try
+        {
+            var folder = Path.Combine(App.DataDirectory, "specs");
+            Directory.CreateDirectory(folder);
+            var path = Path.Combine(folder, $"{spec.Project}-{spec.Slug}-{spec.ShortCommit}.md");
+            File.WriteAllText(path, spec.Text);
+            Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+        {
+            Notice = $"The spec of {spec.Slug} could not be opened: {exception.Message}";
         }
     }
 
@@ -1095,27 +1361,25 @@ public sealed class ShellViewModel : ObservableObject
         Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
     }
 
+    // Clearing reaches every card, shown or not; ticking reaches only what is shown (PR 2 review, item 1).
     private void ChooseAll(bool chosen)
     {
-        foreach (var card in Board.Cards)
+        if (chosen)
         {
-            card.IsSelected = chosen;
+            Board.ChooseShown(true);
+        }
+        else
+        {
+            Board.ClearSelection();
         }
 
         SelectionMoved();
     }
 
-    /// <summary>
-    /// Ticks what is not ticked and unticks what is. Materialised first because the board's cards
-    /// come from a query over the rows, and turning one over while walking it is asking for trouble.
-    /// </summary>
+    /// <summary>Ticks what is not ticked and unticks what is, among the cards shown.</summary>
     private void Invert()
     {
-        foreach (var card in Board.Cards.ToList())
-        {
-            card.IsSelected = !card.IsSelected;
-        }
-
+        Board.InvertShown();
         SelectionMoved();
     }
 
@@ -2045,8 +2309,7 @@ public sealed class ShellViewModel : ObservableObject
         }
     }
 
-    private IReadOnlyList<WorkstreamCardViewModel> Chosen() =>
-        [.. Board.Cards.Where(card => card.IsSelected)];
+    private IReadOnlyList<WorkstreamCardViewModel> Chosen() => Board.ChosenCards;
 
     private IReadOnlyList<Workstream> ChosenToStart() =>
         StartSelection.ForCards(

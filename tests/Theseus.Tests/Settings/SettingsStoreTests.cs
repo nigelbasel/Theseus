@@ -43,6 +43,7 @@ public class SettingsStoreTests
             RowsBy = BoardRowsBy.Project,
             ViewFolds = new Dictionary<string, IReadOnlyList<string>> { ["rows:Project"] = ["Theseus"] },
             ProjectRepositories = [@"C:\repos\home"],
+            ProjectCardPlaces = new Dictionary<string, ProjectCardPlace> { ["a-project"] = new("In progress", "Dev") },
         };
 
         _store.Write(settings);
@@ -50,6 +51,7 @@ public class SettingsStoreTests
         var read = _store.Read();
 
         Assert.That(read.ProjectRepositories, Is.EqualTo(settings.ProjectRepositories));
+        Assert.That(read.ProjectCardPlaces["a-project"], Is.EqualTo(new ProjectCardPlace("In progress", "Dev")));
         Assert.That(read.Lanes, Is.EqualTo(settings.Lanes));
         Assert.That(read.Areas, Is.EqualTo(settings.Areas));
         Assert.That(read.CollapsedStages, Is.EqualTo(settings.CollapsedStages));
@@ -60,7 +62,7 @@ public class SettingsStoreTests
                 Lanes = settings.Lanes, Areas = settings.Areas, CollapsedAreas = settings.CollapsedAreas,
                 CollapsedStages = settings.CollapsedStages, CollapsedCards = settings.CollapsedCards,
                 ViewFolds = settings.ViewFolds, ColumnWeights = settings.ColumnWeights, RowHeights = settings.RowHeights, AreaWindows = settings.AreaWindows,
-                ProjectRepositories = settings.ProjectRepositories,
+                ProjectRepositories = settings.ProjectRepositories, ProjectCardPlaces = settings.ProjectCardPlaces,
             }, Is.EqualTo(settings),
             "a record holding a list compares it by reference, so the lists are checked separately");
     }

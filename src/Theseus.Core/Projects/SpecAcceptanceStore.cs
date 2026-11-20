@@ -43,6 +43,24 @@ public sealed class SpecAcceptanceStore
     public SpecAcceptance? Latest(string project, string slug) =>
         Load().LastOrDefault(acceptance => Matches(acceptance, project, slug));
 
+    /// <summary>
+    /// Records the owner's acceptance of a spec only when he says yes to the question naming its slug and commit
+    /// (project-view AC 15); with no one to ask, nothing is accepted.
+    /// </summary>
+    public bool AcceptIfConfirmed(SpecAtGate spec, Func<string, bool>? confirm, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(spec);
+
+        if (confirm?.Invoke(spec.ConfirmationQuestion) != true)
+        {
+            return false;
+        }
+
+        Accept(spec.Accept(now));
+
+        return true;
+    }
+
     /// <summary>Records an acceptance. Accepting the same commit again replaces the earlier record of it.</summary>
     public void Accept(SpecAcceptance acceptance)
     {

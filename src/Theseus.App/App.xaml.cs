@@ -266,6 +266,9 @@ public partial class App : Application
                 _ => null,
             };
         };
+        shell.ConfirmAcceptSpec = question =>
+            MessageBox.Show(MainWindow, question, "Accept spec?", MessageBoxButton.YesNo, MessageBoxImage.Question,
+                MessageBoxResult.No) == MessageBoxResult.Yes;
         MainWindow.Show();
     }
 

@@ -7,6 +7,9 @@ namespace Theseus.Core.Projects;
 /// the UI thread. One read at a time; the same folders are read again only after <c>interval</c>, other folders at once
 /// (after any read under way). Results come back through <c>post</c>, on the caller's thread, and raise
 /// <see cref="Changed"/>. With no folders listed nothing runs (AC 22).
+/// A read lands in two steps: the catalogue first, which is what decides which cards leave the grid, then each slug's
+/// artefacts, which take longer (PR 2 review, item 2). Before the first catalogue lands nothing is read, so no card is
+/// held out of the grid (AC 13). A project carries over one failed read (<see cref="ReadingContinuity"/>).
 /// </summary>
 public sealed class BackgroundProjectReads
 {
@@ -14,6 +17,8 @@ public sealed class BackgroundProjectReads
     private readonly Action<Action> _post;
     private readonly TimeSpan _interval;
     private readonly Func<DateTimeOffset> _now;
+    private readonly Func<IReadOnlyList<ProjectFileReading>, IReadOnlyList<ProjectFileReading>>? _attach;
+    private readonly Dictionary<string, int> _failures = new(StringComparer.OrdinalIgnoreCase);
 
     private string? _key;
     private DateTimeOffset _readAt;
@@ -24,9 +29,12 @@ public sealed class BackgroundProjectReads
     /// <param name="post">Runs an action on the caller's thread, such as the dispatcher's BeginInvoke.</param>
     /// <param name="interval">How long a read of the same folders stands.</param>
     /// <param name="now">The clock.</param>
+    /// <param name="attach">Reads the slugs' artefacts onto the readings, as a second step; null for none.</param>
     public BackgroundProjectReads(Func<IReadOnlyList<string>, IReadOnlyList<ProjectFileReading>> read, Action<Action> post,
-        TimeSpan interval, Func<DateTimeOffset>? now = null)
+        TimeSpan interval, Func<DateTimeOffset>? now = null,
+        Func<IReadOnlyList<ProjectFileReading>, IReadOnlyList<ProjectFileReading>>? attach = null)
     {
+        _attach = attach;
         _read = read;
         _post = post;
         _interval = interval;
@@ -69,6 +77,7 @@ public sealed class BackgroundProjectReads
 
         if (folders.Count == 0)
         {
+            _failures.Clear();
             Replace([]);
 
             return;
@@ -76,17 +85,56 @@ public sealed class BackgroundProjectReads
 
         IsReading = true;
 
-        Task.Run(() => ReadSafely(folders)).ContinueWith(task => _post(() =>
+        Task.Run(() => ReadSafely(folders)).ContinueWith(task =>
         {
-            IsReading = false;
-            Replace(task.Result);
+            var catalogue = task.Result;
 
-            if (_pending is { } next)
+            if (_attach is null)
             {
-                _pending = null;
-                Request(next);
+                _post(() =>
+                {
+                    Replace(ReadingContinuity.Merge(Current, catalogue, _failures));
+                    Finished();
+                });
+
+                return;
             }
-        }), TaskScheduler.Default);
+
+            _post(() => Replace(ReadingContinuity.Merge(Current, catalogue, _failures)));
+
+            var attached = AttachSafely(catalogue);
+
+            _post(() =>
+            {
+                Replace(ReadingContinuity.WithArtefacts(Current, attached));
+                Finished();
+            });
+        }, TaskScheduler.Default);
+    }
+
+    private void Finished()
+    {
+        IsReading = false;
+
+        if (_pending is { } next)
+        {
+            _pending = null;
+            Request(next);
+        }
+    }
+
+    private IReadOnlyList<ProjectFileReading> AttachSafely(IReadOnlyList<ProjectFileReading> catalogue)
+    {
+        try
+        {
+            return _attach!(catalogue);
+        }
+        catch (Exception exception)
+        {
+            TheseusLog.Error(exception, "Reading the projects' artefacts failed");
+
+            return catalogue;
+        }
     }
 
     private IReadOnlyList<ProjectFileReading> ReadSafely(IReadOnlyList<string> folders)

@@ -19,6 +19,8 @@ public sealed class BoardViewModel : ObservableObject
     private BoardRowsBy _rowsBy;
     private List<WorkstreamCardViewModel> _all = [];
     private WorkstreamCardViewModel? _anchor;
+    private IReadOnlyList<ProjectCardViewModel> _projects = [];
+    private IReadOnlyDictionary<string, ProjectCardPlace>? _projectPlaces;
 
     /// <summary>Creates the board over its stores.</summary>
     public BoardViewModel(IPlanStore plans, IBoardStore board, ISettingsStore settings)
@@ -45,9 +47,102 @@ public sealed class BoardViewModel : ObservableObject
     /// <summary>The rows of the current view, each holding a cell per column.</summary>
     public ObservableCollection<BoardRowViewModel> Rows { get; } = [];
 
-    /// <summary>Every card on the board, whatever cell it is in.</summary>
-    public IEnumerable<WorkstreamCardViewModel> Cards =>
-        Rows.SelectMany(row => row.Cells).SelectMany(cell => cell.Cards);
+    /// <summary>
+    /// Every card loaded, whatever cell it is in, and a project's cards too, which are kept out of the grid while their
+    /// project card stands for them (project-view AC 13): refreshing, starting and stopping still reach them. What the
+    /// selection commands act on is <see cref="ShownCards"/>.
+    /// </summary>
+    public IEnumerable<WorkstreamCardViewModel> Cards => _all;
+
+    /// <summary>The cards in the grid's cells, folded rows and columns included, as Select all has always ticked them.</summary>
+    public IReadOnlyList<WorkstreamCardViewModel> GridCards => [.. Cells.SelectMany(cell => cell.Cards)];
+
+    /// <summary>
+    /// The cards on screen: the open project view's while it is open, else the grid's. Select all, Invert, Select live
+    /// and the count of what is selected act on these, so nothing hidden is ticked (PR 2 review, item 1).
+    /// </summary>
+    public IReadOnlyList<WorkstreamCardViewModel> ShownCards => SelectionOrder?.Invoke() ?? GridCards;
+
+    /// <summary>Ticks or unticks every card shown.</summary>
+    public void ChooseShown(bool chosen)
+    {
+        foreach (var card in ShownCards)
+        {
+            card.IsSelected = chosen;
+        }
+    }
+
+    /// <summary>Turns over every tick on the cards shown.</summary>
+    public void InvertShown()
+    {
+        foreach (var card in ShownCards)
+        {
+            card.IsSelected = !card.IsSelected;
+        }
+    }
+
+    /// <summary>Ticks the cards shown with a session running, and unticks the rest of them.</summary>
+    public void SelectLiveShown()
+    {
+        foreach (var card in ShownCards)
+        {
+            card.IsSelected = card.IsLive;
+        }
+    }
+
+    /// <summary>
+    /// Unticks every card not shown, when the main area switches between the board and a project view, so a command on
+    /// the selection never reaches a card the owner cannot see.
+    /// </summary>
+    public void DeselectUnshown()
+    {
+        var shown = ShownCards.ToHashSet();
+
+        foreach (var card in _all.Where(card => card.IsSelected && !shown.Contains(card)))
+        {
+            card.IsSelected = false;
+        }
+    }
+
+    /// <summary>Which cards are kept out of the grid: those of a readable project. Null keeps every card in it.</summary>
+    public Func<WorkstreamCardViewModel, bool>? KeepOutOfGrid { get; set; }
+
+    /// <summary>
+    /// The order Shift+click selects a run in while the project view is open, which is the view's, not the grid's
+    /// (AC 15). Null uses the grid's.
+    /// </summary>
+    public Func<IReadOnlyList<WorkstreamCardViewModel>>? SelectionOrder { get; set; }
+
+    /// <summary>The project cards on the board.</summary>
+    public IReadOnlyList<ProjectCardViewModel> ProjectCards => _projects;
+
+    /// <summary>Puts these project cards on the board, each in the cell it was last dragged to, and regroups.</summary>
+    public void ShowProjects(IReadOnlyList<ProjectCardViewModel> projects)
+    {
+        ArgumentNullException.ThrowIfNull(projects);
+
+        _projects = projects;
+        Place();
+    }
+
+    /// <summary>Moves a project card to a cell and remembers it there (AC 12); only where a card could be dropped.</summary>
+    public void MoveProject(string name, string column, string area)
+    {
+        if (!CanDrag)
+        {
+            return;
+        }
+
+        var settings = _settings.Read();
+        var places = new Dictionary<string, ProjectCardPlace>(settings.ProjectCardPlaces, StringComparer.OrdinalIgnoreCase)
+        {
+            [name] = new ProjectCardPlace(column, area),
+        };
+
+        _settings.Write(settings with { ProjectCardPlaces = places });
+        _projectPlaces = places;
+        Place();
+    }
 
     /// <summary>Every cell, in reading order.</summary>
     public IEnumerable<ColumnViewModel> Cells => Rows.SelectMany(row => row.Cells);
@@ -219,11 +314,18 @@ public sealed class BoardViewModel : ObservableObject
 
         foreach (var card in _all)
         {
+            if (KeepOutOfGrid?.Invoke(card) == true)
+            {
+                continue;
+            }
+
             if (byPlace.TryGetValue((ColumnOf(card), RowOf(card)), out var cell))
             {
                 wanted[cell].Add(card);
             }
         }
+
+        PlaceProjects();
 
         // Everything leaving a cell goes before anything arrives, so a card moving between cells is
         // never in two at once.
@@ -262,7 +364,7 @@ public sealed class BoardViewModel : ObservableObject
             }
         }
 
-        if (SelectedCard is { } selected && !Cards.Contains(selected))
+        if (SelectedCard is { } selected && !_all.Contains(selected))
         {
             SelectedCard = null;
         }
@@ -270,6 +372,59 @@ public sealed class BoardViewModel : ObservableObject
         foreach (var row in Rows)
         {
             row.RaiseCounts();
+        }
+
+        // A ticked card that has just left the grid (its project began to read, or it joined one) is unticked, so the
+        // selection commands never reach a card that cannot be seen (PR 2 re-review, item 1).
+        if (KeepOutOfGrid is not null || SelectionOrder is not null)
+        {
+            DeselectUnshown();
+        }
+    }
+
+    /// <summary>The ticked cards among those shown: what Start, Stop, Archive and the other selected-card commands act on.</summary>
+    public IReadOnlyList<WorkstreamCardViewModel> ChosenCards => [.. ShownCards.Where(card => card.IsSelected)];
+
+    /// <summary>
+    /// Puts each project card in the cell it was dragged to; a column or row the view does not have falls back to the
+    /// first, as a card's does.
+    /// </summary>
+    private void PlaceProjects()
+    {
+        if (_projects.Count == 0 && Cells.All(cell => cell.Projects.Count == 0))
+        {
+            return;
+        }
+
+        // Read once: Place runs on every refresh, and only a drag here changes the places.
+        var places = _projectPlaces ??= _settings.Read().ProjectCardPlaces;
+        var first = Cells.FirstOrDefault();
+
+        foreach (var cell in Cells)
+        {
+            var wanted = _projects
+                .Where(project =>
+                {
+                    var place = places.FirstOrDefault(entry => string.Equals(entry.Key, project.Name, StringComparison.OrdinalIgnoreCase)).Value;
+                    var target = place is null
+                        ? first
+                        : Cells.FirstOrDefault(candidate => candidate.Column == place.Column && BoardAreas.Same(candidate.Area, place.Area))
+                          ?? Cells.FirstOrDefault(candidate => candidate.Column == place.Column)
+                          ?? first;
+
+                    return ReferenceEquals(target, cell);
+                })
+                .ToList();
+
+            if (!wanted.SequenceEqual(cell.Projects))
+            {
+                cell.Projects.Clear();
+
+                foreach (var project in wanted)
+                {
+                    cell.Projects.Add(project);
+                }
+            }
         }
     }
 
@@ -743,7 +898,7 @@ public sealed class BoardViewModel : ObservableObject
     {
         ArgumentNullException.ThrowIfNull(card);
 
-        var visible = VisibleCards.ToList();
+        var visible = (SelectionOrder?.Invoke() ?? VisibleCards).ToList();
 
         if (extend && _anchor is not null && visible.Contains(_anchor) && visible.Contains(card))
         {

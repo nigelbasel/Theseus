@@ -90,6 +90,43 @@ public sealed partial class GitRepositoryReader
         ];
     }
 
+    /// <summary>Every local branch and the commit at its tip, in one command; empty when git could not say.</summary>
+    public IReadOnlyDictionary<string, string> BranchTips()
+    {
+        var tips = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        // The full name: with a tag of the same name, the short form comes out as heads/<name>.
+        foreach (var line in Lines(Run("for-each-ref", "refs/heads", "--format=%(objectname) %(refname)")))
+        {
+            var space = line.IndexOf(' ', StringComparison.Ordinal);
+
+            if (space > 0 && line[(space + 1)..] is var name && name.StartsWith("refs/heads/", StringComparison.Ordinal))
+            {
+                tips[name["refs/heads/".Length..]] = line[..space];
+            }
+        }
+
+        return tips;
+    }
+
+    /// <summary>The folders directly inside a folder at a branch or commit, each with its tree id, in one command.</summary>
+    public IReadOnlyDictionary<string, string> Folders(string revision, string directory)
+    {
+        var prefix = directory.TrimEnd('/') + "/";
+        var folders = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (var entry in Lines(Run("ls-tree", Ref(revision), "--", prefix)).Select(line => TreeEntry().Match(line)))
+        {
+            if (entry.Success && entry.Groups["type"].Value == "tree")
+            {
+                var path = entry.Groups["path"].Value;
+                folders[path.StartsWith(prefix, StringComparison.Ordinal) ? path[prefix.Length..] : path] = entry.Groups["id"].Value;
+            }
+        }
+
+        return folders;
+    }
+
     /// <summary>The last commit at or before a branch or commit that changed a path, or null.</summary>
     public string? LastCommit(string revision, string path) => Line(Run("log", "-1", "--format=%H", Ref(revision), "--", path));
 
@@ -138,6 +175,6 @@ public sealed partial class GitRepositoryReader
     [GeneratedRegex(@"^[0-9a-f]{7,64}(\^.*)?$")]
     private static partial Regex CommitId();
 
-    [GeneratedRegex(@"^\d+ (?<type>\w+) [0-9a-f]+\t(?<path>.+)$")]
+    [GeneratedRegex(@"^\d+ (?<type>\w+) (?<id>[0-9a-f]+)\t(?<path>.+)$")]
     private static partial Regex TreeEntry();
 }

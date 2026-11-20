@@ -41,3 +41,27 @@ project card and view) and 3 (the terminal window) are not in this plan.
 - `git` runs as a child process on refresh. With no repositories set nothing runs (AC 22). A slow repository logs
   itself through the refresh's existing step timing.
 - Real-git tests depend on git on the path. CI's `windows-latest` has it.
+
+## Pull request 2 (the project card and the view)
+
+For `spec.md` ACs 12 to 18 and pull request 1's remainders (AC 4's groups shown, AC 5's tooltip, AC 7's Accept spec,
+AC 10's "ended").
+
+1. **Stages read in the background** (Core). The background read also reads every slug's artefacts
+   (`ProjectArtefacts.Attach`, which runs `WorkstreamArtefactReader` per row), so nothing on the UI thread runs git;
+   the UI thread only combines them with the acceptance store through `StageCalculator`. `VerifierEnding.HasEnded`:
+   a verifier has ended when its report back has been accepted. *Tests:* a real repository, and the rule.
+2. **The board** (App). `BoardViewModel.Cards` becomes every card loaded; a card of a readable project is kept out of
+   the grid (AC 13); each project card sits in a cell, its column and row remembered in settings and changed by
+   dragging (AC 12); Shift-selection follows the project view's order while it is open (AC 15). The rows-by-folder
+   mode's label becomes Folder (AC 17). *Tests:* the board fixture: with no projects the grid is as before (AC 22);
+   a readable project's cards leave it and an unreadable one's come back (AC 13); the project card's place survives.
+3. **The project card** (`ProjectCardViewModel`): name, current phase, n of m objectives, the waiting count and its
+   list (AC 12). *Tests:* view-model tests for each kind of waiting item.
+4. **The project view** (`ProjectViewModel` and its rows, cells, entries and tree nodes; `ProjectView.xaml` as its
+   own user control). The tree; a row per objective with workstreams across the seven columns; the No slug yet and
+   Not in the project file groups; not started and earlier slugs; the verifier in verify; gate marks; Waiting on you
+   with Open spec and Accept spec (a confirmation naming the slug and commit; it writes the store); the source in the
+   card's tooltip. Opened from the project card (double-click, its menu) and View › Open project; Board › breadcrumb
+   back. Every command also on the menu bar. *Tests:* view-model tests, a layout test of the user control, and markup
+   tests of the wiring.

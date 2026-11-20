@@ -10,6 +10,16 @@ public sealed record ProjectFileReading(string Name, ProjectReadingStatus Status
     /// <summary>The listed repository folder it was read from, when it came from one.</summary>
     public string? Folder { get; init; }
 
+    /// <summary>Each listed slug's artefacts, read from its source branch, when they have been read; keyed by slug.</summary>
+    public IReadOnlyDictionary<string, WorkstreamArtefacts> Artefacts { get; init; } =
+        new Dictionary<string, WorkstreamArtefacts>(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Why the last read failed, when this is the reading before it, kept through one failed read; null when it is
+    /// current (PR 2 review, item 9).
+    /// </summary>
+    public string? LastFailure { get; init; }
+
     /// <summary>Whether it was read in the current shape.</summary>
     public bool IsReadable => Status == ProjectReadingStatus.Readable && File is not null;
 

@@ -467,13 +467,72 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (FindCard(e.OriginalSource as DependencyObject) is not { } card)
+        // A project card is dragged as a card is (project-view AC 12); cards are not dragged in the project view (AC 15).
+        if (Find<ProjectCardViewModel>(e.OriginalSource as DependencyObject) is { } project)
+        {
+            _dragOrigin = null;
+            DragDrop.DoDragDrop(this, ProjectDragPrefix + project.Name, DragDropEffects.Move);
+
+            return;
+        }
+
+        if (FindCard(e.OriginalSource as DependencyObject) is not { } card
+            || (DataContext as ShellViewModel)?.IsProjectOpen == true)
         {
             return;
         }
 
         _dragOrigin = null;
         DragDrop.DoDragDrop(this, card.Key, DragDropEffects.Move);
+    }
+
+    private const string ProjectDragPrefix = "project:";
+
+    /// <summary>A double-click on a project card opens its view (AC 14).</summary>
+    private void OnProjectCardMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount == 2 && sender is FrameworkElement { DataContext: ProjectCardViewModel project })
+        {
+            project.OpenCommand?.Execute(null);
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>A project card dropped on a cell's project strip moves it there.</summary>
+    private void OnProjectsDrop(object sender, DragEventArgs e)
+    {
+        if (sender is not FrameworkElement { DataContext: ColumnViewModel column }
+            || Board?.CanDrag != true
+            || e.Data.GetData(DataFormats.StringFormat) is not string dropped)
+        {
+            return;
+        }
+
+        if (dropped.StartsWith(ProjectDragPrefix, StringComparison.Ordinal))
+        {
+            Board?.MoveProject(dropped[ProjectDragPrefix.Length..], column.Column, column.Area);
+        }
+        else
+        {
+            Board?.Move(dropped, column.Column, column.Area, 0);
+        }
+
+        e.Handled = true;
+    }
+
+    private static T? Find<T>(DependencyObject? source) where T : class
+    {
+        while (source is not null)
+        {
+            if (source is FrameworkElement { DataContext: T found })
+            {
+                return found;
+            }
+
+            source = ParentOf(source);
+        }
+
+        return null;
     }
 
     private void OnAdoptClicked(object sender, RoutedEventArgs e)
@@ -912,6 +971,14 @@ public partial class MainWindow : Window
         if (sender is not ItemsControl { DataContext: ColumnViewModel column } lane
             || e.Data.GetData(DataFormats.StringFormat) is not string key)
         {
+            return;
+        }
+
+        if (key.StartsWith(ProjectDragPrefix, StringComparison.Ordinal))
+        {
+            Board?.MoveProject(key[ProjectDragPrefix.Length..], column.Column, column.Area);
+            e.Handled = true;
+
             return;
         }
 

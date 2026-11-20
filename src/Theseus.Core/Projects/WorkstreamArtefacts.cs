@@ -12,6 +12,9 @@ public sealed record WorkstreamArtefacts(string Slug, WorkstreamSource Source, I
     /// <summary>evidence.md's text, when there is one.</summary>
     public string? EvidenceText { get; init; }
 
+    /// <summary>spec.md's text, when there is one, so Open spec shows what Accept spec accepts.</summary>
+    public string? SpecText { get; init; }
+
     /// <summary>The identity of spec.md's content (<see cref="SpecIdentity"/>), when there is one.</summary>
     public string? SpecHash { get; init; }
 
