@@ -32,6 +32,15 @@ under there (the slugs its project file lists), or **No slug yet**, or **Not in 
 already works under is refused, except for a verifier card, which shares the slug of the card it checks. With no
 project repositories listed, nothing here appears.
 
+A project that can be read shows on the board as one **project card**, which you drag to the column you want. It shows
+the project's current phase, how many objectives are done, and a count of what is waiting on you; hover over the count
+to list it. The project's own cards leave the board while the card stands for them, and come back if the project can no
+longer be read. Double-click the project card, choose **Open** on its menu, or **View > Open project**, to fill the main
+area with the project: its phases, objectives and workstreams on the left, and on the right each objective's
+workstreams at the stage their files have reached. A spec waiting for you shows **Waiting on you**, with **Open spec**
+and **Accept spec**, which asks first and names the commit it accepts. **Board** at the top, or **View > Back to the
+board**, goes back.
+
 ## The buttons on a card
 
 | Button | What it does |

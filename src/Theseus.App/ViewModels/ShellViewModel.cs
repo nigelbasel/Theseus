@@ -22,6 +22,12 @@ public sealed class ShellViewModel : ObservableObject
     private readonly ISettingsStore _settings;
     private string _holdoutFolder = string.Empty;
     private readonly BackgroundProjectReads _projectReads;
+    private readonly SpecAcceptanceStore _acceptances;
+    private string? _openProjectName;
+    private ProjectViewModel? _projectView;
+    private IReadOnlyList<ProjectChoice> _openProjectChoices = [];
+    private IReadOnlyList<ProjectChoice> _openSpecChoices = [];
+    private IReadOnlyList<ProjectChoice> _acceptSpecChoices = [];
     private string _projectSummary = string.Empty;
     private IReadOnlyList<ProjectChoice> _projectChoices = [];
     private readonly LaunchCoordinator _launcher;
@@ -104,8 +110,12 @@ public sealed class ShellViewModel : ObservableObject
         var git = new GitCli();
         var primaries = new ProjectPrimaryStore(Path.Combine(App.DataDirectory, "project-primaries.json"));
         var dispatcher = Dispatcher.CurrentDispatcher;
-        _projectReads = new BackgroundProjectReads(folders => ProjectCatalog.Read(folders, git, primaries),
+        // The stages' git reads ride the same background read, so the project view runs no git on this thread.
+        _projectReads = new BackgroundProjectReads(
+            folders => [.. ProjectCatalog.Read(folders, git, primaries).Select(reading => ProjectArtefacts.Attach(reading, git))],
             action => dispatcher.BeginInvoke(action), TimeSpan.FromSeconds(30));
+        _acceptances = new SpecAcceptanceStore(Path.Combine(App.DataDirectory, "spec-acceptances.json"));
+        CloseProjectCommand = new RelayCommand(_ => CloseProject(), _ => IsProjectOpen);
         _projectReads.Changed += (_, _) => WireProjectChoices();
         _theme = settings.Read().Theme;
         _isSessionsPanelOpen = !settings.Read().SessionsPanelCollapsed;
@@ -908,6 +918,247 @@ public sealed class ShellViewModel : ObservableObject
         if (!bar.SequenceEqual(ProjectChoices))
         {
             ProjectChoices = bar;
+        }
+
+        WireProjectBoard(readings);
+    }
+
+    /// <summary>
+    /// The project cards on the board and the open project view (project-view AC 12 to 16). A readable project's cards
+    /// leave the grid; an unreadable or unlisted project's come back to it (AC 13). With no readable project the board is
+    /// exactly as before (AC 22).
+    /// </summary>
+    private void WireProjectBoard(IReadOnlyList<ProjectFileReading> readings)
+    {
+        var readable = readings.Where(reading => reading.IsReadable).ToList();
+        var names = readable.Select(reading => reading.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var cards = Board.Cards.ToList();
+
+        foreach (var card in cards.Where(card => card.Workstream.Project is not { } project || !names.Contains(project)))
+        {
+            card.ProjectSource = string.Empty;
+        }
+
+        Board.KeepOutOfGrid = ProjectGridRule.KeepOutOfGrid(readings);
+
+        var reports = Chains?.NeedsYou.Where(row => row.IsReported).Select(row => row.Link).ToList() ?? [];
+        var proposals = Chains?.Proposals?.Pending.Select(row => (row.Proposal.RequesterKey, row.Proposal.Request.Title)).ToList() ?? [];
+        var projectCards = new List<ProjectCardViewModel>();
+        ProjectViewModel? openView = null;
+
+        foreach (var reading in readable)
+        {
+            var view = BuildView(reading, cards);
+            var file = reading.File!;
+            var projectCard = Board.ProjectCards.FirstOrDefault(existing => existing.Name == reading.Name)
+                              ?? new ProjectCardViewModel(reading.Name, file.Title);
+            var name = reading.Name;
+
+            projectCard.OpenCommand ??= new RelayCommand(_ => OpenProject(name));
+            projectCard.PhaseText = file.CurrentPhase is { } phase ? $"Phase {phase.Number}: {phase.Name}" : "Every objective done";
+            projectCard.ObjectivesText = $"{file.ObjectivesDone} of {file.Objectives.Count} objectives done";
+
+            var waiting = ProjectWaiting.For(
+                [.. cards.Where(card => string.Equals(card.Workstream.Project, name, StringComparison.OrdinalIgnoreCase))],
+                reports, proposals, view.WaitingSpecs);
+
+            if (!waiting.SequenceEqual(projectCard.Waiting))
+            {
+                projectCard.Waiting = waiting;
+            }
+
+            projectCards.Add(projectCard);
+
+            if (string.Equals(name, _openProjectName, StringComparison.OrdinalIgnoreCase))
+            {
+                openView = view;
+            }
+        }
+
+        Board.ShowProjects(projectCards);
+
+        var openChoices = projectCards
+            .Select(card => new ProjectChoice(card.Name.Replace("_", "__", StringComparison.Ordinal), false, card.OpenCommand,
+                [], $"Open {card.Title} in the main area") { ShowsTick = false })
+            .ToList();
+
+        if (!openChoices.SequenceEqual(OpenProjectChoices))
+        {
+            OpenProjectChoices = openChoices;
+        }
+
+        if (_openProjectName is not null && openView is null)
+        {
+            Notice = $"{_openProjectName} can no longer be read, so its cards are back on the board.";
+            CloseProject();
+
+            return;
+        }
+
+        if (openView is not null && openView.Signature != ProjectView?.Signature)
+        {
+            ProjectView = openView;
+        }
+
+        WireSpecChoices();
+    }
+
+    private ProjectViewModel BuildView(ProjectFileReading reading, IReadOnlyList<WorkstreamCardViewModel> cards) =>
+        ProjectViewModel.Build(reading, cards,
+            (project, slug) => _acceptances.Latest(project, slug),
+            workstream => VerifierEnding.HasEnded(Chains?.ActiveLinks ?? [], workstream.Key),
+            OpenSpec, AcceptSpec, CloseProjectCommand);
+
+    /// <summary>Open spec and Accept spec on the menu bar, for the open project's waiting specs (R16).</summary>
+    private void WireSpecChoices()
+    {
+        var specs = ProjectView?.WaitingSpecs ?? [];
+        var open = specs.Select(spec => new ProjectChoice(spec.Slug, false, new RelayCommand(_ => OpenSpec(spec)), [],
+            $"Open the spec of {spec.Slug} as read, at {spec.ShortCommit}") { ShowsTick = false }).ToList();
+        var accept = specs.Select(spec => new ProjectChoice(spec.Slug, false, new RelayCommand(_ => AcceptSpec(spec)), [],
+            $"Accept the spec of {spec.Slug}, at {spec.ShortCommit}, after a confirmation") { ShowsTick = false }).ToList();
+
+        if (!open.SequenceEqual(OpenSpecChoices))
+        {
+            OpenSpecChoices = open;
+        }
+
+        if (!accept.SequenceEqual(AcceptSpecChoices))
+        {
+            AcceptSpecChoices = accept;
+        }
+    }
+
+    /// <summary>Replaces the board with a project's view (AC 14). The drawer, side panels and status bar stay.</summary>
+    public void OpenProject(string name)
+    {
+        _openProjectName = name;
+        ProjectView = null;
+        WireProjectChoices();
+
+        if (ProjectView is null)
+        {
+            _openProjectName = null;
+            Notice = $"{name} cannot be read just now.";
+
+            return;
+        }
+
+        Board.SelectionOrder = () => ProjectView?.CardsInOrder ?? [];
+        Raise(nameof(IsProjectOpen));
+        Raise(nameof(IsBoardShown));
+        System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+    }
+
+    /// <summary>Back to the board, from the breadcrumb or View › Back to the board.</summary>
+    public void CloseProject()
+    {
+        _openProjectName = null;
+        ProjectView = null;
+        Board.SelectionOrder = null;
+        WireSpecChoices();
+        Raise(nameof(IsProjectOpen));
+        Raise(nameof(IsBoardShown));
+        System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+    }
+
+    /// <summary>The open project's view, or null while the board shows.</summary>
+    public ProjectViewModel? ProjectView
+    {
+        get => _projectView;
+        private set
+        {
+            if (Set(ref _projectView, value))
+            {
+                Raise(nameof(IsProjectOpen));
+                Raise(nameof(IsBoardShown));
+            }
+        }
+    }
+
+    /// <summary>Whether a project view fills the main area.</summary>
+    public bool IsProjectOpen => _openProjectName is not null && _projectView is not null;
+
+    /// <summary>Whether the board fills the main area.</summary>
+    public bool IsBoardShown => !IsProjectOpen;
+
+    /// <summary>Back to the board (AC 14).</summary>
+    public RelayCommand CloseProjectCommand { get; }
+
+    /// <summary>View › Open project: one item per readable project.</summary>
+    public IReadOnlyList<ProjectChoice> OpenProjectChoices
+    {
+        get => _openProjectChoices;
+        private set
+        {
+            if (Set(ref _openProjectChoices, value))
+            {
+                Raise(nameof(HasOpenProjectChoices));
+            }
+        }
+    }
+
+    /// <summary>Whether View shows Open project.</summary>
+    public bool HasOpenProjectChoices => _openProjectChoices.Count > 0;
+
+    /// <summary>Workstream › Open spec, for the open project's waiting specs.</summary>
+    public IReadOnlyList<ProjectChoice> OpenSpecChoices
+    {
+        get => _openSpecChoices;
+        private set
+        {
+            if (Set(ref _openSpecChoices, value))
+            {
+                Raise(nameof(HasSpecChoices));
+            }
+        }
+    }
+
+    /// <summary>Workstream › Accept spec, likewise.</summary>
+    public IReadOnlyList<ProjectChoice> AcceptSpecChoices
+    {
+        get => _acceptSpecChoices;
+        private set => Set(ref _acceptSpecChoices, value);
+    }
+
+    /// <summary>Whether the Workstream menu shows Open spec and Accept spec.</summary>
+    public bool HasSpecChoices => _openSpecChoices.Count > 0;
+
+    /// <summary>Asks the owner to accept a spec; true to accept. Set by the App to a message box.</summary>
+    public Func<string, bool>? ConfirmAcceptSpec { get; set; }
+
+    /// <summary>
+    /// Accepts a spec on the board after a confirmation naming the slug and the commit, recording it in Theseus's own
+    /// store and never in a file a session can write (AC 7, 15).
+    /// </summary>
+    public void AcceptSpec(SpecAtGate spec)
+    {
+        ArgumentNullException.ThrowIfNull(spec);
+
+        if (!_acceptances.AcceptIfConfirmed(spec, ConfirmAcceptSpec, DateTimeOffset.UtcNow))
+        {
+            return;
+        }
+
+        TheseusLog.Information("Accepted the spec of {Slug} in {Project} at {Commit}", spec.Slug, spec.Project, spec.Commit);
+        Notice = $"Accepted the spec of {spec.Slug} at {spec.ShortCommit}.";
+        WireProjectChoices();
+    }
+
+    /// <summary>Opens a spec as it was read: a copy in Theseus's data folder, named for its slug and commit.</summary>
+    private void OpenSpec(SpecAtGate spec)
+    {
+        try
+        {
+            var folder = Path.Combine(App.DataDirectory, "specs");
+            Directory.CreateDirectory(folder);
+            var path = Path.Combine(folder, $"{spec.Project}-{spec.Slug}-{spec.ShortCommit}.md");
+            File.WriteAllText(path, spec.Text);
+            Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+        {
+            Notice = $"The spec of {spec.Slug} could not be opened: {exception.Message}";
         }
     }
 

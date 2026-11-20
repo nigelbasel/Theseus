@@ -104,6 +104,13 @@ public sealed record TheseusSettings(
     public IReadOnlyList<string> ProjectRepositories { get; init; } = [];
 
     /// <summary>
+    /// Where each project's card was dragged to, by project name. A project not listed sits in the first column and row
+    /// (project-view AC 12).
+    /// </summary>
+    public IReadOnlyDictionary<string, ProjectCardPlace> ProjectCardPlaces { get; init; } =
+        new Dictionary<string, ProjectCardPlace>();
+
+    /// <summary>
     /// Which one-off tidies of the grid this board has had. Zero for a board from before any; see
     /// <see cref="Domain.BoardTidy"/>.
     /// </summary>

@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:Theseus.App.ViewModels"
         xmlns:controls="clr-namespace:Theseus.App.Controls"
+        xmlns:views="clr-namespace:Theseus.App.Views"
         xmlns:settings="clr-namespace:Theseus.Core.Settings;assembly=Theseus.Core"
         xmlns:launching="clr-namespace:Theseus.Core.Launching;assembly=Theseus.Core"
         xmlns:sys="clr-namespace:System;assembly=System.Runtime"
@@ -226,6 +227,42 @@
             <Setter Property="ItemContainerStyle" Value="{DynamicResource ProjectChoiceItem}" />
         </Style>
 
+        <!--
+            A project on the board (project-view AC 12, 14): its name, current phase, objectives done and what waits on
+            the owner, listed on hover. Dragged like a card; double-click or Open on its menu opens the project view.
+        -->
+        <DataTemplate x:Key="ProjectCardTemplate" DataType="{x:Type vm:ProjectCardViewModel}">
+            <Border x:Name="ProjectFace" Tag="ProjectCard" CornerRadius="8" Margin="0,0,0,8" Padding="12,10"
+                    BorderThickness="2" BorderBrush="{DynamicResource AccentFillColorDefaultBrush}"
+                    Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                    ToolTip="{Binding Title}"
+                    MouseLeftButtonDown="OnProjectCardMouseDown">
+                <Border.ContextMenu>
+                    <ContextMenu FontFamily="{x:Static SystemFonts.MessageFontFamily}">
+                        <MenuItem Header="_Open" FontWeight="SemiBold" Command="{Binding OpenCommand}"
+                                  ToolTip="Open the project view in the main area (also View › Open project)" />
+                    </ContextMenu>
+                </Border.ContextMenu>
+                <StackPanel>
+                    <DockPanel>
+                        <Border DockPanel.Dock="Right" CornerRadius="9" Padding="7,1" MinWidth="18"
+                                Background="{DynamicResource AccentFillColorDefaultBrush}"
+                                ToolTip="{Binding WaitingText}"
+                                Visibility="{Binding HasWaiting, Converter={StaticResource BoolToVisibility}}">
+                            <TextBlock Text="{Binding WaitingCount}" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center"
+                                       Foreground="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+                        </Border>
+                        <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
+                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                    </DockPanel>
+                    <TextBlock Text="{Binding PhaseText}" FontSize="12" Margin="0,4,0,0" TextTrimming="CharacterEllipsis"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                    <TextBlock Text="{Binding ObjectivesText}" FontSize="11" Margin="0,2,0,0"
+                               Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+
         <!-- A card's own buttons: the toolbar's flat icon button, sized for a card. -->
         <Style x:Key="CardIcon" TargetType="Button" BasedOn="{StaticResource ToolButton}">
             <Setter Property="Width" Value="28" />
@@ -432,7 +469,7 @@
                 keep the height of its full self and fold to nothing worth looking at.
             -->
             <Border x:Name="CardFace" CornerRadius="8" Margin="0,0,0,8" Tag="Card"
-                    ToolTip="{Binding Workstream.WorkingDirectory}"
+                    ToolTip="{Binding FaceTooltip}"
                     ContextMenu="{StaticResource CardMenu}"
                     MouseLeftButtonDown="OnCardMouseDown"
                     PreviewMouseRightButtonDown="OnCardRightButtonDown"
@@ -938,6 +975,11 @@
                                    Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
                     </Grid>
 
+                    <!-- The project cards in this cell, standing for their cards (project-view AC 12, 13). -->
+                    <ItemsControl x:Name="ProjectCards" DockPanel.Dock="Top" ItemsSource="{Binding Projects}"
+                                  ItemTemplate="{StaticResource ProjectCardTemplate}"
+                                  AllowDrop="True" Drop="OnProjectsDrop" DragOver="OnColumnDragOver" />
+
                     <ItemsControl ItemsSource="{Binding Cards}"
                                   ItemTemplate="{StaticResource CardTemplate}"
                                   AllowDrop="True"
@@ -1206,7 +1248,7 @@
                 <MenuItem Header="Rows b_y">
                     <MenuItem Header="_Area" IsCheckable="True" IsChecked="{Binding Board.RowsByArea, Mode=TwoWay}"
                               ToolTip="The kind of work, as set in Options" />
-                    <MenuItem Header="_Project" IsCheckable="True" IsChecked="{Binding Board.RowsByProject, Mode=TwoWay}"
+                    <MenuItem Header="_Folder" IsCheckable="True" IsChecked="{Binding Board.RowsByProject, Mode=TwoWay}"
                               ToolTip="The folder each workstream works in" />
                     <MenuItem Header="_Chain" IsCheckable="True" IsChecked="{Binding Board.RowsByChain, Mode=TwoWay}"
                               ToolTip="The chain of hand-overs each workstream belongs to" />
@@ -1216,6 +1258,13 @@
                 <Separator />
                 <MenuItem Header="_Archive" IsCheckable="True" IsChecked="{Binding Board.ShowArchived, Mode=TwoWay}"
                           ToolTip="Show what has been put away instead of what is being worked on" />
+                <MenuItem Header="Open pro_ject" ItemsSource="{Binding OpenProjectChoices}"
+                          ItemContainerStyle="{StaticResource ProjectChoiceItem}"
+                          Visibility="{Binding HasOpenProjectChoices, Converter={StaticResource BoolToVisibility}}"
+                          ToolTip="Fill the main area with a project: its phases, objectives and workstreams by stage" />
+                <MenuItem Header="Back to the boar_d" Command="{Binding CloseProjectCommand}"
+                          Visibility="{Binding IsProjectOpen, Converter={StaticResource BoolToVisibility}}"
+                          ToolTip="Close the project view and show the board again" />
                 <Separator />
                 <MenuItem Header="_Fold cards with no session" Command="{Binding CollapseInactiveCommand}">
                     <MenuItem.Icon><TextBlock Text="&#xF165;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
@@ -1258,6 +1307,14 @@
                           ItemContainerStyle="{StaticResource ProjectChoiceItem}"
                           Visibility="{Binding HasProjectChoices, Converter={StaticResource BoolToVisibility}}"
                           ToolTip="Put the ticked cards in a project, under one of the slugs its project file lists, or take them out of it" />
+                <MenuItem Header="Open spec" ItemsSource="{Binding OpenSpecChoices}"
+                          ItemContainerStyle="{StaticResource ProjectChoiceItem}"
+                          Visibility="{Binding HasSpecChoices, Converter={StaticResource BoolToVisibility}}"
+                          ToolTip="Open a spec waiting on you in the open project, as it was read" />
+                <MenuItem Header="Acc_ept spec" ItemsSource="{Binding AcceptSpecChoices}"
+                          ItemContainerStyle="{StaticResource ProjectChoiceItem}"
+                          Visibility="{Binding HasSpecChoices, Converter={StaticResource BoolToVisibility}}"
+                          ToolTip="Accept a spec waiting on you in the open project; asks first, naming the slug and the commit" />
                 <Separator />
                 <MenuItem Header="_Archive selected" Command="{Binding ArchiveSelectedCommand}"
                           ToolTip="Archive the ticked cards with no session running, or restore them when the archive is showing">
@@ -2208,7 +2265,8 @@
                     header so the headings line up with the cells beneath them; both are fixed, and
                     they have to stay in step.
                 -->
-                <Grid DockPanel.Dock="Top" Margin="4,0,4,6">
+                <Grid DockPanel.Dock="Top" Margin="4,0,4,6"
+                      Visibility="{Binding IsBoardShown, Converter={StaticResource BoolToVisibility}}">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="112" />
                         <ColumnDefinition Width="*" />
@@ -2291,7 +2349,10 @@
                     Dragging on empty board draws a rubber band that selects every card it touches,
                     with Ctrl adding to the selection; a click on empty board clears it.
                 -->
+                <!-- The board, or the open project's view in its place (project-view AC 14). -->
+                <Grid>
                 <Grid x:Name="BoardSurface" Background="Transparent"
+                      Visibility="{Binding IsBoardShown, Converter={StaticResource BoolToVisibility}}"
                       PreviewMouseLeftButtonDown="OnBoardMouseDown"
                       PreviewMouseMove="OnBoardMouseMove"
                       PreviewMouseLeftButtonUp="OnBoardMouseUp">
@@ -2304,6 +2365,9 @@
                                    Stroke="{DynamicResource AccentFillColorDefaultBrush}"
                                    Fill="{DynamicResource AccentFillColorDefaultBrush}" />
                     </Canvas>
+                </Grid>
+                <views:ProjectView x:Name="ProjectPane" Margin="4,0,4,0" DataContext="{Binding ProjectView}"
+                                   Visibility="{Binding DataContext.IsProjectOpen, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}" />
                 </Grid>
             </DockPanel>
 

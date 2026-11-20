@@ -19,6 +19,7 @@ public sealed class BoardViewModel : ObservableObject
     private BoardRowsBy _rowsBy;
     private List<WorkstreamCardViewModel> _all = [];
     private WorkstreamCardViewModel? _anchor;
+    private IReadOnlyList<ProjectCardViewModel> _projects = [];
 
     /// <summary>Creates the board over its stores.</summary>
     public BoardViewModel(IPlanStore plans, IBoardStore board, ISettingsStore settings)
@@ -45,9 +46,45 @@ public sealed class BoardViewModel : ObservableObject
     /// <summary>The rows of the current view, each holding a cell per column.</summary>
     public ObservableCollection<BoardRowViewModel> Rows { get; } = [];
 
-    /// <summary>Every card on the board, whatever cell it is in.</summary>
-    public IEnumerable<WorkstreamCardViewModel> Cards =>
-        Rows.SelectMany(row => row.Cells).SelectMany(cell => cell.Cards);
+    /// <summary>
+    /// Every card loaded, whatever cell it is in, and a project's cards too, which are kept out of the grid while their
+    /// project card stands for them (project-view AC 13): starting, stopping and selecting still reach them.
+    /// </summary>
+    public IEnumerable<WorkstreamCardViewModel> Cards => _all;
+
+    /// <summary>Which cards are kept out of the grid: those of a readable project. Null keeps every card in it.</summary>
+    public Func<WorkstreamCardViewModel, bool>? KeepOutOfGrid { get; set; }
+
+    /// <summary>
+    /// The order Shift+click selects a run in while the project view is open, which is the view's, not the grid's
+    /// (AC 15). Null uses the grid's.
+    /// </summary>
+    public Func<IReadOnlyList<WorkstreamCardViewModel>>? SelectionOrder { get; set; }
+
+    /// <summary>The project cards on the board.</summary>
+    public IReadOnlyList<ProjectCardViewModel> ProjectCards => _projects;
+
+    /// <summary>Puts these project cards on the board, each in the cell it was last dragged to, and regroups.</summary>
+    public void ShowProjects(IReadOnlyList<ProjectCardViewModel> projects)
+    {
+        ArgumentNullException.ThrowIfNull(projects);
+
+        _projects = projects;
+        Place();
+    }
+
+    /// <summary>Moves a project card to a cell and remembers it there (AC 12).</summary>
+    public void MoveProject(string name, string column, string area)
+    {
+        var settings = _settings.Read();
+        var places = new Dictionary<string, ProjectCardPlace>(settings.ProjectCardPlaces, StringComparer.OrdinalIgnoreCase)
+        {
+            [name] = new ProjectCardPlace(column, area),
+        };
+
+        _settings.Write(settings with { ProjectCardPlaces = places });
+        Place();
+    }
 
     /// <summary>Every cell, in reading order.</summary>
     public IEnumerable<ColumnViewModel> Cells => Rows.SelectMany(row => row.Cells);
@@ -219,11 +256,18 @@ public sealed class BoardViewModel : ObservableObject
 
         foreach (var card in _all)
         {
+            if (KeepOutOfGrid?.Invoke(card) == true)
+            {
+                continue;
+            }
+
             if (byPlace.TryGetValue((ColumnOf(card), RowOf(card)), out var cell))
             {
                 wanted[cell].Add(card);
             }
         }
+
+        PlaceProjects();
 
         // Everything leaving a cell goes before anything arrives, so a card moving between cells is
         // never in two at once.
@@ -262,7 +306,7 @@ public sealed class BoardViewModel : ObservableObject
             }
         }
 
-        if (SelectedCard is { } selected && !Cards.Contains(selected))
+        if (SelectedCard is { } selected && !_all.Contains(selected))
         {
             SelectedCard = null;
         }
@@ -270,6 +314,43 @@ public sealed class BoardViewModel : ObservableObject
         foreach (var row in Rows)
         {
             row.RaiseCounts();
+        }
+    }
+
+    /// <summary>
+    /// Puts each project card in the cell it was dragged to; a column or row the view does not have falls back to the
+    /// first, as a card's does.
+    /// </summary>
+    private void PlaceProjects()
+    {
+        var places = _settings.Read().ProjectCardPlaces;
+        var first = Cells.FirstOrDefault();
+
+        foreach (var cell in Cells)
+        {
+            var wanted = _projects
+                .Where(project =>
+                {
+                    var place = places.FirstOrDefault(entry => string.Equals(entry.Key, project.Name, StringComparison.OrdinalIgnoreCase)).Value;
+                    var target = place is null
+                        ? first
+                        : Cells.FirstOrDefault(candidate => candidate.Column == place.Column && BoardAreas.Same(candidate.Area, place.Area))
+                          ?? Cells.FirstOrDefault(candidate => candidate.Column == place.Column)
+                          ?? first;
+
+                    return ReferenceEquals(target, cell);
+                })
+                .ToList();
+
+            if (!wanted.SequenceEqual(cell.Projects))
+            {
+                cell.Projects.Clear();
+
+                foreach (var project in wanted)
+                {
+                    cell.Projects.Add(project);
+                }
+            }
         }
     }
 
@@ -743,7 +824,7 @@ public sealed class BoardViewModel : ObservableObject
     {
         ArgumentNullException.ThrowIfNull(card);
 
-        var visible = VisibleCards.ToList();
+        var visible = (SelectionOrder?.Invoke() ?? VisibleCards).ToList();
 
         if (extend && _anchor is not null && visible.Contains(_anchor) && visible.Contains(card))
         {

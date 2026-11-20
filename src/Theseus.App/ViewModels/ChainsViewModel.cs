@@ -87,6 +87,9 @@ public sealed class ChainsViewModel : ObservableObject
     /// <summary>Reports waiting for Nigel's Confirm, and reports lost; set-aside ones last.</summary>
     public ObservableCollection<NeedsYouRowViewModel> NeedsYou { get; } = [];
 
+    /// <summary>Every link that stands, for what is read from links elsewhere, such as a verifier having ended.</summary>
+    public IReadOnlyList<Link> ActiveLinks => _book.Active;
+
     /// <summary>Told, in words, when a report arrives that the board has not shown before.</summary>
     public Action<string>? ReportArrived { get; set; }
 

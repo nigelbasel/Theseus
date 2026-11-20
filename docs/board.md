@@ -36,7 +36,7 @@ The same cards can be laid out in different ways. Choose from **View > Columns b
 | Rows by | Shows |
 |---|---|
 | **Area** | The areas above. Drag cards between them. |
-| **Project** | The folder each workstream works in, such as Theseus or TailHawk. |
+| **Folder** | The folder each workstream works in, such as Theseus or TailHawk. (Its setting is still saved as Project, so a board left showing it opens showing it.) |
 | **Chain** | Each chain of hand-overs, named after the card it starts from, then the cards in no chain. See [chains](chains.md). |
 | **None** | One row holding everything. |
 

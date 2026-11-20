@@ -53,6 +53,7 @@ public static class WorkstreamArtefactReader
         return new WorkstreamArtefacts(row.Slug, source, files)
         {
             FixText = fix,
+            SpecText = spec,
             EvidenceText = Text("evidence.md"),
             SpecHash = spec is null ? null : SpecIdentity.Hash(spec),
             SpecCommit = spec is null ? null : repository.LastCommit(branch, $"{folder}/spec.md"),

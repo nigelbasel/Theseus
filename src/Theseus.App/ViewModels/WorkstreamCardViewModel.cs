@@ -39,6 +39,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     private IReadOnlyList<PullRequestLink> _pullRequests = [];
     private IReadOnlyList<CardItemRow> _jiraItems = [];
     private IReadOnlyList<ProjectChoice> _projectChoices = [];
+    private string _projectSource = string.Empty;
     private IReadOnlyList<CardItemRow> _pullRequestItems = [];
     private string _branch = string.Empty;
     private string _branchTooltip = string.Empty;
@@ -57,6 +58,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject
             if (Set(ref _workstream, value))
             {
                 Raise(nameof(Key));
+                Raise(nameof(FaceTooltip));
                 Raise(nameof(Title));
                 Raise(nameof(ColorHex));
                 Raise(nameof(JiraKeys));
@@ -639,6 +641,27 @@ public sealed class WorkstreamCardViewModel : ObservableObject
 
     /// <summary>Whether the card's menu shows Project at all.</summary>
     public bool HasProjectChoices => _projectChoices.Count > 0;
+
+    /// <summary>
+    /// Where its project slug's work was read, branch and commit (project-view AC 5); empty for a card in no readable
+    /// project.
+    /// </summary>
+    public string ProjectSource
+    {
+        get => _projectSource;
+        set
+        {
+            if (Set(ref _projectSource, value))
+            {
+                Raise(nameof(FaceTooltip));
+            }
+        }
+    }
+
+    /// <summary>The card face's tooltip: its working directory, and for a project card where its work was read.</summary>
+    public string FaceTooltip => _projectSource.Length == 0
+        ? _workstream.WorkingDirectory
+        : $"{_workstream.WorkingDirectory}{Environment.NewLine}{_projectSource}";
 
     /// <summary>
     /// The handover file name the card's menu offers to rename to, to match its title, or empty when none is offered

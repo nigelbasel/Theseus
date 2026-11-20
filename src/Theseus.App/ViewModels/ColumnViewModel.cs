@@ -34,6 +34,9 @@ public sealed class ColumnViewModel : ObservableObject
     /// <summary>The cards in this column, in board order.</summary>
     public ObservableCollection<WorkstreamCardViewModel> Cards { get; } = [];
 
+    /// <summary>The project cards in this cell, above its cards (project-view AC 12). Empty with no projects.</summary>
+    public ObservableCollection<ProjectCardViewModel> Projects { get; } = [];
+
     /// <summary>How many cards the column holds, shown next to the heading.</summary>
     public int Count => Cards.Count;
 
