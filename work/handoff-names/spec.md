@@ -28,7 +28,8 @@ explicitly; Theseus's own search did not cause it. A card keeps the handover nam
    the old path.
 4. Each move is logged and shown in the status bar, naming both cards and both files.
 5. **Only cards that chose the shared file themselves are moved; nothing is moved when the shared file is inside a git
-   working tree; and no card is moved onto a file another card uses, or whose name a card finding its notes by search
+   working tree whose repository has a remote (amended by Nigel, 2026-11-20: a local notes repository publishes
+   nothing, and the first live check found every handover on the board inside one); and no card is moved onto a file another card uses, or whose name a card finding its notes by search
    would match.**
 
 > **Departures from the design Nigel approved (P24), made after review (`review.md`). Confirmed by Nigel, 2026-11-20:** AC 1 was

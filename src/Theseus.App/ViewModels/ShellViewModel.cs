@@ -1669,7 +1669,7 @@ public sealed class ShellViewModel : ObservableObject
         var moves = SharedHandoffs.Plan(
             [.. handoffs.Select(entry => new HandoffCard(entry.Key.Key, entry.Key.Title, entry.Value,
                 !string.IsNullOrWhiteSpace(entry.Key.Workstream.StatusDocumentPath), busy.Contains(entry.Key.Key)))],
-            File.Exists, GitWorkingTree.Contains, DateOnly.FromDateTime(DateTime.Now));
+            File.Exists, GitWorkingTree.ContainsPublishable, DateOnly.FromDateTime(DateTime.Now));
 
         var notices = new List<string>();
 
