@@ -5,7 +5,7 @@ using Theseus.Core.Persistence;
 namespace Theseus.Core.Projects;
 
 /// <summary>
-/// <c>spec-acceptances.json</c>: every spec the owner accepted, keyed by project, slug and the accepted spec's commit,
+/// <c>spec-acceptances.json</c>: every spec the owner accepted, keyed by project, slug and the accepted text's hash,
 /// rewritten whole on each change (spec AC 7). Kept in Theseus's data folder, outside every repository, so a session
 /// cannot accept its own spec by committing a file. A file that cannot be read is logged and treated as empty.
 /// </summary>
@@ -44,7 +44,7 @@ public sealed class SpecAcceptanceStore
         Load().LastOrDefault(acceptance => Matches(acceptance, project, slug));
 
     /// <summary>
-    /// Records the owner's acceptance of a spec only when he says yes to the question naming its slug and commit
+    /// Records the owner's acceptance of a spec only when he says yes to the question naming its slug and version
     /// (project-view AC 15); with no one to ask, nothing is accepted.
     /// </summary>
     public bool AcceptIfConfirmed(SpecAtGate spec, Func<string, bool>? confirm, DateTimeOffset now)
@@ -61,14 +61,14 @@ public sealed class SpecAcceptanceStore
         return true;
     }
 
-    /// <summary>Records an acceptance. Accepting the same commit again replaces the earlier record of it.</summary>
+    /// <summary>Records an acceptance. Accepting the same text again replaces the earlier record of it.</summary>
     public void Accept(SpecAcceptance acceptance)
     {
         ArgumentNullException.ThrowIfNull(acceptance);
 
         var kept = Load()
             .Where(existing => !(Matches(existing, acceptance.Project, acceptance.Slug)
-                                 && string.Equals(existing.Commit, acceptance.Commit, StringComparison.OrdinalIgnoreCase)))
+                                 && string.Equals(existing.ContentHash, acceptance.ContentHash, StringComparison.OrdinalIgnoreCase)))
             .Append(acceptance)
             .ToList();
 

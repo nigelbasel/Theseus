@@ -22,6 +22,7 @@ public sealed class ShellViewModel : ObservableObject
     private readonly ISettingsStore _settings;
     private string _holdoutFolder = string.Empty;
     private readonly BackgroundProjectReads _projectReads;
+    private readonly ProjectFolderWatcher _projectWatcher;
     private readonly SpecAcceptanceStore _acceptances;
     private IReadOnlyList<SessionRun>? _refreshRuns;
     private string? _openProjectName;
@@ -109,17 +110,16 @@ public sealed class ShellViewModel : ObservableObject
         _colours = colours;
         _pullRequests = new PullRequestResolver(new GitRemoteReader());
 
-        var git = new GitCli();
-        var primaries = new ProjectPrimaryStore(Path.Combine(App.DataDirectory, "project-primaries.json"));
         var dispatcher = Dispatcher.CurrentDispatcher;
-        var artefactCache = new ArtefactCache();
-        // The stages' git reads ride the same background read, so the project view runs no git on this thread; they
-        // land after the catalogue, which alone decides which cards leave the grid.
         _projectReads = new BackgroundProjectReads(
-            folders => ProjectCatalog.Read(folders, git, primaries),
-            action => dispatcher.BeginInvoke(action), TimeSpan.FromSeconds(30),
-            attach: readings => [.. readings.Select(reading => ProjectArtefacts.Attach(reading, git, artefactCache))],
-            remembered: new RememberedProjects(Path.Combine(App.DataDirectory, "readable-projects.json")));
+            ProjectCatalog.Read,
+            action => dispatcher.BeginInvoke(action),
+            new RememberedProjects(Path.Combine(App.DataDirectory, "readable-projects.json")));
+        _projectWatcher = new ProjectFolderWatcher(() => dispatcher.BeginInvoke(() =>
+        {
+            _projectReads.MarkStale();
+            WireProjects();
+        }), TimeSpan.FromMilliseconds(500), TimeSpan.FromSeconds(1.5));
         _acceptances = new SpecAcceptanceStore(Path.Combine(App.DataDirectory, "spec-acceptances.json"));
         CloseProjectCommand = new RelayCommand(_ => CloseProject(), _ => IsProjectOpen);
         BringProjectWindowForwardCommand = new RelayCommand(_ => BringProjectWindowForward(),
@@ -836,7 +836,7 @@ public sealed class ShellViewModel : ObservableObject
             return;
         }
 
-        var verifier = VerifierCard.For(card.Workstream, holdout, DateTimeOffset.Now);
+        var verifier = VerifierCard.For(card.Workstream, holdout, DateTimeOffset.Now, RecordsFolder(card.Workstream));
         var key = WorkstreamKey.Unique(verifier.Title, [.. _plans.Keys(), .. Chains?.TakenKeys ?? []]);
 
         _plans.Write(key, new SessionPlan(_plans.Keys().Count + 1, verifier.Title, card.Workstream.ColorHex,
@@ -874,17 +874,37 @@ public sealed class ShellViewModel : ObservableObject
         }
     }
 
+    /// <summary>A project workstream's records folder in its project home, as last read; null for any other card.</summary>
+    private string? RecordsFolder(Workstream workstream) =>
+        workstream is { Project: { } project, Slug: { } slug }
+        && _projectReads.Current.FirstOrDefault(reading =>
+            reading.IsReadable && string.Equals(reading.Name, project, StringComparison.OrdinalIgnoreCase)) is { Folder: { } home }
+            ? Path.Combine(home, WorkstreamArtefactReader.WorkFolder, slug)
+            : null;
+
     /// <summary>Whether the menu bar shows Project at all.</summary>
     public bool HasProjectChoices => _projectChoices.Count > 0;
 
     /// <summary>
-    /// Reads the projects in the listed repositories and offers their slugs on every card's menu and the menu bar.
-    /// With no repositories listed nothing runs and nothing is offered (project-view AC 1, 4 and 22).
+    /// Reads the projects in the projects folder and offers their slugs on every card's menu and the menu bar. With no
+    /// folder set nothing runs and nothing is offered (project-view AC 1, 4 and 22; 1.1b AC 1 and 13).
     /// </summary>
     private void WireProjects()
     {
-        // Each read is several git processes, so it runs off this thread and WireProjectChoices follows when it lands.
-        _projectReads.Request(_settings.Read().ProjectRepositories);
+        var folder = _settings.Read().ProjectsFolder;
+
+        // The watcher asks for a read when a file changes. A folder it has only just started watching is read, since
+        // nothing told it of changes while unwatched; one it cannot watch (not there, or gone) is read on every refresh,
+        // so it shows as unreadable and is found again when it comes back.
+        var watch = _projectWatcher.Watch(folder);
+
+        if (watch == ProjectFolderWatch.Started || (watch == ProjectFolderWatch.NotWatching && !string.IsNullOrWhiteSpace(folder)))
+        {
+            _projectReads.MarkStale();
+        }
+
+        // The read runs off this thread and WireProjectChoices follows when it lands.
+        _projectReads.Request(folder);
         WireProjectChoices();
     }
 
@@ -963,8 +983,6 @@ public sealed class ShellViewModel : ObservableObject
             var name = reading.Name;
 
             projectCard.OpenCommand ??= new RelayCommand(_ => OpenProject(name));
-            projectCard.LastFailure = reading.LastFailure;
-            projectCard.IsReading = view.IsReading;
             projectCard.PhaseText = file.CurrentPhase is { } phase ? $"Phase {phase.Number}: {phase.Name}" : "Every objective done";
             projectCard.ObjectivesText = $"{file.ObjectivesDone} of {file.Objectives.Count} objectives done";
 
@@ -1079,9 +1097,9 @@ public sealed class ShellViewModel : ObservableObject
     {
         var specs = ProjectView?.WaitingSpecs ?? [];
         var open = specs.Select(spec => new ProjectChoice(spec.Slug, false, new RelayCommand(_ => OpenSpec(spec)), [],
-            $"Open the spec of {spec.Slug} as read, at {spec.ShortCommit}") { ShowsTick = false }).ToList();
+            $"Open the spec of {spec.Slug} as read, version {spec.ShortVersion}") { ShowsTick = false }).ToList();
         var accept = specs.Select(spec => new ProjectChoice(spec.Slug, false, new RelayCommand(_ => AcceptSpec(spec)), [],
-            $"Accept the spec of {spec.Slug}, at {spec.ShortCommit}, after a confirmation") { ShowsTick = false }).ToList();
+            $"Accept the spec of {spec.Slug}, version {spec.ShortVersion}, after a confirmation") { ShowsTick = false }).ToList();
 
         if (!open.SequenceEqual(OpenSpecChoices))
         {
@@ -1209,19 +1227,19 @@ public sealed class ShellViewModel : ObservableObject
             return;
         }
 
-        TheseusLog.Information("Accepted the spec of {Slug} in {Project} at {Commit}", spec.Slug, spec.Project, spec.Commit);
-        Notice = $"Accepted the spec of {spec.Slug} at {spec.ShortCommit}.";
+        TheseusLog.Information("Accepted the spec of {Slug} in {Project}, version {Version}", spec.Slug, spec.Project, spec.ContentHash);
+        Notice = $"Accepted the spec of {spec.Slug}, version {spec.ShortVersion}.";
         WireProjectChoices();
     }
 
-    /// <summary>Opens a spec as it was read: a copy in Theseus's data folder, named for its slug and commit.</summary>
+    /// <summary>Opens a spec as it was read: a copy in Theseus's data folder, named for its slug and version.</summary>
     private void OpenSpec(SpecAtGate spec)
     {
         try
         {
             var folder = Path.Combine(App.DataDirectory, "specs");
             Directory.CreateDirectory(folder);
-            var path = Path.Combine(folder, $"{spec.Project}-{spec.Slug}-{spec.ShortCommit}.md");
+            var path = Path.Combine(folder, $"{spec.Project}-{spec.Slug}-{spec.ShortVersion}.md");
             File.WriteAllText(path, spec.Text);
             Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
         }

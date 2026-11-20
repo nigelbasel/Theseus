@@ -1,7 +1,9 @@
 # The project format
 
-A project is a Markdown file in `projects/` of its **home repo**: the repo where its objectives are
-written and its artefacts are kept. It is read by people and by agents, so it is prose with a fixed shape,
+A project is a folder, its **home folder**, holding `project.md` (this file's shape) and `work/<slug>/`, the records
+of each workstream. Home folders sit side by side in one **projects folder**, outside every code repo, so records
+never need a branch, a merge or a pull request, and every session sees the same copy at once. A new project starts
+from the files in `method/starter/`. It is read by people and by agents, so it is prose with a fixed shape,
 not a schema to fill in. Standalone (ad hoc) workstreams have no project file.
 
 From `method-v0.2` the shape below is also read by Theseus, which shows a project's phases, objectives and workstreams
@@ -50,7 +52,8 @@ What this part of the work must achieve.
 |---|---|
 | `# <title>` | The first heading of the file |
 | `**Kit:** <version>` | Under the title. The kit version the file follows. A file at `method-v0.1` is shown as pinned to it and not read further |
-| `**Primary branch:** <branch>` | Under the title. The project's long-lived branch, off the trunk: workstream branches come off it and merge back into it, and one pull request takes it into the trunk. Theseus finds this line on the repo's default branch, then reads the project from the primary branch itself |
+| `**Before method-v0.2:** <slug>, <slug>` | Optional, under the title. Workstreams finished before the project moved to `method-v0.2`, shown at their stage with no gate markers |
+| `**Primary branch:** <branch>` | Under the title. The project's long-lived branch, off the trunk: workstream branches come off it and merge back into it, and one pull request takes it into the trunk |
 | `## Phase <n>: <name>` | A phase. Phases are numbered from 0 in order. Any other `## ` heading ends the phase |
 | `**Exit gate:**` | The phase's exit gate. More than one line under a phase are read together, in order |
 | `### Objective <n>.<m>: <title>` | Every objective is a heading of this form, numbered within its phase (`<n>` is the phase's number) |
@@ -80,7 +83,7 @@ The **current phase** is the first with an objective not done.
 - **A workstream may span repos.** It uses one branch name in every repo it changes, with one worktree per
   repo, all under one feature folder: `<root>\<feature>\<repo>` on `<user>/<slug>`. Nothing in a
   pipeline or artefact path names a single repo.
-- **Artefacts live once, per workstream, in the home repo**, under `work/<slug>/`, whichever repos the
+- **Artefacts live once, per workstream, in the home folder**, under `work/<slug>/`, whichever repos the
   code changes are in. `<slug>` is the workstream's slug from the project file's table, the same name its branch
   carries, `<user>/<slug>`. A tracker item the workstream is for is named in its artefacts, not in the folder name.
 - **Evidence is per repo.** Where a stage needs proof (tests passed, a scenario passed), it records one
@@ -96,7 +99,7 @@ From `method-v0.2` the owner's gates inside a project are each workstream's **sp
 branch's **pull request into the trunk**, which passes when he merges it (Nigel, 2026-11-20, decision 4A). Every other
 gate passes on its artefact or its evidence: plan and review are evidence gates inside a project
 (`pipelines/feature.yaml`, `pipelines/bug.yaml`). The owner's acceptance of a spec is recorded by Theseus on the board,
-with the commit of the spec he accepted, not in a file a session can write.
+by the content of the spec he accepted, not in a file a session can write.
 
 ## The evidence result block
 
@@ -141,4 +144,4 @@ about the card's work changes until it next starts a stage of a pipeline.
 
 ## Example
 
-[`projects/theseus-bootstrap.md`](../projects/theseus-bootstrap.md), the Theseus bootstrap itself.
+[`starter/project.md`](starter/project.md), the file a new project begins with.

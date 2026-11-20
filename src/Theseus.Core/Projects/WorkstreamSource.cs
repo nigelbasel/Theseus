@@ -1,20 +1,15 @@
 namespace Theseus.Core.Projects;
 
-/// <summary>Where a slug's work was read (spec AC 5): the branch and commit, or nowhere on this machine.</summary>
-/// <param name="Branch">The branch read, or null when neither the workstream's branch nor the primary has its work.</param>
-/// <param name="Commit">That branch's commit when read.</param>
-/// <param name="IsMerged">Whether it was read from the primary because the work is merged there.</param>
-public sealed record WorkstreamSource(string? Branch, string? Commit, bool IsMerged)
+/// <summary>Where a slug's work was read: its <c>work\&lt;slug&gt;\</c> folder in the project home, or none yet.</summary>
+/// <param name="Folder">The folder read, or null when the project home has no folder for the slug yet.</param>
+public sealed record WorkstreamSource(string? Folder)
 {
-    /// <summary>Nothing of the slug's work is on this machine.</summary>
-    public static WorkstreamSource NotOnMachine { get; } = new(null, null, false);
+    /// <summary>The project home has no folder for the slug yet.</summary>
+    public static WorkstreamSource None { get; } = new((string?)null);
 
-    /// <summary>Whether its work was found.</summary>
-    public bool IsOnMachine => Branch is not null;
+    /// <summary>Whether its folder exists.</summary>
+    public bool Exists => Folder is not null;
 
-    /// <summary>For the card's tooltip: the branch and the commit, short.</summary>
-    public string Describe => Branch is null
-        ? "not on this machine"
-        : $"read from {Branch} at {(Commit is { Length: >= 7 } commit ? commit[..7] : Commit ?? "an unknown commit")}"
-          + (IsMerged ? ", where it is merged" : string.Empty);
+    /// <summary>For the card's tooltip.</summary>
+    public string Describe => Folder is null ? "no work folder yet" : $"read from {Folder}";
 }

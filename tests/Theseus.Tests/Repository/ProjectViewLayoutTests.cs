@@ -37,14 +37,14 @@ public class ProjectViewLayoutTests
             | Early work | early-slug | owner/early-slug | Repo |
             """);
 
-        var source = new WorkstreamSource("owner/x", "abcdef1234567", false);
+        var source = new WorkstreamSource("work/x");
         reading = reading with
         {
             Artefacts = new Dictionary<string, WorkstreamArtefacts>
             {
                 ["spec-slug"] = new("spec-slug", source, new HashSet<string> { "spec.md" })
                 {
-                    SpecText = "# Spec", SpecHash = "h", SpecCommit = "abcdef1234567",
+                    SpecText = "# Spec", SpecHash = "h",
                 },
                 ["early-slug"] = new("early-slug", source, new HashSet<string> { "research.md" }),
             },

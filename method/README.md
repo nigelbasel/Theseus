@@ -28,7 +28,7 @@ the Theseus bootstrap, after six hand-run changes and 17 lessons. `method-v0.2` 
 
 - **Standalone (ad hoc).** A card, a session, a handoff. Runs `freeform`. No project file, no artefacts
   folder, no gates, not one more click than Theseus has always needed.
-- **Project.** A project file in `projects/` sets an objective and phases. Each workstream serves one
+- **Project.** A project file, `project.md` in the project's home folder, sets an objective and phases. Each workstream serves one
   derived objective and runs a pipeline, with gates and evidence. Evidence is always shown when it exists;
   only project gates block on it.
 
@@ -72,7 +72,7 @@ Ad hoc work can be promoted to a project. Its handoff becomes the project's firs
   correction or a weakening. (card-branches P12.)
 - **No machine paths or card ids in a public repo's records.** Use placeholders (`<scratch>`, `<worktree>`, "the
   workstream log") or a description. Sub-agent briefs carry this rule, and a check in the suite
-  (`PublicFilesTests`) fails any change whose `work/`, `bootstrap/`, `projects/` or `method/` files contain a
+  (`PublicFilesTests`) fails any change whose `method/` files contain a
   user-profile path, a session scratch path, a drive path with folders, or a card id. (close-step P19, Nigel
   2026-11-19; every stage 0 record broke it before it existed.)
 - **A test of a decision moved out of the UI feeds it the state the caller actually holds,** step by step through the
@@ -84,10 +84,11 @@ Ad hoc work can be promoted to a project. Its handoff becomes the project's firs
 | Date | Decision | By |
 |---|---|---|
 | 2026-11-18 | The kit lives in the Theseus repo under `method/` for now; it may move to its own repo later | Nigel |
-| 2026-11-18 | Work artefacts go in top-level `work/<issue>/`, retrospectives in `bootstrap/`, both outside the `docs/` Pages site | Nigel |
+| 2026-11-18 | Work artefacts go in top-level `work/<issue>/`, retrospectives in `bootstrap/`, both outside the `docs/` Pages site (superseded 2026-11-20, below) | Nigel |
 | 2026-11-18 | Holdout scenarios live in a separate private repository, which implementing sessions are refused access to | Nigel |
 | 2026-11-18 | Projects sit above workstreams; standalone workstreams are unchanged; both may span repos | Nigel |
 | 2026-11-19 | The kit stays generic in `method/` on GitHub for now, ships with Theseus as the default, and moves only if other team members start using it. A repo's own rubric and AGENTS.md live in that repo | Nigel |
+| 2026-11-20 | Every project's records (its `project.md`, `work/<slug>/` and retrospectives) live in a project home folder outside any code repo, one subfolder of the projects folder per project; a code repo holds code only. `method/starter/` holds the files a new project begins with. Supersedes the 2026-11-18 row on `work/` and `bootstrap/` | Nigel |
 | 2026-11-20 | Inside a project the owner's gates are each workstream's spec (a bug's rule) and the primary branch's pull request into the trunk, which passes when he merges it; plan and review pass on evidence (decision 4A, released in `method-v0.2`) | Nigel |
 | 2026-11-20 | The evidence result block is JSON in a fenced `theseus-evidence` block; its `gates` field is information only, never proof | Nigel |
 

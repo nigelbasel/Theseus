@@ -22,18 +22,18 @@ public class SpecAtGateTests
     public void TearDown() => Directory.Delete(_folder, recursive: true);
 
     private static readonly WorkstreamArtefacts Artefacts =
-        new("a-slug", new WorkstreamSource("owner/a-slug", "abcdef1234567", false), new HashSet<string> { "spec.md" })
+        new("a-slug", new WorkstreamSource("work/a-slug"), new HashSet<string> { "spec.md" })
         {
-            SpecText = "# Spec\n", SpecHash = "spec-hash", SpecCommit = "abcdef1234567",
+            SpecText = "# Spec\n", SpecHash = "abcdef1234567", 
         };
 
     [Test]
-    public void TheQuestion_NamesTheSlugAndTheCommit()
+    public void TheQuestion_NamesTheSlugAndTheVersion()
     {
         var spec = SpecAtGate.For("a-project", "a-slug", PipelineKind.Feature, Artefacts)!;
 
         Assert.That(spec.ConfirmationQuestion, Does.StartWith(
-            "Accept the spec of a-slug in a-project, as committed at abcdef1 (read from owner/a-slug at abcdef1)?"));
+            "Accept the spec of a-slug in a-project, version abcdef1 (read from work/a-slug)?"));
     }
 
     [Test]
@@ -49,7 +49,7 @@ public class SpecAtGateTests
 
         Assert.That(store.AcceptIfConfirmed(spec, _ => true, DateTimeOffset.UnixEpoch), Is.True);
         Assert.That(store.Latest("a-project", "a-slug"),
-            Is.EqualTo(new SpecAcceptance("a-project", "a-slug", "abcdef1234567", "spec-hash", DateTimeOffset.UnixEpoch)));
+            Is.EqualTo(new SpecAcceptance("a-project", "a-slug", "abcdef1234567", DateTimeOffset.UnixEpoch)));
         Assert.That(asked.Single(), Is.EqualTo(spec.ConfirmationQuestion));
     }
 
@@ -58,17 +58,17 @@ public class SpecAtGateTests
     {
         var bug = Artefacts with
         {
-            FixText = "# Fix\n\n## Spec\n1. The rule.\n\n## Cause\nWhy.\n", RuleHash = "rule-hash", RuleCommit = "1234567abcdef",
+            FixText = "# Fix\n\n## Spec\n1. The rule.\n\n## Cause\nWhy.\n", RuleHash = "rule-hash",
         };
 
         var spec = SpecAtGate.For("a-project", "a-slug", PipelineKind.Bug, bug)!;
 
-        Assert.That((spec.Text, spec.ContentHash, spec.Commit), Is.EqualTo(("## Spec\n1. The rule.\n\n", "rule-hash", "1234567abcdef")));
+        Assert.That((spec.Text, spec.ContentHash), Is.EqualTo(("## Spec\n1. The rule.\n\n", "rule-hash")));
     }
 
     [Test]
     public void NoSpecRead_IsNoSpecAtTheGate()
     {
-        Assert.That(SpecAtGate.For("a-project", "a-slug", PipelineKind.Feature, WorkstreamArtefacts.NotOnMachine("a-slug")), Is.Null);
+        Assert.That(SpecAtGate.For("a-project", "a-slug", PipelineKind.Feature, WorkstreamArtefacts.NotStarted("a-slug")), Is.Null);
     }
 }

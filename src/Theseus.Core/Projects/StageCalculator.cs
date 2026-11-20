@@ -55,7 +55,7 @@ public static class StageCalculator
 
     /// <summary>Works out where a slug's work stands.</summary>
     /// <param name="pipelines">The pipelines its objective names.</param>
-    /// <param name="artefacts">What its folder holds, read from its source branch.</param>
+    /// <param name="artefacts">What its folder in the project home holds.</param>
     /// <param name="acceptance">The owner's latest acceptance of its spec, from Theseus's store, or null.</param>
     public static WorkstreamStage Calculate(IReadOnlyList<PipelineKind> pipelines, WorkstreamArtefacts artefacts, SpecAcceptance? acceptance)
     {
@@ -66,11 +66,6 @@ public static class StageCalculator
         if (pipeline is null or PipelineKind.Freeform)
         {
             return new WorkstreamStage(pipeline, [], [], null, null, artefacts.Source);
-        }
-
-        if (!artefacts.Source.IsOnMachine)
-        {
-            return new WorkstreamStage(pipeline, [], [], null, "not on this machine", artefacts.Source);
         }
 
         var stages = pipeline == PipelineKind.Bug ? BugStages : FeatureStages;

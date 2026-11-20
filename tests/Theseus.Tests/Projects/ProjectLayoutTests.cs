@@ -32,7 +32,7 @@ public class ProjectLayoutTests
         """).File!;
 
     private static WorkstreamStage Stage(params PipelineStage[] reached) =>
-        new(PipelineKind.Feature, reached, [], reached.Length > 0 ? reached[^1] : null, null, WorkstreamSource.NotOnMachine);
+        new(PipelineKind.Feature, reached, [], reached.Length > 0 ? reached[^1] : null, null, WorkstreamSource.None);
 
     private static readonly IReadOnlyDictionary<string, WorkstreamStage> Stages = new Dictionary<string, WorkstreamStage>
     {

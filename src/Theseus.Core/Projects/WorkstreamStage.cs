@@ -5,7 +5,7 @@ namespace Theseus.Core.Projects;
 /// <param name="Reached">The stages whose artefact exists, in order.</param>
 /// <param name="Gates">The gate after each of its pipeline's stages; none for work from before method-v0.2 (AC 9).</param>
 /// <param name="Position">The column its card sits in (AC 8), or null when it has none.</param>
-/// <param name="Note">What is shown on the card: ahead of a gate, before method-v0.2, not on this machine; or null.</param>
+/// <param name="Note">What is shown on the card: ahead of a gate, before method-v0.2; or null.</param>
 /// <param name="Source">Where its work was read.</param>
 public sealed record WorkstreamStage(
     PipelineKind? Pipeline,

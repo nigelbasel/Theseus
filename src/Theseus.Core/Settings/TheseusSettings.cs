@@ -98,10 +98,13 @@ public sealed record TheseusSettings(
     public IReadOnlyList<string> CollapsedAreas { get; init; } = [];
 
     /// <summary>
-    /// The folders of project home repos, each a clone or worktree, whose <c>projects/*.md</c> Theseus reads with git
-    /// (project-view AC 1 and 2). Empty by default, so a board with none set behaves exactly as before (AC 22).
+    /// The folder of project homes: each subfolder holding a <c>project.md</c> is a project, read as plain files (1.1b
+    /// AC 1). Empty by default, so a board with none set behaves exactly as before (AC 13).
     /// </summary>
-    public IReadOnlyList<string> ProjectRepositories { get; init; } = [];
+    public string ProjectsFolder { get; init; } = string.Empty;
+
+    /// <summary>Where workstreams' worktrees go, <c>&lt;folder&gt;\&lt;slug&gt;\&lt;repo&gt;</c> (1.1b AC 11). Empty by default.</summary>
+    public string WorktreesFolder { get; init; } = string.Empty;
 
     /// <summary>
     /// Where each project's card was dragged to, by project name. A project not listed sits in the first column and row

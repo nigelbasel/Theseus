@@ -136,12 +136,15 @@
                 <TextBox Text="{Binding JiraBaseUrl, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock Text="{Binding JiraState}" Style="{StaticResource FieldHint}" />
 
-                <TextBlock Text="Project repositories" Style="{StaticResource FieldLabel}" />
-                <TextBox Text="{Binding ProjectRepositories, UpdateSourceTrigger=PropertyChanged}"
-                         AcceptsReturn="True" MinHeight="56" VerticalScrollBarVisibility="Auto"
-                         FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12" />
+                <TextBlock Text="Projects folder" Style="{StaticResource FieldLabel}" />
+                <TextBox Text="{Binding ProjectsFolder, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock Style="{StaticResource FieldHint}"
-                           Text="Folders, one per line, each a clone or worktree of a project's home repo. Theseus reads its projects/ files with git from the project's primary branch, whichever branch the folder has checked out, and fetches nothing. Leave empty for no projects." />
+                           Text="Each folder in it with a project.md is a project: its objectives and workstreams, and a work folder of their records. Records are plain files, kept outside every code repo. Leave empty for no projects." />
+
+                <TextBlock Text="Worktrees folder" Style="{StaticResource FieldLabel}" />
+                <TextBox Text="{Binding WorktreesFolder, UpdateSourceTrigger=PropertyChanged}" />
+                <TextBlock Style="{StaticResource FieldHint}"
+                           Text="Where each workstream's worktrees go: a folder per workstream, with a worktree in it for each repo the workstream changes." />
 
                 <TextBlock Text="Holdout scenarios folder" Style="{StaticResource FieldLabel}" />
                 <TextBox Text="{Binding HoldoutFolder, UpdateSourceTrigger=PropertyChanged}" />

@@ -167,16 +167,14 @@ public class ProjectFileReaderTests
     }
 
     [Test]
-    public void TheRepositorysOwnProjectFile_IsReadable()
+    public void TheStarterProjectFile_IsReadable_AsANewProjectGetsIt()
     {
-        var path = Path.Combine(RepositoryRoot(), "projects", "theseus-bootstrap.md");
-        var reading = ProjectFileReader.Read("theseus-bootstrap", System.IO.File.ReadAllText(path));
+        var path = Path.Combine(RepositoryRoot(), "method", "starter", "project.md");
+        var reading = ProjectFileReader.Read("a-project", System.IO.File.ReadAllText(path));
 
-        Assert.That(reading.Reason, Is.Null);
-        Assert.That(reading.File!.PrimaryBranch, Is.EqualTo("nigel/theseus"));
-        Assert.That(reading.File.Phases.Select(phase => phase.Number), Is.EqualTo(new[] { 0, 1, 2, 3, 4, 5 }));
-        Assert.That(reading.File.ObjectiveOf("project-view")!.Number, Is.EqualTo("1.1"));
-        Assert.That(reading.File.ObjectiveOf("readme-runtime")!.Pipelines, Is.EqualTo(new[] { PipelineKind.Feature, PipelineKind.Bug }));
+        Assert.That(reading.Reason, Is.Null, "a new project starts readable (1.1b AC 7 and 8)");
+        Assert.That(reading.File!.Kit, Is.EqualTo(MethodKits.Current));
+        Assert.That(reading.File.Objectives.Single().Workstreams, Is.Empty);
     }
 
     [Test]
@@ -236,11 +234,13 @@ public class ProjectFileReaderTests
     }
 
     [Test]
-    public void TheHeader_IsReadOnItsOwn_EvenWhenTheBodyIsOutOfShape()
+    public void TheBeforeTheKitLine_NamesSlugs_AndAFileWithoutOneNamesNone()
     {
-        var header = ProjectFileReader.Header(Header + "## Phase 7: out of order\n");
+        var named = File("## Objective\nThe outcome.\n");
+        var listed = Read("", Header.TrimEnd('\n') + "\n**Before method-v0.2:** old-one, `old-two`\n\n").File!;
 
-        Assert.That(header, Is.EqualTo(("method-v0.2", "owner/project")));
+        Assert.That(named.BeforeKit, Is.Empty);
+        Assert.That(listed.BeforeKit, Is.EquivalentTo(new[] { "old-one", "old-two" }));
     }
 
     private static string RepositoryRoot([CallerFilePath] string thisFile = "") =>

@@ -33,7 +33,7 @@ public class RememberedProjectsTests
         {
             action();
             posted.Release();
-        }, TimeSpan.FromSeconds(30), remembered: store);
+        }, store);
 
     [Test]
     public void BeforeTheFirstCatalogueLands_TheProjectsThatReadLastTime_Count()
@@ -57,7 +57,7 @@ public class RememberedProjectsTests
         using var posted = new SemaphoreSlim(0);
         var reads = Reads(store, [Readable("theseus-bootstrap"), ProjectFileReading.Unreadable("gone", "line 1: no **Kit:** line under the title") with { Folder = Folder }], posted);
 
-        reads.Request([Folder]);
+        reads.Request(Folder);
         Assert.That(posted.Wait(TimeSpan.FromSeconds(10)), Is.True);
 
         Assert.That(reads.ReadableNames, Is.EquivalentTo(new[] { "theseus-bootstrap" }));
@@ -65,16 +65,16 @@ public class RememberedProjectsTests
     }
 
     [Test]
-    public void WithNoFoldersListed_NothingRemembered_Counts()
+    public void WithNoFolderSet_NothingRemembered_Counts()
     {
         var store = Store();
         store.Remember(["theseus-bootstrap"]);
         using var posted = new SemaphoreSlim(0);
         var reads = Reads(store, [], posted);
 
-        reads.Request([]);
+        reads.Request(null);
 
-        Assert.That(reads.ReadableNames, Is.Empty, "the first refresh with no repositories lands at once (AC 22)");
+        Assert.That(reads.ReadableNames, Is.Empty, "the first refresh with no projects folder lands at once (AC 13)");
     }
 
     [Test]
