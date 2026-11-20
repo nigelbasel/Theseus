@@ -1286,6 +1286,12 @@
                 </MenuItem>
             </MenuItem>
 
+            <!-- Only once a projects folder is set, so a board with none looks exactly as before (1.1b AC 13). -->
+            <MenuItem Header="_Project" Visibility="{Binding HasProjectsFolder, Converter={StaticResource BoolToVisibility}}">
+                <MenuItem Header="_New project…" Command="{Binding NewProjectCommand}"
+                          ToolTip="A new project folder in the projects folder, with a project.md to fill in and an empty work folder" />
+            </MenuItem>
+
             <MenuItem Header="_Workstream">
                 <MenuItem Header="_Start selected" Command="{Binding StartSelectedCommand}"
                           ToolTip="Start the ticked cards that are not already running">
@@ -1341,6 +1347,7 @@
 
             <MenuItem Header="_Help">
                 <MenuItem Header="View _help" InputGestureText="F1" Command="{Binding Help.OpenCommand}" />
+                <MenuItem Header="How your work is _laid out" Command="{Binding Help.OpenCommand}" CommandParameter="project-layout" />
                 <Separator />
                 <MenuItem Header="Check for _updates" Command="{Binding Updates.CheckNowCommand}"
                           ToolTip="Ask GitHub for a newer release now, including one put aside with Later" />

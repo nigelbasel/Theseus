@@ -8,7 +8,4 @@ public static class MethodKits
 
     /// <summary>The version before project files had a readable shape: shown as pinned (AC 3).</summary>
     public const string Pinned = "method-v0.1";
-
-    /// <summary>The project file line that moves a project to the current version, as written.</summary>
-    public const string CurrentKitLine = "**Kit:** " + Current;
 }

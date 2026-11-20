@@ -24,6 +24,7 @@ public sealed class SettingsViewModel : ObservableObject
     private string _holdoutRemote = string.Empty;
     private string _projectsFolder = string.Empty;
     private string _worktreesFolder = string.Empty;
+    private bool _showsProjectsIntro;
     private bool _includePreReleases;
     private string _sessionPreamble = string.Empty;
     private string _continuePrompt = string.Empty;
@@ -187,6 +188,16 @@ public sealed class SettingsViewModel : ObservableObject
     {
         get => _projectsFolder;
         set => Set(ref _projectsFolder, value);
+    }
+
+    /// <summary>
+    /// Whether Settings opened with no projects folder saved, so it explains the model and offers the two folders
+    /// (1.1b AC 11). Decided when it opens, so the panel does not vanish while a path is typed.
+    /// </summary>
+    public bool ShowsProjectsIntro
+    {
+        get => _showsProjectsIntro;
+        private set => Set(ref _showsProjectsIntro, value);
     }
 
     /// <summary>The folder workstreams' worktrees go in, as typed (1.1b AC 11).</summary>
@@ -402,6 +413,7 @@ public sealed class SettingsViewModel : ObservableObject
         HoldoutRemote = settings.HoldoutRemote;
         ProjectsFolder = settings.ProjectsFolder;
         WorktreesFolder = settings.WorktreesFolder;
+        ShowsProjectsIntro = string.IsNullOrWhiteSpace(settings.ProjectsFolder);
         IncludePreReleases = settings.IncludePreReleases;
         SessionPreamble = settings.SessionPreamble;
         ContinuePrompt = settings.ContinuePrompt;
