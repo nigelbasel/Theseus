@@ -1,16 +1,16 @@
 # A new capability, or a change in behaviour, inside a project.
-# Paths are relative to the project's home repo. <issue> is the tracker item or card slug.
+# Paths are relative to the project's home repo. <slug> is the workstream's slug in the project file (method/project.md).
 # <repos> are every repo the workstream changes, on one branch name, one worktree each.
 name: feature
-version: 0
+version: 1  # method-v0.2: plan and review are evidence gates inside a project
 mode: project
-artefacts: work/<issue>/
+artefacts: work/<slug>/
 
 stages:
   - id: research
     role: researcher
     inputs: [the derived objective and its acceptance criteria, the code in <repos>]
-    outputs: [work/<issue>/research.md]
+    outputs: [work/<slug>/research.md]
     produces: >
       What exists today, what the change touches in each repo, prior decisions that constrain it,
       options with their trade-offs. When the feature reads an external system (an API, counters, a file
@@ -20,8 +20,8 @@ stages:
 
   - id: spec
     role: specifier
-    inputs: [work/<issue>/research.md]
-    outputs: [work/<issue>/spec.md]
+    inputs: [work/<slug>/research.md]
+    outputs: [work/<slug>/spec.md]
     produces: >
       What the change must do, from the user's side, as acceptance criteria a test or a scenario can
       decide. What is out of scope. Which holdout scenarios apply, by name only.
@@ -32,22 +32,24 @@ stages:
 
   - id: plan
     role: planner
-    inputs: [work/<issue>/spec.md]
-    outputs: [work/<issue>/plan.md]
+    inputs: [work/<slug>/spec.md]
+    outputs: [work/<slug>/plan.md]
     produces: >
       The steps, the files in each repo, the tests to write first, and the risks. Each step names how it
       will be verified. When code moves out of an existing sequence (a refresh, a pipeline, a lock), the plan
       lists what that sequence guaranteed (fresh reads, order, locks held) and how the new path keeps each
       (close-step P21).
+    # Inside a project the owner's gates are the spec and the primary's pull request into the trunk (decision 4A,
+    # Nigel 2026-11-20), so the plan passes on its artefact (method-v0.2).
     gate:
-      kind: human
-      who: owner
-      passes_when: the owner approves plan.md
+      kind: evidence
+      passes_when: plan.md exists and the implement stage has been reached
+      blocks: false
 
   - id: implement
     role: implementer
-    inputs: [work/<issue>/plan.md]
-    outputs: [commits on the workstream's branch in each of <repos>, work/<issue>/implementation.md]
+    inputs: [work/<slug>/plan.md]
+    outputs: [commits on the workstream's branch in each of <repos>, work/<slug>/implementation.md]
     produces: >
       Tests first, then the code, then the build and tests green in every repo changed.
       implementation.md says what was done, and lists every difference from the plan, however small, including
@@ -57,8 +59,8 @@ stages:
   - id: verify
     role: verifier
     independent_of: implementer
-    inputs: [the branch in each of <repos>, work/<issue>/spec.md]
-    outputs: [work/<issue>/evidence.md]
+    inputs: [the branch in each of <repos>, work/<slug>/spec.md]
+    outputs: [work/<slug>/evidence.md]
     produces: >
       One result per repo: build, tests, and each applicable holdout scenario as pass or fail with its
       evidence. Run by someone other than the implementer; at L0 that is the owner or a separate session
@@ -80,20 +82,21 @@ stages:
   - id: review
     role: reviewer
     independent_of: implementer
-    inputs: [the diff in each of <repos>, work/<issue>/spec.md, work/<issue>/evidence.md, the reviewer rubric of each of <repos> (named in its AGENTS.md)]
-    outputs: [work/<issue>/review.md]
+    inputs: [the diff in each of <repos>, work/<slug>/spec.md, work/<slug>/evidence.md, the reviewer rubric of each of <repos> (named in its AGENTS.md)]
+    outputs: [work/<slug>/review.md]
     produces: >
       Findings against the spec and the reviewer rubric, each citing the rubric item or the spec line it
       breaks. A finding is fixed in code or explicitly accepted by the owner.
+    # An evidence gate inside a project from method-v0.2, as the plan's is.
     gate:
-      kind: human
-      who: owner
-      passes_when: no open findings, and the owner accepts
+      kind: evidence
+      passes_when: review.md has no open finding (each is fixed in code or accepted by the owner), and the compound stage has been reached
+      blocks: true
 
   - id: compound
     role: compounder
-    inputs: [everything in work/<issue>/]
-    outputs: [work/<issue>/lessons.md, proposed changes to method/ as a separate commit]
+    inputs: [everything in work/<slug>/]
+    outputs: [work/<slug>/lessons.md, proposed changes to method/ as a separate commit]
     produces: >
       What the method caught, what it missed, and what to change in a pipeline, the rubric or AGENTS.md
       so it is caught next time. Proposals only; the owner decides.
