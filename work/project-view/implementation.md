@@ -338,3 +338,4 @@ breadcrumb by its name instead; what it asserts is unchanged.
 | 3 | A refresh reads the run log once: the lifecycles step's reconciled runs are kept and shared with the busy-card check and Bring window forward; a busy check outside a refresh (renaming a handoff) still reads it fresh | (the shell has no test harness; behaviour unchanged) |
 | 4 | An area whose window would equal a readable project's window (an area named "Project P") gets `-area` added, so the two never share a window; with that project not reading, the area is named as before (AC 22). The reversible choice: nothing is refused and no setting changes | `ProjectWindowClashTests` |
 
+Suite after these fixes: **2029 of 2029 passed, 0 warnings** (the workstream log); 7 tests are new.
