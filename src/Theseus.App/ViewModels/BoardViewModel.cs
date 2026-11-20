@@ -20,6 +20,7 @@ public sealed class BoardViewModel : ObservableObject
     private List<WorkstreamCardViewModel> _all = [];
     private WorkstreamCardViewModel? _anchor;
     private IReadOnlyList<ProjectCardViewModel> _projects = [];
+    private IReadOnlyDictionary<string, ProjectCardPlace>? _projectPlaces;
 
     /// <summary>Creates the board over its stores.</summary>
     public BoardViewModel(IPlanStore plans, IBoardStore board, ISettingsStore settings)
@@ -48,9 +49,60 @@ public sealed class BoardViewModel : ObservableObject
 
     /// <summary>
     /// Every card loaded, whatever cell it is in, and a project's cards too, which are kept out of the grid while their
-    /// project card stands for them (project-view AC 13): starting, stopping and selecting still reach them.
+    /// project card stands for them (project-view AC 13): refreshing, starting and stopping still reach them. What the
+    /// selection commands act on is <see cref="ShownCards"/>.
     /// </summary>
     public IEnumerable<WorkstreamCardViewModel> Cards => _all;
+
+    /// <summary>The cards in the grid's cells, folded rows and columns included, as Select all has always ticked them.</summary>
+    public IReadOnlyList<WorkstreamCardViewModel> GridCards => [.. Cells.SelectMany(cell => cell.Cards)];
+
+    /// <summary>
+    /// The cards on screen: the open project view's while it is open, else the grid's. Select all, Invert, Select live
+    /// and the count of what is selected act on these, so nothing hidden is ticked (PR 2 review, item 1).
+    /// </summary>
+    public IReadOnlyList<WorkstreamCardViewModel> ShownCards => SelectionOrder?.Invoke() ?? GridCards;
+
+    /// <summary>Ticks or unticks every card shown.</summary>
+    public void ChooseShown(bool chosen)
+    {
+        foreach (var card in ShownCards)
+        {
+            card.IsSelected = chosen;
+        }
+    }
+
+    /// <summary>Turns over every tick on the cards shown.</summary>
+    public void InvertShown()
+    {
+        foreach (var card in ShownCards)
+        {
+            card.IsSelected = !card.IsSelected;
+        }
+    }
+
+    /// <summary>Ticks the cards shown with a session running, and unticks the rest of them.</summary>
+    public void SelectLiveShown()
+    {
+        foreach (var card in ShownCards)
+        {
+            card.IsSelected = card.IsLive;
+        }
+    }
+
+    /// <summary>
+    /// Unticks every card not shown, when the main area switches between the board and a project view, so a command on
+    /// the selection never reaches a card the owner cannot see.
+    /// </summary>
+    public void DeselectUnshown()
+    {
+        var shown = ShownCards.ToHashSet();
+
+        foreach (var card in _all.Where(card => card.IsSelected && !shown.Contains(card)))
+        {
+            card.IsSelected = false;
+        }
+    }
 
     /// <summary>Which cards are kept out of the grid: those of a readable project. Null keeps every card in it.</summary>
     public Func<WorkstreamCardViewModel, bool>? KeepOutOfGrid { get; set; }
@@ -73,9 +125,14 @@ public sealed class BoardViewModel : ObservableObject
         Place();
     }
 
-    /// <summary>Moves a project card to a cell and remembers it there (AC 12).</summary>
+    /// <summary>Moves a project card to a cell and remembers it there (AC 12); only where a card could be dropped.</summary>
     public void MoveProject(string name, string column, string area)
     {
+        if (!CanDrag)
+        {
+            return;
+        }
+
         var settings = _settings.Read();
         var places = new Dictionary<string, ProjectCardPlace>(settings.ProjectCardPlaces, StringComparer.OrdinalIgnoreCase)
         {
@@ -83,6 +140,7 @@ public sealed class BoardViewModel : ObservableObject
         };
 
         _settings.Write(settings with { ProjectCardPlaces = places });
+        _projectPlaces = places;
         Place();
     }
 
@@ -323,7 +381,13 @@ public sealed class BoardViewModel : ObservableObject
     /// </summary>
     private void PlaceProjects()
     {
-        var places = _settings.Read().ProjectCardPlaces;
+        if (_projects.Count == 0 && Cells.All(cell => cell.Projects.Count == 0))
+        {
+            return;
+        }
+
+        // Read once: Place runs on every refresh, and only a drag here changes the places.
+        var places = _projectPlaces ??= _settings.Read().ProjectCardPlaces;
         var first = Cells.FirstOrDefault();
 
         foreach (var cell in Cells)

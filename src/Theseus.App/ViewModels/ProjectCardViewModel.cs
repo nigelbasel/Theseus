@@ -11,6 +11,7 @@ public sealed class ProjectCardViewModel : ObservableObject
     private string _phaseText = string.Empty;
     private string _objectivesText = string.Empty;
     private IReadOnlyList<string> _waiting = [];
+    private string? _lastFailure;
 
     /// <summary>Creates a project card.</summary>
     /// <param name="name">The project's name: its file name without <c>.md</c>.</param>
@@ -64,6 +65,26 @@ public sealed class ProjectCardViewModel : ObservableObject
 
     /// <summary>The waiting list, for the count's tooltip.</summary>
     public string WaitingText => _waiting.Count == 0 ? "Nothing is waiting on you" : string.Join(Environment.NewLine, _waiting);
+
+    /// <summary>
+    /// Why the last read failed while the reading before it is shown (PR 2 review, item 9), or null when it is current.
+    /// </summary>
+    public string? LastFailure
+    {
+        get => _lastFailure;
+        set
+        {
+            if (Set(ref _lastFailure, value))
+            {
+                Raise(nameof(ToolTipText));
+            }
+        }
+    }
+
+    /// <summary>The card's tooltip: its title, and a failed last read when there was one.</summary>
+    public string ToolTipText => _lastFailure is null
+        ? Title
+        : $"{Title}{Environment.NewLine}The last read failed: {_lastFailure}. Showing the reading before it; a second failure in a row makes it unreadable.";
 
     /// <summary>Opens the project view (AC 14).</summary>
     public ICommand? OpenCommand { get; set; }

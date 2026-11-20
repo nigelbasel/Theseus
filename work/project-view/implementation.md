@@ -181,7 +181,8 @@ UI thread only combines them with the acceptance store.
 ## Decisions
 
 1. **`Board.Cards` is every card loaded**, not the cards in cells. Before this the two were the same set; now a
-   project's cards are kept out of the cells and must still be started, stopped, selected and refreshed.
+   project's cards are kept out of the cells and must still be started, stopped and refreshed. (Review fix 1: the
+   selection commands act on what is shown, `Board.ShownCards`, not on `Board.Cards`.)
 2. **The project card's place** is remembered by project name in settings. It is dropped on a cell's cards or its
    project strip. A column or row the current view does not have puts it in the first cell; dragging follows the
    board's rule (only in the stages view).
@@ -214,3 +215,36 @@ UI thread only combines them with the acceptance store.
 `dotnet test Theseus.slnx -p:NuGetAudit=false` at the pull request 2 commit: **1964 of 1964 passed, 0 warnings** (the
 workstream log); 36 tests are new since pull request 1's 1928. One existing test changed: the settings round-trip
 copies the new `ProjectCardPlaces` dictionary across, as it does every other collection, and asserts it round-trips.
+
+## Pull request 2 review fixes
+
+| Item | Fix | Test |
+|---|---|---|
+| 1 (must) | Select all, Invert, Select live, their commands' enabling and the "n selected" count act on `Board.ShownCards`: the grid's cards on the board (folded rows and columns included, as Select all has always ticked them), the view's cards while it is open. Clear selection still clears every card. Opening and closing the view untick the cards that leave sight (`Board.DeselectUnshown`) | `ShownSelectionTests` (each command on the board and in the view, the switch both ways, no projects, a folded row) |
+| 2 | The background read lands in two posts: the catalogue (membership, so which cards leave the grid), then the slugs' artefacts. Before the first catalogue nothing reads as readable, so no card is held out of the grid. A fresh reading shows the artefacts it had until the new ones land | `BackgroundProjectReadsTwoStepTests`, `ReadingContinuityTests.AFreshReading_…` |
+| 3 | The stale comment on Invert ("a query over the rows") is gone with the code; Select live's ("nothing is held back") and Select all's are rewritten; `Board.Cards`'s now says the selection acts on `ShownCards` | (comments) |
+| 4 | Where a slug was read is out of the view's signature and the entries' details; `ProjectEntryViewModel.Source` is live, and an unchanged view takes the new sources in place (`TakeSourcesFrom`) | `ProjectViewReviewFixTests.ANewCommit_…` (two) |
+| 5 | The acceptances are loaded once per wiring; the board reads the project cards' places from settings once and keeps them, updated by a drag, and not at all with no projects | (behaviour unchanged; covered by `BoardProjectTests`, `ProjectViewModelTests`) |
+| 6 | A verifier stays ended once its report was accepted, even if the link is removed afterwards; the shell passes every link, removed ones included | `ProjectArtefactsTests.AVerifier_HasEnded_…` |
+| 7 | `MoveProject` refuses where cards cannot be dropped (the session-state view), and the project strip's drop handler checks `CanDrag` too | `ProjectViewReviewFixTests.AProjectCard_IsNotMoved_…` |
+| 8 | Workstream › **Ope_n spec** (n is free beside St_op, Acc_ept and the rest) | `ProjectViewMarkupTests` |
+| 9 | `ReadingContinuity`: a project that read and then fails keeps its last good reading, with the failure in the project card's tooltip; a second failure in a row makes it unreadable; a folder no longer listed drops at once | `ReadingContinuityTests`, `ProjectViewReviewFixTests.AProjectCard_SaysWhenItsLastReadFailed` |
+
+**An expectation of this pull request's own test changed (item 6):** `ProjectArtefactsTests.AVerifier_HasEnded_…`
+asserted that removing an accepted report link brought the verifier back; the review judged that wrong, and it now
+asserts the verifier stays ended.
+
+**Decision (item 9):** one failed read no longer closes the view or brings a project's cards back to the grid; the
+second in a row does. This softens AC 13 ("if the project becomes unreadable … its cards return") by one read, about
+30 seconds, in exchange for a transient git failure not reshuffling the board. Removing a repository from Settings still
+returns its cards at once.
+
+**Decision (item 1):** on the board "shown" is the grid's cards including folded rows and columns, not
+`Board.VisibleCards` (which leaves folded ones out), so Select all with no projects ticks exactly what it always did
+(AC 22).
+
+### Open for the owner
+
+- **The background read's cost**: with about 15 slugs the artefact step is roughly 9 seconds of git (several commands
+  a slug) every 30 seconds while project repositories are listed. None of it is on the UI thread, but it is continuous.
+  A longer interval for the artefact step, or reading only slugs whose branch tip moved, would cut it.

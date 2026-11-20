@@ -7,8 +7,10 @@ namespace Theseus.App.ViewModels;
 /// One slug in a cell of the project view: its card, with the board's face and menu, or, for a slug with no card, a
 /// line saying where it stands (AC 4, 15). Its spec gate's Waiting on you, with Open spec and Accept spec, sits on it.
 /// </summary>
-public sealed class ProjectEntryViewModel
+public sealed class ProjectEntryViewModel : ObservableObject
 {
+    private string _source;
+
     /// <summary>Creates an entry.</summary>
     public ProjectEntryViewModel(string slug, string label, WorkstreamCardViewModel? card, WorkstreamStage stage, bool isVerifier)
     {
@@ -17,7 +19,27 @@ public sealed class ProjectEntryViewModel
         Card = card;
         Stage = stage;
         IsVerifier = isVerifier;
+        _source = stage.Source.Describe;
     }
+
+    /// <summary>
+    /// Where its work was read, branch and commit (AC 5). Kept live: a new commit changes it in place rather than
+    /// rebuilding the view (PR 2 review, item 4).
+    /// </summary>
+    public string Source
+    {
+        get => _source;
+        set
+        {
+            if (Set(ref _source, value))
+            {
+                Raise(nameof(ToolTipText));
+            }
+        }
+    }
+
+    /// <summary>Its tooltip: the gates passed, then where it was read.</summary>
+    public string ToolTipText => Detail.Length == 0 ? _source : $"{Detail}{Environment.NewLine}{_source}";
 
     /// <summary>The slug it is for; empty for a card in No slug yet.</summary>
     public string Slug { get; }

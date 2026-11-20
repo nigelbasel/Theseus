@@ -50,6 +50,7 @@ public class ProjectArtefactsTests
 
         Assert.That(VerifierEnding.HasEnded([waiting, handOver], "checker"), Is.False);
         Assert.That(VerifierEnding.HasEnded([accepted], "checker"), Is.True);
-        Assert.That(VerifierEnding.HasEnded([accepted with { RemovedUtc = made.AddHours(2) }], "checker"), Is.False);
+        Assert.That(VerifierEnding.HasEnded([accepted with { RemovedUtc = made.AddHours(2) }], "checker"), Is.True,
+            "removing the link afterwards does not bring the verifier back (PR 2 review, item 6)");
     }
 }

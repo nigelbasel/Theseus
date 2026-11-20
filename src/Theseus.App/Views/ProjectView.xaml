@@ -11,7 +11,7 @@
         <BooleanToVisibilityConverter x:Key="Visible" />
 
         <DataTemplate x:Key="EntryTemplate" DataType="{x:Type vm:ProjectEntryViewModel}">
-            <StackPanel Margin="0,0,0,6" ToolTip="{Binding Detail}">
+            <StackPanel Margin="0,0,0,6" ToolTip="{Binding ToolTipText}">
                 <ContentPresenter Content="{Binding Card}" ContentTemplate="{DynamicResource CardTemplate}"
                                   Visibility="{Binding HasCard, Converter={StaticResource Visible}}" />
                 <TextBlock x:Name="Label" Text="{Binding Label}" FontSize="12" TextWrapping="Wrap"

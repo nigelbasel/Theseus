@@ -42,7 +42,7 @@ public class ProjectViewMarkupTests
     public void EveryCommandInTheView_IsOnTheMenuBar()
     {
         Assert.That(Headers(Menu("_View")), Is.SupersetOf(new[] { "Open pro_ject", "Back to the boar_d" }));
-        Assert.That(Headers(Menu("_Workstream")), Is.SupersetOf(new[] { "_Start selected", "Open spec", "Acc_ept spec" }));
+        Assert.That(Headers(Menu("_Workstream")), Is.SupersetOf(new[] { "_Start selected", "Ope_n spec", "Acc_ept spec" }));
     }
 
     [Test]
@@ -50,7 +50,7 @@ public class ProjectViewMarkupTests
     {
         var items = Menu("_View").Descendants(Presentation + "MenuItem")
             .Concat(Menu("_Workstream").Descendants(Presentation + "MenuItem"))
-            .Where(item => (string?)item.Attribute("Header") is "Open pro_ject" or "Back to the boar_d" or "Open spec" or "Acc_ept spec")
+            .Where(item => (string?)item.Attribute("Header") is "Open pro_ject" or "Back to the boar_d" or "Ope_n spec" or "Acc_ept spec")
             .ToList();
 
         Assert.That(items.Select(item => (string?)item.Attribute("Visibility")), Is.EqualTo(new[]

@@ -1,4 +1,4 @@
-﻿<Window x:Class="Theseus.App.MainWindow"
+<Window x:Class="Theseus.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -235,7 +235,7 @@
             <Border x:Name="ProjectFace" Tag="ProjectCard" CornerRadius="8" Margin="0,0,0,8" Padding="12,10"
                     BorderThickness="2" BorderBrush="{DynamicResource AccentFillColorDefaultBrush}"
                     Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
-                    ToolTip="{Binding Title}"
+                    ToolTip="{Binding ToolTipText}"
                     MouseLeftButtonDown="OnProjectCardMouseDown">
                 <Border.ContextMenu>
                     <ContextMenu FontFamily="{x:Static SystemFonts.MessageFontFamily}">
@@ -1307,7 +1307,7 @@
                           ItemContainerStyle="{StaticResource ProjectChoiceItem}"
                           Visibility="{Binding HasProjectChoices, Converter={StaticResource BoolToVisibility}}"
                           ToolTip="Put the ticked cards in a project, under one of the slugs its project file lists, or take them out of it" />
-                <MenuItem Header="Open spec" ItemsSource="{Binding OpenSpecChoices}"
+                <MenuItem Header="Ope_n spec" ItemsSource="{Binding OpenSpecChoices}"
                           ItemContainerStyle="{StaticResource ProjectChoiceItem}"
                           Visibility="{Binding HasSpecChoices, Converter={StaticResource BoolToVisibility}}"
                           ToolTip="Open a spec waiting on you in the open project, as it was read" />

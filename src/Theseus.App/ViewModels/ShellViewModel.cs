@@ -110,10 +110,12 @@ public sealed class ShellViewModel : ObservableObject
         var git = new GitCli();
         var primaries = new ProjectPrimaryStore(Path.Combine(App.DataDirectory, "project-primaries.json"));
         var dispatcher = Dispatcher.CurrentDispatcher;
-        // The stages' git reads ride the same background read, so the project view runs no git on this thread.
+        // The stages' git reads ride the same background read, so the project view runs no git on this thread; they
+        // land after the catalogue, which alone decides which cards leave the grid.
         _projectReads = new BackgroundProjectReads(
-            folders => [.. ProjectCatalog.Read(folders, git, primaries).Select(reading => ProjectArtefacts.Attach(reading, git))],
-            action => dispatcher.BeginInvoke(action), TimeSpan.FromSeconds(30));
+            folders => ProjectCatalog.Read(folders, git, primaries),
+            action => dispatcher.BeginInvoke(action), TimeSpan.FromSeconds(30),
+            attach: readings => [.. readings.Select(reading => ProjectArtefacts.Attach(reading, git))]);
         _acceptances = new SpecAcceptanceStore(Path.Combine(App.DataDirectory, "spec-acceptances.json"));
         CloseProjectCommand = new RelayCommand(_ => CloseProject(), _ => IsProjectOpen);
         _projectReads.Changed += (_, _) => WireProjectChoices();
@@ -141,10 +143,10 @@ public sealed class ShellViewModel : ObservableObject
             _ => ChosenToStart().Count > 0);
         StopSelectedCommand = new RelayCommand(_ => BeginStop(ChosenSteps()),
             _ => ChosenSteps().Count > 0);
-        SelectAllCommand = new RelayCommand(_ => ChooseAll(true), _ => Board.Cards.Any(card => !card.IsSelected));
+        SelectAllCommand = new RelayCommand(_ => ChooseAll(true), _ => Board.ShownCards.Any(card => !card.IsSelected));
         ClearSelectionCommand = new RelayCommand(_ => ChooseAll(false), _ => Board.Cards.Any(card => card.IsSelected));
-        InvertSelectionCommand = new RelayCommand(_ => Invert(), _ => Board.Cards.Any());
-        SelectLiveCommand = new RelayCommand(_ => SelectLive(), _ => Board.Cards.Any(card => card.IsLive));
+        InvertSelectionCommand = new RelayCommand(_ => Invert(), _ => Board.ShownCards.Any());
+        SelectLiveCommand = new RelayCommand(_ => SelectLive(), _ => Board.ShownCards.Any(card => card.IsLive));
         ArchiveSelectedCommand = new RelayCommand(_ => ArchiveSelected(), _ => Chosen().Any(card => !card.IsLive));
         VerifySelectedWithHoldoutsCommand = new RelayCommand(_ => VerifyWithHoldouts(Chosen()[0]),
             _ => Chosen() is [var only] && CanVerify(only));
@@ -384,7 +386,7 @@ public sealed class ShellViewModel : ObservableObject
     /// <summary>Starts the ticked cards that can be started.</summary>
     public RelayCommand StartSelectedCommand { get; }
 
-    /// <summary>Ticks every card on the board.</summary>
+    /// <summary>Ticks every card shown: the board's, or the open project view's.</summary>
     public RelayCommand SelectAllCommand { get; }
 
     /// <summary>Unticks every card.</summary>
@@ -456,7 +458,7 @@ public sealed class ShellViewModel : ObservableObject
     }
 
     /// <summary>How many cards are ticked, so the buttons can say what they would act on.</summary>
-    public string SelectionSummary => Board.Cards.Count(card => card.IsSelected) is var count && count > 0
+    public string SelectionSummary => Board.ShownCards.Count(card => card.IsSelected) is var count && count > 0
         ? $"{count} selected"
         : "none selected";
 
@@ -780,17 +782,13 @@ public sealed class ShellViewModel : ObservableObject
         StepsFor(Chosen());
 
     /// <summary>
-    /// Ticks or unticks every card, including the ones in the last column. Nothing is held back:
-    /// hiding a card from Select all would be the same guess about the board's shape that this
-    /// replaced, and a tick the user can see and remove is honest where a silent exclusion is not.
+    /// Ticks every card shown whose session is running, and unticks the rest of them, the last column's
+    /// included: a tick the user can see and remove is honest where a silent exclusion is not. A card
+    /// behind its project card is not shown, so it is left alone (PR 2 review, item 1).
     /// </summary>
     private void SelectLive()
     {
-        foreach (var card in Board.Cards)
-        {
-            card.IsSelected = card.IsLive;
-        }
-
+        Board.SelectLiveShown();
         SelectionMoved();
     }
 
@@ -946,15 +944,19 @@ public sealed class ShellViewModel : ObservableObject
         var projectCards = new List<ProjectCardViewModel>();
         ProjectViewModel? openView = null;
 
+        // Read once per wiring, not once per slug.
+        IReadOnlyList<SpecAcceptance> acceptances = readable.Count == 0 ? [] : _acceptances.Load();
+
         foreach (var reading in readable)
         {
-            var view = BuildView(reading, cards);
+            var view = BuildView(reading, cards, acceptances);
             var file = reading.File!;
             var projectCard = Board.ProjectCards.FirstOrDefault(existing => existing.Name == reading.Name)
                               ?? new ProjectCardViewModel(reading.Name, file.Title);
             var name = reading.Name;
 
             projectCard.OpenCommand ??= new RelayCommand(_ => OpenProject(name));
+            projectCard.LastFailure = reading.LastFailure;
             projectCard.PhaseText = file.CurrentPhase is { } phase ? $"Phase {phase.Number}: {phase.Name}" : "Every objective done";
             projectCard.ObjectivesText = $"{file.ObjectivesDone} of {file.Objectives.Count} objectives done";
 
@@ -999,14 +1001,21 @@ public sealed class ShellViewModel : ObservableObject
         {
             ProjectView = openView;
         }
+        else if (openView is not null)
+        {
+            ProjectView?.TakeSourcesFrom(openView);
+        }
 
         WireSpecChoices();
     }
 
-    private ProjectViewModel BuildView(ProjectFileReading reading, IReadOnlyList<WorkstreamCardViewModel> cards) =>
+    private ProjectViewModel BuildView(ProjectFileReading reading, IReadOnlyList<WorkstreamCardViewModel> cards,
+        IReadOnlyList<SpecAcceptance> acceptances) =>
         ProjectViewModel.Build(reading, cards,
-            (project, slug) => _acceptances.Latest(project, slug),
-            workstream => VerifierEnding.HasEnded(Chains?.ActiveLinks ?? [], workstream.Key),
+            (project, slug) => acceptances.LastOrDefault(acceptance =>
+                string.Equals(acceptance.Project, project, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(acceptance.Slug, slug, StringComparison.OrdinalIgnoreCase)),
+            workstream => VerifierEnding.HasEnded(Chains?.AllLinks ?? [], workstream.Key),
             OpenSpec, AcceptSpec, CloseProjectCommand);
 
     /// <summary>Open spec and Accept spec on the menu bar, for the open project's waiting specs (R16).</summary>
@@ -1045,6 +1054,8 @@ public sealed class ShellViewModel : ObservableObject
         }
 
         Board.SelectionOrder = () => ProjectView?.CardsInOrder ?? [];
+        Board.DeselectUnshown();
+        SelectionMoved();
         Raise(nameof(IsProjectOpen));
         Raise(nameof(IsBoardShown));
         System.Windows.Input.CommandManager.InvalidateRequerySuggested();
@@ -1056,6 +1067,8 @@ public sealed class ShellViewModel : ObservableObject
         _openProjectName = null;
         ProjectView = null;
         Board.SelectionOrder = null;
+        Board.DeselectUnshown();
+        SelectionMoved();
         WireSpecChoices();
         Raise(nameof(IsProjectOpen));
         Raise(nameof(IsBoardShown));
@@ -1346,27 +1359,25 @@ public sealed class ShellViewModel : ObservableObject
         Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
     }
 
+    // Clearing reaches every card, shown or not; ticking reaches only what is shown (PR 2 review, item 1).
     private void ChooseAll(bool chosen)
     {
-        foreach (var card in Board.Cards)
+        if (chosen)
         {
-            card.IsSelected = chosen;
+            Board.ChooseShown(true);
+        }
+        else
+        {
+            Board.ClearSelection();
         }
 
         SelectionMoved();
     }
 
-    /// <summary>
-    /// Ticks what is not ticked and unticks what is. Materialised first because the board's cards
-    /// come from a query over the rows, and turning one over while walking it is asking for trouble.
-    /// </summary>
+    /// <summary>Ticks what is not ticked and unticks what is, among the cards shown.</summary>
     private void Invert()
     {
-        foreach (var card in Board.Cards.ToList())
-        {
-            card.IsSelected = !card.IsSelected;
-        }
-
+        Board.InvertShown();
         SelectionMoved();
     }
 

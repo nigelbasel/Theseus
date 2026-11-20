@@ -502,6 +502,7 @@ public partial class MainWindow : Window
     private void OnProjectsDrop(object sender, DragEventArgs e)
     {
         if (sender is not FrameworkElement { DataContext: ColumnViewModel column }
+            || Board?.CanDrag != true
             || e.Data.GetData(DataFormats.StringFormat) is not string dropped)
         {
             return;

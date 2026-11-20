@@ -14,6 +14,12 @@ public sealed record ProjectFileReading(string Name, ProjectReadingStatus Status
     public IReadOnlyDictionary<string, WorkstreamArtefacts> Artefacts { get; init; } =
         new Dictionary<string, WorkstreamArtefacts>(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Why the last read failed, when this is the reading before it, kept through one failed read; null when it is
+    /// current (PR 2 review, item 9).
+    /// </summary>
+    public string? LastFailure { get; init; }
+
     /// <summary>Whether it was read in the current shape.</summary>
     public bool IsReadable => Status == ProjectReadingStatus.Readable && File is not null;
 

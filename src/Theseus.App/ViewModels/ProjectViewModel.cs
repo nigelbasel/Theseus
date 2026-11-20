@@ -279,7 +279,6 @@ public sealed class ProjectViewModel
         var lines = new List<string>
         {
             stage.Gates.Count == 0 ? "No gate marks" : passed.Count == 0 ? "No gate passed yet" : $"Passed: {string.Join(", ", passed)}",
-            stage.Source.Describe,
         };
 
         if (stage.EvidenceClaims.Count > 0)
@@ -311,6 +310,24 @@ public sealed class ProjectViewModel
 
     private static string StageName(PipelineStage stage) => stage.ToString().ToLower(CultureInfo.InvariantCulture);
 
+    /// <summary>
+    /// Takes the read sources from a newer build of the same view, which has the same signature and so the same entries
+    /// in the same order: a new commit updates the tooltips in place, without a rebuild (PR 2 review, item 4).
+    /// </summary>
+    public void TakeSourcesFrom(ProjectViewModel newer)
+    {
+        ArgumentNullException.ThrowIfNull(newer);
+
+        foreach (var (mine, theirs) in Entries(this).Zip(Entries(newer)))
+        {
+            mine.Source = theirs.Source;
+        }
+    }
+
+    private static IEnumerable<ProjectEntryViewModel> Entries(ProjectViewModel view) =>
+        view.Rows.SelectMany(row => row.Loose.Concat(row.Cells.SelectMany(cell => cell.Entries)));
+
+    // The signature leaves out where each slug was read: a new commit is not a new view.
     private static string SignatureOf(ProjectFile file, IReadOnlyList<ProjectPipelineRowViewModel> rows, IReadOnlyList<ProjectTreeNodeViewModel> tree) =>
         string.Join("|", new[] { file.Name, file.Title }
             .Concat(rows.Select(row => row.Heading + ":" + string.Join(",", row.Loose.Select(Shape))
