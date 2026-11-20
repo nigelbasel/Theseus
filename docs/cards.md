@@ -27,13 +27,17 @@ the work itself are not Theseus's files and are left alone. It is refused while 
 A card can belong to a project. Each project is a folder inside the **Projects folder** you set in **Tools >
 Options**, holding a `project.md` in the method's format and a `work` folder of its workstreams' records, all plain
 files kept outside your code repositories. Theseus watches the folder and reads a project again as soon as a file in it
-changes. While at least one project can be read, the
-card's menu and the **Workstream** menu have **Project**: choose a project, then the workstream slug the card works
-under there (the slugs its project file lists), or **No slug yet**, or **Not in a project**. A slug another card
-already works under is refused, except for a verifier card, which shares the slug of the card it checks. With no
-projects folder set, nothing here appears.
+changes. With no projects folder set, nothing here appears.
 
-A project that can be read shows on the board as one **project card**, which you drag to the column you want. It shows
+The project file says which cards are in the project: each row of its workstreams table names a card by its name on the
+board, with the slug of the records folder it works in. A card named in several rows has worked under several slugs,
+and its last row is its current one. A verifier card goes with the card it checks. To change it, use a card's
+**Add to project…**, **Remove from project** or **Convert to project…**, or edit `project.md`: both change the file,
+and the board follows within a couple of seconds. In the project view, tick a criterion's box to tick it in the file,
+right-click an objective for **Edit…**, and right-click a phase, or use the project card's menu, for **Add objective…**.
+
+Every project in the folder shows on the board as one **project card**, which you drag to the column you want. One
+whose `project.md` does not read is dimmed and says why; double-click it to open the file. A project that reads shows
 the project's current phase, how many objectives are done, and a count of what is waiting on you; hover over the count
 to list it. The project's own cards leave the board while the card stands for them, and come back if the project can no
 longer be read. Double-click the project card, choose **Open** on its menu, or **View > Open project**, to fill the main

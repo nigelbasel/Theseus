@@ -2,18 +2,34 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="New project"
-        Width="480"
+        Width="560"
         SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False"
         ResizeMode="NoResize"
         Background="{DynamicResource SolidBackgroundFillColorSecondaryBrush}">
+    <!-- New project, as New workstream is a dialog of its own (1.1c AC 6). Only the name is needed; the rest fills in
+         the starter project.md, and what is left empty keeps the starter's prompt to fill in later. -->
     <StackPanel Margin="20">
         <TextBlock Text="Name" FontWeight="SemiBold" />
         <TextBox x:Name="NameBox" Margin="0,6,0,0" TextChanged="OnNameChanged" />
-        <TextBlock x:Name="Hint" Margin="0,6,0,0" FontSize="11" TextWrapping="Wrap"
-                   Foreground="{DynamicResource TextFillColorTertiaryBrush}"
-                   Text="Lower-case letters, digits and hyphens, such as my-project. It names the project's folder in the projects folder, which gets a project.md to fill in and an empty work folder." />
+        <TextBlock Margin="0,4,0,0" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                   Text="Lower-case letters, digits and hyphens, such as my-project. It names the project's folder in the projects folder." />
+
+        <TextBlock Text="Title" FontWeight="SemiBold" Margin="0,12,0,0" />
+        <TextBox x:Name="TitleBox" Margin="0,6,0,0" />
+
+        <TextBlock Text="Objective" FontWeight="SemiBold" Margin="0,12,0,0" />
+        <TextBox x:Name="ObjectiveBox" Margin="0,6,0,0" MinHeight="60" TextWrapping="Wrap" AcceptsReturn="False"
+                 VerticalScrollBarVisibility="Auto" />
+        <TextBlock Margin="0,4,0,0" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                   Text="One paragraph: the outcome the whole project exists for." />
+
+        <TextBlock Text="Primary branch" FontWeight="SemiBold" Margin="0,12,0,0" />
+        <TextBox x:Name="PrimaryBox" Margin="0,6,0,0" />
+        <TextBlock Margin="0,4,0,0" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                   Text="The project's long-lived branch off the trunk, such as you/my-project: workstream branches come off it, and one pull request takes it into the trunk." />
+
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
             <Button x:Name="CreateButton" Content="_Create" IsDefault="True" MinWidth="88" Click="OnCreate" IsEnabled="False" />
             <Button Content="Cancel" IsCancel="True" MinWidth="88" Margin="8,0,0,0" />

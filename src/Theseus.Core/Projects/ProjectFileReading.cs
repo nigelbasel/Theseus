@@ -10,6 +10,9 @@ public sealed record ProjectFileReading(string Name, ProjectReadingStatus Status
     /// <summary>The project home folder it was read from, when it came from one.</summary>
     public string? Folder { get; init; }
 
+    /// <summary>The project file's text as read, which an owner's edit must still find there (1.1c AC 9).</summary>
+    public string? Text { get; init; }
+
     /// <summary>Each listed slug's artefacts, read from the project home; keyed by slug.</summary>
     public IReadOnlyDictionary<string, WorkstreamArtefacts> Artefacts { get; init; } =
         new Dictionary<string, WorkstreamArtefacts>(StringComparer.OrdinalIgnoreCase);

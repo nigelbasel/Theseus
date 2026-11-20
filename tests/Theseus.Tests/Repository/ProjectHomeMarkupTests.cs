@@ -4,7 +4,8 @@ using System.Xml.Linq;
 namespace Theseus.Tests.Repository;
 
 /// <summary>
-/// The markup of 1.1b pull request 2: Project › New project… shows only once a projects folder is set (AC 7, 13); the
+/// The markup of 1.1b pull request 2, as 1.1c moved it: New project… sits beside New workstream, in the File menu and on
+/// the toolbar, only once a projects folder is set (1.1c AC 6; 1.1b AC 13); the
 /// Settings panel that explains the model shows until one is saved, with both Choose buttons and the help link (AC 11);
 /// the help page it and the Help menu name is in the docs (AC 12). The markup alone: what is rendered is for the live
 /// check (P11).
@@ -15,15 +16,19 @@ public class ProjectHomeMarkupTests
     private static readonly XNamespace Presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
 
     [Test]
-    public void TheProjectMenu_OffersNewProject_OnlyOnceAProjectsFolderIsSet()
+    public void NewProject_SitsBesideNewWorkstream_OnlyOnceAProjectsFolderIsSet()
     {
-        var project = Load("MainWindow.xaml").Descendants(Presentation + "MenuItem")
-            .Single(item => (string?)item.Attribute("Header") == "_Project");
+        var window = Load("MainWindow.xaml");
+        var file = window.Descendants(Presentation + "MenuItem").Single(item => (string?)item.Attribute("Header") == "_File");
+        var newProject = window.Descendants().Where(element => (string?)element.Attribute("Command") == "{Binding NewProjectCommand}").ToList();
 
-        Assert.That((string?)project.Attribute("Visibility"),
-            Is.EqualTo("{Binding HasProjectsFolder, Converter={StaticResource BoolToVisibility}}"));
-        Assert.That(project.Elements(Presentation + "MenuItem").Select(item => (string?)item.Attribute("Command")),
-            Is.EqualTo(new[] { "{Binding NewProjectCommand}" }));
+        Assert.That(newProject.Select(element => element.Name.LocalName), Is.EquivalentTo(new[] { "MenuItem", "Button" }), "the File menu and the toolbar");
+        Assert.That(newProject.Select(element => (string?)element.Attribute("Visibility")),
+            Is.All.EqualTo("{Binding HasProjectsFolder, Converter={StaticResource BoolToVisibility}}"));
+        Assert.That(file.Elements(Presentation + "MenuItem").Select(item => (string?)item.Attribute("Command")),
+            Does.Contain("{Binding NewProjectCommand}"));
+        Assert.That(window.Descendants(Presentation + "MenuItem").Select(item => (string?)item.Attribute("Header")),
+            Has.None.EqualTo("_Project"), "no menu of its own any more");
     }
 
     [Test]

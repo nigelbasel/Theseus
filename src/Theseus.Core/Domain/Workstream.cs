@@ -63,11 +63,11 @@ public sealed record Workstream(
     public WorkstreamRole Role { get; init; }
 
     /// <summary>
-    /// The project this card belongs to, by its project file's name, or null for ad hoc work. At most one (decision 2,
-    /// Nigel 2026-11-20; project-view AC 4).
+    /// The project this card is in, or null for ad hoc work: never stored, but set each time the projects are read,
+    /// from the project file whose workstreams table names the card (1.1c AC 1).
     /// </summary>
     public string? Project { get; init; }
 
-    /// <summary>The workstream slug it currently works under in its project, or null while it has none yet.</summary>
+    /// <summary>Its current slug in that project: the last row naming it (1.1c AC 2).</summary>
     public string? Slug { get; init; }
 }

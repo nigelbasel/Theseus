@@ -235,12 +235,17 @@
             <Border x:Name="ProjectFace" Tag="ProjectCard" CornerRadius="8" Margin="0,0,0,8" Padding="12,10"
                     BorderThickness="2" BorderBrush="{DynamicResource AccentFillColorDefaultBrush}"
                     Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
-                    ToolTip="{Binding ToolTipText}"
+                    ToolTip="{Binding ToolTipText}" Opacity="{Binding CardOpacity}"
                     MouseLeftButtonDown="OnProjectCardMouseDown">
                 <Border.ContextMenu>
                     <ContextMenu FontFamily="{x:Static SystemFonts.MessageFontFamily}">
                         <MenuItem Header="_Open" FontWeight="SemiBold" Command="{Binding OpenCommand}"
-                                  ToolTip="Open the project view in the main area (also View › Open project)" />
+                                  ToolTip="{Binding OpenToolTip}" />
+                        <MenuItem Header="Open project._md" Command="{Binding OpenFileCommand}"
+                                  ToolTip="Open the project's file in its editor" />
+                        <MenuItem Header="Add o_bjective…" Command="{Binding AddObjectiveCommand}"
+                                  Visibility="{Binding IsDimmed, Converter={StaticResource NotBoolToVisibility}}"
+                                  ToolTip="Add an objective at the end of the current phase in project.md" />
                     </ContextMenu>
                 </Border.ContextMenu>
                 <StackPanel>
@@ -457,10 +462,13 @@
             <MenuItem Header="_Verify with holdouts…"
                       Command="{Binding VerifyWithHoldoutsCommand}" ToolTipService.ShowOnDisabled="True"
                       ToolTip="Create a verifier card that runs the holdout scenarios this card's spec names, and reports only a verdict back. Needs the holdout scenarios folder set in Tools > Options; not offered for a verifier card or an archived one" />
-            <MenuItem Header="Pro_ject" ItemsSource="{Binding ProjectChoices}"
-                      ItemContainerStyle="{StaticResource ProjectChoiceItem}"
-                      Visibility="{Binding HasProjectChoices, Converter={StaticResource BoolToVisibility}}"
-                      ToolTip="Which project this card belongs to, and the workstream slug it works under there. Acts on the selection when this card is in it" />
+            <Separator />
+            <MenuItem Header="Add to pro_ject…" Command="{Binding AddToProjectCommand}" ToolTipService.ShowOnDisabled="True"
+                      ToolTip="Add this card to a project: a row naming it under one of the project's objectives in its project.md. Needs a projects folder; not for a card already in a project" />
+            <MenuItem Header="Remove from projec_t" Command="{Binding RemoveFromProjectCommand}" ToolTipService.ShowOnDisabled="True"
+                      ToolTip="Take this card's rows out of its project's project.md. Its records in the project's work folder are kept" />
+            <MenuItem Header="Convert to proje_ct…" Command="{Binding ConvertToProjectCommand}" ToolTipService.ShowOnDisabled="True"
+                      ToolTip="Start a new project with this card as its first workstream, and its handoff as the project's first record" />
         </ContextMenu>
 
         <DataTemplate x:Key="CardTemplate" DataType="{x:Type vm:WorkstreamCardViewModel}">
@@ -1203,6 +1211,8 @@
         -->
         <Menu DockPanel.Dock="Top" Padding="8,2,8,0" Background="Transparent">
             <MenuItem Header="_File">
+                <MenuItem Header="New pro_ject…" Command="{Binding NewProjectCommand}"
+                          Visibility="{Binding HasProjectsFolder, Converter={StaticResource BoolToVisibility}}" />
                 <MenuItem Header="_New workstream…" InputGestureText="Ctrl+N" Command="{Binding NewWorkstream.OpenCommand}">
                     <MenuItem.Icon><TextBlock Text="&#xE710;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
                 </MenuItem>
@@ -1286,12 +1296,6 @@
                 </MenuItem>
             </MenuItem>
 
-            <!-- Only once a projects folder is set, so a board with none looks exactly as before (1.1b AC 13). -->
-            <MenuItem Header="_Project" Visibility="{Binding HasProjectsFolder, Converter={StaticResource BoolToVisibility}}">
-                <MenuItem Header="_New project…" Command="{Binding NewProjectCommand}"
-                          ToolTip="A new project folder in the projects folder, with a project.md to fill in and an empty work folder" />
-            </MenuItem>
-
             <MenuItem Header="_Workstream">
                 <MenuItem Header="_Start selected" Command="{Binding StartSelectedCommand}"
                           ToolTip="Start the ticked cards that are not already running">
@@ -1312,10 +1316,6 @@
                 <MenuItem Header="_Verify with holdouts…" Command="{Binding VerifySelectedWithHoldoutsCommand}"
                           ToolTipService.ShowOnDisabled="True"
                           ToolTip="Create a verifier card for the one ticked card: it runs the holdout scenarios its spec names, and reports only a verdict back. Needs one card ticked and the holdout scenarios folder set in Tools > Options; not offered for a verifier card or an archived one" />
-                <MenuItem Header="Pro_ject" ItemsSource="{Binding ProjectChoices}"
-                          ItemContainerStyle="{StaticResource ProjectChoiceItem}"
-                          Visibility="{Binding HasProjectChoices, Converter={StaticResource BoolToVisibility}}"
-                          ToolTip="Put the ticked cards in a project, under one of the slugs its project file lists, or take them out of it" />
                 <MenuItem Header="Ope_n spec" ItemsSource="{Binding OpenSpecChoices}"
                           ItemContainerStyle="{StaticResource ProjectChoiceItem}"
                           Visibility="{Binding HasSpecChoices, Converter={StaticResource BoolToVisibility}}"
@@ -1367,6 +1367,9 @@
             <ToolBar Background="Transparent">
                 <Button Style="{StaticResource ToolIcon}" Content="&#xE710;" ToolTip="New workstream (Ctrl+N)" AutomationProperties.Name="New workstream"
                         Command="{Binding NewWorkstream.OpenCommand}" />
+                <Button Style="{StaticResource ToolIcon}" Content="&#xE8F4;" ToolTip="New project" AutomationProperties.Name="New project"
+                        Command="{Binding NewProjectCommand}"
+                        Visibility="{Binding HasProjectsFolder, Converter={StaticResource BoolToVisibility}}" />
 
                 <Separator />
 

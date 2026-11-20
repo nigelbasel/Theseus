@@ -11,6 +11,8 @@ public static class ProjectStarter
 {
     private const string StarterResource = "Theseus.Core.Starter.project.md";
     private const string TitlePlaceholder = "<Project title>";
+    private const string ObjectivePlaceholder = "One paragraph: the outcome the whole project exists for.";
+    private const string PrimaryPlaceholder = "<user>/<project>";
 
     /// <summary>The starter project file's text, as shipped.</summary>
     public static string StarterText()
@@ -59,8 +61,19 @@ public static class ProjectStarter
     }
 
     /// <summary>Makes the project's home folder from the starter and returns it. Call <see cref="Refusal"/> first.</summary>
-    public static string Start(string projectsFolder, string name)
+    public static string Start(string projectsFolder, string name) =>
+        Start(projectsFolder, new NewProjectDetails(name, string.Empty, string.Empty, string.Empty));
+
+    /// <summary>
+    /// Makes the project's home folder from the starter with its title, objective and primary branch filled in, and
+    /// returns it; what is left empty keeps the starter's prompt. Call <see cref="Refusal"/> first.
+    /// </summary>
+    public static string Start(string projectsFolder, NewProjectDetails details)
     {
+        ArgumentNullException.ThrowIfNull(details);
+
+        var name = details.Name;
+
         if (Refusal(projectsFolder, name) is { } refusal)
         {
             throw new InvalidOperationException(refusal);
@@ -76,7 +89,7 @@ public static class ProjectStarter
             // CreateNew, so a project made by someone else since the check is never overwritten.
             using var file = new FileStream(Path.Combine(home, ProjectCatalog.ProjectFileName), FileMode.CreateNew, FileAccess.Write);
             using var writer = new StreamWriter(file);
-            writer.Write(StarterText().Replace(TitlePlaceholder, name, StringComparison.Ordinal));
+            writer.Write(Filled(details));
         }
         catch (IOException)
         {
@@ -91,6 +104,28 @@ public static class ProjectStarter
         }
 
         return home;
+    }
+
+    /// <summary>The starter's text with the details filled in, each on one line as the shape needs.</summary>
+    public static string Filled(NewProjectDetails details)
+    {
+        ArgumentNullException.ThrowIfNull(details);
+
+        static string OneLine(string text) => string.Join(' ', text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)).Trim();
+
+        var text = StarterText().Replace(TitlePlaceholder, OneLine(details.Title) is { Length: > 0 } title ? title : details.Name, StringComparison.Ordinal);
+
+        if (OneLine(details.Objective) is { Length: > 0 } objective)
+        {
+            text = text.Replace(ObjectivePlaceholder, objective, StringComparison.Ordinal);
+        }
+
+        if (OneLine(details.PrimaryBranch) is { Length: > 0 } primary)
+        {
+            text = text.Replace(PrimaryPlaceholder, primary, StringComparison.Ordinal);
+        }
+
+        return text;
     }
 
     private static readonly HashSet<string> ReservedNames = new(StringComparer.OrdinalIgnoreCase)

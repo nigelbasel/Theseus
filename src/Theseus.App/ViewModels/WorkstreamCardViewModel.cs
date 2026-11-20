@@ -38,7 +38,6 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     private bool _isCollapsed;
     private IReadOnlyList<PullRequestLink> _pullRequests = [];
     private IReadOnlyList<CardItemRow> _jiraItems = [];
-    private IReadOnlyList<ProjectChoice> _projectChoices = [];
     private string _projectSource = string.Empty;
     private IReadOnlyList<CardItemRow> _pullRequestItems = [];
     private string _branch = string.Empty;
@@ -626,21 +625,14 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     /// <summary>Creates a verifier card for this card's change, from its menu (verifier-card AC 9).</summary>
     public RelayCommand? VerifyWithHoldoutsCommand { get; set; }
 
-    /// <summary>The card menu's Project items (project-view AC 4); empty while no project is readable.</summary>
-    public IReadOnlyList<ProjectChoice> ProjectChoices
-    {
-        get => _projectChoices;
-        set
-        {
-            if (Set(ref _projectChoices, value))
-            {
-                Raise(nameof(HasProjectChoices));
-            }
-        }
-    }
+    /// <summary>Add to project…: adds the card's row to a project's file (1.1c AC 7).</summary>
+    public RelayCommand? AddToProjectCommand { get; set; }
 
-    /// <summary>Whether the card's menu shows Project at all.</summary>
-    public bool HasProjectChoices => _projectChoices.Count > 0;
+    /// <summary>Remove from project: removes the card's rows from its project's file (1.1c AC 7).</summary>
+    public RelayCommand? RemoveFromProjectCommand { get; set; }
+
+    /// <summary>Convert to project…: a new project with this card as its first workstream (1.1c AC 7).</summary>
+    public RelayCommand? ConvertToProjectCommand { get; set; }
 
     /// <summary>
     /// Where its project slug's work was read, branch and commit (project-view AC 5); empty for a card in no readable

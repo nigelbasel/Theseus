@@ -24,11 +24,9 @@ public class ReReviewFixTests
     {
         var fixture = Board();
         var member = fixture.Card("member")!;
-        member.Workstream = member.Workstream with { Project = "p", Slug = "a-slug" };
-        fixture.Board.Persist(member);
         member.IsSelected = true;
 
-        fixture.Board.KeepOutOfGrid = card => card.Workstream.Project == "p";
+        fixture.Board.KeepOutOfGrid = card => card.Key == "member";
         fixture.Board.Refresh();
 
         Assert.That(fixture.Card("member")!.IsSelected, Is.False, "the first catalogue landing took it out of sight");
@@ -39,26 +37,23 @@ public class ReReviewFixTests
     public void ATickedCard_ThatJoinsAReadableProject_IsUnticked()
     {
         var fixture = Board();
-        fixture.Board.KeepOutOfGrid = card => card.Workstream.Project == "p";
+        var named = false;
+        fixture.Board.KeepOutOfGrid = card => named && card.Key == "member";
         fixture.Board.Refresh();
         var member = fixture.Card("member")!;
         member.IsSelected = true;
 
-        member.Workstream = member.Workstream with { Project = "p", Slug = "a-slug" };
-        fixture.Board.Persist(member);
+        named = true;
         fixture.Board.Refresh();
 
-        Assert.That(fixture.Card("member")!.IsSelected, Is.False, "SetProject's refresh took it out of sight");
+        Assert.That(fixture.Card("member")!.IsSelected, Is.False, "the refresh after its project file named it took it out of sight");
     }
 
     [Test]
     public void TheSelectedCardCommands_TakeOnlyShownCards_EvenIfAHiddenOneIsTicked()
     {
         var fixture = Board();
-        var member = fixture.Card("member")!;
-        member.Workstream = member.Workstream with { Project = "p", Slug = "a-slug" };
-        fixture.Board.Persist(member);
-        fixture.Board.KeepOutOfGrid = card => card.Workstream.Project == "p";
+        fixture.Board.KeepOutOfGrid = card => card.Key == "member";
         fixture.Board.Refresh();
         fixture.Card("ad-hoc")!.IsSelected = true;
 

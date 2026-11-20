@@ -254,7 +254,7 @@ public sealed partial class McpHandler
                         ["description"] = "Optional: issues it carries. Each must already be on this workstream's card.",
                     },
                     ["reason"] = Property("Optional: why it is wanted, shown to the user."),
-                    ["slug"] = Property("Optional, for a workstream in a project: the slug it works under, as listed in the project file's workstreams table (it names work/<slug>/ and its branch). The new card joins this workstream's project."),
+                    ["slug"] = Property("Optional, for a workstream in a project: a new slug for its records folder and branch (work/<slug>/, <user>/<slug>), lower-case letters, digits and hyphens, not one already in the project file's workstreams table. On approval the new card's row is added under this workstream's objective."),
                 },
                 "title", "brief", "done_criteria", "report_back"),
             Tool("proposal_status",

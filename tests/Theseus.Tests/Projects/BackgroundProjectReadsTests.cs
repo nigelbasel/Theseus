@@ -142,6 +142,26 @@ public class BackgroundProjectReadsTests
     }
 
     [Test]
+    public void AProjectJustWritten_ReplacesItsReadingAtOnce_AndItsMembersWithIt()
+    {
+        var before = ProjectFileReader.Read("p", TestProjectsFolder.ProjectText("P", body: TestProjectsFolder.OneObjective("a-slug"))
+            .Replace("| A workstream |", "| old-card |", StringComparison.Ordinal));
+        var after = ProjectFileReader.Read("p", TestProjectsFolder.ProjectText("P", body: TestProjectsFolder.OneObjective("a-slug"))
+            .Replace("| A workstream |", "| new-card |", StringComparison.Ordinal));
+        var reads = Reads(_ => [before]);
+        _readAnswers.Set();
+        reads.Request(@"C:\projects");
+        WaitForTheResult();
+        var changed = 0;
+        reads.Changed += (_, _) => changed++;
+
+        reads.Replace(after);
+
+        Assert.That((reads.Current.Single(), changed), Is.EqualTo((after, 1)));
+        Assert.That((reads.Members.Of("old-card"), reads.Members.Of("new-card")?.Slug), Is.EqualTo(((ProjectMember?)null, "a-slug")));
+    }
+
+    [Test]
     public void NoFolderSet_RunsNoRead()
     {
         var reads = Reads();

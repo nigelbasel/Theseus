@@ -33,7 +33,6 @@ public sealed class ShellViewModel : ObservableObject
     private IReadOnlyList<ProjectChoice> _acceptSpecChoices = [];
     private Theseus.Core.Terminal.ProjectWindowTarget _projectWindow = new(null, "Open a project first");
     private string _projectSummary = string.Empty;
-    private IReadOnlyList<ProjectChoice> _projectChoices = [];
     private readonly LaunchCoordinator _launcher;
     private readonly IPlanStore _plans;
     private readonly ITabColourAllocator _colours;
@@ -115,7 +114,7 @@ public sealed class ShellViewModel : ObservableObject
         _projectReads = new BackgroundProjectReads(
             ProjectCatalog.Read,
             action => dispatcher.BeginInvoke(action),
-            new RememberedProjects(Path.Combine(App.DataDirectory, "readable-projects.json")));
+            new RememberedProjects(Path.Combine(App.DataDirectory, "project-members.json")));
         _projectWatcher = new ProjectFolderWatcher(() => dispatcher.BeginInvoke(() =>
         {
             _projectReads.MarkStale();
@@ -234,21 +233,21 @@ public sealed class ShellViewModel : ObservableObject
                     return;
                 }
 
-                var slugDropped = approved is null ? null : JoinProposersProject(card, approved);
+                var joined = approved is null ? null : JoinProposersProject(card, approved);
 
                 if (created.StartNow)
                 {
                     StartMany([card.Workstream]);
 
-                    if (slugDropped is not null)
+                    if (joined is not null)
                     {
-                        Notice = string.IsNullOrWhiteSpace(Notice) ? slugDropped : $"{Notice} {slugDropped}";
+                        Notice = string.IsNullOrWhiteSpace(Notice) ? joined : $"{Notice} {joined}";
                     }
 
                     return;
                 }
 
-                Notice = $"Created {card.Title} in {card.Column}." + (slugDropped is null ? string.Empty : $" {slugDropped}");
+                Notice = joined ?? $"Created {card.Title} in {card.Column}.";
             },
             () => Chains?.TakenKeys ?? [],
             () => _settings.Read().BriefFolderName);
@@ -849,31 +848,19 @@ public sealed class ShellViewModel : ObservableObject
 
         if (Board.Card(key) is { } created)
         {
-            created.Workstream = ProjectMembership.ForVerifier(created.Workstream with
+            created.Workstream = created.Workstream with
             {
                 Role = VerifierCard.Role,
                 StatusDocumentPath = verifier.HandoffPath,
-            }, card.Workstream);
+            };
             Board.Persist(created);
         }
 
         Chains?.FollowedOn(card.Key, key, verifier.ReportPath);
+        WireProjectChoices();
 
         TheseusLog.Information("Created {Verifier} to verify {Workstream} with the holdout scenarios", key, card.Key);
         Notice = $"Created {verifier.Title}. Start it when you are ready.";
-    }
-
-    /// <summary>The menu bar's Project items, acting on the ticked cards; empty while no project is readable (AC 4, 22).</summary>
-    public IReadOnlyList<ProjectChoice> ProjectChoices
-    {
-        get => _projectChoices;
-        private set
-        {
-            if (Set(ref _projectChoices, value))
-            {
-                Raise(nameof(HasProjectChoices));
-            }
-        }
     }
 
     /// <summary>A project workstream's records folder in its project home, as last read; null for any other card.</summary>
@@ -884,58 +871,277 @@ public sealed class ShellViewModel : ObservableObject
             ? Path.Combine(home, WorkstreamArtefactReader.WorkFolder, slug)
             : null;
 
-    /// <summary>Whether Workstream › Project (and the card menu's) shows: some project is readable.</summary>
-    public bool HasProjectChoices => _projectChoices.Count > 0;
-
-    /// <summary>Whether a projects folder is set, so the menu bar shows Project › New project… (1.1b AC 7 and 13).</summary>
+    /// <summary>Whether a projects folder is set, so New project… shows in the File menu and on the toolbar (1.1c AC 6).</summary>
     public bool HasProjectsFolder => _hasProjectsFolder;
 
-    /// <summary>Project › New project…: a project home from the starter, named by the owner (1.1b AC 7).</summary>
+    /// <summary>New project…: a project home from the starter, with what the owner gives (1.1b AC 7; 1.1c AC 6).</summary>
     public RelayCommand NewProjectCommand { get; }
 
-    /// <summary>Asks the owner the new project's name; null when he cancels. Set by the app.</summary>
-    public Func<string?>? AskProjectName { get; set; }
+    /// <summary>Asks for a new project's details, starting from a name and title; null when cancelled. Set by the app.</summary>
+    public Func<string, string, NewProjectDetails?>? AskNewProject { get; set; }
+
+    /// <summary>Asks for one line of text: the dialog's title, the field's label, and what it starts with. Set by the app.</summary>
+    public Func<string, string, string, string?>? AskText { get; set; }
+
+    /// <summary>Asks for a new objective. Set by the app.</summary>
+    public Func<NewObjective?>? AskObjective { get; set; }
+
+    /// <summary>Asks which project, objective and slug a card joins, from the readable projects. Set by the app.</summary>
+    public Func<IReadOnlyList<ProjectOption>, string, AddToProjectChoice?>? AskAddToProject { get; set; }
 
     private void NewProject()
     {
+        if (AskNewProject?.Invoke(string.Empty, string.Empty) is { } details)
+        {
+            StartProject(details);
+        }
+    }
+
+    /// <summary>Starts a project from the starter and returns its reading-to-be's folder, or null with a notice.</summary>
+    private string? StartProject(NewProjectDetails details)
+    {
         var folder = ProjectsFolderPath.Normalize(_settings.Read().ProjectsFolder);
 
-        if (ProjectStarter.FolderRefusal(folder) is { } noFolder)
-        {
-            Notice = noFolder;
-
-            return;
-        }
-
-        if (AskProjectName?.Invoke() is not { } name)
-        {
-            return;
-        }
-
-        if (ProjectStarter.Refusal(folder, name) is { } refusal)
+        if (ProjectStarter.Refusal(folder, details.Name) is { } refusal)
         {
             Notice = refusal;
 
-            return;
+            return null;
         }
 
         try
         {
-            var home = ProjectStarter.Start(folder, name);
-            TheseusLog.Information("Started project {Project} in {Folder}", name, home);
-            Notice = $"Started project {name} in {home}. Its project card is on the board; fill in its project.md.";
+            var home = ProjectStarter.Start(folder, details);
+            TheseusLog.Information("Started project {Project} in {Folder}", details.Name, home);
+            Notice = $"Started project {details.Name} in {home}. Its project card is on the board.";
             _projectReads.MarkStale();
             WireProjects();
+
+            return home;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            Notice = $"Project {name} could not be started: {exception.Message}";
+            Notice = $"Project {details.Name} could not be started: {exception.Message}";
+
+            return null;
         }
     }
 
+    /// <summary>The project as last read, by name, when it reads.</summary>
+    private ProjectFileReading? Readable(string project) =>
+        _projectReads.Current.FirstOrDefault(reading =>
+            reading.IsReadable && string.Equals(reading.Name, project, StringComparison.OrdinalIgnoreCase));
+
     /// <summary>
-    /// Reads the projects in the projects folder and offers their slugs on every card's menu and the menu bar. With no
-    /// folder set nothing runs and nothing is offered (project-view AC 1, 4 and 22; 1.1b AC 1 and 13).
+    /// Writes an owner's edit to a project's file (1.1c AC 9) and reads the projects again; a refusal, such as the file
+    /// having changed since it was read, is the notice. Returns whether it was written.
+    /// </summary>
+    private bool EditProject(string project, Func<string, string> edit, string done)
+    {
+        if (Readable(project) is not { } reading)
+        {
+            Notice = $"{project} does not read, so Theseus cannot edit it; open its project.md instead.";
+
+            return false;
+        }
+
+        try
+        {
+            var written = ProjectFileWriter.Apply(reading, edit);
+            TheseusLog.Information("Edited the project file of {Project}: {Edit}", project, done);
+            Notice = done;
+            _projectReads.MarkStale();
+            _projectReads.Replace(ProjectFileReader.Read(reading.Name, written) with
+            {
+                Folder = reading.Folder,
+                Text = written,
+                Artefacts = reading.Artefacts,
+            });
+
+            return true;
+        }
+        catch (ProjectEditRefusedException refused)
+        {
+            Notice = $"{project}: {refused.Message}";
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            Notice = $"{project}: project.md could not be written: {exception.Message}";
+        }
+
+        return false;
+    }
+
+    /// <summary>A branch for a slug, named as the project's primary branch is: its owner's prefix, then the slug.</summary>
+    private static string BranchFor(ProjectFile file, string slug) =>
+        file.PrimaryBranch.LastIndexOf('/') is var slash and > 0 ? $"{file.PrimaryBranch[..slash]}/{slug}" : slug;
+
+    /// <summary>The Repos cell for a card's row: its folders' names, which a session corrects as it works.</summary>
+    private static string ReposOf(WorkstreamCardViewModel card) =>
+        string.Join(", ", new[] { card.Workstream.WorkingDirectory }.Concat(card.Workstream.AddDirectories)
+            .Select(folder => Path.GetFileName(folder.TrimEnd('\\', '/')))
+            .Where(name => name.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)) is { Length: > 0 } names ? names : "[to be recorded]";
+
+    /// <summary>Add to project… on a card (1.1c AC 7): adds its row to the chosen objective's table.</summary>
+    private void AddToProject(WorkstreamCardViewModel card)
+    {
+        var options = _projectReads.Current.Where(reading => reading.IsReadable)
+            .Select(reading => new ProjectOption(reading.Name, $"{reading.File!.Title} ({reading.Name})",
+                [.. reading.File.Objectives.Select(objective => (objective.Number, objective.Title))]))
+            .ToList();
+
+        if (options.Count == 0)
+        {
+            Notice = "No project reads yet: start one with New project…, or set the projects folder in Tools > Options.";
+
+            return;
+        }
+
+        var slug = ProjectMembership.IsSlug(card.Key) ? card.Key : string.Empty;
+
+        if (AskAddToProject?.Invoke(options, slug) is not { } choice || Readable(choice.Project)?.File is not { } file)
+        {
+            return;
+        }
+
+        var row = new ProjectWorkstreamRow(card.Key, choice.Slug, BranchFor(file, choice.Slug), ReposOf(card), 0);
+
+        EditProject(choice.Project, text => ProjectFileEditor.AddRow(text, choice.Objective, row),
+            $"{card.Title} is in {choice.Project} as {choice.Slug}, under objective {choice.Objective}.");
+    }
+
+    /// <summary>
+    /// A card made from a proposal by a card in a project joins that project (1.1c AC 3): its row goes under the
+    /// proposer's objective, with the slug the proposal named, else the new card's key. The approval is the owner's act,
+    /// so the row is written as Add to project… writes it; a proposal from an ad hoc card makes an ad hoc card.
+    /// </summary>
+    private string? JoinProposersProject(WorkstreamCardViewModel card, Theseus.Core.Proposals.WorkstreamProposal proposal)
+    {
+        if (Board.Card(proposal.RequesterKey) is not { Workstream: { Project: { } project, Slug: { } proposerSlug } }
+            || Readable(project)?.File is not { } file
+            || file.ObjectiveOf(proposerSlug) is not { } objective)
+        {
+            return null;
+        }
+
+        var slug = proposal.Request.Slug is { } named && ProjectMembership.IsSlug(named) ? named
+            : ProjectMembership.IsSlug(card.Key) ? card.Key
+            : null;
+
+        if (slug is null)
+        {
+            return $"Created {card.Title}, not in {project}: give it a slug with Add to project….";
+        }
+
+        var row = new ProjectWorkstreamRow(card.Key, slug, BranchFor(file, slug), ReposOf(card), 0);
+
+        if (!EditProject(project, text => ProjectFileEditor.AddRow(text, objective.Number, row),
+                $"Created {card.Title}, in {project} as {slug} under objective {objective.Number}."))
+        {
+            return $"Created {card.Title}, not in {project}: {Notice}";
+        }
+
+        // In the project now, not when the read lands, so a Start now opens it in the project's window.
+        card.Workstream = card.Workstream with { Project = project, Slug = slug };
+
+        return Notice;
+    }
+
+    /// <summary>Remove from project on a card (1.1c AC 7): removes its rows; its records stay.</summary>
+    private void RemoveFromProject(WorkstreamCardViewModel card)
+    {
+        if (card.Workstream.Project is not { } project)
+        {
+            return;
+        }
+
+        EditProject(project, text => ProjectFileEditor.RemoveRows(text, card.Key),
+            $"{card.Title} is no longer in {project}. Its records in the project's work folder are kept.");
+    }
+
+    /// <summary>
+    /// Convert to project… on a card (1.1c AC 7): a new project named after the card, the card as the first row of its
+    /// first objective, and its handoff copied in as the project's first record.
+    /// </summary>
+    private void ConvertToProject(WorkstreamCardViewModel card)
+    {
+        var name = ProjectMembership.IsSlug(card.Key) ? card.Key : string.Empty;
+
+        if (AskNewProject?.Invoke(name, card.Title) is not { } details || StartProject(details) is not { } home)
+        {
+            return;
+        }
+
+        var slug = details.Name;
+
+        try
+        {
+            var text = File.ReadAllText(Path.Combine(home, ProjectCatalog.ProjectFileName));
+            var file = ProjectFileReader.Read(details.Name, text).File
+                       ?? throw new ProjectEditRefusedException("the new project.md does not read");
+            var first = file.Objectives.FirstOrDefault()
+                        ?? throw new ProjectEditRefusedException("the new project.md has no objective");
+            var row = new ProjectWorkstreamRow(card.Key, slug, BranchFor(file, slug), ReposOf(card), 0);
+            var reading = ProjectFileReading.Read(file) with { Folder = home, Text = text };
+
+            ProjectFileWriter.Apply(reading, current => ProjectFileEditor.AddRow(current, first.Number, row));
+
+            var records = Path.Combine(home, WorkstreamArtefactReader.WorkFolder, slug);
+            Directory.CreateDirectory(records);
+
+            var copied = string.Empty;
+
+            if (card.Workstream.StatusDocumentPath is { } handoff && File.Exists(handoff))
+            {
+                try
+                {
+                    File.Copy(handoff, Path.Combine(records, "handoff.md"), overwrite: false);
+                }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+                {
+                    copied = $" Its handoff could not be copied in: {exception.Message}";
+                }
+            }
+
+            Notice = $"{card.Title} is now project {details.Name}, as its first workstream. Fill in its project.md.{copied}";
+            _projectReads.MarkStale();
+            WireProjects();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ProjectEditRefusedException)
+        {
+            Notice = $"Project {details.Name} was started, but {card.Title} could not be added to it: {exception.Message}";
+        }
+    }
+
+    /// <summary>Add objective… on a project card or phase (1.1c AC 8).</summary>
+    private void AddObjective(string project, int phase)
+    {
+        if (AskObjective?.Invoke() is not { } objective)
+        {
+            return;
+        }
+
+        EditProject(project, text => ProjectFileEditor.AddObjective(text, phase, objective.Title, objective.Criteria).Text,
+            $"Added objective {objective.Title} to phase {phase} of {project}.");
+    }
+
+    /// <summary>Edit… on an objective (1.1c AC 8): its title.</summary>
+    private void EditObjective(string project, string number)
+    {
+        var current = Readable(project)?.File?.Objectives.FirstOrDefault(objective => objective.Number == number)?.Title ?? string.Empty;
+
+        if (AskText?.Invoke("Edit objective", $"Objective {number}'s title", current) is not { } title || title == current)
+        {
+            return;
+        }
+
+        EditProject(project, text => ProjectFileEditor.RenameObjective(text, number, title), $"Objective {number} of {project} is now {title}.");
+    }
+
+    /// <summary>
+    /// Reads the projects in the projects folder; the cards they name are put in them when the read lands. With no folder
+    /// set nothing runs and nothing on the board changes (project-view AC 22; 1.1b AC 1 and 13; 1.1c AC 1).
     /// </summary>
     private void WireProjects()
     {
@@ -962,7 +1168,10 @@ public sealed class ShellViewModel : ObservableObject
         WireProjectChoices();
     }
 
-    /// <summary>Offers the projects as last read on every card's menu and the menu bar, replacing only what changed.</summary>
+    /// <summary>
+    /// Puts each card in the project whose file names it, as last read (1.1c AC 1 and 2), then lays out the project cards.
+    /// Run after every refresh, since a card rebuilt from its files knows no project.
+    /// </summary>
     private void WireProjectChoices()
     {
         var readings = _projectReads.Current;
@@ -980,26 +1189,42 @@ public sealed class ShellViewModel : ObservableObject
             }
         }
 
-        // Compared by what they show: replacing an unchanged menu would close a submenu the owner has open.
+        var memberOf = ApplyMembership(_projectReads.Members);
+
+        // Before this run's first read lands there is no project card, so nothing may leave the grid: remembered members
+        // only choose the window a start opens in (1.1c review, item 2).
+        WireProjectBoard(readings, memberOf, _projectReads.HasLanded && _projectReads.Members.ByCard.Count > 0);
+    }
+
+    /// <summary>
+    /// Sets each card's project and slug from the members. A verifier no table names takes its subject's, its subject
+    /// being the card it reports back to (1.1c plan, departure 1). Only a card whose place changed is touched.
+    /// </summary>
+    private Func<WorkstreamCardViewModel, ProjectMember?> ApplyMembership(ProjectMembers members)
+    {
+        var subjects = (Chains?.AllLinks ?? [])
+            .Where(link => link.Kind == LinkKind.ReportsBack)
+            .GroupBy(link => link.From, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.Last().To, StringComparer.OrdinalIgnoreCase);
+
+        ProjectMember? MemberOf(WorkstreamCardViewModel card) =>
+            members.Of(card.Key)
+            ?? (card.Workstream.Role == WorkstreamRole.Verifier && subjects.TryGetValue(card.Key, out var subject)
+                ? members.Of(subject)
+                : null);
+
         foreach (var card in Board.Cards)
         {
-            var target = card;
-            var choices = ProjectMenu.For(readings, card.Workstream, (project, slug) => SetProject(Targets(target), project, slug));
+            var member = MemberOf(card);
 
-            if (!choices.SequenceEqual(card.ProjectChoices))
+            if (!string.Equals(card.Workstream.Project, member?.Project, StringComparison.Ordinal)
+                || !string.Equals(card.Workstream.Slug, member?.Slug, StringComparison.Ordinal))
             {
-                card.ProjectChoices = choices;
+                card.Workstream = card.Workstream with { Project = member?.Project, Slug = member?.Slug };
             }
         }
 
-        var bar = ProjectMenu.For(readings, null, (project, slug) => SetProject(Chosen(), project, slug));
-
-        if (!bar.SequenceEqual(ProjectChoices))
-        {
-            ProjectChoices = bar;
-        }
-
-        WireProjectBoard(readings);
+        return MemberOf;
     }
 
     /// <summary>
@@ -1007,7 +1232,8 @@ public sealed class ShellViewModel : ObservableObject
     /// leave the grid; an unreadable or unlisted project's come back to it (AC 13). With no readable project the board is
     /// exactly as before (AC 22).
     /// </summary>
-    private void WireProjectBoard(IReadOnlyList<ProjectFileReading> readings)
+    private void WireProjectBoard(IReadOnlyList<ProjectFileReading> readings, Func<WorkstreamCardViewModel, ProjectMember?> memberOf,
+        bool anyMembers)
     {
         var readable = readings.Where(reading => reading.IsReadable).ToList();
         var names = readable.Select(reading => reading.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -1018,7 +1244,7 @@ public sealed class ShellViewModel : ObservableObject
             card.ProjectSource = string.Empty;
         }
 
-        Board.KeepOutOfGrid = ProjectGridRule.KeepOutOfGrid(readings);
+        Board.KeepOutOfGrid = ProjectGridRule.KeepOutOfGrid(memberOf, anyMembers);
 
         var reports = Chains?.NeedsYou.Where(row => row.IsReported).Select(row => row.Link).ToList() ?? [];
         var proposals = Chains?.Proposals?.Pending.Select(row => (row.Proposal.RequesterKey, row.Proposal.Request.Title)).ToList() ?? [];
@@ -1032,11 +1258,18 @@ public sealed class ShellViewModel : ObservableObject
         {
             var view = BuildView(reading, cards, acceptances);
             var file = reading.File!;
-            var projectCard = Board.ProjectCards.FirstOrDefault(existing => existing.Name == reading.Name)
+            var projectCard = Board.ProjectCards.FirstOrDefault(existing =>
+                                  string.Equals(existing.Name, reading.Name, StringComparison.OrdinalIgnoreCase) && !existing.IsDimmed)
                               ?? new ProjectCardViewModel(reading.Name, file.Title);
             var name = reading.Name;
 
             projectCard.OpenCommand ??= new RelayCommand(_ => OpenProject(name));
+            projectCard.Warning = _projectReads.Members.Clashes.Contains(name, StringComparer.OrdinalIgnoreCase)
+                ? $"A card this project names is also named by another project ({string.Join(", ", _projectReads.Members.Clashes.Where(other => !string.Equals(other, name, StringComparison.OrdinalIgnoreCase)))}); it shows in the first by name."
+                : null;
+            projectCard.OpenFileCommand ??= new RelayCommand(_ => OpenFile(Path.Combine(reading.Folder!, ProjectCatalog.ProjectFileName)));
+            projectCard.AddObjectiveCommand ??= new RelayCommand(_ =>
+                AddObjective(name, Readable(name)?.File?.CurrentPhase?.Number ?? Readable(name)?.File?.Phases.LastOrDefault()?.Number ?? 0));
             projectCard.PhaseText = file.CurrentPhase is { } phase ? $"Phase {phase.Number}: {phase.Name}" : "Every objective done";
             projectCard.ObjectivesText = $"{file.ObjectivesDone} of {file.Objectives.Count} objectives done";
 
@@ -1057,9 +1290,35 @@ public sealed class ShellViewModel : ObservableObject
             }
         }
 
+        var openable = projectCards.ToList();
+
+        // A project whose file does not read still gets its card, dimmed and saying why (1.1c AC 5).
+        foreach (var reading in readings.Where(reading =>
+                     !reading.IsReadable && reading.Folder is { } home && File.Exists(Path.Combine(home, ProjectCatalog.ProjectFileName))))
+        {
+            var projectCard = Board.ProjectCards.FirstOrDefault(existing =>
+                                  string.Equals(existing.Name, reading.Name, StringComparison.OrdinalIgnoreCase) && existing.IsDimmed)
+                              ?? new ProjectCardViewModel(reading.Name, reading.Name) { IsDimmed = true };
+            var file = Path.Combine(reading.Folder!, ProjectCatalog.ProjectFileName);
+
+            projectCard.OpenCommand ??= new RelayCommand(_ => OpenFile(file));
+            projectCard.OpenFileCommand ??= projectCard.OpenCommand;
+            projectCard.PhaseText = reading.Status == ProjectReadingStatus.Pinned
+                ? $"Pinned to {MethodKits.Pinned}: its project.md is in the older shape"
+                : $"Does not read: {reading.Reason}";
+            projectCard.ObjectivesText = "Double-click to open its project.md";
+
+            if (projectCard.Waiting.Count > 0)
+            {
+                projectCard.Waiting = [];
+            }
+
+            projectCards.Add(projectCard);
+        }
+
         Board.ShowProjects(projectCards);
 
-        var openChoices = projectCards
+        var openChoices = openable
             .Select(card => new ProjectChoice(card.Name.Replace("_", "__", StringComparison.Ordinal), false, card.OpenCommand,
                 [], $"Open {card.Title} in the main area") { ShowsTick = false })
             .ToList();
@@ -1144,7 +1403,13 @@ public sealed class ShellViewModel : ObservableObject
                 string.Equals(acceptance.Project, project, StringComparison.OrdinalIgnoreCase)
                 && string.Equals(acceptance.Slug, slug, StringComparison.OrdinalIgnoreCase)),
             workstream => VerifierEnding.HasEnded(Chains?.AllLinks ?? [], workstream.Key),
-            OpenSpec, AcceptSpec, CloseProjectCommand);
+            OpenSpec, AcceptSpec, CloseProjectCommand,
+            new ProjectViewEdits(
+                (line, ticked) => EditProject(reading.Name, text => ProjectFileEditor.SetCriterion(text, line, ticked),
+                    ticked ? $"Ticked a criterion of {reading.Name}." : $"Unticked a criterion of {reading.Name}."),
+                number => EditObjective(reading.Name, number),
+                phase => AddObjective(reading.Name, phase),
+                () => OpenFile(Path.Combine(reading.Folder!, ProjectCatalog.ProjectFileName))));
 
     /// <summary>Open spec and Accept spec on the menu bar, for the open project's waiting specs (R16).</summary>
     private void WireSpecChoices()
@@ -1304,72 +1569,6 @@ public sealed class ShellViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Puts cards in a project under a slug, in one with no slug yet, or in none. A slug another card already works
-    /// under is refused for every card but a verifier (AC 4 and 10).
-    /// </summary>
-    private void SetProject(IReadOnlyList<WorkstreamCardViewModel> cards, string? project, string? slug)
-    {
-        if (cards.Count == 0)
-        {
-            Notice = "Tick a card first: Project acts on the ticked cards.";
-
-            return;
-        }
-
-        var refusals = new List<string>();
-
-        foreach (var card in cards)
-        {
-            if (ProjectMembership.Refusal(Board.Cards.Select(other => other.Workstream), card.Workstream, project, slug) is { } refusal)
-            {
-                refusals.Add(refusal);
-
-                continue;
-            }
-
-            card.Workstream = ProjectMembership.Join(card.Workstream, project, slug);
-            Board.Persist(card);
-        }
-
-        Refresh();
-
-        var where = project is null ? "in no project" : slug is null ? $"in {project}, with no slug yet" : $"in {project} as {slug}";
-        var moved = cards.Count - refusals.Count;
-
-        Notice = refusals.Count == 0
-            ? $"{(moved == 1 ? cards[0].Title + " is" : $"{moved} cards are")} now {where}."
-            : string.Join(" ", refusals);
-    }
-
-    /// <summary>
-    /// A card made from a proposal joins its proposer's project, under the slug the proposal named. A slug another card
-    /// already holds is left off, so the card waits under No slug yet rather than sharing it (AC 4); what to tell the owner
-    /// about that is returned, else null.
-    /// </summary>
-    private string? JoinProposersProject(WorkstreamCardViewModel card, Theseus.Core.Proposals.WorkstreamProposal proposal)
-    {
-        if (Board.Card(proposal.RequesterKey) is not { Workstream.Project: not null } proposer)
-        {
-            return null;
-        }
-
-        var joined = ProjectMembership.FromProposal(card.Workstream, proposer.Workstream, proposal.Request.Slug);
-        string? dropped = null;
-
-        if (ProjectMembership.Refusal(Board.Cards.Select(other => other.Workstream), joined, joined.Project, joined.Slug) is { } refusal)
-        {
-            dropped = $"{card.Title} joined {joined.Project} with no slug yet: {refusal}";
-            joined = joined with { Slug = null };
-            TheseusLog.Information("{Card} joined {Project} with no slug yet: {Refusal}", card.Key, joined.Project, refusal);
-        }
-
-        card.Workstream = joined;
-        Board.Persist(card);
-
-        return dropped;
-    }
-
-    /// <summary>
     /// A report was confirmed on the board. A verifier's job ends there, so its card is stopped as a Stop press would
     /// stop it; no other card ever stops without a press (verifier-card AC 13).
     /// </summary>
@@ -1485,6 +1684,18 @@ public sealed class ShellViewModel : ObservableObject
     {
         Directory.CreateDirectory(path);
         Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+    }
+
+    private void OpenFile(string path)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+        }
+        catch (Exception exception) when (exception is System.ComponentModel.Win32Exception or FileNotFoundException)
+        {
+            Notice = $"{path} could not be opened: {exception.Message}";
+        }
     }
 
     // Clearing reaches every card, shown or not; ticking reaches only what is shown (PR 2 review, item 1).
@@ -1929,6 +2140,12 @@ public sealed class ShellViewModel : ObservableObject
             card.MenuPauseCommand ??= new RelayCommand(_ => PauseAll(Targets(card), pause: !card.IsPaused));
             card.PropertiesCommand ??= new RelayCommand(_ => ShowCard(card));
             card.VerifyWithHoldoutsCommand ??= new RelayCommand(_ => VerifyWithHoldouts(card), _ => CanVerify(card));
+            card.AddToProjectCommand ??= new RelayCommand(_ => AddToProject(card),
+                _ => _hasProjectsFolder && card.Workstream.Project is null && card.Workstream.Role != WorkstreamRole.Verifier);
+            card.RemoveFromProjectCommand ??= new RelayCommand(_ => RemoveFromProject(card),
+                _ => card.Workstream.Project is not null && card.Workstream.Role != WorkstreamRole.Verifier);
+            card.ConvertToProjectCommand ??= new RelayCommand(_ => ConvertToProject(card),
+                _ => _hasProjectsFolder && card.Workstream.Project is null && card.Workstream.Role != WorkstreamRole.Verifier);
             card.RenameHandoffCommand ??= new RelayCommand(_ => RenameHandoff(card), _ => card.HandoffRenameTo.Length > 0);
         }
 

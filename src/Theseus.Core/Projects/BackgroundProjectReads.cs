@@ -14,6 +14,8 @@ public sealed class BackgroundProjectReads
     private readonly RememberedProjects? _remembered;
 
     private string? _folder;
+    private ProjectMembers _members = ProjectMembers.None;
+    private ProjectMembers? _rememberedMembers;
     private bool _hasRequested;
     private bool _stale;
     private bool _hasPending;
@@ -38,12 +40,16 @@ public sealed class BackgroundProjectReads
     public bool HasLanded { get; private set; }
 
     /// <summary>
-    /// The projects that read: from the latest read once one has landed; until then, the ones remembered from the last
-    /// run, so a start at launch is not held back and still opens in the project's window (1.1 PR 3 review, item 2).
+    /// Which card is in which project: from the latest read once one has landed; until then, the members remembered from
+    /// the last run, so a start at launch is not held back and still opens in the project's window (1.1 PR 3 review,
+    /// item 2; 1.1c AC 1).
     /// </summary>
+    public ProjectMembers Members => HasLanded ? _members : _rememberedMembers ??= _remembered?.Load() ?? ProjectMembers.None;
+
+    /// <summary>The projects that read, by name: those of <see cref="Members"/> before the first read lands.</summary>
     public IReadOnlySet<string> ReadableNames => HasLanded
         ? Current.Where(reading => reading.IsReadable).Select(reading => reading.Name).ToHashSet(StringComparer.OrdinalIgnoreCase)
-        : _remembered?.Load() ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        : Members.ByCard.Values.Select(member => member.Project).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Whether a read is under way.</summary>
     public bool IsReading { get; private set; }
@@ -53,6 +59,24 @@ public sealed class BackgroundProjectReads
 
     /// <summary>Says something in the projects folder changed, so the next <see cref="Request"/> reads it again.</summary>
     public void MarkStale() => _stale = true;
+
+    /// <summary>
+    /// Puts in a project as Theseus has just written it, keeping its records as read, so a second edit made before the
+    /// watcher's read lands is checked against, and placed by, the file as it now is (1.1c review, item 6).
+    /// </summary>
+    public void Replace(ProjectFileReading reading)
+    {
+        ArgumentNullException.ThrowIfNull(reading);
+
+        if (!HasLanded)
+        {
+            return;
+        }
+
+        Current = [.. Current.Select(each => string.Equals(each.Name, reading.Name, StringComparison.OrdinalIgnoreCase) ? reading : each)];
+        _members = ProjectMembers.From(Current);
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
 
     /// <summary>Asks for the projects folder to be read, if it changed or is stale. Never waits for the read.</summary>
     public void Request(string? folder)
@@ -120,7 +144,8 @@ public sealed class BackgroundProjectReads
     private void Landed(IReadOnlyList<ProjectFileReading> readings)
     {
         HasLanded = true;
-        _remembered?.Remember(readings.Where(reading => reading.IsReadable).Select(reading => reading.Name));
+        _members = ProjectMembers.From(readings);
+        _remembered?.Remember(_members);
         Current = readings;
         Changed?.Invoke(this, EventArgs.Empty);
     }

@@ -12,16 +12,8 @@ public class BoardProjectTests
 {
     private static BoardFixture Board()
     {
+        // "member" and "other-member" are the cards a-project's file names; the rule below looks them up by key (1.1c).
         var fixture = new BoardFixture().With("ad-hoc").With("member").With("other-member", column: "In progress");
-        fixture.Board.Refresh();
-
-        foreach (var key in new[] { "member", "other-member" })
-        {
-            var card = fixture.Card(key)!;
-            card.Workstream = card.Workstream with { Project = "a-project", Slug = key };
-            fixture.Board.Persist(card);
-        }
-
         fixture.Board.Refresh();
 
         return fixture;
@@ -31,7 +23,7 @@ public class BoardProjectTests
         [.. fixture.Board.Cells.SelectMany(cell => cell.Cards).Select(card => card.Key).Order()];
 
     private static void ReadableProject(BoardFixture fixture) =>
-        fixture.Board.KeepOutOfGrid = card => card.Workstream.Project == "a-project";
+        fixture.Board.KeepOutOfGrid = card => card.Key is "member" or "other-member";
 
     [Test]
     public void WithNoProjects_EveryCardIsInTheGrid_AndNoCellHoldsAProjectCard()
