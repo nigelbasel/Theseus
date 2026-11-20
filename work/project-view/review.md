@@ -36,4 +36,4 @@ pinned and unlisted projects return their cards to the grid; only the owner's Ye
 tool, hook or file reaches it; the view is its own control and every command is on the menu bar (R16); the cache is
 keyed by commit and tree ids, so rewinds and merges stay correct.
 
-**Owner's decision recorded:** one failed read keeps the last good reading (AC 13 softened by one read).
+**For the owner to confirm:** one failed read keeps the last good reading (AC 13 softened by one read).
