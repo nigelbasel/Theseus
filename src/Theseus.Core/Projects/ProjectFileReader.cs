@@ -94,6 +94,12 @@ public static partial class ProjectFileReader
 
             if (kit is null)
             {
+                // method-v0.1 had no fixed shape, and its files say so in prose: "Kit: Theseus method-v0.1 (link)".
+                if (IsPlainV01KitLine(titleIndex + 1))
+                {
+                    return ProjectFileReading.PinnedTo(name);
+                }
+
                 throw new RefusalException(titleLine, "no **Kit:** line under the title");
             }
 
@@ -119,6 +125,12 @@ public static partial class ProjectFileReader
                 BeforeKit = beforeKit,
             });
         }
+
+        private bool IsPlainV01KitLine(int start) =>
+            lines.Skip(start)
+                .TakeWhile(line => !line.StartsWith("## ", StringComparison.Ordinal))
+                .Any(line => line.TrimStart().StartsWith("Kit:", StringComparison.Ordinal)
+                             && line.Contains(MethodKits.Pinned, StringComparison.OrdinalIgnoreCase));
 
         private (string? Kit, int KitLine, string? Primary, IReadOnlySet<string> BeforeKit) ReadHeader(int start)
         {

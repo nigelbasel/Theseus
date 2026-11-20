@@ -898,7 +898,7 @@ public sealed class ShellViewModel : ObservableObject
 
     private void NewProject()
     {
-        var folder = _settings.Read().ProjectsFolder;
+        var folder = ProjectsFolderPath.Normalize(_settings.Read().ProjectsFolder);
 
         if (ProjectStarter.FolderRefusal(folder) is { } noFolder)
         {
@@ -939,7 +939,7 @@ public sealed class ShellViewModel : ObservableObject
     /// </summary>
     private void WireProjects()
     {
-        var folder = _settings.Read().ProjectsFolder;
+        var folder = ProjectsFolderPath.Normalize(_settings.Read().ProjectsFolder);
 
         if (_hasProjectsFolder != !string.IsNullOrWhiteSpace(folder))
         {

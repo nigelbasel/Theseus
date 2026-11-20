@@ -178,6 +178,24 @@ public class ProjectFileReaderTests
     }
 
     [Test]
+    public void AFileWhoseProseKitLineNamesV01_IsPinned_NotUnreadable()
+    {
+        // As the BuildYourMarket MCP and LeadPro project files say it, written before the shape was fixed.
+        var reading = Read("## Objective\nAnything.\n",
+            "# A project\n\nProject file in the format of the method kit.\nKit: Theseus method-v0.1 (https://example.invalid/method-v0.1)\n\n");
+
+        Assert.That(reading.Status, Is.EqualTo(ProjectReadingStatus.Pinned));
+    }
+
+    [Test]
+    public void AFileWithNoKitLineAtAll_IsStillUnreadable()
+    {
+        var reading = Read("## Objective\nAnything.\n", "# A project\n\nNo kit named anywhere.\n\n");
+
+        Assert.That(reading.Reason, Is.EqualTo("line 1: no **Kit:** line under the title"));
+    }
+
+    [Test]
     public void AFileAtMethodV01_IsPinned_AndNotReadFurther()
     {
         var reading = Read("## Phase 0: anything at all\n- not the shape\n", "# A project\n\n**Kit:** method-v0.1\n\n");
