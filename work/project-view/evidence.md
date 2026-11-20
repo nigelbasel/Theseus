@@ -78,3 +78,24 @@ has run it and it passes (P18). Nothing here claims it.
 }
 ```
 
+
+**After the review fixes, 2026-11-20:** 2029 of 2029 passed, 0 warnings, run independently of the implementer. Verify
+stays open: **resume tomorrow** has not been run by a verifier card.
+
+```theseus-evidence
+{
+  "kit": "method-v0.2",
+  "pipeline": "feature",
+  "stage": "verify",
+  "result": "open",
+  "repos": [
+    { "repo": "Theseus", "build": "pass", "tests": { "passed": 2029, "total": 2029 }, "warnings": 0 }
+  ],
+  "scenarios": [
+    { "name": "resume tomorrow", "result": "not-run", "by": null }
+  ],
+  "gates": [
+    { "gate": "spec", "accepted": "2026-11-20" }
+  ]
+}
+```
