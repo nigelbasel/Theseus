@@ -255,6 +255,8 @@ From the re-review of these fixes:
 | R4 | A slug's files are read at the commit its source names, not by branch name, so its files, its tree and the commit shown always agree; the move to v0.2 is looked up at the primary's snapshotted tip | `ArtefactCacheReReviewTests.FilesAreRead_AtTheCommitTheSourceNames_…` |
 | R5 | Until a project's slugs are first read they say **reading…** (in the pipeline and the tree), no spec counts as waiting, and the project card's badge shows the count with an ellipsis and its tooltip says it is still reading | `ReReviewFixTests.BeforeTheFirstArtefactsLand_…`, `AProjectCardStillReading_…` |
 
+Suite after the re-review fixes: **1995 of 1995 passed, 0 warnings** (the workstream log); 8 tests are new.
+
 ### The background read's cost (was open; closed)
 
 With about 15 slugs the artefact step was roughly 9 seconds of git every 30 seconds. `ArtefactCache` now re-reads a
