@@ -126,6 +126,14 @@ one, else beside the area's tests.
 | 10 | `GitCli` waits for git's output pipes only for what is left of its timeout after git exits, and reports that it did not close | (no test: it needs a child that outlives git) |
 | 11 | A dropped proposed slug is also said on the board, after Created, or after the start when the card starts at once | (the shell's create path has no test fixture; the logic it uses is `ProjectMembership`'s, tested) |
 
+From the re-review:
+
+| Item | Fix | Test |
+|---|---|---|
+| R1 | A remembered primary is checked against its own file's `Primary branch:` line: when that names another branch that is here, it is followed and remembered; when that branch is not here, the primary is found again from the default branch | `ProjectCatalogReviewFixTests.APrimaryWhoseFileNamesANewPrimary_…`, `ANewPrimaryNotOnThisMachine_…` |
+| R2 | Folders changed and changed back during a read no longer leave the in-between folders queued: a request for the folders being read clears what was queued | `BackgroundProjectReadsTests.FoldersChangedAndChangedBack_…` |
+| R3 | The dropped-slug notice after a start is added to the notice already showing, joined with a space as other notices are, rather than replacing it | (the shell's create path has no test fixture) |
+
 **An existing test's expectation changed (item 9):** `ProjectCatalogTests.AFolderThatIsNotARepository_IsUnreadable`
 asserted the reason was exactly "not a git repository", Theseus's own words. The review asked for git's words, so it now
 asserts the reason starts with git's `fatal: not a git repository`. That is a correction of what the owner is told, not
