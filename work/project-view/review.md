@@ -36,4 +36,14 @@ pinned and unlisted projects return their cards to the grid; only the owner's Ye
 tool, hook or file reaches it; the view is its own control and every command is on the menu bar (R16); the cache is
 keyed by commit and tree ids, so rewinds and merges stay correct.
 
-**Owner's decision recorded:** one failed read keeps the last good reading (AC 13 softened by one read).
+**For the owner to confirm:** one failed read keeps the last good reading (AC 13 softened by one read).
+
+# Review, pull request 3
+
+The same reviewer read pull request 3 (ACs 19 to 22) on 2026-11-20. **Must-fix:** none. **Should-fix, both fixed:**
+Bring window forward was disabled after a resume reminted as a fresh session (runs now matched by workstream key);
+a Start before the first catalogue landed missed the project window (the last readable projects are remembered).
+**Consider, both fixed:** the run log read twice per refresh on the UI thread; an area that could share a project's
+window name. **Judged fine:** one launch path records every window; old run logs load; with no readable project every
+window name is exactly as before (AC 22); Bring window forward never raises an unrelated window; the evidence does not
+claim the holdout scenario.

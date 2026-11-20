@@ -65,3 +65,21 @@ AC 10's "ended").
    card's tooltip. Opened from the project card (double-click, its menu) and View › Open project; Board › breadcrumb
    back. Every command also on the menu bar. *Tests:* view-model tests, a layout test of the user control, and markup
    tests of the wiring.
+
+## Pull request 3 (the terminal window)
+
+For `spec.md` ACs 19 to 21, and AC 22 for them.
+
+1. **The window name** (AC 19). `WindowGroupName.For` gains the readable projects: after a card's own window
+   override and before its area and column, a card in a readable project gets
+   `<terminal window name>-project-<project>`. An unreadable or unlisted project's card is named as before, as it sits
+   on the grid as before (AC 13). *Tests first:* the name, its place in the order, and that with no readable project
+   every card gets exactly the name it got before, project or not (AC 22).
+2. **Chosen at each start, recorded on the run** (AC 20). `LaunchCoordinator` asks the shell for the readable projects
+   at each start; `SessionRun.WindowName` records the window each run was launched into, and run log lines from before
+   it read as no window. *Tests first:* the run log round-trips the window and still reads an old line.
+3. **Bring the window forward** (AC 21). `ProjectWindow` picks a live session of the project's cards whose latest run
+   was launched into the project's window, or says why there is none. Shown in the project view beside the
+   breadcrumb and on the menu bar (View › Bring project window forward), disabled with the reason in its tooltip.
+   *Tests first:* the choice and each reason; the markup of both places.
+4. **Holdout.** "Resume tomorrow" applies; verify stays open until a verifier card has run it (P18). Not run here.

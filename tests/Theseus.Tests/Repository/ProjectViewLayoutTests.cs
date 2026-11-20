@@ -70,7 +70,7 @@ public class ProjectViewLayoutTests
     {
         var control = LaidOut(View());
 
-        Assert.That(Descendants<Button>(control).First().Content, Is.EqualTo("Board"));
+        Assert.That(((Button)control.FindName("BoardCrumb")).Content, Is.EqualTo("Board"));
         Assert.That(Descendants<TextBlock>(control).Any(text => text.Text == "P" && text.Visibility == Visibility.Visible), Is.True);
         Assert.That(Descendants<TreeViewItem>(control).Count(), Is.GreaterThanOrEqualTo(4), "phase, objective, two slugs");
         Assert.That(((ItemsControl)control.FindName("Headings")).Items, Has.Count.EqualTo(7));

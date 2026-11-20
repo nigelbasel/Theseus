@@ -288,3 +288,54 @@ Suite after the cache: **1987 of 1987 passed, 0 warnings** (the workstream log).
 Known edge: a commit that changes a slug's folder and then restores its exact tree is not re-read, so a "last commit"
 within it can lag until the folder next changes. The cache keeps entries per tip for as long as the board runs; they
 are small.
+
+# Pull request 3
+
+Pipeline `feature`, stage **implement**, from `plan.md` ("Pull request 3"), for `spec.md` ACs 19 to 21 and AC 22 for
+them.
+
+## What was built, per AC
+
+| AC | State | Where |
+|---|---|---|
+| 19 | done | `WindowGroupName.For` takes the readable projects: after a card's own window override and before its area (and the area's kept name) and column, a card in a readable project opens in `<Settings' terminal window name>-project-<project file name>` (`WindowGroupName.ForProject`). The `-project-` keeps it apart from an area of the same name |
+| 20 | done | `LaunchCoordinator.ReadableProjects` is asked at each start, so a card that joined a project mid-session opens in its window at its next start, and resuming tomorrow opens it there. `SessionRun.WindowName` records the window each run was launched into; run log lines from before it load with no window |
+| 21 | done | `ProjectWindowTarget`: a live session of the project's cards whose latest run was launched into the project's window, else the reason. **Bring window forward** beside the project view's breadcrumb and View › **Bring project window forward** use it, through Focus's own `TerminalFocus.FocusSession`; disabled with the reason in the tooltip, shown on the disabled control |
+| 22 | done | With no project readable, every card's window name is exactly what it was, project field or not, across lanes, areas and kept area names (`ProjectWindowNameTests.WithNoProjectReadable_…`, 12 cases); the menu item shows only while a project is open |
+
+## Decisions
+
+1. **The project window is for readable projects only.** A card whose project is unreadable, pinned or unlisted opens
+   where it did before, as it sits on the grid as before (AC 13). A verifier card, which carries its subject's project,
+   opens in the project's window too.
+2. **"Launched into the project's window" is read from the session's latest run.** A session resumed into another
+   window (say, before its card joined the project) does not count, and neither does a run from before windows were
+   recorded.
+3. **Bring window forward focuses that session's tab**, as Focus does; landing on the window but not the tab is
+   reported as Focus reports it.
+
+## Not checked
+
+- `LaunchCoordinator` has no test harness (it starts processes and a pipe server); the window it passes to the
+  launch is `WindowGroupName.For`'s, which is tested, and the run it records carries that name (code read, not tested).
+- Raising a real Windows Terminal window was not tried.
+- **The holdout scenario "resume tomorrow" applies to this pull request and has not been run**: this session cannot
+  reach the holdouts. Verify stays open until a verifier card has run it (P18).
+
+## Suite
+
+`dotnet test Theseus.slnx -p:NuGetAudit=false` at the pull request 3 commit: **2022 of 2022 passed, 0 warnings** (the
+workstream log); 27 tests are new since 1995. One test of pull request 2 changed: the view's layout test found the
+breadcrumb as the first button, and the new Bring window forward button now comes first in the tree, so it finds the
+breadcrumb by its name instead; what it asserts is unchanged.
+
+## Pull request 3 review fixes
+
+| Item | Fix | Test |
+|---|---|---|
+| 1 | Bring window forward takes each live card's latest run by its workstream key, not by its session id: a resume that dies is reminted under a new session id, which the card follows and its run does not (this is what decision 2 meant) | `ProjectWindowTargetTests.AResumeRemintedUnderANewSession_…`; the other cases now give each card its own key |
+| 2 | Until this run's first catalogue lands, the readable projects are the ones remembered from the last catalogue (`readable-projects.json` in Theseus's data folder, `RememberedProjects`), so the morning's first starts open in the project's window; nothing waits for the read. Once a catalogue lands, only what reads now counts, and that is remembered for next time. Only the names are kept: which cards belong to which project is already in the board file | `RememberedProjectsTests` (before the catalogue; a project gone unreadable since; no folders listed; an unreadable file) |
+| 3 | A refresh reads the run log once: the lifecycles step's reconciled runs are kept and shared with the busy-card check and Bring window forward; a busy check outside a refresh (renaming a handoff) still reads it fresh | (the shell has no test harness; behaviour unchanged) |
+| 4 | An area whose window would equal a readable project's window (an area named "Project P") gets `-area` added, so the two never share a window; with that project not reading, the area is named as before (AC 22). The reversible choice: nothing is refused and no setting changes | `ProjectWindowClashTests` |
+
+Suite after these fixes: **2029 of 2029 passed, 0 warnings** (the workstream log); 7 tests are new.
