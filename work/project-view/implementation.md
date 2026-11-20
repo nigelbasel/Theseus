@@ -271,6 +271,8 @@ method-v0.2 is looked up again for each primary tip.
 | `ArtefactCacheTests.OnlyThePrimaryMoving_…` | the primary moving re-checks the merge but reads none of an unmerged slug's files |
 | `ArtefactCacheTests.TheCachedArtefacts_…` | the cache gives what the uncached reader gives |
 
+Suite after the cache: **1987 of 1987 passed, 0 warnings** (the workstream log).
+
 Known edge: a commit that changes a slug's folder and then restores its exact tree is not re-read, so a "last commit"
 within it can lag until the folder next changes. The cache keeps entries per tip for as long as the board runs; they
 are small.
