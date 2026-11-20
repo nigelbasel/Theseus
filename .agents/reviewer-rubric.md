@@ -24,7 +24,9 @@ Source: `src/Theseus.Core/Mcp/McpHandler.cs`; `src/Theseus.App/ViewModels/Chains
 
 **R3. Nothing starts a session on its own.**
 Ready is shown and counted, never acted on. The chains view is read-only.
-*Breaks if* any code path launches a session without a person pressing Start.
+*Breaks if* any code path launches a session without a person pressing Start, except a project workstream started by
+Theseus inside a project at autonomy level L1 or above, for an objective in its approved project file (Nigel,
+2026-11-20; none exists until the levels are built in phase 2).
 Source: `src/Theseus.App/ViewModels/ChainsViewModel.cs` (Nigel, 2026-10-21); `src/Theseus.App/MainWindow.xaml`, chains (Nigel, 2026-10-23).
 
 **R4. Theseus reads trackers and never writes them; sessions never report durations.**

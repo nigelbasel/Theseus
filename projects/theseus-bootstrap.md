@@ -106,26 +106,32 @@ needs a way to drive Theseus unattended, and Windows minutes in a private repo a
       before (Nigel, 2026-11-19).
 - [ ] A project workstream's card shows its current stage and whether that stage's gate has passed, read from
       `work/<slug>/`. A stage with no evidence shows as "no evidence", never as passed.
-- [ ] **The board shows a row per project** (Nigel, 2026-11-19), with that project's cards laid out by pipeline stage
-      across the row, so a card moves right as its gates pass and a verifier card sits in `verify` beside the work
-      it checks. The row header shows the project's phase and progress against its exit gate, can be folded to one
-      line, and brings the project's terminal window forward.
+- [ ] **The board shows one card per project** (Nigel, 2026-11-20; replaces "a row per project" of 2026-11-19): its
+      phase, progress against its exit gate, and a count of what waits on him. Opening it fills the main area with
+      the project view: a tree of phases, objectives and workstreams, and each objective's workstreams laid out by
+      pipeline stage, so a card moves right as its gates pass and a verifier card sits in `verify` beside the work it
+      checks. The view brings the project's terminal window forward.
 - [ ] **Each project's sessions open in one Windows Terminal window of their own**, named after the project, and
       resuming tomorrow reopens that window with its tabs. Ad hoc sessions open where they do today.
-- [ ] A card created for a project (from an approved proposal, or a verifier card) appears in its project's row at
-      its stage, in view. This replaces the separate fix for approved cards landing in a folded column; if ad hoc
+- [ ] A card created for a project (from an approved proposal, a verifier card, or started by Theseus) shows in the
+      project card's count and at its stage in the project view. This replaces the separate fix for approved cards landing in a folded column; if ad hoc
       approvals still go missing, that becomes a small bug of its own.
 - [ ] Ad hoc work is unchanged: shown below the project rows as today, with no new element and no new click. Checked
       against what is rendered (P11).
-- To settle in this objective's spec: whether a card belongs to exactly one project; how the bug pipeline's stages
-  share columns with the feature pipeline's; what a promoted ad hoc card does; how project rows sit with today's
-  views and folded columns; and how Theseus chooses a terminal window today (check the launcher first).
+- Settled (Nigel, 2026-11-20): a card belongs to one project, found by its workstream slug (`nigel/<slug>`,
+  `work/<slug>/`), never by card id; the owner's gates (each objective's spec, and the primary's pull request into
+  `main`) pass only when he accepts them on the board, other stages when their file exists and the evidence check
+  agrees; `work/<slug>/` is read from the workstream's worktree while it runs, from the primary once merged; the
+  view shows every stage either pipeline uses, bug stages under the matching feature columns; a promoted ad hoc card
+  joins the project and keeps its key; the view does not fold, and folding on the board is unchanged. Still to
+  settle in the spec: how Theseus chooses a terminal window today (check the launcher first).
 
 ### Objective 1.2: Read-only pull request and CI status on cards
 - [ ] A card shows, for each repo it covers, its pull request (if any) and the latest CI run for its branch. Theseus
       only reads.
 - [ ] It works with no token stored on the machine, reading GitHub only, within GitHub's limit for calls without a
-      token (conditional requests, so an unchanged status costs nothing). A repo on any other host shows its status
+      token, at a measured budget (Nigel, 2026-11-20; measured 2026-11-19: without a token, an unchanged 304 reply still
+      costs one of the 60 calls an hour): at most two calls per repository every five minutes, plus Refresh. A repo on any other host shows its status
       as "unknown: <host> not read yet". Azure DevOps comes with the adapters in phase 3, when its authentication is
       designed (Nigel, 2026-11-19: GitHub only in phase 1; a session's report is never shown as CI status).
 - [ ] When the status cannot be read it shows as unknown, with the reason in the tooltip, never as passing.
@@ -141,7 +147,10 @@ needs a way to drive Theseus unattended, and Windows minutes in a private repo a
 - [ ] The scenarios that need no person run in the holdout repository's own GitHub Actions, on Windows, against
       each new Theseus release. Their steps and logs therefore stay private, and nothing about them reaches the
       public repo's CI.
-- [ ] A failure is visible on the board for the release it tested.
+- [ ] A failure is visible on the board for the release it tested. The holdout run writes one line per release
+      (release, pass or fail, scenarios run) to a small separate public status repository, which the board reads
+      with no token; the token that writes it is a secret on the holdout repository, never on the machine, and no
+      scenario name, step or log leaves the holdout (Nigel, 2026-11-20).
 - [ ] Scenarios that need a person stay with the verifier card.
 
 ### Objective 1.5: Carried over from stage 0
