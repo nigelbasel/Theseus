@@ -250,7 +250,7 @@ public partial class App : Application
         SessionJumpList.Show(this, sessions.Snapshot.Live);
         sessions.Refreshed += (_, _) => SessionJumpList.Show(this, sessions.Snapshot.Live);
 
-        StartUpdateChecks(shell);
+        StartUpdateChecks(shell, settings);
 
         MainWindow = new MainWindow { DataContext = shell };
         shell.ConfirmFlaggedStart = (question, hasOthers) =>
@@ -273,9 +273,9 @@ public partial class App : Application
     /// Checks the public releases a minute after starting, so the board is up first, and every six
     /// hours after that. GitHub allows sixty unauthenticated calls an hour; this makes four a day.
     /// </summary>
-    private void StartUpdateChecks(ShellViewModel shell)
+    private void StartUpdateChecks(ShellViewModel shell, SettingsStore settings)
     {
-        _releases = new GitHubReleaseFeed(AppVersion.Current);
+        _releases = new GitHubReleaseFeed(AppVersion.Current, () => settings.Read().IncludePreReleases);
 
         var updates = new UpdateViewModel(_releases, AppVersion.Current, Path.Combine(DataDirectory, "updates"), msi =>
         {

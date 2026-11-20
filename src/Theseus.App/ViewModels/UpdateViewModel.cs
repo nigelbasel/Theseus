@@ -94,6 +94,13 @@ public sealed class UpdateViewModel : ObservableObject
 
         var latest = await _feed.LatestAsync(cancellationToken);
 
+        // Null is also a failed check, so only an answer that is not newer withdraws an offer: one made with
+        // pre-releases included, after the setting was turned off.
+        if (latest is not null && !UpdatePolicy.IsNewer(_currentVersion, latest.Version))
+        {
+            Offer = null;
+        }
+
         if (latest is null || !UpdatePolicy.IsNewer(_currentVersion, latest.Version)
             || string.Equals(latest.Version, _putAside, StringComparison.Ordinal))
         {
@@ -126,6 +133,7 @@ public sealed class UpdateViewModel : ObservableObject
             }
             else if (!UpdatePolicy.IsNewer(_currentVersion, latest.Version))
             {
+                Offer = null;
                 answer = $"Theseus {_currentVersion} is up to date.";
             }
             else
