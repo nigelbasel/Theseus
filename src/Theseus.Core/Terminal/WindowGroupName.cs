@@ -55,7 +55,13 @@ public static class WindowGroupName
             : Sanitise(workstream.Area) is { Length: > 0 } area ? area
             : Sanitise(workstream.Column);
 
-        return row.Length > 0 ? $"{fallback}-{row}" : fallback;
+        var name = row.Length > 0 ? $"{fallback}-{row}" : fallback;
+
+        // An area named like "project <name>" would land in that project's window; it keeps a window of its own instead
+        // (PR 3 review, item 4). Only while that project reads, so a board with no projects names every window as before.
+        return readableProjects?.Any(readable => string.Equals(ForProject(configured, readable), name, StringComparison.Ordinal)) == true
+            ? $"{name}-area"
+            : name;
     }
 
     /// <summary>A project's window, <c>&lt;base&gt;-project-&lt;project&gt;</c>, or null for a name that sanitises to nothing.</summary>

@@ -23,6 +23,7 @@ public sealed class ShellViewModel : ObservableObject
     private string _holdoutFolder = string.Empty;
     private readonly BackgroundProjectReads _projectReads;
     private readonly SpecAcceptanceStore _acceptances;
+    private IReadOnlyList<SessionRun>? _refreshRuns;
     private string? _openProjectName;
     private ProjectViewModel? _projectView;
     private IReadOnlyList<ProjectChoice> _openProjectChoices = [];
@@ -117,15 +118,13 @@ public sealed class ShellViewModel : ObservableObject
         _projectReads = new BackgroundProjectReads(
             folders => ProjectCatalog.Read(folders, git, primaries),
             action => dispatcher.BeginInvoke(action), TimeSpan.FromSeconds(30),
-            attach: readings => [.. readings.Select(reading => ProjectArtefacts.Attach(reading, git, artefactCache))]);
+            attach: readings => [.. readings.Select(reading => ProjectArtefacts.Attach(reading, git, artefactCache))],
+            remembered: new RememberedProjects(Path.Combine(App.DataDirectory, "readable-projects.json")));
         _acceptances = new SpecAcceptanceStore(Path.Combine(App.DataDirectory, "spec-acceptances.json"));
         CloseProjectCommand = new RelayCommand(_ => CloseProject(), _ => IsProjectOpen);
         BringProjectWindowForwardCommand = new RelayCommand(_ => BringProjectWindowForward(),
             _ => IsProjectOpen && _projectWindow.SessionId is not null && Sessions.Find(_projectWindow.SessionId) is not null);
-        launcher.ReadableProjects = () => _projectReads.Current
-            .Where(reading => reading.IsReadable)
-            .Select(reading => reading.Name)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        launcher.ReadableProjects = () => _projectReads.ReadableNames;
         _projectReads.Changed += (_, _) => WireProjectChoices();
         _theme = settings.Read().Theme;
         _isSessionsPanelOpen = !settings.Read().SessionsPanelCollapsed;
@@ -1031,7 +1030,7 @@ public sealed class ShellViewModel : ObservableObject
                 [.. cards
                     .Where(card => string.Equals(card.Workstream.Project, name, StringComparison.OrdinalIgnoreCase))
                     .Select(card => (card.Key, card.Workstream.LastSessionId, card.IsLive))],
-                _runs.Read())
+                RefreshRuns())
             : new Theseus.Core.Terminal.ProjectWindowTarget(null, "Open a project first");
 
         if (target != _projectWindow)
@@ -1041,6 +1040,12 @@ public sealed class ShellViewModel : ObservableObject
             System.Windows.Input.CommandManager.InvalidateRequerySuggested();
         }
     }
+
+    /// <summary>
+    /// The run log as this refresh read it: runs.jsonl grows without bound, so a refresh reads it once and shares it
+    /// (PR 3 review, item 3). Read afresh only before the first refresh has.
+    /// </summary>
+    private IReadOnlyList<SessionRun> RefreshRuns() => _refreshRuns ??= _runs.Read();
 
     /// <summary>Brings the open project's terminal window forward, through one of its live sessions (AC 21).</summary>
     public RelayCommand BringProjectWindowForwardCommand { get; }
@@ -1786,6 +1791,7 @@ public sealed class ShellViewModel : ObservableObject
     {
         var now = DateTimeOffset.Now;
         var runs = _endings.Reconcile(_runs, Sessions.Snapshot.Live, DateTimeOffset.UtcNow);
+        _refreshRuns = runs;
         var preferred = _settings.Read().DefaultStartMode;
         var lastStage = Board.Stages.LastOrDefault();
 
@@ -1862,7 +1868,7 @@ public sealed class ShellViewModel : ObservableObject
 
         var handoffs = Board.Cards.ToDictionary(card => card, card => HandoffPath.For(card.Workstream));
 
-        var busy = BusyCards();
+        var busy = BusyCards(runs);
 
         ResolveSharedHandoffs(handoffs, busy);
         SyncClashes(handoffs);
@@ -2118,9 +2124,9 @@ public sealed class ShellViewModel : ObservableObject
     }
 
     /// <summary>The cards whose sessions are running or being started, read once per refresh (AC 3).</summary>
-    private HashSet<string> BusyCards()
+    private HashSet<string> BusyCards(IReadOnlyList<SessionRun>? refreshRuns = null)
     {
-        var runs = _runs.Read();
+        var runs = refreshRuns ?? _runs.Read();
         var now = DateTimeOffset.UtcNow;
 
         return Board.Cards

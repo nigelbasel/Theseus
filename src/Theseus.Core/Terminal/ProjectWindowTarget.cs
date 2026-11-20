@@ -31,8 +31,10 @@ public sealed record ProjectWindowTarget(string? SessionId, string Reason)
 
         foreach (var member in live)
         {
+            // The card's latest run, not its session's: a resume that dies is reminted under a new session id, which
+            // the card follows and the run it was launched as does not (PR 3 review, item 1).
             var latest = runs
-                .Where(run => string.Equals(run.ClaudeSessionId, member.SessionId, StringComparison.OrdinalIgnoreCase))
+                .Where(run => string.Equals(run.WorkstreamKey, member.Key, StringComparison.OrdinalIgnoreCase))
                 .MaxBy(run => run.StartedUtc);
 
             if (latest is not null && string.Equals(latest.WindowName, windowName, StringComparison.OrdinalIgnoreCase))

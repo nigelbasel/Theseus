@@ -12,8 +12,8 @@ public class ProjectWindowTargetTests
 {
     private const string Window = "theseus-project-p";
 
-    private static SessionRun Run(string session, string? window, int hour) =>
-        new(Guid.NewGuid(), session, "a-card", @"C:\work", null, SessionLaunchMode.FirstRun, "Carry on.", "A card", "#208DD7",
+    private static SessionRun Run(string session, string? window, int hour, string key = "a-card") =>
+        new(Guid.NewGuid(), session, key, @"C:\work", null, SessionLaunchMode.FirstRun, "Carry on.", "A card", "#208DD7",
             new DateTimeOffset(2026, 11, 20, hour, 0, 0, TimeSpan.Zero), null, null, null, null, SessionExitReason.Unknown)
         {
             WindowName = window,
@@ -24,7 +24,7 @@ public class ProjectWindowTargetTests
     {
         var target = ProjectWindowTarget.For("p", Window,
             [("other", "s2", true), ("a-card", "s1", true)],
-            [Run("s1", Window, 9), Run("s2", "theseus-dev", 9)]);
+            [Run("s1", Window, 9), Run("s2", "theseus-dev", 9, "other")]);
 
         Assert.That(target.SessionId, Is.EqualTo("s1"));
     }
@@ -56,6 +56,15 @@ public class ProjectWindowTargetTests
             [Run("s1", "theseus-dev", 9), Run("s1", Window, 10)]);
 
         Assert.That((resumedElsewhere.SessionId, resumedHere.SessionId), Is.EqualTo(((string?)null, "s1")));
+    }
+
+    [Test]
+    public void AResumeRemintedUnderANewSession_StillCountsByItsCard()
+    {
+        // The card now follows s2, the reminted session; the run it was launched as still says s1.
+        var target = ProjectWindowTarget.For("p", Window, [("a-card", "s2", true)], [Run("s1", Window, 9)]);
+
+        Assert.That(target.SessionId, Is.EqualTo("s2"));
     }
 
     [Test]

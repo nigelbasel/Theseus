@@ -19,6 +19,7 @@ public sealed class BackgroundProjectReads
     private readonly Func<DateTimeOffset> _now;
     private readonly Func<IReadOnlyList<ProjectFileReading>, IReadOnlyList<ProjectFileReading>>? _attach;
     private readonly Dictionary<string, int> _failures = new(StringComparer.OrdinalIgnoreCase);
+    private readonly RememberedProjects? _remembered;
 
     private string? _key;
     private DateTimeOffset _readAt;
@@ -30,10 +31,13 @@ public sealed class BackgroundProjectReads
     /// <param name="interval">How long a read of the same folders stands.</param>
     /// <param name="now">The clock.</param>
     /// <param name="attach">Reads the slugs' artefacts onto the readings, as a second step; null for none.</param>
+    /// <param name="remembered">Where the readable projects' names are kept between runs; null keeps none.</param>
     public BackgroundProjectReads(Func<IReadOnlyList<string>, IReadOnlyList<ProjectFileReading>> read, Action<Action> post,
         TimeSpan interval, Func<DateTimeOffset>? now = null,
-        Func<IReadOnlyList<ProjectFileReading>, IReadOnlyList<ProjectFileReading>>? attach = null)
+        Func<IReadOnlyList<ProjectFileReading>, IReadOnlyList<ProjectFileReading>>? attach = null,
+        RememberedProjects? remembered = null)
     {
+        _remembered = remembered;
         _attach = attach;
         _read = read;
         _post = post;
@@ -43,6 +47,17 @@ public sealed class BackgroundProjectReads
 
     /// <summary>The projects as last read.</summary>
     public IReadOnlyList<ProjectFileReading> Current { get; private set; } = [];
+
+    /// <summary>Whether this run's first catalogue has landed.</summary>
+    public bool HasLanded { get; private set; }
+
+    /// <summary>
+    /// The projects that read: from the latest catalogue once one has landed; until then, the ones remembered from the
+    /// last run, so a start at launch is not held back and still opens in the project's window (PR 3 review, item 2).
+    /// </summary>
+    public IReadOnlySet<string> ReadableNames => HasLanded
+        ? Current.Where(reading => reading.IsReadable).Select(reading => reading.Name).ToHashSet(StringComparer.OrdinalIgnoreCase)
+        : _remembered?.Load() ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Whether a read is under way.</summary>
     public bool IsReading { get; private set; }
@@ -78,7 +93,7 @@ public sealed class BackgroundProjectReads
         if (folders.Count == 0)
         {
             _failures.Clear();
-            Replace([]);
+            Landed([]);
 
             return;
         }
@@ -93,14 +108,14 @@ public sealed class BackgroundProjectReads
             {
                 _post(() =>
                 {
-                    Replace(ReadingContinuity.Merge(Current, catalogue, _failures));
+                    Landed(ReadingContinuity.Merge(Current, catalogue, _failures));
                     Finished();
                 });
 
                 return;
             }
 
-            _post(() => Replace(ReadingContinuity.Merge(Current, catalogue, _failures)));
+            _post(() => Landed(ReadingContinuity.Merge(Current, catalogue, _failures)));
 
             var attached = AttachSafely(catalogue);
 
@@ -151,6 +166,14 @@ public sealed class BackgroundProjectReads
                 ProjectFileReading.Unreadable(Path.GetFileName(folder.TrimEnd('\\', '/')), $"could not be read: {exception.Message}")
                     with { Folder = folder })];
         }
+    }
+
+    // A catalogue landed: what reads now is remembered for the next run's first seconds.
+    private void Landed(IReadOnlyList<ProjectFileReading> readings)
+    {
+        HasLanded = true;
+        _remembered?.Remember(readings.Where(reading => reading.IsReadable).Select(reading => reading.Name));
+        Replace(readings);
     }
 
     private void Replace(IReadOnlyList<ProjectFileReading> readings)

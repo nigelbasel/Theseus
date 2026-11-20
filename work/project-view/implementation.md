@@ -329,3 +329,12 @@ workstream log); 27 tests are new since 1995. One test of pull request 2 changed
 breadcrumb as the first button, and the new Bring window forward button now comes first in the tree, so it finds the
 breadcrumb by its name instead; what it asserts is unchanged.
 
+## Pull request 3 review fixes
+
+| Item | Fix | Test |
+|---|---|---|
+| 1 | Bring window forward takes each live card's latest run by its workstream key, not by its session id: a resume that dies is reminted under a new session id, which the card follows and its run does not (this is what decision 2 meant) | `ProjectWindowTargetTests.AResumeRemintedUnderANewSession_…`; the other cases now give each card its own key |
+| 2 | Until this run's first catalogue lands, the readable projects are the ones remembered from the last catalogue (`readable-projects.json` in Theseus's data folder, `RememberedProjects`), so the morning's first starts open in the project's window; nothing waits for the read. Once a catalogue lands, only what reads now counts, and that is remembered for next time. Only the names are kept: which cards belong to which project is already in the board file | `RememberedProjectsTests` (before the catalogue; a project gone unreadable since; no folders listed; an unreadable file) |
+| 3 | A refresh reads the run log once: the lifecycles step's reconciled runs are kept and shared with the busy-card check and Bring window forward; a busy check outside a refresh (renaming a handoff) still reads it fresh | (the shell has no test harness; behaviour unchanged) |
+| 4 | An area whose window would equal a readable project's window (an area named "Project P") gets `-area` added, so the two never share a window; with that project not reading, the area is named as before (AC 22). The reversible choice: nothing is refused and no setting changes | `ProjectWindowClashTests` |
+
