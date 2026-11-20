@@ -10,14 +10,15 @@ namespace Theseus.Core.Projects;
 /// to method-v0.2 differs from the last read. Otherwise the last artefacts are kept, with the source's new tip.</item>
 /// </list>
 /// The spec's identity (for acceptance) and "before method-v0.2" come from those artefacts, so they follow the same keys.
-/// One instance lives as long as the board; reads run one at a time.
+/// One instance lives as long as the board; reads run one at a time. It keeps only the latest entry per branch (and
+/// per project for the move), so a rewound branch costs one fresh read and nothing grows with the history.
 /// </summary>
 public sealed class ArtefactCache
 {
     private readonly object _gate = new();
-    private readonly Dictionary<string, IReadOnlyDictionary<string, string>> _folders = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, bool> _merged = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, string?> _kitMoves = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, (string Tip, IReadOnlyDictionary<string, string> Folders)> _folders = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, (string BranchTip, string PrimaryTip, bool Merged)> _merged = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, (string PrimaryTip, string? Parent)> _kitMoves = new(StringComparer.Ordinal);
     private readonly Dictionary<string, (string Key, WorkstreamArtefacts Artefacts)> _artefacts = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Every listed slug's artefacts in a readable project, keyed by slug.</summary>
@@ -85,7 +86,7 @@ public sealed class ArtefactCache
         IReadOnlyDictionary<string, string> tips)
     {
         if (!string.Equals(row.Branch, primary, StringComparison.Ordinal) && tips.TryGetValue(row.Branch, out var branchTip)
-            && !Merged(repository, branchTip, primaryTip))
+            && !Merged(repository, row.Branch, branchTip, primaryTip))
         {
             return new WorkstreamSource(row.Branch, branchTip, false);
         }
@@ -100,42 +101,60 @@ public sealed class ArtefactCache
         return new WorkstreamSource(primary, primaryTip, true);
     }
 
-    private bool Merged(GitRepositoryReader repository, string branchTip, string primaryTip)
+    private bool Merged(GitRepositoryReader repository, string branch, string branchTip, string primaryTip)
     {
-        var key = $"{repository.Folder}|{branchTip}|{primaryTip}";
+        var key = $"{repository.Folder}|{branch}";
 
-        if (!_merged.TryGetValue(key, out var merged))
+        if (_merged.TryGetValue(key, out var known) && known.BranchTip == branchTip && known.PrimaryTip == primaryTip)
         {
-            merged = repository.IsAncestor(branchTip, primaryTip) == true;
-            _merged[key] = merged;
+            return known.Merged;
         }
+
+        var merged = repository.IsAncestor(branchTip, primaryTip) == true;
+        _merged[key] = (branchTip, primaryTip, merged);
 
         return merged;
     }
 
     private IReadOnlyDictionary<string, string> Folders(GitRepositoryReader repository, string branch, string tip)
     {
-        var key = $"{repository.Folder}|{branch}|{tip}";
+        var key = $"{repository.Folder}|{branch}";
 
-        if (!_folders.TryGetValue(key, out var folders))
+        if (_folders.TryGetValue(key, out var known) && known.Tip == tip)
         {
-            folders = repository.Folders(tip, "work");
-            _folders[key] = folders;
+            return known.Folders;
         }
+
+        var folders = repository.Folders(tip, "work");
+        _folders[key] = (tip, folders);
 
         return folders;
     }
 
     private string? KitMove(GitRepositoryReader repository, ProjectFile project, string primaryTip)
     {
-        var key = $"{repository.Folder}|{project.Name}|{primaryTip}";
+        var key = $"{repository.Folder}|{project.Name}";
 
-        if (!_kitMoves.TryGetValue(key, out var parent))
+        if (_kitMoves.TryGetValue(key, out var known) && known.PrimaryTip == primaryTip)
         {
-            parent = WorkstreamArtefactReader.KitMoveParent(repository, project);
-            _kitMoves[key] = parent;
+            return known.Parent;
         }
 
+        var parent = WorkstreamArtefactReader.KitMoveParent(repository, project with { PrimaryBranch = primaryTip });
+        _kitMoves[key] = (primaryTip, parent);
+
         return parent;
+    }
+
+    /// <summary>How many entries the cache holds, for the test that it does not grow with history.</summary>
+    public int EntryCount
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _folders.Count + _merged.Count + _kitMoves.Count + _artefacts.Count;
+            }
+        }
     }
 }

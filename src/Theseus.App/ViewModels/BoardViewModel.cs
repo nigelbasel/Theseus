@@ -373,7 +373,17 @@ public sealed class BoardViewModel : ObservableObject
         {
             row.RaiseCounts();
         }
+
+        // A ticked card that has just left the grid (its project began to read, or it joined one) is unticked, so the
+        // selection commands never reach a card that cannot be seen (PR 2 re-review, item 1).
+        if (KeepOutOfGrid is not null || SelectionOrder is not null)
+        {
+            DeselectUnshown();
+        }
     }
+
+    /// <summary>The ticked cards among those shown: what Start, Stop, Archive and the other selected-card commands act on.</summary>
+    public IReadOnlyList<WorkstreamCardViewModel> ChosenCards => [.. ShownCards.Where(card => card.IsSelected)];
 
     /// <summary>
     /// Puts each project card in the cell it was dragged to; a column or row the view does not have falls back to the

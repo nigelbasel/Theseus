@@ -958,6 +958,7 @@ public sealed class ShellViewModel : ObservableObject
 
             projectCard.OpenCommand ??= new RelayCommand(_ => OpenProject(name));
             projectCard.LastFailure = reading.LastFailure;
+            projectCard.IsReading = view.IsReading;
             projectCard.PhaseText = file.CurrentPhase is { } phase ? $"Phase {phase.Number}: {phase.Name}" : "Every objective done";
             projectCard.ObjectivesText = $"{file.ObjectivesDone} of {file.Objectives.Count} objectives done";
 
@@ -2308,8 +2309,7 @@ public sealed class ShellViewModel : ObservableObject
         }
     }
 
-    private IReadOnlyList<WorkstreamCardViewModel> Chosen() =>
-        [.. Board.Cards.Where(card => card.IsSelected)];
+    private IReadOnlyList<WorkstreamCardViewModel> Chosen() => Board.ChosenCards;
 
     private IReadOnlyList<Workstream> ChosenToStart() =>
         StartSelection.ForCards(

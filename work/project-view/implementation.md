@@ -245,6 +245,16 @@ returns its cards at once.
 `Board.VisibleCards` (which leaves folded ones out), so Select all with no projects ticks exactly what it always did
 (AC 22).
 
+From the re-review of these fixes:
+
+| Item | Fix | Test |
+|---|---|---|
+| R1 | A ticked card that leaves the grid (its project's first catalogue lands, or it joins a readable project) is unticked at the end of every placement, and the selected-card commands take `Board.ChosenCards`, the ticked cards among those shown, so Stop or Archive selected never reaches a hidden card | `ReReviewFixTests` (the catalogue landing, joining, a hidden card ticked anyway) |
+| R2 | `BranchTips` reads `%(refname)` and strips `refs/heads/`: with a tag of the same name, `%(refname:short)` printed `heads/<name>` and the cache lost the primary or took a workstream branch for merged | `ArtefactCacheReReviewTests.TagsNamedLikeThePrimaryAndTheWorkstreamBranch_…` |
+| R3 | The cache keeps only the latest entry per branch for the folder listings and the merged check, and the latest primary tip for the move to v0.2; a rewound branch costs one fresh read | `ArtefactCacheReReviewTests.TheCache_KeepsOneEntryPerBranch_…` |
+| R4 | A slug's files are read at the commit its source names, not by branch name, so its files, its tree and the commit shown always agree; the move to v0.2 is looked up at the primary's snapshotted tip | `ArtefactCacheReReviewTests.FilesAreRead_AtTheCommitTheSourceNames_…` |
+| R5 | Until a project's slugs are first read they say **reading…** (in the pipeline and the tree), no spec counts as waiting, and the project card's badge shows the count with an ellipsis and its tooltip says it is still reading | `ReReviewFixTests.BeforeTheFirstArtefactsLand_…`, `AProjectCardStillReading_…` |
+
 ### The background read's cost (was open; closed)
 
 With about 15 slugs the artefact step was roughly 9 seconds of git every 30 seconds. `ArtefactCache` now re-reads a

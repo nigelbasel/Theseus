@@ -46,11 +46,14 @@ public static class WorkstreamArtefactReader
 
         var folder = $"work/{slug}";
 
-        if (source.Branch is not { } branch)
+        if (source.Branch is null)
         {
             return WorkstreamArtefacts.NotOnMachine(slug);
         }
 
+        // Read at the commit the source names, so its files, its tree and its commit always agree, however the
+        // branch moves meanwhile (PR 2 re-review, item 4).
+        var branch = source.Commit ?? source.Branch;
         var files = repository.Names(branch, folder).ToHashSet(StringComparer.Ordinal);
 
         string? Text(string name) => files.Contains(name) ? repository.Text(branch, $"{folder}/{name}") : null;

@@ -12,6 +12,7 @@ public sealed class ProjectCardViewModel : ObservableObject
     private string _objectivesText = string.Empty;
     private IReadOnlyList<string> _waiting = [];
     private string? _lastFailure;
+    private bool _isReading;
 
     /// <summary>Creates a project card.</summary>
     /// <param name="name">The project's name: its file name without <c>.md</c>.</param>
@@ -50,9 +51,23 @@ public sealed class ProjectCardViewModel : ObservableObject
         {
             if (Set(ref _waiting, value))
             {
-                Raise(nameof(WaitingCount));
-                Raise(nameof(WaitingText));
-                Raise(nameof(HasWaiting));
+                RaiseCount();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Whether its workstreams' files are still being read for the first time, so specs waiting are not counted yet
+    /// (PR 2 re-review, item 5).
+    /// </summary>
+    public bool IsReading
+    {
+        get => _isReading;
+        set
+        {
+            if (Set(ref _isReading, value))
+            {
+                RaiseCount();
             }
         }
     }
@@ -63,8 +78,33 @@ public sealed class ProjectCardViewModel : ObservableObject
     /// <summary>Whether anything waits on him.</summary>
     public bool HasWaiting => _waiting.Count > 0;
 
+    /// <summary>Whether the count's badge shows: something waits, or the count is not complete yet.</summary>
+    public bool HasBadge => HasWaiting || _isReading;
+
+    /// <summary>The badge: the count, with an ellipsis while still reading.</summary>
+    public string CountText => _isReading ? $"{WaitingCount}…" : WaitingCount.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
     /// <summary>The waiting list, for the count's tooltip.</summary>
-    public string WaitingText => _waiting.Count == 0 ? "Nothing is waiting on you" : string.Join(Environment.NewLine, _waiting);
+    public string WaitingText
+    {
+        get
+        {
+            var list = _waiting.Count == 0 ? "Nothing is waiting on you" : string.Join(Environment.NewLine, _waiting);
+
+            return _isReading
+                ? $"Still reading the workstreams' files: specs waiting are counted once they are read.{Environment.NewLine}{list}"
+                : list;
+        }
+    }
+
+    private void RaiseCount()
+    {
+        Raise(nameof(WaitingCount));
+        Raise(nameof(WaitingText));
+        Raise(nameof(HasWaiting));
+        Raise(nameof(HasBadge));
+        Raise(nameof(CountText));
+    }
 
     /// <summary>
     /// Why the last read failed while the reading before it is shown (PR 2 review, item 9), or null when it is current.

@@ -95,13 +95,14 @@ public sealed partial class GitRepositoryReader
     {
         var tips = new Dictionary<string, string>(StringComparer.Ordinal);
 
-        foreach (var line in Lines(Run("for-each-ref", "refs/heads", "--format=%(objectname) %(refname:short)")))
+        // The full name: with a tag of the same name, the short form comes out as heads/<name>.
+        foreach (var line in Lines(Run("for-each-ref", "refs/heads", "--format=%(objectname) %(refname)")))
         {
             var space = line.IndexOf(' ', StringComparison.Ordinal);
 
-            if (space > 0)
+            if (space > 0 && line[(space + 1)..] is var name && name.StartsWith("refs/heads/", StringComparison.Ordinal))
             {
-                tips[line[(space + 1)..]] = line[..space];
+                tips[name["refs/heads/".Length..]] = line[..space];
             }
         }
 
