@@ -13,7 +13,7 @@ public static class SharedHandoffs
     /// <summary>The moves to make.</summary>
     /// <param name="cards">Every card on the board.</param>
     /// <param name="exists">Whether a file exists.</param>
-    /// <param name="inRepository">Whether a folder is inside a git working tree, where a new file could be committed.</param>
+    /// <param name="inRepository">Whether a folder is inside a git working tree with a remote, where a new file could be committed and pushed.</param>
     /// <param name="today">The date the pointer line gives.</param>
     public static IReadOnlyList<HandoffMove> Plan(
         IReadOnlyList<HandoffCard> cards, Func<string, bool> exists, Func<string, bool> inRepository, DateOnly today)

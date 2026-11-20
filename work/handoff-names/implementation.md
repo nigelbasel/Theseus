@@ -19,3 +19,11 @@ Review findings: M1 (AC 3), M2 (AC 4), M3 (real names removed from tests and rec
 Live check (for Nigel, after installing): the pair of cards on his board that share a chosen file resolves, the second
 card getting `HANDOFF-<its key>.md` with the pointer line; a card whose handover file is named for an old key offers
 the rename while its session is stopped.
+
+## Amendment, 2026-11-20: only repositories with a remote
+
+The first live check moved nothing: every handover on the board sits in the owner's notes folder, which is a git
+repository with no remote, so AC 5's repository rule skipped them all. Nigel chose to skip only repositories with a
+remote. `GitWorkingTree.ContainsPublishable` reads the nearest `.git` folder's config (a worktree's through its
+`commondir`) for a `[remote "` section; a config that cannot be found or read counts as having one. Six tests.
+1762 of 1762 passed.
