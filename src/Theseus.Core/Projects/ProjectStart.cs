@@ -77,6 +77,7 @@ public sealed class ProjectStart
             null => "is no longer on the board",
             { HasSession: true } => "is already running",
             { CanStart: false } => "cannot be started from the board",
+            { PausedBy: { } by } => $"is paused by {by}",
             _ when stoppedByOwner?.Contains(key, StringComparer.OrdinalIgnoreCase) == true => "was stopped by you",
             _ => null,
         };

@@ -2624,6 +2624,18 @@
                         <TabItem Header="History">
                             <ScrollViewer VerticalScrollBarVisibility="Auto">
                                 <StackPanel>
+                                    <!-- What a project's session did to this card (1.1e AC 16). -->
+                                    <TextBlock Text="Done by sessions" Style="{StaticResource FieldLabel}" Margin="0,0,0,4"
+                                               Visibility="{Binding Drawer.Events.Count, Converter={StaticResource CountToVisibility}}" />
+                                    <ItemsControl ItemsSource="{Binding Drawer.Events}" Margin="0,0,0,10"
+                                                  Visibility="{Binding Drawer.Events.Count, Converter={StaticResource CountToVisibility}}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding}" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,3"
+                                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
                                     <TextBlock Text="Runs" Style="{StaticResource FieldLabel}" Margin="0,0,0,4" />
                                     <ItemsControl ItemsSource="{Binding Drawer.Runs}">
                                         <ItemsControl.ItemTemplate>

@@ -23,7 +23,11 @@ namespace Theseus.Core.Mcp;
 /// A report changes nothing that matters: the link shows Reported until Nigel confirms it on the board.
 /// A session that wants part of its work carried on by another workstream proposes one with
 /// <c>propose_workstream</c>. Nothing exists until Nigel approves it on the board.
-/// No tool approves, starts, confirms, satisfies or edits anything.
+/// No tool approves, confirms, satisfies or edits anything. A session starts, stops, pauses and resumes only its own
+/// descendants' cards, those made from proposals its card raised and the owner approved (1.1e AC 14; Nigel, 2026-11-21,
+/// superseding rubric R3 for them: "we should also allow projects to stop and start and pause and restart existing
+/// workstreams that they have originally created"), and each such call passes the person in the tab first, since it is
+/// not pre-approved.
 /// </summary>
 public sealed partial class McpHandler
 {
@@ -58,7 +62,11 @@ public sealed partial class McpHandler
         + "The user may review a proposal's brief with you here and approve or reject it: call approve_proposal or "
         + "reject_proposal only when the user says so in this tab, never on your own judgement. "
         + "When you start work on a Jira issue, raise one, or open a pull request, call record_work_item with "
-        + "its id and title so the card can show it.";
+        + "its id and title so the card can show it. "
+        + "Your descendants, the cards made from proposals your card raised and the user approved, and theirs in turn, "
+        + "are listed by workstreams with their state and why each is stopped; you may start_workstream, "
+        + "stop_workstream, pause_workstream and resume_workstream them, giving an instruction for a start when there "
+        + "is more work. Any other card is the user's.";
 
     private readonly WorkLog _work;
     private readonly LockBook? _locks;
@@ -73,6 +81,7 @@ public sealed partial class McpHandler
     private readonly Func<string> _briefFolderName;
     private readonly Func<WorkstreamProposal, bool, ProposalApproval>? _approve;
     private readonly WorkItemBook? _workItems;
+    private readonly IWorkstreamControl? _control;
 
     /// <summary>Creates the handler over the work log, the sampler's intervals and the launched sessions.</summary>
     /// <param name="sessions">Finds the session a request's path names, or null for one Theseus did not launch.</param>
@@ -84,6 +93,7 @@ public sealed partial class McpHandler
     /// <param name="proposals">The workstreams sessions have proposed, or null when Theseus is not taking any.</param>
     /// <param name="briefFolderName">The board's brief folder, relative to a working directory.</param>
     /// <param name="workItems">The Jira issues and pull requests sessions record against their cards, or null.</param>
+    /// <param name="control">Starts, stops, pauses and resumes a session's descendants on the board (1.1e AC 14), or null.</param>
     /// <param name="approve">
     /// Creates the card for a proposal its session approves when Nigel asks, and whether to start it, or
     /// null when sessions cannot approve.
@@ -101,8 +111,10 @@ public sealed partial class McpHandler
         ProposalBook? proposals = null,
         Func<string>? briefFolderName = null,
         Func<WorkstreamProposal, bool, ProposalApproval>? approve = null,
-        WorkItemBook? workItems = null)
+        WorkItemBook? workItems = null,
+        IWorkstreamControl? control = null)
     {
+        _control = control;
         _workItems = workItems;
         _approve = approve;
         _proposals = proposals;
@@ -283,6 +295,37 @@ public sealed partial class McpHandler
                 "Remove a link this workstream is at either end of, by its id from related. Removing a hand-over also removes the report back that depended on it. Use only when the user asks for it in this tab.",
                 new JsonObject { ["link_id"] = Property("The link's id, from related.") },
                 "link_id"),
+            Tool("workstreams",
+                "Your descendants: the cards made from proposals your card raised and the user approved, and theirs in turn, each with its state and why it is stopped. Read-only. Only these can be started, stopped, paused or resumed from here.",
+                new JsonObject()),
+            Tool("start_workstream",
+                "Start one of your descendants, resuming its conversation. An instruction, if given, is its opening prompt for this start only, such as \"more work: ...\". Refused if it is running, archived or blocked.",
+                new JsonObject
+                {
+                    ["card"] = Property("The card's key or title, from workstreams."),
+                    ["instruction"] = Property("Optional: what this start is for, given to it once."),
+                },
+                "card"),
+            Tool("stop_workstream",
+                "Ask one of your descendants' sessions to write its handover and stop; it ends after its current turn.",
+                new JsonObject { ["card"] = Property("The card's key or title, from workstreams.") },
+                "card"),
+            Tool("pause_workstream",
+                "Stop one of your descendants if it runs and mark it paused by you, with the reason; its project's Start does not start it while it stays paused.",
+                new JsonObject
+                {
+                    ["card"] = Property("The card's key or title, from workstreams."),
+                    ["reason"] = Property("Optional: why, shown on its card."),
+                },
+                "card"),
+            Tool("resume_workstream",
+                "Clear the pause you put on one of your descendants and start it, with an instruction for this start if given.",
+                new JsonObject
+                {
+                    ["card"] = Property("The card's key or title, from workstreams."),
+                    ["instruction"] = Property("Optional: what this start is for, given to it once."),
+                },
+                "card"),
             Tool("record_work_item",
                 "Show a Jira issue or pull request on this workstream's card, with its title, in the card's drop-down. Call it when you start work on an issue, raise one, or open a pull request. Recording one again updates its title.",
                 new JsonObject
@@ -372,8 +415,123 @@ public sealed partial class McpHandler
             "record_work_item" => RecordWorkItem(session, arguments),
             "name_work_items" => NameWorkItems(arguments),
             "reject_proposal" => RejectProposal(session, arguments),
+            "workstreams" => Workstreams(session),
+            "start_workstream" => ControlWorkstream(session, arguments, WorkstreamCall.Start),
+            "stop_workstream" => ControlWorkstream(session, arguments, WorkstreamCall.Stop),
+            "pause_workstream" => ControlWorkstream(session, arguments, WorkstreamCall.Pause),
+            "resume_workstream" => ControlWorkstream(session, arguments, WorkstreamCall.Resume),
             _ => WhoAmI(session),
         });
+    }
+
+    /// <summary>workstreams (1.1e AC 14): the caller's descendants with their state and why, so a session decides from facts.</summary>
+    private JsonObject Workstreams(McpSession session)
+    {
+        if (_control is null || _proposals is null)
+        {
+            return Result("This Theseus does not let sessions start or stop workstreams.", isError: true);
+        }
+
+        var board = _board();
+        var descendants = WorkstreamDescendants.Of(session.WorkstreamKey, _proposals.All);
+
+        if (descendants.Count == 0)
+        {
+            return Result("You have no descendants: no card has been made from a proposal this workstream raised.");
+        }
+
+        return Result(string.Join(Environment.NewLine, descendants.Select(key => board.Card(key) is { } card
+            ? $"{card.Title} ({card.Key}): {StateOf(card)}{(card.StopLine is { } why ? $"; {why}" : string.Empty)}"
+            : $"{key}: no longer on the board")));
+    }
+
+    // A card named by its key, shown by its title as the board has it now (review of PR 3, finding 9).
+    private static string TitleOf(BoardSnapshot board, string key) => board.Card(key)?.Title ?? key;
+
+    private static string StateOf(BoardSnapshotCard card) => card switch
+    {
+        { Workstream.IsArchived: true } => "archived",
+        { IsLive: true, Lifecycle: SessionLifecycle.NeedsAttention } => "running, waiting for the user",
+        { IsLive: true } => "running",
+        { Workstream.IsBlocked: true } => "blocked",
+        _ => "not running",
+    };
+
+    /// <summary>
+    /// start_workstream, stop_workstream, pause_workstream and resume_workstream (1.1e AC 14 to 16): only on a descendant,
+    /// decided from Theseus's own proposal records, and only in a state the call fits; a refusal returns its reason and
+    /// changes nothing on the board.
+    /// </summary>
+    private JsonObject ControlWorkstream(McpSession session, JsonObject arguments, WorkstreamCall call)
+    {
+        if (_control is null || _proposals is null)
+        {
+            return Result("This Theseus does not let sessions start or stop workstreams.", isError: true);
+        }
+
+        if (Text(arguments["card"]) is not { } named)
+        {
+            return Result("Name the card: its key or title, from workstreams.", isError: true);
+        }
+
+        // Only descendants are looked in, by key, then by title; two descendants of one title are not guessed between
+        // (review of PR 3, finding 8).
+        var board = _board();
+        var descendants = WorkstreamDescendants.Of(session.WorkstreamKey, _proposals.All)
+            .Select(board.Card).OfType<BoardSnapshotCard>().ToList();
+        var byKey = descendants.FirstOrDefault(each => string.Equals(each.Key, named.Trim(), StringComparison.OrdinalIgnoreCase));
+        var byTitle = descendants.Where(each => string.Equals(each.Title, named.Trim(), StringComparison.OrdinalIgnoreCase)).ToList();
+
+        if (byKey is null && byTitle.Count > 1)
+        {
+            return Result($"More than one of your descendants is called {named}: name one by its key ({string.Join(", ", byTitle.Select(each => each.Key))}).", isError: true);
+        }
+
+        if ((byKey ?? byTitle.SingleOrDefault()) is not { } card)
+        {
+            return Result(board.Card(named) is not null || board.Cards.Any(each => string.Equals(each.Title, named.Trim(), StringComparison.OrdinalIgnoreCase))
+                ? $"{board.Card(named)?.Title ?? named} is not one of your descendants (a card made from a proposal your card raised and the user approved), so it is the user's to start or stop."
+                : $"No card on the board is called {named}.", isError: true);
+        }
+
+        var instruction = Text(arguments["instruction"]);
+        var refusal = call switch
+        {
+            WorkstreamCall.Start or WorkstreamCall.Resume when card.Workstream.IsArchived => $"{card.Title} is archived.",
+            WorkstreamCall.Start or WorkstreamCall.Resume when card.IsLive => $"{card.Title} is running.",
+            WorkstreamCall.Start or WorkstreamCall.Resume when card.Workstream.IsBlocked => $"{card.Title} is blocked: the user marked it so.",
+            WorkstreamCall.Start or WorkstreamCall.Resume or WorkstreamCall.Pause when card.Workstream is { IsPaused: true, PausedBy: null }
+                => $"{card.Title} is paused by the user.",
+            WorkstreamCall.Start when card.Workstream.PausedBy is { } by
+                => string.Equals(by, session.WorkstreamKey, StringComparison.OrdinalIgnoreCase)
+                    ? $"{card.Title} is paused by you: resume it instead."
+                    : $"{card.Title} is paused by {TitleOf(board, by)}.",
+            WorkstreamCall.Pause when card.Workstream.PausedBy is { } by && !string.Equals(by, session.WorkstreamKey, StringComparison.OrdinalIgnoreCase)
+                => $"{card.Title} is paused by {TitleOf(board, by)}.",
+            WorkstreamCall.Resume when !string.Equals(card.Workstream.PausedBy, session.WorkstreamKey, StringComparison.OrdinalIgnoreCase)
+                => $"{card.Title} is not paused by you.",
+            WorkstreamCall.Stop when !card.IsLive => $"{card.Title} has no session to stop.",
+            WorkstreamCall.Pause when card.Workstream.IsArchived => $"{card.Title} is archived.",
+            _ => null,
+        };
+
+        refusal ??= call switch
+        {
+            WorkstreamCall.Start => _control.Start(card.Key, instruction, session.WorkstreamKey),
+            WorkstreamCall.Stop => _control.Stop(card.Key, session.WorkstreamKey),
+            WorkstreamCall.Pause => _control.Pause(card.Key, session.WorkstreamKey, Text(arguments["reason"])),
+            _ => _control.Resume(card.Key, instruction, session.WorkstreamKey),
+        };
+
+        return refusal is not null
+            ? Result(refusal, isError: true)
+            : Result(call switch
+            {
+                WorkstreamCall.Start => $"Started {card.Title}.",
+                WorkstreamCall.Stop => $"Asked {card.Title} to write its handover and stop; it ends after its current turn.",
+                WorkstreamCall.Pause => $"Paused {card.Title}; its project's Start leaves it alone until you resume it.",
+                _ => $"Resumed {card.Title}.",
+            });
     }
 
     private JsonObject Locks()

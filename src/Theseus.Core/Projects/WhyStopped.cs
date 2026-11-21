@@ -15,8 +15,10 @@ public sealed record WhyStopped(WhyStoppedKind Kind, string Line)
     /// <param name="reportConfirmedUtc">When its report back was confirmed on the board, or null.</param>
     /// <param name="stoppedProject">The title of the stopped project whose run state holds it, or null.</param>
     /// <param name="stoppedByOwner">Whether the owner stopped it by hand while its project ran.</param>
+    /// <param name="pausedBy">The card whose session paused it, or null.</param>
+    /// <param name="pauseReason">Why, or null.</param>
     public static WhyStopped? For(bool hasSession, bool isInLastStage, DateTimeOffset? reportConfirmedUtc, string? stoppedProject,
-        bool stoppedByOwner)
+        bool stoppedByOwner, string? pausedBy = null, string? pauseReason = null)
     {
         if (hasSession)
         {
@@ -37,6 +39,12 @@ public sealed record WhyStopped(WhyStoppedKind Kind, string Line)
         if (stoppedProject is not null)
         {
             return new WhyStopped(WhyStoppedKind.ProjectStopped, $"⏸ Project stopped: resumes with {stoppedProject}");
+        }
+
+        if (pausedBy is not null)
+        {
+            return new WhyStopped(WhyStoppedKind.PausedBy,
+                string.IsNullOrWhiteSpace(pauseReason) ? $"⏸ Paused by {pausedBy}" : $"⏸ Paused by {pausedBy}: {pauseReason.Trim()}");
         }
 
         return stoppedByOwner ? new WhyStopped(WhyStoppedKind.StoppedByYou, "Stopped by you") : null;

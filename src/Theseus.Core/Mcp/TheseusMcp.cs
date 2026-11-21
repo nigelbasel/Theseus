@@ -17,6 +17,7 @@ public static class TheseusMcp
             "start_work", "stop_work", "time_for", "whoami", "locks", "lock_acquire", "lock_release", "related", "report_back",
             "propose_workstream", "proposal_status", "withdraw_proposal", "link_workstream", "unlink_workstream",
             "approve_proposal", "reject_proposal", "record_work_item", "name_work_items",
+            "start_workstream", "stop_workstream", "pause_workstream", "resume_workstream", "workstreams",
         ];
 
     /// <summary>
@@ -26,7 +27,8 @@ public static class TheseusMcp
     /// </summary>
     public static readonly IReadOnlyList<string> PreApproved =
         [.. ToolNames.Where(tool => tool is not ("report_back" or "propose_workstream" or "withdraw_proposal"
-                                       or "link_workstream" or "unlink_workstream" or "approve_proposal" or "reject_proposal"))];
+                                       or "link_workstream" or "unlink_workstream" or "approve_proposal" or "reject_proposal"
+                                       or "start_workstream" or "stop_workstream" or "pause_workstream" or "resume_workstream"))];
 
     /// <summary>
     /// The <c>--allowedTools</c> value that lets a launched session use exactly these tools without being

@@ -1,3 +1,5 @@
+using Theseus.Core.Mcp;
+using Theseus.Core.Persistence;
 using System.Diagnostics;
 using System.IO;
 using System.Windows.Threading;
@@ -22,6 +24,7 @@ public sealed class ShellViewModel : ObservableObject
     private readonly ISettingsStore _settings;
     private string _holdoutFolder = string.Empty;
     private readonly HoldoutChecks _holdouts = new();
+    private readonly CardEventLog _cardEvents = new(Path.Combine(App.DataDirectory, "card-events.jsonl"));
     private IReadOnlyDictionary<string, ProjectBranchGrant> _branchGrants = new Dictionary<string, ProjectBranchGrant>();
     private readonly BackgroundProjectReads _projectReads;
     private readonly ProjectFolderWatcher _projectWatcher;
@@ -37,6 +40,7 @@ public sealed class ShellViewModel : ObservableObject
     private ProjectViewActions? _projectActions;
     private ProjectRunner? _runner;
     private CardRunCommands? _runCommands;
+    private IWorkstreamControl? _workstreamControl;
     private bool _projectStartSaid;
     private readonly ProjectViewHost _viewHost;
     private IReadOnlyList<ProjectChoice> _openProjectChoices = [];
@@ -232,6 +236,7 @@ public sealed class ShellViewModel : ObservableObject
                 Refresh();
                 Notice = $"Deleted {title}.";
             });
+        Drawer.EventsOf = _cardEvents.For;
 
         Settings = new SettingsViewModel(settings, Refresh);
 
@@ -567,6 +572,69 @@ public sealed class ShellViewModel : ObservableObject
 
     /// <summary>Says in the status bar why a drag could not be dropped (1.1d AC 42).</summary>
     public void DropRefused(string reason) => Notice = reason;
+
+    /// <summary>
+    /// What a project's session does to its descendants, through the Theseus tools (1.1e AC 14 to 16), on the board's own
+    /// start and stop. Called on the UI thread.
+    /// </summary>
+    public IWorkstreamControl WorkstreamControl => _workstreamControl ??= new BoardWorkstreamControl(Board,
+        StartForSession,
+        StopForSession,
+        _cardEvents,
+        text => Notice = string.IsNullOrWhiteSpace(Notice) ? text : $"{Notice} {text}",
+        () => DateTimeOffset.UtcNow,
+        Refresh);
+
+    /// <summary>
+    /// A session's start of a descendant (review of PR 3, findings 5 and 6): it resumes the conversation, falling back to
+    /// fresh only when there is none, and counts only once a run is recorded; otherwise it says why, from what the start
+    /// said, so the session does not try again blindly.
+    /// </summary>
+    private string? StartForSession(IReadOnlyList<Workstream> workstreams, string trigger)
+    {
+        var key = workstreams[0].Key;
+        int Runs() => _runs.Read().Count(run => string.Equals(run.WorkstreamKey, key, StringComparison.OrdinalIgnoreCase));
+        var before = Runs();
+        var said = Notice;
+
+        Notice = string.Empty;
+        StartMany(workstreams, startMode: StartMode.Resume, trigger: trigger);
+
+        if (Runs() > before)
+        {
+            return null;
+        }
+
+        var why = string.IsNullOrWhiteSpace(Notice) ? "Theseus could not start it just now" : Notice;
+        Notice = string.IsNullOrWhiteSpace(Notice) ? said : Notice;
+
+        return $"{workstreams[0].Title} did not start: {why}";
+    }
+
+    /// <summary>
+    /// A session's stop of a descendant (review of PR 3, finding 7): only the stop request, which its session reads when
+    /// its turn ends. It never cuts in, never touches the owner's own Stop all, and never hands the owner text to paste;
+    /// without the stop hook it says the user must stop it.
+    /// </summary>
+    private string? StopForSession(WorkstreamCardViewModel card)
+    {
+        if (!HookInstallation.IsInstalled(SettingsFile()))
+        {
+            return $"Theseus's stop hook is not installed, so {card.Title} cannot be asked to stop from here; the user must stop it.";
+        }
+
+        if (StepsFor([card]).FirstOrDefault() is not { } step)
+        {
+            return $"{card.Title} has no session to stop.";
+        }
+
+        if (_stopRequests.Waiting(step.SessionId) is null)
+        {
+            Ask(step);
+        }
+
+        return null;
+    }
 
     /// <summary>
     /// Starts and stops whole projects with the board's own Start and Stop (1.1e AC 8, 9). What a project's Start skipped
@@ -1755,6 +1823,7 @@ public sealed class ShellViewModel : ObservableObject
             StartSelection.IsEligible(card.Workstream, Sessions.Snapshot))
         {
             StopLine = card.StopReason?.Line,
+            PausedBy = card.Workstream.PausedBy is { } by ? Board.Card(by)?.Title ?? by : null,
             BranchRulesSince = BranchRulesSince(card.Workstream),
         };
 
@@ -2452,7 +2521,7 @@ public sealed class ShellViewModel : ObservableObject
             card.LastStartedUtc = state.LastStartedUtc;
             card.IsInLastStage = lastStage is not null && string.Equals(card.Column, lastStage, StringComparison.OrdinalIgnoreCase);
             card.StopReason = CardStopReasons.For(card, reasons.ProjectRunStates, ProjectTitle, reasons.CardsStoppedByOwner,
-                Chains?.AllLinks ?? []);
+                Chains?.AllLinks ?? [], key => Board.Card(key)?.Title ?? key);
             card.VerifyToolTip = WhyCannotVerify(card) ?? VerifyToolTipWhenItCan;
             card.LastRunCrashed = !live && (state.Lifecycle == SessionLifecycle.Ghost
                                             || runs.Where(run => string.Equals(run.WorkstreamKey, card.Key, StringComparison.OrdinalIgnoreCase))
@@ -2554,11 +2623,30 @@ public sealed class ShellViewModel : ObservableObject
         card.Model = fact.Model ?? string.Empty;
     }
 
-    private void PublishSnapshot(Dictionary<WorkstreamCardViewModel, string> handoffs) =>
-        Snapshots?.Publish(new BoardSnapshot(
-            [.. handoffs.Keys.Select(card => new BoardSnapshotCard(card.Workstream, handoffs[card],
-                card.Lifecycle, card.IsLive, card.IsInLastStage, card.LastStartedUtc, card.LastRunCrashed))],
+    // The cards shown, as they are, then every other card on disk (archived, or hidden by the archive view) as not
+    // running, so the tools can answer about any card (review of 1.1e PR 3, finding 10).
+    private void PublishSnapshot(Dictionary<WorkstreamCardViewModel, string> handoffs)
+    {
+        if (Snapshots is null)
+        {
+            return;
+        }
+
+        var shown = handoffs.Keys.Select(card => card.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        Snapshots.Publish(new BoardSnapshot(
+            [
+                .. handoffs.Keys.Select(card => new BoardSnapshotCard(card.Workstream, handoffs[card],
+                    card.Lifecycle, card.IsLive, card.IsInLastStage, card.LastStartedUtc, card.LastRunCrashed)
+                {
+                    StopLine = card.StopReason?.Line,
+                }),
+                .. Board.AllWorkstreams().Where(workstream => !shown.Contains(workstream.Key))
+                    .Select(workstream => new BoardSnapshotCard(workstream, HandoffPath.For(workstream),
+                        SessionLifecycle.NotStarted, false, false, null, false)),
+            ],
             DateTimeOffset.UtcNow));
+    }
 
     /// <summary>
     /// Types /exit into any session that was asked to stop, has written its handover, and has gone
@@ -3279,7 +3367,7 @@ public sealed class ShellViewModel : ObservableObject
     /// </summary>
     private void CreateFrom(LiveSessionViewModel session)
     {
-        var taken = _plans.Keys();
+        IReadOnlyList<string> taken = [.. _plans.Keys(), .. Chains?.TakenKeys ?? []];
         var key = WorkstreamKey.Unique(session.Name, taken);
 
         var inUse = taken

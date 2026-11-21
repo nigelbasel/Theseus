@@ -26,8 +26,10 @@ Source: `src/Theseus.Core/Mcp/McpHandler.cs`; `src/Theseus.App/ViewModels/Chains
 Ready is shown and counted, never acted on. The chains view is read-only.
 *Breaks if* any code path launches a session without a person pressing Start, except a project workstream started by
 Theseus inside a project at autonomy level L1 or above, for an objective in its approved project file (Nigel,
-2026-11-20; none exists until the levels are built in phase 2).
+2026-11-20; none exists until the levels are built in phase 2), and a session starting one of its own descendants with
+`start_workstream` or `resume_workstream`, a tool call that passes the person in the tab (Nigel, 2026-11-21, 1.1e AC 14).
 Source: `src/Theseus.App/ViewModels/ChainsViewModel.cs` (Nigel, 2026-10-21); `src/Theseus.App/MainWindow.xaml`, chains (Nigel, 2026-10-23).
+Descendants: `src/Theseus.Core/Proposals/WorkstreamDescendants.cs`, `src/Theseus.Core/Mcp/McpHandler.cs` (Nigel, 2026-11-21).
 
 **R4. Theseus reads trackers and never writes them; sessions never report durations.**
 Time comes from the attention sampler, attended and machine time separately, and the person logging chooses.
@@ -86,6 +88,9 @@ Source: `src/Theseus.Core/Status/TheseusStatusNotice.cs`, `src/Theseus.App/App.x
 Yes clears the mark and starts; No leaves it marked and unstarted.
 *Breaks if* pausing moves a card out of its stage, or a marked card starts without the question.
 Source: `src/Theseus.Core/Domain/WorkstreamSidecar.cs`, `src/Theseus.Core/Launching/FlaggedStart.cs`, `src/Theseus.Core/Domain/BoardTidy.cs` (Nigel, 2026-10-30).
+One exception: `resume_workstream` clears and starts a card paused by the calling session itself, through a tool call
+that passes the person in the tab; it never touches the owner's pause, another session's, or a blocked card (Nigel,
+2026-11-21, 1.1e AC 14). Source: `src/Theseus.Core/Mcp/McpHandler.cs`.
 
 **R14. Briefs and reports are placed relative to the spawning workstream, never by absolute path.**
 *Breaks if* a brief or report path is stored absolute.

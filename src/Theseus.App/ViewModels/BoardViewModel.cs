@@ -280,6 +280,25 @@ public sealed class BoardViewModel : ObservableObject
             : null;
     }
 
+    /// <summary>
+    /// Every workstream on disk, archived or not, whatever the board shows, for the Theseus tools, which answer about a
+    /// card whether or not it is shown (review of 1.1e PR 3, finding 10).
+    /// </summary>
+    public IReadOnlyList<Workstream> AllWorkstreams()
+    {
+        var plans = new Dictionary<string, SessionPlan>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var key in _plans.Keys())
+        {
+            if (_plans.TryRead(key) is { } plan)
+            {
+                plans[key] = plan;
+            }
+        }
+
+        return WorkstreamAssembler.Assemble(plans, _board.Read());
+    }
+
     /// <summary>Reads the plans and sidecars and rebuilds the board from them.</summary>
     public void Refresh()
     {
@@ -1174,6 +1193,8 @@ public sealed class BoardViewModel : ObservableObject
                   Column = card.Column,
                   IsBlocked = card.Workstream.IsBlocked,
                   IsPaused = card.Workstream.IsPaused,
+                  PausedBy = card.Workstream.IsPaused ? card.Workstream.PausedBy : null,
+                  PauseReason = card.Workstream.IsPaused ? card.Workstream.PauseReason : null,
                   ReopenTomorrow = card.Workstream.ReopenTomorrow,
                   JiraKeys = card.JiraKeys,
                   RemovedJiraKeys = card.Workstream.RemovedJiraKeys,
@@ -1194,6 +1215,8 @@ public sealed class BoardViewModel : ObservableObject
                   Area = card.Workstream.Area,
                   EveryStartPrompt = card.Workstream.EveryStartPrompt,
                   IsPaused = card.Workstream.IsPaused,
+                  PausedBy = card.Workstream.IsPaused ? card.Workstream.PausedBy : null,
+                  PauseReason = card.Workstream.IsPaused ? card.Workstream.PauseReason : null,
                   Role = card.Workstream.Role,
               };
 

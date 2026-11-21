@@ -15,8 +15,10 @@ public static class CardStopReasons
     /// <param name="projectTitle">A project's title from its name.</param>
     /// <param name="stoppedByOwner">The cards the owner stopped by hand while their project ran.</param>
     /// <param name="links">Every link, for its confirmed report back.</param>
+    /// <param name="cardTitle">A card's title from its key, for "Paused by <card>"; null shows the key.</param>
     public static WhyStopped? For(WorkstreamCardViewModel card, IReadOnlyDictionary<string, IReadOnlyList<string>> runStates,
-        Func<string, string> projectTitle, IReadOnlyCollection<string> stoppedByOwner, IReadOnlyList<Link> links)
+        Func<string, string> projectTitle, IReadOnlyCollection<string> stoppedByOwner, IReadOnlyList<Link> links,
+        Func<string, string>? cardTitle = null)
     {
         ArgumentNullException.ThrowIfNull(card);
         ArgumentNullException.ThrowIfNull(runStates);
@@ -31,6 +33,7 @@ public static class CardStopReasons
         var stoppedIn = runStates.FirstOrDefault(state => state.Value.Contains(card.Key, StringComparer.OrdinalIgnoreCase)).Key;
 
         return WhyStopped.For(card.IsLive, card.IsInLastStage, confirmed, stoppedIn is null ? null : projectTitle(stoppedIn),
-            stoppedByOwner.Contains(card.Key, StringComparer.OrdinalIgnoreCase));
+            stoppedByOwner.Contains(card.Key, StringComparer.OrdinalIgnoreCase),
+            card.Workstream.PausedBy is { } by ? cardTitle?.Invoke(by) ?? by : null, card.Workstream.PauseReason);
     }
 }

@@ -220,6 +220,15 @@ public sealed class DetailDrawerViewModel : ObservableObject
     /// <summary>This workstream's past launches, newest first.</summary>
     public ObservableCollection<RunHistoryEntryViewModel> Runs { get; } = [];
 
+    /// <summary>
+    /// What was done to it that is not a run, such as a project's session pausing it (1.1e AC 16), newest first, each as
+    /// "time  what".
+    /// </summary>
+    public ObservableCollection<string> Events { get; } = [];
+
+    /// <summary>A card's events, set by the shell; null shows none.</summary>
+    public Func<string, IReadOnlyList<Theseus.Core.Domain.CardEvent>>? EventsOf { get; set; }
+
     /// <summary>The workflows this workstream's last session ran, newest first.</summary>
     public ObservableCollection<WorkflowRunViewModel> Workflows { get; } = [];
 
@@ -482,6 +491,12 @@ public sealed class DetailDrawerViewModel : ObservableObject
                      .OrderByDescending(run => run.StartedUtc))
         {
             Runs.Add(new RunHistoryEntryViewModel(run));
+        }
+
+        Events.Clear();
+        foreach (var cardEvent in (EventsOf?.Invoke(card.Key) ?? []).OrderByDescending(each => each.AtUtc))
+        {
+            Events.Add($"{cardEvent.AtUtc.ToLocalTime():ddd d MMM HH:mm}  {cardEvent.Text}");
         }
 
         Workflows.Clear();

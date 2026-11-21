@@ -22,6 +22,9 @@ public sealed record BoardSnapshotCard(
     /// <summary>The card's key.</summary>
     public string Key => Workstream.Key;
 
+    /// <summary>Why it is stopped, as its card says (1.1e AC 12), for workstreams(); null when its own line says enough.</summary>
+    public string? StopLine { get; init; }
+
     /// <summary>The card's title.</summary>
     public string Title => Workstream.Title;
 

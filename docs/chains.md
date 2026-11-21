@@ -42,6 +42,18 @@ your permission before each of these.
 | Propose a new workstream for part of the work | `propose_workstream`, after writing a brief for it |
 | Show its proposals | `proposal_status` |
 | Approve or reject one of its proposals | `approve_proposal` or `reject_proposal` |
+| List the cards made from its approved proposals, and theirs in turn, with their state and why each is stopped | `workstreams` (runs without asking) |
+| Start one of those cards, with an instruction for that start only | `start_workstream` |
+| Stop one of those cards' sessions | `stop_workstream` |
+| Pause one of those cards, with a reason; its project's Start leaves it alone | `pause_workstream` |
+| Clear its own pause on one of those cards and start it | `resume_workstream` |
+
+A session acts only on its **descendants**: cards made from proposals its card raised and you approved, and theirs in
+turn. Theseus works this out from its own records, not from what the session says, so it can never reach your other
+cards, another project's, or the card that proposed it. It cannot start a card that is running, archived, blocked or
+paused by you. Each call shows in the status bar and in the card's **History** ("Restarted by Theseus: more work: …").
+A child that reports back stops once its report is in; its parent restarts it with an instruction when there is more.
+Claude Code asks you before each of the four that act, unless the session runs in a mode that approves tools by itself.
 
 Sessions also call `record_work_item` when they start on a Jira issue, raise one, or open a pull
 request, so the card's drop-downs can show its title. That one runs without asking, because it only

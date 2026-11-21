@@ -43,6 +43,15 @@ public sealed record Workstream(
     /// <summary>Whether the work is paused: set aside on purpose, keeping its stage. A flag like blocked.</summary>
     public bool IsPaused { get; init; }
 
+    /// <summary>
+    /// The card whose session paused it, through pause_workstream, or null when the owner paused it or it is not paused
+    /// (1.1e AC 14): a project's Start does not start it while this stands.
+    /// </summary>
+    public string? PausedBy { get; init; }
+
+    /// <summary>Why that session paused it, or null.</summary>
+    public string? PauseReason { get; init; }
+
     /// <summary>The keys taken off this card by hand, which stay off until they are added again.</summary>
     public IReadOnlyList<string> RemovedJiraKeys { get; init; } = [];
 
