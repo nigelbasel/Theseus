@@ -600,6 +600,10 @@
                         <TextBlock Margin="0,4,0,0" HorizontalAlignment="Left" Text="{Binding FlagText}" FontSize="11" FontWeight="SemiBold" Foreground="#D68910"
                                        VerticalAlignment="Center"
                                        Visibility="{Binding FlagText, Converter={StaticResource NotEmptyToVisibility}}" />
+                        <!-- Its project's branch rules, granted by the owner (1.1e AC 12b). -->
+                        <TextBlock x:Name="BranchRules" Margin="0,4,0,0" HorizontalAlignment="Left" Text="{Binding BranchRulesMark}" FontSize="11"
+                                   ToolTip="{Binding BranchRulesToolTip}" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                   Visibility="{Binding BranchRulesMark, Converter={StaticResource NotEmptyToVisibility}}" />
 
                         <!--
                             Icons, as media and transport controls are everywhere (Nigel, 2026-10-30):

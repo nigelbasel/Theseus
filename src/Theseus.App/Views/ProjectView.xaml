@@ -23,6 +23,7 @@
         </ResourceDictionary.MergedDictionaries>
         <BooleanToVisibilityConverter x:Key="Visible" />
         <converters:HexToBrushConverter x:Key="HexToBrush" />
+        <converters:NotEmptyToVisibilityConverter x:Key="NotEmpty" />
         <FontFamily x:Key="Mono">Cascadia Mono, Consolas</FontFamily>
 
         <!--
@@ -322,6 +323,9 @@
                                             <Run Text="{Binding ObjectiveLabel, Mode=OneWay}" />
                                         </TextBlock>
                                     </DockPanel>
+                                    <TextBlock x:Name="BranchRules" Text="{Binding BranchRulesMark}" FontSize="11" Margin="14,1,0,0"
+                                               ToolTip="{Binding BranchRulesToolTip}" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                               Visibility="{Binding BranchRulesMark, Converter={StaticResource NotEmpty}}" />
                                     <TextBlock x:Name="Status" Text="{Binding StatusText}" Style="{StaticResource StateForeground}"
                                                FontSize="13" FontWeight="Medium" TextWrapping="Wrap" Margin="0,6,0,0" />
                                     <TextBlock x:Name="ReportBack" Text="{Binding ReportBackText}" ToolTip="{Binding ReportBackToolTip}"

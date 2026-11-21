@@ -62,6 +62,14 @@ public sealed class PieceNodeViewModel : ObservableObject, IFoldable
     /// <summary>"objective 1.1", or "not in project.md".</summary>
     public string ObjectiveLabel => Piece.ObjectiveLabel;
 
+    /// <summary>"project branch rules" while its card's project has them, else empty (1.1e AC 12b).</summary>
+    public string BranchRulesMark => Piece.Card?.BranchRulesSince is null ? string.Empty : Theseus.Core.Projects.ProjectBranchRules.Mark;
+
+    /// <summary>The mark's tooltip, with the grant's date.</summary>
+    public string BranchRulesToolTip => Piece.Card?.BranchRulesSince is { } since
+        ? $"Granted by you on {since.ToLocalTime():d MMM yyyy}: its card may branch off the primary branch, push, and merge back without asking"
+        : string.Empty;
+
     /// <summary>The meta line in full, for its tooltip when it is trimmed.</summary>
     public string MetaText => $"{Workstream} · {KindWord} · {ObjectiveLabel}";
 

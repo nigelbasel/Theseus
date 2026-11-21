@@ -22,6 +22,7 @@ public sealed class ShellViewModel : ObservableObject
     private readonly ISettingsStore _settings;
     private string _holdoutFolder = string.Empty;
     private readonly HoldoutChecks _holdouts = new();
+    private IReadOnlyDictionary<string, ProjectBranchGrant> _branchGrants = new Dictionary<string, ProjectBranchGrant>();
     private readonly BackgroundProjectReads _projectReads;
     private readonly ProjectFolderWatcher _projectWatcher;
     private bool _hasProjectsFolder;
@@ -137,6 +138,12 @@ public sealed class ShellViewModel : ObservableObject
         BringProjectWindowForwardCommand = new RelayCommand(_ => BringProjectWindowForward(),
             _ => IsProjectOpen && _projectWindow.SessionId is not null && Sessions.Find(_projectWindow.SessionId) is not null);
         launcher.ReadableProjects = () => _projectReads.ReadableNames;
+        // Asked at each start, from the settings as they are then; the card's own branch is named after its records folder,
+        // as its row's branch is (review of PR 2c, finding 1).
+        launcher.BranchRulesFor = workstream =>
+            ProjectBranchRules.GrantedPrimary(workstream.Project, _settings.Read().ProjectBranchRules, PrimaryBranchOf) is { } primary
+                ? ProjectBranchRules.Text(primary, workstream.Slug ?? workstream.Key)
+                : null;
         _projectReads.Changed += (_, _) => WireProjectChoices();
         _theme = settings.Read().Theme;
         _isSessionsPanelOpen = !settings.Read().SessionsPanelCollapsed;
@@ -622,6 +629,21 @@ public sealed class ShellViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// The primary branch a card may work from under its project's branch rules, or null (1.1e AC 12b): only while the
+    /// owner's grant is in the settings and the project file, as read now, names a primary branch.
+    /// </summary>
+    private string? PrimaryBranchOf(string project) => Readable(project)?.File?.PrimaryBranch;
+
+    /// <summary>
+    /// When a card's project was granted branch rules, while they apply, or null; from the grants read once per refresh
+    /// (review of PR 2c, finding 7).
+    /// </summary>
+    private DateTimeOffset? BranchRulesSince(Workstream workstream) =>
+        ProjectBranchRules.GrantedPrimary(workstream.Project, _branchGrants, PrimaryBranchOf) is not null
+            ? ProjectBranchRules.GrantOf(workstream.Project, _branchGrants)!.Since
+            : null;
+
     /// <summary>A project's title from its file, for "resumes with &lt;project&gt;" (review of PR 2, finding 10).</summary>
     private string ProjectTitle(string name) =>
         _projectReads.Current.FirstOrDefault(reading => string.Equals(reading.Name, name, StringComparison.OrdinalIgnoreCase))?.File?.Title
@@ -645,8 +667,14 @@ public sealed class ShellViewModel : ObservableObject
             .Where(other => !string.Equals(other.Name, card.Name, StringComparison.OrdinalIgnoreCase))
             .GroupBy(other => other.Title, StringComparer.CurrentCultureIgnoreCase)
             .ToDictionary(group => group.Key, group => group.First().ColourHex, StringComparer.CurrentCultureIgnoreCase);
+        var primary = PrimaryBranchOf(card.Name);
+        var grant = ProjectBranchRules.GrantOf(card.Name, _settings.Read().ProjectBranchRules);
+        var granted = grant is not null;
         var properties = new ProjectPropertiesViewModel(card.Name, card.Title, card.ColourHex, card.ProjectFile, others)
         {
+            PrimaryBranch = primary,
+            GrantsBranchRules = granted,
+            GrantedPrimary = grant?.Primary,
             // The title is written at OK, and a refusal is shown in the dialog (1.1e AC 12a).
             WriteTitle = title => EditProject(card.Name, text => ProjectFileEditor.SetTitle(text, card.Title, title),
                 $"{card.Title} is now called {title}.")
@@ -654,8 +682,19 @@ public sealed class ShellViewModel : ObservableObject
                 : Notice,
         };
 
-        if (AskProjectProperties?.Invoke(properties) != true
-            || string.Equals(properties.ColourHex, card.ColourHex, StringComparison.OrdinalIgnoreCase))
+        if (AskProjectProperties?.Invoke(properties) != true)
+        {
+            return;
+        }
+
+        // OK with the box ticked over a grant for another primary branch grants it for the one the file names now.
+        if (properties.GrantsBranchRules != granted
+            || (granted && properties.GrantsBranchRules && !string.Equals(grant!.Primary, primary?.Trim(), StringComparison.Ordinal)))
+        {
+            GrantBranchRules(card, properties.GrantsBranchRules ? primary : null);
+        }
+
+        if (string.Equals(properties.ColourHex, card.ColourHex, StringComparison.OrdinalIgnoreCase))
         {
             return;
         }
@@ -671,6 +710,35 @@ public sealed class ShellViewModel : ObservableObject
         Notice = string.IsNullOrWhiteSpace(Notice) || !properties.TitleChanged
             ? $"{properties.Title.Trim()} has a new colour."
             : $"{Notice} It has a new colour.";
+    }
+
+    /// <summary>
+    /// Grants or withdraws a project's branch rules, the owner's act in Project properties (1.1e AC 12b), kept in the
+    /// settings with the date; its cards are told from their next start on.
+    /// </summary>
+    /// <param name="card">The project's card.</param>
+    /// <param name="primary">The primary branch to grant, as the file names it now, or null to withdraw.</param>
+    private void GrantBranchRules(ProjectCardViewModel card, string? primary)
+    {
+        var settings = _settings.Read();
+        var rules = new Dictionary<string, ProjectBranchGrant>(settings.ProjectBranchRules, StringComparer.OrdinalIgnoreCase);
+        var grant = primary is not null && ProjectBranchRules.HasPrimary(primary);
+
+        if (grant)
+        {
+            rules[card.Name] = new ProjectBranchGrant(DateTimeOffset.Now, primary!.Trim());
+        }
+        else
+        {
+            rules.Remove(card.Name);
+        }
+
+        _settings.Write(settings with { ProjectBranchRules = rules });
+        TheseusLog.Information("Branch rules for {Project} {Change} by the owner", card.Name, grant ? "granted" : "withdrawn");
+        Notice = grant
+            ? $"{card.Title}'s cards may now branch, push and merge into {primary!.Trim()} without asking, from their next start."
+            : $"{card.Title}'s cards ask again before any branch or push, from their next start.";
+        Refresh();
     }
 
     /// <summary>
@@ -1475,6 +1543,7 @@ public sealed class ShellViewModel : ObservableObject
         foreach (var card in cards)
         {
             card.VerifyToolTip = WhyCannotVerify(card) ?? VerifyToolTipWhenItCan;
+            card.BranchRulesSince = BranchRulesSince(card.Workstream);
         }
 
         var reports = Chains?.NeedsYou.Where(row => row.IsReported).Select(row => row.Link).ToList() ?? [];
@@ -1686,6 +1755,7 @@ public sealed class ShellViewModel : ObservableObject
             StartSelection.IsEligible(card.Workstream, Sessions.Snapshot))
         {
             StopLine = card.StopReason?.Line,
+            BranchRulesSince = BranchRulesSince(card.Workstream),
         };
 
     /// <summary>Open spec and Accept spec on the menu bar, for the open project's waiting specs (R16).</summary>
@@ -2366,6 +2436,7 @@ public sealed class ShellViewModel : ObservableObject
         var preferred = _settings.Read().DefaultStartMode;
         var lastStage = Board.Stages.LastOrDefault();
         var reasons = _settings.Read();
+        _branchGrants = reasons.ProjectBranchRules;
         _holdouts.Refresh(_holdoutFolder, [.. Board.Cards.Select(card => card.Workstream)]);
 
         foreach (var card in Board.Cards)

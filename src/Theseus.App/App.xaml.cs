@@ -145,6 +145,13 @@ public partial class App : Application
             TheseusLog.Warning("{Warning}", warning);
             shell.Warn(warning);
         }
+
+        // An older installed guard names its own holdout; this one reads the folder from the settings (git-22, 1.1e PR 2c).
+        if (HoldoutGuardUpgrade.Warning(InstalledHoldoutGuard(), current.HoldoutFolder) is { } guardWarning)
+        {
+            TheseusLog.Warning("{Warning}", guardWarning);
+            shell.Warn(guardWarning);
+        }
         shell.Refresh();
         proposed.Update();
         shell.ApplyTheme();
@@ -389,6 +396,29 @@ public partial class App : Application
     /// Claude Code, so this is required rather than cosmetic.
     /// </summary>
     private const string ClaudeCodeVersion = "2.1.246";
+
+    /// <summary>
+    /// The installed holdout guard's text, or null when none is installed or it cannot be read: the one the Claude Code
+    /// settings' hooks name, else the usual place. Read only, never written.
+    /// </summary>
+    private static string? InstalledHoldoutGuard()
+    {
+        var config = Environment.GetEnvironmentVariable("CLAUDE_CONFIG_DIR") is { Length: > 0 } set
+            ? set
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude");
+
+        try
+        {
+            var settings = Path.Combine(config, "settings.json");
+            var json = File.Exists(settings) ? File.ReadAllText(settings) : null;
+
+            return HoldoutGuardUpgrade.Candidates(json, config).FirstOrDefault(File.Exists) is { } guard ? File.ReadAllText(guard) : null;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
 
     private static string LauncherPath => LauncherKit.Prepare(
         Path.Combine(AppContext.BaseDirectory, "Theseus.Launcher.exe"),

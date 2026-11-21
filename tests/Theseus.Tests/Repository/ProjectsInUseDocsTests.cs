@@ -23,6 +23,9 @@ public class ProjectsInUseDocsTests
     [TestCase("holdouts.md", "**Write scenarios…** beside it creates a card")]
     [TestCase("project-view.md", "a brace to the left of the line groups them all")]
     [TestCase("project-view.md", "A button that cannot act now is shown disabled")]
+    [TestCase("cards.md", "is kept by Theseus, never in `project.md`. It covers the primary branch")]
+    [TestCase("cards.md", "shows **project branch rules**")]
+    [TestCase("holdouts.md", "installing this version's guard then would protect only the default folder")]
     public void TheHelp_SaysHowProjectsAreUsed(string page, string part)
     {
         Assert.That(Doc(page), Does.Contain(part));

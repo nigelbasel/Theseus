@@ -50,6 +50,11 @@ public class SettingsStoreTests
             ProjectGrouping = new Dictionary<string, ProjectViewGrouping> { ["a-project"] = ProjectViewGrouping.Objectives },
             ProjectRunStates = new Dictionary<string, IReadOnlyList<string>> { ["a-project"] = ["git-22", "git-23"] },
             CardsStoppedByOwner = ["git-24"],
+            ProjectBranchRules = new Dictionary<string, ProjectBranchGrant>
+            {
+                ["a-project"] = new(new DateTimeOffset(2026, 11, 21, 20, 0, 0, TimeSpan.Zero), "nigel/a-project"),
+            },
+            CardsToldBranchRules = ["git-25"],
         };
 
         _store.Write(settings);
@@ -68,6 +73,9 @@ public class SettingsStoreTests
         Assert.That(read.ProjectGrouping["a-project"], Is.EqualTo(ProjectViewGrouping.Objectives));
         Assert.That(read.ProjectRunStates["a-project"], Is.EqualTo(new[] { "git-22", "git-23" }));
         Assert.That(read.CardsStoppedByOwner, Is.EqualTo(new[] { "git-24" }));
+        Assert.That(read.ProjectBranchRules["a-project"],
+            Is.EqualTo(new ProjectBranchGrant(new DateTimeOffset(2026, 11, 21, 20, 0, 0, TimeSpan.Zero), "nigel/a-project")));
+        Assert.That(read.CardsToldBranchRules, Is.EqualTo(new[] { "git-25" }));
         Assert.That(read with
             {
                 Lanes = settings.Lanes, Areas = settings.Areas, CollapsedAreas = settings.CollapsedAreas,
@@ -75,7 +83,8 @@ public class SettingsStoreTests
                 ViewFolds = settings.ViewFolds, ColumnWeights = settings.ColumnWeights, RowHeights = settings.RowHeights, AreaWindows = settings.AreaWindows,
                 ProjectCardPlaces = settings.ProjectCardPlaces, PaneSizes = settings.PaneSizes, ProjectColours = settings.ProjectColours,
                 ProjectGrouping = settings.ProjectGrouping, ProjectRunStates = settings.ProjectRunStates,
-                CardsStoppedByOwner = settings.CardsStoppedByOwner,
+                CardsStoppedByOwner = settings.CardsStoppedByOwner, ProjectBranchRules = settings.ProjectBranchRules,
+                CardsToldBranchRules = settings.CardsToldBranchRules,
             }, Is.EqualTo(settings),
             "a record holding a list compares it by reference, so the lists are checked separately");
     }
