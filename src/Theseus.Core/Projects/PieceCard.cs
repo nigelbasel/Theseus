@@ -22,6 +22,12 @@ public sealed record PieceCard(
     WorkstreamRole Role = WorkstreamRole.None,
     bool CanStart = true)
 {
+    /// <summary>
+    /// Whether the owner marked it paused: a project's Start lists it unticked, since a pause was deliberate (1.1d AC 43,
+    /// Nigel's answer to question 4, 2026-11-21).
+    /// </summary>
+    public bool IsPaused { get; init; }
+
     /// <summary>Whether it has a session open now, so Focus and Stop apply and Start does not.</summary>
     public bool HasSession => Lifecycle is SessionLifecycle.Launching or SessionLifecycle.Running
         or SessionLifecycle.Idle or SessionLifecycle.NeedsAttention;

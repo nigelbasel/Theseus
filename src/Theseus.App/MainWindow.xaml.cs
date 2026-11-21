@@ -15,7 +15,7 @@ namespace Theseus.App;
 /// </summary>
 public partial class MainWindow : Window
 {
-    private Point? _dragOrigin;
+    private readonly BoardPress _press = new();
     private SettingsWindow? _settings;
     private ArrangeWindow? _arrange;
     private DayReportWindow? _report;
@@ -449,44 +449,29 @@ public partial class MainWindow : Window
     }
 
     private void OnPreviewMouseDown(object sender, MouseButtonEventArgs e) =>
-        _dragOrigin = e.GetPosition(this);
+        _press.Down(e.OriginalSource as DependencyObject, e.GetPosition(this));
 
-    private void OnPreviewMouseUp(object sender, MouseButtonEventArgs e) => _dragOrigin = null;
+    private void OnPreviewMouseUp(object sender, MouseButtonEventArgs e) => _press.Up();
 
+    /// <summary>Starts a drag of what was pressed, or says why nothing can be dragged here (<see cref="BoardPress"/>).</summary>
     private void OnPreviewMouseMove(object sender, MouseEventArgs e)
     {
-        if (e.LeftButton != MouseButtonState.Pressed || _dragOrigin is not { } origin)
+        if (DataContext is not ShellViewModel shell)
         {
             return;
         }
 
-        var moved = e.GetPosition(this) - origin;
-        if (Math.Abs(moved.X) < SystemParameters.MinimumHorizontalDragDistance
-            && Math.Abs(moved.Y) < SystemParameters.MinimumVerticalDragDistance)
+        var step = _press.Moved(e.GetPosition(this), e.LeftButton == MouseButtonState.Pressed, shell.IsProjectOpen, shell.Board);
+
+        if (step.Refusal is { } refusal)
         {
-            return;
+            shell.DropRefused(refusal);
         }
-
-        // A project card is dragged as a card is (project-view AC 12); cards are not dragged in the project view (AC 15).
-        if (Find<ProjectCardViewModel>(e.OriginalSource as DependencyObject) is { } project)
+        else if (step.Drag is { } item)
         {
-            _dragOrigin = null;
-            DragDrop.DoDragDrop(this, ProjectDragPrefix + project.Name, DragDropEffects.Move);
-
-            return;
+            DragDrop.DoDragDrop(this, item.DragPayload, DragDropEffects.Move);
         }
-
-        if (FindCard(e.OriginalSource as DependencyObject) is not { } card
-            || (DataContext as ShellViewModel)?.IsProjectOpen == true)
-        {
-            return;
-        }
-
-        _dragOrigin = null;
-        DragDrop.DoDragDrop(this, card.Key, DragDropEffects.Move);
     }
-
-    private const string ProjectDragPrefix = "project:";
 
     /// <summary>A double-click on a project card opens its view (AC 14).</summary>
     private void OnProjectCardMouseDown(object sender, MouseButtonEventArgs e)
@@ -498,41 +483,49 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>A project card dropped on a cell's project strip moves it there.</summary>
+    /// <summary>
+    /// A click on a project card selects it as a click on a card does (1.1d AC 41), and puts keyboard focus on it so Enter
+    /// opens it; a click on one of its buttons only presses the button.
+    /// </summary>
+    private void OnProjectCardClicked(object sender, MouseButtonEventArgs e)
+    {
+        // The second click of a double-click that opened the project arrives after the view has replaced the board.
+        if (sender is not FrameworkElement { DataContext: ProjectCardViewModel project } face
+            || IsWithinAControl(e.OriginalSource as DependencyObject)
+            || DataContext is not ShellViewModel { IsProjectOpen: false } shell)
+        {
+            return;
+        }
+
+        var modifiers = Keyboard.Modifiers;
+
+        shell.Board.ClickSelect(project, modifiers.HasFlag(ModifierKeys.Control), modifiers.HasFlag(ModifierKeys.Shift));
+        face.Focus();
+        e.Handled = true;
+    }
+
+    /// <summary>A right-click on a project card outside the selection selects it alone, as on a card.</summary>
+    private void OnProjectCardRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: ProjectCardViewModel { IsSelected: false } project }
+            && DataContext is ShellViewModel shell)
+        {
+            shell.Board.ClickSelect(project, toggle: false, extend: false);
+        }
+    }
+
+    /// <summary>Something dropped on a cell's project strip goes to that cell, a card at the top of its cards.</summary>
     private void OnProjectsDrop(object sender, DragEventArgs e)
     {
         if (sender is not FrameworkElement { DataContext: ColumnViewModel column }
-            || Board?.CanDrag != true
+            || Board is not { } board
             || e.Data.GetData(DataFormats.StringFormat) is not string dropped)
         {
             return;
         }
 
-        if (dropped.StartsWith(ProjectDragPrefix, StringComparison.Ordinal))
-        {
-            Board?.MoveProject(dropped[ProjectDragPrefix.Length..], column.Column, column.Area);
-        }
-        else
-        {
-            Board?.Move(dropped, column.Column, column.Area, 0);
-        }
-
+        BoardGesture.Drop(board, dropped, column, 0);
         e.Handled = true;
-    }
-
-    private static T? Find<T>(DependencyObject? source) where T : class
-    {
-        while (source is not null)
-        {
-            if (source is FrameworkElement { DataContext: T found })
-            {
-                return found;
-            }
-
-            source = ParentOf(source);
-        }
-
-        return null;
     }
 
     private void OnAdoptClicked(object sender, RoutedEventArgs e)
@@ -603,8 +596,7 @@ public partial class MainWindow : Window
     {
         var source = e.OriginalSource as DependencyObject;
 
-        if (FindCard(source) is not null || IsWithinAControl(source) || IsWithin<System.Windows.Controls.Primitives.ScrollBar>(source)
-            || IsWithin<System.Windows.Controls.Primitives.Thumb>(source))
+        if (!BoardGesture.StartsBand(source))
         {
             return;
         }
@@ -780,14 +772,14 @@ public partial class MainWindow : Window
         return null;
     }
 
-    /// <summary>The cards on show whose outline the rubber band touches.</summary>
-    private IEnumerable<WorkstreamCardViewModel> CardsWithin(Rect area)
+    /// <summary>The cards and project cards on show whose outline the rubber band touches.</summary>
+    private IEnumerable<IBoardCard> CardsWithin(Rect area)
     {
         var pending = new Stack<DependencyObject>([BoardSurface]);
 
         while (pending.TryPop(out var element))
         {
-            if (element is FrameworkElement { Tag: "Card", DataContext: WorkstreamCardViewModel card, IsVisible: true } face)
+            if (element is FrameworkElement { Tag: "Card" or "ProjectCard", DataContext: IBoardCard card, IsVisible: true } face)
             {
                 // The band's layer sits beside the board, not above it, so this is a transform between two
                 // visuals of the same window, not one to an ancestor.
@@ -808,36 +800,8 @@ public partial class MainWindow : Window
         }
     }
 
-    private static bool IsWithin<T>(DependencyObject? source)
-        where T : DependencyObject
-    {
-        while (source is not null)
-        {
-            if (source is T)
-            {
-                return true;
-            }
-
-            source = ParentOf(source);
-        }
-
-        return false;
-    }
-
-    private static bool IsWithinAControl(DependencyObject? source)
-    {
-        while (source is not null)
-        {
-            if (source is System.Windows.Controls.Primitives.ButtonBase)
-            {
-                return true;
-            }
-
-            source = ParentOf(source);
-        }
-
-        return false;
-    }
+    private static bool IsWithinAControl(DependencyObject? source) =>
+        BoardGesture.IsWithin<System.Windows.Controls.Primitives.ButtonBase>(source);
 
     /// <summary>
     /// Lets the wheel through to the board when the cell under the pointer has nowhere to scroll.
@@ -974,17 +938,14 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (key.StartsWith(ProjectDragPrefix, StringComparison.Ordinal))
+        if (Board is not { } board)
         {
-            Board?.MoveProject(key[ProjectDragPrefix.Length..], column.Column, column.Area);
-            e.Handled = true;
-
             return;
         }
 
         // The cell carries both axes, so a drop says stage and area at once. Dragging within a row
         // is the same gesture as dragging across one; only the cell landed in is different.
-        Board?.Move(key, column.Column, column.Area, DropIndex(lane, column, e.GetPosition(lane)));
+        BoardGesture.Drop(board, key, column, DropIndex(lane, column, e.GetPosition(lane)));
         e.Handled = true;
     }
 
@@ -1013,27 +974,5 @@ public partial class MainWindow : Window
         return column.Cards.Count;
     }
 
-    private static WorkstreamCardViewModel? FindCard(DependencyObject? source)
-    {
-        while (source is not null)
-        {
-            if (source is FrameworkElement { DataContext: WorkstreamCardViewModel card })
-            {
-                return card;
-            }
-
-            source = ParentOf(source);
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// The element above this one. A click on text made of runs reports the run, which is not a
-    /// visual, and asking the visual tree for its parent throws; on 2026-10-30 that closed the board.
-    /// </summary>
-    private static DependencyObject? ParentOf(DependencyObject source) =>
-        source is System.Windows.Media.Visual or System.Windows.Media.Media3D.Visual3D
-            ? System.Windows.Media.VisualTreeHelper.GetParent(source)
-            : LogicalTreeHelper.GetParent(source);
+    private static DependencyObject? ParentOf(DependencyObject source) => BoardGesture.ParentOf(source);
 }

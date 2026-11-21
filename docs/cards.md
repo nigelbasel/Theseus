@@ -36,12 +36,40 @@ several rows has worked on several pieces of work, and its last row is its curre
 and the board follows within a couple of seconds. In the project view, select a piece of work to tick its objective's
 criteria and **Edit objective…** in the Properties pane; use the project card's menu for **Add objective…**.
 
-Every project in the folder shows on the board as one **project card**, which you drag to the column you want. One
-whose `project.md` does not read is dimmed and says why; double-click it to open the file. A project that reads shows
-the project's current phase, how many objectives are done, and a count of what is waiting on you; hover over the count
-to list it. The project's own cards leave the board while the card stands for them, and come back if the project can no
-longer be read. Double-click the project card, choose **Open** on its menu, or **View > Open project**, to fill the main
-area with the project: see [The project view](project-view.md). A spec waiting for you shows **Waiting on you**, with
+Every project in the folder shows on the board as one **project card**. It is as wide as a card, with a stripe and a
+stacked-card mark in the project's own colour and the word **PROJECT** beside its title, so it is never mistaken for a
+workstream. Under the title are the project's current phase, how many objectives are done, and the project view's own
+sentence saying where it is, trimmed to one line (hover over it to read it all), then its counts: done, busy, waiting on
+you, waiting for their holdout check, stuck and still to do, leaving out any that are zero. The badge counts what is
+waiting on you; hover over it to list it. The project's own cards leave the board while the card stands for them, and
+come back if the project can no longer be read.
+
+A project card is selected, dragged and acted on as a card is: click, **Ctrl**+click, **Shift**+click, a rubber band,
+**Ctrl+A**, **Ctrl+I**, **Select live** (which picks a project when any of its cards has a session) and **Esc** all
+include it, and a selected one has the card's accent border. Drag it to any column and row, where it sits above that
+cell's cards and stays across restarts. Cards and project cards are moved only while the columns show stages; dragged
+while they show session state, nothing moves and the status bar says to choose **View > Columns by > Stage**. Commands for one workstream,
+such as **Properties** and **Verify with holdouts…**, are off while only projects are selected and say why; any command
+on a selection that holds a project and cards acts on the cards, and the status bar says the project was skipped.
+
+▷ and □ on a project card, **Start…** and **Stop** on its menu, and **Start selected** and **Stop selected** with the
+project selected, start and stop the whole project. Start asks first, listing each of the project's cards with a tick
+box: a card that can start is ticked; a paused card is listed unticked, and starts only if you tick it, which also takes
+its paused mark off; a card that is running, blocked, done or waiting on you is greyed with the reason and is never
+started. The ticked cards start in the project's terminal window, as their own ▷ would start them. Stop asks each of the
+project's sessions to write its handover and stop, as each card's □ does. With nothing to start or stop, each is off and
+its tooltip says why, such as "No card of Theseus bootstrap can start: git-22 is running".
+
+A project is given its own colour when it first shows, from a set of eight project colours that are never used for
+workstreams, so a project card never shares a colour with a card; two projects get different colours while there are
+colours left. **Project properties…** on its menu shows its title and the path of its `project.md`, and is where the
+colour is changed, from the same eight; a dot marks a colour another project has, and hovering over it names the
+project. The card, the project's tab and its summary in the project view all take the colour.
+
+One whose `project.md` does not read is dimmed and says why, keeping its mark, colour and the word PROJECT but with no
+▷ or □; double-click it to open the file. Double-click a project card that reads, press **Enter** on it, choose
+**Open** on its menu, or **View > Open project**, to fill the main area with the project: see
+[The project view](project-view.md). A spec waiting for you shows **Waiting on you**, with
 **Open spec** and **Accept spec…**, which asks first and names the version it accepts; a spec changed after you accept
 it waits for you again. **← Board** at the top, **Alt+Left**, or **View > Back to the board**, goes back.
 

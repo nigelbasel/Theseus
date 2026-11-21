@@ -23,12 +23,6 @@ public sealed class ProjectViewModel : ObservableObject
         StageAction.Stop, StageAction.OpenRecords,
     ];
 
-    private static readonly (StageNodeState State, string Words)[] CountOrder =
-    [
-        (StageNodeState.Done, "done"), (StageNodeState.Busy, "busy"), (StageNodeState.WaitingOnYou, "waiting on you"),
-        (StageNodeState.HoldoutsNotRun, "holdouts not run"), (StageNodeState.Stuck, "stuck"), (StageNodeState.ToDo, "to do"),
-    ];
-
     private static readonly StageNodeState[] NeedsAttention =
         [StageNodeState.Busy, StageNodeState.WaitingOnYou, StageNodeState.Stuck, StageNodeState.HoldoutsNotRun];
 
@@ -72,8 +66,13 @@ public sealed class ProjectViewModel : ObservableObject
     public string Sentence => Summary.Sentence;
 
     /// <summary>The six count chips, zeros included (AC 19).</summary>
-    public IReadOnlyList<StateCountViewModel> Counts =>
-        [.. CountOrder.Select(entry => new StateCountViewModel(entry.State, Summary.CountOf(entry.State), entry.Words))];
+    public IReadOnlyList<StateCountViewModel> Counts => StateCountViewModel.For(Summary, zeros: true);
+
+    /// <summary>
+    /// The project's own colour, for the summary's mark (1.1d AC 40): its tab's, or null before it has one, when the mark
+    /// takes the accent colour.
+    /// </summary>
+    public string? ColourHex => Tabs.FirstOrDefault(tab => string.Equals(tab.Name, Name, StringComparison.OrdinalIgnoreCase))?.ColourHex;
 
     /// <summary>The Waiting on you band's buttons, one per waiting piece in file order (AC 20).</summary>
     public IReadOnlyList<WaitingButtonViewModel> Waiting { get; private set; } = [];
@@ -496,7 +495,7 @@ public sealed class ProjectViewModel : ObservableObject
                     + "=" + string.Join(",", stage.MenuItems.Select(item => $"{item.Label}:{item.IsEnabled}:{item.ToolTip}"))))));
 
         return string.Join("|", new[] { view.Name, view.Title, view.Sentence }
-            .Concat(view.Tabs.Select(tab => $"{tab.Name}:{tab.Title}:{tab.IsOpen}"))
+            .Concat(view.Tabs.Select(tab => $"{tab.Name}:{tab.Title}:{tab.IsOpen}:{tab.ColourHex}"))
             .Concat(view.Roots.SelectMany(root => Lines(root, 0)))
             .Concat(tree.ThenWorkedOn.Select(link => $"{link.From.Name}>{link.To.Name}")));
     }

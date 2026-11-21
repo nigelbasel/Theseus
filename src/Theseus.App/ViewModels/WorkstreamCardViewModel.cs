@@ -4,7 +4,7 @@ using Theseus.Core.Links;
 namespace Theseus.App.ViewModels;
 
 /// <summary>One card on the board.</summary>
-public sealed class WorkstreamCardViewModel : ObservableObject
+public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
 {
     private Workstream _workstream;
     private SessionLifecycle _lifecycle = SessionLifecycle.NotStarted;
@@ -391,6 +391,9 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     /// how many they would affect and refuse when that is none.
     /// </summary>
     public Action? SelectionChanged { get; set; }
+
+    /// <summary>A drag of the card carries its key.</summary>
+    public string DragPayload => Key;
 
     /// <summary>
     /// Whether the card is folded down to its title.
