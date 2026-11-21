@@ -235,7 +235,7 @@ public sealed class ChainsViewModel : ObservableObject
 
     /// <summary>Every key a link has ever named, so a new card never takes a deleted card's key.</summary>
     public IReadOnlyCollection<string> TakenKeys =>
-        [.. _book.All.SelectMany(link => new[] { link.From, link.To }).Distinct(StringComparer.OrdinalIgnoreCase)];
+        [.. _book.All.SelectMany(link => new[] { link.From, link.To }).Concat(Proposals?.TakenKeys ?? []).Distinct(StringComparer.OrdinalIgnoreCase)];
 
     /// <summary>The links as a fresh session of this card should be told them.</summary>
     public string RelatedParagraph(string key) => RelatedWorkstreams.Paragraph(key, Current());

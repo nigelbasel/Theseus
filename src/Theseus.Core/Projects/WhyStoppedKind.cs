@@ -9,6 +9,9 @@ public enum WhyStoppedKind
     /// <summary>In its stopped project's run state: its ▶ starts the project.</summary>
     ProjectStopped,
 
+    /// <summary>Paused by a project's session, through pause_workstream (1.1e AC 14): a project Start skips it.</summary>
+    PausedBy,
+
     /// <summary>Stopped by hand while its project ran: the project does not start it again.</summary>
     StoppedByYou,
 }

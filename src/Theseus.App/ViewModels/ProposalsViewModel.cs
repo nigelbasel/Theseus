@@ -64,6 +64,13 @@ public sealed class ProposalsViewModel : ObservableObject
     /// <summary>A proposal by its id, decided or not, or null.</summary>
     public WorkstreamProposal? Find(string proposalId) => _book.Find(proposalId);
 
+    /// <summary>
+    /// Every key a proposal has named, as requester or as the card it made, so a new card never takes one (review of 1.1e
+    /// PR 3, finding 2): a session controls its descendants by these keys.
+    /// </summary>
+    public IReadOnlyCollection<string> TakenKeys =>
+        [.. _book.All.SelectMany(proposal => new[] { proposal.RequesterKey, proposal.ResultingKey }).OfType<string>()];
+
     /// <summary>Marks a proposal approved once the composer has created its card.</summary>
     public void Approved(string proposalId, string key)
     {

@@ -63,6 +63,9 @@ public static class WorkstreamAssembler
             Area = sidecar?.Area,
             EveryStartPrompt = sidecar?.EveryStartPrompt,
             IsPaused = sidecar?.IsPaused ?? false,
+            // A session's pause is only one while the card is paused: the owner's unpause clears it too (1.1e AC 14).
+            PausedBy = sidecar is { IsPaused: true } ? sidecar.PausedBy : null,
+            PauseReason = sidecar is { IsPaused: true } ? sidecar.PauseReason : null,
             Role = sidecar?.Role ?? WorkstreamRole.None,
         };
 }

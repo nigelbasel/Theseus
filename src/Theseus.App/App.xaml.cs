@@ -234,7 +234,8 @@ public partial class App : Application
                 proposals: proposals,
                 briefFolderName: () => settings.Read().BriefFolderName,
                 approve: (proposal, startNow) => Dispatcher.Invoke(() => shell.ApproveFromSession(proposal, startNow)),
-                workItems: workItems),
+                workItems: workItems,
+                control: new DispatchedWorkstreamControl(shell.WorkstreamControl, Dispatcher)),
             Theseus.Core.Mcp.TheseusMcp.DefaultPort,
             new LockHttpApi(locks, () => DateTimeOffset.UtcNow));
 

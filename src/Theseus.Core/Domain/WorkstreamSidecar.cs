@@ -42,6 +42,15 @@ public sealed record WorkstreamSidecar(
     /// </summary>
     public bool IsPaused { get; init; }
 
+    /// <summary>
+    /// The card whose session paused it, through pause_workstream, or null when the owner paused it or it is not paused
+    /// (1.1e AC 14): a project's Start does not start it while this stands.
+    /// </summary>
+    public string? PausedBy { get; init; }
+
+    /// <summary>Why that session paused it, or null.</summary>
+    public string? PauseReason { get; init; }
+
     /// <summary>The row of the board this card sits in: the kind of work, not how far along it is.</summary>
     public string? Area { get; init; }
 

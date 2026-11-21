@@ -79,6 +79,12 @@ Ad hoc work can be promoted to a project. Its handoff becomes the project's firs
   sequence it serves, not inputs chosen for convenience. (close-step P22; a test passed because it handed in a request
   the App had already retired.)
 
+- **A child exits once its report is in; its parent restarts it when there is more.** A workstream that reports back
+  to the one that proposed it stops once its report is submitted. The parent reads it, and when there is more work it
+  restarts the child with `start_workstream` and an instruction ("more work: ..."), or pauses or stops it, through the
+  Theseus tools that act only on its own descendants: cards made from proposals it raised and the owner approved. A
+  parent never closes another card's session any other way. (1.1e AC 14 and 17, Nigel 2026-11-21.)
+
 ## Decisions recorded here
 
 | Date | Decision | By |
