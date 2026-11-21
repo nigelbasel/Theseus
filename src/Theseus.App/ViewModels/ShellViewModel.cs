@@ -21,6 +21,7 @@ public sealed class ShellViewModel : ObservableObject
 {
     private readonly ISettingsStore _settings;
     private string _holdoutFolder = string.Empty;
+    private readonly HoldoutChecks _holdouts = new();
     private readonly BackgroundProjectReads _projectReads;
     private readonly ProjectFolderWatcher _projectWatcher;
     private bool _hasProjectsFolder;
@@ -644,7 +645,14 @@ public sealed class ShellViewModel : ObservableObject
             .Where(other => !string.Equals(other.Name, card.Name, StringComparison.OrdinalIgnoreCase))
             .GroupBy(other => other.Title, StringComparer.CurrentCultureIgnoreCase)
             .ToDictionary(group => group.Key, group => group.First().ColourHex, StringComparer.CurrentCultureIgnoreCase);
-        var properties = new ProjectPropertiesViewModel(card.Name, card.Title, card.ColourHex, card.ProjectFile, others);
+        var properties = new ProjectPropertiesViewModel(card.Name, card.Title, card.ColourHex, card.ProjectFile, others)
+        {
+            // The title is written at OK, and a refusal is shown in the dialog (1.1e AC 12a).
+            WriteTitle = title => EditProject(card.Name, text => ProjectFileEditor.SetTitle(text, card.Title, title),
+                $"{card.Title} is now called {title}.")
+                ? null
+                : Notice,
+        };
 
         if (AskProjectProperties?.Invoke(properties) != true
             || string.Equals(properties.ColourHex, card.ColourHex, StringComparison.OrdinalIgnoreCase))
@@ -660,7 +668,9 @@ public sealed class ShellViewModel : ObservableObject
 
         _settings.Write(settings with { ProjectColours = colours });
         WireProjectChoices();
-        Notice = $"{card.Title} has a new colour.";
+        Notice = string.IsNullOrWhiteSpace(Notice) || !properties.TitleChanged
+            ? $"{properties.Title.Trim()} has a new colour."
+            : $"{Notice} It has a new colour.";
     }
 
     /// <summary>
@@ -973,9 +983,82 @@ public sealed class ShellViewModel : ObservableObject
         System.Windows.Input.CommandManager.InvalidateRequerySuggested();
     }
 
-    // Unavailable while no holdout folder is set, as the spec says (AC 7; verify part 1, M2).
-    private bool CanVerify(WorkstreamCardViewModel card) =>
-        !string.IsNullOrWhiteSpace(_holdoutFolder) && !card.IsArchived && card.Workstream.Role != WorkstreamRole.Verifier;
+    private bool CanVerify(WorkstreamCardViewModel card) => WhyCannotVerify(card) is null;
+
+    /// <summary>The card menu's Verify tooltip when it can run.</summary>
+    private const string VerifyToolTipWhenItCan =
+        "Create a verifier card that runs the holdout scenarios against this card's change and reports only a verdict";
+
+    /// <summary>A card's holdout folder: the one chosen in Options, else its project's default (1.1e AC 6c).</summary>
+    private HoldoutLocation HoldoutOf(WorkstreamCardViewModel card) => _holdouts.LocationOf(card.Workstream);
+
+    /// <summary>Why Verify with holdouts cannot run for a card, or null (1.1e AC 6a, 6c), from the folders as last refreshed.</summary>
+    private string? WhyCannotVerify(WorkstreamCardViewModel card) => _holdouts.WhyCannotVerify(card.Workstream, card.Title);
+
+    /// <summary>The way on from a disabled view button, offered beside it as a link (1.1e AC 6a, 6c).</summary>
+    private PieceActionViewModel? WayOn(WorkstreamCardViewModel card, StageAction action) =>
+        action != StageAction.VerifyWithHoldouts
+            ? null
+            : _holdouts.WayOn(card.Workstream) switch
+            {
+                HoldoutWayOn.SetFolder => new PieceActionViewModel("Set the holdout folder…", OpenHoldoutSetting,
+                    toolTip: "Open Options at the holdout scenarios folder") { IsLink = true },
+                HoldoutWayOn.WriteScenarios => new PieceActionViewModel("Write scenarios…", () => WriteScenarios(card),
+                    toolTip: $"Create a card that writes the holdout scenarios in {HoldoutOf(card).Folder}; it starts when you start it")
+                {
+                    IsLink = true,
+                },
+                _ => null,
+            };
+
+    /// <summary>Why a view button for a card cannot run now, or null (1.1e AC 6a): its tooltip while it is disabled.</summary>
+    private string? WhyNot(WorkstreamCardViewModel card, StageAction action) => action switch
+    {
+        StageAction.VerifyWithHoldouts => WhyCannotVerify(card),
+        StageAction.Start when !CanStartCard(card) => _launcher.Impediment
+                                                      ?? (card.IsArchived ? $"{card.Title} is archived" : card.IsLive
+                                                          ? $"{card.Title} is already running"
+                                                          : $"{card.Title} cannot be started from the board: it has no prompt"),
+        StageAction.Stop when CardSteps(card).Count == 0 => $"{card.Title} has no session to stop",
+        StageAction.Focus when !CanFocusCard(card) => $"{card.Title} has no terminal to bring forward",
+        _ => null,
+    };
+
+    /// <summary>Opens Options at the holdout scenarios folder (1.1e AC 6a).</summary>
+    private void OpenHoldoutSetting()
+    {
+        Settings.FocusField = SettingsViewModel.HoldoutFolderField;
+        Settings.OpenCommand.Execute(null);
+    }
+
+    /// <summary>
+    /// Write scenarios… (1.1e AC 6c): creates a scenario-writing card for the card's project, in its holdout folder, made on
+    /// first use. It starts nothing.
+    /// </summary>
+    private void WriteScenarios(WorkstreamCardViewModel card)
+    {
+        var holdout = HoldoutOf(card);
+        holdout.Ensure();
+        var project = card.Workstream.Project;
+        var reading = project is null ? null : Readable(project);
+        var writer = ScenarioWriterCard.For(reading?.File?.Title ?? card.Title, holdout.Folder, reading?.Folder);
+        var key = WorkstreamKey.Unique(writer.Title, [.. _plans.Keys(), .. Chains?.TakenKeys ?? []]);
+
+        _plans.Write(key, new SessionPlan(_plans.Keys().Count + 1, writer.Title, card.Workstream.ColorHex,
+            writer.WorkingDirectory, writer.AddDirectories, null, DateTimeOffset.Now.ToString("s"), writer.Prompt));
+
+        Refresh();
+        Board.Place(key, card.Column, card.Workstream.Area);
+
+        if (Board.Card(key) is { } created)
+        {
+            created.Workstream = created.Workstream with { Role = ScenarioWriterCard.Role };
+            Board.Persist(created);
+        }
+
+        TheseusLog.Information("Created {Writer} to write holdout scenarios in {Folder}", key, holdout.Folder);
+        Notice = $"Created {writer.Title}. Start it when you are ready.";
+    }
 
     /// <summary>
     /// Creates a verifier card for this card: a follow-on in the checked card's folder with the holdout clone in reach,
@@ -983,21 +1066,14 @@ public sealed class ShellViewModel : ObservableObject
     /// </summary>
     private void VerifyWithHoldouts(WorkstreamCardViewModel card)
     {
-        var holdout = _settings.Read().HoldoutFolder;
-
-        if (string.IsNullOrWhiteSpace(holdout))
+        if (WhyCannotVerify(card) is { } reason)
         {
-            Notice = "Set the holdout scenarios folder in Tools > Options first: a verifier card reads the scenarios there.";
+            Notice = $"{reason}.";
 
             return;
         }
 
-        if (!CanVerify(card))
-        {
-            Notice = $"{card.Title} cannot be verified: it is a verifier itself, or archived.";
-
-            return;
-        }
+        var holdout = HoldoutOf(card).Folder;
 
         var verifier = VerifierCard.For(card.Workstream, holdout, DateTimeOffset.Now, RecordsFolder(card.Workstream));
         var key = WorkstreamKey.Unique(verifier.Title, [.. _plans.Keys(), .. Chains?.TakenKeys ?? []]);
@@ -1393,6 +1469,14 @@ public sealed class ShellViewModel : ObservableObject
 
         Board.KeepOutOfGrid = ProjectGridRule.KeepOutOfGrid(memberOf, anyMembers);
 
+        // Membership has just been read, so the holdout folders are looked at again by project (1.1e AC 6c).
+        _holdouts.Refresh(_holdoutFolder, [.. cards.Select(card => card.Workstream)]);
+
+        foreach (var card in cards)
+        {
+            card.VerifyToolTip = WhyCannotVerify(card) ?? VerifyToolTipWhenItCan;
+        }
+
         var reports = Chains?.NeedsYou.Where(row => row.IsReported).Select(row => row.Link).ToList() ?? [];
         var proposals = Chains?.Proposals?.Pending.Select(row => (row.Proposal.RequesterKey, row.Proposal.Request.Title)).ToList() ?? [];
         var projectCards = new List<ProjectCardViewModel>();
@@ -1428,6 +1512,9 @@ public sealed class ShellViewModel : ObservableObject
             var projectCard = Board.ProjectCards.FirstOrDefault(existing =>
                                   string.Equals(existing.Name, reading.Name, StringComparison.OrdinalIgnoreCase) && !existing.IsDimmed)
                               ?? new ProjectCardViewModel(reading.Name, file.Title);
+
+            // A renamed project keeps its card, its selection and its focus, and shows the new title (1.1e AC 12a).
+            projectCard.Title = file.Title;
             var name = reading.Name;
 
             projectCard.OpenCommand ??= new RelayCommand(_ => OpenProject(name));
@@ -1588,7 +1675,7 @@ public sealed class ShellViewModel : ObservableObject
         IReadOnlyList<ProjectTabViewModel> tabs) =>
         ProjectViewModel.Build(reading, pieces, Chains?.Status ?? new LinkStatus([], []), tabs, _settings,
             _projectActions ??= ProjectViewCommands.For(Board.Card, FocusCardCommand, StartCardCommand, StopCardCommand, OpenSpec,
-                AcceptSpec, OpenFile, text => Notice = text, (card, project) => AddToProject(card, project)),
+                AcceptSpec, OpenFile, text => Notice = text, (card, project) => AddToProject(card, project), WhyNot, WayOn),
             CloseProjectCommand,
             EditsOf(reading.Name),
             ProjectView);
@@ -2279,6 +2366,7 @@ public sealed class ShellViewModel : ObservableObject
         var preferred = _settings.Read().DefaultStartMode;
         var lastStage = Board.Stages.LastOrDefault();
         var reasons = _settings.Read();
+        _holdouts.Refresh(_holdoutFolder, [.. Board.Cards.Select(card => card.Workstream)]);
 
         foreach (var card in Board.Cards)
         {
@@ -2294,6 +2382,7 @@ public sealed class ShellViewModel : ObservableObject
             card.IsInLastStage = lastStage is not null && string.Equals(card.Column, lastStage, StringComparison.OrdinalIgnoreCase);
             card.StopReason = CardStopReasons.For(card, reasons.ProjectRunStates, ProjectTitle, reasons.CardsStoppedByOwner,
                 Chains?.AllLinks ?? []);
+            card.VerifyToolTip = WhyCannotVerify(card) ?? VerifyToolTipWhenItCan;
             card.LastRunCrashed = !live && (state.Lifecycle == SessionLifecycle.Ghost
                                             || runs.Where(run => string.Equals(run.WorkstreamKey, card.Key, StringComparison.OrdinalIgnoreCase))
                                                 .MaxBy(run => run.StartedUtc)?.ExitReason == SessionExitReason.CrashedOrKilled);
@@ -2343,11 +2432,11 @@ public sealed class ShellViewModel : ObservableObject
             card.PropertiesCommand ??= new RelayCommand(_ => ShowCard(card));
             card.VerifyWithHoldoutsCommand ??= new RelayCommand(_ => VerifyWithHoldouts(card), _ => CanVerify(card));
             card.AddToProjectCommand ??= new RelayCommand(_ => AddToProject(card),
-                _ => _hasProjectsFolder && card.Workstream.Project is null && card.Workstream.Role != WorkstreamRole.Verifier);
+                _ => _hasProjectsFolder && card.Workstream.Project is null && card.Workstream.Role == WorkstreamRole.None);
             card.RemoveFromProjectCommand ??= new RelayCommand(_ => RemoveFromProject(card),
-                _ => card.Workstream.Project is not null && card.Workstream.Role != WorkstreamRole.Verifier);
+                _ => card.Workstream.Project is not null && card.Workstream.Role == WorkstreamRole.None);
             card.ConvertToProjectCommand ??= new RelayCommand(_ => ConvertToProject(card),
-                _ => _hasProjectsFolder && card.Workstream.Project is null && card.Workstream.Role != WorkstreamRole.Verifier);
+                _ => _hasProjectsFolder && card.Workstream.Project is null && card.Workstream.Role == WorkstreamRole.None);
             card.RenameHandoffCommand ??= new RelayCommand(_ => RenameHandoff(card), _ => card.HandoffRenameTo.Length > 0);
         }
 

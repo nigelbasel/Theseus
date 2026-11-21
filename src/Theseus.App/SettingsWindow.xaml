@@ -170,11 +170,19 @@
                            Text="Where each workstream's worktrees go: a folder per workstream, with a worktree in it for each repo the workstream changes." />
 
                 <TextBlock Text="Holdout scenarios folder" Style="{StaticResource FieldLabel}" />
-                <TextBox Text="{Binding HoldoutFolder, UpdateSourceTrigger=PropertyChanged}" />
+                <TextBox x:Name="HoldoutFolderBox" Text="{Binding HoldoutFolder, UpdateSourceTrigger=PropertyChanged}"
+                         AutomationProperties.Name="Holdout scenarios folder" />
+                <DockPanel Margin="0,4,0,0">
+                    <Button DockPanel.Dock="Right" Content="C_hange…" Padding="10,2" Click="OnChooseHoldoutFolder"
+                            ToolTip="Choose the folder the holdout scenarios are in, such as a private repository's clone" />
+                    <TextBlock x:Name="HoldoutInUse" Text="{Binding HoldoutFolderInUse}" VerticalAlignment="Center" FontSize="11"
+                               TextTrimming="CharacterEllipsis" ToolTip="{Binding HoldoutFolderInUse}"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                </DockPanel>
                 <TextBlock Text="Holdout remote address" Style="{StaticResource FieldLabel}" />
                 <TextBox Text="{Binding HoldoutRemote, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock Style="{StaticResource FieldHint}"
-                           Text="The clone of the private scenarios that judge changes, and its address such as host/owner/repo. The holdout guard keeps both from implementing sessions; a verifier card reads the scenarios there and writes its report to the results folder. Leave empty for no holdout." />
+                           Text="The clone of the private scenarios that judge changes, and its address such as host/owner/repo. The holdout guard keeps both from implementing sessions; a verifier card reads the scenarios there and writes its report to the results folder. Leave the folder empty to use a folder per project under Theseus's own data folder, made on first use." />
                 <CheckBox Content="Include pre-releases in Check for updates" Margin="0,8,0,0"
                           IsChecked="{Binding IncludePreReleases, Mode=TwoWay}" />
                 <TextBlock Style="{StaticResource FieldHint}"

@@ -9,6 +9,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
     private Workstream _workstream;
     private SessionLifecycle _lifecycle = SessionLifecycle.NotStarted;
     private Theseus.Core.Projects.WhyStopped? _stopReason;
+    private string _verifyToolTip = string.Empty;
     private DateTimeOffset? _lastExitedUtc;
     private DateTimeOffset? _lastStartedUtc;
     private string _todoSummary = string.Empty;
@@ -657,6 +658,16 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
 
     /// <summary>Creates a verifier card for this card's change, from its menu (verifier-card AC 9).</summary>
     public RelayCommand? VerifyWithHoldoutsCommand { get; set; }
+
+    /// <summary>
+    /// Verify with holdouts…'s tooltip on the card's menu: what it does, or, while it is off, why (1.1e AC 6a), as the
+    /// shell last found it.
+    /// </summary>
+    public string VerifyToolTip
+    {
+        get => _verifyToolTip;
+        set => Set(ref _verifyToolTip, value);
+    }
 
     /// <summary>Add to project…: adds the card's row to a project's file (1.1c AC 7).</summary>
     public RelayCommand? AddToProjectCommand { get; set; }

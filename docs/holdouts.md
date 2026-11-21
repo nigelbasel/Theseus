@@ -6,9 +6,15 @@ that made the change learns whether it passed, not what the check was.
 
 ## Setting it up
 
-1. Clone your holdout repository somewhere on this machine.
-2. In **Tools > Options**, set **Holdout scenarios folder** to the clone, and **Holdout remote address** to where it lives,
-   such as `host/owner/repo`.
+Nothing needs setting: with no folder chosen, each project's scenarios go in a folder of its own under Theseus's data
+folder, `%LOCALAPPDATA%\Theseus\holdouts\<project folder name>\`, made the first time it is used. It is outside every
+repository and the projects folder. **Tools > Options** shows the folder in use, marked **(default)**.
+
+To keep the scenarios somewhere else, such as a private repository of your own:
+
+1. Clone it somewhere on this machine.
+2. In **Tools > Options**, choose **Change…** beside **Holdout scenarios folder** and pick the clone, and set **Holdout
+   remote address** to where it lives, such as `host/owner/repo`. A folder you choose is kept and used for every project.
 3. Install the holdout guard (`tools/holdout/holdout-guard.js` in the Theseus repository) as a PreToolUse hook for every
    tool in your Claude Code settings, the same way as the lock guard. It reads the folder and address from Theseus's
    settings, so it holds no path of its own.
@@ -16,12 +22,19 @@ that made the change learns whether it passed, not what the check was.
 With the guard installed, a session with no role is refused reading, searching or fetching in the holdout. A verifier
 can read the scenarios and write only its report and its handoff, in the holdout's `results` folder. No session runs a
 shell command inside the holdout folder, and none writes Theseus's own settings or board with the file tools. A session
-started with `THESEUS_HOLDOUT_AUTHOR=1` can change the scenarios. With no holdout folder set, the guard refuses
-nothing.
+started with `THESEUS_HOLDOUT_AUTHOR=1`, as a scenario-writing card's are, can change the scenarios. With no folder
+chosen, the guard covers the whole default holdouts folder in the same way.
 
 The guard is a tripwire against accidents, not a wall. It reads the paths, commands and addresses a tool is given, and
 the session's working directory. A search rooted in a folder above the holdout is not refused, so it could return
 scenario lines; and a shell command can still do what the file tools are refused.
+
+## Writing the scenarios
+
+While a project has no scenarios yet, **Verify with holdouts…** is shown disabled, saying "No holdout scenarios for this
+project yet", and **Write scenarios…** beside it creates a card, **Write holdout scenarios for <project>**, that works in
+the project's holdout folder and is the one kind of session allowed to write there. It writes scenarios, never code, and
+starts when you start it. If the folder you chose is missing, **Set the holdout folder…** opens Options at that setting.
 
 ## Verifying a change
 

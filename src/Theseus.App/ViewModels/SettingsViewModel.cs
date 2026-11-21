@@ -170,12 +170,32 @@ public sealed class SettingsViewModel : ObservableObject
     public string ClaudeState =>
         new ClaudeLocator(_claudeExecutablePath).Locate() ?? "not found";
 
-    /// <summary>The holdout scenarios' clone, read by the holdout guard and used by Verify with holdouts….</summary>
+    /// <summary>
+    /// The holdout scenarios' folder the owner chose, read by the holdout guard and used by Verify with holdouts…; empty for
+    /// the default, a folder per project under <see cref="Theseus.Core.Links.HoldoutLocation.DefaultRoot"/> (1.1e AC 6c).
+    /// </summary>
     public string HoldoutFolder
     {
         get => _holdoutFolder;
-        set => Set(ref _holdoutFolder, value);
+        set
+        {
+            if (Set(ref _holdoutFolder, value))
+            {
+                Raise(nameof(HoldoutFolderInUse));
+            }
+        }
     }
+
+    /// <summary>The holdout folder in use, marked "(default)" when the owner chose none (1.1e AC 6c).</summary>
+    public string HoldoutFolderInUse => string.IsNullOrWhiteSpace(_holdoutFolder)
+        ? $"{System.IO.Path.Combine(Theseus.Core.Links.HoldoutLocation.DefaultRoot(), "<project folder name>")} (default)"
+        : _holdoutFolder.Trim();
+
+    /// <summary>What <see cref="FocusField"/> names for the holdout folder.</summary>
+    public const string HoldoutFolderField = "HoldoutFolder";
+
+    /// <summary>The field Options opens at, such as the holdout folder from Set the holdout folder… (1.1e AC 6a); null for none.</summary>
+    public string? FocusField { get; set; }
 
     /// <summary>The holdout's remote address, which the guard also keeps from implementing sessions.</summary>
     public string HoldoutRemote

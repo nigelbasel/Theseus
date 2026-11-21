@@ -14,6 +14,11 @@ namespace Theseus.App.ViewModels;
 /// <param name="Stop">Asks a card's session to write its handover and stop.</param>
 /// <param name="OpenPath">Opens a records folder or a record in its editor.</param>
 /// <param name="Notice">Says something in the status bar, such as that Properties is hidden (1.1d AC 52); null says nothing.</param>
+/// <param name="WhyNot">
+/// Why a button cannot run for a card now, by card key and action, or null when it can: it is then disabled with this as
+/// its tooltip (1.1e AC 6a). Null asks nothing.
+/// </param>
+/// <param name="WayOn">The way on from a disabled button, offered beside it as a link (1.1e AC 6a), or null.</param>
 /// <param name="AddToProject">
 /// Add to project… for a piece no project file lists, by project and card key, with that project chosen (1.1e AC 6);
 /// null offers none.
@@ -27,4 +32,6 @@ public sealed record ProjectViewActions(
     Action<string> Stop,
     Action<string> OpenPath,
     Action<string>? Notice = null,
-    Action<string, string>? AddToProject = null);
+    Action<string, string>? AddToProject = null,
+    Func<string, StageAction, string?>? WhyNot = null,
+    Func<string, StageAction, PieceActionViewModel?>? WayOn = null);

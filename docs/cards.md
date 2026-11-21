@@ -77,8 +77,10 @@ where you put it. Properties shows the same line.
 
 A project is given its own colour when it first shows, from a set of eight project colours that are never used for
 workstreams, so a project card never shares a colour with a card; two projects get different colours while there are
-colours left. **Project properties…** on its menu shows its title and the path of its `project.md`, and is where the
-colour is changed, from the same eight; a dot marks a colour another project has, and hovering over it names the
+colours left. **Project properties…** on its menu is where its title and its colour are changed. OK writes a new title
+to the first line of its `project.md`; if the file changed since the dialog opened, or the title is empty, it says so
+there and writes nothing. Its colour, place and run state stay with the project's folder, so nothing else changes. The
+path of its `project.md` is shown read only. Colours come from the same eight; a dot marks a colour another project has, and hovering over it names the
 project. The card, the project's tab and its summary in the project view all take the colour.
 
 One whose `project.md` does not read is dimmed and says why, keeping its mark, colour and the word PROJECT but with no

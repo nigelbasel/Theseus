@@ -18,6 +18,11 @@ public class ProjectsInUseDocsTests
     [TestCase("cards.md", "decides what runs. Stop it anyway?")]
     [TestCase("cards.md", "becoming **Restart for more work**")]
     [TestCase("cards.md", "**Stopped by you**")]
+    [TestCase("cards.md", "OK writes a new title")]
+    [TestCase("holdouts.md", "marked **(default)**")]
+    [TestCase("holdouts.md", "**Write scenarios…** beside it creates a card")]
+    [TestCase("project-view.md", "a brace to the left of the line groups them all")]
+    [TestCase("project-view.md", "A button that cannot act now is shown disabled")]
     public void TheHelp_SaysHowProjectsAreUsed(string page, string part)
     {
         Assert.That(Doc(page), Does.Contain(part));

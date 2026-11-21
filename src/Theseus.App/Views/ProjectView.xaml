@@ -16,6 +16,11 @@
     </UserControl.InputBindings>
 
     <UserControl.Resources>
+        <ResourceDictionary>
+        <!-- The shared looks of everything clickable (1.1e AC 6b), merged here too so the view has them in tests. -->
+        <ResourceDictionary.MergedDictionaries>
+            <ResourceDictionary Source="/Theseus;component/Themes/Interactive.xaml" />
+        </ResourceDictionary.MergedDictionaries>
         <BooleanToVisibilityConverter x:Key="Visible" />
         <converters:HexToBrushConverter x:Key="HexToBrush" />
         <FontFamily x:Key="Mono">Cascadia Mono, Consolas</FontFamily>
@@ -184,8 +189,11 @@
             <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
         </Style>
 
-        <!-- A project tab: the open one has a foreground border and a 2 px underline (AC 17). -->
-        <Style x:Key="ProjectTab" TargetType="Button">
+        <!--
+            A project tab: the open one has a foreground border and a 2 px underline (AC 17); hover, pressed, disabled and the
+            ring come from the shared surface (1.1e AC 6b).
+        -->
+        <Style x:Key="ProjectTab" TargetType="Button" BasedOn="{StaticResource ClickableSurface}">
             <Setter Property="Margin" Value="0,0,6,0" />
             <Setter Property="Template">
                 <Setter.Value>
@@ -194,6 +202,7 @@
                                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                                 Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
                             <Grid>
+                                <Border x:Name="Wash" Style="{StaticResource SurfaceWash}" CornerRadius="5" Margin="-8,-5,-12,-5" />
                                 <StackPanel Orientation="Horizontal">
                                     <controls:StackedCardMark Style="{StaticResource ProjectMark}" Margin="0,0,8,0" />
                                     <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="Medium" VerticalAlignment="Center"
@@ -218,7 +227,7 @@
             A stage of an open box's chain (AC 27): a 3 px top border in the state's colour on its soft fill, the mark and
             name over the state word. Both lines wrap, so a narrow chain never cuts a word off.
         -->
-        <Style x:Key="ChainStage" TargetType="Button">
+        <Style x:Key="ChainStage" TargetType="Button" BasedOn="{StaticResource ClickableSurface}">
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -235,6 +244,7 @@
                                     </StackPanel>
                                 </DockPanel>
                             </Border>
+                            <Border x:Name="Wash" Style="{StaticResource SurfaceWash}" CornerRadius="5" />
                             <Border x:Name="Chosen" BorderThickness="2" CornerRadius="5" Visibility="Collapsed"
                                     BorderBrush="{DynamicResource AccentFillColorDefaultBrush}" />
                         </Grid>
@@ -401,8 +411,24 @@
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate DataType="{x:Type vm:PieceActionViewModel}">
+                                        <!-- A way on is a link beside the button it unblocks (1.1e AC 6a). -->
                                         <Button x:Name="Action" Command="{Binding Command}" ToolTip="{Binding ToolTip}"
+                                                AutomationProperties.Name="{Binding Label}"
                                                 ToolTipService.ShowOnDisabled="True" Padding="9,3" Margin="0,0,6,6" FontSize="13">
+                                            <Button.Style>
+                                                <!-- The shared command button, so a button that cannot act looks it (1.1e AC 6a, 6b). -->
+                                                <Style TargetType="Button" BasedOn="{StaticResource CommandButton}">
+                                                    <Setter Property="MinHeight" Value="30" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsLink}" Value="True">
+                                                            <Setter Property="Template" Value="{StaticResource LinkTemplate}" />
+                                                            <Setter Property="Cursor" Value="Hand" />
+                                                            <Setter Property="Foreground" Value="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+                                                            <Setter Property="Padding" Value="2,3" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
                                             <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
                                         </Button>
                                     </DataTemplate>
@@ -425,34 +451,57 @@
             <StackPanel Margin="0,0,0,14">
                 <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource PieceBox}" />
 
-                <!-- The branch: the pieces this one hands work to; a thicker bar, labelled, when they ran in parallel (AC 24). -->
-                <Border x:Name="Branch" Margin="34,14,0,0" Padding="16,0,0,0"
-                        Visibility="{Binding HasChildren, Converter={StaticResource Visible}}">
-                    <Border.Style>
-                        <Style TargetType="Border">
-                            <Setter Property="BorderThickness" Value="2,0,0,0" />
-                            <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsParallel}" Value="True">
-                                    <Setter Property="BorderThickness" Value="3,0,0,0" />
-                                    <Setter Property="BorderBrush" Value="{DynamicResource ConnectorBrush}" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Border.Style>
-                    <Grid>
-                        <ItemsControl x:Name="Children" ItemsSource="{Binding Children}" Focusable="False" />
+                <!--
+                    The branch: the pieces this one hands work to (AC 24). Pieces that ran in parallel are grouped by a
+                    brace to the left of the hand-over line, spanning them, labelled beside it, so no connector crosses it
+                    (1.1e AC 6d; Nigel: "a left hand brace to the left of them all").
+                -->
+                <Grid x:Name="BranchRow" Margin="0,14,0,0" Visibility="{Binding HasChildren, Converter={StaticResource Visible}}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="{Binding BranchIndent}" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel x:Name="ParallelMark" Orientation="Horizontal" HorizontalAlignment="Left"
+                                AutomationProperties.Name="{Binding ParallelText}"
+                                Visibility="{Binding IsParallel, Converter={StaticResource Visible}}">
                         <TextBlock x:Name="ParallelLabel" Text="{Binding ParallelText}" FontFamily="{StaticResource Mono}" FontSize="11"
-                                   FontWeight="Medium" Padding="0,4" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-26,0,0,0"
-                                   Background="{DynamicResource ApplicationBackgroundBrush}"
-                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                   Visibility="{Binding IsParallel, Converter={StaticResource Visible}}">
+                                   FontWeight="Medium" VerticalAlignment="Top" Margin="0,4,0,0"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}">
                             <TextBlock.LayoutTransform>
                                 <RotateTransform Angle="-90" />
                             </TextBlock.LayoutTransform>
                         </TextBlock>
-                    </Grid>
-                </Border>
+                        <!-- Curls of a fixed size and straight runs that stretch, so it reads as { at any height. -->
+                        <Grid x:Name="ParallelBrace" Width="10" Margin="3,0,0,0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="8" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="12" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="8" />
+                            </Grid.RowDefinitions>
+                            <Path Grid.Row="0" Data="M 10,0.75 C 6,0.75 5,3 5,8" StrokeThickness="1.5" Stroke="{DynamicResource ConnectorBrush}" />
+                            <Rectangle Grid.Row="1" Width="1.5" HorizontalAlignment="Left" Margin="4.25,0,0,0" Fill="{DynamicResource ConnectorBrush}" />
+                            <Path Grid.Row="2" Data="M 5,0 C 5,4 3,6 0.75,6 C 3,6 5,8 5,12" StrokeThickness="1.5" Stroke="{DynamicResource ConnectorBrush}" />
+                            <Rectangle Grid.Row="3" Width="1.5" HorizontalAlignment="Left" Margin="4.25,0,0,0" Fill="{DynamicResource ConnectorBrush}" />
+                            <Path Grid.Row="4" Data="M 5,0 C 5,5 6,7.25 10,7.25" StrokeThickness="1.5" Stroke="{DynamicResource ConnectorBrush}" />
+                        </Grid>
+                    </StackPanel>
+                    <Border x:Name="Branch" Grid.Column="1" Padding="16,0,0,0">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="BorderThickness" Value="2,0,0,0" />
+                                <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsParallel}" Value="True">
+                                        <Setter Property="BorderThickness" Value="0" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <ItemsControl x:Name="Children" ItemsSource="{Binding Children}" Focusable="False" />
+                    </Border>
+                </Grid>
             </StackPanel>
         </DataTemplate>
 
@@ -560,6 +609,7 @@
                 </Border>
             </StackPanel>
         </DataTemplate>
+        </ResourceDictionary>
     </UserControl.Resources>
 
     <DockPanel>

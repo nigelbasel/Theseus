@@ -173,20 +173,58 @@ public class ProjectViewLayoutTests
     }
 
     [Test]
-    public void TheBranch_IsIndented_WithAThickerLabelledBarWhenParallel()
+    public void TheBranch_IsIndented_AndAParallelOneIsGroupedByALabelledBraceLeftOfIt()
     {
         var control = LaidOut(_views.BuildYourMarket());
-        var branches = AllNamed<Border>(control, "Branch").Where(branch => branch.Visibility == Visibility.Visible).ToList();
-        var parallel = branches.Single(branch => ((PieceNodeViewModel)branch.DataContext).Name == ServerSpec);
-        var single = branches.Single(branch => ((PieceNodeViewModel)branch.DataContext).Name == "bym-mcp-identity");
+        var rows = AllNamed<Grid>(control, "BranchRow").Where(row => row.Visibility == Visibility.Visible).ToList();
+        var parallel = rows.Single(row => ((PieceNodeViewModel)row.DataContext).Name == ServerSpec);
+        var single = rows.Single(row => ((PieceNodeViewModel)row.DataContext).Name == "bym-mcp-identity");
         var label = AllNamed<TextBlock>(parallel, "ParallelLabel").Single(text => text.DataContext == parallel.DataContext);
+        var branch = (Border)parallel.Children.OfType<Border>().Single();
 
-        Assert.That((parallel.Margin.Left, parallel.Padding.Left, parallel.BorderThickness.Left), Is.EqualTo((34.0, 16.0, 3.0)));
-        Assert.That(single.BorderThickness.Left, Is.EqualTo(2));
-        Assert.That((label.Text, label.Visibility), Is.EqualTo(("7 in parallel", Visibility.Visible)));
+        Assert.That((parallel.ColumnDefinitions[0].Width.Value, branch.Padding.Left, branch.BorderThickness.Left), Is.EqualTo((56.0, 16.0, 0.0)),
+            "a parallel branch has a brace, not a bar (1.1e AC 6d)");
+        Assert.That((single.ColumnDefinitions[0].Width.Value, ((Border)single.Children.OfType<Border>().Single()).BorderThickness.Left),
+            Is.EqualTo((34.0, 2.0)));
+        Assert.That(label.Text, Is.EqualTo("7 in parallel"));
+        Assert.That(AllNamed<StackPanel>(parallel, "ParallelMark").Single(mark => mark.DataContext == parallel.DataContext).Visibility,
+            Is.EqualTo(Visibility.Visible));
         Assert.That(((RotateTransform)label.LayoutTransform).Angle, Is.EqualTo(-90));
-        Assert.That(AllNamed<TextBlock>(single, "ParallelLabel").Single(text => text.DataContext == single.DataContext).Visibility,
+        Assert.That(AllNamed<StackPanel>(single, "ParallelMark").Single(mark => mark.DataContext == single.DataContext).Visibility,
             Is.EqualTo(Visibility.Collapsed));
+    }
+
+    [Test]
+    public void NoConnector_CrossesTheParallelBrace_WhichSpansTheChildrenLeftOfTheHandOverLine()
+    {
+        var view = _views.BuildYourMarket();
+        var control = LaidOut(view);
+        control.DrawConnectors();
+        var connectors = (Canvas)control.FindName("Connectors");
+        var row = AllNamed<Grid>(control, "BranchRow").Single(each => ((PieceNodeViewModel)each.DataContext).Name == ServerSpec);
+        var brace = AllNamed<Grid>(row, "ParallelBrace").Single(grid => grid.DataContext == row.DataContext);
+        var markPanel = AllNamed<StackPanel>(row, "ParallelMark").Single(panel => panel.DataContext == row.DataContext);
+        Rect InCanvas(FrameworkElement element) =>
+            new(element.TranslatePoint(new Point(0, 0), connectors), new Size(element.ActualWidth, element.ActualHeight));
+        var mark = InCanvas(markPanel);
+        var children = view.Roots.Single().Children.Select(child => InCanvas(BoxOf(control, child.Name))).ToList();
+        var lines = connectors.Children.OfType<System.Windows.Shapes.Path>().ToList();
+
+        Assert.That(lines, Is.Not.Empty);
+
+        foreach (var line in lines)
+        {
+            var bounds = line.Data.Bounds;
+            var crosses = bounds.IntersectsWith(mark) && bounds.Right > mark.Left + 0.5 && bounds.Left < mark.Right - 0.5
+                          && bounds.Bottom > mark.Top + 0.5 && bounds.Top < mark.Bottom - 0.5;
+
+            Assert.That(crosses, Is.False, $"{line.Tag} crosses the brace at {mark}");
+        }
+
+        Assert.That(InCanvas(brace).Top, Is.EqualTo(children.Min(child => child.Top)).Within(1), "it starts at the first child");
+        Assert.That(InCanvas(brace).Bottom, Is.GreaterThanOrEqualTo(children.Max(child => child.Bottom) - 1), "and reaches the last");
+        Assert.That(mark.Right, Is.LessThan(InCanvas(BoxOf(control, ServerSpec)).Left + Theseus.App.Views.ConnectorGeometry.ParallelHandOverInset),
+            "left of the hand-over line");
     }
 
     [Test]
