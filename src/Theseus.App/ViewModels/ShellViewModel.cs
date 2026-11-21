@@ -993,8 +993,11 @@ public sealed class ShellViewModel : ObservableObject
     /// <summary>Asks for a new objective. Set by the app.</summary>
     public Func<NewObjective?>? AskObjective { get; set; }
 
-    /// <summary>Asks which project, objective and slug a card joins, from the readable projects. Set by the app.</summary>
-    public Func<IReadOnlyList<ProjectOption>, string, AddToProjectChoice?>? AskAddToProject { get; set; }
+    /// <summary>
+    /// Asks which project, objective and slug a card joins, from the readable projects, with one project chosen first
+    /// when asked from its view (1.1e AC 6). Set by the app.
+    /// </summary>
+    public Func<IReadOnlyList<ProjectOption>, string, string?, AddToProjectChoice?>? AskAddToProject { get; set; }
 
     private void NewProject()
     {
@@ -1080,8 +1083,7 @@ public sealed class ShellViewModel : ObservableObject
     }
 
     /// <summary>A branch for a slug, named as the project's primary branch is: its owner's prefix, then the slug.</summary>
-    private static string BranchFor(ProjectFile file, string slug) =>
-        file.PrimaryBranch.LastIndexOf('/') is var slash and > 0 ? $"{file.PrimaryBranch[..slash]}/{slug}" : slug;
+    private static string BranchFor(ProjectFile file, string slug) => AddToProjectFlow.BranchFor(file, slug);
 
     /// <summary>The Repos cell for a card's row: its folders' names, which a session corrects as it works.</summary>
     private static string ReposOf(WorkstreamCardViewModel card) =>
@@ -1090,32 +1092,24 @@ public sealed class ShellViewModel : ObservableObject
             .Where(name => name.Length > 0)
             .Distinct(StringComparer.OrdinalIgnoreCase)) is { Length: > 0 } names ? names : "[to be recorded]";
 
-    /// <summary>Add to project… on a card (1.1c AC 7): adds its row to the chosen objective's table.</summary>
-    private void AddToProject(WorkstreamCardViewModel card)
+    /// <summary>
+    /// Add to project… on a card (1.1c AC 7), or on a box of a project's view with that project chosen (1.1e AC 6): adds
+    /// its row to the chosen objective's table.
+    /// </summary>
+    private void AddToProject(WorkstreamCardViewModel card, string? project = null)
     {
-        var options = _projectReads.Current.Where(reading => reading.IsReadable)
-            .Select(reading => new ProjectOption(reading.Name, $"{reading.File!.Title} ({reading.Name})",
-                [.. reading.File.Objectives.Select(objective => (objective.Number, objective.Title))]))
-            .ToList();
+        var addition = AddToProjectFlow.Ask(_projectReads.Current, card.Key, card.Title, ReposOf(card), project, AskAddToProject,
+            out var notice);
 
-        if (options.Count == 0)
+        if (notice is not null)
         {
-            Notice = "No project reads yet: start one with New project…, or set the projects folder in Tools > Options.";
-
-            return;
+            Notice = notice;
         }
 
-        var slug = ProjectMembership.IsSlug(card.Key) ? card.Key : string.Empty;
-
-        if (AskAddToProject?.Invoke(options, slug) is not { } choice || Readable(choice.Project)?.File is not { } file)
+        if (addition is not null)
         {
-            return;
+            EditProject(addition.Project, text => ProjectFileEditor.AddRow(text, addition.Objective, addition.Row), addition.Done);
         }
-
-        var row = new ProjectWorkstreamRow(card.Key, choice.Slug, BranchFor(file, choice.Slug), ReposOf(card), 0);
-
-        EditProject(choice.Project, text => ProjectFileEditor.AddRow(text, choice.Objective, row),
-            $"{card.Title} is in {choice.Project} as {choice.Slug}, under objective {choice.Objective}.");
     }
 
     /// <summary>
@@ -1538,7 +1532,7 @@ public sealed class ShellViewModel : ObservableObject
         IReadOnlyList<ProjectTabViewModel> tabs) =>
         ProjectViewModel.Build(reading, pieces, Chains?.Status ?? new LinkStatus([], []), tabs, _settings,
             _projectActions ??= ProjectViewCommands.For(Board.Card, FocusCardCommand, StartCardCommand, StopCardCommand, OpenSpec,
-                AcceptSpec, OpenFile, text => Notice = text),
+                AcceptSpec, OpenFile, text => Notice = text, (card, project) => AddToProject(card, project)),
             CloseProjectCommand,
             EditsOf(reading.Name),
             ProjectView);

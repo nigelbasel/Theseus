@@ -54,6 +54,7 @@ public sealed class ProjectCardViewModel : ObservableObject, IBoardCard
             {
                 Raise(nameof(CardOpacity));
                 Raise(nameof(OpenToolTip));
+                Raise(nameof(OpenButtonToolTip));
                 Raise(nameof(ShowsRunButtons));
             }
         }
@@ -66,6 +67,9 @@ public sealed class ProjectCardViewModel : ObservableObject, IBoardCard
     public string OpenToolTip => _isDimmed
         ? "Open its project.md, to see why it does not read"
         : "Open the project view in the main area (also View › Open project)";
+
+    /// <summary>↗'s tooltip (1.1e AC 5): a dimmed card's ↗ opens its project.md, as its double-click does.</summary>
+    public string OpenButtonToolTip => _isDimmed ? "Open its project.md" : "Open the project (Enter)";
 
     /// <summary>Whether ▶ and ■ show: only for a project that reads (1.1d AC 44).</summary>
     public bool ShowsRunButtons => !_isDimmed;
@@ -199,6 +203,12 @@ public sealed class ProjectCardViewModel : ObservableObject, IBoardCard
         get => _isLive;
         set => Set(ref _isLive, value);
     }
+
+    /// <summary>The session-state column it sits in while the columns show session state, from its cards (1.1e AC 4).</summary>
+    public string StateColumn { get; set; } = Theseus.Core.Domain.BoardView.NotRunning;
+
+    /// <summary>The key of its first card, whose row it sits in while the rows show folders or chains (1.1e AC 4); null with none.</summary>
+    public string? FirstCardKey { get; set; }
 
     /// <summary>A drag of it carries its name, marked as a project's (1.1d AC 42).</summary>
     public string DragPayload => Services.BoardGesture.ProjectPrefix + Name;

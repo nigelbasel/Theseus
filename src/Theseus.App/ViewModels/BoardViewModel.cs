@@ -142,23 +142,41 @@ public sealed class BoardViewModel : ObservableObject
         Place();
     }
 
-    /// <summary>Moves a project card to a cell and remembers it there (AC 12); only where a card could be dropped.</summary>
-    public void MoveProject(string name, string column, string area)
+    /// <summary>
+    /// Moves a project card along the axes placed by hand and remembers its place (AC 12; 1.1e AC 1 to 3): its stage
+    /// only while the columns show stages, its area only while the rows show areas, so a derived row's name is never
+    /// stored. Returns what to say when the drop also tried to move it along a derived axis, or null.
+    /// </summary>
+    public string? MoveProject(string name, string column, string area)
     {
-        if (!CanDrag)
+        if (!CanDrag || _projects.FirstOrDefault(project => string.Equals(project.Name, name, StringComparison.OrdinalIgnoreCase)) is not { } moved)
         {
-            return;
+            return null;
         }
 
         var settings = _settings.Read();
-        var places = new Dictionary<string, ProjectCardPlace>(settings.ProjectCardPlaces, StringComparer.OrdinalIgnoreCase)
-        {
-            [name] = new ProjectCardPlace(column, area),
-        };
+        var kept = settings.ProjectCardPlaces.FirstOrDefault(entry => string.Equals(entry.Key, name, StringComparison.OrdinalIgnoreCase)).Value;
+        var shownIn = Cells.FirstOrDefault(cell => cell.Projects.Contains(moved));
+        var notice = DerivedAxisNotice(
+            !CanMoveColumns && shownIn is not null && !string.Equals(shownIn.Column, column, StringComparison.Ordinal),
+            !CanMoveRows && shownIn is not null && !BoardAreas.Same(shownIn.Area, area));
+        var place = new ProjectCardPlace(
+            CanMoveColumns ? column : kept?.Column ?? string.Empty,
+            CanMoveRows ? area : kept?.Area ?? string.Empty);
 
-        _settings.Write(settings with { ProjectCardPlaces = places });
-        _projectPlaces = places;
-        Place();
+        if (place != kept)
+        {
+            var places = new Dictionary<string, ProjectCardPlace>(settings.ProjectCardPlaces, StringComparer.OrdinalIgnoreCase)
+            {
+                [name] = place,
+            };
+
+            _settings.Write(settings with { ProjectCardPlaces = places });
+            _projectPlaces = places;
+            Place();
+        }
+
+        return notice;
     }
 
     /// <summary>Every cell, in reading order.</summary>
@@ -235,10 +253,32 @@ public sealed class BoardViewModel : ObservableObject
     public bool RowsByNone { get => RowsBy == BoardRowsBy.None; set => Choose(value, () => RowsBy = BoardRowsBy.None); }
 
     /// <summary>
-    /// Whether a dragged card can be dropped to move it. Only stages are a place a card is put: in the
-    /// session-state view a card's column is whatever its session is doing.
+    /// Whether a card can be dragged at all: along at least one axis the owner places by hand (1.1e AC 1, Nigel,
+    /// 2026-11-21: "the two user defined ways of presenting rows and columns, are also the ones that are draggable").
     /// </summary>
-    public bool CanDrag => ColumnsBy == BoardColumnsBy.Stage;
+    public bool CanDrag => CanMoveColumns || CanMoveRows;
+
+    /// <summary>Whether a drop moves a card between columns: only while they show stages, not session state.</summary>
+    public bool CanMoveColumns => ColumnsBy == BoardColumnsBy.Stage;
+
+    /// <summary>Whether a drop moves a card between rows: only while they show areas, not folders, chains or nothing.</summary>
+    public bool CanMoveRows => RowsBy == BoardRowsBy.Area;
+
+    /// <summary>
+    /// What the status bar says when a drop tried to move a card along a derived axis, which changes nothing there
+    /// (1.1e AC 3); null when it did not.
+    /// </summary>
+    private string? DerivedAxisNotice(bool alongColumns, bool alongRows)
+    {
+        if (alongColumns)
+        {
+            return "Columns show session state: a card's place there follows its work";
+        }
+
+        return alongRows
+            ? $"Rows show {(RowsBy == BoardRowsBy.Chain ? "chains" : "folders")}: a card's place there follows its work"
+            : null;
+    }
 
     /// <summary>Reads the plans and sidecars and rebuilds the board from them.</summary>
     public void Refresh()
@@ -407,8 +447,8 @@ public sealed class BoardViewModel : ObservableObject
         [.. ShownItems.OfType<ProjectCardViewModel>().Where(project => project.IsSelected)];
 
     /// <summary>
-    /// Puts each project card in the cell it was dragged to; a column or row the view does not have falls back to the
-    /// first, as a card's does.
+    /// Puts each project card in its cell: along a hand-placed axis where it was dragged to, along a derived one by its
+    /// cards (1.1e AC 4). A column or row the view does not have falls back to the first, as a card's does.
     /// </summary>
     private void PlaceProjects()
     {
@@ -427,11 +467,19 @@ public sealed class BoardViewModel : ObservableObject
                 .Where(project =>
                 {
                     var place = places.FirstOrDefault(entry => string.Equals(entry.Key, project.Name, StringComparison.OrdinalIgnoreCase)).Value;
-                    var target = place is null
-                        ? first
-                        : Cells.FirstOrDefault(candidate => candidate.Column == place.Column && BoardAreas.Same(candidate.Area, place.Area))
-                          ?? Cells.FirstOrDefault(candidate => candidate.Column == place.Column)
-                          ?? first;
+                    var column = CanMoveColumns ? place?.Column : project.StateColumn;
+                    var row = RowsBy switch
+                    {
+                        BoardRowsBy.Area => place?.Area,
+                        BoardRowsBy.Project or BoardRowsBy.Chain => project.FirstCardKey is { } key && Card(key) is { } firstCard
+                            ? RowOf(firstCard)
+                            : null,
+                        _ => null,
+                    };
+                    bool InColumn(ColumnViewModel candidate) => string.IsNullOrEmpty(column) || candidate.Column == column;
+                    var target = Cells.FirstOrDefault(candidate => InColumn(candidate) && (string.IsNullOrEmpty(row) || BoardAreas.Same(candidate.Area, row)))
+                                 ?? Cells.FirstOrDefault(InColumn)
+                                 ?? first;
 
                     return ReferenceEquals(target, cell);
                 })
@@ -750,6 +798,8 @@ public sealed class BoardViewModel : ObservableObject
         Raise(nameof(RowsByChain));
         Raise(nameof(RowsByNone));
         Raise(nameof(CanDrag));
+        Raise(nameof(CanMoveColumns));
+        Raise(nameof(CanMoveRows));
     }
 
     /// <summary>Folds one card or opens it, and remembers which way it was left.</summary>
@@ -811,38 +861,45 @@ public sealed class BoardViewModel : ObservableObject
         RememberGridFolds();
     }
 
-    /// <summary>Moves a card to another cell of the grid and persists the change.</summary>
-    /// <param name="destination">The stage to move it to.</param>
+    /// <summary>
+    /// Moves a card along the axes placed by hand and persists the change (1.1e AC 1 to 3): its stage only while the
+    /// columns show stages, its area only while the rows show areas. Along a derived axis the drop changes nothing, and
+    /// what to say about that is returned; null when there is nothing to say.
+    /// </summary>
+    /// <param name="destination">The column it was dropped in.</param>
     /// <param name="area">
-    /// The area to move it to. Null keeps the area it is in, which is what dragging within a row
+    /// The row it was dropped in. Null keeps the area it is in, which is what dragging within a row
     /// means — and what every drop meant before the board had rows.
     /// </param>
     /// <param name="index">
     /// Where in the cell to put it, or null for the end. Position is not decoration: a cell's order
     /// is the order its tabs open in when it is started, so dragging a card up brings its session
-    /// forward in the morning.
+    /// forward in the morning. Only under stage columns is it used and the plans renumbered; a card moved between
+    /// areas under session-state columns keeps its old number, and no plan is rewritten.
     /// </param>
-    public void Move(string key, string destination, string? area = null, int? index = null)
+    public string? Move(string key, string destination, string? area = null, int? index = null)
     {
         var card = Card(key);
 
         if (card is null || !CanDrag)
         {
-            return;
+            return null;
         }
 
-        if (RowsBy != BoardRowsBy.Area && area is not null && !string.Equals(area, RowOf(card), StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        var row = area ?? (RowsBy == BoardRowsBy.Area ? card.Workstream.Area ?? card.Area : RowOf(card));
+        var notice = DerivedAxisNotice(
+            !CanMoveColumns && !string.Equals(destination, ColumnOf(card), StringComparison.Ordinal),
+            !CanMoveRows && area is not null && !string.Equals(area, RowOf(card), StringComparison.Ordinal));
+        var column = CanMoveColumns ? destination : card.Column;
+        var newArea = CanMoveRows && area is not null ? area : card.Area;
+        var targetColumn = CanMoveColumns ? destination : ColumnOf(card);
+        var targetRow = CanMoveRows ? newArea : RowOf(card);
         var cell = Cells.FirstOrDefault(candidate =>
-            candidate.Column == destination && BoardAreas.Same(candidate.Area, row));
+            candidate.Column == targetColumn && BoardAreas.Same(candidate.Area, targetRow));
+        var placeChanged = !string.Equals(column, card.Column, StringComparison.Ordinal) || !BoardAreas.Same(newArea, card.Area);
 
-        if (cell is null)
+        if (cell is null || (!placeChanged && (notice is not null || !CanMoveColumns)))
         {
-            return;
+            return notice;
         }
 
         var cameFrom = cell.Cards.IndexOf(card) is var found && found >= 0 ? found : (int?)null;
@@ -852,21 +909,26 @@ public sealed class BoardViewModel : ObservableObject
             other.Cards.Remove(card);
         }
 
-        var at = LaneInsertion.At(index ?? cell.Cards.Count + 1, cameFrom, cell.Cards.Count);
-        var newArea = RowsBy == BoardRowsBy.Area ? cell.Area : card.Area;
-        var stayed = cameFrom == at && card.Column == destination && BoardAreas.Same(newArea, card.Area);
+        var at = LaneInsertion.At(notice is null && CanMoveColumns ? index ?? cell.Cards.Count + 1 : cell.Cards.Count + 1, cameFrom, cell.Cards.Count);
+        var stayed = cameFrom == at && !placeChanged;
 
         cell.Cards.Insert(at, card);
 
         if (stayed)
         {
-            return;
+            return notice;
         }
 
-        card.Workstream = card.Workstream with { Column = destination, Area = newArea };
+        card.Workstream = card.Workstream with { Column = column, Area = newArea };
 
         Persist(card);
-        Renumber(cell);
+
+        if (CanMoveColumns)
+        {
+            Renumber(cell);
+        }
+
+        return notice;
     }
 
     /// <summary>

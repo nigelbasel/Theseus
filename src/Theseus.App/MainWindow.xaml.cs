@@ -524,7 +524,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        BoardGesture.Drop(board, dropped, column, 0);
+        SayAboutDrop(BoardGesture.Drop(board, dropped, column, 0));
         e.Handled = true;
     }
 
@@ -945,8 +945,17 @@ public partial class MainWindow : Window
 
         // The cell carries both axes, so a drop says stage and area at once. Dragging within a row
         // is the same gesture as dragging across one; only the cell landed in is different.
-        BoardGesture.Drop(board, key, column, DropIndex(lane, column, e.GetPosition(lane)));
+        SayAboutDrop(BoardGesture.Drop(board, key, column, DropIndex(lane, column, e.GetPosition(lane))));
         e.Handled = true;
+    }
+
+    /// <summary>Puts what a drop has to say in the status bar (1.1e AC 3).</summary>
+    private void SayAboutDrop(string? notice)
+    {
+        if (notice is not null && DataContext is ShellViewModel shell)
+        {
+            shell.DropRefused(notice);
+        }
     }
 
     /// <summary>

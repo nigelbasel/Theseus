@@ -538,15 +538,22 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
-                        <!-- Start and stop the whole project, as a card's own ▶ and ■ (1.1d AC 43); not on a dimmed card (AC 44). -->
-                        <StackPanel x:Name="ProjectButtons" Orientation="Horizontal" HorizontalAlignment="Left" Margin="-4,2,0,0"
-                                    Visibility="{Binding ShowsRunButtons, Converter={StaticResource BoolToVisibility}}">
+                        <!--
+                            Open first, always shown, as opening is a project card's main action (1.1e AC 5); then start and
+                            stop the whole project, as a card's own ▶ and ■ (1.1d AC 43), not on a dimmed card (AC 44).
+                        -->
+                        <StackPanel x:Name="ProjectButtons" Orientation="Horizontal" HorizontalAlignment="Left" Margin="-4,2,0,0">
+                            <Button x:Name="ProjectOpen" Style="{StaticResource CardIcon}" Content="&#xE8A7;"
+                                    ToolTip="{Binding OpenButtonToolTip}" AutomationProperties.Name="Open project"
+                                    Command="{Binding OpenCommand}" />
                             <Button x:Name="ProjectStart" Style="{StaticResource CardIcon}" Content="&#xE768;"
                                     ToolTip="{Binding StartToolTip}" AutomationProperties.Name="Start project"
-                                    Command="{Binding StartCommand}" />
+                                    Command="{Binding StartCommand}"
+                                    Visibility="{Binding ShowsRunButtons, Converter={StaticResource BoolToVisibility}}" />
                             <Button x:Name="ProjectStop" Style="{StaticResource CardIcon}" Content="&#xE71A;"
                                     ToolTip="{Binding StopToolTip}" AutomationProperties.Name="Stop project"
-                                    Command="{Binding StopCommand}" />
+                                    Command="{Binding StopCommand}"
+                                    Visibility="{Binding ShowsRunButtons, Converter={StaticResource BoolToVisibility}}" />
                         </StackPanel>
                     </StackPanel>
                 </Grid>

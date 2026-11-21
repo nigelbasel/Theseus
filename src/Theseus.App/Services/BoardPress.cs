@@ -6,7 +6,7 @@ namespace Theseus.App.Services;
 /// <summary>
 /// A press on the board and what moving it does (1.1d AC 42; review of PR 3, items 5 and 6). The card or project card
 /// pressed is taken at the press: the move is never asked what is under the pointer, which used to drag nothing once the
-/// pointer had left a project card. No drag starts where nothing can be dropped (columns by session state), so a click
+/// pointer had left a project card. No drag starts where neither axis is placed by hand (1.1e AC 3), so a click
 /// that wobbles still selects; a move long enough to be a real drag there is told why, once.
 /// </summary>
 public sealed class BoardPress

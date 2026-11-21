@@ -291,9 +291,9 @@ public partial class App : Application
 
             return window.ShowDialog() == true ? window.Objective : null;
         };
-        shell.AskAddToProject = (projects, slug) =>
+        shell.AskAddToProject = (projects, slug, chosen) =>
         {
-            var window = new AddToProjectWindow(projects, slug) { Owner = MainWindow };
+            var window = new AddToProjectWindow(projects, slug, chosen) { Owner = MainWindow };
 
             return window.ShowDialog() == true ? window.Choice : null;
         };

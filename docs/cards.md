@@ -46,9 +46,12 @@ come back if the project can no longer be read.
 
 A project card is selected, dragged and acted on as a card is: click, **Ctrl**+click, **Shift**+click, a rubber band,
 **Ctrl+A**, **Ctrl+I**, **Select live** (which picks a project when any of its cards has a session) and **Esc** all
-include it, and a selected one has the card's accent border. Drag it to any column and row, where it sits above that
-cell's cards and stays across restarts. Cards and project cards are moved only while the columns show stages; dragged
-while they show session state, nothing moves and the status bar says to choose **View > Columns by > Stage**. Commands for one workstream,
+include it, and a selected one has the card's accent border. It is dragged as a card is, only along what you place by
+hand (between stages, between areas), and sits above its cell's cards across restarts. With columns by session state it
+sits in the column of its most urgent running card (Needs you, then Working, then Idle), in Not running when none runs,
+and in Done when all its work is done; with rows by folder or chain, in the row of its first card. With neither axis
+placed by hand nothing can be dragged, and the status bar says to choose **View > Columns by > Stage** or **View > Rows
+by > Area**. Commands for one workstream,
 such as **Properties** and **Verify with holdouts…**, are off while only projects are selected and say why; any command
 on a selection that holds a project and cards acts on the cards, and the status bar says the project was skipped.
 
@@ -67,8 +70,8 @@ colour is changed, from the same eight; a dot marks a colour another project has
 project. The card, the project's tab and its summary in the project view all take the colour.
 
 One whose `project.md` does not read is dimmed and says why, keeping its mark, colour and the word PROJECT but with no
-▷ or □; double-click it to open the file. Double-click a project card that reads, press **Enter** on it, choose
-**Open** on its menu, or **View > Open project**, to fill the main area with the project: see
+▷ or □; ↗ or a double-click opens the file. **↗ Open**, the first button on a project card that reads, a double-click,
+**Enter** on it, **Open** on its menu, or **View > Open project**, fills the main area with the project: see
 [The project view](project-view.md). A spec waiting for you shows **Waiting on you**, with
 **Open spec** and **Accept spec…**, which asks first and names the version it accepts; a spec changed after you accept
 it waits for you again. **← Board** at the top, **Alt+Left**, or **View > Back to the board**, goes back.

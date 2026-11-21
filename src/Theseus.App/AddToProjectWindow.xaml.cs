@@ -11,13 +11,13 @@ namespace Theseus.App;
 /// </summary>
 public partial class AddToProjectWindow : Window
 {
-    /// <summary>Creates the window.</summary>
-    public AddToProjectWindow(IReadOnlyList<ProjectOption> projects, string slug)
+    /// <summary>Creates the window, with a project chosen when it is asked from that project's view (1.1e AC 6).</summary>
+    public AddToProjectWindow(IReadOnlyList<ProjectOption> projects, string slug, string? chosen = null)
     {
         InitializeComponent();
         ProjectBox.ItemsSource = projects;
         SlugBox.Text = slug;
-        ProjectBox.SelectedIndex = projects.Count == 1 ? 0 : -1;
+        ProjectBox.SelectedIndex = ProjectOption.IndexToChoose(projects, chosen);
         Loaded += (_, _) => ProjectBox.Focus();
     }
 

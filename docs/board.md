@@ -43,8 +43,11 @@ The same cards can be laid out in different ways. Choose from **View > Columns b
 Columns by session state and rows by area is a good view for the working day: the left column is
 everything waiting on you. Columns by stage is the view for planning.
 
-Dragging a card changes its stage only when columns show stages, and its area only when rows show
-areas.
+A card is dragged only along what you place by hand: between columns while they show stages, and between rows while
+they show areas. With columns by session state and rows by area, cards move up and down between areas only; with
+neither, a card cannot be dragged. A card keeps its stage and its area whatever the board shows, so switching back shows
+it where you put it. Dropped across a column or row that follows the work, nothing moves that way and the status bar
+says so.
 
 ## Paused and Blocked
 
