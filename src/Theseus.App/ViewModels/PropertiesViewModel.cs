@@ -81,6 +81,7 @@ public sealed class PropertiesViewModel
             [
                 new("Where", node.StatusText),
                 new("Worker", piece.Workstream),
+                .. piece.Card?.StopLine is { } stopped ? new PropertyRowViewModel[] { new("Stopped", stopped) } : [],
                 new("Kind", piece.KindWord),
                 new("Objective", ObjectiveText(piece)),
                 new("Records", piece.RecordsFolder ?? "no records folder in the project"),

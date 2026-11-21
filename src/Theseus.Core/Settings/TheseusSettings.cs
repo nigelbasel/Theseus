@@ -176,6 +176,20 @@ public sealed record TheseusSettings(
         new Dictionary<string, ProjectViewGrouping>();
 
     /// <summary>
+    /// Each stopped project's run state, by project name (1.1e AC 8; Nigel, 2026-11-21: "when I restart the project, it
+    /// would go back to the previous state"): the keys of its cards that had a session when it was stopped. A project not
+    /// listed is not stopped. Its Start starts exactly these and removes the entry.
+    /// </summary>
+    public IReadOnlyDictionary<string, IReadOnlyList<string>> ProjectRunStates { get; init; } =
+        new Dictionary<string, IReadOnlyList<string>>();
+
+    /// <summary>
+    /// The cards the owner stopped by hand while their project ran (1.1e AC 10, 12): the project does not start them again
+    /// until they are started by hand. A start of the card removes it.
+    /// </summary>
+    public IReadOnlyList<string> CardsStoppedByOwner { get; init; } = [];
+
+    /// <summary>
     /// The terminal window an area's sessions start in, where it is not named after the area itself:
     /// an area renamed by <see cref="Domain.BoardTidy"/> keeps its old window, so its new sessions
     /// join the tabs already open rather than starting a window of their own.

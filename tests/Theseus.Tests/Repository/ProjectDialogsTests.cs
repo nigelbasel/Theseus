@@ -12,9 +12,9 @@ using static Theseus.Tests.Projects.ProjectViewFixtures;
 namespace Theseus.Tests.Repository;
 
 /// <summary>
-/// A project's two dialogs, as WPF lays them out: Start's confirmation, a tick box per card, greyed where the card cannot
-/// start and Start off until something is ticked (1.1d AC 43); and Project properties, the title read only, the colour
-/// chosen from the project palette, and the project.md path (AC 40).
+/// A project's dialog, as WPF lays it out: Project properties, the title read only, the colour chosen from the project
+/// palette, and the project.md path (1.1d AC 40). Start's confirmation is gone: a project's Start starts its run state
+/// with no list to tick (1.1e AC 9).
 /// </summary>
 [TestFixture]
 [Apartment(ApartmentState.STA)]
@@ -37,29 +37,6 @@ public class ProjectDialogsTests
         content.UpdateLayout();
 
         return content;
-    }
-
-    [Test]
-    public void StartsConfirmation_HasATickBoxPerCard_GreyedWhereItCannotStart_AndStartOffUntilOneIsTicked()
-    {
-        var pieces = BuildYourMarketPieces(_folder, [.. BuildYourMarketBoard().Select(card =>
-            card.Key == "bym-mcp-w4-mcp-host-and-staff-plugin" ? card with { Lifecycle = SessionLifecycle.Running } : card)]);
-        var question = new ProjectStartViewModel(ProjectStart.For("BuildYourMarket MCP server", pieces));
-        var window = new ProjectStartWindow(question);
-        var boxes = Descendants<CheckBox>(LaidOut(window)).ToList();
-        var start = (Button)window.FindName("StartButton");
-
-        Assert.That(window.Title, Is.EqualTo("Start BuildYourMarket MCP server"));
-        Assert.That(boxes.Select(box => (box.IsEnabled, box.IsChecked)), Has.Exactly(2).EqualTo((false, (bool?)false)),
-            "the done card and the running one are greyed");
-        Assert.That(start.IsEnabled, Is.True);
-
-        foreach (var row in question.Rows)
-        {
-            row.IsTicked = false;
-        }
-
-        Assert.That(start.IsEnabled, Is.False);
     }
 
     [Test]

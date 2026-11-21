@@ -14,6 +14,10 @@ public class ProjectsInUseDocsTests
     [TestCase("cards.md", "in the row of its first card")]
     [TestCase("cards.md", "**↗ Open**, the first button on a project card")]
     [TestCase("project-view.md", "offers **Add to project…**, which opens the board's window with this project")]
+    [TestCase("cards.md", "those cards again, with no list to tick")]
+    [TestCase("cards.md", "decides what runs. Stop it anyway?")]
+    [TestCase("cards.md", "becoming **Restart for more work**")]
+    [TestCase("cards.md", "**Stopped by you**")]
     public void TheHelp_SaysHowProjectsAreUsed(string page, string part)
     {
         Assert.That(Doc(page), Does.Contain(part));

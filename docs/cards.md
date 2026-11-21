@@ -55,13 +55,25 @@ by > Area**. Commands for one workstream,
 such as **Properties** and **Verify with holdouts…**, are off while only projects are selected and say why; any command
 on a selection that holds a project and cards acts on the cards, and the status bar says the project was skipped.
 
-▷ and □ on a project card, **Start…** and **Stop** on its menu, and **Start selected** and **Stop selected** with the
-project selected, start and stop the whole project. Start asks first, listing each of the project's cards with a tick
-box: a card that can start is ticked; a paused card is listed unticked, and starts only if you tick it, which also takes
-its paused mark off; a card that is running, blocked, done or waiting on you is greyed with the reason and is never
-started. The ticked cards start in the project's terminal window, as their own ▷ would start them. Stop asks each of the
-project's sessions to write its handover and stop, as each card's □ does. With nothing to start or stop, each is off and
-its tooltip says why, such as "No card of Theseus bootstrap can start: git-22 is running".
+▷ and □ on a project card, **Start** and **Stop** on its menu, and **Start selected** and **Stop selected** with the
+project selected, start and stop the whole project: the project decides what runs. **Stop** remembers which of its cards
+had a session at that moment, its run state, and asks each to write its handover and stop; the card then says
+**⏸ Project stopped**, and the run state is kept across a restart of Theseus or of the machine. **Start** starts exactly
+those cards again, with no list to tick. A project never stopped starts its first card: the card of the first piece of
+work not done, else of the file's first row. A card that cannot start now (gone, archived, already running) is skipped and named in the status bar. A
+card in both a selected project and the selection is started or stopped once, through its project. With nothing to
+start or stop, each is off and its tooltip says why, such as
+"No card of Theseus bootstrap can start: git-22 is already running".
+
+Stopping one card of a running project by hand, or starting one, asks first: "<card> is part of <project>, which
+decides what runs. Stop it anyway?" A card stopped that way says **Stopped by you**, and its project does not start it
+again until you start it yourself. Cards of a stopped project, and cards in no project, are not asked about.
+
+A card with no session says why it is stopped when there is more to say than "ended": **✓ Done** when its report back
+was confirmed on the board ("Done: reported back 21 Nov") or it is in the last stage, with its face muted and its ▷
+becoming **Restart for more work**, which asks what the more work is and starts it with that as its instruction;
+**⏸ Project stopped: resumes with <project>**, where its ▷ starts the project; or **Stopped by you**. A done card stays
+where you put it. Properties shows the same line.
 
 A project is given its own colour when it first shows, from a set of eight project colours that are never used for
 workstreams, so a project card never shares a colour with a card; two projects get different colours while there are

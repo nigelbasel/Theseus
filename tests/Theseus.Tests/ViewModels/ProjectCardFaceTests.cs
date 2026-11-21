@@ -68,7 +68,7 @@ public class ProjectCardFaceTests
     {
         var card = TheseusCard(SessionLifecycle.Running);
 
-        Assert.That(card.StartToolTip, Is.EqualTo("No card of Theseus bootstrap can start: git-22 is running"));
+        Assert.That(card.StartToolTip, Is.EqualTo("No card of Theseus bootstrap can start: git-22 is already running"));
         Assert.That(card.StopToolTip, Is.EqualTo("Stop Theseus bootstrap: ask git-22 to write a handover and exit"));
     }
 

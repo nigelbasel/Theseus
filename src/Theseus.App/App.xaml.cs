@@ -266,8 +266,8 @@ public partial class App : Application
                 _ => null,
             };
         };
-        shell.ConfirmProjectStart = question =>
-            new ProjectStartWindow(question) { Owner = MainWindow }.ShowDialog() == true;
+        shell.ConfirmProjectCard = (question, action) =>
+            new QuestionWindow($"{action} a card of a running project?", question, action) { Owner = MainWindow }.ShowDialog() == true;
         shell.AskProjectProperties = properties =>
             new ProjectPropertiesWindow(properties) { Owner = MainWindow }.ShowDialog() == true;
         shell.ConfirmAcceptSpec = question =>

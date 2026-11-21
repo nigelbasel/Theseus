@@ -24,6 +24,7 @@ public sealed class ProjectCardViewModel : ObservableObject, IBoardCard
     private bool _isSelected;
     private bool _isLive;
     private ProjectStart? _startPlan;
+    private IReadOnlyList<string>? _runState;
     private ProjectStop? _stopPlan;
 
     /// <summary>Creates a project card.</summary>
@@ -210,10 +211,34 @@ public sealed class ProjectCardViewModel : ObservableObject, IBoardCard
     /// <summary>The key of its first card, whose row it sits in while the rows show folders or chains (1.1e AC 4); null with none.</summary>
     public string? FirstCardKey { get; set; }
 
+    /// <summary>
+    /// Its run state while it is stopped: the cards that had a session when it was stopped (1.1e AC 8); null while it is
+    /// not stopped.
+    /// </summary>
+    public IReadOnlyList<string>? RunState
+    {
+        get => _runState;
+        set
+        {
+            if (!Equals(_runState, value) && !(_runState is not null && value is not null && _runState.SequenceEqual(value)))
+            {
+                _runState = value;
+                Raise();
+                Raise(nameof(IsStopped));
+            }
+        }
+    }
+
+    /// <summary>Whether it is stopped, which its card shows as ⏸ Project stopped (1.1e AC 8).</summary>
+    public bool IsStopped => _runState is not null;
+
+    /// <summary>The keys of the cards its pieces of work name, so a selection acts on each card once (1.1e AC 11).</summary>
+    public IReadOnlyList<string> MemberKeys { get; set; } = [];
+
     /// <summary>A drag of it carries its name, marked as a project's (1.1d AC 42).</summary>
     public string DragPayload => Services.BoardGesture.ProjectPrefix + Name;
 
-    /// <summary>What its Start would list, or null for a dimmed card (1.1d AC 43).</summary>
+    /// <summary>What its Start would start, or null for a dimmed card (1.1e AC 9).</summary>
     public ProjectStart? StartPlan
     {
         get => _startPlan;
@@ -257,10 +282,10 @@ public sealed class ProjectCardViewModel : ObservableObject, IBoardCard
     /// <summary>Opens the project view (AC 14), or a dimmed card's project.md.</summary>
     public ICommand? OpenCommand { get; set; }
 
-    /// <summary>▶: starts the project's cards, after a confirmation that lists them (1.1d AC 43).</summary>
+    /// <summary>▶: starts its run state, or its first card when it was never stopped (1.1e AC 9).</summary>
     public ICommand? StartCommand { get; set; }
 
-    /// <summary>■: asks each of its running sessions to write its handover and stop.</summary>
+    /// <summary>■: records its run state and asks each of its running sessions to write its handover and stop (1.1e AC 8).</summary>
     public ICommand? StopCommand { get; set; }
 
     /// <summary>Project properties…: its title, colour and project.md (1.1d AC 40).</summary>

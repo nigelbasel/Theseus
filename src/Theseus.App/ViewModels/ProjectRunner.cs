@@ -1,205 +1,207 @@
 using Theseus.Core.Domain;
-using Theseus.Core.Launching;
-using Theseus.Core.Projects;
-using Theseus.Core.Sessions;
+using Theseus.Core.Settings;
 
 namespace Theseus.App.ViewModels;
 
 /// <summary>
-/// Starts and stops a whole project as its cards' own Start and Stop do (1.1d AC 43): Start asks first, listing the
-/// project's cards with tick boxes, and starts the ticked ones in the project's terminal window; Stop asks each of its
-/// running sessions to write its handover and stop. The shell gives it its own start and stop, so what runs is exactly
-/// what a card's buttons run. Nothing on the board changes until something is started: a paused card ticked in the
-/// confirmation goes to the start with its mark off, and the mark is taken off its card only once it has started
-/// (<see cref="StartedMarks"/>).
+/// Starts and stops a whole project (1.1e AC 8, 9, 11; Nigel, 2026-11-21: "I might ask the project to stop if I am going
+/// to turn off my machine ... and when I restart the project, it would go back to the previous state"). Stop records the
+/// project's run state, the cards with a session at that moment, then asks each to stop; Start starts exactly that run
+/// state, or a never-stopped project's first card, with no list to tick. A card leaves the run state once it has really
+/// launched (<see cref="Started"/>) or turned out unable to start, so a start that is cancelled or refused loses nothing
+/// (review of PR 2, finding 1). The run state is kept in the settings, so it survives a restart of Theseus and of the
+/// machine. The shell gives it its own start and stop, so what runs is exactly what a card's buttons run.
 /// </summary>
 public sealed class ProjectRunner
 {
     private readonly Func<string, WorkstreamCardViewModel?> _cardOf;
-    private readonly Func<ProjectStartViewModel, bool> _confirm;
-    private readonly Func<WorkstreamCardViewModel, string?> _refusal;
+    private readonly ISettingsStore _settings;
     private readonly Action<IReadOnlyList<Workstream>> _start;
     private readonly Action<IReadOnlyList<WorkstreamCardViewModel>> _stop;
-    private readonly Action<string, bool> _notice;
-    private readonly List<string> _refused = [];
+    private readonly Action<string> _notice;
+    private readonly Action? _changed;
 
     /// <summary>Creates the runner.</summary>
     /// <param name="cardOf">The board card with a key, or null.</param>
-    /// <param name="confirm">Shows the confirmation; true when Start was pressed.</param>
-    /// <param name="refusal">Why a card cannot start now, or null (<see cref="RefusalOf"/>, against the live sessions).</param>
+    /// <param name="settings">Where run states are kept.</param>
     /// <param name="start">Starts workstreams, as a card's Start does.</param>
     /// <param name="stop">Asks cards' sessions to write a handover and stop, as a card's Stop does.</param>
-    /// <param name="notice">
-    /// Says in the status bar which ticked cards were not started, and why: added to what the start said (true), or alone
-    /// when nothing started (false).
-    /// </param>
-    public ProjectRunner(Func<string, WorkstreamCardViewModel?> cardOf, Func<ProjectStartViewModel, bool> confirm,
-        Func<WorkstreamCardViewModel, string?> refusal, Action<IReadOnlyList<Workstream>> start,
-        Action<IReadOnlyList<WorkstreamCardViewModel>> stop, Action<string, bool> notice)
+    /// <param name="notice">Says in the status bar which cards a Start skipped, and why.</param>
+    /// <param name="changed">Called when a run state changed, so the board shows it at once; null does nothing.</param>
+    public ProjectRunner(Func<string, WorkstreamCardViewModel?> cardOf, ISettingsStore settings,
+        Action<IReadOnlyList<Workstream>> start, Action<IReadOnlyList<WorkstreamCardViewModel>> stop, Action<string> notice,
+        Action? changed = null)
     {
+        _changed = changed;
         _cardOf = cardOf;
-        _confirm = confirm;
-        _refusal = refusal;
+        _settings = settings;
         _start = start;
         _stop = stop;
         _notice = notice;
     }
 
-    /// <summary>
-    /// Why a card cannot be started at the moment Start is pressed, or null: the list was drawn at the last refresh, and
-    /// a session may have started or the card been blocked since (review of PR 3, item 2).
-    /// </summary>
-    public static string? RefusalOf(WorkstreamCardViewModel card, SessionRegistrySnapshot live)
+    /// <summary>▶ on a project card, or Start on its menu.</summary>
+    public void Start(ProjectCardViewModel project)
     {
-        ArgumentNullException.ThrowIfNull(card);
-        ArgumentNullException.ThrowIfNull(live);
+        ArgumentNullException.ThrowIfNull(project);
 
-        if (card.IsBlocked)
+        if (project.StartPlan is { CanStart: false, Skipped.Count: 0 } nothing)
         {
-            return "is blocked";
-        }
+            _notice(nothing.ToolTip);
 
-        if (StartSelection.IsEligible(card.Workstream, live))
-        {
-            return null;
-        }
-
-        return !string.IsNullOrWhiteSpace(card.Workstream.LastSessionId) && live.WithSessionId(card.Workstream.LastSessionId).Count > 0
-            ? "is running"
-            : "cannot be started from the board";
-    }
-
-    /// <summary>
-    /// Asks which of a project's cards to start, and returns them, or null when the confirmation was cancelled. A paused
-    /// card ticked there is returned with its mark off: ticking it was the answer to the question a paused card's Start
-    /// asks (rubric R13), so it is not asked twice. A ticked card that can no longer start is left out and named.
-    /// </summary>
-    public IReadOnlyList<Workstream>? Choose(ProjectStart plan)
-    {
-        ArgumentNullException.ThrowIfNull(plan);
-
-        var question = new ProjectStartViewModel(plan);
-
-        if (!plan.CanStart || !_confirm(question))
-        {
-            return null;
-        }
-
-        var ticked = question.TickedKeys.Select(_cardOf).OfType<WorkstreamCardViewModel>().ToList();
-        var refused = ticked.Select(card => (Card: card, Reason: _refusal(card))).Where(each => each.Reason is not null).ToList();
-
-        _refused.AddRange(refused.Select(each => $"{each.Card.Title} {each.Reason}"));
-
-        return
-        [
-            .. ticked.Except(refused.Select(each => each.Card))
-                .Select(card => card.IsPaused ? card.Workstream with { IsPaused = false } : card.Workstream),
-        ];
-    }
-
-    /// <summary>▶ on a project card, or Start… on its menu.</summary>
-    public void Start(ProjectStart plan)
-    {
-        _refused.Clear();
-
-        if (Choose(plan) is not { } chosen)
-        {
             return;
         }
 
-        if (chosen.Count > 0)
-        {
-            _start(chosen);
-        }
-
-        SayRefused(started: chosen.Count > 0);
+        StartSelected([], [project]);
     }
 
-    /// <summary>Start selected, through the board's start, saying which ticked cards were left out.</summary>
+    /// <summary>
+    /// Start selected (1.1e AC 11): each selected project as a whole, and the selected cards no selected project covers, so
+    /// a card in both is started once, through its project. A run state's cards that cannot start now leave it at once;
+    /// the rest leave it as they launch. A project with nothing to start says why.
+    /// </summary>
     public void StartSelected(IReadOnlyList<Workstream> cards, IReadOnlyList<ProjectCardViewModel> projects)
-    {
-        if (ChooseSelected(cards, projects) is not { } chosen)
-        {
-            return;
-        }
-
-        if (chosen.Count > 0)
-        {
-            _start(chosen);
-        }
-
-        SayRefused(started: chosen.Count > 0);
-    }
-
-    private void SayRefused(bool started)
-    {
-        if (_refused.Count > 0)
-        {
-            _notice($"Not started, since the board changed after the list was shown: {string.Join("; ", _refused)}.", started);
-        }
-    }
-
-    /// <summary>
-    /// Start selected (1.1d AC 43): the cards that can start, then for each selected project that can start the cards its
-    /// confirmation ticks. A card ticked both on the board and in a project's confirmation is started once, as the
-    /// confirmation gave it, so a paused one is not asked about again (review of PR 3, item 4). Null when any
-    /// confirmation was cancelled, so nothing at all starts and nothing changes.
-    /// </summary>
-    public IReadOnlyList<Workstream>? ChooseSelected(IReadOnlyList<Workstream> cards, IReadOnlyList<ProjectCardViewModel> projects)
     {
         ArgumentNullException.ThrowIfNull(cards);
         ArgumentNullException.ThrowIfNull(projects);
 
-        _refused.Clear();
-        var chosen = cards.ToList();
+        var planned = projects.Where(project => project.StartPlan is not null).ToList();
+        var chosen = ChooseSelected(cards, projects);
+        var skipped = planned.SelectMany(project => project.StartPlan!.Skipped).ToList();
+        var unstartable = planned.Where(project => project.IsStopped)
+            .SelectMany(project => project.StartPlan!.Entries.Where(entry => !entry.Starts).Select(entry => entry.Key))
+            .ToList();
 
-        foreach (var project in projects.Where(project => project.StartPlan is { CanStart: true }))
+        if (unstartable.Count > 0 && Started(_settings, unstartable))
         {
-            if (Choose(project.StartPlan!) is not { } ticked)
-            {
-                return null;
-            }
+            _changed?.Invoke();
+        }
 
-            foreach (var workstream in ticked)
-            {
-                var at = chosen.FindIndex(other => string.Equals(other.Key, workstream.Key, StringComparison.OrdinalIgnoreCase));
+        if (chosen.Count > 0)
+        {
+            _start(chosen);
+        }
 
-                if (at >= 0)
-                {
-                    chosen[at] = workstream;
-                }
-                else
-                {
-                    chosen.Add(workstream);
-                }
+        if (skipped.Count > 0)
+        {
+            _notice($"Not started: {string.Join("; ", skipped)}.");
+        }
+    }
+
+    /// <summary>
+    /// Takes cards out of every run state, once they have launched or cannot start (review of PR 2, findings 1 and 2); a run
+    /// state left empty is removed, so its project is no longer stopped. True when anything changed.
+    /// </summary>
+    public static bool Started(ISettingsStore settings, IReadOnlyCollection<string> keys)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(keys);
+
+        var read = settings.Read();
+        var states = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
+        var changed = false;
+
+        foreach (var (project, state) in read.ProjectRunStates)
+        {
+            var left = state.Where(key => !keys.Contains(key, StringComparer.OrdinalIgnoreCase)).ToList();
+            changed |= left.Count != state.Count;
+
+            if (left.Count > 0)
+            {
+                states[project] = left;
             }
         }
 
-        return chosen;
+        if (changed)
+        {
+            settings.Write(read with { ProjectRunStates = states });
+        }
+
+        return changed;
     }
 
-    /// <summary>The cards a project's Stop asks, as they are on the board.</summary>
-    public IReadOnlyList<WorkstreamCardViewModel> LiveCards(ProjectStop? plan) =>
-        plan is null ? [] : [.. plan.Keys.Select(_cardOf).OfType<WorkstreamCardViewModel>()];
-
-    /// <summary>■ on a project card, or Stop on its menu.</summary>
-    public void Stop(ProjectStop plan)
+    /// <summary>What Start selected starts: the selected cards no selected project covers, then each project's cards.</summary>
+    public IReadOnlyList<Workstream> ChooseSelected(IReadOnlyList<Workstream> cards, IReadOnlyList<ProjectCardViewModel> projects)
     {
-        if (LiveCards(plan) is { Count: > 0 } cards)
+        ArgumentNullException.ThrowIfNull(cards);
+        ArgumentNullException.ThrowIfNull(projects);
+
+        var covered = Covered(projects);
+
+        return
+        [
+            .. cards.Where(card => !covered.Contains(card.Key))
+                .Concat(projects.Where(project => project.StartPlan is { CanStart: true })
+                    .SelectMany(project => project.StartPlan!.Keys)
+                    .Select(_cardOf)
+                    .OfType<WorkstreamCardViewModel>()
+                    .Select(card => card.Workstream))
+                .DistinctBy(workstream => workstream.Key, StringComparer.OrdinalIgnoreCase),
+        ];
+    }
+
+    /// <summary>■ on a project card, or Stop on its menu: records its run state, then stops its sessions.</summary>
+    public void Stop(ProjectCardViewModel project)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+
+        Remember([project]);
+
+        if (StopSelected([], [project]) is { Count: > 0 } cards)
         {
             _stop(cards);
         }
     }
 
-    /// <summary>Stop selected: the selected cards, and each selected project's cards with a session open, each once.</summary>
+    /// <summary>
+    /// What Stop selected stops (1.1e AC 11): the selected cards no selected project covers, and each selected project's
+    /// cards with a session open, each once. It records nothing: <see cref="Remember"/> does, when the stop is made.
+    /// </summary>
     public IReadOnlyList<WorkstreamCardViewModel> StopSelected(IReadOnlyList<WorkstreamCardViewModel> cards,
         IReadOnlyList<ProjectCardViewModel> projects)
     {
         ArgumentNullException.ThrowIfNull(cards);
         ArgumentNullException.ThrowIfNull(projects);
 
-        return [.. cards.Concat(projects.SelectMany(project => LiveCards(project.StopPlan))).Distinct()];
+        var covered = Covered(projects);
+
+        return
+        [
+            .. cards.Where(card => !covered.Contains(card.Key))
+                .Concat(projects.SelectMany(project => project.StopPlan?.Keys ?? []).Select(_cardOf).OfType<WorkstreamCardViewModel>())
+                .Distinct(),
+        ];
     }
+
+    /// <summary>
+    /// Records the run state of each of these projects that has a session to stop (1.1e AC 8), added to any run state it
+    /// already has, so a card started by hand in between and stopped again does not lose the others (review, finding 2).
+    /// </summary>
+    public void Remember(IReadOnlyList<ProjectCardViewModel> projects)
+    {
+        ArgumentNullException.ThrowIfNull(projects);
+
+        var stopping = projects.Where(project => project.StopPlan is { CanStop: true }).ToList();
+
+        if (stopping.Count == 0)
+        {
+            return;
+        }
+
+        var settings = _settings.Read();
+        var states = new Dictionary<string, IReadOnlyList<string>>(settings.ProjectRunStates, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var project in stopping)
+        {
+            states[project.Name] = [.. (states.GetValueOrDefault(project.Name) ?? []).Union(project.StopPlan!.Keys, StringComparer.OrdinalIgnoreCase)];
+        }
+
+        _settings.Write(settings with { ProjectRunStates = states });
+        _changed?.Invoke();
+    }
+
+    private static HashSet<string> Covered(IReadOnlyList<ProjectCardViewModel> projects) =>
+        projects.SelectMany(project => project.MemberKeys).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Gives a project card its ▶ and ■, enabled from its plans; Start also needs Theseus able to launch.</summary>
     public void Wire(ProjectCardViewModel card, Func<bool> canLaunch)
@@ -207,19 +209,7 @@ public sealed class ProjectRunner
         ArgumentNullException.ThrowIfNull(card);
         ArgumentNullException.ThrowIfNull(canLaunch);
 
-        card.StartCommand ??= new RelayCommand(_ =>
-        {
-            if (card.StartPlan is { } plan)
-            {
-                Start(plan);
-            }
-        }, _ => card.StartPlan is { CanStart: true } && canLaunch());
-        card.StopCommand ??= new RelayCommand(_ =>
-        {
-            if (card.StopPlan is { } plan)
-            {
-                Stop(plan);
-            }
-        }, _ => card.StopPlan is { CanStop: true });
+        card.StartCommand ??= new RelayCommand(_ => Start(card), _ => card.StartPlan is { CanStart: true } && canLaunch());
+        card.StopCommand ??= new RelayCommand(_ => Stop(card), _ => card.StopPlan is { CanStop: true });
     }
 }

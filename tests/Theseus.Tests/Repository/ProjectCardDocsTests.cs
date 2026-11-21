@@ -17,8 +17,8 @@ public class ProjectCardDocsTests
     [TestCase("**Project properties…**")]
     [TestCase("View > Columns by > Stage")]
     [TestCase("the project was skipped")]
-    [TestCase("a paused card is listed unticked")]
-    [TestCase("No card of Theseus bootstrap can start: git-22 is running")]
+    [TestCase("**⏸ Project stopped**")]
+    [TestCase("No card of Theseus bootstrap can start: git-22 is already running")]
     [TestCase("keeping its mark, colour and the word PROJECT")]
     public void TheCardsPage_CoversTheProjectCard(string part)
     {
