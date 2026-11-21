@@ -39,4 +39,10 @@ public sealed class PieceActionViewModel
 
     /// <summary>Runs it, when enabled.</summary>
     public ICommand Command { get; }
+
+    /// <summary>
+    /// Whether it is drawn as a link: the way on offered beside a disabled button, such as Set the holdout folder… (1.1e
+    /// AC 6a).
+    /// </summary>
+    public bool IsLink { get; init; }
 }

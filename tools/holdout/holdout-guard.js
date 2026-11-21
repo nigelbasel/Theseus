@@ -1,7 +1,9 @@
 // PreToolUse guard for every tool: keeps the holdout scenarios independent of the work they judge.
 //
 // The holdout folder (and, optionally, its remote address) comes from Theseus's settings, never from this file, so
-// the repo names nobody's machine (method rule P19). With no holdout set, it allows everything.
+// the repo names nobody's machine (method rule P19). With no folder chosen, the holdout is the default one, a folder
+// per project under Theseus's own data folder, holdouts\<project>, and the guard covers that whole folder exactly as it
+// covers a chosen one (1.1e AC 6c).
 //
 // By role, from the session's environment, which its own commands cannot change (verifier-card, Nigel 2026-11-19):
 //   no role                    a tool naming the holdout is refused;
@@ -45,12 +47,19 @@ function readHoldout() {
         // A folder that is not an absolute path, or is a whole drive, would refuse unrelated work everywhere: it
         // counts as unset (verifier-card review S3).
         const resolved = typed && path.win32.isAbsolute(typed) ? path.win32.resolve(typed) : '';
-        const folder = resolved && resolved !== path.win32.parse(resolved).root ? resolved : '';
+        const chosen = resolved && resolved !== path.win32.parse(resolved).root ? resolved : '';
+        const folder = chosen || defaultHoldouts();
+        const isDefault = !chosen;
         const remote = typeof settings.holdoutRemote === 'string' ? settings.holdoutRemote.trim() : '';
-        return { folder, remote };
+        return { folder, remote, isDefault };
     } catch {
-        return { folder: '', remote: '' };
+        return { folder: defaultHoldouts(), remote: '', isDefault: true };
     }
+}
+
+// Where the default holdout folders are, one per project, when the owner chose none (1.1e AC 6c).
+function defaultHoldouts() {
+    return path.win32.join(theseusFolder(), 'holdouts');
 }
 
 // Git Bash writes C:\x as /c/x (verify part 1, S2).
@@ -139,14 +148,10 @@ process.stdin.on('end', () => {
         process.exit(0);
     }
 
-    // With no holdout set, nothing is refused at all (AC 4).
-    if (!holdout.folder && !holdout.remote) {
-        process.exit(0);
-    }
 
-    // Theseus's own settings decide the holdout, and its board decides a card's role, so while a holdout is set no
-    // session writes them with the file tools (verifier-card review S5). Shell commands are not policed here: a
-    // tripwire, not a wall.
+    // Theseus's own settings decide the holdout, and its board decides a card's role, so no session writes them with the
+    // file tools (verifier-card review S5); a holdout is always in force since the default (1.1e AC 6c). Shell commands
+    // are not policed here: a tripwire, not a wall.
     if (WRITING.has(tool)) {
         const target = input.file_path || input.notebook_path || '';
         const own = theseusFolder();
@@ -168,7 +173,19 @@ process.stdin.on('end', () => {
     const texts = [...PATH_FIELDS, ...TEXT_FIELDS].map(field => input[field]).filter(value => typeof value === 'string');
     const touches = located.some(where => under(where, holdout.folder))
         || texts.some(text => names(text, holdout.folder) || names(text, holdout.remote));
-    const results = holdout.folder ? path.win32.join(holdout.folder, 'results') : '';
+    // A chosen holdout has one results folder; the default has one per project, holdouts\<project>\results (review of
+    // 1.1e PR 2b, finding 1), since each project's verifier writes its report beside its own scenarios.
+    function inResults(target) {
+        if (!holdout.isDefault) {
+            const results = path.win32.join(holdout.folder, 'results');
+            return under(target, results) && normalise(target) !== normalise(results);
+        }
+        if (!under(target, holdout.folder)) {
+            return false;
+        }
+        const parts = normalise(target).slice(normalise(holdout.folder).length).split('/').filter(part => part.length > 0);
+        return parts.length >= 3 && parts[1] === 'results';
+    }
     const verifier = process.env.THESEUS_ROLE === 'verifier';
 
     // No shell command runs inside the holdout, for any role but author: there is no telling what it would change.
@@ -189,7 +206,7 @@ process.stdin.on('end', () => {
 
     if (WRITING.has(tool)) {
         const target = input.file_path || input.notebook_path || '';
-        if (!target || !under(resolve(target, cwd), results) || normalise(resolve(target, cwd)) === normalise(results)) {
+        if (!target || !inResults(resolve(target, cwd))) {
             deny('A verifier writes only its report, in the holdout\'s results folder. It changes no scenario and '
                 + 'nothing in the code it checks.');
         }

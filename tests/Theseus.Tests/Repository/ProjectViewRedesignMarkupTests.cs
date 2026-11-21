@@ -98,7 +98,9 @@ public partial class ProjectViewRedesignMarkupTests
     public void EveryStaticResource_TheViewUses_IsDefinedInTheView()
     {
         var view = View();
-        var keys = view.Descendants().Select(element => (string?)element.Attribute(Xaml + "Key")).OfType<string>().ToHashSet();
+        // The view's own keys, and those of the shared dictionaries it merges itself (1.1e AC 6b), which load in tests too.
+        var keys = view.Descendants().Append(Load("Themes", "Interactive.xaml").Root!).SelectMany(element => element.DescendantsAndSelf())
+            .Select(element => (string?)element.Attribute(Xaml + "Key")).OfType<string>().ToHashSet();
         var used = view.Descendants().Attributes()
             .SelectMany(attribute => StaticResource().Matches(attribute.Value).Select(match => match.Groups["key"].Value))
             .Distinct()

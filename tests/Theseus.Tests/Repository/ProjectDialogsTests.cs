@@ -40,14 +40,16 @@ public class ProjectDialogsTests
     }
 
     [Test]
-    public void ProjectProperties_ShowsTheTitleReadOnly_TheProjectPalette_AndTheProjectFile()
+    public void ProjectProperties_ShowsTheTitleToEdit_TheProjectPalette_AndTheProjectFileReadOnly()
     {
         var properties = new ProjectPropertiesViewModel(TheseusProject, "Theseus bootstrap", "#5E4BB0", @"C:\projects	heseus\project.md");
         var window = new ProjectPropertiesWindow(properties);
         LaidOut(window);
         var colours = (ListBox)window.FindName("ColourBox");
 
-        Assert.That(((TextBox)window.FindName("TitleBox")).IsReadOnly, Is.True);
+        Assert.That(((TextBox)window.FindName("TitleBox")).IsReadOnly, Is.False, "the title is edited here (1.1e AC 12a)");
+        Assert.That(((TextBox)window.FindName("FileBox")).IsReadOnly, Is.True);
+        Assert.That(((TextBox)window.FindName("FileBox")).ToolTip as string, Does.Contain("Read only"));
         Assert.That(((TextBox)window.FindName("FileBox")).Text, Is.EqualTo(@"C:\projects	heseus\project.md"));
         Assert.That(colours.Items.Cast<ColourSwatchViewModel>().Select(swatch => swatch.Colour), Is.EqualTo(ProjectColourPalette.All));
         Assert.That(colours.SelectedValue, Is.EqualTo("#5E4BB0"));

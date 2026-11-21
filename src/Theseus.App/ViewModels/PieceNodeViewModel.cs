@@ -102,7 +102,17 @@ public sealed class PieceNodeViewModel : ObservableObject, IFoldable
     /// <summary>Whether it hands work to more than one piece at once.</summary>
     public bool IsParallel => Node.IsParallel;
 
-    /// <summary>"7 in parallel", written up the branch's bar.</summary>
+    /// <summary>
+    /// How far in its branch starts: further when parallel, so the brace and its label sit left of the hand-over line
+    /// (1.1e AC 6d).
+    /// </summary>
+    public System.Windows.GridLength BranchIndent =>
+        new(IsParallel ? Views.ConnectorGeometry.ParallelBranchIndent : Views.ConnectorGeometry.BranchIndent);
+
+    /// <summary>How far in from its left edge its hand-overs drop: right of the parallel brace when it has one (1.1e AC 6d).</summary>
+    public double HandOverInset => IsParallel ? Views.ConnectorGeometry.ParallelHandOverInset : Views.ConnectorGeometry.HandOverInset;
+
+    /// <summary>"7 in parallel", written beside the brace.</summary>
     public string ParallelText => $"{Node.ChildCount} in parallel";
 
     /// <summary>Whether it is open into its stages; folded by default.</summary>

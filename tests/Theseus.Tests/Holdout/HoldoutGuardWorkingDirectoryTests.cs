@@ -84,10 +84,10 @@ public class HoldoutGuardWorkingDirectoryTests
     }
 
     [Test]
-    public void WithNoHoldoutSet_AVerifierIsRefusedNothing()
+    public void WithNoFolderChosen_AVerifierStillWritesOnlyInItsResults()
     {
         Assert.That(Guard("Write", "file_path", @"C:\work\repo\Program.cs", cwd: Code, role: "verifier", settings: "{}"),
-            Is.False, "there is nothing to protect");
+            Is.True, "the default holdout is in force, so a verifier writes only its report (1.1e AC 6c)");
     }
 
     [Test]

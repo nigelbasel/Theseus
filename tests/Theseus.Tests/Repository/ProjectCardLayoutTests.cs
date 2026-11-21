@@ -187,7 +187,8 @@ public class ProjectCardLayoutTests
                 Converter("BoolToVisibilityConverter", "BoolToVisibility"),
                 Converter("NotBoolToVisibilityConverter", "NotBoolToVisibility"),
                 Style("MenuGlyph", "TextBlock"),
-                Style("CardIcon", "Button")),
+                Style("CardIcon", "Button"),
+                Style("ClickableCard", "Border")),
             new XElement(Presentation + "ContentControl.ContentTemplate", template));
 
         // The window's own namespaces name no assembly, which a parsed fragment needs.

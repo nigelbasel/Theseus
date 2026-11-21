@@ -13,6 +13,7 @@ public sealed class ProjectCardViewModel : ObservableObject, IBoardCard
     /// <summary>The colour of a project not given one yet: the To do grey.</summary>
     public const string NoColour = "#8A9490";
 
+    private string _title;
     private string _phaseText = string.Empty;
     private string _objectivesText = string.Empty;
     private IReadOnlyList<string> _waiting = [];
@@ -33,14 +34,24 @@ public sealed class ProjectCardViewModel : ObservableObject, IBoardCard
     public ProjectCardViewModel(string name, string title)
     {
         Name = name;
-        Title = title;
+        _title = title;
     }
 
     /// <summary>The project's name, which keys its place on the board, its colour and its view.</summary>
     public string Name { get; }
 
     /// <summary>Its title.</summary>
-    public string Title { get; }
+    public string Title
+    {
+        get => _title;
+        set
+        {
+            if (Set(ref _title, value))
+            {
+                Raise(nameof(ToolTipText));
+            }
+        }
+    }
 
     /// <summary>
     /// Whether its project.md does not read (pinned to an older kit, or out of shape): the card is dimmed, says why, and

@@ -13,4 +13,10 @@ public enum WorkstreamRole
 
     /// <summary>Runs holdout scenarios against another card's change, and reports only a verdict back.</summary>
     Verifier,
+
+    /// <summary>
+    /// Writes a project's holdout scenarios, the one kind of session allowed to (1.1e AC 6c): its sessions run with
+    /// THESEUS_HOLDOUT_AUTHOR=1, which the holdout guard lets through. Never a building session.
+    /// </summary>
+    ScenarioWriter,
 }

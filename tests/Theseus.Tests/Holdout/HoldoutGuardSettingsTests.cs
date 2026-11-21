@@ -9,7 +9,7 @@ namespace Theseus.Tests.Holdout;
 /// The holdout guard and the settings it trusts (verifier-card review S3 and S5): a holdout folder that is not an
 /// absolute path, or is a whole drive, would refuse unrelated work, so it counts as unset; and while a holdout is set no
 /// session may write Theseus's own settings or board files with the file tools, since those decide the holdout and a
-/// card's role. With no holdout set the guard allows everything (AC 4).
+/// card's role. With no folder chosen the default holdouts folder is guarded just as a chosen one is (1.1e AC 6c).
 /// </summary>
 [TestFixture]
 public class HoldoutGuardSettingsTests
@@ -26,10 +26,12 @@ public class HoldoutGuardSettingsTests
     [TestCase("holdout")]
     [TestCase(@"C:\")]
     [TestCase("C:")]
-    public void AHoldoutFolderThatIsNotAFolderPath_IsTreatedAsUnset(string folder)
+    public void AHoldoutFolderThatIsNotAFolderPath_IsTreatedAsUnset_SoTheDefaultIsGuarded(string folder)
     {
-        Assert.That(Guard("Read", "file_path", @"C:\work\repo\tools\holdout\holdout-guard.js", folder), Is.False);
-        Assert.That(Guard("Bash", "command", "dotnet test", folder, cwd: @"C:\work\repo"), Is.False);
+        Assert.That(Guard("Read", "file_path", @"C:\work\repo\tools\holdout\holdout-guard.js", folder, localAppData: _folder), Is.False);
+        Assert.That(Guard("Bash", "command", "dotnet test", folder, cwd: @"C:\work\repo", localAppData: _folder), Is.False);
+        Assert.That(Guard("Read", "file_path", Path.Combine(_folder, "Theseus", "holdouts", "p", "a.md"), folder, localAppData: _folder),
+            Is.True);
     }
 
     [TestCase("settings.json")]
@@ -64,10 +66,43 @@ public class HoldoutGuardSettingsTests
     }
 
     [Test]
-    public void WithNoHoldoutSet_EvenTheseusOwnFilesAreNotRefused()
+    public void WithNoFolderChosen_TheDefaultHoldoutIsGuarded_AsAChosenOneIs()
     {
-        Assert.That(Guard("Write", "file_path", Path.Combine(_folder, "Theseus", "board.json"), string.Empty,
-            localAppData: _folder), Is.False, "AC 4: with no holdout set, the guard allows everything");
+        var scenario = Path.Combine(_folder, "Theseus", "holdouts", "theseus", "stop.md");
+
+        Assert.That(Guard("Read", "file_path", scenario, string.Empty, localAppData: _folder), Is.True, "a building session may not read it");
+        Assert.That(Guard("Grep", "path", Path.Combine(_folder, "Theseus", "holdouts"), string.Empty, localAppData: _folder), Is.True);
+        Assert.That(Guard("Bash", "command", $"type \"{scenario}\"", string.Empty, localAppData: _folder), Is.True);
+        Assert.That(Guard("Write", "file_path", Path.Combine(_folder, "Theseus", "board.json"), string.Empty, localAppData: _folder),
+            Is.True, "and Theseus's own files are protected, since a holdout is always in force");
+        Assert.That(Guard("Read", "file_path", Path.Combine(_folder, "Theseus", "holdouts-notes.md"), string.Empty, localAppData: _folder),
+            Is.False, "a name only counts whole");
+    }
+
+    [Test]
+    public void AVerifierWithTheDefaultHoldout_WritesItsReportInItsProjectsResults_AndNowhereElse()
+    {
+        var project = Path.Combine(_folder, "Theseus", "holdouts", "theseus");
+
+        Assert.That(Guard("Write", "file_path", Path.Combine(project, "results", "2026-11-21-verify.md"), string.Empty,
+            localAppData: _folder, role: "verifier"), Is.False, "review of 1.1e PR 2b, finding 1");
+        Assert.That(Guard("Write", "file_path", Path.Combine(project, "results", "handoff", "HANDOFF-v.md"), string.Empty,
+            localAppData: _folder, role: "verifier"), Is.False);
+        Assert.That(Guard("Write", "file_path", Path.Combine(project, "scenario.md"), string.Empty,
+            localAppData: _folder, role: "verifier"), Is.True, "a scenario");
+        Assert.That(Guard("Write", "file_path", Path.Combine(project, "results"), string.Empty,
+            localAppData: _folder, role: "verifier"), Is.True, "the results folder itself");
+        Assert.That(Guard("Write", "file_path", Path.Combine(_folder, "Theseus", "holdouts", "results", "x.md"), string.Empty,
+            localAppData: _folder, role: "verifier"), Is.True, "a project named results has no results folder of its own there");
+        Assert.That(Guard("Read", "file_path", Path.Combine(project, "scenario.md"), string.Empty,
+            localAppData: _folder, role: "verifier"), Is.False, "it reads the scenarios");
+    }
+
+    [Test]
+    public void AScenarioWriter_MayWriteInTheDefaultHoldout()
+    {
+        Assert.That(Guard("Write", "file_path", Path.Combine(_folder, "Theseus", "holdouts", "theseus", "stop.md"), string.Empty,
+            localAppData: _folder, author: true), Is.False);
     }
 
     [Test]
@@ -78,7 +113,7 @@ public class HoldoutGuardSettingsTests
     }
 
     private bool Guard(string tool, string field, string value, string holdoutFolder, string cwd = @"C:\work\repo",
-        string? localAppData = null, string? workingDirectory = null)
+        string? localAppData = null, string? workingDirectory = null, bool author = false, string? role = null)
     {
         var node = FindNode();
         if (node is null)
@@ -100,6 +135,16 @@ public class HoldoutGuardSettingsTests
         start.Environment["THESEUS_SETTINGS"] = settingsFile;
         start.Environment.Remove("THESEUS_ROLE");
         start.Environment.Remove("THESEUS_HOLDOUT_AUTHOR");
+
+        if (author)
+        {
+            start.Environment["THESEUS_HOLDOUT_AUTHOR"] = "1";
+        }
+
+        if (role is not null)
+        {
+            start.Environment["THESEUS_ROLE"] = role;
+        }
 
         if (localAppData is not null)
         {

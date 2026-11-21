@@ -38,6 +38,12 @@
     <Window.Resources>
 
         <!--
+            CommandButton, ToolButton, ToolIcon, ToolIconToggle, ChipButton and ClickableCard come from
+            Themes/Interactive.xaml through App.xaml, so their hover, pressed, disabled and focus looks are
+            defined once (1.1e AC 6b).
+        -->
+
+        <!--
             The icon font is set on the glyph itself and never on anything that contains text.
             FontFamily inherits, so a command bar carrying its icon on the parent turns every label
             below it into a row of empty squares.
@@ -60,127 +66,6 @@
             <Setter Property="Margin" Value="0,4,0,0" />
             <Setter Property="TextTrimming" Value="CharacterEllipsis" />
             <Setter Property="Foreground" Value="{DynamicResource TextFillColorTertiaryBrush}" />
-        </Style>
-
-        <!--
-            The command bar draws its own button rather than taking the theme's.
-
-            The Fluent theme paints hover and pressed through a VisualStateManager inside its
-            template, and in dark mode the difference is a few percent of lightness - Nigel reported
-            the bar as having no feedback at all on hover or on click, which is what that amounts to
-            in practice. A property trigger on the theme's own style would not help either: the
-            template's visual states win over it.
-
-            Disabled is worth as much as the other two here. "Start selected" is disabled until
-            something is ticked, and a button that looks identical either way reads as broken rather
-            than as waiting.
-        -->
-        <Style x:Key="CommandButton" TargetType="Button">
-            <Setter Property="Padding" Value="11,4" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Grid x:Name="Face">
-                            <Border CornerRadius="4"
-                                    Background="{DynamicResource ControlFillColorDefaultBrush}"
-                                    BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
-                                    BorderThickness="1" />
-
-                            <!--
-                                Hover fills the button with the accent outright. A wash over the
-                                ordinary fill was tried first and Nigel still called it faint: on a
-                                dark board a partly transparent tint is a change of shade, and a
-                                change of shade is what he was complaining about in the first place.
-                                The label turns white with it, which is what keeps it readable on a
-                                saturated fill whatever the theme.
-                            -->
-                            <Border x:Name="Glow" CornerRadius="4" Opacity="0"
-                                    Background="{DynamicResource AccentFillColorDefaultBrush}" />
-
-                            <ContentPresenter x:Name="Label" Margin="{TemplateBinding Padding}"
-                                              TextElement.Foreground="{TemplateBinding Foreground}"
-                                              HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Grid>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Glow" Property="Opacity" Value="1" />
-                                <Setter TargetName="Label" Property="TextElement.Foreground" Value="White" />
-                            </Trigger>
-                            <!--
-                                Pressed darkens the accent and drops the button a pixel, so a click
-                                reads as going in rather than merely as another shade of the same.
-                            -->
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Glow" Property="Opacity" Value="1" />
-                                <Setter TargetName="Glow" Property="Background" Value="#FF1F4E7A" />
-                                <Setter TargetName="Label" Property="TextElement.Foreground" Value="White" />
-                                <Setter TargetName="Face" Property="RenderTransform">
-                                    <Setter.Value>
-                                        <TranslateTransform Y="1" />
-                                    </Setter.Value>
-                                </Setter>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="Face" Property="Opacity" Value="0.4" />
-                                <Setter Property="Cursor" Value="Arrow" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!--
-            The toolbar's buttons are flat, as toolbar buttons are everywhere: no face until the
-            pointer is over one, then the accent, as the command buttons do. A disabled one fades.
-            The glyph font is set on the button's content, which is only ever a glyph or a glyph
-            with a badge, so it never reaches a label.
-        -->
-        <Style x:Key="ToolButton" TargetType="ButtonBase">
-            <Setter Property="Width" Value="26" />
-            <Setter Property="Height" Value="24" />
-            <Setter Property="Margin" Value="0" />
-            <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
-            <Setter Property="FontSize" Value="14" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
-            <Setter Property="ToolTipService.ShowOnDisabled" Value="True" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ButtonBase">
-                        <Grid x:Name="Face" Background="Transparent">
-                            <Border x:Name="Checked" CornerRadius="4" Opacity="0"
-                                    Background="{DynamicResource ControlFillColorDefaultBrush}"
-                                    BorderBrush="{DynamicResource AccentFillColorDefaultBrush}"
-                                    BorderThickness="0,0,0,2" />
-                            <Border x:Name="Glow" CornerRadius="4" Opacity="0"
-                                    Background="{DynamicResource AccentFillColorDefaultBrush}" />
-                            <ContentPresenter x:Name="Label" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                              TextElement.Foreground="{TemplateBinding Foreground}" />
-                        </Grid>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="ToggleButton.IsChecked" Value="True">
-                                <Setter TargetName="Checked" Property="Opacity" Value="1" />
-                            </Trigger>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Glow" Property="Opacity" Value="1" />
-                                <Setter TargetName="Label" Property="TextElement.Foreground" Value="White" />
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Glow" Property="Opacity" Value="1" />
-                                <Setter TargetName="Glow" Property="Background" Value="#FF1F4E7A" />
-                                <Setter TargetName="Label" Property="TextElement.Foreground" Value="White" />
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="Face" Property="Opacity" Value="0.35" />
-                                <Setter Property="Cursor" Value="Arrow" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
         </Style>
 
         <!--
@@ -236,57 +121,6 @@
             <Setter Property="FontSize" Value="13" />
         </Style>
 
-        <!--
-            The toolbar's buttons are the theme's own toolbar buttons (Nigel asked why the bar was not
-            a standard one: it was a row of hand-drawn buttons). Only the icon font is added, set on
-            buttons whose content is only ever a glyph.
-        -->
-        <!--
-            The theme's toolbar button with its spacing made settable: its template fixes 12 pixels of
-            padding either side, which put the buttons about 42 pixels apart where other Windows
-            toolbars have them nearly touching. The face is transparent until the pointer is over it,
-            as the theme's is; a panel's button stays lit while its panel is open.
-        -->
-        <ControlTemplate x:Key="ToolIconTemplate" TargetType="ButtonBase">
-            <Border x:Name="Face" CornerRadius="4" Padding="{TemplateBinding Padding}" Background="Transparent"
-                    BorderThickness="0,0,0,2" BorderBrush="Transparent">
-                <ContentPresenter RecognizesAccessKey="True" HorizontalAlignment="Center" VerticalAlignment="Center" />
-            </Border>
-            <ControlTemplate.Triggers>
-                <Trigger Property="ToggleButton.IsChecked" Value="True">
-                    <Setter TargetName="Face" Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
-                    <Setter TargetName="Face" Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
-                </Trigger>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter TargetName="Face" Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
-                </Trigger>
-                <Trigger Property="IsPressed" Value="True">
-                    <Setter TargetName="Face" Property="Background" Value="{DynamicResource ControlFillColorTertiaryBrush}" />
-                </Trigger>
-                <Trigger Property="IsEnabled" Value="False">
-                    <Setter TargetName="Face" Property="Opacity" Value="0.35" />
-                </Trigger>
-            </ControlTemplate.Triggers>
-        </ControlTemplate>
-
-        <Style x:Key="ToolIcon" TargetType="Button">
-            <Setter Property="Template" Value="{StaticResource ToolIconTemplate}" />
-            <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
-            <Setter Property="FontSize" Value="14" />
-            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
-            <Setter Property="Padding" Value="6,4,6,2" />
-            <Setter Property="Margin" Value="0" />
-            <Setter Property="ToolTipService.ShowOnDisabled" Value="True" />
-        </Style>
-
-        <Style x:Key="ToolIconToggle" TargetType="ToggleButton">
-            <Setter Property="Template" Value="{StaticResource ToolIconTemplate}" />
-            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
-            <Setter Property="Padding" Value="2,4,2,2" />
-            <Setter Property="Margin" Value="0" />
-            <Setter Property="ToolTipService.ShowOnDisabled" Value="True" />
-        </Style>
-
         <!-- A panel's button: stays pressed while its panel is open, and is wider for its count. -->
         <Style x:Key="ToolToggle" TargetType="ToggleButton" BasedOn="{StaticResource ToolButton}">
             <Setter Property="Width" Value="NaN" />
@@ -321,32 +155,6 @@
             <Setter Property="Margin" Value="4,0" />
             <Setter Property="VerticalAlignment" Value="Center" />
             <Setter Property="Background" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
-        </Style>
-
-        <Style x:Key="ChipButton" TargetType="Button">
-            <Setter Property="Padding" Value="0" />
-            <Setter Property="Margin" Value="0,0,4,4" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="Chip" CornerRadius="4" Padding="6,2"
-                                Background="{DynamicResource ControlFillColorDefaultBrush}"
-                                BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
-                                BorderThickness="1">
-                            <ContentPresenter />
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chip" Property="Background"
-                                        Value="{DynamicResource AccentFillColorDefaultBrush}" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
         </Style>
 
         <!-- A card's drop-down for its Jira issues or pull requests. -->
@@ -422,7 +230,7 @@
                       Visibility="{Binding HandoffRenameTo, Converter={StaticResource NotEmptyToVisibility}}" />
             <MenuItem Header="_Verify with holdouts…"
                       Command="{Binding VerifyWithHoldoutsCommand}" ToolTipService.ShowOnDisabled="True"
-                      ToolTip="Create a verifier card that runs the holdout scenarios this card's spec names, and reports only a verdict back. Needs the holdout scenarios folder set in Tools > Options; not offered for a verifier card or an archived one" />
+                      ToolTip="{Binding VerifyToolTip}" />
             <Separator />
             <MenuItem Header="Add to pro_ject…" Command="{Binding AddToProjectCommand}" ToolTipService.ShowOnDisabled="True"
                       ToolTip="Add this card to a project: a row naming it under one of the project's objectives in its project.md. Needs a projects folder; not for a card already in a project" />
@@ -441,7 +249,7 @@
         -->
         <DataTemplate x:Key="ProjectCardTemplate" DataType="{x:Type vm:ProjectCardViewModel}">
             <Border x:Name="ProjectFace" Tag="ProjectCard" CornerRadius="8" Margin="0,0,0,8"
-                    Focusable="True" FocusVisualStyle="{x:Null}"
+                    Focusable="True"
                     Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
                     ToolTip="{Binding ToolTipText}" Opacity="{Binding CardOpacity}"
                     AutomationProperties.Name="{Binding Title, StringFormat=Project {0}}"
@@ -452,7 +260,7 @@
                     <KeyBinding Key="Return" Command="{Binding OpenCommand}" />
                 </Border.InputBindings>
                 <Border.Style>
-                    <Style TargetType="Border">
+                    <Style TargetType="Border" BasedOn="{StaticResource ClickableCard}">
                         <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
                         <Setter Property="BorderThickness" Value="1" />
                         <Style.Triggers>
@@ -584,7 +392,7 @@
                     means selected.
                 -->
                 <Border.Style>
-                    <Style TargetType="Border">
+                    <Style TargetType="Border" BasedOn="{StaticResource ClickableCard}">
                         <Setter Property="MinHeight" Value="96" />
                         <Setter Property="Background" Value="{DynamicResource LayerFillColorDefaultBrush}" />
                         <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
@@ -663,10 +471,6 @@
                             </Rectangle>
                         </Grid>
                     </Border>
-
-                    <!-- A faint wash while the pointer is over the card, so the one under it stands out. -->
-                    <Border x:Name="HoverWash" Grid.ColumnSpan="2" CornerRadius="8" Background="White" Opacity="0"
-                            IsHitTestVisible="False" />
 
                     <Border x:Name="Stripe" Grid.Column="0" CornerRadius="8,0,0,8"
                             Background="{Binding ColorHex, Converter={StaticResource HexToBrush}}">
@@ -1012,9 +816,6 @@
                 on whichever card last held it. A template gets a name scope per card.
             -->
             <DataTemplate.Triggers>
-                <Trigger SourceName="CardFace" Property="IsMouseOver" Value="True">
-                    <Setter TargetName="HoverWash" Property="Opacity" Value="0.05" />
-                </Trigger>
                 <DataTrigger Binding="{Binding IsWorking}" Value="True">
                     <DataTrigger.EnterActions>
                         <BeginStoryboard x:Name="Working">

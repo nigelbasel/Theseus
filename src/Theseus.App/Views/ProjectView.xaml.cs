@@ -51,7 +51,7 @@ public partial class ProjectView : UserControl
             }
 
             var figure = link.Kind == ConnectorKind.HandsOver
-                ? ConnectorGeometry.HandsOver(from, to)
+                ? ConnectorGeometry.HandsOver(from, to, link.From.HandOverInset)
                 : ConnectorGeometry.ThenWorkedOn(from, to);
             var tag = $"{link.Kind}:{link.To.Name}";
             var line = new Path { Data = figure.LineGeometry(), Tag = tag, StrokeThickness = link.Kind == ConnectorKind.HandsOver ? 2 : 1.5 };

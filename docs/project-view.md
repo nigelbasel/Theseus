@@ -83,10 +83,15 @@ end of that phase. Right-click a heading, or press Shift+F10 or the Menu key on 
 ## The links
 
 - A solid line with an arrow: one piece of work **hands work to** another, which sits indented under it. When it handed
-  work to several at once, the bar beside them is thicker and says how many ran in parallel.
+  work to several at once, a brace to the left of the line groups them all, from the first to the last, with how many ran
+  in parallel beside it; no line crosses it.
 - A dotted line with an arrow: the same workstream **then worked on** its next piece of work.
 - **↩ reported back to …** on a box: that workstream reported back to the piece it came from. A report that was lost is
   shown in the Stuck colour.
+
+A button that cannot act now is shown disabled, and hovering over it says why, such as "No holdout scenarios for this
+project yet". Where there is a way on, it is offered beside the button as a link, such as **Write scenarios…** or **Set the
+holdout folder…**.
 
 ## The Properties pane
 

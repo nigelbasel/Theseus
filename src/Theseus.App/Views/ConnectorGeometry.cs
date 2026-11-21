@@ -15,6 +15,17 @@ public static class ConnectorGeometry
     /// <summary>How far in from a parent's left edge a hand-over drops, and how far down the child it turns in.</summary>
     public const double HandOverInset = 18;
 
+    /// <summary>How far in a branch starts from its parent's left edge.</summary>
+    public const double BranchIndent = 34;
+
+    /// <summary>
+    /// How far in a parallel branch starts: room left of the hand-over line for the brace and its label (1.1e AC 6d).
+    /// </summary>
+    public const double ParallelBranchIndent = 56;
+
+    /// <summary>How far in from a parallel parent's left edge its hand-overs drop, right of its brace (1.1e AC 6d).</summary>
+    public const double ParallelHandOverInset = 40;
+
     /// <summary>How far down a child's top the hand-over meets it.</summary>
     public const double HandOverDrop = 16;
 
@@ -25,9 +36,12 @@ public static class ConnectorGeometry
     /// Hands work to: down from (parent.Left + 18, parent.Bottom) to the child's top + 16, then right to the child's left
     /// edge.
     /// </summary>
-    public static ConnectorFigure HandsOver(Rect parent, Rect child)
+    /// <param name="parent">The parent's box.</param>
+    /// <param name="child">The child's box.</param>
+    /// <param name="inset">How far in from the parent's left edge the line drops: 40 for a parallel parent (AC 6d).</param>
+    public static ConnectorFigure HandsOver(Rect parent, Rect child, double inset = HandOverInset)
     {
-        var x = parent.Left + HandOverInset;
+        var x = parent.Left + inset;
         var y = child.Top + HandOverDrop;
         var tip = new Point(child.Left, y);
 

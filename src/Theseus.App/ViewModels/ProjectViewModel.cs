@@ -403,6 +403,17 @@ public sealed class ProjectViewModel : ObservableObject
             .OrderBy(group => Array.IndexOf(BoxActionOrder, group.Key))
             .Select(group => Action(group.First().Offer, piece, group.First().Stage, spec))
             .ToList();
+        // The way on, as a link, right after the button it unblocks (1.1e AC 6a, 6c).
+        for (var index = boxActions.Count - 1; index >= 0; index--)
+        {
+            var offer = piece.Stages.SelectMany(stage => stage.Actions).FirstOrDefault(each => each.Label == boxActions[index].Label);
+
+            if (!boxActions[index].IsEnabled && offer is not null && _actions.WayOn?.Invoke(piece.CardKey, offer.Action) is { } wayOn)
+            {
+                boxActions.Insert(index + 1, wayOn);
+            }
+        }
+
         var addToProject = !piece.IsListed && _actions.AddToProject is { } add
             ? new PieceActionViewModel(AddToProjectLabel, () => add(reading.Name, piece.CardKey),
                 toolTip: $"Add {piece.Workstream} to an objective of this project in project.md")
@@ -460,7 +471,12 @@ public sealed class ProjectViewModel : ObservableObject
             _ => (() => _actions.OpenPath(piece.RecordsFolder!), piece.RecordsFolder),
         };
 
-        return new PieceActionViewModel(offer.Label, what.Run, offer.IsEnabled, offer.DisabledReason ?? what.ToolTip);
+        // A button that cannot run is shown disabled with its own reason, never enabled to do nothing (1.1e AC 6a).
+        var why = offer.IsEnabled && offer.Action != StageAction.OpenRecords && offer.Action != StageAction.OpenRecord
+            ? _actions.WhyNot?.Invoke(key, offer.Action)
+            : null;
+
+        return new PieceActionViewModel(offer.Label, what.Run, offer.IsEnabled && why is null, offer.DisabledReason ?? why ?? what.ToolTip);
     }
 
     private static void Run(SpecAtGate? spec, Action<SpecAtGate> action)

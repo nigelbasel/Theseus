@@ -20,14 +20,18 @@ public static class ProjectViewCommands
     /// <param name="openPath">Opens a folder or a file.</param>
     /// <param name="notice">Says in the status bar why nothing happened.</param>
     /// <param name="addToProject">The shell's Add to project…, for a card and the project to choose first (1.1e AC 6).</param>
+    /// <param name="whyNot">Why a button cannot run for a card now, or null (1.1e AC 6a).</param>
+    /// <param name="wayOn">The way on from a disabled button, or null (1.1e AC 6a).</param>
     public static ProjectViewActions For(Func<string, WorkstreamCardViewModel?> cardOf, ICommand focus, ICommand start, ICommand stop,
         Action<SpecAtGate> openSpec, Action<SpecAtGate> acceptSpec, Action<string> openPath, Action<string> notice,
-        Action<WorkstreamCardViewModel, string>? addToProject = null)
+        Action<WorkstreamCardViewModel, string>? addToProject = null,
+        Func<WorkstreamCardViewModel, StageAction, string?>? whyNot = null,
+        Func<WorkstreamCardViewModel, StageAction, PieceActionViewModel?>? wayOn = null)
     {
         ArgumentNullException.ThrowIfNull(cardOf);
         ArgumentNullException.ThrowIfNull(notice);
 
-        void OnCard(string key, Func<WorkstreamCardViewModel, ICommand?> command, bool passCard)
+        void OnCard(string key, StageAction action, Func<WorkstreamCardViewModel, ICommand?> command, bool passCard)
         {
             if (cardOf(key) is not { } card)
             {
@@ -44,15 +48,16 @@ public static class ProjectViewCommands
             }
             else
             {
-                notice($"That cannot be done for {card.Title} just now.");
+                // The view is drawn from the last refresh; if the card changed since, say why it cannot run now (1.1e AC 6a).
+                notice(whyNot?.Invoke(card, action) is { } why ? $"{why}." : $"That cannot be done for {card.Title} just now.");
             }
         }
 
         return new ProjectViewActions(openSpec, acceptSpec,
-            key => OnCard(key, card => card.VerifyWithHoldoutsCommand, passCard: false),
-            key => OnCard(key, _ => focus, passCard: true),
-            key => OnCard(key, _ => start, passCard: true),
-            key => OnCard(key, _ => stop, passCard: true),
+            key => OnCard(key, StageAction.VerifyWithHoldouts, card => card.VerifyWithHoldoutsCommand, passCard: false),
+            key => OnCard(key, StageAction.Focus, _ => focus, passCard: true),
+            key => OnCard(key, StageAction.Start, _ => start, passCard: true),
+            key => OnCard(key, StageAction.Stop, _ => stop, passCard: true),
             openPath,
             notice,
             addToProject is null
@@ -67,6 +72,8 @@ public static class ProjectViewCommands
                     {
                         notice($"{key} is not on the board.");
                     }
-                });
+                },
+            whyNot is null ? null : (key, action) => cardOf(key) is { } card ? whyNot(card, action) : $"{key} is not on the board",
+            wayOn is null ? null : (key, action) => cardOf(key) is { } card ? wayOn(card, action) : null);
     }
 }

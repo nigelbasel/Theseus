@@ -118,6 +118,31 @@ public static class ProjectFileEditor
         return RenameObjective(text, objective, title);
     }
 
+    /// <summary>
+    /// Gives the project a new title, its first line's <c># </c> heading (1.1e AC 12a): refused when the file's title is no
+    /// longer the one shown, as when it changed since the dialog opened, or when the new title is empty.
+    /// </summary>
+    public static string SetTitle(string text, string shown, string title)
+    {
+        var file = Open(text, out var lines);
+        var clean = (title ?? string.Empty).Trim();
+
+        if (clean.Length == 0)
+        {
+            throw new ProjectEditRefusedException("a project needs a title");
+        }
+
+        if (!string.Equals(file.Title, shown, StringComparison.Ordinal))
+        {
+            throw new ProjectEditRefusedException($"project.md's title is now \"{file.Title}\", not \"{shown}\": it changed since this was opened");
+        }
+
+        var at = lines.FindIndex(line => line.Text.Trim().Length > 0);
+        lines[at] = lines[at] with { Text = $"# {OneLine(clean, "a project's title")}" };
+
+        return Close(lines, file.Name);
+    }
+
     /// <summary>Renames an objective, keeping its number.</summary>
     public static string RenameObjective(string text, string objective, string title)
     {

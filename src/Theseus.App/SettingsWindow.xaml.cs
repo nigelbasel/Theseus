@@ -19,6 +19,26 @@ public partial class SettingsWindow : Window
     {
         InitializeComponent();
         SourceInitialized += (_, _) => FitToWorkArea();
+        Loaded += (_, _) => FocusAsked();
+    }
+
+    // Set the holdout folder… opens Options at that field (1.1e AC 6a).
+    private void FocusAsked()
+    {
+        if (DataContext is SettingsViewModel { FocusField: SettingsViewModel.HoldoutFolderField } settings)
+        {
+            settings.FocusField = null;
+            HoldoutFolderBox.BringIntoView();
+            HoldoutFolderBox.Focus();
+        }
+    }
+
+    private void OnChooseHoldoutFolder(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is SettingsViewModel settings && Choose("Choose the holdout scenarios folder", settings.HoldoutFolder) is { } folder)
+        {
+            settings.HoldoutFolder = folder;
+        }
     }
 
     private void FitToWorkArea() =>
