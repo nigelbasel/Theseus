@@ -46,6 +46,27 @@ public sealed class BackgroundProjectReads
     /// </summary>
     public ProjectMembers Members => HasLanded ? _members : _rememberedMembers ??= _remembered?.Load() ?? ProjectMembers.None;
 
+    /// <summary>
+    /// Every card each project's file has named, kept after the file stops reading (review of 1.1e PR 4, finding 1), from
+    /// the last run's remembered members on.
+    /// </summary>
+    public ProjectMemberHistory History
+    {
+        get
+        {
+            if (!_historySeeded)
+            {
+                _historySeeded = true;
+                _history.Remember(_remembered?.Load() ?? ProjectMembers.None);
+            }
+
+            return _history;
+        }
+    }
+
+    private readonly ProjectMemberHistory _history = new();
+    private bool _historySeeded;
+
     /// <summary>The projects that read, by name: those of <see cref="Members"/> before the first read lands.</summary>
     public IReadOnlySet<string> ReadableNames => HasLanded
         ? Current.Where(reading => reading.IsReadable).Select(reading => reading.Name).ToHashSet(StringComparer.OrdinalIgnoreCase)
@@ -75,6 +96,7 @@ public sealed class BackgroundProjectReads
 
         Current = [.. Current.Select(each => string.Equals(each.Name, reading.Name, StringComparison.OrdinalIgnoreCase) ? reading : each)];
         _members = ProjectMembers.From(Current);
+        History.Remember(_members);
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
@@ -145,7 +167,8 @@ public sealed class BackgroundProjectReads
     {
         HasLanded = true;
         _members = ProjectMembers.From(readings);
-        _remembered?.Remember(_members);
+        History.Remember(_members);
+        _remembered?.Remember(ProjectUpdate.KeepBroken(_members, _remembered.Load(), readings));
         Current = readings;
         Changed?.Invoke(this, EventArgs.Empty);
     }

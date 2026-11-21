@@ -28,6 +28,8 @@ public class ProjectsInUseDocsTests
     [TestCase("holdouts.md", "installing this version's guard then would protect only the default folder")]
     [TestCase("chains.md", "A session acts only on its **descendants**")]
     [TestCase("chains.md", "`start_workstream`")]
+    [TestCase("cards.md", "says only **Needs updating**")]
+    [TestCase("cards.md", "**Not a project** on its menu hides a folder's card")]
     public void TheHelp_SaysHowProjectsAreUsed(string page, string part)
     {
         Assert.That(Doc(page), Does.Contain(part));

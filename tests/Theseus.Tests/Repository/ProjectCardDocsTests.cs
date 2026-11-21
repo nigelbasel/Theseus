@@ -19,7 +19,7 @@ public class ProjectCardDocsTests
     [TestCase("the project was skipped")]
     [TestCase("**⏸ Project stopped**")]
     [TestCase("No card of Theseus bootstrap can start: git-22 is already running")]
-    [TestCase("keeping its mark, colour and the word PROJECT")]
+    [TestCase("mark, colour and the word PROJECT")]
     public void TheCardsPage_CoversTheProjectCard(string part)
     {
         Assert.That(Doc("cards.md"), Does.Contain(part));

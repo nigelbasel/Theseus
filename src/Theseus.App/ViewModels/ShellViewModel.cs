@@ -24,6 +24,7 @@ public sealed class ShellViewModel : ObservableObject
     private readonly ISettingsStore _settings;
     private string _holdoutFolder = string.Empty;
     private readonly HoldoutChecks _holdouts = new();
+    private string _updaterStates = string.Empty;
     private readonly CardEventLog _cardEvents = new(Path.Combine(App.DataDirectory, "card-events.jsonl"));
     private IReadOnlyDictionary<string, ProjectBranchGrant> _branchGrants = new Dictionary<string, ProjectBranchGrant>();
     private readonly BackgroundProjectReads _projectReads;
@@ -740,6 +741,7 @@ public sealed class ShellViewModel : ObservableObject
         var granted = grant is not null;
         var properties = new ProjectPropertiesViewModel(card.Name, card.Title, card.ColourHex, card.ProjectFile, others)
         {
+            Problem = card.Problem,
             PrimaryBranch = primary,
             GrantsBranchRules = granted,
             GrantedPrimary = grant?.Primary,
@@ -778,6 +780,154 @@ public sealed class ShellViewModel : ObservableObject
         Notice = string.IsNullOrWhiteSpace(Notice) || !properties.TitleChanged
             ? $"{properties.Title.Trim()} has a new colour."
             : $"{Notice} It has a new colour.";
+    }
+
+    private static string ProblemOf(ProjectFileReading reading) => ProjectUpdate.ProblemOf(reading);
+
+    /// <summary>
+    /// The updater card of a project, if one has been made and is not archived: in its folder, with its role (review of PR
+    /// 4, finding 3).
+    /// </summary>
+    private WorkstreamCardViewModel? UpdaterOf(ProjectFileReading reading) =>
+        Board.Cards.FirstOrDefault(card => card.Workstream is { Role: ProjectUpdaterCard.Role, IsArchived: false }
+                                           && reading.Folder is { } folder
+                                           && string.Equals(Path.TrimEndingDirectorySeparator(card.Workstream.WorkingDirectory),
+                                               Path.TrimEndingDirectorySeparator(folder), StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// Update on a project card whose file does not read (1.1e AC 19): starts its updater card, made on first use, unless
+    /// one of the project's own cards is running or the updater already is.
+    /// </summary>
+    private void UpdateProjectFile(string name)
+    {
+        if (_projectReads.Current.FirstOrDefault(reading => string.Equals(reading.Name, name, StringComparison.OrdinalIgnoreCase)) is not
+            { IsReadable: false, Folder: { } folder } reading)
+        {
+            return;
+        }
+
+        // A card is the project's when its file has ever named it, which the reads remember after the file stops reading,
+        // or when it works in the project's folder (review of PR 4, finding 1).
+        var known = _projectReads.History.CardsOf(name);
+        var cards = Board.Cards
+            .Where(card => card.Workstream.Role != ProjectUpdaterCard.Role)
+            .Select(card => (card.Title, card.IsLive,
+                Member: ProjectUpdate.IsMember(card.Key, card.Workstream.WorkingDirectory, known, folder) ? name : null));
+
+        if (ProjectUpdate.Refusal(name, cards, UpdaterOf(reading) is { IsLive: true }) is { } refusal)
+        {
+            Notice = refusal;
+
+            return;
+        }
+
+        var problem = ProblemOf(reading);
+        var updater = ProjectUpdaterCard.For(name, folder, problem, ProjectStarter.ShapeText());
+        var earlier = UpdaterOf(reading);
+        var key = earlier?.Key ?? WorkstreamKey.Unique(updater.Title, [.. _plans.Keys(), .. Chains?.TakenKeys ?? []]);
+
+        // Its prompt is written afresh each time, with the problem and shape of now (review of PR 4, finding 4).
+        _plans.Write(key, _plans.TryRead(key) is { } plan
+            ? plan with { Prompt = updater.Prompt }
+            : new SessionPlan(_plans.Keys().Count + 1, updater.Title, ProjectCardViewModel.NoColour, updater.WorkingDirectory, [],
+                null, DateTimeOffset.Now.ToString("s"), updater.Prompt));
+        Refresh();
+
+        if (Board.Card(key) is not { } card)
+        {
+            return;
+        }
+
+        if (card.Workstream.Role != ProjectUpdaterCard.Role)
+        {
+            card.Workstream = card.Workstream with { Role = ProjectUpdaterCard.Role };
+            Board.Persist(card);
+            TheseusLog.Information("Created {Updater} to update the project file of {Project}", key, name);
+        }
+
+        // A start again resumes its conversation, which never sees the rewritten prompt, so it is told the problem of now.
+        var start = card.Workstream with
+        {
+            Prompt = updater.Prompt,
+            StartInstruction = earlier is null ? null : $"{updater.Prompt.Split(Environment.NewLine)[0]} Bring it into the shape your opening prompt gave, as before.",
+        };
+
+        if (StartForSession([start], "UpdateProjectFile") is { } notStarted)
+        {
+            Notice = notStarted;
+
+            return;
+        }
+
+        // That it ran, so the card says Still needs updating until the file reads, and the file it started on, so it is asked
+        // to stop once the file has changed and its turn has ended; kept in settings, across a restart (review of PR 4).
+        var settings = _settings.Read();
+        _settings.Write(settings with
+        {
+            ProjectUpdaterRuns = new Dictionary<string, string>(settings.ProjectUpdaterRuns, StringComparer.OrdinalIgnoreCase)
+            {
+                [name] = ProjectUpdate.Fingerprint(reading.Text),
+            },
+        });
+        WireProjectChoices();
+    }
+
+    /// <summary>
+    /// Asks a running updater to write its handover and exit once its project's file has changed since it started and its
+    /// turn has ended (review of PR 4, finding 2 and its re-check): a session cannot leave by itself. It uses the stop
+    /// request alone, as a session's stop does, so the owner's Stop all queue is untouched. A project that reads, with no
+    /// updater running, leaves the list, so a later break starts from Needs updating. Returns whether anything changed.
+    /// </summary>
+    private bool ReviewUpdaters(IReadOnlyList<ProjectFileReading> readings)
+    {
+        var runs = new Dictionary<string, string>(_settings.Read().ProjectUpdaterRuns, StringComparer.OrdinalIgnoreCase);
+        var changed = false;
+
+        foreach (var (name, startedOn) in runs.ToList())
+        {
+            var reading = readings.FirstOrDefault(each => string.Equals(each.Name, name, StringComparison.OrdinalIgnoreCase));
+            var updater = reading is null ? null : UpdaterOf(reading);
+
+            if (reading is not null && updater is { IsLive: true }
+                && ProjectUpdate.IsDone(startedOn, reading, updater.Lifecycle is SessionLifecycle.Idle or SessionLifecycle.NeedsAttention))
+            {
+                TheseusLog.Information("Asking {Updater} to stop: the project file of {Project} has changed and its turn has ended", updater.Key, name);
+
+                if (StopForSession(updater) is { } cannot)
+                {
+                    Notice = cannot;
+                }
+
+                runs[name] = string.Empty;
+                changed = true;
+            }
+
+            if (reading is null || (reading.IsReadable && updater is not { IsLive: true }))
+            {
+                runs.Remove(name);
+                changed = true;
+            }
+        }
+
+        if (changed)
+        {
+            _settings.Write(_settings.Read() with { ProjectUpdaterRuns = runs });
+        }
+
+        return changed;
+    }
+
+    /// <summary>Not a project, on a project card whose file does not read (1.1e AC 20): its folder's card is hidden.</summary>
+    private void HideProjectFolder(string name)
+    {
+        var settings = _settings.Read();
+        _settings.Write(settings with { HiddenProjectFolders = [.. settings.HiddenProjectFolders.Append(name).Distinct(StringComparer.OrdinalIgnoreCase)] });
+        Notice = $"{name} is no longer shown as a project. Tools > Options lists it, to show it again.";
+        if (!Settings.HiddenProjectFolders.Contains(name, StringComparer.OrdinalIgnoreCase))
+        {
+            Settings.HiddenProjectFolders.Add(name);
+        }
+        WireProjectChoices();
     }
 
     /// <summary>
@@ -1693,19 +1843,38 @@ public sealed class ShellViewModel : ObservableObject
 
         // A project whose file does not read still gets its card, dimmed and saying why (1.1c AC 5), with its mark and
         // colour but no Start or Stop (1.1d AC 44).
-        foreach (var reading in dimmed)
+        // It says only that it needs updating, and Update, its double-click and Enter start a card that updates the file;
+        // the reason is for that session, in the tooltip and Project properties (1.1e AC 18, 19). A folder the owner said
+        // is not a project is not shown (AC 20); once it reads, it is a project again and leaves that list (review of PR
+        // 4, finding 7).
+        ReviewUpdaters(readings);
+        var hidden = ProjectUpdate.StillHidden(_settings.Read().HiddenProjectFolders, names);
+
+        if (hidden.Count != _settings.Read().HiddenProjectFolders.Count)
+        {
+            _settings.Write(_settings.Read() with { HiddenProjectFolders = hidden });
+
+            foreach (var shown in Settings.HiddenProjectFolders.Where(name => !hidden.Contains(name, StringComparer.OrdinalIgnoreCase)).ToList())
+            {
+                Settings.HiddenProjectFolders.Remove(shown);
+            }
+        }
+
+        foreach (var reading in dimmed.Where(reading => !hidden.Contains(reading.Name, StringComparer.OrdinalIgnoreCase)))
         {
             var projectCard = Board.ProjectCards.FirstOrDefault(existing =>
                                   string.Equals(existing.Name, reading.Name, StringComparison.OrdinalIgnoreCase) && existing.IsDimmed)
                               ?? new ProjectCardViewModel(reading.Name, reading.Name) { IsDimmed = true };
-            var file = Path.Combine(reading.Folder!, ProjectCatalog.ProjectFileName);
+            var updater = UpdaterOf(reading);
+            var name = reading.Name;
+            var problem = ProblemOf(reading);
 
-            projectCard.OpenCommand ??= new RelayCommand(_ => OpenFile(file));
-            projectCard.OpenFileCommand ??= projectCard.OpenCommand;
-            projectCard.PhaseText = reading.Status == ProjectReadingStatus.Pinned
-                ? $"Pinned to {MethodKits.Pinned}: its project.md is in the older shape"
-                : $"Does not read: {reading.Reason}";
-            projectCard.ObjectivesText = "Double-click to open its project.md";
+            projectCard.OpenCommand ??= new RelayCommand(_ => UpdateProjectFile(name));
+            projectCard.OpenFileCommand = null;
+            projectCard.HideCommand ??= new RelayCommand(_ => HideProjectFolder(name));
+            projectCard.Problem = problem;
+            projectCard.PhaseText = ProjectUpdaterCard.Face(updater is { IsLive: true }, _settings.Read().ProjectUpdaterRuns.ContainsKey(name));
+            projectCard.ObjectivesText = string.Empty;
             WireProjectCard(projectCard, reading, colours);
             ProjectCardFace.Dim(projectCard);
 
@@ -2595,6 +2764,16 @@ public sealed class ShellViewModel : ObservableObject
         SyncHandoffRenames(handoffs, busy);
         PublishSnapshot(handoffs);
         CloseFinishedSessions();
+
+        // An updater's turn ending, or its session ending, changes its project card's face and may ask it to stop.
+        var updaters = string.Join(",", Board.Cards.Where(card => card.Workstream.Role == ProjectUpdaterCard.Role)
+            .Select(card => $"{card.Key}:{card.Lifecycle}"));
+
+        if (ReviewUpdaters(_projectReads.Current) || !string.Equals(updaters, _updaterStates, StringComparison.Ordinal))
+        {
+            _updaterStates = updaters;
+            WireProjectChoices();
+        }
     }
 
     /// <summary>Shows on every card what the transcripts have told the board so far.</summary>

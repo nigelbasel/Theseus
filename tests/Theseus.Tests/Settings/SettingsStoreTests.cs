@@ -55,6 +55,8 @@ public class SettingsStoreTests
                 ["a-project"] = new(new DateTimeOffset(2026, 11, 21, 20, 0, 0, TimeSpan.Zero), "nigel/a-project"),
             },
             CardsToldBranchRules = ["git-25"],
+            HiddenProjectFolders = ["notes"],
+            ProjectUpdaterRuns = new Dictionary<string, string> { ["bym"] = "Does not read: line 3" },
         };
 
         _store.Write(settings);
@@ -76,6 +78,8 @@ public class SettingsStoreTests
         Assert.That(read.ProjectBranchRules["a-project"],
             Is.EqualTo(new ProjectBranchGrant(new DateTimeOffset(2026, 11, 21, 20, 0, 0, TimeSpan.Zero), "nigel/a-project")));
         Assert.That(read.CardsToldBranchRules, Is.EqualTo(new[] { "git-25" }));
+        Assert.That(read.HiddenProjectFolders, Is.EqualTo(new[] { "notes" }));
+        Assert.That(read.ProjectUpdaterRuns, Is.EqualTo(new Dictionary<string, string> { ["bym"] = "Does not read: line 3" }));
         Assert.That(read with
             {
                 Lanes = settings.Lanes, Areas = settings.Areas, CollapsedAreas = settings.CollapsedAreas,
@@ -84,7 +88,8 @@ public class SettingsStoreTests
                 ProjectCardPlaces = settings.ProjectCardPlaces, PaneSizes = settings.PaneSizes, ProjectColours = settings.ProjectColours,
                 ProjectGrouping = settings.ProjectGrouping, ProjectRunStates = settings.ProjectRunStates,
                 CardsStoppedByOwner = settings.CardsStoppedByOwner, ProjectBranchRules = settings.ProjectBranchRules,
-                CardsToldBranchRules = settings.CardsToldBranchRules,
+                CardsToldBranchRules = settings.CardsToldBranchRules, HiddenProjectFolders = settings.HiddenProjectFolders,
+                ProjectUpdaterRuns = settings.ProjectUpdaterRuns,
             }, Is.EqualTo(settings),
             "a record holding a list compares it by reference, so the lists are checked separately");
     }

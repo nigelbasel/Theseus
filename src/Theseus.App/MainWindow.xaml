@@ -274,7 +274,14 @@
                 <Border.ContextMenu>
                     <ContextMenu FontFamily="{x:Static SystemFonts.MessageFontFamily}">
                         <MenuItem Header="_Open" FontWeight="SemiBold" Command="{Binding OpenCommand}"
-                                  ToolTip="{Binding OpenToolTip}" />
+                                  ToolTip="{Binding OpenToolTip}"
+                                  Visibility="{Binding IsDimmed, Converter={StaticResource NotBoolToVisibility}}" />
+                        <MenuItem Header="_Update" FontWeight="SemiBold" Command="{Binding OpenCommand}"
+                                  ToolTip="{Binding OpenToolTip}"
+                                  Visibility="{Binding IsDimmed, Converter={StaticResource BoolToVisibility}}" />
+                        <MenuItem Header="_Not a project" Command="{Binding HideCommand}"
+                                  ToolTip="Hide this folder's card: it is not a project. Tools &gt; Options lists it, to show it again"
+                                  Visibility="{Binding IsDimmed, Converter={StaticResource BoolToVisibility}}" />
                         <MenuItem Header="_Start" Command="{Binding StartCommand}" ToolTip="{Binding StartToolTip}"
                                   ToolTipService.ShowOnDisabled="True"
                                   Visibility="{Binding ShowsRunButtons, Converter={StaticResource BoolToVisibility}}">
@@ -289,7 +296,8 @@
                         <MenuItem Header="Project p_roperties…" Command="{Binding PropertiesCommand}"
                                   ToolTip="Its title, its colour and its project.md; the colour can be changed here" />
                         <MenuItem Header="Open project._md" Command="{Binding OpenFileCommand}"
-                                  ToolTip="Open the project's file in its editor" />
+                                  ToolTip="Open the project's file in its editor"
+                                  Visibility="{Binding IsDimmed, Converter={StaticResource NotBoolToVisibility}}" />
                         <MenuItem Header="Add o_bjective…" Command="{Binding AddObjectiveCommand}"
                                   Visibility="{Binding IsDimmed, Converter={StaticResource NotBoolToVisibility}}"
                                   ToolTip="Add an objective at the end of the current phase in project.md" />
@@ -358,6 +366,12 @@
                         <StackPanel x:Name="ProjectButtons" Orientation="Horizontal" HorizontalAlignment="Left" Margin="-4,2,0,0">
                             <Button x:Name="ProjectOpen" Style="{StaticResource CardIcon}" Content="&#xE8A7;"
                                     ToolTip="{Binding OpenButtonToolTip}" AutomationProperties.Name="Open project"
+                                    Visibility="{Binding IsDimmed, Converter={StaticResource NotBoolToVisibility}}"
+                                    Command="{Binding OpenCommand}" />
+                            <!-- A file that does not read: its ↗ becomes Update (1.1e AC 18). -->
+                            <Button x:Name="ProjectUpdate" Style="{StaticResource CommandButton}" Content="Update" Padding="10,2" Margin="4,2,0,0"
+                                    ToolTip="{Binding OpenButtonToolTip}" AutomationProperties.Name="Update project file"
+                                    Visibility="{Binding IsDimmed, Converter={StaticResource BoolToVisibility}}"
                                     Command="{Binding OpenCommand}" />
                             <Button x:Name="ProjectStart" Style="{StaticResource CardIcon}" Content="&#xE768;"
                                     ToolTip="{Binding StartToolTip}" AutomationProperties.Name="Start project"

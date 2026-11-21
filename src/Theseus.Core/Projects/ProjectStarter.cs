@@ -14,7 +14,25 @@ public static class ProjectStarter
     private const string ObjectivePlaceholder = "One paragraph: the outcome the whole project exists for.";
     private const string PrimaryPlaceholder = "<user>/<project>";
 
-    /// <summary>The starter project file's text, as shipped.</summary>
+    /// <summary>
+    /// The method's description of project.md, from its Shape up to the owner's gates: the shape, what Theseus reads, and
+    /// the rules a file must keep to be read (1.1e AC 19; review of PR 4, finding 5).
+    /// </summary>
+    public static string ShapeText()
+    {
+        using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(MethodResource)
+                           ?? throw new InvalidOperationException($"The method's {MethodResource} is not in this build");
+        using var reader = new StreamReader(stream);
+        var text = reader.ReadToEnd().Replace("\r\n", "\n", StringComparison.Ordinal);
+        var start = text.IndexOf("## Shape", StringComparison.Ordinal);
+        var end = text.IndexOf("## The owner's gates", StringComparison.Ordinal);
+
+        return start < 0 ? text : end < start ? text[start..] : text[start..end].TrimEnd();
+    }
+
+    private const string MethodResource = "Theseus.Core.Method.project.md";
+
+    /// <summary>The kit's starter project.md, as this build ships it.</summary>
     public static string StarterText()
     {
         using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(StarterResource)

@@ -24,6 +24,11 @@
                    Foreground="{DynamicResource SystemFillColorCriticalBrush}"
                    Visibility="{Binding HasError, Converter={StaticResource Visible}}" />
 
+        <!-- Why its file does not read, for whoever updates it (1.1e AC 18). -->
+        <TextBlock x:Name="Problem" Text="{Binding Problem}" Margin="0,8,0,0" FontSize="12" TextWrapping="Wrap"
+                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                   Visibility="{Binding HasProblem, Converter={StaticResource Visible}}" />
+
         <TextBlock Text="Colour" FontWeight="SemiBold" Margin="0,12,0,0" />
         <ListBox x:Name="ColourBox" ItemsSource="{Binding Colours}" SelectedValuePath="Colour"
                  SelectedValue="{Binding ColourHex, Mode=TwoWay}" Margin="0,6,0,0"
