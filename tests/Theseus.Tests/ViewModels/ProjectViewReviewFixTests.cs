@@ -17,6 +17,7 @@ public class ProjectViewReviewFixTests
         var project = new ProjectCardViewModel("p", "P");
         fixture.Board.ShowProjects([project]);
         fixture.Board.ColumnsBySessionState = true;
+        fixture.Board.RowsByProject = true;
 
         fixture.Board.MoveProject("p", "In progress", "Dev");
 

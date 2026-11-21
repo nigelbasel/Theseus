@@ -208,6 +208,11 @@ public sealed class PropertiesViewModel
         {
             yield return ProjectViewModel.OpenRecords(node.Piece, actions);
         }
+
+        if (stage is null && node.AddToProject is { } add)
+        {
+            yield return add;
+        }
     }
 
     private static string ObjectiveHeadingOf(PieceNodeViewModel node) =>

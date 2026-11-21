@@ -14,6 +14,10 @@ namespace Theseus.App.ViewModels;
 /// <param name="Stop">Asks a card's session to write its handover and stop.</param>
 /// <param name="OpenPath">Opens a records folder or a record in its editor.</param>
 /// <param name="Notice">Says something in the status bar, such as that Properties is hidden (1.1d AC 52); null says nothing.</param>
+/// <param name="AddToProject">
+/// Add to project… for a piece no project file lists, by project and card key, with that project chosen (1.1e AC 6);
+/// null offers none.
+/// </param>
 public sealed record ProjectViewActions(
     Action<SpecAtGate> OpenSpec,
     Action<SpecAtGate> AcceptSpec,
@@ -22,4 +26,5 @@ public sealed record ProjectViewActions(
     Action<string> Start,
     Action<string> Stop,
     Action<string> OpenPath,
-    Action<string>? Notice = null);
+    Action<string>? Notice = null,
+    Action<string, string>? AddToProject = null);

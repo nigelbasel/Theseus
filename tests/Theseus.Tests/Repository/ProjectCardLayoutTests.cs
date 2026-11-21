@@ -110,7 +110,7 @@ public class ProjectCardLayoutTests
     }
 
     [Test]
-    public void ADimmedCard_KeepsItsReasonMarkAndColour_StaysAProject_AndHasNoStartOrStop()
+    public void ADimmedCard_KeepsItsReasonMarkAndColour_StaysAProject_AndHasOpenButNoStartOrStop()
     {
         var card = new ProjectCardViewModel("bym", "bym")
         {
@@ -122,11 +122,32 @@ public class ProjectCardLayoutTests
         var face = LaidOut(card);
 
         Assert.That(face.Opacity, Is.EqualTo(0.55));
-        Assert.That(Named<StackPanel>(face, "ProjectButtons").Visibility, Is.EqualTo(Visibility.Collapsed));
+        Assert.That(Named<Button>(face, "ProjectOpen").Visibility, Is.EqualTo(Visibility.Visible), "Open is always shown (1.1e AC 5)");
+        Assert.That(Named<Button>(face, "ProjectOpen").ToolTip, Is.EqualTo("Open its project.md"));
+        Assert.That((Named<Button>(face, "ProjectStart").Visibility, Named<Button>(face, "ProjectStop").Visibility),
+            Is.EqualTo((Visibility.Collapsed, Visibility.Collapsed)));
         Assert.That(Named<TextBlock>(face, "ProjectSentence").Visibility, Is.EqualTo(Visibility.Collapsed));
         Assert.That(Named<TextBlock>(face, "ProjectTag").Text, Is.EqualTo("PROJECT"));
         Assert.That(((SolidColorBrush)Descendants<StackedCardMark>(face).Single().Foreground).Color.ToString(), Is.EqualTo("#FF8674D6"));
         Assert.That(Descendants<TextBlock>(face).Select(text => text.Text), Does.Contain(card.PhaseText));
+    }
+
+    [Test]
+    public void Open_IsTheFirstButton_BeforeStartAndStop_AndOpensTheProject()
+    {
+        var opened = 0;
+        var card = Theseus();
+        card.OpenCommand = new RelayCommand(_ => opened++);
+        var face = LaidOut(card);
+        var buttons = Descendants<Button>(Named<StackPanel>(face, "ProjectButtons")).Select(button => button.Name);
+        var open = Named<Button>(face, "ProjectOpen");
+
+        Assert.That(buttons, Is.EqualTo(new[] { "ProjectOpen", "ProjectStart", "ProjectStop" }));
+        Assert.That((open.ToolTip, open.Content), Is.EqualTo(((object)"Open the project (Enter)", (object)"")));
+
+        open.Command.Execute(null);
+
+        Assert.That(opened, Is.EqualTo(1));
     }
 
     [Test]

@@ -1,0 +1,24 @@
+using System.Runtime.CompilerServices;
+
+namespace Theseus.Tests.Repository;
+
+/// <summary>The help covers 1.1e's dragging, ↗ Open and Add to project… from the view (AC 1 to 6).</summary>
+[TestFixture]
+public class ProjectsInUseDocsTests
+{
+    private static string Doc(string name) => File.ReadAllText(Path.Combine(RepositoryRoot(), "docs", name));
+
+    [TestCase("board.md", "only along what you place by hand")]
+    [TestCase("board.md", "cards move up and down between areas only")]
+    [TestCase("cards.md", "in the column of its most urgent running card")]
+    [TestCase("cards.md", "in the row of its first card")]
+    [TestCase("cards.md", "**↗ Open**, the first button on a project card")]
+    [TestCase("project-view.md", "offers **Add to project…**, which opens the board's window with this project")]
+    public void TheHelp_SaysHowProjectsAreUsed(string page, string part)
+    {
+        Assert.That(Doc(page), Does.Contain(part));
+    }
+
+    private static string RepositoryRoot([CallerFilePath] string thisFile = "") =>
+        Path.GetFullPath(Path.Combine(Path.GetDirectoryName(thisFile)!, "..", "..", ".."));
+}

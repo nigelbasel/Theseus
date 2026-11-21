@@ -24,6 +24,8 @@ public static class ProjectCardFace
         card.Sentence = summary.Sentence;
         card.Counts = StateCountViewModel.For(summary, zeros: false);
         card.IsLive = pieces.Any(piece => piece.IsCurrentPiece && piece.Card is { HasSession: true });
+        card.StateColumn = ProjectBoardStanding.StateColumn(pieces);
+        card.FirstCardKey = ProjectBoardStanding.FirstCardKey(pieces);
         card.StartPlan = ProjectStart.For(card.Title, pieces);
         card.StopPlan = ProjectStop.For(card.Title, pieces);
 
@@ -38,6 +40,8 @@ public static class ProjectCardFace
         card.Sentence = string.Empty;
         card.Counts = [];
         card.IsLive = false;
+        card.StateColumn = Theseus.Core.Domain.BoardView.NotRunning;
+        card.FirstCardKey = null;
         card.StartPlan = null;
         card.StopPlan = null;
     }

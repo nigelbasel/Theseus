@@ -37,7 +37,8 @@ internal sealed class ProjectViews
         key => Ran.Add($"Start:{key}"),
         key => Ran.Add($"Stop:{key}"),
         path => Ran.Add($"Open:{path}"),
-        Notices.Add);
+        Notices.Add,
+        (project, key) => Ran.Add($"AddToProject:{project}:{key}"));
 
     public ProjectViewEdits Edits => new((_, criterion, ticked) => Edited.Add($"Tick:{criterion.Line}:{ticked}"),
         objective => Edited.Add($"Edit:{objective.Number}"),

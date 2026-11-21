@@ -377,6 +377,9 @@ public sealed class ProjectViewModel : ObservableObject
         return PaneWidth;
     }
 
+    /// <summary>The label of Add to project… on a box no project file lists (1.1e AC 6).</summary>
+    public const string AddToProjectLabel = "Add to project…";
+
     /// <summary>Open records, disabled with its reason when the piece has no records folder (AC 27).</summary>
     internal static PieceActionViewModel OpenRecords(PieceOfWork piece, ProjectViewActions actions) =>
         piece.RecordsFolder is { } folder
@@ -400,6 +403,15 @@ public sealed class ProjectViewModel : ObservableObject
             .OrderBy(group => Array.IndexOf(BoxActionOrder, group.Key))
             .Select(group => Action(group.First().Offer, piece, group.First().Stage, spec))
             .ToList();
+        var addToProject = !piece.IsListed && _actions.AddToProject is { } add
+            ? new PieceActionViewModel(AddToProjectLabel, () => add(reading.Name, piece.CardKey),
+                toolTip: $"Add {piece.Workstream} to an objective of this project in project.md")
+            : null;
+
+        if (addToProject is not null)
+        {
+            boxActions.Add(addToProject);
+        }
 
         return new PieceNodeViewModel(node, children, stages, boxActions, PieceFolds.IsOpen(_folds, piece.Name), Toggle, Select)
         {
@@ -410,6 +422,7 @@ public sealed class ProjectViewModel : ObservableObject
                 : null,
             Spec = spec,
             CrossMarks = crossMarks,
+            AddToProject = addToProject,
         };
     }
 

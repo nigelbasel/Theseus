@@ -19,8 +19,10 @@ public static class ProjectViewCommands
     /// <param name="acceptSpec">Accepts a spec, after asking.</param>
     /// <param name="openPath">Opens a folder or a file.</param>
     /// <param name="notice">Says in the status bar why nothing happened.</param>
+    /// <param name="addToProject">The shell's Add to project…, for a card and the project to choose first (1.1e AC 6).</param>
     public static ProjectViewActions For(Func<string, WorkstreamCardViewModel?> cardOf, ICommand focus, ICommand start, ICommand stop,
-        Action<SpecAtGate> openSpec, Action<SpecAtGate> acceptSpec, Action<string> openPath, Action<string> notice)
+        Action<SpecAtGate> openSpec, Action<SpecAtGate> acceptSpec, Action<string> openPath, Action<string> notice,
+        Action<WorkstreamCardViewModel, string>? addToProject = null)
     {
         ArgumentNullException.ThrowIfNull(cardOf);
         ArgumentNullException.ThrowIfNull(notice);
@@ -52,6 +54,19 @@ public static class ProjectViewCommands
             key => OnCard(key, _ => start, passCard: true),
             key => OnCard(key, _ => stop, passCard: true),
             openPath,
-            notice);
+            notice,
+            addToProject is null
+                ? null
+                : (project, key) =>
+                {
+                    if (cardOf(key) is { } card)
+                    {
+                        addToProject(card, project);
+                    }
+                    else
+                    {
+                        notice($"{key} is not on the board.");
+                    }
+                });
     }
 }

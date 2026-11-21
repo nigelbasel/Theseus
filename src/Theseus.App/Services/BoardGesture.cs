@@ -43,24 +43,22 @@ public static class BoardGesture
 
         return board.CanDrag
             ? null
-            : "Cards and projects are moved only while the columns show stages: choose View › Columns by › Stage.";
+            : "Cards and projects are moved only along stages or areas: choose View › Columns by › Stage, or View › Rows by › Area.";
     }
 
-    /// <summary>Drops what a drag carried on a cell, at an index among its cards.</summary>
-    public static void Drop(BoardViewModel board, string payload, ColumnViewModel cell, int index)
+    /// <summary>
+    /// Drops what a drag carried on a cell, at an index among its cards. Returns what the status bar says when the drop
+    /// also tried a derived axis (1.1e AC 3), or null.
+    /// </summary>
+    public static string? Drop(BoardViewModel board, string payload, ColumnViewModel cell, int index)
     {
         ArgumentNullException.ThrowIfNull(board);
         ArgumentNullException.ThrowIfNull(payload);
         ArgumentNullException.ThrowIfNull(cell);
 
-        if (payload.StartsWith(ProjectPrefix, StringComparison.Ordinal))
-        {
-            board.MoveProject(payload[ProjectPrefix.Length..], cell.Column, cell.Area);
-
-            return;
-        }
-
-        board.Move(payload, cell.Column, cell.Area, index);
+        return payload.StartsWith(ProjectPrefix, StringComparison.Ordinal)
+            ? board.MoveProject(payload[ProjectPrefix.Length..], cell.Column, cell.Area)
+            : board.Move(payload, cell.Column, cell.Area, index);
     }
 
     /// <summary>Whether an element is inside one of a type.</summary>

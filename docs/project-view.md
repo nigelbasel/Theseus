@@ -68,7 +68,9 @@ Each project keeps its own choice, across restarts.
   of its objectives are done. Under each phase, every objective is a heading: its number and title, how many of its
   criteria are ticked (such as 0/6), and the counts of its pieces of work; one that nothing works on yet says
   **nothing yet**. Under each objective are its pieces of work, as the same boxes, with the same stages, buttons and
-  Properties. Pieces linked into the project but listed in no project file come last, under **Not in project.md**.
+  Properties. Pieces linked into the project but listed in no project file come last, under **Not in project.md**;
+  each of their boxes, and its Properties, offers **Add to project…**, which opens the board's window with this project
+  chosen, and once added the box moves under its objective.
 
 Headings fold and open with their chevron, like a branch; a phase whose objectives are all done starts folded. No line
 is drawn between headings, so a box says what the lines would: **← handed on from …**, **→ handed on to …**, and,

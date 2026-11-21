@@ -173,6 +173,9 @@ public sealed class PieceNodeViewModel : ObservableObject, IFoldable
     /// </summary>
     public IReadOnlyList<string> CrossMarks { get; init; } = [];
 
+    /// <summary>Add to project…, offered only on a piece no project file lists (1.1e AC 6); null otherwise.</summary>
+    public PieceActionViewModel? AddToProject { get; init; }
+
     /// <summary>Its spec as read, when it waits at its gate, for Open spec and Accept spec.</summary>
     public SpecAtGate? Spec { get; init; }
 

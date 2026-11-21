@@ -9,7 +9,7 @@ namespace Theseus.Tests.ViewModels;
 /// A press, drag and drop on the board (1.1d AC 41, 42). Dragging a project card failed for two reasons, found before
 /// the fix and kept here as tests: a press on a project card armed the rubber band, which only knew workstream cards,
 /// so the band took the mouse whenever the pointer left the card before the drag began, and a click on the card cleared
-/// the selection; and while the columns show session state, where nothing can be dropped, the drop was refused
+/// the selection; and where nothing can be dropped (since 1.1e, neither axis placed by hand), the drop was refused
 /// without a word.
 /// </summary>
 [TestFixture]
@@ -52,14 +52,19 @@ public class BoardGestureTests
     }
 
     [Test]
-    public void WhileColumnsShowSessionState_ADropIsRefused_SayingWhy()
+    public void WithNeitherAxisPlacedByHand_ADropIsRefused_SayingWhy()
     {
         var fixture = new BoardFixture().With("ad-hoc");
         fixture.Board.Refresh();
         fixture.Board.ColumnsBySessionState = true;
+        fixture.Board.RowsByProject = true;
 
         Assert.That(BoardGesture.Refusal(fixture.Board),
-            Is.EqualTo("Cards and projects are moved only while the columns show stages: choose View › Columns by › Stage."));
+            Is.EqualTo("Cards and projects are moved only along stages or areas: choose View › Columns by › Stage, or View › Rows by › Area."));
+
+        fixture.Board.RowsByArea = true;
+
+        Assert.That(BoardGesture.Refusal(fixture.Board), Is.Null, "rows by area can be dragged along under session-state columns (1.1e AC 1)");
 
         fixture.Board.ColumnsByStage = true;
 
@@ -122,6 +127,7 @@ public class BoardGestureTests
         var fixture = new BoardFixture().With("ad-hoc");
         fixture.Board.Refresh();
         fixture.Board.ColumnsBySessionState = true;
+        fixture.Board.RowsByProject = true;
         var press = new BoardPress();
 
         press.Down(TextOn(fixture.Card("ad-hoc")!), new Point(0, 0));
