@@ -10,6 +10,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
     private SessionLifecycle _lifecycle = SessionLifecycle.NotStarted;
     private Theseus.Core.Projects.WhyStopped? _stopReason;
     private string _verifyToolTip = string.Empty;
+    private DateTimeOffset? _branchRulesSince;
     private DateTimeOffset? _lastExitedUtc;
     private DateTimeOffset? _lastStartedUtc;
     private string _todoSummary = string.Empty;
@@ -668,6 +669,28 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
         get => _verifyToolTip;
         set => Set(ref _verifyToolTip, value);
     }
+
+    /// <summary>When its project was granted branch rules, while they apply, or null (1.1e AC 12b).</summary>
+    public DateTimeOffset? BranchRulesSince
+    {
+        get => _branchRulesSince;
+        set
+        {
+            if (Set(ref _branchRulesSince, value))
+            {
+                Raise(nameof(BranchRulesMark));
+                Raise(nameof(BranchRulesToolTip));
+            }
+        }
+    }
+
+    /// <summary>"project branch rules" while they apply, else empty: a small mark on the card.</summary>
+    public string BranchRulesMark => _branchRulesSince is null ? string.Empty : Theseus.Core.Projects.ProjectBranchRules.Mark;
+
+    /// <summary>The mark's tooltip, with the grant's date.</summary>
+    public string BranchRulesToolTip => _branchRulesSince is { } since
+        ? $"Granted by you on {since.ToLocalTime():d MMM yyyy}: this card may branch off its project's primary branch, push, and merge back without asking"
+        : string.Empty;
 
     /// <summary>Add to project…: adds the card's row to a project's file (1.1c AC 7).</summary>
     public RelayCommand? AddToProjectCommand { get; set; }

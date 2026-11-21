@@ -190,6 +190,19 @@ public sealed record TheseusSettings(
     public IReadOnlyList<string> CardsStoppedByOwner { get; init; } = [];
 
     /// <summary>
+    /// The projects whose owner granted branch rules, by project folder name, each pinned to the primary branch it covers
+    /// (1.1e AC 12b): their cards may branch off it, push and merge back without asking. Kept here, never read from
+    /// project.md.
+    /// </summary>
+    public IReadOnlyDictionary<string, ProjectBranchGrant> ProjectBranchRules { get; init; } = new Dictionary<string, ProjectBranchGrant>();
+
+    /// <summary>
+    /// The cards given branch rules at their last start, so a resume after the grant is withdrawn is told so (review of
+    /// 1.1e PR 2c, finding 3).
+    /// </summary>
+    public IReadOnlyList<string> CardsToldBranchRules { get; init; } = [];
+
+    /// <summary>
     /// The terminal window an area's sessions start in, where it is not named after the area itself:
     /// an area renamed by <see cref="Domain.BoardTidy"/> keeps its old window, so its new sessions
     /// join the tabs already open rather than starting a window of their own.

@@ -99,6 +99,12 @@ public sealed class LaunchCoordinator : IAsyncDisposable
     public Func<string, string?>? RelatedFor { get; set; }
 
     /// <summary>
+    /// The branch rules the owner granted a card's project, as text naming its primary branch now, or null (1.1e AC 12b):
+    /// asked at each start, so turning the grant off changes the next start.
+    /// </summary>
+    public Func<Workstream, string?>? BranchRulesFor { get; set; }
+
+    /// <summary>
     /// The projects that read now, asked at each start, so a card that joined a project mid-session opens in the
     /// project's window at its next start (project-view AC 20). Null or empty: every card opens where it always did.
     /// </summary>
@@ -147,11 +153,22 @@ public sealed class LaunchCoordinator : IAsyncDisposable
             settings.IdentityPrompt,
             RelatedFor?.Invoke(workstream.Key));
 
+        var rules = BranchRulesFor?.Invoke(workstream);
+        var toldBefore = settings.CardsToldBranchRules.Contains(workstream.Key, StringComparer.OrdinalIgnoreCase);
+
         // A resume keeps its conversation, so it opens with one line. The full opening still
         // travels with it, for the shim to use if the resume dies at once and is reminted fresh.
-        var opening = resume
-            ? SessionOpening.ForResume(workstream, _clock.UtcNow, handoff, RelatedSinceLastRun(workstream.Key))
-            : fullOpening;
+        string opening;
+        (fullOpening, opening) = Theseus.Core.Projects.ProjectBranchRules.Openings(fullOpening,
+            resume ? SessionOpening.ForResume(workstream, _clock.UtcNow, handoff, RelatedSinceLastRun(workstream.Key)) : null,
+            rules, toldBefore);
+
+        // Which cards were given the rules, so a later resume without them is told they are withdrawn (1.1e AC 12b).
+        if ((rules is not null) != toldBefore)
+        {
+            var told = settings.CardsToldBranchRules.Where(key => !string.Equals(key, workstream.Key, StringComparison.OrdinalIgnoreCase));
+            _settings.Write(_settings.Read() with { CardsToldBranchRules = rules is null ? [.. told] : [.. told, workstream.Key] });
+        }
 
         // Which window this tab joins is the whole of grouping: same name, same window; a name
         // nothing is using yet makes a new one. Nothing else has to exist for sessions to be grouped.

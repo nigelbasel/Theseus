@@ -49,6 +49,13 @@
         <TextBlock Margin="0,4,0,0" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                    Text="The project card's stripe and mark, and the project's tab and summary, take this colour. Project colours are never workstream colours; a dot marks one another project has." />
 
+        <!-- Granted by the owner here, never by the file, which sessions write (1.1e AC 12b). -->
+        <CheckBox x:Name="BranchRulesBox" Margin="0,12,0,0" IsChecked="{Binding GrantsBranchRules, Mode=TwoWay}"
+                  IsEnabled="{Binding CanChangeBranchRules, Mode=OneWay}" ToolTipService.ShowOnDisabled="True"
+                  ToolTip="{Binding BranchRulesToolTip}" AutomationProperties.Name="{Binding BranchRulesLabel}">
+            <TextBlock Text="{Binding BranchRulesLabel}" TextWrapping="Wrap" />
+        </CheckBox>
+
         <TextBlock Text="project.md" FontWeight="SemiBold" Margin="0,12,0,0" />
         <TextBox x:Name="FileBox" Text="{Binding ProjectFile, Mode=OneWay}" IsReadOnly="True" Margin="0,6,0,0"
                  AutomationProperties.Name="project.md"

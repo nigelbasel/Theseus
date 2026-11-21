@@ -25,6 +25,9 @@ shell command inside the holdout folder, and none writes Theseus's own settings 
 started with `THESEUS_HOLDOUT_AUTHOR=1`, as a scenario-writing card's are, can change the scenarios. With no folder
 chosen, the guard covers the whole default holdouts folder in the same way.
 
+If no folder is set and the installed guard is an older one that names its own holdout, Theseus says so when it starts:
+installing this version's guard then would protect only the default folder, so set the folder first.
+
 The guard is a tripwire against accidents, not a wall. It reads the paths, commands and addresses a tool is given, and
 the session's working directory. A search rooted in a folder above the holdout is not refused, so it could return
 scenario lines; and a shell command can still do what the file tools are refused.

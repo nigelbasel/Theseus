@@ -83,6 +83,16 @@ there and writes nothing. Its colour, place and run state stay with the project'
 path of its `project.md` is shown read only. Colours come from the same eight; a dot marks a colour another project has, and hovering over it names the
 project. The card, the project's tab and its summary in the project view all take the colour.
 
+The box **Workstreams may branch off <primary branch>, push, and merge back into it without asking** in Project
+properties is yours to tick, and is kept by Theseus, never in `project.md`. It covers the primary branch the file names
+when you tick it; if the file later names another, it gives nothing until you tick it again, and a trunk such as `main`
+can never be granted. While it is ticked, each card of the project is told at its start that it may make its own branch
+off the primary branch, named after its records folder, push it, and merge it back once its suite passes and its review
+is done, and still to ask before any Jira item, pull request into the trunk, force push, deleted branch, or anything
+outside the project's repositories. Such a card shows **project branch rules**, with the date you ticked it in its
+tooltip. Untick it and its cards ask again from their next start; a session resumed after that is told the rules are
+withdrawn.
+
 One whose `project.md` does not read is dimmed and says why, keeping its mark, colour and the word PROJECT but with no
 ▷ or □; ↗ or a double-click opens the file. **↗ Open**, the first button on a project card that reads, a double-click,
 **Enter** on it, **Open** on its menu, or **View > Open project**, fills the main area with the project: see
