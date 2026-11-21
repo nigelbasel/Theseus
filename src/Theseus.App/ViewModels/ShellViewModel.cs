@@ -34,6 +34,8 @@ public sealed class ShellViewModel : ObservableObject
     private bool _redrawProjectView;
     private ProjectViewActions? _projectActions;
     private ProjectRunner? _runner;
+    private CardRunCommands? _runCommands;
+    private bool _projectStartSaid;
     private readonly ProjectViewHost _viewHost;
     private IReadOnlyList<ProjectChoice> _openProjectChoices = [];
     private IReadOnlyList<ProjectChoice> _openSpecChoices = [];
@@ -152,13 +154,11 @@ public sealed class ShellViewModel : ObservableObject
         SelectCardCommand = new RelayCommand(ShowCard);
         ShowCardLinksCommand = new RelayCommand(parameter => ShowCard(parameter, DrawerTab.Links));
         ToggleSessionsPanelCommand = new RelayCommand(_ => IsSessionsPanelOpen = !IsSessionsPanelOpen);
-        StopCardCommand = new RelayCommand(parameter => BeginStop(CardSteps(parameter)),
-            parameter => CardSteps(parameter).Count > 0);
+        StopCardCommand = new RelayCommand(StopCard, parameter => CardSteps(parameter).Count > 0);
 
         StartSelectedCommand = new RelayCommand(_ => StartSelected(),
             _ => ChosenToStart().Count > 0 || (_launcher.CanLaunch && Board.ChosenProjects.Any(project => project.StartPlan is { CanStart: true })));
-        StopSelectedCommand = new RelayCommand(_ => BeginStop(ChosenSteps()),
-            _ => ChosenSteps().Count > 0);
+        StopSelectedCommand = new RelayCommand(_ => StopSelected(), _ => ChosenSteps().Count > 0);
         SelectAllCommand = new RelayCommand(_ => ChooseAll(true), _ => Board.ShownItems.Any(item => !item.IsSelected));
         ClearSelectionCommand = new RelayCommand(_ =>
         {
@@ -548,8 +548,11 @@ public sealed class ShellViewModel : ObservableObject
     /// </summary>
     public Func<string, bool, bool?>? ConfirmFlaggedStart { get; set; }
 
-    /// <summary>Shows a project's Start confirmation; true when Start was pressed (1.1d AC 43). Unset, nothing starts.</summary>
-    public Func<ProjectStartViewModel, bool>? ConfirmProjectStart { get; set; }
+    /// <summary>
+    /// Asks before one card of a running project is stopped or started by hand (1.1e AC 10): the question and the action
+    /// button's label; true when the action was chosen. Unset, nothing is stopped or started.
+    /// </summary>
+    public Func<string, string, bool>? ConfirmProjectCard { get; set; }
 
     /// <summary>Shows a project's properties; true when OK was pressed (1.1d AC 40). Unset, nothing changes.</summary>
     public Func<ProjectPropertiesViewModel, bool>? AskProjectProperties { get; set; }
@@ -557,19 +560,71 @@ public sealed class ShellViewModel : ObservableObject
     /// <summary>Says in the status bar why a drag could not be dropped (1.1d AC 42).</summary>
     public void DropRefused(string reason) => Notice = reason;
 
-    /// <summary>Starts and stops whole projects with the board's own Start and Stop (1.1d AC 43).</summary>
-    private ProjectRunner Runner => _runner ??= new ProjectRunner(Board.Card,
-        question => ConfirmProjectStart?.Invoke(question) == true,
-        card => ProjectRunner.RefusalOf(card, Sessions.Snapshot),
-        workstreams => StartMany(workstreams, trigger: "StartProject"),
+    /// <summary>
+    /// Starts and stops whole projects with the board's own Start and Stop (1.1e AC 8, 9). What a project's Start skipped
+    /// is added to what the start itself said, or said alone (review of PR 2, finding 7).
+    /// </summary>
+    private ProjectRunner Runner => _runner ??= new ProjectRunner(Board.Card, _settings,
+        workstreams =>
+        {
+            var before = Notice;
+            StartMany(workstreams, trigger: "StartProject");
+            _projectStartSaid = !string.Equals(before, Notice, StringComparison.Ordinal);
+        },
         cards => BeginStop(StepsFor(cards)),
-        (text, afterStart) => Notice = afterStart && !string.IsNullOrWhiteSpace(Notice) ? $"{Notice} {text}" : text);
+        text =>
+        {
+            Notice = _projectStartSaid && !string.IsNullOrWhiteSpace(Notice) ? $"{Notice} {text}" : text;
+            _projectStartSaid = false;
+        },
+        Refresh);
+
+    /// <summary>A card's and a selection's Start and Stop, with the questions and marks of a project that owns what runs (1.1e AC 10 to 12).</summary>
+    private CardRunCommands RunCommands => _runCommands ??= new CardRunCommands(_settings, () => Board.ProjectCards, Runner,
+        (question, verb) => ConfirmProjectCard?.Invoke(question, verb) == true,
+        (title, label, initial) => AskText?.Invoke(title, label, initial),
+        (workstreams, trigger) => StartMany(workstreams, trigger: trigger),
+        cards => BeginStop(StepsFor(cards)));
+
+    /// <summary>Start selected (1.1e AC 10, 11).</summary>
+    private void StartSelected()
+    {
+        var startable = ChosenToStart();
+
+        RunCommands.StartSelected([.. startable.Select(card => Board.Card(card.Key)).OfType<WorkstreamCardViewModel>()], startable,
+            Board.ChosenProjects);
+    }
+
+    /// <summary>Stop selected (1.1e AC 8, 10, 11).</summary>
+    private void StopSelected() => RunCommands.StopSelected(Chosen(), Board.ChosenProjects);
 
     /// <summary>
-    /// Start selected: the ticked cards that can start, and for each selected project the cards its confirmation ticks
-    /// (1.1d AC 43). Cancelling a project's confirmation starts nothing at all.
+    /// Resume or Start fresh on a card's menu, for it or the selection it is in: asked about first when a card is in a
+    /// running project, as ▶ is (review of PR 2, finding 3).
     /// </summary>
-    private void StartSelected() => Runner.StartSelected(ChosenToStart(), Board.ChosenProjects);
+    private void StartChosen(WorkstreamCardViewModel card, StartMode mode, string trigger)
+    {
+        var targets = Targets(card).Where(CanStartCard).ToList();
+
+        if (RunCommands.Allowed(targets, "Start"))
+        {
+            StartMany([.. targets.Select(target => target.Workstream)], startMode: mode, trigger: trigger);
+        }
+    }
+
+    /// <summary>A card's own ■ (1.1e AC 10).</summary>
+    private void StopCard(object? parameter)
+    {
+        if (parameter is WorkstreamCardViewModel card && RunCommands.StopCard(card))
+        {
+            BeginStop(StepsFor([card]));
+        }
+    }
+
+    /// <summary>A project's title from its file, for "resumes with &lt;project&gt;" (review of PR 2, finding 10).</summary>
+    private string ProjectTitle(string name) =>
+        _projectReads.Current.FirstOrDefault(reading => string.Equals(reading.Name, name, StringComparison.OrdinalIgnoreCase))?.File?.Title
+        ?? name;
 
     private string ProjectsSkipped() => ProjectSelection.Skipped(Board);
 
@@ -1385,7 +1440,8 @@ public sealed class ShellViewModel : ObservableObject
             projectCard.PhaseText = file.CurrentPhase is { } phase ? $"Phase {phase.Number}: {phase.Name}" : "Every objective done";
             projectCard.ObjectivesText = $"{file.ObjectivesDone} of {file.Objectives.Count} objectives done";
             WireProjectCard(projectCard, reading, colours);
-            if (ProjectCardFace.Fill(projectCard, pieces))
+            if (ProjectCardFace.Fill(projectCard, pieces, _settings.Read().ProjectRunStates.GetValueOrDefault(name),
+                    _settings.Read().CardsStoppedByOwner))
             {
                 System.Windows.Input.CommandManager.InvalidateRequerySuggested();
             }
@@ -1542,7 +1598,7 @@ public sealed class ShellViewModel : ObservableObject
         new(card.Key, card.Title, card.ColorHex, card.Lifecycle, card.IsBlocked, card.Workstream.Role,
             StartSelection.IsEligible(card.Workstream, Sessions.Snapshot))
         {
-            IsPaused = card.IsPaused,
+            StopLine = card.StopReason?.Line,
         };
 
     /// <summary>Open spec and Accept spec on the menu bar, for the open project's waiting specs (R16).</summary>
@@ -1775,6 +1831,12 @@ public sealed class ShellViewModel : ObservableObject
             return;
         }
 
+        // Pausing stops a live session, so a card of a running project is asked about as its ■ is (review of PR 2, finding 3).
+        if (!RunCommands.Allowed([.. cards.Where(card => card.IsLive)], "Stop"))
+        {
+            return;
+        }
+
         var steps = StepsFor([.. cards.Where(card => card.IsLive)]);
 
         SetFlagsOn(cards, workstream => workstream with { IsPaused = true });
@@ -1789,6 +1851,11 @@ public sealed class ShellViewModel : ObservableObject
     {
         if (card.IsLive)
         {
+            if (!RunCommands.Allowed([card], "Stop"))
+            {
+                return;
+            }
+
             SetFlags(card, card.Workstream with { IsPaused = true });
             BeginStop(CardSteps(card));
 
@@ -2211,6 +2278,7 @@ public sealed class ShellViewModel : ObservableObject
         _refreshRuns = runs;
         var preferred = _settings.Read().DefaultStartMode;
         var lastStage = Board.Stages.LastOrDefault();
+        var reasons = _settings.Read();
 
         foreach (var card in Board.Cards)
         {
@@ -2224,6 +2292,8 @@ public sealed class ShellViewModel : ObservableObject
             card.LastExitedUtc = state.LastExitedUtc;
             card.LastStartedUtc = state.LastStartedUtc;
             card.IsInLastStage = lastStage is not null && string.Equals(card.Column, lastStage, StringComparison.OrdinalIgnoreCase);
+            card.StopReason = CardStopReasons.For(card, reasons.ProjectRunStates, ProjectTitle, reasons.CardsStoppedByOwner,
+                Chains?.AllLinks ?? []);
             card.LastRunCrashed = !live && (state.Lifecycle == SessionLifecycle.Ghost
                                             || runs.Where(run => string.Equals(run.WorkstreamKey, card.Key, StringComparison.OrdinalIgnoreCase))
                                                 .MaxBy(run => run.StartedUtc)?.ExitReason == SessionExitReason.CrashedOrKilled);
@@ -2244,12 +2314,10 @@ public sealed class ShellViewModel : ObservableObject
             // The card's menu acts on the whole selection when the card is part of it, as a
             // right-click does in Explorer (Nigel, 2026-10-30); otherwise on this card alone.
             card.ResumeCommand ??= new RelayCommand(
-                _ => StartMany([.. Targets(card).Where(CanStartCard).Select(target => target.Workstream)],
-                    startMode: StartMode.Resume, trigger: "ResumeCard"),
+                _ => StartChosen(card, StartMode.Resume, "ResumeCard"),
                 _ => Targets(card).Any(target => CanStartCard(target) && target.CanResume));
             card.StartFreshCommand ??= new RelayCommand(
-                _ => StartMany([.. Targets(card).Where(CanStartCard).Select(target => target.Workstream)],
-                    startMode: StartMode.Fresh, trigger: "StartFreshCard"),
+                _ => StartChosen(card, StartMode.Fresh, "StartFreshCard"),
                 _ => Targets(card).Any(CanStartCard));
 
             // The card's menu carries the flags and Spawn follow-on, so a visit to the details is not
@@ -2801,11 +2869,12 @@ public sealed class ShellViewModel : ObservableObject
         && _launcher.CanLaunch
         && StartSelection.IsEligible(card.Workstream, Sessions.Snapshot);
 
+    /// <summary>A card's own ▶ (1.1e AC 10, 12): see <see cref="CardRunCommands.StartCard"/>.</summary>
     private void StartCard(object? parameter)
     {
         if (parameter is WorkstreamCardViewModel card)
         {
-            StartMany([card.Workstream]);
+            RunCommands.StartCard(card);
         }
     }
 
@@ -2956,7 +3025,7 @@ public sealed class ShellViewModel : ObservableObject
             }
 
             Remember(workstream, sessionId);
-            StartedMarks.Clear(Board, candidate);
+            RunCommands.Started(workstream.Key);
             started.Add(workstream.Title);
         }
 

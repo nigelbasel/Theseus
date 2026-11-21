@@ -467,7 +467,7 @@
                     <ContextMenu FontFamily="{x:Static SystemFonts.MessageFontFamily}">
                         <MenuItem Header="_Open" FontWeight="SemiBold" Command="{Binding OpenCommand}"
                                   ToolTip="{Binding OpenToolTip}" />
-                        <MenuItem Header="_Start…" Command="{Binding StartCommand}" ToolTip="{Binding StartToolTip}"
+                        <MenuItem Header="_Start" Command="{Binding StartCommand}" ToolTip="{Binding StartToolTip}"
                                   ToolTipService.ShowOnDisabled="True"
                                   Visibility="{Binding ShowsRunButtons, Converter={StaticResource BoolToVisibility}}">
                             <MenuItem.Icon><TextBlock Text="&#xE768;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
@@ -525,6 +525,11 @@
                                    TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTip="{Binding Sentence}"
                                    Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                                    Visibility="{Binding HasSentence, Converter={StaticResource BoolToVisibility}}" />
+                        <!-- A stopped project keeps its run state and says so (1.1e AC 8). -->
+                        <TextBlock x:Name="ProjectStopped" Text="⏸ Project stopped" FontSize="12" Margin="0,4,0,0"
+                                   ToolTip="Start brings back the cards that were running when it was stopped"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                   Visibility="{Binding IsStopped, Converter={StaticResource BoolToVisibility}}" />
                         <ItemsControl x:Name="ProjectCounts" ItemsSource="{Binding Counts}" Margin="0,6,0,0" Focusable="False"
                                       Visibility="{Binding HasSentence, Converter={StaticResource BoolToVisibility}}">
                             <ItemsControl.ItemsPanel>
@@ -587,6 +592,10 @@
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding IsCollapsed}" Value="True">
                                 <Setter Property="MinHeight" Value="0" />
+                            </DataTrigger>
+                            <!-- A done card is muted as a pinned project card is, and stays where it was put (1.1e AC 12). -->
+                            <DataTrigger Binding="{Binding IsDone}" Value="True">
+                                <Setter Property="Opacity" Value="0.55" />
                             </DataTrigger>
                             <DataTrigger Binding="{Binding IsLive}" Value="True">
                                 <Setter Property="Background"
@@ -909,7 +918,7 @@
                                    Text="{Binding Resources}"
                                    Visibility="{Binding Resources, Converter={StaticResource NotEmptyToVisibility}}" />
 
-                        <TextBlock FontSize="12"
+                        <TextBlock FontSize="12" TextTrimming="CharacterEllipsis" ToolTip="{Binding StatusLine}"
                                    Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                    Text="{Binding StatusLine}" />
 
@@ -1259,6 +1268,7 @@
                                TextTrimming="CharacterEllipsis"
                                Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                     <TextBlock Text="{Binding StatusLine}" FontSize="11" Margin="0,2,0,0"
+                               TextTrimming="CharacterEllipsis" ToolTip="{Binding StatusLine}"
                                Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
 
                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
@@ -1394,7 +1404,7 @@
 
             <MenuItem Header="_Workstream">
                 <MenuItem Header="_Start selected" Command="{Binding StartSelectedCommand}"
-                          ToolTip="Start the ticked cards that are not already running; a ticked project asks first, listing its cards">
+                          ToolTip="Start the ticked cards that are not already running; a ticked project starts as it was when stopped, or its first card">
                     <MenuItem.Icon><TextBlock Text="&#xE768;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
                 </MenuItem>
                 <MenuItem Header="St_op selected" Command="{Binding StopSelectedCommand}"

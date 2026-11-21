@@ -5,13 +5,17 @@ using static Theseus.Tests.Projects.ProjectViewFixtures;
 namespace Theseus.Tests.Projects;
 
 /// <summary>
-/// Starting and stopping a whole project (1.1d AC 43; Nigel's answer to question 4, 2026-11-21): Start lists each of its
-/// cards, ticked when it can start, paused ones unticked, running, blocked, done and waiting ones greyed with the reason
-/// and never ticked; with nothing to start it says why. Stop asks each card with a session open.
+/// What a project's Start starts (1.1e AC 9): a stopped project, exactly its run state, skipping and naming the cards that
+/// cannot start now; a project never stopped, the card of its first piece of work not done, else of its first row. Stop
+/// asks each card with a session open.
 /// </summary>
 [TestFixture]
 public class ProjectStartTests
 {
+    private const string Host = "bym-mcp-w4-mcp-host-and-staff-plugin";
+    private const string Config = "bym-mcp-w2-config-p5-refusal";
+    private const string Infra = "bym-mcp-w5-infra-hygiene-scripts-and-pipelines";
+
     private TestProjectsFolder _folder = null!;
 
     [SetUp]
@@ -23,73 +27,72 @@ public class ProjectStartTests
     private IReadOnlyList<PieceOfWork> BuildYourMarketWith(Func<PieceCard, PieceCard> change) =>
         BuildYourMarketPieces(_folder, [.. BuildYourMarketBoard().Select(change)]);
 
-    private static PieceCard Shaped(PieceCard card) => card.Key switch
-    {
-        "bym-mcp-w4-mcp-host-and-staff-plugin" => card with { Lifecycle = SessionLifecycle.Running },
-        "bym-mcp-w5-infra-hygiene-scripts-and-pipelines" => card with { IsBlocked = true },
-        "bym-mcp-w2-config-p5-refusal" => card with { IsPaused = true },
-        _ => card,
-    };
-
     [Test]
-    public void Start_ListsEveryCard_TickedWhenItCanStart_PausedUnticked_RunningBlockedAndDoneGreyedWithTheReason()
+    public void AStoppedProject_StartsExactlyItsRunState()
     {
-        var start = ProjectStart.For("BuildYourMarket MCP server", BuildYourMarketWith(Shaped));
+        var start = ProjectStart.For("BuildYourMarket MCP server", BuildYourMarketWith(card => card), [Host, Config]);
 
-        Assert.That(start.Entries.Select(entry => (entry.Line, entry.CanStart, entry.IsTicked)), Is.EqualTo(new[]
-        {
-            ($"{ServerSpec}: is done", false, false),
-            ("bym-mcp-w0-preconditions-inventory", true, true),
-            ("bym-mcp-w1-identityserver-resources-and-staff-client", true, true),
-            ("bym-mcp-w2-config-p5-refusal: is paused", true, false),
-            ("bym-mcp-w3-build-read-api", true, true),
-            ("bym-mcp-w4-mcp-host-and-staff-plugin: is running", false, false),
-            ("bym-mcp-w5-infra-hygiene-scripts-and-pipelines: is blocked", false, false),
-            (RedirectAnchoring, true, true),
-            (ClientFixes, true, true),
-        }), "linked cards no project file lists come after the listed ones, in link order (PR 1 AC 13)");
-        Assert.That((start.CanStart, start.ToolTip), Is.EqualTo((true, "Start BuildYourMarket MCP server: asks first, listing its cards")));
+        Assert.That(start.Keys, Is.EqualTo(new[] { Host, Config }));
+        Assert.That((start.IsStopped, start.CanStart, start.Skipped), Is.EqualTo((true, true, Array.Empty<string>())));
+        Assert.That(start.ToolTip, Does.StartWith("Start BuildYourMarket MCP server as it was when stopped: "));
     }
 
     [Test]
-    public void WithNothingToStart_StartIsDisabled_SayingWhyForEachCard()
+    public void ACardInTheRunState_ThatCannotStartNow_IsSkippedAndNamed()
     {
-        var start = ProjectStart.For("Theseus bootstrap", TheseusPieces(_folder, SessionLifecycle.Running));
+        var pieces = BuildYourMarketWith(card => card.Key switch
+        {
+            Host => card with { Lifecycle = SessionLifecycle.Running },
+            Infra => card with { CanStart = false },
+            _ => card,
+        });
+
+        var start = ProjectStart.For("BuildYourMarket MCP server", pieces, [Host, Infra, "gone-card", Config]);
+
+        Assert.That(start.Keys, Is.EqualTo(new[] { Config }));
+        Assert.That(start.Skipped, Has.Count.EqualTo(3));
+        Assert.That(start.Skipped, Has.Some.EndsWith("is already running"));
+        Assert.That(start.Skipped, Has.Some.EndsWith("cannot be started from the board"));
+        Assert.That(start.Skipped, Has.Some.EqualTo("gone-card is no longer on the board"));
+    }
+
+    [Test]
+    public void AProjectNeverStopped_StartsTheCardOfItsFirstPieceNotDone()
+    {
+        var pieces = BuildYourMarketWith(card => card);
+        var expected = pieces.First(piece => piece.IsListed && piece.Card is not null && piece.Status.State != StageNodeState.Done);
+
+        var start = ProjectStart.For("BuildYourMarket MCP server", pieces);
+
+        Assert.That((start.IsStopped, start.Keys), Is.EqualTo((false, new[] { expected.CardKey })));
+    }
+
+    [Test]
+    public void AProjectWithEveryPieceDone_StartsItsFirstRowsCard()
+    {
+        var done = OnePiece(_folder, "freeform", objectiveDone: true);
+
+        Assert.That(ProjectStart.For("One", [done]).Keys, Is.EqualTo(new[] { ACard }));
+    }
+
+    [Test]
+    public void AProjectNeverStopped_DoesNotStartACardTheOwnerStopped_AndSaysWhy()
+    {
+        var pieces = TheseusPieces(_folder, SessionLifecycle.Ended);
+
+        var start = ProjectStart.For("Theseus bootstrap", pieces, null, [Git22]);
 
         Assert.That(start.CanStart, Is.False);
-        Assert.That(start.ToolTip, Is.EqualTo("No card of Theseus bootstrap can start: git-22 is running"));
+        Assert.That(start.ToolTip, Is.EqualTo("No card of Theseus bootstrap can start: git-22 was stopped by you"));
     }
 
     [Test]
-    public void ACardWhoseCurrentPieceWaitsOnYou_IsGreyed_AndACardThatAsks_SaysSo()
+    public void AProjectWhoseFirstCardRuns_CannotStart_AndStopAsksIt()
     {
-        Assert.That(ProjectStart.For("Theseus bootstrap", TheseusPieces(_folder, SessionLifecycle.NotStarted)).Entries.Single().Line,
-            Is.EqualTo("git-22: is waiting on you"), "its current piece's spec waits to be accepted");
-        Assert.That(ProjectStart.For("Theseus bootstrap", TheseusPieces(_folder, SessionLifecycle.NeedsAttention)).Entries.Single().Line,
-            Is.EqualTo("git-22: is waiting for your answer"));
-    }
+        var pieces = TheseusPieces(_folder, SessionLifecycle.Running);
 
-    [Test]
-    public void ACardThatStartWouldRefuse_IsGreyed_EvenWithNoSession()
-    {
-        var start = ProjectStart.For("BuildYourMarket MCP server",
-            BuildYourMarketWith(card => card.Key == ClientFixes ? card with { CanStart = false } : card));
-
-        Assert.That(start.Entries.Single(entry => entry.Key == ClientFixes).Line, Is.EqualTo($"{ClientFixes}: cannot be started from the board"));
-    }
-
-    [Test]
-    public void Stop_AsksEachCardWithASessionOpen_AndWithNoneIsDisabledSayingWhy()
-    {
-        var stop = ProjectStop.For("BuildYourMarket MCP server", BuildYourMarketWith(card =>
-            card.Key is "bym-mcp-w4-mcp-host-and-staff-plugin" or ClientFixes ? card with { Lifecycle = SessionLifecycle.Idle } : card));
-
-        Assert.That(stop.Keys, Is.EqualTo(new[] { "bym-mcp-w4-mcp-host-and-staff-plugin", ClientFixes }));
-        Assert.That(stop.ToolTip, Is.EqualTo(
-            $"Stop BuildYourMarket MCP server: ask bym-mcp-w4-mcp-host-and-staff-plugin, {ClientFixes} to write a handover and exit"));
-
-        var none = ProjectStop.For("Theseus bootstrap", TheseusPieces(_folder, SessionLifecycle.Ended));
-
-        Assert.That((none.CanStop, none.ToolTip), Is.EqualTo((false, "No card of Theseus bootstrap is running")));
+        Assert.That(ProjectStart.For("Theseus bootstrap", pieces).ToolTip,
+            Is.EqualTo("No card of Theseus bootstrap can start: git-22 is already running"));
+        Assert.That(ProjectStop.For("Theseus bootstrap", pieces).Keys, Is.EqualTo(new[] { Git22 }));
     }
 }

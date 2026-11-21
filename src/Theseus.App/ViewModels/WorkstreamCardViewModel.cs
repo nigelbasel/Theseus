@@ -8,6 +8,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
 {
     private Workstream _workstream;
     private SessionLifecycle _lifecycle = SessionLifecycle.NotStarted;
+    private Theseus.Core.Projects.WhyStopped? _stopReason;
     private DateTimeOffset? _lastExitedUtc;
     private DateTimeOffset? _lastStartedUtc;
     private string _todoSummary = string.Empty;
@@ -530,7 +531,9 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
             SessionLifecycle.NeedsAttention => "stopping — answer it first",
             _ => "stopping when this turn ends — press Stop again to cut in",
         }
-        : Lifecycle switch
+        : StopReason is { } reason && !IsLive
+            ? reason.Line
+            : Lifecycle switch
         {
         SessionLifecycle.NotStarted => CardLifecycle.NotStartedLine(LastExitedUtc, LastStartedUtc, DateTimeOffset.UtcNow),
         SessionLifecycle.Launching => "launching",
@@ -594,9 +597,36 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
     }
 
     /// <summary>The play button's tooltip: what it does, and what resuming would cost.</summary>
-    public string PlayTooltip => string.IsNullOrWhiteSpace(RestartCost)
-        ? $"{PrimaryAction} this workstream's session"
-        : $"{PrimaryAction} this workstream's session. {RestartCost}";
+    public string PlayTooltip => StopReason?.Kind switch
+    {
+        Theseus.Core.Projects.WhyStoppedKind.Done when !IsLive => "Restart for more work: asks what the more work is",
+        Theseus.Core.Projects.WhyStoppedKind.ProjectStopped when !IsLive => "Start its project as it was when stopped",
+        _ => string.IsNullOrWhiteSpace(RestartCost)
+            ? $"{PrimaryAction} this workstream's session"
+            : $"{PrimaryAction} this workstream's session. {RestartCost}",
+    };
+
+    /// <summary>
+    /// Why it is stopped, when that is more than its own line says (1.1e AC 12): done, its project stopped, or stopped by
+    /// the owner while its project ran. Set by the shell with the lifecycles; null while it runs.
+    /// </summary>
+    public Theseus.Core.Projects.WhyStopped? StopReason
+    {
+        get => _stopReason;
+        set
+        {
+            if (Set(ref _stopReason, value))
+            {
+                Raise(nameof(StatusLine));
+                Raise(nameof(PrimaryAction));
+                Raise(nameof(PlayTooltip));
+                Raise(nameof(IsDone));
+            }
+        }
+    }
+
+    /// <summary>Whether it is done: its face is muted, as a pinned project's is, and it stays where the owner put it.</summary>
+    public bool IsDone => _stopReason?.Kind == Theseus.Core.Projects.WhyStoppedKind.Done;
 
     /// <summary>The pause button's tooltip, which depends on whether a session is running.</summary>
     public string PauseTooltip => IsLive
@@ -698,7 +728,14 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
     }
 
     /// <summary>The single button the card offers on hover.</summary>
-    public string PrimaryAction => Lifecycle switch
+    public string PrimaryAction => IsLive ? "Focus" : StopReason?.Kind switch
+    {
+        Theseus.Core.Projects.WhyStoppedKind.Done => "Restart for more work",
+        Theseus.Core.Projects.WhyStoppedKind.ProjectStopped => "Start its project",
+        _ => DefaultAction,
+    };
+
+    private string DefaultAction => Lifecycle switch
     {
         SessionLifecycle.NotStarted => "Start",
         SessionLifecycle.Ended or SessionLifecycle.Ghost => "Restart",

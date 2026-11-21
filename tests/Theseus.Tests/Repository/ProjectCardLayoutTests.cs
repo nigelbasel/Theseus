@@ -106,7 +106,7 @@ public class ProjectCardLayoutTests
 
         Assert.That(Named<StackPanel>(face, "ProjectButtons").Visibility, Is.EqualTo(Visibility.Visible));
         Assert.That((start.ToolTip, stop.ToolTip), Is.EqualTo(((object)card.StartToolTip, (object)card.StopToolTip)));
-        Assert.That(start.ToolTip, Is.EqualTo("No card of Theseus bootstrap can start: git-22 is running"));
+        Assert.That(start.ToolTip, Is.EqualTo("No card of Theseus bootstrap can start: git-22 is already running"));
     }
 
     [Test]

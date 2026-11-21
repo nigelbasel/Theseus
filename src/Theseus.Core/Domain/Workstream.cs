@@ -70,4 +70,10 @@ public sealed record Workstream(
 
     /// <summary>Its current slug in that project: the last row naming it (1.1c AC 2).</summary>
     public string? Slug { get; init; }
+
+    /// <summary>
+    /// An instruction for this one start only, such as Restart for more work's (1.1e AC 12, 15): the session's opening
+    /// prompt ends with it, after the standing and every-start prompts. Never stored, so a later start does not repeat it.
+    /// </summary>
+    public string? StartInstruction { get; init; }
 }
