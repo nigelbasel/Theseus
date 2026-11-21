@@ -8,14 +8,18 @@ namespace Theseus.App.ViewModels;
 
 /// <summary>
 /// The whole-screen view of one project (1.1d AC 15 to 37; Nigel accepted the mockup, 2026-11-20): where the project is
-/// in one sentence and six counts, then its pieces of work as a tree of boxes that runs down the page, beside a
-/// Properties pane. Every state it shows comes from the model in <c>Theseus.Core.Projects</c>; the view model only
-/// lays it out, remembers what is folded and what is selected, and runs the shell's commands.
+/// in one sentence and six counts, then its pieces of work as a tree of boxes that runs down the page, or under their
+/// phases and objectives (AC 45 to 51), beside a Properties pane that steps aside in a narrow window (AC 52 to 54).
+/// Every state it shows comes from the model in <c>Theseus.Core.Projects</c>; the view model only lays it out,
+/// remembers what is folded and what is selected, and runs the shell's commands.
 /// </summary>
 public sealed class ProjectViewModel : ObservableObject
 {
     /// <summary>Accept spec's tooltip, on the box and in Properties.</summary>
     internal const string AcceptSpecToolTip = "Pass this gate: asks first, naming the piece of work and the commit";
+
+    /// <summary>What the status bar says once when the window becomes too narrow for the pane beside the flow (AC 52).</summary>
+    public const string PaneHiddenNotice = "Properties hidden: the window is too narrow";
 
     private static readonly StageAction[] BoxActionOrder =
     [
@@ -32,6 +36,10 @@ public sealed class ProjectViewModel : ObservableObject
     private IReadOnlyList<string> _folds;
     private object? _selection;
     private PropertiesViewModel _properties = PropertiesViewModel.Empty;
+    private ProjectViewGrouping _grouping;
+    private bool _isPaneDocked = true;
+    private bool _isOverlayOpen;
+    private IReadOnlyList<ThenWorkedOnLink> _thenWorkedOn = [];
 
     private ProjectViewModel(ProjectFile file, ProjectSummary summary, ISettingsStore settings, ProjectViewActions actions,
         ProjectViewEdits? edits)
@@ -46,11 +54,13 @@ public sealed class ProjectViewModel : ObservableObject
         var stored = settings.Read();
         _folds = stored.ViewFolds.GetValueOrDefault(PieceFolds.KeyFor(file.Name)) ?? [];
         PaneWidth = stored.PaneSizes.TryGetValue(ProjectPaneWidth.SettingsKey, out var width) ? width : ProjectPaneWidth.Default;
+        _grouping = stored.ProjectGrouping.GetValueOrDefault(file.Name);
 
         CollapseAllCommand = new RelayCommand(_ => SetAll(false));
         ExpandAllCommand = new RelayCommand(_ => SetAll(true));
         OpenWhatNeedsAttentionCommand = new RelayCommand(_ => OpenWhatNeedsAttention());
-        ClearSelectionCommand = new RelayCommand(_ => Select(null), _ => _selection is not null);
+        ClearSelectionCommand = new RelayCommand(_ => Escape(), _ => _selection is not null);
+        CloseOverlayCommand = new RelayCommand(_ => SetOverlay(false), _ => _isOverlayOpen);
     }
 
     /// <summary>The project's name.</summary>
@@ -102,7 +112,57 @@ public sealed class ProjectViewModel : ObservableObject
     /// <summary>The specs waiting on the owner, for the menu bar's Open spec and Accept spec (R16).</summary>
     public IReadOnlyList<SpecAtGate> WaitingSpecs { get; private set; } = [];
 
-    /// <summary>What is selected: a <see cref="PieceNodeViewModel"/>, a <see cref="StageNodeViewModel"/>, or null.</summary>
+    /// <summary>How the boxes are grouped: the Flow of hand-overs, or under phases and objectives (AC 45).</summary>
+    public ProjectViewGrouping Grouping => _grouping;
+
+    /// <summary>Group by: Flow, on the toolbar and the View menu; unticking the chosen grouping keeps it.</summary>
+    public bool IsGroupedByFlow
+    {
+        get => _grouping == ProjectViewGrouping.Flow;
+        set => Choose(value, ProjectViewGrouping.Flow);
+    }
+
+    /// <summary>Group by: Objectives.</summary>
+    public bool IsGroupedByObjectives
+    {
+        get => _grouping == ProjectViewGrouping.Objectives;
+        set => Choose(value, ProjectViewGrouping.Objectives);
+    }
+
+    /// <summary>The roots the Flow draws: none while grouped by objectives, so no box is laid out twice.</summary>
+    public IReadOnlyList<PieceNodeViewModel> FlowRoots => IsGroupedByFlow ? Roots : [];
+
+    /// <summary>Every phase of project.md as a heading, in file order, each with its objectives (AC 46).</summary>
+    public IReadOnlyList<PhaseHeadingViewModel> Phases { get; private set; } = [];
+
+    /// <summary>The heading of the pieces no project file lists, after the phases: one, or none.</summary>
+    public IReadOnlyList<ObjectiveHeadingViewModel> Unlisted { get; private set; } = [];
+
+    /// <summary>The phases shown: none while grouped by the Flow.</summary>
+    public IReadOnlyList<PhaseHeadingViewModel> ShownPhases => IsGroupedByObjectives ? Phases : [];
+
+    /// <summary>The heading of unlisted pieces shown: none while grouped by the Flow.</summary>
+    public IReadOnlyList<ObjectiveHeadingViewModel> ShownUnlisted => IsGroupedByObjectives ? Unlisted : [];
+
+    /// <summary>Every objective heading, phase by phase, then the heading of unlisted pieces.</summary>
+    public IEnumerable<ObjectiveHeadingViewModel> AllObjectives => Phases.SelectMany(phase => phase.Objectives).Concat(Unlisted);
+
+    /// <summary>
+    /// Whether the Properties pane is docked beside the flow; not while the view is narrower than both their minimums
+    /// and the splitter (AC 52).
+    /// </summary>
+    public bool IsPaneDocked => _isPaneDocked;
+
+    /// <summary>Whether Properties shows as an overlay on the right, over the flow, while the pane is not docked (AC 53).</summary>
+    public bool IsOverlayOpen => _isOverlayOpen;
+
+    /// <summary>The overlay's ×: closes it and leaves the selection.</summary>
+    public ICommand CloseOverlayCommand { get; }
+
+    /// <summary>
+    /// What is selected: a <see cref="PieceNodeViewModel"/>, a <see cref="StageNodeViewModel"/>, a
+    /// <see cref="PhaseHeadingViewModel"/>, an <see cref="ObjectiveHeadingViewModel"/>, or null.
+    /// </summary>
     public object? Selection => _selection;
 
     /// <summary>What the Properties pane shows.</summary>
@@ -124,7 +184,7 @@ public sealed class ProjectViewModel : ObservableObject
     /// <summary>Opens the boxes that are busy, waiting on you, stuck or waiting for their holdouts, and folds the rest.</summary>
     public ICommand OpenWhatNeedsAttentionCommand { get; }
 
-    /// <summary>Esc: nothing selected (AC 16, 32).</summary>
+    /// <summary>Esc: closes the Properties overlay when it is open, leaving the selection (AC 53); otherwise nothing selected (AC 16, 32).</summary>
     public ICommand ClearSelectionCommand { get; }
 
     /// <summary>Back to the board: ← Board, Alt+Left and View › Back to the board (AC 16).</summary>
@@ -159,13 +219,14 @@ public sealed class ProjectViewModel : ObservableObject
 
         var file = reading.File ?? throw new ArgumentException("Only a readable project has a view.", nameof(reading));
         var tree = PieceTree.Build(pieces, links);
+        var marks = ObjectiveGrouping.Marks(tree);
         var view = new ProjectViewModel(file, ProjectSummary.For(pieces), settings, actions, edits) { BackCommand = back };
         var specs = SpecsOf(reading, file.Name, pieces);
         var parents = tree.All.SelectMany(node => node.Children.Select(child => (Child: child.Piece, Parent: node.Piece)))
             .ToDictionary(pair => pair.Child, pair => pair.Parent);
 
         PieceNodeViewModel Node(PieceNode node) => view.NodeFor(node, [.. node.Children.Select(Node)], reading, file, links,
-            tree, parents, specs.GetValueOrDefault(node.Piece.Name));
+            tree, parents, specs.GetValueOrDefault(node.Piece.Name), marks.GetValueOrDefault(node.Piece) ?? []);
 
         view.Roots = [.. tree.Roots.Select(Node)];
         view.Tabs = tabs;
@@ -179,11 +240,18 @@ public sealed class ProjectViewModel : ObservableObject
             .. tree.ThenWorkedOn.Select(link => new ConnectorLink(byPiece[link.From], byPiece[link.To], ConnectorKind.ThenWorkedOn)),
         ];
         view.Waiting = [.. pieces.Select(piece => view.WaitingButton(byPiece[piece])).OfType<WaitingButtonViewModel>()];
-        view.Signature = SignatureOf(view, tree);
+        view.Phases = [.. ObjectiveGrouping.Phases(file, pieces).Select(group => view.PhaseFor(group, byPiece, edits))];
+        view.Unlisted = ObjectiveGrouping.Unlisted(pieces) is { } unlisted ? [view.ObjectiveFor(unlisted, null, byPiece, edits)] : [];
+        view._thenWorkedOn = tree.ThenWorkedOn;
+        view.Signature = view.SignatureOf();
+
+        // The window is as wide as it was, so a rebuild keeps the pane docked or not, and says nothing again.
+        view._isPaneDocked = previous?._isPaneDocked ?? true;
 
         if (previous is not null && string.Equals(previous.Name, view.Name, StringComparison.OrdinalIgnoreCase))
         {
             view.Select(view.Find(previous._selection));
+            view.SetOverlay(previous._isOverlayOpen && view._selection is not null);
         }
 
         return view;
@@ -203,20 +271,30 @@ public sealed class ProjectViewModel : ObservableObject
         return [.. pieces.Select(piece => specs.GetValueOrDefault(piece.Name)).OfType<SpecAtGate>()];
     }
 
-    /// <summary>Selects a box, a stage, or nothing, and shows it in Properties (AC 32).</summary>
+    /// <summary>
+    /// Selects a box, a stage, a heading, or nothing, and shows it in Properties (AC 32, 49); while the pane is not
+    /// docked, selecting something opens Properties as an overlay (AC 53).
+    /// </summary>
     public void Select(object? item)
     {
-        if (_selection is PieceNodeViewModel oldPiece)
+        switch (_selection)
         {
-            oldPiece.IsSelected = false;
-        }
-        else if (_selection is StageNodeViewModel oldStage)
-        {
-            oldStage.IsSelected = false;
-            oldStage.Piece.IsSelected = false;
+            case PieceNodeViewModel oldPiece:
+                oldPiece.IsSelected = false;
+                break;
+            case StageNodeViewModel oldStage:
+                oldStage.IsSelected = false;
+                oldStage.Piece.IsSelected = false;
+                break;
+            case PhaseHeadingViewModel oldPhase:
+                oldPhase.IsSelected = false;
+                break;
+            case ObjectiveHeadingViewModel oldObjective:
+                oldObjective.IsSelected = false;
+                break;
         }
 
-        _selection = item is PieceNodeViewModel or StageNodeViewModel ? item : null;
+        _selection = item is PieceNodeViewModel or StageNodeViewModel or PhaseHeadingViewModel or ObjectiveHeadingViewModel ? item : null;
 
         switch (_selection)
         {
@@ -229,13 +307,47 @@ public sealed class ProjectViewModel : ObservableObject
                 stage.Piece.IsSelected = true;
                 Properties = PropertiesViewModel.ForStage(stage, _actions, _edits);
                 break;
+            case PhaseHeadingViewModel phase:
+                phase.IsSelected = true;
+                Properties = PropertiesViewModel.ForPhase(phase);
+                break;
+            case ObjectiveHeadingViewModel objective:
+                objective.IsSelected = true;
+                Properties = PropertiesViewModel.ForObjective(objective);
+                break;
             default:
                 Properties = PropertiesViewModel.Empty;
                 break;
         }
 
+        SetOverlay(_selection is not null && !_isPaneDocked);
         Raise(nameof(Selection));
         CommandManager.InvalidateRequerySuggested();
+    }
+
+    /// <summary>
+    /// Whether the view is wide enough for the pane beside the flow, as the view finds on each resize (AC 52, 53). On
+    /// the change to too narrow the status bar says so once; on the change back the overlay closes and the pane docks.
+    /// </summary>
+    public void PaneFits(bool fits)
+    {
+        if (fits == _isPaneDocked)
+        {
+            return;
+        }
+
+        _isPaneDocked = fits;
+
+        if (fits)
+        {
+            SetOverlay(false);
+        }
+        else
+        {
+            _actions.Notice?.Invoke(PaneHiddenNotice);
+        }
+
+        Raise(nameof(IsPaneDocked));
     }
 
     /// <summary>Folds or opens one box, and remembers it (AC 33).</summary>
@@ -243,8 +355,7 @@ public sealed class ProjectViewModel : ObservableObject
     {
         ArgumentNullException.ThrowIfNull(node);
 
-        node.IsOpen = !node.IsOpen;
-        RememberFolds(PieceFolds.With(_folds, node.Name, node.IsOpen));
+        ToggleFold(node);
     }
 
     /// <summary>Saves the pane's width as the splitter left it, kept within its bounds by the view (AC 35).</summary>
@@ -273,7 +384,8 @@ public sealed class ProjectViewModel : ObservableObject
             : new PieceActionViewModel("Open records", () => { }, false, "No records folder in the project yet");
 
     private PieceNodeViewModel NodeFor(PieceNode node, IReadOnlyList<PieceNodeViewModel> children, ProjectFileReading reading,
-        ProjectFile file, LinkStatus links, PieceTree tree, IReadOnlyDictionary<PieceOfWork, PieceOfWork> parents, SpecAtGate? spec)
+        ProjectFile file, LinkStatus links, PieceTree tree, IReadOnlyDictionary<PieceOfWork, PieceOfWork> parents, SpecAtGate? spec,
+        IReadOnlyList<string> crossMarks)
     {
         var piece = node.Piece;
         var stages = piece.Stages
@@ -297,8 +409,26 @@ public sealed class ProjectViewModel : ObservableObject
                 ? file.Objectives.FirstOrDefault(objective => objective.Number == number)
                 : null,
             Spec = spec,
+            CrossMarks = crossMarks,
         };
     }
+
+    // Headings start open and a done phase folded (AC 46); after that, as the owner left them (AC 50).
+    private PhaseHeadingViewModel PhaseFor(PhaseGroup group, IReadOnlyDictionary<PieceOfWork, PieceNodeViewModel> byPiece,
+        ProjectViewEdits? edits)
+    {
+        var title = $"Phase {group.Phase.Number.ToString(CultureInfo.InvariantCulture)}: {group.Phase.Name}";
+        var objectives = group.Objectives.Select(objective => ObjectiveFor(objective, title, byPiece, edits)).ToList();
+
+        return new PhaseHeadingViewModel(group, objectives,
+            PieceFolds.IsOpen(_folds, PieceFolds.PhaseEntry(group.Phase.Name), !group.IsDone), ToggleFold, Select, edits);
+    }
+
+    private ObjectiveHeadingViewModel ObjectiveFor(ObjectiveGroup group, string? phaseTitle,
+        IReadOnlyDictionary<PieceOfWork, PieceNodeViewModel> byPiece, ProjectViewEdits? edits) =>
+        new(group, phaseTitle, [.. group.Pieces.Select(piece => byPiece[piece])],
+            PieceFolds.IsOpen(_folds, group.Objective is { } objective ? PieceFolds.ObjectiveEntry(objective.Title) : PieceFolds.UnlistedEntry,
+                true), ToggleFold, Select, edits);
 
     private PieceActionViewModel Action(StageActionOffer offer, PieceOfWork piece, StageNode stage, SpecAtGate? spec)
     {
@@ -365,16 +495,28 @@ public sealed class ProjectViewModel : ObservableObject
         Select(stage);
     }
 
+    private IEnumerable<IFoldable> Headings => Phases.Cast<IFoldable>().Concat(AllObjectives);
+
+    private void ToggleFold(IFoldable fold)
+    {
+        fold.IsOpen = !fold.IsOpen;
+        RememberFolds(PieceFolds.With(_folds, fold.FoldName, fold.IsOpen));
+    }
+
+    // Headings and boxes together, in either grouping, through the one * entry (AC 21, 48).
     private void SetAll(bool open)
     {
-        foreach (var node in AllNodes)
+        foreach (var fold in AllNodes.Cast<IFoldable>().Concat(Headings))
         {
-            node.IsOpen = open;
+            fold.IsOpen = open;
         }
 
         RememberFolds(PieceFolds.All(open));
     }
 
+    // Grouped by objectives, a heading opens when a box under it does (AC 48). The Flow shows no headings, so there each
+    // keeps its state: an entry for each heading not as it starts, since the * they may have followed is dropped (PR 4
+    // review, finding 2).
     private void OpenWhatNeedsAttention()
     {
         foreach (var node in AllNodes)
@@ -382,7 +524,76 @@ public sealed class ProjectViewModel : ObservableObject
             node.IsOpen = NeedsAttention.Contains(node.State);
         }
 
-        RememberFolds(PieceFolds.Each(AllNodes.Select(node => (node.Name, node.IsOpen))));
+        if (!IsGroupedByObjectives)
+        {
+            var headings = Headings.Where(heading => heading.IsOpen != heading.StartsOpen).Select(heading => (heading.FoldName, heading.IsOpen));
+
+            RememberFolds(PieceFolds.Each(AllNodes.Select(node => (node.Name, node.IsOpen)).Concat(headings)));
+
+            return;
+        }
+
+        foreach (var objective in AllObjectives)
+        {
+            objective.IsOpen = objective.Pieces.Any(piece => piece.IsOpen);
+        }
+
+        foreach (var phase in Phases)
+        {
+            phase.IsOpen = phase.Objectives.Any(objective => objective.IsOpen);
+        }
+
+        RememberFolds(PieceFolds.Each(AllNodes.Cast<IFoldable>().Concat(Headings).Select(fold => (fold.FoldName, fold.IsOpen))));
+    }
+
+    private void Choose(bool chosen, ProjectViewGrouping grouping)
+    {
+        if (chosen && grouping != _grouping)
+        {
+            _grouping = grouping;
+
+            var settings = _settings.Read();
+            var groupings = new Dictionary<string, ProjectViewGrouping>(settings.ProjectGrouping) { [Name] = grouping };
+
+            _settings.Write(settings with { ProjectGrouping = groupings });
+            Signature = SignatureOf();
+
+            // A heading is not drawn in the Flow, so Properties would show something no longer on screen (finding 4).
+            if (grouping == ProjectViewGrouping.Flow && _selection is PhaseHeadingViewModel or ObjectiveHeadingViewModel)
+            {
+                Select(null);
+            }
+        }
+
+        // Unticking the chosen grouping is not a choice of the other, so both are raised and it stays ticked.
+        Raise(nameof(Grouping));
+        Raise(nameof(IsGroupedByFlow));
+        Raise(nameof(IsGroupedByObjectives));
+        Raise(nameof(FlowRoots));
+        Raise(nameof(ShownPhases));
+        Raise(nameof(ShownUnlisted));
+    }
+
+    private void Escape()
+    {
+        if (_isOverlayOpen)
+        {
+            SetOverlay(false);
+        }
+        else
+        {
+            Select(null);
+        }
+    }
+
+    private void SetOverlay(bool open)
+    {
+        if (_isOverlayOpen != open)
+        {
+            _isOverlayOpen = open;
+            Raise(nameof(IsOverlayOpen));
+            CommandManager.InvalidateRequerySuggested();
+        }
     }
 
     private void RememberFolds(IReadOnlyList<string> folds)
@@ -400,6 +611,8 @@ public sealed class ProjectViewModel : ObservableObject
         PieceNodeViewModel piece => AllNodes.FirstOrDefault(node => node.Name == piece.Name),
         StageNodeViewModel stage => AllNodes.FirstOrDefault(node => node.Name == stage.Piece.Name)?.Stages
             .FirstOrDefault(each => each.Name == stage.Name),
+        PhaseHeadingViewModel phase => Phases.FirstOrDefault(each => each.Number == phase.Number),
+        ObjectiveHeadingViewModel objective => AllObjectives.FirstOrDefault(each => each.Number == objective.Number),
         _ => null,
     };
 
@@ -477,13 +690,15 @@ public sealed class ProjectViewModel : ObservableObject
         _ => ": not accepted yet",
     };
 
-    private static string SignatureOf(ProjectViewModel view, PieceTree tree)
+    private string SignatureOf()
     {
+        var view = this;
+
         IEnumerable<string> Lines(PieceNodeViewModel node, int depth) =>
             node.Children.SelectMany(child => Lines(child, depth + 1)).Prepend(string.Join("/",
                 depth.ToString(CultureInfo.InvariantCulture), node.Name, node.Workstream, node.ColourHex, node.KindWord,
                 node.ObjectiveLabel, node.StatusText, node.ReportBackText, node.IsReportLost, node.Piece.RecordsFolder,
-                node.Evidence, node.Spec?.ContentHash,
+                node.Evidence, node.Spec?.ContentHash, string.Join(";", node.CrossMarks),
                 node.Objective is { } objective
                     ? $"{objective.Title}:{string.Join(",", objective.Criteria.Select(each => $"{each.Text}={each.IsTicked}"))}"
                     : string.Empty,
@@ -494,9 +709,16 @@ public sealed class ProjectViewModel : ObservableObject
                     + $"={string.Join(",", (stage.Node as VerifyStageNode)?.Verifiers ?? [])}"
                     + "=" + string.Join(",", stage.MenuItems.Select(item => $"{item.Label}:{item.IsEnabled}:{item.ToolTip}"))))));
 
-        return string.Join("|", new[] { view.Name, view.Title, view.Sentence }
+        string Heading(ObjectiveHeadingViewModel objective) =>
+            string.Join("/", objective.Title, objective.CriteriaText, string.Join(",", objective.Counts.Select(chip => chip.Text)),
+                string.Join(",", objective.Pieces.Select(piece => piece.Name)));
+
+        return string.Join("|", new[] { view.Name, view.Title, view.Sentence, view._grouping.ToString() }
             .Concat(view.Tabs.Select(tab => $"{tab.Name}:{tab.Title}:{tab.IsOpen}:{tab.ColourHex}"))
             .Concat(view.Roots.SelectMany(root => Lines(root, 0)))
-            .Concat(tree.ThenWorkedOn.Select(link => $"{link.From.Name}>{link.To.Name}")));
+            .Concat(view._thenWorkedOn.Select(link => $"{link.From.Name}>{link.To.Name}"))
+            .Concat(view.Phases.Select(phase => $"{phase.Title}/{phase.ExitGate}/{phase.DoneText}:"
+                                                + string.Join(";", phase.Objectives.Select(Heading))))
+            .Concat(view.Unlisted.Select(Heading)));
     }
 }

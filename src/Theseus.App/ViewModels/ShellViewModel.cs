@@ -28,6 +28,10 @@ public sealed class ShellViewModel : ObservableObject
     private IReadOnlyList<SessionRun>? _refreshRuns;
     private string? _openProjectName;
     private ProjectViewModel? _projectView;
+
+    // Set when an edit was refused because the view is older than the file, so the next wiring draws it again even
+    // though its Signature, which holds no line numbers, has not changed (1.1d PR 4 review, finding 1).
+    private bool _redrawProjectView;
     private ProjectViewActions? _projectActions;
     private ProjectRunner? _runner;
     private readonly ProjectViewHost _viewHost;
@@ -1217,30 +1221,21 @@ public sealed class ShellViewModel : ObservableObject
         }
     }
 
-    /// <summary>Add objective… on a project card or phase (1.1c AC 8).</summary>
-    private void AddObjective(string project, int phase)
-    {
-        if (AskObjective?.Invoke() is not { } objective)
-        {
-            return;
-        }
+    /// <summary>Add objective… on a project card (1.1c AC 8), adding to a phase as a phase heading's does (1.1d AC 49).</summary>
+    private void AddObjective(string project, int phase) => EditsOf(project).AddObjective?.Invoke(phase);
 
-        EditProject(project, text => ProjectFileEditor.AddObjective(text, phase, objective.Title, objective.Criteria).Text,
-            $"Added objective {objective.Title} to phase {phase} of {project}.");
-    }
-
-    /// <summary>Edit… on an objective (1.1c AC 8): its title.</summary>
-    private void EditObjective(string project, string number)
-    {
-        var current = Readable(project)?.File?.Objectives.FirstOrDefault(objective => objective.Number == number)?.Title ?? string.Empty;
-
-        if (AskText?.Invoke("Edit objective", $"Objective {number}'s title", current) is not { } title || title == current)
-        {
-            return;
-        }
-
-        EditProject(project, text => ProjectFileEditor.RenameObjective(text, number, title), $"Objective {number} of {project} is now {title}.");
-    }
+    /// <summary>
+    /// The project view's edits on a project's file: ticks, Edit objective… and Add objective…, each asking as it must and
+    /// written by <see cref="EditProject"/>.
+    /// </summary>
+    private ProjectViewEdits EditsOf(string project) =>
+        ProjectViewFileEdits.For(project, EditProject, () => AskObjective?.Invoke(),
+            (title, prompt, current) => AskText?.Invoke(title, prompt, current),
+            () =>
+            {
+                _redrawProjectView = true;
+                WireProjectChoices();
+            });
 
     /// <summary>
     /// Reads the projects in the projects folder; the cards they name are put in them when the read lands. With no folder
@@ -1468,10 +1463,12 @@ public sealed class ShellViewModel : ObservableObject
             return;
         }
 
-        if (openView is not null && openView.Signature != ProjectView?.Signature)
+        if (openView is not null && (_redrawProjectView || openView.Signature != ProjectView?.Signature))
         {
             ProjectView = openView;
         }
+
+        _redrawProjectView = false;
 
         WireSpecChoices();
         WireProjectWindow(cards);
@@ -1543,10 +1540,7 @@ public sealed class ShellViewModel : ObservableObject
             _projectActions ??= ProjectViewCommands.For(Board.Card, FocusCardCommand, StartCardCommand, StopCardCommand, OpenSpec,
                 AcceptSpec, OpenFile, text => Notice = text),
             CloseProjectCommand,
-            new ProjectViewEdits(
-                (line, ticked) => EditProject(reading.Name, text => ProjectFileEditor.SetCriterion(text, line, ticked),
-                    ticked ? $"Ticked a criterion of {reading.Name}." : $"Unticked a criterion of {reading.Name}."),
-                number => EditObjective(reading.Name, number)),
+            EditsOf(reading.Name),
             ProjectView);
 
     /// <summary>What the project view knows of a board card (1.1d AC 1): its session, marks, role and whether Start would start it.</summary>

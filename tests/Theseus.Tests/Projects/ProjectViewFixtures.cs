@@ -236,8 +236,10 @@ internal static class ProjectViewFixtures
                   + Objective("1.1", "Checks shown on cards", "feature",
                       (Git22, "project-view"), (Git22, "project-home-folders"), (Git22, "projects-and-method-ui")));
 
-    // Phase 1 finished under method-v0.1, before the project moves to v0.2, so its piece is listed as such. method-v0.2
-    // numbers phases from 0, so the conversion adds an empty phase 0 and keeps the objectives' numbers.
+    // The shape of the real file since its move to method-v0.2 (2026-11-21): phases renumbered from 0, the spec finished
+    // under method-v0.1 and listed as such, its objective ticked, two objectives nothing works on yet and an empty last
+    // phase. The identityserver-client-api-and-cli-fixes row the real file has since gained is left out, so AC 13's
+    // card that no project file lists keeps its case.
     private static string BuildYourMarketText
     {
         get
@@ -246,14 +248,18 @@ internal static class ProjectViewFixtures
 
             return TestProjectsFolder.ProjectText("BuildYourMarket MCP server", "owner/bym-mcp",
                 header: $"**Before method-v0.2:** {ServerSpec}\n",
-                body: "## Phase 0: Set up\n\n## Phase 1: Specify\n\n"
-                      + Objective("1.1", "Specify the BuildYourMarket MCP server", "feature", Row(ServerSpec))
-                      + "## Phase 2: Build read-only, internal\n\n"
-                      + Objective("2.1", "Preconditions", "freeform", Row("bym-mcp-preconditions"))
-                      + Objective("2.2", "Identity and Config", "feature", Row("bym-mcp-identity"), Row("bym-mcp-config"))
-                      + Objective("2.3", "BuildYourMarket.Api, release 2a", "feature", Row("bym-mcp-read-api"))
-                      + Objective("2.4", "BuildYourMarket.Mcp host and deployment", "feature", Row("bym-mcp-host"),
-                          Row("bym-mcp-infra")));
+                body: "## Phase 0: Specify\n\n**Exit gate:** Nigel approves the spec.\n\n"
+                      + Objective("0.1", "Specify the BuildYourMarket MCP server", "feature", Row(ServerSpec))
+                          .Replace("- [ ] A criterion.", "- [x] A criterion.", StringComparison.Ordinal)
+                      + "## Phase 1: Build read-only, internal\n\n"
+                      + Objective("1.1", "Preconditions", "freeform", Row("bym-mcp-preconditions"))
+                      + Objective("1.2", "Identity and Config", "feature", Row("bym-mcp-identity"), Row("bym-mcp-config"))
+                      + Objective("1.3", "BuildYourMarket.Api, release 2a", "feature", Row("bym-mcp-read-api"))
+                      + Objective("1.4", "BuildYourMarket.Mcp host and deployment", "feature", Row("bym-mcp-host"),
+                          Row("bym-mcp-infra"))
+                      + Objective("1.5", "Data protection", "freeform")
+                      + Objective("1.6", "Staff pilot", "freeform")
+                      + "## Phase 2: Customer release\n\n");
         }
     }
 }

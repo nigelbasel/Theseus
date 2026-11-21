@@ -1,0 +1,121 @@
+using System.Globalization;
+using System.Windows.Input;
+using Theseus.Core.Projects;
+
+namespace Theseus.App.ViewModels;
+
+/// <summary>
+/// A phase of project.md as a heading of the view grouped by objectives (1.1d AC 46, 49; Nigel's decision 5,
+/// 2026-11-21): "Phase n: name", its exit gate and how many objectives are done, then its objectives. It folds like a
+/// branch, and a done phase starts folded. Its menu has Add objective…, adding at the end of this phase.
+/// </summary>
+public sealed class PhaseHeadingViewModel : ObservableObject, IFoldable
+{
+    /// <summary>Add objective…'s tooltip, on the heading's menu and in Properties.</summary>
+    public const string AddObjectiveToolTip = "Add an objective at the end of this phase in project.md";
+
+    private bool _isOpen;
+    private bool _isSelected;
+
+    internal PhaseHeadingViewModel(PhaseGroup group, IReadOnlyList<ObjectiveHeadingViewModel> objectives, bool isOpen,
+        Action<IFoldable> toggle, Action<object> select, ProjectViewEdits? edits)
+    {
+        Group = group;
+        Objectives = objectives;
+        _isOpen = isOpen;
+        ToggleCommand = new RelayCommand(_ => toggle(this));
+        SelectCommand = new RelayCommand(_ => select(this));
+        AddObjective = edits?.AddObjective is { } add
+            ? new PieceActionViewModel("Add objective…", () => add(group.Phase.Number), toolTip: AddObjectiveToolTip)
+            : null;
+
+        var menu = new List<PieceActionViewModel>
+        {
+            new("Properties", () => select(this), toolTip: "Show this phase's details", isDefault: true),
+        };
+
+        if (AddObjective is { } action)
+        {
+            menu.Add(action);
+        }
+
+        MenuItems = menu;
+    }
+
+    /// <summary>The phase and its objectives.</summary>
+    public PhaseGroup Group { get; }
+
+    /// <summary>Its number, from 0.</summary>
+    public int Number => Group.Phase.Number;
+
+    /// <summary>"Phase 1: Evidence".</summary>
+    public string Title => $"Phase {Number.ToString(CultureInfo.InvariantCulture)}: {Group.Phase.Name}";
+
+    /// <summary>"Exit gate: …", or empty when the file gives none.</summary>
+    public string ExitGate => Group.Phase.ExitGate.Length == 0 ? string.Empty : $"Exit gate: {Group.Phase.ExitGate}";
+
+    /// <summary>Whether it has an exit gate line.</summary>
+    public bool HasExitGate => ExitGate.Length > 0;
+
+    /// <summary>"1 of 2 objectives done", or "no objectives yet".</summary>
+    public string DoneText => Group.Objectives.Count == 0
+        ? "no objectives yet"
+        : $"{Group.ObjectivesDone} of {Group.Objectives.Count} objectives done";
+
+    /// <summary>Whether every objective of it is done.</summary>
+    public bool IsDone => Group.IsDone;
+
+    /// <summary>Its objectives, in file order.</summary>
+    public IReadOnlyList<ObjectiveHeadingViewModel> Objectives { get; }
+
+    /// <summary>Add objective…, or null when the view cannot edit.</summary>
+    public PieceActionViewModel? AddObjective { get; }
+
+    /// <summary>Its right-click menu: Properties (the default), then Add objective….</summary>
+    public IReadOnlyList<PieceActionViewModel> MenuItems { get; }
+
+    /// <inheritdoc />
+    public string FoldName => PieceFolds.PhaseEntry(Group.Phase.Name);
+
+    /// <summary>A phase starts open unless it is done (AC 46).</summary>
+    public bool StartsOpen => !IsDone;
+
+    /// <summary>Whether its objectives show; open to start unless the phase is done.</summary>
+    public bool IsOpen
+    {
+        get => _isOpen;
+        internal set
+        {
+            if (Set(ref _isOpen, value))
+            {
+                Raise(nameof(Chevron));
+                Raise(nameof(ChevronToolTip));
+            }
+        }
+    }
+
+    bool IFoldable.IsOpen
+    {
+        get => IsOpen;
+        set => IsOpen = value;
+    }
+
+    /// <summary>▸ folded, ▾ open.</summary>
+    public string Chevron => _isOpen ? "▾" : "▸";
+
+    /// <summary>What the chevron does.</summary>
+    public string ChevronToolTip => _isOpen ? "Fold this phase" : "Show this phase's objectives";
+
+    /// <summary>Whether it is what the Properties pane shows.</summary>
+    public bool IsSelected
+    {
+        get => _isSelected;
+        internal set => Set(ref _isSelected, value);
+    }
+
+    /// <summary>Folds or opens it, and remembers which.</summary>
+    public ICommand ToggleCommand { get; }
+
+    /// <summary>Selects it, to show it in Properties.</summary>
+    public ICommand SelectCommand { get; }
+}

@@ -1,5 +1,5 @@
 <UserControl x:Class="Theseus.App.Views.ProjectView"
-             Focusable="True" FocusVisualStyle="{x:Null}" PreviewMouseDown="OnPreviewMouseDown"
+             Focusable="True" FocusVisualStyle="{x:Null}" PreviewMouseDown="OnPreviewMouseDown" SizeChanged="OnViewSizeChanged"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:Theseus.App.ViewModels"
@@ -7,7 +7,7 @@
              xmlns:controls="clr-namespace:Theseus.App.Controls"
              xmlns:projects="clr-namespace:Theseus.Core.Projects;assembly=Theseus.Core">
     <!--
-        The project view (1.1d AC 15 to 37; Nigel accepted the mockup, 2026-11-20): time runs down the page. Every
+        The project view (1.1d AC 15 to 54; Nigel accepted the mockup, 2026-11-20): time runs down the page. Every
         StaticResource it uses is defined here, because the tests load it without the application's resources; brushes
         come from the theme by DynamicResource, the state colours from Themes/StateColours.*.xaml.
     -->
@@ -164,6 +164,26 @@
             <Setter Property="ToolTipService.ShowOnDisabled" Value="True" />
         </Style>
 
+        <!-- Group by's two toggle buttons, one pressed (AC 45): radio buttons drawn as toggle buttons. -->
+        <Style x:Key="GroupByButton" TargetType="RadioButton" BasedOn="{StaticResource {x:Type ToggleButton}}">
+            <Setter Property="GroupName" Value="GroupBy" />
+            <Setter Property="Padding" Value="9,3" />
+            <Setter Property="FontSize" Value="13" />
+        </Style>
+
+        <!-- A heading's chevron, as a box's (AC 46). -->
+        <Style x:Key="HeadingChevron" TargetType="Button">
+            <Setter Property="Padding" Value="2,0" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="VerticalAlignment" Value="Top" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+        </Style>
+
         <!-- A project tab: the open one has a foreground border and a 2 px underline (AC 17). -->
         <Style x:Key="ProjectTab" TargetType="Button">
             <Setter Property="Margin" Value="0,0,6,0" />
@@ -242,159 +262,168 @@
         </Style>
 
         <!--
-            A piece of work's box, then its branch of the pieces it hands work to (AC 24, 26, 27). Implicit, so the branch's
+            A piece of work's box (AC 26, 27), the same in the Flow and grouped by objectives (AC 47). Folded it is 290 px
+            and open up to 640 px, each as wide as the flow leaves and left-aligned, so it never scrolls sideways, even at
+            720 px with the Live sessions panel open (AC 31, 54).
+        -->
+        <DataTemplate x:Key="PieceBox" DataType="{x:Type vm:PieceNodeViewModel}">
+            <Grid x:Name="BoxFrame">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" MaxWidth="{Binding BoxWidth}" />
+                </Grid.ColumnDefinitions>
+                <Border x:Name="Box" CornerRadius="7" BorderThickness="5,0,0,0"
+                        BorderBrush="{Binding ColourHex, Converter={StaticResource HexToBrush}}"
+                        Background="{DynamicResource CardBackgroundFillColorDefaultBrush}" SizeChanged="OnBoxSizeChanged">
+                    <Border BorderThickness="0,1,1,1" CornerRadius="0,7,7,0" Padding="10,8,10,9"
+                            BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
+                        <StackPanel>
+                            <DockPanel>
+                                <Button x:Name="Chevron" DockPanel.Dock="Left" Content="{Binding Chevron}" Command="{Binding ToggleCommand}"
+                                        ToolTip="{Binding ChevronToolTip}" Padding="2,0" Margin="0,0,8,0" MinWidth="0" MinHeight="0"
+                                        FontSize="14" Background="Transparent" BorderThickness="0" VerticalAlignment="Center"
+                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                <Border x:Name="PieceHeader" Background="Transparent" Focusable="True"
+                                        AutomationProperties.Name="{Binding Name}">
+                                    <Border.InputBindings>
+                                        <MouseBinding MouseAction="LeftClick" Command="{Binding SelectCommand}" />
+                                        <KeyBinding Key="Enter" Command="{Binding SelectCommand}" />
+                                        <KeyBinding Key="Space" Command="{Binding SelectCommand}" />
+                                    </Border.InputBindings>
+                                    <TextBlock x:Name="PieceName" Text="{Binding Name}" ToolTip="{Binding Name}" FontWeight="SemiBold"
+                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                </Border>
+                            </DockPanel>
+                            <Border Background="Transparent">
+                                <Border.InputBindings>
+                                    <MouseBinding MouseAction="LeftClick" Command="{Binding SelectCommand}" />
+                                </Border.InputBindings>
+                                <StackPanel>
+                                    <DockPanel Margin="0,1,0,0">
+                                        <Ellipse DockPanel.Dock="Left" Width="9" Height="9" Margin="0,0,5,0" VerticalAlignment="Center"
+                                                 Fill="{Binding ColourHex, Converter={StaticResource HexToBrush}}" />
+                                        <TextBlock x:Name="Meta" FontSize="12" TextTrimming="CharacterEllipsis" ToolTip="{Binding MetaText}"
+                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}">
+                                            <Run Text="{Binding Workstream, Mode=OneWay}" FontWeight="Medium"
+                                                 Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                            <Run Text="  " />
+                                            <Run Text="{Binding KindWord, Mode=OneWay}" />
+                                            <Run Text="  " />
+                                            <Run Text="{Binding ObjectiveLabel, Mode=OneWay}" />
+                                        </TextBlock>
+                                    </DockPanel>
+                                    <TextBlock x:Name="Status" Text="{Binding StatusText}" Style="{StaticResource StateForeground}"
+                                               FontSize="13" FontWeight="Medium" TextWrapping="Wrap" Margin="0,6,0,0" />
+                                    <TextBlock x:Name="ReportBack" Text="{Binding ReportBackText}" ToolTip="{Binding ReportBackToolTip}"
+                                               FontSize="12" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"
+                                               Visibility="{Binding HasReportBack, Converter={StaticResource Visible}}">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsReportLost}" Value="True">
+                                                        <Setter Property="Foreground" Value="{DynamicResource StateStuckBrush}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                    <!-- Grouped by objectives, the hand-overs and moves that the Flow draws as lines (AC 47). -->
+                                    <ItemsControl x:Name="CrossMarks" ItemsSource="{Binding CrossMarks}" Focusable="False" Margin="0,2,0,0"
+                                                  Visibility="{Binding DataContext.IsGroupedByObjectives, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource Visible}}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock x:Name="CrossMark" Text="{Binding}" ToolTip="{Binding}" FontSize="12" TextTrimming="CharacterEllipsis"
+                                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Folded: one chip per stage, sharing the width 3 px apart (AC 26). -->
+                            <ItemsControl x:Name="Strip" ItemsSource="{Binding Stages}" Margin="0,7,-3,0" Focusable="False"
+                                          Visibility="{Binding IsFolded, Converter={StaticResource Visible}}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <UniformGrid Rows="1" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type vm:StageNodeViewModel}">
+                                        <Grid x:Name="Chip" Height="18" Margin="0,0,3,0" ToolTip="{Binding ToolTip}" Background="Transparent">
+                                            <Grid.InputBindings>
+                                                <MouseBinding MouseAction="LeftClick" Command="{Binding SelectCommand}" />
+                                            </Grid.InputBindings>
+                                            <Rectangle Style="{StaticResource StripChip}" RadiusX="3" RadiusY="3" StrokeThickness="1" />
+                                            <TextBlock Text="{Binding Abbreviation}" FontFamily="{StaticResource Mono}" FontSize="10" FontWeight="Medium"
+                                                       Style="{StaticResource StateForeground}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- Open: the chain of stages joined by ▶, then the actions (AC 27). -->
+                            <ItemsControl x:Name="Chain" ItemsSource="{Binding Stages}" Margin="0,8,0,0" Focusable="False"
+                                          Visibility="{Binding IsOpen, Converter={StaticResource Visible}}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <UniformGrid Rows="1" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type vm:StageNodeViewModel}">
+                                        <DockPanel>
+                                            <TextBlock x:Name="Arrow" DockPanel.Dock="Left" Text="▶" Width="12" FontSize="11" TextAlignment="Center"
+                                                       VerticalAlignment="Center" Foreground="{DynamicResource ConnectorBrush}" />
+                                            <Button x:Name="Stage" Style="{StaticResource ChainStage}" Command="{Binding SelectCommand}"
+                                                    ToolTip="{Binding ToolTip}" AutomationProperties.Name="{Binding ToolTip}">
+                                                <Button.ContextMenu>
+                                                    <ContextMenu ItemsSource="{Binding MenuItems}" ItemContainerStyle="{StaticResource StageMenuItem}"
+                                                                 FontFamily="{x:Static SystemFonts.MessageFontFamily}" />
+                                                </Button.ContextMenu>
+                                            </Button>
+                                        </DockPanel>
+                                        <DataTemplate.Triggers>
+                                            <DataTrigger Binding="{Binding IsFirst}" Value="True">
+                                                <Setter TargetName="Arrow" Property="Visibility" Value="Collapsed" />
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <ItemsControl x:Name="Actions" ItemsSource="{Binding Actions}" Margin="0,8,0,0" Focusable="False"
+                                          Visibility="{Binding IsOpen, Converter={StaticResource Visible}}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type vm:PieceActionViewModel}">
+                                        <Button x:Name="Action" Command="{Binding Command}" ToolTip="{Binding ToolTip}"
+                                                ToolTipService.ShowOnDisabled="True" Padding="9,3" Margin="0,0,6,6" FontSize="13">
+                                            <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+                </Border>
+                <Border x:Name="Outline" IsHitTestVisible="False" Margin="-3" BorderThickness="2" CornerRadius="9"
+                        BorderBrush="{DynamicResource AccentFillColorDefaultBrush}"
+                        Visibility="{Binding IsSelected, Converter={StaticResource Visible}}" />
+            </Grid>
+        </DataTemplate>
+
+        <!--
+            A piece of work's box, then its branch of the pieces it hands work to (AC 24). Implicit, so the branch's
             ItemsControl uses it again for each child.
         -->
         <DataTemplate DataType="{x:Type vm:PieceNodeViewModel}">
             <StackPanel Margin="0,0,0,14">
-                <!-- Folded, 290 px; open, as wide as the flow leaves, up to 640 px, so it never scrolls sideways (AC 31). -->
-                <Grid x:Name="BoxFrame" MaxWidth="{Binding BoxWidth}">
-                    <Grid.Style>
-                        <Style TargetType="Grid">
-                            <Setter Property="Width" Value="{x:Static vm:PieceNodeViewModel.FoldedWidth}" />
-                            <Setter Property="HorizontalAlignment" Value="Left" />
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsOpen}" Value="True">
-                                    <Setter Property="Width" Value="NaN" />
-                                    <Setter Property="HorizontalAlignment" Value="Stretch" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Grid.Style>
-                    <Border x:Name="Box" CornerRadius="7" BorderThickness="5,0,0,0"
-                            BorderBrush="{Binding ColourHex, Converter={StaticResource HexToBrush}}"
-                            Background="{DynamicResource CardBackgroundFillColorDefaultBrush}" SizeChanged="OnBoxSizeChanged">
-                        <Border BorderThickness="0,1,1,1" CornerRadius="0,7,7,0" Padding="10,8,10,9"
-                                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
-                            <StackPanel>
-                                <DockPanel>
-                                    <Button x:Name="Chevron" DockPanel.Dock="Left" Content="{Binding Chevron}" Command="{Binding ToggleCommand}"
-                                            ToolTip="{Binding ChevronToolTip}" Padding="2,0" Margin="0,0,8,0" MinWidth="0" MinHeight="0"
-                                            FontSize="14" Background="Transparent" BorderThickness="0" VerticalAlignment="Center"
-                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                    <Border x:Name="PieceHeader" Background="Transparent" Focusable="True"
-                                            AutomationProperties.Name="{Binding Name}">
-                                        <Border.InputBindings>
-                                            <MouseBinding MouseAction="LeftClick" Command="{Binding SelectCommand}" />
-                                            <KeyBinding Key="Enter" Command="{Binding SelectCommand}" />
-                                            <KeyBinding Key="Space" Command="{Binding SelectCommand}" />
-                                        </Border.InputBindings>
-                                        <TextBlock x:Name="PieceName" Text="{Binding Name}" ToolTip="{Binding Name}" FontWeight="SemiBold"
-                                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
-                                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                    </Border>
-                                </DockPanel>
-                                <Border Background="Transparent">
-                                    <Border.InputBindings>
-                                        <MouseBinding MouseAction="LeftClick" Command="{Binding SelectCommand}" />
-                                    </Border.InputBindings>
-                                    <StackPanel>
-                                        <DockPanel Margin="0,1,0,0">
-                                            <Ellipse DockPanel.Dock="Left" Width="9" Height="9" Margin="0,0,5,0" VerticalAlignment="Center"
-                                                     Fill="{Binding ColourHex, Converter={StaticResource HexToBrush}}" />
-                                            <TextBlock x:Name="Meta" FontSize="12" TextTrimming="CharacterEllipsis" ToolTip="{Binding MetaText}"
-                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}">
-                                                <Run Text="{Binding Workstream, Mode=OneWay}" FontWeight="Medium"
-                                                     Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                                <Run Text="  " />
-                                                <Run Text="{Binding KindWord, Mode=OneWay}" />
-                                                <Run Text="  " />
-                                                <Run Text="{Binding ObjectiveLabel, Mode=OneWay}" />
-                                            </TextBlock>
-                                        </DockPanel>
-                                        <TextBlock x:Name="Status" Text="{Binding StatusText}" Style="{StaticResource StateForeground}"
-                                                   FontSize="13" FontWeight="Medium" TextWrapping="Wrap" Margin="0,6,0,0" />
-                                        <TextBlock x:Name="ReportBack" Text="{Binding ReportBackText}" ToolTip="{Binding ReportBackToolTip}"
-                                                   FontSize="12" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"
-                                                   Visibility="{Binding HasReportBack, Converter={StaticResource Visible}}">
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock">
-                                                    <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsReportLost}" Value="True">
-                                                            <Setter Property="Foreground" Value="{DynamicResource StateStuckBrush}" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </TextBlock.Style>
-                                        </TextBlock>
-                                    </StackPanel>
-                                </Border>
-
-                                <!-- Folded: one chip per stage, sharing the width 3 px apart (AC 26). -->
-                                <ItemsControl x:Name="Strip" ItemsSource="{Binding Stages}" Margin="0,7,-3,0" Focusable="False"
-                                              Visibility="{Binding IsFolded, Converter={StaticResource Visible}}">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <UniformGrid Rows="1" />
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate DataType="{x:Type vm:StageNodeViewModel}">
-                                            <Grid x:Name="Chip" Height="18" Margin="0,0,3,0" ToolTip="{Binding ToolTip}" Background="Transparent">
-                                                <Grid.InputBindings>
-                                                    <MouseBinding MouseAction="LeftClick" Command="{Binding SelectCommand}" />
-                                                </Grid.InputBindings>
-                                                <Rectangle Style="{StaticResource StripChip}" RadiusX="3" RadiusY="3" StrokeThickness="1" />
-                                                <TextBlock Text="{Binding Abbreviation}" FontFamily="{StaticResource Mono}" FontSize="10" FontWeight="Medium"
-                                                           Style="{StaticResource StateForeground}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                            </Grid>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-
-                                <!-- Open: the chain of stages joined by ▶, then the actions (AC 27). -->
-                                <ItemsControl x:Name="Chain" ItemsSource="{Binding Stages}" Margin="0,8,0,0" Focusable="False"
-                                              Visibility="{Binding IsOpen, Converter={StaticResource Visible}}">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <UniformGrid Rows="1" />
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate DataType="{x:Type vm:StageNodeViewModel}">
-                                            <DockPanel>
-                                                <TextBlock x:Name="Arrow" DockPanel.Dock="Left" Text="▶" Width="12" FontSize="11" TextAlignment="Center"
-                                                           VerticalAlignment="Center" Foreground="{DynamicResource ConnectorBrush}" />
-                                                <Button x:Name="Stage" Style="{StaticResource ChainStage}" Command="{Binding SelectCommand}"
-                                                        ToolTip="{Binding ToolTip}" AutomationProperties.Name="{Binding ToolTip}">
-                                                    <Button.ContextMenu>
-                                                        <ContextMenu ItemsSource="{Binding MenuItems}" ItemContainerStyle="{StaticResource StageMenuItem}"
-                                                                     FontFamily="{x:Static SystemFonts.MessageFontFamily}" />
-                                                    </Button.ContextMenu>
-                                                </Button>
-                                            </DockPanel>
-                                            <DataTemplate.Triggers>
-                                                <DataTrigger Binding="{Binding IsFirst}" Value="True">
-                                                    <Setter TargetName="Arrow" Property="Visibility" Value="Collapsed" />
-                                                </DataTrigger>
-                                            </DataTemplate.Triggers>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                                <ItemsControl x:Name="Actions" ItemsSource="{Binding Actions}" Margin="0,8,0,0" Focusable="False"
-                                              Visibility="{Binding IsOpen, Converter={StaticResource Visible}}">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <WrapPanel />
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate DataType="{x:Type vm:PieceActionViewModel}">
-                                            <Button x:Name="Action" Command="{Binding Command}" ToolTip="{Binding ToolTip}"
-                                                    ToolTipService.ShowOnDisabled="True" Padding="9,3" Margin="0,0,6,6" FontSize="13">
-                                                <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
-                                            </Button>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
-                        </Border>
-                    </Border>
-                    <Border x:Name="Outline" IsHitTestVisible="False" Margin="-3" BorderThickness="2" CornerRadius="9"
-                            BorderBrush="{DynamicResource AccentFillColorDefaultBrush}"
-                            Visibility="{Binding IsSelected, Converter={StaticResource Visible}}" />
-                </Grid>
+                <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource PieceBox}" />
 
                 <!-- The branch: the pieces this one hands work to; a thicker bar, labelled, when they ran in parallel (AC 24). -->
                 <Border x:Name="Branch" Margin="34,14,0,0" Padding="16,0,0,0"
@@ -423,6 +452,111 @@
                             </TextBlock.LayoutTransform>
                         </TextBlock>
                     </Grid>
+                </Border>
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- A box under its objective heading: the same box, with no branch, since no connector crosses headings (AC 47). -->
+        <DataTemplate x:Key="ObjectivePiece" DataType="{x:Type vm:PieceNodeViewModel}">
+            <ContentPresenter Margin="0,0,0,14" Content="{Binding}" ContentTemplate="{StaticResource PieceBox}" />
+        </DataTemplate>
+
+        <!--
+            An objective heading (AC 46, 49): its number and title, ticked of criteria, its pieces' counts or "nothing
+            yet", and its pieces under it in a branch that folds.
+        -->
+        <DataTemplate DataType="{x:Type vm:ObjectiveHeadingViewModel}">
+            <StackPanel Margin="0,0,0,12">
+                <Grid>
+                    <DockPanel>
+                        <Button x:Name="ObjectiveChevron" DockPanel.Dock="Left" Style="{StaticResource HeadingChevron}" Content="{Binding Chevron}"
+                                Command="{Binding ToggleCommand}" ToolTip="{Binding ChevronToolTip}" />
+                        <Border x:Name="ObjectiveHeader" Background="Transparent" Focusable="True" Padding="0,1,4,1"
+                                AutomationProperties.Name="{Binding Title}">
+                            <Border.InputBindings>
+                                <MouseBinding MouseAction="LeftClick" Command="{Binding SelectCommand}" />
+                                <KeyBinding Key="Enter" Command="{Binding SelectCommand}" />
+                                <KeyBinding Key="Space" Command="{Binding SelectCommand}" />
+                            </Border.InputBindings>
+                            <Border.ContextMenu>
+                                <ContextMenu ItemsSource="{Binding MenuItems}" ItemContainerStyle="{StaticResource StageMenuItem}"
+                                             FontFamily="{x:Static SystemFonts.MessageFontFamily}" />
+                            </Border.ContextMenu>
+                            <StackPanel>
+                                <TextBlock x:Name="ObjectiveTitle" Text="{Binding Title}" ToolTip="{Binding Title}" FontSize="14" FontWeight="SemiBold"
+                                           TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                <WrapPanel Margin="0,3,0,0">
+                                    <TextBlock x:Name="ObjectiveCriteria" Text="{Binding CriteriaText}" ToolTip="{Binding CriteriaToolTip}"
+                                               FontFamily="{StaticResource Mono}" FontSize="12" Margin="0,0,10,4" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                    <ItemsControl x:Name="ObjectiveCounts" ItemsSource="{Binding Counts}" Focusable="False">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="{x:Type vm:StateCountViewModel}">
+                                                <controls:StateCountChip />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <TextBlock x:Name="NothingYet" Text="nothing yet" FontSize="12" FontStyle="Italic" Margin="0,0,0,4"
+                                               VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                               Visibility="{Binding IsEmpty, Converter={StaticResource Visible}}" />
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+                    </DockPanel>
+                    <Border x:Name="ObjectiveOutline" IsHitTestVisible="False" Margin="-3" BorderThickness="2" CornerRadius="6"
+                            BorderBrush="{DynamicResource AccentFillColorDefaultBrush}"
+                            Visibility="{Binding IsSelected, Converter={StaticResource Visible}}" />
+                </Grid>
+                <Border x:Name="ObjectiveBranch" Margin="9,10,0,0" Padding="16,0,0,0" BorderThickness="2,0,0,0"
+                        BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                        Visibility="{Binding ShowsPieces, Converter={StaticResource Visible}}">
+                    <ItemsControl x:Name="ObjectivePieces" ItemsSource="{Binding Pieces}" ItemTemplate="{StaticResource ObjectivePiece}" Focusable="False" />
+                </Border>
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- A phase heading (AC 46, 49): "Phase n: name", its exit gate and objectives done, then its objectives, folding. -->
+        <DataTemplate DataType="{x:Type vm:PhaseHeadingViewModel}">
+            <StackPanel Margin="0,0,0,16">
+                <Grid>
+                    <DockPanel>
+                        <Button x:Name="PhaseChevron" DockPanel.Dock="Left" Style="{StaticResource HeadingChevron}" Content="{Binding Chevron}"
+                                Command="{Binding ToggleCommand}" ToolTip="{Binding ChevronToolTip}" />
+                        <Border x:Name="PhaseHeader" Background="Transparent" Focusable="True" Padding="0,1,4,1"
+                                AutomationProperties.Name="{Binding Title}">
+                            <Border.InputBindings>
+                                <MouseBinding MouseAction="LeftClick" Command="{Binding SelectCommand}" />
+                                <KeyBinding Key="Enter" Command="{Binding SelectCommand}" />
+                                <KeyBinding Key="Space" Command="{Binding SelectCommand}" />
+                            </Border.InputBindings>
+                            <Border.ContextMenu>
+                                <ContextMenu ItemsSource="{Binding MenuItems}" ItemContainerStyle="{StaticResource StageMenuItem}"
+                                             FontFamily="{x:Static SystemFonts.MessageFontFamily}" />
+                            </Border.ContextMenu>
+                            <StackPanel>
+                                <TextBlock x:Name="PhaseTitle" Text="{Binding Title}" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                <TextBlock x:Name="PhaseExitGate" Text="{Binding ExitGate}" FontSize="12" TextWrapping="Wrap" Margin="0,2,0,0"
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                           Visibility="{Binding HasExitGate, Converter={StaticResource Visible}}" />
+                                <TextBlock x:Name="PhaseDone" Text="{Binding DoneText}" FontSize="12" TextWrapping="Wrap" Margin="0,2,0,0"
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                        </Border>
+                    </DockPanel>
+                    <Border x:Name="PhaseOutline" IsHitTestVisible="False" Margin="-3" BorderThickness="2" CornerRadius="6"
+                            BorderBrush="{DynamicResource AccentFillColorDefaultBrush}"
+                            Visibility="{Binding IsSelected, Converter={StaticResource Visible}}" />
+                </Grid>
+                <Border x:Name="PhaseBranch" Margin="9,10,0,0" Padding="16,0,0,0" BorderThickness="2,0,0,0"
+                        BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                        Visibility="{Binding IsOpen, Converter={StaticResource Visible}}">
+                    <ItemsControl x:Name="PhaseObjectives" ItemsSource="{Binding Objectives}" Focusable="False" />
                 </Border>
             </StackPanel>
         </DataTemplate>
@@ -500,20 +634,28 @@
             </StackPanel>
         </Border>
 
-        <!-- The toolbar, then the legend, wrapping (AC 21, 22). -->
-        <Border DockPanel.Dock="Top" Padding="14,8" BorderThickness="0,0,0,1"
+        <!-- Group by, the toolbar, then the legend, all wrapping, so a narrow window cuts nothing off (AC 21, 22, 45, 54). -->
+        <Border DockPanel.Dock="Top" Padding="14,8,14,2" BorderThickness="0,0,0,1"
                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
-            <DockPanel>
-                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Top">
-                    <Button x:Name="CollapseAll" Content="Collapse all" Command="{Binding CollapseAllCommand}" Style="{StaticResource ToolbarButton}"
-                            ToolTip="Fold every piece of work" />
-                    <Button x:Name="ExpandAll" Content="Expand all" Command="{Binding ExpandAllCommand}" Style="{StaticResource ToolbarButton}"
-                            ToolTip="Open every piece of work into its stages" />
-                    <Button x:Name="OpenWhatNeedsAttention" Content="Open what needs attention" Command="{Binding OpenWhatNeedsAttentionCommand}"
-                            Style="{StaticResource ToolbarButton}"
-                            ToolTip="Open what is busy, waiting on you, stuck or waiting for its holdout check, and fold the rest" />
+            <WrapPanel x:Name="Toolbar">
+                <StackPanel x:Name="GroupBy" Orientation="Horizontal" Margin="0,0,12,6" VerticalAlignment="Center">
+                    <TextBlock Text="Group by:" FontSize="13" Margin="0,0,6,0" VerticalAlignment="Center"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                    <RadioButton x:Name="GroupByFlow" Content="Flow" Style="{StaticResource GroupByButton}" Margin="0,0,2,0"
+                                 IsChecked="{Binding IsGroupedByFlow, Mode=TwoWay}"
+                                 ToolTip="Pieces of work as they hand work on, time running down the page" />
+                    <RadioButton x:Name="GroupByObjectives" Content="Objectives" Style="{StaticResource GroupByButton}"
+                                 IsChecked="{Binding IsGroupedByObjectives, Mode=TwoWay}"
+                                 ToolTip="Pieces of work under the phases and objectives of project.md" />
                 </StackPanel>
-                <WrapPanel x:Name="Legend" Margin="8,0,0,0" VerticalAlignment="Center">
+                <Button x:Name="CollapseAll" Content="Collapse all" Command="{Binding CollapseAllCommand}" Style="{StaticResource ToolbarButton}"
+                        Margin="0,0,6,6" ToolTip="Fold every piece of work, and every heading" />
+                <Button x:Name="ExpandAll" Content="Expand all" Command="{Binding ExpandAllCommand}" Style="{StaticResource ToolbarButton}"
+                        Margin="0,0,6,6" ToolTip="Open every piece of work into its stages, and every heading" />
+                <Button x:Name="OpenWhatNeedsAttention" Content="Open what needs attention" Command="{Binding OpenWhatNeedsAttentionCommand}"
+                        Style="{StaticResource ToolbarButton}" Margin="0,0,12,6"
+                        ToolTip="Open what is busy, waiting on you, stuck or waiting for its holdout check, and the headings on the way to it; fold the rest" />
+                <WrapPanel x:Name="Legend" Margin="0,0,0,6" VerticalAlignment="Center">
                     <ItemsControl ItemsSource="{x:Static vm:ProjectViewModel.Legend}" Focusable="False">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
@@ -542,14 +684,18 @@
                     </StackPanel>
                     <TextBlock Text="↩ reported back" FontSize="12.5" Margin="0,2,10,2" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                 </WrapPanel>
-            </DockPanel>
+            </WrapPanel>
         </Border>
 
-        <!-- The flow beside the Properties pane, with a splitter between them (AC 23, 34, 35). -->
+        <!--
+            The flow beside the Properties pane, with a splitter between them (AC 23, 34, 35). In a view too narrow for
+            both, the flow takes the whole width and Properties opens over it on the right when something is selected
+            (AC 52, 53).
+        -->
         <Grid x:Name="Split" SizeChanged="OnSplitSizeChanged">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" MinWidth="400" />
-                <ColumnDefinition Width="6" />
+                <ColumnDefinition x:Name="FlowColumn" Width="*" MinWidth="400" />
+                <ColumnDefinition x:Name="SplitterColumn" Width="6" />
                 <ColumnDefinition x:Name="PaneColumn" Width="320" MinWidth="260" />
             </Grid.ColumnDefinitions>
 
@@ -557,7 +703,11 @@
                 <Border x:Name="FlowFrame" Padding="20" VerticalAlignment="Top" MaxWidth="{Binding ViewportWidth, ElementName=Flow}">
                     <Grid x:Name="FlowContent" SizeChanged="OnFlowSizeChanged">
                         <Canvas x:Name="Connectors" IsHitTestVisible="False" />
-                        <ItemsControl x:Name="RootList" ItemsSource="{Binding Roots}" Focusable="False" />
+                        <ItemsControl x:Name="RootList" ItemsSource="{Binding FlowRoots}" Focusable="False" />
+                        <StackPanel x:Name="ObjectiveList">
+                            <ItemsControl x:Name="PhaseList" ItemsSource="{Binding ShownPhases}" Focusable="False" />
+                            <ItemsControl x:Name="UnlistedList" ItemsSource="{Binding ShownUnlisted}" Focusable="False" />
+                        </StackPanel>
                     </Grid>
                 </Border>
             </ScrollViewer>
@@ -565,86 +715,117 @@
             <GridSplitter x:Name="Splitter" Grid.Column="1" Width="6" HorizontalAlignment="Stretch" ResizeDirection="Columns"
                           ResizeBehavior="PreviousAndNext" Cursor="SizeWE" Focusable="False"
                           ToolTip="Drag to resize; double-click to reset"
+                          Visibility="{Binding IsPaneDocked, Converter={StaticResource Visible}}"
                           Background="{DynamicResource CardStrokeColorDefaultBrush}"
                           DragCompleted="OnSplitterDragCompleted" MouseDoubleClick="OnSplitterDoubleClick" />
 
-            <Border x:Name="Pane" Grid.Column="2" Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
-                    <StackPanel x:Name="Properties" Margin="16,14" DataContext="{Binding Properties}">
-                        <TextBlock x:Name="PropertiesHeading" Text="{Binding Heading}" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap"
-                                   Margin="0,0,0,4" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                        <TextBlock x:Name="PropertiesHint" Text="{Binding Hint}" FontSize="13" TextWrapping="Wrap"
-                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                   Visibility="{Binding IsEmpty, Converter={StaticResource Visible}}" />
-                        <Border Visibility="{Binding HasStatus, Converter={StaticResource Visible}}">
-                            <TextBlock x:Name="PropertiesStatus" Text="{Binding StatusText}" FontSize="13" FontWeight="Medium" TextWrapping="Wrap"
-                                       Style="{StaticResource StateForeground}" />
-                        </Border>
-                        <ItemsControl x:Name="PropertyRows" ItemsSource="{Binding Rows}" Margin="0,12,0,6" Focusable="False">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate DataType="{x:Type vm:PropertyRowViewModel}">
-                                    <Grid Margin="0,0,0,6">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="82" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="{Binding Label}" FontSize="13" Margin="0,0,10,0" TextTrimming="CharacterEllipsis"
-                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                        <TextBlock Grid.Column="1" Text="{Binding Value}" FontSize="13" TextWrapping="Wrap"
-                                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                    </Grid>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                        <StackPanel Visibility="{Binding HasLinks, Converter={StaticResource Visible}}" Margin="0,0,0,8">
-                            <TextBlock Text="Links" FontSize="13" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                            <ItemsControl x:Name="PropertyLinks" ItemsSource="{Binding Links}" Focusable="False" Margin="8,4,0,0">
+            <Border x:Name="Pane" Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Grid.Column" Value="2" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsPaneDocked}" Value="False">
+                                <Setter Property="Grid.Column" Value="0" />
+                                <Setter Property="Grid.ColumnSpan" Value="3" />
+                                <Setter Property="HorizontalAlignment" Value="Right" />
+                                <Setter Property="Width" Value="{x:Static vm:ProjectPaneWidth.Minimum}" />
+                                <Setter Property="BorderThickness" Value="1,0,0,0" />
+                                <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+                                <Setter Property="Panel.ZIndex" Value="1" />
+                                <Setter Property="Visibility" Value="Collapsed" />
+                            </DataTrigger>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding IsPaneDocked}" Value="False" />
+                                    <Condition Binding="{Binding IsOverlayOpen}" Value="True" />
+                                </MultiDataTrigger.Conditions>
+                                <Setter Property="Visibility" Value="Visible" />
+                            </MultiDataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <DockPanel>
+                    <Button x:Name="CloseOverlay" DockPanel.Dock="Top" HorizontalAlignment="Right" Content="×" Command="{Binding CloseOverlayCommand}"
+                            ToolTip="Close Properties (Esc)" AutomationProperties.Name="Close Properties" Margin="0,6,8,0" Padding="8,0"
+                            FontSize="16" Background="Transparent" BorderThickness="0"
+                            Visibility="{Binding IsOverlayOpen, Converter={StaticResource Visible}}" />
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+                        <StackPanel x:Name="Properties" Margin="16,14" DataContext="{Binding Properties}">
+                            <TextBlock x:Name="PropertiesHeading" Text="{Binding Heading}" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap"
+                                       Margin="0,0,0,4" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                            <TextBlock x:Name="PropertiesHint" Text="{Binding Hint}" FontSize="13" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                       Visibility="{Binding IsEmpty, Converter={StaticResource Visible}}" />
+                            <Border Visibility="{Binding HasStatus, Converter={StaticResource Visible}}">
+                                <TextBlock x:Name="PropertiesStatus" Text="{Binding StatusText}" FontSize="13" FontWeight="Medium" TextWrapping="Wrap"
+                                           Style="{StaticResource StateForeground}" />
+                            </Border>
+                            <ItemsControl x:Name="PropertyRows" ItemsSource="{Binding Rows}" Margin="0,12,0,6" Focusable="False">
                                 <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding StringFormat='• {0}'}" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,2"
-                                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                    <DataTemplate DataType="{x:Type vm:PropertyRowViewModel}">
+                                        <Grid Margin="0,0,0,6">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="82" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{Binding Label}" FontSize="13" Margin="0,0,10,0" TextTrimming="CharacterEllipsis"
+                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Value}" FontSize="13" TextWrapping="Wrap"
+                                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                        </Grid>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
-                        </StackPanel>
-                        <ItemsControl x:Name="PropertyButtons" ItemsSource="{Binding Buttons}" Focusable="False">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <WrapPanel />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate DataType="{x:Type vm:PieceActionViewModel}">
-                                    <Button Content="{Binding Label}" Command="{Binding Command}" ToolTip="{Binding ToolTip}"
-                                            ToolTipService.ShowOnDisabled="True" Padding="9,3" Margin="0,0,6,6" FontSize="13" />
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-
-                        <!-- The piece's objective: its criteria ticked in project.md, and Edit objective… (1.1c AC 8; Question 3). -->
-                        <StackPanel x:Name="ObjectiveSection" Margin="0,10,0,0"
-                                    Visibility="{Binding HasObjective, Converter={StaticResource Visible}}">
-                            <TextBlock Text="{Binding ObjectiveHeading}" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,6"
-                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                            <ItemsControl x:Name="Criteria" ItemsSource="{Binding Criteria}" Focusable="False">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate DataType="{x:Type vm:CriterionViewModel}">
-                                        <DockPanel Margin="0,0,0,4">
-                                            <Button x:Name="Tick" DockPanel.Dock="Left" VerticalAlignment="Top" Margin="0,0,6,0" Padding="2,0"
-                                                    MinWidth="0" MinHeight="0" Background="Transparent" BorderThickness="0" FontSize="14"
-                                                    Content="{Binding TickGlyph}" Command="{Binding ToggleCommand}" ToolTip="{Binding ToolTip}" />
-                                            <TextBlock Text="{Binding Text}" FontSize="13" TextWrapping="Wrap" VerticalAlignment="Center"
+                            <StackPanel Visibility="{Binding HasLinks, Converter={StaticResource Visible}}" Margin="0,0,0,8">
+                                <TextBlock Text="Links" FontSize="13" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                <ItemsControl x:Name="PropertyLinks" ItemsSource="{Binding Links}" Focusable="False" Margin="8,4,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding StringFormat='• {0}'}" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,2"
                                                        Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                            <ItemsControl x:Name="PropertyButtons" ItemsSource="{Binding Buttons}" Focusable="False">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type vm:PieceActionViewModel}">
+                                        <Button Content="{Binding Label}" Command="{Binding Command}" ToolTip="{Binding ToolTip}"
+                                                ToolTipService.ShowOnDisabled="True" Padding="9,3" Margin="0,0,6,6" FontSize="13" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- The piece's objective: its criteria ticked in project.md, and Edit objective… (1.1c AC 8; Question 3). -->
+                            <StackPanel x:Name="ObjectiveSection" Margin="0,10,0,0"
+                                        Visibility="{Binding HasObjective, Converter={StaticResource Visible}}">
+                                <TextBlock Text="{Binding ObjectiveHeading}" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,6"
+                                           Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                <ItemsControl x:Name="Criteria" ItemsSource="{Binding Criteria}" Focusable="False">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type vm:CriterionViewModel}">
+                                            <DockPanel Margin="0,0,0,4">
+                                                <Button x:Name="Tick" DockPanel.Dock="Left" VerticalAlignment="Top" Margin="0,0,6,0" Padding="2,0"
+                                                        MinWidth="0" MinHeight="0" Background="Transparent" BorderThickness="0" FontSize="14"
+                                                        Content="{Binding TickGlyph}" Command="{Binding ToggleCommand}" ToolTip="{Binding ToolTip}" />
+                                                <TextBlock Text="{Binding Text}" FontSize="13" TextWrapping="Wrap" VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                                         </DockPanel>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
                             <Button x:Name="EditObjective" Content="Edit objective…" Command="{Binding EditObjectiveCommand}" HorizontalAlignment="Left"
-                                    Padding="9,3" Margin="0,4,0,0" FontSize="13" ToolTip="Change this objective's title in project.md"
+                                    Padding="9,3" Margin="0,4,0,0" FontSize="13" ToolTip="{x:Static vm:ObjectiveHeadingViewModel.EditObjectiveToolTip}"
                                     Visibility="{Binding CanEditObjective, Converter={StaticResource Visible}}" />
                         </StackPanel>
                     </StackPanel>
                 </ScrollViewer>
+                </DockPanel>
             </Border>
         </Grid>
     </DockPanel>

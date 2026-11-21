@@ -82,6 +82,42 @@ public static class ProjectFileEditor
         return Close(lines, file.Name);
     }
 
+    /// <summary>
+    /// Ticks or unticks a criterion as a view showed it: the objective by number, the criterion by its place there, and
+    /// its text as shown checked against the file as it is now. A view can be older than the file (it is redrawn only
+    /// when what it draws changes), so a line number it holds may name another line by now (1.1d PR 4 review, finding
+    /// 1). Refused when the criterion there no longer reads as shown.
+    /// </summary>
+    public static string SetCriterion(string text, string objective, int index, string shown, bool ticked)
+    {
+        var heading = Objective(Open(text, out _), objective);
+
+        if (index < 0 || index >= heading.Criteria.Count || !string.Equals(heading.Criteria[index].Text, shown, StringComparison.Ordinal))
+        {
+            throw new ProjectEditRefusedException(
+                $"criterion {index + 1} of objective {objective} no longer reads \"{shown}\" in the file; it is shown again as the file has it");
+        }
+
+        return SetCriterion(text, heading.Criteria[index].Line, ticked);
+    }
+
+    /// <summary>
+    /// Renames an objective as a view showed it: refused when the objective of that number no longer has the title shown,
+    /// as when the file was renumbered since the view was drawn (1.1d PR 4 review, finding 1).
+    /// </summary>
+    public static string RenameObjective(string text, string objective, string shown, string title)
+    {
+        var heading = Objective(Open(text, out _), objective);
+
+        if (!string.Equals(heading.Title, shown, StringComparison.Ordinal))
+        {
+            throw new ProjectEditRefusedException(
+                $"objective {objective} is now \"{heading.Title}\", not \"{shown}\"; it is shown again as the file has it");
+        }
+
+        return RenameObjective(text, objective, title);
+    }
+
     /// <summary>Renames an objective, keeping its number.</summary>
     public static string RenameObjective(string text, string objective, string title)
     {

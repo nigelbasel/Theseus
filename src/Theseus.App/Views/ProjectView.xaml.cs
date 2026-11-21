@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -6,16 +7,19 @@ using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using Theseus.App.ViewModels;
+using Theseus.Core.Settings;
 
 namespace Theseus.App.Views;
 
 /// <summary>
-/// The project view (1.1d AC 15 to 37). Its code draws the connectors from where the boxes were laid out, keeps the
-/// Properties pane's width, and keeps the scroll offset across a rebuild of the same project.
+/// The project view (1.1d AC 15 to 54). Its code draws the connectors from where the boxes were laid out, keeps the
+/// Properties pane's width, docks the pane or steps it aside as the view's width allows, and keeps the scroll offset
+/// across a rebuild of the same project.
 /// </summary>
 public partial class ProjectView : UserControl
 {
     private bool _drawQueued;
+    private ProjectViewGrouping _grouping;
 
     /// <summary>Creates the view.</summary>
     public ProjectView()
@@ -32,7 +36,7 @@ public partial class ProjectView : UserControl
     {
         Connectors.Children.Clear();
 
-        if (DataContext is not ProjectViewModel view)
+        if (DataContext is not ProjectViewModel { IsGroupedByFlow: true } view)
         {
             return;
         }
@@ -118,12 +122,27 @@ public partial class ProjectView : UserControl
 
     private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
+        if (e.OldValue is ProjectViewModel previous)
+        {
+            previous.PropertyChanged -= OnViewChanged;
+        }
+
         if (e.NewValue is not ProjectViewModel view)
         {
             return;
         }
 
-        PaneColumn.Width = new GridLength(ProjectPaneWidth.Clamp(view.PaneWidth, Split.ActualWidth > 0 ? Split.ActualWidth : double.PositiveInfinity));
+        view.PropertyChanged += OnViewChanged;
+        _grouping = view.Grouping;
+
+        PaneColumn.Width = new GridLength(ProjectPaneWidth.Clamp(view.PaneWidth, ActualWidth > 0 ? ActualWidth : double.PositiveInfinity));
+
+        if (ActualWidth > 0)
+        {
+            view.PaneFits(ProjectPaneWidth.Docks(ActualWidth));
+        }
+
+        Dock(view, changed: true);
 
         // A rebuild of the same project keeps where it was scrolled to (AC 36); another project starts at the top.
         if (e.OldValue is ProjectViewModel old && string.Equals(old.Name, view.Name, StringComparison.OrdinalIgnoreCase))
@@ -145,6 +164,18 @@ public partial class ProjectView : UserControl
         QueueDraw();
     }
 
+    // A switch of grouping lays out other boxes entirely, so it starts at the top and the connectors are drawn again, or
+    // cleared, at once (PR 4 review, finding 3).
+    private void OnViewChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(ProjectViewModel.IsGroupedByFlow) && sender is ProjectViewModel view && view.Grouping != _grouping)
+        {
+            _grouping = view.Grouping;
+            Flow.ScrollToHome();
+            QueueDraw();
+        }
+    }
+
     /// <summary>
     /// Puts keyboard focus in the view, unless it is there already, so its own keys (Esc, Enter on a header) reach it.
     /// A click on a box's name, meta, status or a strip chip runs a mouse binding and would otherwise leave focus where
@@ -154,17 +185,56 @@ public partial class ProjectView : UserControl
 
     private void OnPreviewMouseDown(object sender, MouseButtonEventArgs e) => FocusView();
 
-    private void OnSplitSizeChanged(object sender, SizeChangedEventArgs e)
+    private void OnSplitSizeChanged(object sender, SizeChangedEventArgs e) => QueueDraw();
+
+    // The view's own width, not the split's: the split's column minimums keep it at least 726 px wide however narrow the
+    // view, so its size would never say the pane no longer fits.
+    private void OnViewSizeChanged(object sender, SizeChangedEventArgs e)
     {
-        PaneColumn.MaxWidth = ProjectPaneWidth.Maximum(Split.ActualWidth);
+        PaneColumn.MaxWidth = ProjectPaneWidth.Maximum(ActualWidth);
+
+        if (DataContext is ProjectViewModel view)
+        {
+            var docked = view.IsPaneDocked;
+
+            view.PaneFits(ProjectPaneWidth.Docks(ActualWidth));
+            Dock(view, view.IsPaneDocked != docked);
+        }
+
         QueueDraw();
+    }
+
+    /// <summary>
+    /// Docks the pane beside the flow, at its remembered width when it has just come back (AC 53), or gives the flow the
+    /// whole width while Properties is an overlay over it (AC 52). The overlay's place is the pane's style.
+    /// </summary>
+    private void Dock(ProjectViewModel view, bool changed)
+    {
+        if (view.IsPaneDocked)
+        {
+            FlowColumn.MinWidth = ProjectPaneWidth.MinimumFlow;
+            SplitterColumn.Width = new GridLength(ProjectPaneWidth.Splitter);
+            PaneColumn.MinWidth = ProjectPaneWidth.Minimum;
+
+            if (changed && ActualWidth > 0)
+            {
+                PaneColumn.Width = new GridLength(ProjectPaneWidth.Clamp(view.PaneWidth, ActualWidth));
+            }
+        }
+        else
+        {
+            FlowColumn.MinWidth = 0;
+            SplitterColumn.Width = new GridLength(0);
+            PaneColumn.MinWidth = 0;
+            PaneColumn.Width = new GridLength(0);
+        }
     }
 
     private void OnSplitterDragCompleted(object sender, DragCompletedEventArgs e)
     {
-        if (DataContext is ProjectViewModel view)
+        if (DataContext is ProjectViewModel { IsPaneDocked: true } view)
         {
-            view.RememberPaneWidth(ProjectPaneWidth.Clamp(PaneColumn.ActualWidth, Split.ActualWidth));
+            view.RememberPaneWidth(ProjectPaneWidth.Clamp(PaneColumn.ActualWidth, ActualWidth));
         }
     }
 

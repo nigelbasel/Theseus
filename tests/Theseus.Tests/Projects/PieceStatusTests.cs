@@ -29,7 +29,7 @@ public class PieceStatusTests
 
     [TestCase("bym-mcp-identity", "Verify: holdouts not run yet")]
     [TestCase(RedirectAnchoring, "Not started: no records yet")]
-    [TestCase("bym-mcp-preconditions", "Freeform: done when objective 2.1 is done")]
+    [TestCase("bym-mcp-preconditions", "Freeform: done when objective 1.1 is done")]
     [TestCase(ServerSpec, "Done")]
     public void OnTheBuildYourMarketFixture(string piece, string text)
     {

@@ -23,8 +23,11 @@ internal sealed class ProjectViews
     /// <summary>What the buttons ran, in order, such as "AcceptSpec:project-view" or "Focus:git-22".</summary>
     public List<string> Ran { get; } = [];
 
-    /// <summary>The criteria ticked and objectives edited, in order, such as "Tick:12:True" or "Edit:1.1".</summary>
+    /// <summary>The criteria ticked and objectives edited and added, in order, such as "Tick:12:True", "Edit:1.1" or "Add:1".</summary>
     public List<string> Edited { get; } = [];
+
+    /// <summary>What the view said in the status bar, in order.</summary>
+    public List<string> Notices { get; } = [];
 
     public ProjectViewActions Actions => new(
         spec => Ran.Add($"OpenSpec:{spec.Slug}"),
@@ -33,9 +36,12 @@ internal sealed class ProjectViews
         key => Ran.Add($"Focus:{key}"),
         key => Ran.Add($"Start:{key}"),
         key => Ran.Add($"Stop:{key}"),
-        path => Ran.Add($"Open:{path}"));
+        path => Ran.Add($"Open:{path}"),
+        Notices.Add);
 
-    public ProjectViewEdits Edits => new((line, ticked) => Edited.Add($"Tick:{line}:{ticked}"), number => Edited.Add($"Edit:{number}"));
+    public ProjectViewEdits Edits => new((_, criterion, ticked) => Edited.Add($"Tick:{criterion.Line}:{ticked}"),
+        objective => Edited.Add($"Edit:{objective.Number}"),
+        phase => Edited.Add($"Add:{phase}"));
 
     /// <summary>Theseus bootstrap, with git-22 in this state, open in its tab beside BuildYourMarket's.</summary>
     public ProjectViewModel Theseus(SessionLifecycle git22 = SessionLifecycle.Idle, ProjectViewModel? previous = null,

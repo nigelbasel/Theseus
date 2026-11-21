@@ -1,4 +1,5 @@
 using System.Windows.Input;
+using Theseus.Core.Projects;
 
 namespace Theseus.App.ViewModels;
 
@@ -18,4 +19,11 @@ public sealed record CriterionViewModel(string Text, bool IsTicked, ICommand? To
 
     /// <summary>What its button does.</summary>
     public string ToolTip => IsTicked ? "Untick this criterion in project.md" : "Tick this criterion in project.md";
+
+    /// <summary>An objective's criteria, each ticked or unticked in the file through the view's edits when it has them.</summary>
+    internal static IReadOnlyList<CriterionViewModel> Of(ProjectObjective objective, ProjectViewEdits? edits) =>
+    [
+        .. objective.Criteria.Select(criterion => new CriterionViewModel(criterion.Text, criterion.IsTicked,
+            edits is null ? null : new RelayCommand(_ => edits.TickCriterion(objective, criterion, !criterion.IsTicked)))),
+    ];
 }
