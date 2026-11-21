@@ -19,12 +19,32 @@ public static class PieceFolds
     public static string KeyFor(string project) => $"pieces:Project:{project}";
 
     /// <summary>Whether a box is open: its own entry, else <c>*</c>, else folded.</summary>
-    public static bool IsOpen(IReadOnlyList<string> entries, string piece)
+    public static bool IsOpen(IReadOnlyList<string> entries, string piece) => IsOpen(entries, piece, false);
+
+    /// <summary>
+    /// Whether a box or heading is open: its own entry, else <c>*</c>, else as it starts. Headings start open, but a
+    /// done phase starts folded (1.1d AC 46).
+    /// </summary>
+    public static bool IsOpen(IReadOnlyList<string> entries, string name, bool fallback)
     {
         ArgumentNullException.ThrowIfNull(entries);
 
-        return StateOf(entries, piece) ?? StateOf(entries, Everything) ?? false;
+        return StateOf(entries, name) ?? StateOf(entries, Everything) ?? fallback;
     }
+
+    /// <summary>
+    /// The entry name of a phase heading in the view grouped by objectives (1.1d AC 50), by the phase's name, so adding
+    /// or renumbering a phase moves no other heading's fold, and a renamed phase starts as new (PR 4 review, finding 7).
+    /// Kept with the boxes' entries and never a piece's name, since a piece is named in lower-case letters, digits and
+    /// hyphens.
+    /// </summary>
+    public static string PhaseEntry(string phase) => $"phase:{phase}";
+
+    /// <summary>The entry name of an objective heading, by the objective's title.</summary>
+    public static string ObjectiveEntry(string objective) => $"objective:{objective}";
+
+    /// <summary>The entry name of the heading of pieces no project file lists.</summary>
+    public const string UnlistedEntry = "unlisted:";
 
     /// <summary>The entries with one box toggled to open or folded, keeping every other entry.</summary>
     public static IReadOnlyList<string> With(IReadOnlyList<string> entries, string piece, bool open)

@@ -9,7 +9,7 @@
 | Ctrl+D | Day report |
 | Ctrl+A | Select all cards (in a text box, selects its text instead) |
 | Ctrl+I | Invert the selection |
-| Esc | Clear the selection |
+| Esc | Clear the selection; in a project's view, first closes Properties when it is open over the view |
 | Alt+Left | In a project's view: back to the board |
 | Enter | On a project card you have clicked: opens the project's view |
 | Alt+Enter | Properties of the selected card |

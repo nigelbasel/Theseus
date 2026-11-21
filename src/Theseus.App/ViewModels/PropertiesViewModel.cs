@@ -4,8 +4,9 @@ using Theseus.Core.Projects;
 namespace Theseus.App.ViewModels;
 
 /// <summary>
-/// The Properties pane of the project view (1.1d AC 34): a hint while nothing is selected; for a piece of work or one of
-/// its stages, its state in words, label and value rows, its links, what can be done, and its objective's criteria.
+/// The Properties pane of the project view (1.1d AC 34, 49): a hint while nothing is selected; for a piece of work or one
+/// of its stages, its state in words, label and value rows, its links, what can be done, and its objective's criteria;
+/// for an objective or phase heading, what it holds and its edits.
 /// </summary>
 public sealed class PropertiesViewModel
 {
@@ -51,7 +52,7 @@ public sealed class PropertiesViewModel
     /// <summary>Accept spec… while it waits, then Open &lt;record&gt; or Open records.</summary>
     public IReadOnlyList<PieceActionViewModel> Buttons { get; private init; } = [];
 
-    /// <summary>"Objective 1.1: Checks shown on cards", or empty for a piece no project file lists.</summary>
+    /// <summary>"Objective 1.1: Checks shown on cards", "Criteria" for an objective heading, or empty with no objective.</summary>
     public string ObjectiveHeading { get; private init; } = string.Empty;
 
     /// <summary>Whether it has an Objective section.</summary>
@@ -132,6 +133,57 @@ public sealed class PropertiesViewModel
         };
     }
 
+    /// <summary>
+    /// The pane for an objective heading of the view grouped by objectives (1.1d AC 49): the objective, its pieces of
+    /// work and their counts, then its criteria to tick and Edit objective…. For the heading of pieces no project file
+    /// lists, what they are.
+    /// </summary>
+    internal static PropertiesViewModel ForObjective(ObjectiveHeadingViewModel heading)
+    {
+        var pieces = heading.IsEmpty ? "nothing yet" : string.Join(", ", heading.Pieces.Select(piece => piece.Name));
+        var counts = heading.Counts.Count == 0 ? "nothing yet" : string.Join("  ", heading.Counts.Select(chip => chip.Text));
+
+        if (heading.Objective is not { } objective)
+        {
+            return new PropertiesViewModel(heading.Title)
+            {
+                StatusText = heading.CriteriaToolTip,
+                Rows = [new("Pieces", pieces), new("Where", counts)],
+            };
+        }
+
+        return new PropertiesViewModel($"Objective {objective.Number}: {objective.Title}")
+        {
+            StatusText = heading.CriteriaToolTip,
+            State = objective.IsDone ? StageNodeState.Done : StageNodeState.ToDo,
+            Rows =
+            [
+                new("Phase", heading.PhaseTitle ?? string.Empty),
+                new("Pieces", pieces),
+                new("Where", counts),
+            ],
+            ObjectiveHeading = "Criteria",
+            Criteria = heading.Criteria,
+            EditObjectiveCommand = heading.EditObjectiveCommand,
+        };
+    }
+
+    /// <summary>The pane for a phase heading (1.1d AC 49): its exit gate, its objectives, and Add objective….</summary>
+    internal static PropertiesViewModel ForPhase(PhaseHeadingViewModel heading) =>
+        new(heading.Title)
+        {
+            StatusText = heading.DoneText,
+            State = heading.IsDone ? StageNodeState.Done : StageNodeState.ToDo,
+            Rows =
+            [
+                new("Exit gate", heading.Group.Phase.ExitGate.Length == 0 ? "none written" : heading.Group.Phase.ExitGate),
+                new("Objectives", heading.Objectives.Count == 0
+                    ? "none yet"
+                    : string.Join("; ", heading.Objectives.Select(objective => objective.Title))),
+            ],
+            Buttons = heading.AddObjective is { } add ? [add] : [],
+        };
+
     private static string ObjectiveText(PieceOfWork piece) =>
         piece.ObjectiveNumber is { } number ? $"{number} {piece.ObjectiveTitle}" : "not in project.md";
 
@@ -162,16 +214,10 @@ public sealed class PropertiesViewModel
         node.Objective is { } objective ? $"Objective {objective.Number}: {objective.Title}" : string.Empty;
 
     private static IReadOnlyList<CriterionViewModel> CriteriaOf(PieceNodeViewModel node, ProjectViewEdits? edits) =>
-        node.Objective is not { } objective
-            ? []
-            :
-            [
-                .. objective.Criteria.Select(criterion => new CriterionViewModel(criterion.Text, criterion.IsTicked,
-                    edits is null ? null : new RelayCommand(_ => edits.TickCriterion(criterion.Line, !criterion.IsTicked)))),
-            ];
+        node.Objective is { } objective ? CriterionViewModel.Of(objective, edits) : [];
 
     private static ICommand? EditOf(PieceNodeViewModel node, ProjectViewEdits? edits) =>
         node.Objective is { } objective && edits is not null
-            ? new RelayCommand(_ => edits.EditObjective(objective.Number))
+            ? new RelayCommand(_ => edits.EditObjective(objective))
             : null;
 }

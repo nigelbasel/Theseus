@@ -1347,6 +1347,13 @@
                     <MenuItem Header="_None" IsCheckable="True" IsChecked="{Binding Board.RowsByNone, Mode=TwoWay}"
                               ToolTip="One row holding everything" />
                 </MenuItem>
+                <MenuItem Header="_Group project by" Visibility="{Binding IsProjectOpen, Converter={StaticResource BoolToVisibility}}"
+                          ToolTip="How the open project's view groups its pieces of work, kept for each project">
+                    <MenuItem Header="_Flow" IsCheckable="True" IsChecked="{Binding ProjectView.IsGroupedByFlow, Mode=TwoWay}"
+                              ToolTip="Pieces of work as they hand work on, time running down the page" />
+                    <MenuItem Header="_Objectives" IsCheckable="True" IsChecked="{Binding ProjectView.IsGroupedByObjectives, Mode=TwoWay}"
+                              ToolTip="Pieces of work under the phases and objectives of project.md" />
+                </MenuItem>
                 <Separator />
                 <MenuItem Header="_Archive" IsCheckable="True" IsChecked="{Binding Board.ShowArchived, Mode=TwoWay}"
                           ToolTip="Show what has been put away instead of what is being worked on" />

@@ -21,6 +21,15 @@ public static class ProjectPaneWidth
     /// <summary>The splitter's width.</summary>
     public const double Splitter = 6;
 
+    /// <summary>
+    /// The narrowest view the pane docks in: the flow's minimum, the splitter and the pane's own (1.1d AC 52). In a
+    /// narrower one Properties opens as an overlay instead.
+    /// </summary>
+    public const double DockingWidth = MinimumFlow + Splitter + Minimum;
+
+    /// <summary>Whether the pane docks beside the flow in a view this wide.</summary>
+    public static bool Docks(double viewWidth) => viewWidth >= DockingWidth;
+
     /// <summary>The widest it may be in a view this wide; never under <see cref="Minimum"/>.</summary>
     public static double Maximum(double viewWidth) =>
         Math.Max(Minimum, Math.Min(viewWidth / 2, viewWidth - MinimumFlow - Splitter));

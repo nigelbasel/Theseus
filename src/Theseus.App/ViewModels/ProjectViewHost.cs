@@ -36,8 +36,8 @@ public sealed class ProjectViewHost
         view?.Selection is not null || _board.Cards.Any(card => card.IsSelected) || _board.ProjectCards.Any(project => project.IsSelected);
 
     /// <summary>
-    /// Esc: clears the open view's selection when it has one and says so (true); otherwise false, for the board's own
-    /// clearing to run.
+    /// Esc: closes the open view's Properties overlay, leaving its selection (1.1d AC 53), or else clears its selection,
+    /// when it has one, and says so (true); otherwise false, for the board's own clearing to run.
     /// </summary>
     public static bool ClearViewSelection(ProjectViewModel? view)
     {
@@ -46,7 +46,7 @@ public sealed class ProjectViewHost
             return false;
         }
 
-        view.Select(null);
+        view.ClearSelectionCommand.Execute(null);
 
         return true;
     }

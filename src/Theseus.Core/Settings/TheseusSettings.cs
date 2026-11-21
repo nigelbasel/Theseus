@@ -169,6 +169,13 @@ public sealed record TheseusSettings(
     public IReadOnlyDictionary<string, double> PaneSizes { get; init; } = new Dictionary<string, double>();
 
     /// <summary>
+    /// How each project's view groups its pieces of work, by project name (1.1d AC 45). A project not listed shows the
+    /// flow of hand-overs.
+    /// </summary>
+    public IReadOnlyDictionary<string, ProjectViewGrouping> ProjectGrouping { get; init; } =
+        new Dictionary<string, ProjectViewGrouping>();
+
+    /// <summary>
     /// The terminal window an area's sessions start in, where it is not named after the area itself:
     /// an area renamed by <see cref="Domain.BoardTidy"/> keeps its old window, so its new sessions
     /// join the tabs already open rather than starting a window of their own.

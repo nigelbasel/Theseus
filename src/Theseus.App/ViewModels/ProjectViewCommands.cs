@@ -51,6 +51,7 @@ public static class ProjectViewCommands
             key => OnCard(key, _ => focus, passCard: true),
             key => OnCard(key, _ => start, passCard: true),
             key => OnCard(key, _ => stop, passCard: true),
-            openPath);
+            openPath,
+            notice);
     }
 }

@@ -53,9 +53,30 @@ workstream that works it, its kind (feature, bug or freeform), its objective, an
 Right-click a stage, or press Shift+F10 or the Menu key on it, for **Properties** and that stage's own actions.
 
 **Collapse all** folds every box, **Expand all** opens them all, and **Open what needs attention** opens what is busy,
-waiting on you, stuck or waiting for its holdout check, and folds the rest. Each project keeps its boxes as you leave
-them, across restarts. Nothing opens or folds by itself: a folded box that starts waiting on you stays folded and says
-so in its status line and strip.
+waiting on you, stuck or waiting for its holdout check, and folds the rest. Grouped by objectives, they fold and open
+the headings too, and Open what needs attention opens the headings on the way to what needs you. Each project keeps
+its boxes and headings as you leave them, across restarts. Nothing opens or folds by itself: a folded box that starts
+waiting on you stays folded and says so in its status line and strip.
+
+## Group by
+
+**Group by: Flow | Objectives** on the toolbar, or **View > Group project by**, chooses how the boxes are laid out.
+Each project keeps its own choice, across restarts.
+
+- **Flow** shows the pieces of work as they hand work on, time running down the page, with the links below.
+- **Objectives** shows every phase of the project's file as a heading, in file order, with its exit gate and how many
+  of its objectives are done. Under each phase, every objective is a heading: its number and title, how many of its
+  criteria are ticked (such as 0/6), and the counts of its pieces of work; one that nothing works on yet says
+  **nothing yet**. Under each objective are its pieces of work, as the same boxes, with the same stages, buttons and
+  Properties. Pieces linked into the project but listed in no project file come last, under **Not in project.md**.
+
+Headings fold and open with their chevron, like a branch; a phase whose objectives are all done starts folded. No line
+is drawn between headings, so a box says what the lines would: **← handed on from …**, **→ handed on to …**, and,
+where the same workstream moved on to another objective, **┈ worked on after …** and **┈ then worked on …**.
+
+Click an objective heading to show it in Properties: its pieces of work, its criteria to tick with ☐ or ☑, and **Edit
+objective…**. Click a phase heading to see its exit gate and objectives, with **Add objective…**, which adds one at the
+end of that phase. Right-click a heading, or press Shift+F10 or the Menu key on it, for the same.
 
 ## The links
 
@@ -76,12 +97,18 @@ the objective's criteria: click the ☐ or ☑ beside a criterion to tick or unt
 Drag the splitter to resize the pane, or double-click it to put it back to its first width. The width is kept across
 restarts and for every project.
 
+When the window is too narrow for the boxes and the pane side by side (such as the narrowest window with the Live
+sessions panel open), the pane steps aside: the boxes take the whole width, and the status bar says **Properties
+hidden: the window is too narrow**. Selecting something then opens Properties over the right of the view; close it with
+**×** or Esc, and what you selected stays selected. Make the window wider and the pane comes back beside the boxes, at
+the width you left it.
+
 ## Keys
 
 | Keys | Does |
 |---|---|
 | Alt+Left | Back to the board |
-| Esc | Clear the selection |
-| Tab | Moves through the chevrons, names, stages and buttons in reading order |
-| Enter or Space on a name | Selects that piece of work |
-| Shift+F10, or the Menu key | A stage's menu |
+| Esc | Closes Properties when it is open over the view; otherwise clears the selection |
+| Tab | Moves through the chevrons, names, headings, stages and buttons in reading order |
+| Enter or Space on a name or heading | Selects that piece of work or heading |
+| Shift+F10, or the Menu key | A stage's or a heading's menu |

@@ -8,7 +8,7 @@ namespace Theseus.App.ViewModels;
 /// its chain and actions, with the pieces it hands work to in a branch under it. What it shows comes from the model
 /// (<see cref="PieceOfWork"/>, <see cref="PieceNode"/>); nothing here works state out again.
 /// </summary>
-public sealed class PieceNodeViewModel : ObservableObject
+public sealed class PieceNodeViewModel : ObservableObject, IFoldable
 {
     /// <summary>A folded box's width.</summary>
     public const double FoldedWidth = 290;
@@ -121,6 +121,18 @@ public sealed class PieceNodeViewModel : ObservableObject
         }
     }
 
+    bool IFoldable.IsOpen
+    {
+        get => IsOpen;
+        set => IsOpen = value;
+    }
+
+    /// <inheritdoc />
+    public string FoldName => Name;
+
+    /// <summary>A box starts folded, the mockup's first view (AC 33).</summary>
+    public bool StartsOpen => false;
+
     /// <summary>Whether it shows the strip rather than the chain.</summary>
     public bool IsFolded => !_isOpen;
 
@@ -130,7 +142,7 @@ public sealed class PieceNodeViewModel : ObservableObject
     /// <summary>What the chevron does.</summary>
     public string ChevronToolTip => _isOpen ? "Fold this piece of work" : "Open into its stages";
 
-    /// <summary>290 px folded, 640 px open.</summary>
+    /// <summary>The widest it is: 290 px folded, 640 px open; narrower when the flow leaves less (AC 31, 54).</summary>
     public double BoxWidth => _isOpen ? OpenWidth : FoldedWidth;
 
     /// <summary>Whether it, or one of its stages, is what the Properties pane shows.</summary>
@@ -154,6 +166,12 @@ public sealed class PieceNodeViewModel : ObservableObject
 
     /// <summary>Its objective in the project file, or null for a piece no project file lists.</summary>
     public ProjectObjective? Objective { get; init; }
+
+    /// <summary>
+    /// The marks it carries in the view grouped by objectives, where no connector is drawn (1.1d AC 47): "← handed on
+    /// from …", "→ handed on to …", "┈ worked on after …" and "┈ then worked on …".
+    /// </summary>
+    public IReadOnlyList<string> CrossMarks { get; init; } = [];
 
     /// <summary>Its spec as read, when it waits at its gate, for Open spec and Accept spec.</summary>
     public SpecAtGate? Spec { get; init; }
