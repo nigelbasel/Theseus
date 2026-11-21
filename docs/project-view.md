@@ -9,13 +9,16 @@ the drawer, the side panels and the status bar stay.
 ## Getting back and across
 
 **← Board** at the top left, **Alt+Left**, or **View > Back to the board** goes back to the board. Next to it is a tab
-for each project that reads; click one to open that project. **Esc** clears what is selected; it does not go back.
+for each project that reads, its stacked-card mark in the project's own colour; click one to open that project. **Esc** clears what is selected; it does not go back.
 
 ## Where the project is
 
-Under the tabs are the project's title and one sentence saying where it is: how many pieces of work it has across how
+Under the tabs are the project's mark in its colour, its title and the word PROJECT, as on its card on the board, then
+one sentence saying where it is: how many pieces of work it has across how
 many objectives, how many are done, busy, waiting on you, waiting for their holdout check, stuck or still to do, which
-session is working on what, and what comes next. Six counts follow, zeros included.
+session is working on what, and what comes next. Six counts follow, zeros included. The project card shows the same
+sentence and the same counts, leaving out the zeros. The colour is changed in **Project properties…** on the project
+card's menu.
 
 While something waits on you, a band lists it: **Accept the spec of …** opens that piece of work, selects its spec and
 asks you to accept it, naming the version; **Answer … in its terminal** brings that session's terminal forward.

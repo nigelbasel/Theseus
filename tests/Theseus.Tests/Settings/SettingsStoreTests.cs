@@ -46,6 +46,7 @@ public class SettingsStoreTests
             WorktreesFolder = @"C:\work",
             ProjectCardPlaces = new Dictionary<string, ProjectCardPlace> { ["a-project"] = new("In progress", "Dev") },
             PaneSizes = new Dictionary<string, double> { ["ProjectView:Pane"] = 420 },
+            ProjectColours = new Dictionary<string, string> { ["a-project"] = "#208DD7" },
         };
 
         _store.Write(settings);
@@ -60,12 +61,13 @@ public class SettingsStoreTests
         Assert.That(read.CollapsedCards, Is.EqualTo(settings.CollapsedCards));
         Assert.That(read.ViewFolds["rows:Project"], Is.EqualTo(new[] { "Theseus" }));
         Assert.That(read.PaneSizes["ProjectView:Pane"], Is.EqualTo(420));
+        Assert.That(read.ProjectColours["a-project"], Is.EqualTo("#208DD7"));
         Assert.That(read with
             {
                 Lanes = settings.Lanes, Areas = settings.Areas, CollapsedAreas = settings.CollapsedAreas,
                 CollapsedStages = settings.CollapsedStages, CollapsedCards = settings.CollapsedCards,
                 ViewFolds = settings.ViewFolds, ColumnWeights = settings.ColumnWeights, RowHeights = settings.RowHeights, AreaWindows = settings.AreaWindows,
-                ProjectCardPlaces = settings.ProjectCardPlaces, PaneSizes = settings.PaneSizes,
+                ProjectCardPlaces = settings.ProjectCardPlaces, PaneSizes = settings.PaneSizes, ProjectColours = settings.ProjectColours,
             }, Is.EqualTo(settings),
             "a record holding a list compares it by reference, so the lists are checked separately");
     }

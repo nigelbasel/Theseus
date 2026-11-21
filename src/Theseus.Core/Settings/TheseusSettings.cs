@@ -114,6 +114,12 @@ public sealed record TheseusSettings(
         new Dictionary<string, ProjectCardPlace>();
 
     /// <summary>
+    /// Each project's own colour, as <c>#rrggbb</c>, by project name (1.1d AC 40): allocated as a workstream's is when a
+    /// project first shows, and changed only in its Project properties.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> ProjectColours { get; init; } = new Dictionary<string, string>();
+
+    /// <summary>
     /// Which one-off tidies of the grid this board has had. Zero for a board from before any; see
     /// <see cref="Domain.BoardTidy"/>.
     /// </summary>

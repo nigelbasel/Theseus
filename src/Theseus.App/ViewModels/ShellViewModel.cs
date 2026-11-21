@@ -29,6 +29,7 @@ public sealed class ShellViewModel : ObservableObject
     private string? _openProjectName;
     private ProjectViewModel? _projectView;
     private ProjectViewActions? _projectActions;
+    private ProjectRunner? _runner;
     private readonly ProjectViewHost _viewHost;
     private IReadOnlyList<ProjectChoice> _openProjectChoices = [];
     private IReadOnlyList<ProjectChoice> _openSpecChoices = [];
@@ -150,11 +151,11 @@ public sealed class ShellViewModel : ObservableObject
         StopCardCommand = new RelayCommand(parameter => BeginStop(CardSteps(parameter)),
             parameter => CardSteps(parameter).Count > 0);
 
-        StartSelectedCommand = new RelayCommand(_ => StartMany(ChosenToStart()),
-            _ => ChosenToStart().Count > 0);
+        StartSelectedCommand = new RelayCommand(_ => StartSelected(),
+            _ => ChosenToStart().Count > 0 || (_launcher.CanLaunch && Board.ChosenProjects.Any(project => project.StartPlan is { CanStart: true })));
         StopSelectedCommand = new RelayCommand(_ => BeginStop(ChosenSteps()),
             _ => ChosenSteps().Count > 0);
-        SelectAllCommand = new RelayCommand(_ => ChooseAll(true), _ => Board.ShownCards.Any(card => !card.IsSelected));
+        SelectAllCommand = new RelayCommand(_ => ChooseAll(true), _ => Board.ShownItems.Any(item => !item.IsSelected));
         ClearSelectionCommand = new RelayCommand(_ =>
         {
             if (!ProjectViewHost.ClearViewSelection(ProjectView))
@@ -162,11 +163,15 @@ public sealed class ShellViewModel : ObservableObject
                 ChooseAll(false);
             }
         }, _ => _viewHost.CanClearSelection(ProjectView));
-        InvertSelectionCommand = new RelayCommand(_ => Invert(), _ => Board.ShownCards.Any());
-        SelectLiveCommand = new RelayCommand(_ => SelectLive(), _ => Board.ShownCards.Any(card => card.IsLive));
+        InvertSelectionCommand = new RelayCommand(_ => Invert(), _ => Board.ShownItems.Any());
+        SelectLiveCommand = new RelayCommand(_ => SelectLive(), _ => Board.ShownItems.Any(item => item.IsLive));
         ArchiveSelectedCommand = new RelayCommand(_ => ArchiveSelected(), _ => Chosen().Any(card => !card.IsLive));
-        VerifySelectedWithHoldoutsCommand = new RelayCommand(_ => VerifyWithHoldouts(Chosen()[0]),
-            _ => Chosen() is [var only] && CanVerify(only));
+        VerifySelectedWithHoldoutsCommand = new RelayCommand(_ =>
+            {
+                VerifyWithHoldouts(Chosen()[0]);
+                SaySkipped();
+            },
+            _ => ProjectSelection.OneCard(Board) is { } only && CanVerify(only));
         MarkSelectedPausedCommand = new RelayCommand(_ => MarkSelected(workstream => workstream with { IsPaused = true }, "paused"),
             _ => Chosen().Any(card => !card.IsPaused));
         MarkSelectedBlockedCommand = new RelayCommand(_ => MarkSelected(workstream => workstream with { IsBlocked = true }, "blocked"),
@@ -176,7 +181,11 @@ public sealed class ShellViewModel : ObservableObject
         FoldAllCommand = new RelayCommand(_ => FoldEvery(), _ => Board.Cards.Any(card => !card.IsCollapsed));
         UnfoldGridCommand = new RelayCommand(_ => Board.UnfoldGrid(),
             _ => Board.Rows.Any(row => row.IsCollapsed) || Board.StageHeaders.Any(header => header.IsCollapsed));
-        PropertiesCommand = new RelayCommand(_ => ShowCard(Chosen().FirstOrDefault()), _ => Chosen().Count == 1);
+        PropertiesCommand = new RelayCommand(_ =>
+        {
+            ShowCard(ProjectSelection.OneCard(Board));
+            SaySkipped();
+        }, _ => ProjectSelection.OneCard(Board) is not null);
         OpenLogsFolderCommand = new RelayCommand(_ => OpenFolder(Path.Combine(App.DataDirectory, "logs")));
         OpenDataFolderCommand = new RelayCommand(_ => OpenFolder(App.DataDirectory));
 
@@ -474,10 +483,17 @@ public sealed class ShellViewModel : ObservableObject
         }
     }
 
-    /// <summary>How many cards are ticked, so the buttons can say what they would act on.</summary>
-    public string SelectionSummary => Board.ShownCards.Count(card => card.IsSelected) is var count && count > 0
+    /// <summary>How many cards and project cards are ticked, so the buttons can say what they would act on.</summary>
+    public string SelectionSummary => Board.ShownItems.Count(item => item.IsSelected) is var count && count > 0
         ? $"{count} selected"
         : "none selected";
+
+    /// <summary>Properties' tooltip: what it opens, or why not for a project.</summary>
+    public string PropertiesToolTip => ProjectSelection.ToolTip(Board, "The selected card's properties");
+
+    /// <summary>Verify with holdouts' tooltip, on the Workstream menu: what it does, or why not for a project.</summary>
+    public string VerifySelectedToolTip => ProjectSelection.ToolTip(Board,
+        "Create a verifier card for the one ticked card: it runs the holdout scenarios its spec names, and reports only a verdict back. Needs one card ticked and the holdout scenarios folder set in Tools > Options; not offered for a verifier card or an archived one");
 
     /// <summary>Ticks every card with a session running, so the end of the day is Select live, then Stop.</summary>
     public RelayCommand SelectLiveCommand { get; }
@@ -527,6 +543,83 @@ public sealed class ShellViewModel : ObservableObject
     /// ones are left alone.
     /// </summary>
     public Func<string, bool, bool?>? ConfirmFlaggedStart { get; set; }
+
+    /// <summary>Shows a project's Start confirmation; true when Start was pressed (1.1d AC 43). Unset, nothing starts.</summary>
+    public Func<ProjectStartViewModel, bool>? ConfirmProjectStart { get; set; }
+
+    /// <summary>Shows a project's properties; true when OK was pressed (1.1d AC 40). Unset, nothing changes.</summary>
+    public Func<ProjectPropertiesViewModel, bool>? AskProjectProperties { get; set; }
+
+    /// <summary>Says in the status bar why a drag could not be dropped (1.1d AC 42).</summary>
+    public void DropRefused(string reason) => Notice = reason;
+
+    /// <summary>Starts and stops whole projects with the board's own Start and Stop (1.1d AC 43).</summary>
+    private ProjectRunner Runner => _runner ??= new ProjectRunner(Board.Card,
+        question => ConfirmProjectStart?.Invoke(question) == true,
+        card => ProjectRunner.RefusalOf(card, Sessions.Snapshot),
+        workstreams => StartMany(workstreams, trigger: "StartProject"),
+        cards => BeginStop(StepsFor(cards)),
+        (text, afterStart) => Notice = afterStart && !string.IsNullOrWhiteSpace(Notice) ? $"{Notice} {text}" : text);
+
+    /// <summary>
+    /// Start selected: the ticked cards that can start, and for each selected project the cards its confirmation ticks
+    /// (1.1d AC 43). Cancelling a project's confirmation starts nothing at all.
+    /// </summary>
+    private void StartSelected() => Runner.StartSelected(ChosenToStart(), Board.ChosenProjects);
+
+    private string ProjectsSkipped() => ProjectSelection.Skipped(Board);
+
+    /// <summary>Adds to the status bar that a command for one workstream passed over the selected projects.</summary>
+    private void SaySkipped()
+    {
+        if (ProjectsSkipped() is { Length: > 0 } skipped)
+        {
+            Notice = string.IsNullOrWhiteSpace(Notice) ? skipped.Trim() : $"{Notice}{skipped}";
+        }
+    }
+
+    /// <summary>Project properties…: changes only the project's colour, kept by name (1.1d AC 40).</summary>
+    private void ShowProjectProperties(ProjectCardViewModel card)
+    {
+        var others = Board.ProjectCards
+            .Where(other => !string.Equals(other.Name, card.Name, StringComparison.OrdinalIgnoreCase))
+            .GroupBy(other => other.Title, StringComparer.CurrentCultureIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First().ColourHex, StringComparer.CurrentCultureIgnoreCase);
+        var properties = new ProjectPropertiesViewModel(card.Name, card.Title, card.ColourHex, card.ProjectFile, others);
+
+        if (AskProjectProperties?.Invoke(properties) != true
+            || string.Equals(properties.ColourHex, card.ColourHex, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var settings = _settings.Read();
+        var colours = new Dictionary<string, string>(settings.ProjectColours, StringComparer.OrdinalIgnoreCase)
+        {
+            [card.Name] = properties.ColourHex,
+        };
+
+        _settings.Write(settings with { ProjectColours = colours });
+        WireProjectChoices();
+        Notice = $"{card.Title} has a new colour.";
+    }
+
+    /// <summary>
+    /// Every project card's colour from the project palette, given to any project that has none yet, and saved (1.1d AC
+    /// 40; decision 7).
+    /// </summary>
+    private IReadOnlyDictionary<string, string> ProjectColoursFor(IReadOnlyList<string> names)
+    {
+        var saved = _settings.Read().ProjectColours;
+        var assigned = ProjectColours.Assign(saved, names);
+
+        if (!ReferenceEquals(assigned, saved))
+        {
+            _settings.Write(_settings.Read() with { ProjectColours = assigned });
+        }
+
+        return assigned;
+    }
 
     /// <summary>The Jira issues and pull requests sessions recorded against their cards, with titles.</summary>
     public WorkItemBook? WorkItems { get; set; }
@@ -795,8 +888,9 @@ public sealed class ShellViewModel : ObservableObject
     private IReadOnlyList<StopStep> CardSteps(object? parameter) =>
         parameter is WorkstreamCardViewModel card ? StepsFor([card]) : [];
 
+    // A selected project stops as its own ■ does: each of its cards with a session open (1.1d AC 43).
     private IReadOnlyList<StopStep> ChosenSteps() =>
-        StepsFor(Chosen());
+        StepsFor(Runner.StopSelected(Chosen(), Board.ChosenProjects));
 
     /// <summary>
     /// Ticks every card shown whose session is running, and unticks the rest of them, the last column's
@@ -1264,7 +1358,12 @@ public sealed class ShellViewModel : ObservableObject
         IReadOnlyList<SpecAcceptance> acceptances = readable.Count == 0 ? [] : _acceptances.Load();
         IReadOnlyList<PieceCard> pieceCards = readable.Count == 0 ? [] : [.. cards.Select(PieceCardOf)];
         var links = Chains?.AllLinks ?? [];
-        var tabs = ProjectTabViewModel.For(readable, _openProjectName, name => new RelayCommand(_ => OpenProject(name)));
+        var dimmed = readings.Where(reading =>
+                !reading.IsReadable && reading.Folder is { } home && File.Exists(Path.Combine(home, ProjectCatalog.ProjectFileName)))
+            .ToList();
+        var colours = ProjectColoursFor([.. readable.Concat(dimmed).Select(reading => reading.Name)]);
+        var tabs = ProjectTabViewModel.For(readable, _openProjectName, name => new RelayCommand(_ => OpenProject(name)),
+            name => ProjectColours.Of(colours, name));
 
         foreach (var reading in readable)
         {
@@ -1296,6 +1395,13 @@ public sealed class ShellViewModel : ObservableObject
                 AddObjective(name, Readable(name)?.File?.CurrentPhase?.Number ?? Readable(name)?.File?.Phases.LastOrDefault()?.Number ?? 0));
             projectCard.PhaseText = file.CurrentPhase is { } phase ? $"Phase {phase.Number}: {phase.Name}" : "Every objective done";
             projectCard.ObjectivesText = $"{file.ObjectivesDone} of {file.Objectives.Count} objectives done";
+            WireProjectCard(projectCard, reading, colours);
+            if (ProjectCardFace.Fill(projectCard, pieces))
+            {
+                System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+            }
+
+            Runner.Wire(projectCard, () => _launcher.CanLaunch);
 
             var waiting = ProjectWaiting.For(
                 [.. cards.Where(card => string.Equals(card.Workstream.Project, name, StringComparison.OrdinalIgnoreCase))],
@@ -1316,9 +1422,9 @@ public sealed class ShellViewModel : ObservableObject
 
         var openable = projectCards.ToList();
 
-        // A project whose file does not read still gets its card, dimmed and saying why (1.1c AC 5).
-        foreach (var reading in readings.Where(reading =>
-                     !reading.IsReadable && reading.Folder is { } home && File.Exists(Path.Combine(home, ProjectCatalog.ProjectFileName))))
+        // A project whose file does not read still gets its card, dimmed and saying why (1.1c AC 5), with its mark and
+        // colour but no Start or Stop (1.1d AC 44).
+        foreach (var reading in dimmed)
         {
             var projectCard = Board.ProjectCards.FirstOrDefault(existing =>
                                   string.Equals(existing.Name, reading.Name, StringComparison.OrdinalIgnoreCase) && existing.IsDimmed)
@@ -1331,6 +1437,8 @@ public sealed class ShellViewModel : ObservableObject
                 ? $"Pinned to {MethodKits.Pinned}: its project.md is in the older shape"
                 : $"Does not read: {reading.Reason}";
             projectCard.ObjectivesText = "Double-click to open its project.md";
+            WireProjectCard(projectCard, reading, colours);
+            ProjectCardFace.Dim(projectCard);
 
             if (projectCard.Waiting.Count > 0)
             {
@@ -1367,6 +1475,15 @@ public sealed class ShellViewModel : ObservableObject
 
         WireSpecChoices();
         WireProjectWindow(cards);
+    }
+
+    /// <summary>What every project card has, read or dimmed: its colour, its file, its properties and its selection.</summary>
+    private void WireProjectCard(ProjectCardViewModel card, ProjectFileReading reading, IReadOnlyDictionary<string, string> colours)
+    {
+        card.ColourHex = ProjectColours.Of(colours, reading.Name) ?? ProjectCardViewModel.NoColour;
+        card.ProjectFile = Path.Combine(reading.Folder ?? string.Empty, ProjectCatalog.ProjectFileName);
+        card.PropertiesCommand ??= new RelayCommand(_ => ShowProjectProperties(card));
+        card.SelectionChanged = SelectionMoved;
     }
 
     /// <summary>
@@ -1435,7 +1552,10 @@ public sealed class ShellViewModel : ObservableObject
     /// <summary>What the project view knows of a board card (1.1d AC 1): its session, marks, role and whether Start would start it.</summary>
     private PieceCard PieceCardOf(WorkstreamCardViewModel card) =>
         new(card.Key, card.Title, card.ColorHex, card.Lifecycle, card.IsBlocked, card.Workstream.Role,
-            StartSelection.IsEligible(card.Workstream, Sessions.Snapshot));
+            StartSelection.IsEligible(card.Workstream, Sessions.Snapshot))
+        {
+            IsPaused = card.IsPaused,
+        };
 
     /// <summary>Open spec and Accept spec on the menu bar, for the open project's waiting specs (R16).</summary>
     private void WireSpecChoices()
@@ -1630,7 +1750,7 @@ public sealed class ShellViewModel : ObservableObject
         var skipped = chosen.Count - quiet.Count;
         var done = restoring ? $"Restored {quiet.Count}." : $"Archived {quiet.Count}.";
 
-        Notice = skipped == 0 ? done : $"{done} Left {skipped} alone because a session is running.";
+        Notice = (skipped == 0 ? done : $"{done} Left {skipped} alone because a session is running.") + ProjectsSkipped();
     }
 
     /// <summary>
@@ -1701,7 +1821,7 @@ public sealed class ShellViewModel : ObservableObject
         }
 
         Refresh();
-        Notice = chosen.Count == 1 ? $"{chosen[0].Title} is {said}." : $"{chosen.Count} cards are {said}.";
+        Notice = (chosen.Count == 1 ? $"{chosen[0].Title} is {said}." : $"{chosen.Count} cards are {said}.") + ProjectsSkipped();
     }
 
     private void OpenFolder(string path)
@@ -1752,6 +1872,8 @@ public sealed class ShellViewModel : ObservableObject
     private void SelectionMoved()
     {
         Raise(nameof(SelectionSummary));
+        Raise(nameof(PropertiesToolTip));
+        Raise(nameof(VerifySelectedToolTip));
         System.Windows.Input.CommandManager.InvalidateRequerySuggested();
     }
 
@@ -2846,6 +2968,7 @@ public sealed class ShellViewModel : ObservableObject
             }
 
             Remember(workstream, sessionId);
+            StartedMarks.Clear(Board, candidate);
             started.Add(workstream.Title);
         }
 

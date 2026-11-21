@@ -18,7 +18,7 @@ public sealed class BoardViewModel : ObservableObject
     private BoardColumnsBy _columnsBy;
     private BoardRowsBy _rowsBy;
     private List<WorkstreamCardViewModel> _all = [];
-    private WorkstreamCardViewModel? _anchor;
+    private IBoardCard? _anchor;
     private IReadOnlyList<ProjectCardViewModel> _projects = [];
     private IReadOnlyDictionary<string, ProjectCardPlace>? _projectPlaces;
 
@@ -63,44 +63,61 @@ public sealed class BoardViewModel : ObservableObject
     /// </summary>
     public IReadOnlyList<WorkstreamCardViewModel> ShownCards => SelectionOrder?.Invoke() ?? GridCards;
 
-    /// <summary>Ticks or unticks every card shown.</summary>
+    /// <summary>
+    /// What is on screen to select, in reading order: the open project view's cards while it is open, else every cell's
+    /// project cards and then its cards (1.1d AC 41). Select all, Invert, Select live and the count of what is selected
+    /// act on these. A project card in a folded row or column is left out (review of PR 3, item 8); a folded card still
+    /// counts, as Select all has always ticked it.
+    /// </summary>
+    public IReadOnlyList<IBoardCard> ShownItems => SelectionOrder?.Invoke() is { } order
+        ? order
+        : [.. Rows.SelectMany(row => row.Cells.SelectMany(cell =>
+            (row.IsCollapsed || cell.IsCollapsed ? [] : cell.Projects.Cast<IBoardCard>()).Concat(cell.Cards)))];
+
+    /// <summary>Every card and project card on the board, shown or not.</summary>
+    private IEnumerable<IBoardCard> AllItems => _all.Cast<IBoardCard>().Concat(_projects);
+
+    /// <summary>Ticks or unticks everything shown.</summary>
     public void ChooseShown(bool chosen)
     {
-        foreach (var card in ShownCards)
+        foreach (var item in ShownItems)
         {
-            card.IsSelected = chosen;
+            item.IsSelected = chosen;
         }
     }
 
-    /// <summary>Turns over every tick on the cards shown.</summary>
+    /// <summary>Turns over every tick on what is shown.</summary>
     public void InvertShown()
     {
-        foreach (var card in ShownCards)
+        foreach (var item in ShownItems)
         {
-            card.IsSelected = !card.IsSelected;
-        }
-    }
-
-    /// <summary>Ticks the cards shown with a session running, and unticks the rest of them.</summary>
-    public void SelectLiveShown()
-    {
-        foreach (var card in ShownCards)
-        {
-            card.IsSelected = card.IsLive;
+            item.IsSelected = !item.IsSelected;
         }
     }
 
     /// <summary>
-    /// Unticks every card not shown, when the main area switches between the board and a project view, so a command on
+    /// Ticks what is shown with a session open, a project card when any of its cards has one, and unticks the rest, so
+    /// Select live then Stop reaches a project's sessions too.
+    /// </summary>
+    public void SelectLiveShown()
+    {
+        foreach (var item in ShownItems)
+        {
+            item.IsSelected = item.IsLive;
+        }
+    }
+
+    /// <summary>
+    /// Unticks everything not shown, when the main area switches between the board and a project view, so a command on
     /// the selection never reaches a card the owner cannot see.
     /// </summary>
     public void DeselectUnshown()
     {
-        var shown = ShownCards.ToHashSet();
+        var shown = ShownItems.ToHashSet();
 
-        foreach (var card in _all.Where(card => card.IsSelected && !shown.Contains(card)))
+        foreach (var item in AllItems.Where(item => item.IsSelected && !shown.Contains(item)).ToList())
         {
-            card.IsSelected = false;
+            item.IsSelected = false;
         }
     }
 
@@ -384,6 +401,10 @@ public sealed class BoardViewModel : ObservableObject
 
     /// <summary>The ticked cards among those shown: what Start, Stop, Archive and the other selected-card commands act on.</summary>
     public IReadOnlyList<WorkstreamCardViewModel> ChosenCards => [.. ShownCards.Where(card => card.IsSelected)];
+
+    /// <summary>The selected project cards among those shown: Start and Stop selected act on their cards (1.1d AC 43).</summary>
+    public IReadOnlyList<ProjectCardViewModel> ChosenProjects =>
+        [.. ShownItems.OfType<ProjectCardViewModel>().Where(project => project.IsSelected)];
 
     /// <summary>
     /// Puts each project card in the cell it was dragged to; a column or row the view does not have falls back to the
@@ -889,16 +910,23 @@ public sealed class BoardViewModel : ObservableObject
     public IReadOnlyList<WorkstreamCardViewModel> VisibleCards =>
         [.. Rows.Where(row => !row.IsCollapsed).SelectMany(row => row.Cells.Where(cell => !cell.IsCollapsed)).SelectMany(cell => cell.Cards)];
 
+    /// <summary>The same, with each cell's project cards before its cards, as they are drawn.</summary>
+    public IReadOnlyList<IBoardCard> VisibleItems =>
+        [.. Rows.Where(row => !row.IsCollapsed).SelectMany(row => row.Cells.Where(cell => !cell.IsCollapsed))
+            .SelectMany(cell => cell.Projects.Cast<IBoardCard>().Concat(cell.Cards))];
+
     /// <summary>
     /// Selects as a click does everywhere in Windows (Nigel, 2026-10-30): a click selects that card
     /// alone, Ctrl+click adds or removes it, and Shift+click selects the run from the last card
-    /// clicked to this one, added to the rest when Ctrl is held too.
+    /// clicked to this one, added to the rest when Ctrl is held too. A project card is selected the same way, in the
+    /// same reading order (1.1d AC 41).
     /// </summary>
-    public void ClickSelect(WorkstreamCardViewModel card, bool toggle, bool extend)
+    public void ClickSelect(IBoardCard card, bool toggle, bool extend)
     {
         ArgumentNullException.ThrowIfNull(card);
 
-        var visible = (SelectionOrder?.Invoke() ?? VisibleCards).ToList();
+        IReadOnlyList<IBoardCard> order = SelectionOrder?.Invoke() is { } inView ? inView : VisibleItems;
+        var visible = order.ToList();
 
         if (extend && _anchor is not null && visible.Contains(_anchor) && visible.Contains(card))
         {
@@ -906,7 +934,7 @@ public sealed class BoardViewModel : ObservableObject
             var to = visible.IndexOf(card);
             var (low, high) = from <= to ? (from, to) : (to, from);
 
-            foreach (var other in _all)
+            foreach (var other in AllItems)
             {
                 var index = visible.IndexOf(other);
                 var inRun = index >= low && index <= high;
@@ -926,7 +954,7 @@ public sealed class BoardViewModel : ObservableObject
         }
         else
         {
-            foreach (var other in _all)
+            foreach (var other in AllItems)
             {
                 other.IsSelected = ReferenceEquals(other, card);
             }
@@ -935,12 +963,12 @@ public sealed class BoardViewModel : ObservableObject
         _anchor = card;
     }
 
-    /// <summary>Selects the cards a rubber band was drawn over, alone or added to the rest.</summary>
-    public void BandSelect(IReadOnlyList<WorkstreamCardViewModel> cards, bool add)
+    /// <summary>Selects the cards and project cards a rubber band was drawn over, alone or added to the rest.</summary>
+    public void BandSelect(IReadOnlyList<IBoardCard> cards, bool add)
     {
         ArgumentNullException.ThrowIfNull(cards);
 
-        foreach (var card in _all)
+        foreach (var card in AllItems)
         {
             if (cards.Contains(card))
             {
@@ -958,7 +986,7 @@ public sealed class BoardViewModel : ObservableObject
     /// <summary>Clears the selection, as a click on empty board does.</summary>
     public void ClearSelection()
     {
-        foreach (var card in _all)
+        foreach (var card in AllItems)
         {
             card.IsSelected = false;
         }

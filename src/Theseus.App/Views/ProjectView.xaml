@@ -4,6 +4,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:Theseus.App.ViewModels"
              xmlns:converters="clr-namespace:Theseus.App.Converters"
+             xmlns:controls="clr-namespace:Theseus.App.Controls"
              xmlns:projects="clr-namespace:Theseus.Core.Projects;assembly=Theseus.Core">
     <!--
         The project view (1.1d AC 15 to 37; Nigel accepted the mockup, 2026-11-20): time runs down the page. Every
@@ -19,17 +20,19 @@
         <converters:HexToBrushConverter x:Key="HexToBrush" />
         <FontFamily x:Key="Mono">Cascadia Mono, Consolas</FontFamily>
 
-        <!-- The stacked-card mark: three offset 14×10 outlines, 18×14 overall, in the control's foreground. -->
-        <ControlTemplate x:Key="StackedCardMark" TargetType="Control">
-            <Canvas Width="18" Height="14">
-                <Rectangle Canvas.Left="4" Canvas.Top="0" Width="14" Height="10" RadiusX="2" RadiusY="2" StrokeThickness="1.5"
-                           Stroke="{TemplateBinding Foreground}" Fill="{DynamicResource CardBackgroundFillColorDefaultBrush}" />
-                <Rectangle Canvas.Left="2" Canvas.Top="2" Width="14" Height="10" RadiusX="2" RadiusY="2" StrokeThickness="1.5"
-                           Stroke="{TemplateBinding Foreground}" Fill="{DynamicResource CardBackgroundFillColorDefaultBrush}" />
-                <Rectangle Canvas.Left="0" Canvas.Top="4" Width="14" Height="10" RadiusX="2" RadiusY="2" StrokeThickness="1.5"
-                           Stroke="{TemplateBinding Foreground}" Fill="{DynamicResource CardBackgroundFillColorDefaultBrush}" />
-            </Canvas>
-        </ControlTemplate>
+        <!--
+            The stacked-card mark in the project's own colour (1.1d AC 40), or the accent colour while it has none, as in a
+            view built without colours.
+        -->
+        <Style x:Key="ProjectMark" TargetType="controls:StackedCardMark">
+            <Setter Property="Foreground" Value="{Binding ColourHex, Converter={StaticResource HexToBrush}}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding ColourHex}" Value="{x:Null}">
+                    <Setter Property="Foreground" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
 
         <Style x:Key="StateForeground" TargetType="TextBlock">
             <Setter Property="Foreground" Value="{DynamicResource StateToDoBrush}" />
@@ -172,8 +175,7 @@
                                 Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
                             <Grid>
                                 <StackPanel Orientation="Horizontal">
-                                    <Control Template="{StaticResource StackedCardMark}" Focusable="False" Margin="0,0,8,0"
-                                             VerticalAlignment="Center" Foreground="{DynamicResource AccentFillColorDefaultBrush}" />
+                                    <controls:StackedCardMark Style="{StaticResource ProjectMark}" Margin="0,0,8,0" />
                                     <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="Medium" VerticalAlignment="Center"
                                                Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                                 </StackPanel>
@@ -455,8 +457,7 @@
                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
             <StackPanel>
                 <WrapPanel>
-                    <Control Template="{StaticResource StackedCardMark}" Focusable="False" Margin="0,0,10,0" VerticalAlignment="Center"
-                             Foreground="{DynamicResource AccentFillColorDefaultBrush}" />
+                    <controls:StackedCardMark x:Name="SummaryMark" Style="{StaticResource ProjectMark}" Margin="0,0,10,0" />
                     <TextBlock x:Name="ProjectTitle" Text="{Binding Title}" FontSize="20" FontWeight="SemiBold" VerticalAlignment="Center"
                                Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                     <TextBlock x:Name="ProjectTag" Text="PROJECT" FontFamily="{StaticResource Mono}" FontSize="11" FontWeight="Medium"
@@ -472,9 +473,7 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="{x:Type vm:StateCountViewModel}">
-                            <Border Style="{StaticResource StateSoftFill}" CornerRadius="10" Padding="10,3" Margin="0,0,8,4">
-                                <TextBlock Text="{Binding Text}" Style="{StaticResource StateForeground}" FontWeight="Medium" />
-                            </Border>
+                            <controls:StateCountChip />
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>

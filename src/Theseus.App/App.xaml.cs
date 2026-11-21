@@ -266,6 +266,10 @@ public partial class App : Application
                 _ => null,
             };
         };
+        shell.ConfirmProjectStart = question =>
+            new ProjectStartWindow(question) { Owner = MainWindow }.ShowDialog() == true;
+        shell.AskProjectProperties = properties =>
+            new ProjectPropertiesWindow(properties) { Owner = MainWindow }.ShowDialog() == true;
         shell.ConfirmAcceptSpec = question =>
             MessageBox.Show(MainWindow, question, "Accept spec?", MessageBoxButton.YesNo, MessageBoxImage.Question,
                 MessageBoxResult.No) == MessageBoxResult.Yes;

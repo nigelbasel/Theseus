@@ -31,9 +31,9 @@ public sealed class ProjectViewHost
         _board.DeselectUnshown();
     }
 
-    /// <summary>Whether Esc has anything to clear: the open view's selection, or a selected card.</summary>
+    /// <summary>Whether Esc has anything to clear: the open view's selection, or a selected card or project card.</summary>
     public bool CanClearSelection(ProjectViewModel? view) =>
-        view?.Selection is not null || _board.Cards.Any(card => card.IsSelected);
+        view?.Selection is not null || _board.Cards.Any(card => card.IsSelected) || _board.ProjectCards.Any(project => project.IsSelected);
 
     /// <summary>
     /// Esc: clears the open view's selection when it has one and says so (true); otherwise false, for the board's own

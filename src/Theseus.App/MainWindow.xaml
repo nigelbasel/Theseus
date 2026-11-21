@@ -229,47 +229,6 @@
             <Setter Property="ItemContainerStyle" Value="{DynamicResource ProjectChoiceItem}" />
         </Style>
 
-        <!--
-            A project on the board (project-view AC 12, 14): its name, current phase, objectives done and what waits on
-            the owner, listed on hover. Dragged like a card; double-click or Open on its menu opens the project view.
-        -->
-        <DataTemplate x:Key="ProjectCardTemplate" DataType="{x:Type vm:ProjectCardViewModel}">
-            <Border x:Name="ProjectFace" Tag="ProjectCard" CornerRadius="8" Margin="0,0,0,8" Padding="12,10"
-                    BorderThickness="2" BorderBrush="{DynamicResource AccentFillColorDefaultBrush}"
-                    Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
-                    ToolTip="{Binding ToolTipText}" Opacity="{Binding CardOpacity}"
-                    MouseLeftButtonDown="OnProjectCardMouseDown">
-                <Border.ContextMenu>
-                    <ContextMenu FontFamily="{x:Static SystemFonts.MessageFontFamily}">
-                        <MenuItem Header="_Open" FontWeight="SemiBold" Command="{Binding OpenCommand}"
-                                  ToolTip="{Binding OpenToolTip}" />
-                        <MenuItem Header="Open project._md" Command="{Binding OpenFileCommand}"
-                                  ToolTip="Open the project's file in its editor" />
-                        <MenuItem Header="Add o_bjective…" Command="{Binding AddObjectiveCommand}"
-                                  Visibility="{Binding IsDimmed, Converter={StaticResource NotBoolToVisibility}}"
-                                  ToolTip="Add an objective at the end of the current phase in project.md" />
-                    </ContextMenu>
-                </Border.ContextMenu>
-                <StackPanel>
-                    <DockPanel>
-                        <Border DockPanel.Dock="Right" CornerRadius="9" Padding="7,1" MinWidth="18"
-                                Background="{DynamicResource AccentFillColorDefaultBrush}"
-                                ToolTip="{Binding WaitingText}"
-                                Visibility="{Binding HasBadge, Converter={StaticResource BoolToVisibility}}">
-                            <TextBlock Text="{Binding CountText}" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center"
-                                       Foreground="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
-                        </Border>
-                        <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
-                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                    </DockPanel>
-                    <TextBlock Text="{Binding PhaseText}" FontSize="12" Margin="0,4,0,0" TextTrimming="CharacterEllipsis"
-                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                    <TextBlock Text="{Binding ObjectivesText}" FontSize="11" Margin="0,2,0,0"
-                               Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
-                </StackPanel>
-            </Border>
-        </DataTemplate>
-
         <!-- A card's own buttons: the toolbar's flat icon button, sized for a card. -->
         <Style x:Key="CardIcon" TargetType="Button" BasedOn="{StaticResource ToolButton}">
             <Setter Property="Width" Value="28" />
@@ -472,6 +431,127 @@
             <MenuItem Header="Convert to proje_ct…" Command="{Binding ConvertToProjectCommand}" ToolTipService.ShowOnDisabled="True"
                       ToolTip="Start a new project with this card as its first workstream, and its handoff as the project's first record" />
         </ContextMenu>
+
+        <!--
+            A project on the board (project-view AC 12, 14; 1.1d AC 38 to 44): unmistakably a project, by a stripe and the
+            stacked-card mark in its own colour and the word PROJECT, as in the project view's summary; then where it is,
+            in the view's sentence and counts. Selected, dragged, started and stopped as a card is; the accent border means
+            selected, as on a card. Double-click, Enter or Open on its menu opens the project view. A dimmed card (its
+            project.md does not read) keeps its mark, colour and reason, and has no ▶ or ■.
+        -->
+        <DataTemplate x:Key="ProjectCardTemplate" DataType="{x:Type vm:ProjectCardViewModel}">
+            <Border x:Name="ProjectFace" Tag="ProjectCard" CornerRadius="8" Margin="0,0,0,8"
+                    Focusable="True" FocusVisualStyle="{x:Null}"
+                    Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                    ToolTip="{Binding ToolTipText}" Opacity="{Binding CardOpacity}"
+                    AutomationProperties.Name="{Binding Title, StringFormat=Project {0}}"
+                    MouseLeftButtonDown="OnProjectCardMouseDown"
+                    MouseLeftButtonUp="OnProjectCardClicked"
+                    PreviewMouseRightButtonDown="OnProjectCardRightButtonDown">
+                <Border.InputBindings>
+                    <KeyBinding Key="Return" Command="{Binding OpenCommand}" />
+                </Border.InputBindings>
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+                        <Setter Property="BorderThickness" Value="1" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                <Setter Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                <Setter Property="BorderThickness" Value="2" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <Border.ContextMenu>
+                    <ContextMenu FontFamily="{x:Static SystemFonts.MessageFontFamily}">
+                        <MenuItem Header="_Open" FontWeight="SemiBold" Command="{Binding OpenCommand}"
+                                  ToolTip="{Binding OpenToolTip}" />
+                        <MenuItem Header="_Start…" Command="{Binding StartCommand}" ToolTip="{Binding StartToolTip}"
+                                  ToolTipService.ShowOnDisabled="True"
+                                  Visibility="{Binding ShowsRunButtons, Converter={StaticResource BoolToVisibility}}">
+                            <MenuItem.Icon><TextBlock Text="&#xE768;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                        </MenuItem>
+                        <MenuItem Header="S_top" Command="{Binding StopCommand}" ToolTip="{Binding StopToolTip}"
+                                  ToolTipService.ShowOnDisabled="True"
+                                  Visibility="{Binding ShowsRunButtons, Converter={StaticResource BoolToVisibility}}">
+                            <MenuItem.Icon><TextBlock Text="&#xE71A;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                        </MenuItem>
+                        <Separator />
+                        <MenuItem Header="Project p_roperties…" Command="{Binding PropertiesCommand}"
+                                  ToolTip="Its title, its colour and its project.md; the colour can be changed here" />
+                        <MenuItem Header="Open project._md" Command="{Binding OpenFileCommand}"
+                                  ToolTip="Open the project's file in its editor" />
+                        <MenuItem Header="Add o_bjective…" Command="{Binding AddObjectiveCommand}"
+                                  Visibility="{Binding IsDimmed, Converter={StaticResource NotBoolToVisibility}}"
+                                  ToolTip="Add an objective at the end of the current phase in project.md" />
+                    </ContextMenu>
+                </Border.ContextMenu>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="5" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <Border x:Name="ProjectStripe" Grid.Column="0" CornerRadius="7,0,0,7"
+                            Background="{Binding ColourHex, Converter={StaticResource HexToBrush}}" />
+
+                    <StackPanel Grid.Column="1" Margin="12,10,12,10">
+                        <DockPanel>
+                            <Border DockPanel.Dock="Right" CornerRadius="9" Padding="7,1" MinWidth="18" Margin="8,0,0,0"
+                                    VerticalAlignment="Center"
+                                    Background="{DynamicResource AccentFillColorDefaultBrush}"
+                                    ToolTip="{Binding WaitingText}"
+                                    Visibility="{Binding HasBadge, Converter={StaticResource BoolToVisibility}}">
+                                <TextBlock Text="{Binding CountText}" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center"
+                                           Foreground="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+                            </Border>
+                            <controls:StackedCardMark x:Name="ProjectMark" Margin="0,0,8,0" VerticalAlignment="Center"
+                                                      Foreground="{Binding ColourHex, Converter={StaticResource HexToBrush}}" />
+                            <TextBlock x:Name="ProjectTag" DockPanel.Dock="Right" Text="PROJECT" FontFamily="Cascadia Mono, Consolas"
+                                       FontSize="11" FontWeight="Medium" Margin="8,0,0,0" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            <TextBlock x:Name="ProjectTitle" Text="{Binding Title}" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis" ToolTip="{Binding Title}"
+                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                        </DockPanel>
+                        <TextBlock Text="{Binding PhaseText}" FontSize="12" Margin="0,4,0,0" TextTrimming="CharacterEllipsis"
+                                   ToolTip="{Binding PhaseText}"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        <TextBlock Text="{Binding ObjectivesText}" FontSize="11" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"
+                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                        <!-- Where it is, on one line: the view's sentence, whole in its tooltip (1.1d AC 39). -->
+                        <TextBlock x:Name="ProjectSentence" Text="{Binding Sentence}" FontSize="12" Margin="0,4,0,0"
+                                   TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTip="{Binding Sentence}"
+                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                   Visibility="{Binding HasSentence, Converter={StaticResource BoolToVisibility}}" />
+                        <ItemsControl x:Name="ProjectCounts" ItemsSource="{Binding Counts}" Margin="0,6,0,0" Focusable="False"
+                                      Visibility="{Binding HasSentence, Converter={StaticResource BoolToVisibility}}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type vm:StateCountViewModel}">
+                                    <controls:StateCountChip />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <!-- Start and stop the whole project, as a card's own ▶ and ■ (1.1d AC 43); not on a dimmed card (AC 44). -->
+                        <StackPanel x:Name="ProjectButtons" Orientation="Horizontal" HorizontalAlignment="Left" Margin="-4,2,0,0"
+                                    Visibility="{Binding ShowsRunButtons, Converter={StaticResource BoolToVisibility}}">
+                            <Button x:Name="ProjectStart" Style="{StaticResource CardIcon}" Content="&#xE768;"
+                                    ToolTip="{Binding StartToolTip}" AutomationProperties.Name="Start project"
+                                    Command="{Binding StartCommand}" />
+                            <Button x:Name="ProjectStop" Style="{StaticResource CardIcon}" Content="&#xE71A;"
+                                    ToolTip="{Binding StopToolTip}" AutomationProperties.Name="Stop project"
+                                    Command="{Binding StopCommand}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </DataTemplate>
 
         <DataTemplate x:Key="CardTemplate" DataType="{x:Type vm:WorkstreamCardViewModel}">
             <!--
@@ -1234,7 +1314,7 @@
                 <MenuItem Header="_Unselect all" InputGestureText="Esc" Command="{Binding ClearSelectionCommand}" />
                 <Separator />
                 <MenuItem Header="P_roperties" InputGestureText="Alt+Enter" Command="{Binding PropertiesCommand}"
-                          ToolTip="The selected card's properties" />
+                          ToolTipService.ShowOnDisabled="True" ToolTip="{Binding PropertiesToolTip}" />
             </MenuItem>
 
             <MenuItem Header="_View">
@@ -1300,11 +1380,11 @@
 
             <MenuItem Header="_Workstream">
                 <MenuItem Header="_Start selected" Command="{Binding StartSelectedCommand}"
-                          ToolTip="Start the ticked cards that are not already running">
+                          ToolTip="Start the ticked cards that are not already running; a ticked project asks first, listing its cards">
                     <MenuItem.Icon><TextBlock Text="&#xE768;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
                 </MenuItem>
                 <MenuItem Header="St_op selected" Command="{Binding StopSelectedCommand}"
-                          ToolTip="Ask the ticked cards' running sessions to write a handoff and exit">
+                          ToolTip="Ask the ticked cards' running sessions, and a ticked project's, to write a handoff and exit">
                     <MenuItem.Icon><TextBlock Text="&#xE71A;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
                 </MenuItem>
                 <Separator />
@@ -1316,8 +1396,7 @@
                           ToolTip="Take both marks off the ticked cards" />
                 <Separator />
                 <MenuItem Header="_Verify with holdouts…" Command="{Binding VerifySelectedWithHoldoutsCommand}"
-                          ToolTipService.ShowOnDisabled="True"
-                          ToolTip="Create a verifier card for the one ticked card: it runs the holdout scenarios its spec names, and reports only a verdict back. Needs one card ticked and the holdout scenarios folder set in Tools > Options; not offered for a verifier card or an archived one" />
+                          ToolTipService.ShowOnDisabled="True" ToolTip="{Binding VerifySelectedToolTip}" />
                 <MenuItem Header="Ope_n spec" ItemsSource="{Binding OpenSpecChoices}"
                           ItemContainerStyle="{StaticResource ProjectChoiceItem}"
                           Visibility="{Binding HasSpecChoices, Converter={StaticResource BoolToVisibility}}"

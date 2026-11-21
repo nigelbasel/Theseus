@@ -11,6 +11,7 @@
 | Ctrl+I | Invert the selection |
 | Esc | Clear the selection |
 | Alt+Left | In a project's view: back to the board |
+| Enter | On a project card you have clicked: opens the project's view |
 | Alt+Enter | Properties of the selected card |
 | Ctrl+1 | Live sessions panel, on or off |
 | Ctrl+2 | Locks panel, on or off |
