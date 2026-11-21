@@ -110,26 +110,28 @@ public class ProjectCardLayoutTests
     }
 
     [Test]
-    public void ADimmedCard_KeepsItsReasonMarkAndColour_StaysAProject_AndHasOpenButNoStartOrStop()
+    public void ACardThatNeedsUpdating_SaysOnlyThat_KeepsItsMarkAndColour_AndOffersUpdateNotOpenStartOrStop()
     {
         var card = new ProjectCardViewModel("bym", "bym")
         {
             IsDimmed = true,
             ColourHex = Colour,
-            PhaseText = "Pinned to method-v0.1: its project.md is in the older shape",
-            ObjectivesText = "Double-click to open its project.md",
+            PhaseText = "Needs updating",
+            Problem = "Pinned to method-v0.1: its project.md is in the older shape",
         };
         var face = LaidOut(card);
 
         Assert.That(face.Opacity, Is.EqualTo(0.55));
-        Assert.That(Named<Button>(face, "ProjectOpen").Visibility, Is.EqualTo(Visibility.Visible), "Open is always shown (1.1e AC 5)");
-        Assert.That(Named<Button>(face, "ProjectOpen").ToolTip, Is.EqualTo("Open its project.md"));
+        Assert.That(Named<Button>(face, "ProjectOpen").Visibility, Is.EqualTo(Visibility.Collapsed), "its ↗ becomes Update (1.1e AC 18)");
+        Assert.That((Named<Button>(face, "ProjectUpdate").Visibility, Named<Button>(face, "ProjectUpdate").Content), Is.EqualTo((Visibility.Visible, (object)"Update")));
         Assert.That((Named<Button>(face, "ProjectStart").Visibility, Named<Button>(face, "ProjectStop").Visibility),
             Is.EqualTo((Visibility.Collapsed, Visibility.Collapsed)));
         Assert.That(Named<TextBlock>(face, "ProjectSentence").Visibility, Is.EqualTo(Visibility.Collapsed));
         Assert.That(Named<TextBlock>(face, "ProjectTag").Text, Is.EqualTo("PROJECT"));
         Assert.That(((SolidColorBrush)Descendants<StackedCardMark>(face).Single().Foreground).Color.ToString(), Is.EqualTo("#FF8674D6"));
-        Assert.That(Descendants<TextBlock>(face).Select(text => text.Text), Does.Contain(card.PhaseText));
+        Assert.That(Descendants<TextBlock>(face).Select(text => text.Text), Does.Contain("Needs updating").And.No.Contain(card.Problem),
+            "no reason on its face");
+        Assert.That(face.ToolTip, Is.EqualTo($"bym{Environment.NewLine}{card.Problem}"), "the reason is in its tooltip");
     }
 
     [Test]
@@ -142,7 +144,9 @@ public class ProjectCardLayoutTests
         var buttons = Descendants<Button>(Named<StackPanel>(face, "ProjectButtons")).Select(button => button.Name);
         var open = Named<Button>(face, "ProjectOpen");
 
-        Assert.That(buttons, Is.EqualTo(new[] { "ProjectOpen", "ProjectStart", "ProjectStop" }));
+        Assert.That(buttons, Is.EqualTo(new[] { "ProjectOpen", "ProjectUpdate", "ProjectStart", "ProjectStop" }),
+            "Update stands in for ↗ only on a card that needs updating (1.1e AC 18)");
+        Assert.That(Named<Button>(face, "ProjectUpdate").Visibility, Is.EqualTo(Visibility.Collapsed));
         Assert.That((open.ToolTip, open.Content), Is.EqualTo(((object)"Open the project (Enter)", (object)"")));
 
         open.Command.Execute(null);
@@ -188,6 +192,7 @@ public class ProjectCardLayoutTests
                 Converter("NotBoolToVisibilityConverter", "NotBoolToVisibility"),
                 Style("MenuGlyph", "TextBlock"),
                 Style("CardIcon", "Button"),
+                Style("CommandButton", "Button"),
                 Style("ClickableCard", "Border")),
             new XElement(Presentation + "ContentControl.ContentTemplate", template));
 

@@ -93,8 +93,14 @@ outside the project's repositories. Such a card shows **project branch rules**, 
 tooltip. Untick it and its cards ask again from their next start; a session resumed after that is told the rules are
 withdrawn.
 
-One whose `project.md` does not read is dimmed and says why, keeping its mark, colour and the word PROJECT but with no
-▷ or □; ↗ or a double-click opens the file. **↗ Open**, the first button on a project card that reads, a double-click,
+One whose `project.md` does not read, or is in an older shape, is dimmed and says only **Needs updating**, keeping its
+mark, colour and the word PROJECT but with no ▷ or □; the reason is in its tooltip and Project properties, for the
+session that fixes it. Its **Update** button, a double-click or **Enter** starts a short session that brings the file into
+the method's current shape, changing nothing else; the card says **Updating…** meanwhile. Once the file has changed, Theseus
+asks that session to write its handover and exit once its turn has ended. If the file still does not read, the card says
+**Still needs updating**, and Update starts that session again. Update waits while one of the project's own
+cards is running. **Not a project** on its menu hides a folder's card; **Tools > Options** lists hidden folders, and
+**Show again** then **Save** brings one back. A hidden folder whose file reads again is a project again. **↗ Open**, the first button on a project card that reads, a double-click,
 **Enter** on it, **Open** on its menu, or **View > Open project**, fills the main area with the project: see
 [The project view](project-view.md). A spec waiting for you shows **Waiting on you**, with
 **Open spec** and **Accept spec…**, which asks first and names the version it accepts; a spec changed after you accept

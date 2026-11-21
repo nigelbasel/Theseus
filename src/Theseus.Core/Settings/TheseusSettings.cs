@@ -203,6 +203,19 @@ public sealed record TheseusSettings(
     public IReadOnlyList<string> CardsToldBranchRules { get; init; } = [];
 
     /// <summary>
+    /// The folders in the projects folder the owner said are not projects, by name (1.1e AC 20): their cards are not shown;
+    /// Options lists them and shows them again.
+    /// </summary>
+    public IReadOnlyList<string> HiddenProjectFolders { get; init; } = [];
+
+    /// <summary>
+    /// The projects whose updater has run while their file does not read, by project folder name (review of 1.1e PR 4):
+    /// the fingerprint of the file when it started, or empty once it has been asked to stop. Its card says "Still needs
+    /// updating" while the name is here; the name leaves once the file reads and the updater has stopped.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> ProjectUpdaterRuns { get; init; } = new Dictionary<string, string>();
+
+    /// <summary>
     /// The terminal window an area's sessions start in, where it is not named after the area itself:
     /// an area renamed by <see cref="Domain.BoardTidy"/> keeps its old window, so its new sessions
     /// join the tabs already open rather than starting a window of their own.

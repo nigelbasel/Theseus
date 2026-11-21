@@ -43,6 +43,8 @@ public class ProjectCardMarkupTests
         Assert.That(headers, Is.EqualTo(new (string?, string?)[]
         {
             ("_Open", "{Binding OpenCommand}"),
+            ("_Update", "{Binding OpenCommand}"),
+            ("_Not a project", "{Binding HideCommand}"),
             ("_Start", "{Binding StartCommand}"),
             ("S_top", "{Binding StopCommand}"),
             ("Project p_roperties…", "{Binding PropertiesCommand}"),

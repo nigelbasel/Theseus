@@ -92,6 +92,12 @@ public sealed class ProjectPropertiesViewModel : ObservableObject
     /// </summary>
     public bool GrantsBranchRules { get; set; }
 
+    /// <summary>Why its project.md does not read, or null (1.1e AC 18): shown here, not on the card's face.</summary>
+    public string? Problem { get; init; }
+
+    /// <summary>Whether there is a reason to show.</summary>
+    public bool HasProblem => !string.IsNullOrWhiteSpace(Problem);
+
     /// <summary>The primary branch the standing grant covers, or null when none is given.</summary>
     public string? GrantedPrimary { get; init; }
 

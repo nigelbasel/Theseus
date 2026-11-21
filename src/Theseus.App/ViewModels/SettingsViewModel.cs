@@ -43,6 +43,13 @@ public sealed class SettingsViewModel : ObservableObject
         _saved = saved;
 
         OpenCommand = new RelayCommand(_ => Open());
+        ShowProjectFolderCommand = new RelayCommand(parameter =>
+        {
+            if (parameter is string name)
+            {
+                HiddenProjectFolders.Remove(name);
+            }
+        });
         CloseCommand = new RelayCommand(_ => IsOpen = false);
         SaveCommand = new RelayCommand(_ => Save());
         ResetIdentityPromptCommand = new RelayCommand(_ => IdentityPrompt = WorkstreamIdentity.DefaultTemplate,
@@ -190,6 +197,12 @@ public sealed class SettingsViewModel : ObservableObject
     public string HoldoutFolderInUse => string.IsNullOrWhiteSpace(_holdoutFolder)
         ? $"{System.IO.Path.Combine(Theseus.Core.Links.HoldoutLocation.DefaultRoot(), "<project folder name>")} (default)"
         : _holdoutFolder.Trim();
+
+    /// <summary>The folders said not to be projects (1.1e AC 20), each to be shown again; saved with the rest.</summary>
+    public System.Collections.ObjectModel.ObservableCollection<string> HiddenProjectFolders { get; } = [];
+
+    /// <summary>Show again: a folder said not to be a project is shown as a project card again, once saved.</summary>
+    public RelayCommand ShowProjectFolderCommand { get; }
 
     /// <summary>What <see cref="FocusField"/> names for the holdout folder.</summary>
     public const string HoldoutFolderField = "HoldoutFolder";
@@ -431,6 +444,12 @@ public sealed class SettingsViewModel : ObservableObject
         ClaudeExecutablePath = settings.ClaudeExecutablePath;
         JiraBaseUrl = settings.JiraBaseUrl;
         HoldoutFolder = settings.HoldoutFolder;
+        HiddenProjectFolders.Clear();
+
+        foreach (var folder in settings.HiddenProjectFolders)
+        {
+            HiddenProjectFolders.Add(folder);
+        }
         HoldoutRemote = settings.HoldoutRemote;
         ProjectsFolder = settings.ProjectsFolder;
         WorktreesFolder = settings.WorktreesFolder;
@@ -457,6 +476,7 @@ public sealed class SettingsViewModel : ObservableObject
             ClaudeExecutablePath = ClaudeExecutablePath,
             JiraBaseUrl = JiraBaseUrl,
             HoldoutFolder = HoldoutFolder.Trim(),
+            HiddenProjectFolders = [.. HiddenProjectFolders],
             HoldoutRemote = HoldoutRemote.Trim(),
             ProjectsFolder = ProjectsFolderPath.Normalize(ProjectsFolder),
             WorktreesFolder = ProjectsFolderPath.Normalize(WorktreesFolder),

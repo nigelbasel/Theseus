@@ -19,4 +19,10 @@ public enum WorkstreamRole
     /// THESEUS_HOLDOUT_AUTHOR=1, which the holdout guard lets through. Never a building session.
     /// </summary>
     ScenarioWriter,
+
+    /// <summary>
+    /// Brings a project's project.md into the method's current shape, and only that, then stops (1.1e AC 19): started by the
+    /// owner's Update on a project card whose file does not read.
+    /// </summary>
+    ProjectUpdater,
 }

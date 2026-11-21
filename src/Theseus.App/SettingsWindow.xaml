@@ -164,6 +164,25 @@
                 <TextBlock Style="{StaticResource FieldHint}"
                            Text="Each folder in it with a project.md is a project: its objectives and workstreams, and a work folder of their records. Records are plain files, kept outside every code repo. Leave empty for no projects." />
 
+                <!-- Folders said not to be projects, from a project card's menu (1.1e AC 20). -->
+                <TextBlock Text="Folders that are not projects" Style="{StaticResource FieldLabel}"
+                           Visibility="{Binding HiddenProjectFolders.Count, Converter={StaticResource CountToVisibility}}" />
+                <ItemsControl x:Name="HiddenProjectFolders" ItemsSource="{Binding HiddenProjectFolders}"
+                              Visibility="{Binding HiddenProjectFolders.Count, Converter={StaticResource CountToVisibility}}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <DockPanel Margin="0,0,0,4">
+                                <Button DockPanel.Dock="Right" Content="Show again" Padding="10,2"
+                                        AutomationProperties.Name="{Binding StringFormat=Show {0} again}"
+                                        ToolTip="Show this folder's project card again, once saved"
+                                        Command="{Binding DataContext.ShowProjectFolderCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                        CommandParameter="{Binding}" />
+                                <TextBlock Text="{Binding}" VerticalAlignment="Center" TextWrapping="Wrap" />
+                            </DockPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
                 <TextBlock Text="Worktrees folder" Style="{StaticResource FieldLabel}" />
                 <TextBox Text="{Binding WorktreesFolder, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock Style="{StaticResource FieldHint}"

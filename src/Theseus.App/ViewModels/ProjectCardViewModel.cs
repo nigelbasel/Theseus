@@ -19,6 +19,7 @@ public sealed class ProjectCardViewModel : ObservableObject, IBoardCard
     private IReadOnlyList<string> _waiting = [];
     private bool _isDimmed;
     private string? _warning;
+    private string? _problem;
     private string _colourHex = NoColour;
     private string _sentence = string.Empty;
     private IReadOnlyList<StateCountViewModel> _counts = [];
@@ -77,11 +78,13 @@ public sealed class ProjectCardViewModel : ObservableObject, IBoardCard
 
     /// <summary>What Open does, for its menu item.</summary>
     public string OpenToolTip => _isDimmed
-        ? "Open its project.md, to see why it does not read"
+        ? "Update its project.md to the method's current shape: a short session does it, then stops"
         : "Open the project view in the main area (also View › Open project)";
 
     /// <summary>↗'s tooltip (1.1e AC 5): a dimmed card's ↗ opens its project.md, as its double-click does.</summary>
-    public string OpenButtonToolTip => _isDimmed ? "Open its project.md" : "Open the project (Enter)";
+    public string OpenButtonToolTip => _isDimmed
+        ? "Update its project.md to the method's current shape: a short session does it, then stops (Enter)"
+        : "Open the project (Enter)";
 
     /// <summary>Whether ▶ and ■ show: only for a project that reads (1.1d AC 44).</summary>
     public bool ShowsRunButtons => !_isDimmed;
@@ -190,8 +193,27 @@ public sealed class ProjectCardViewModel : ObservableObject, IBoardCard
         }
     }
 
-    /// <summary>The card's tooltip: its title, and its warning when it has one.</summary>
-    public string ToolTipText => _warning is null ? Title : $"{Title}{Environment.NewLine}{_warning}";
+    /// <summary>The card's tooltip: its title, why its file does not read, and its warning, when it has them.</summary>
+    public string ToolTipText => string.Join(Environment.NewLine, new[] { Title, _problem, _warning }.OfType<string>());
+
+    /// <summary>
+    /// Why its project.md does not read, for the session that updates it: in the tooltip and Project properties, never on
+    /// its face (1.1e AC 18). Null for a project that reads.
+    /// </summary>
+    public string? Problem
+    {
+        get => _problem;
+        set
+        {
+            if (Set(ref _problem, value))
+            {
+                Raise(nameof(ToolTipText));
+            }
+        }
+    }
+
+    /// <summary>Not a project, on the menu of a card whose file does not read (1.1e AC 20).</summary>
+    public System.Windows.Input.ICommand? HideCommand { get; set; }
 
     /// <summary>Whether it is selected (1.1d AC 41): it then has the card's 2 px accent border.</summary>
     public bool IsSelected
