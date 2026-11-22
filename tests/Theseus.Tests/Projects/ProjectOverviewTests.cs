@@ -1,0 +1,145 @@
+using Theseus.Core.Links;
+using Theseus.Core.Projects;
+using Theseus.Core.Proposals;
+using static Theseus.Tests.Projects.ClarityFixtures;
+
+namespace Theseus.Tests.Projects;
+
+/// <summary>
+/// The top of the project view on 1.1f's fixtures: the summary sentence, round lines, phase strip, tallies and "Waits for
+/// you" (G33 to G37b, C10).
+/// </summary>
+[TestFixture]
+public class ProjectOverviewTests
+{
+    private TestProjectsFolder _folder = null!;
+
+    [SetUp]
+    public void SetUp() => _folder = TestProjectsFolder.Create();
+
+    [TearDown]
+    public void TearDown() => _folder.Dispose();
+
+    private ProjectOverview Bym(IReadOnlyList<Link>? links = null, IEnumerable<WorkstreamProposal>? proposals = null) =>
+        ProjectOverview.For(WriteBym(_folder).File!, BymPieces(_folder), links ?? BymLinks(), proposals ?? [], 5);
+
+    [Test]
+    public void ARoundedProject_SaysWhichRound_WhatMoves_HowManyThingsWait_AndWhatEarlierRoundsLeft()
+    {
+        var overview = Bym();
+
+        Assert.That(overview.Sentence, Does.StartWith("Round 2 of 2, GUI parity: one build is under way and "));
+        Assert.That(overview.Sentence, Does.Contain($"{Words(overview.Waits.Count)} things wait for you."));
+        Assert.That(overview.Sentence, Does.EndWith("Round 1 has one piece of work still open and five independent checks to run."), "E1 is not in project.md, so round 1 is not finished");
+    }
+
+    [Test]
+    public void ACountOfThingsWaiting_IsTheCountOfTheList()
+    {
+        var overview = Bym();
+
+        Assert.That(overview.Waits, Has.Count.GreaterThan(1));
+        Assert.That(overview.Sentence, Does.Contain($"{Words(overview.Waits.Count)} things wait for you"));
+    }
+
+    [Test]
+    public void ARoundsIndependentChecks_AreOneLine_NamingTheBusyOne()
+    {
+        var checks = Bym().Waits.Single(wait => wait.Kind == WaitKind.StartChecks);
+
+        Assert.That(checks.Pieces, Has.Count.EqualTo(5));
+        Assert.That(checks.Text, Does.StartWith("Five builds from round 1 wait for the independent check, which only you start."));
+        Assert.That(checks.Text, Does.EndWith("One of them, MCP host and staff plugin, is still busy: check it after it stops."));
+        Assert.That(checks.Button, Is.EqualTo("Start the checks…"));
+    }
+
+    [Test]
+    public void APiecesWaitItem_RepeatsTheWordsOfItsBoxsWhoActsLine()
+    {
+        var pieces = BymPieces(_folder);
+        var asking = pieces.Single(piece => piece.Name == "bym-mcp-gui-search-reads");
+        var wait = Bym().Waits.Single(item => item.Kind == WaitKind.Answer);
+
+        Assert.That(wait.Text, Is.EqualTo($"{asking.Title}: {asking.Status.WhoActs}"));
+    }
+
+    [Test]
+    public void AReportWaitingForConfirmation_AndAPendingProposal_WaitForYou()
+    {
+        var links = BymLinks().Select(link => link.Kind == LinkKind.ReportsBack && link.From == "w2"
+            ? link with { LatestReport = new LinkReport(DateTimeOffset.UnixEpoch, "s", "report.md", "done", null) }
+            : link).ToList();
+        var proposal = new WorkstreamProposal("p1", ProposalStatus.Pending, SpecCard, "s",
+            new ProposalRequest("A follow-up", "brief.md", false, null, "done", [], null), [], DateTimeOffset.UnixEpoch);
+        var waits = Bym(links, [proposal]).Waits;
+
+        Assert.That(waits.Single(wait => wait.Kind == WaitKind.ConfirmReport).Text, Does.StartWith("Config P5 refusal reported back"));
+        Assert.That(waits.Single(wait => wait.Kind == WaitKind.Proposal).Text, Does.Contain("proposes a new piece of work, A follow-up"));
+    }
+
+    [Test]
+    public void ACriterionWaitingOnTheOwner_IsListed_AndOneWaitingOnWorkIsNot()
+    {
+        var text = TestProjectsFolder.ProjectText("P", body: "## Phase 0: S\n\n### Objective 0.1: Data protection\n"
+            + "- [ ] D7 recorded.\n      Waiting: owner: take D7 to the DPO\n- [ ] P6 recorded.\n      Waiting: work: write it up\n"
+            + "- [ ] No note.\n\n**Pipeline:** freeform\n| Workstream | Slug | Branch | Repos |\n|---|---|---|---|\n");
+        var file = ProjectFileReader.Read("p", text).File!;
+
+        var waits = ProjectOverview.For(file, [], [], [], 0).Waits;
+
+        Assert.That(waits.Select(wait => wait.Text), Is.EqualTo(new[]
+        {
+            "Objective 0.1, Data protection: take D7 to the DPO. This happens outside Theseus.",
+        }));
+        Assert.That(waits.Single().Button, Is.Null, "no button: outside Theseus");
+    }
+
+    [Test]
+    public void AOneRoundProject_OmitsTheRoundClause_AndNamesWhatIsMoving()
+    {
+        var reading = WriteTheseus(_folder);
+        var pieces = TheseusPieces(_folder);
+
+        var sentence = ProjectOverview.For(reading.File!, pieces, [], [], 0).Sentence;
+
+        Assert.That(sentence, Does.Not.Contain("Round"));
+        Assert.That(sentence, Does.StartWith("projects in use is being built and the project view made obvious (design) is under way."));
+    }
+
+    [Test]
+    public void ThePhaseStrip_HasOneCellPerPhase_PassedUnderWayNotStartedOrNotPlanned()
+    {
+        var cells = Bym().Phases;
+
+        Assert.That(cells.Select(cell => (cell.Title, cell.Line)), Is.EqualTo(new[]
+        {
+            ("Phase 0: Specify", "✓ gate passed"),
+            ("Phase 1: Build read-only, internal", "● under way · 0 of 10 objectives met"),
+            ("Phase 2: Customer release", "not planned"),
+        }));
+    }
+
+    [Test]
+    public void TheTallies_CountGatesSpecsChecksReviewsAndRounds()
+    {
+        Assert.That(Bym().Tallies, Is.EqualTo(new[]
+        {
+            "one phase gate passed", "five specs accepted by you", "0 of 5 independent checks run", "five reviews written",
+            "2 rounds: the requirements changed once",
+        }));
+    }
+
+    [Test]
+    public void EachRound_HasOneLineOfWhatItDid()
+    {
+        var lines = Bym().RoundLines;
+
+        Assert.That(lines.Keys, Is.EqualTo(new[] { 1, 2 }));
+        Assert.That(lines[2], Does.StartWith("Four pieces of work: "));
+    }
+
+    private static string Words(int count) => count switch
+    {
+        2 => "two", 3 => "three", 4 => "four", 5 => "five", 6 => "six", 7 => "seven", 8 => "eight", _ => count.ToString(),
+    };
+}
