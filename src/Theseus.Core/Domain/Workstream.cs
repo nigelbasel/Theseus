@@ -71,6 +71,9 @@ public sealed record Workstream(
     /// <summary>What this card's sessions are for: none, or verifier (verifier-card, 2026-11-19).</summary>
     public WorkstreamRole Role { get; init; }
 
+    /// <summary>The owner's tags on the card, from its sidecar (card-search-and-tags item 9).</summary>
+    public IReadOnlyList<string> Tags { get; init; } = [];
+
     /// <summary>
     /// The project this card is in, or null for ad hoc work: never stored, but set each time the projects are read,
     /// from the project file whose workstreams table names the card (1.1c AC 1).

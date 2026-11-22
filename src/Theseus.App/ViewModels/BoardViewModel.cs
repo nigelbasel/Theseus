@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using Theseus.Core.Abstractions;
 using Theseus.Core.Domain;
+using Theseus.Core.Finding;
 using Theseus.Core.Settings;
 using Theseus.Core.Stopping;
 
@@ -21,6 +22,10 @@ public sealed class BoardViewModel : ObservableObject
     private IBoardCard? _anchor;
     private IReadOnlyList<ProjectCardViewModel> _projects = [];
     private IReadOnlyDictionary<string, ProjectCardPlace>? _projectPlaces;
+    private IReadOnlyList<Workstream> _archived = [];
+    private IReadOnlyList<IBoardCard> _matches = [];
+    private HashSet<IBoardCard> _matching = [];
+    private IBoardCard? _current;
 
     /// <summary>Creates the board over its stores.</summary>
     public BoardViewModel(IPlanStore plans, IBoardStore board, ISettingsStore settings)
@@ -31,11 +36,162 @@ public sealed class BoardViewModel : ObservableObject
         _showArchived = settings.Read().ShowArchived;
         _columnsBy = settings.Read().ColumnsBy;
         _rowsBy = settings.Read().RowsBy;
+        Search = new BoardSearchViewModel(OnSearchChanged);
 
         SyncConfigured(ConfiguredLanes(), ConfiguredAreas());
         Place();
 
         RefreshCommand = new RelayCommand(_ => Refresh());
+    }
+
+    /// <summary>The search box and tag filter (card-search-and-tags): applied on every placing of the cards.</summary>
+    public BoardSearchViewModel Search { get; }
+
+    /// <summary>The cards and project cards the search matches, in reading order; empty with no search.</summary>
+    public IReadOnlyList<IBoardCard> Matches => _matches;
+
+    /// <summary>Whether the search matches this card or project card; true for everything with no search.</summary>
+    public bool IsMatch(IBoardCard item) => !Search.IsOn || _matching.Contains(item);
+
+    /// <summary>
+    /// Selects the next match, or the one before, and returns it for the view to scroll to (item 6): the first from none,
+    /// wrapping at either end. Null when nothing matches.
+    /// </summary>
+    public IBoardCard? StepMatch(bool forward)
+    {
+        if (!Search.IsOn)
+        {
+            return null;
+        }
+
+        var current = CurrentMatch is { } item ? IndexOf(item) : -1;
+        var next = MatchCursor.Step(_matches.Count, current, forward);
+
+        if (next < 0)
+        {
+            _current = null;
+
+            return null;
+        }
+
+        _current = _matches[next];
+        ClickSelect(_current, toggle: false, extend: false);
+
+        return _current;
+    }
+
+    /// <summary>The match the keys last moved to, if it is still a match and still selected: what Ctrl+Enter opens.</summary>
+    public IBoardCard? CurrentMatch => _current is { IsSelected: true } item && IndexOf(item) >= 0 ? item : null;
+
+    private int IndexOf(IBoardCard item)
+    {
+        for (var index = 0; index < _matches.Count; index++)
+        {
+            if (ReferenceEquals(_matches[index], item))
+            {
+                return index;
+            }
+        }
+
+        return -1;
+    }
+
+    /// <summary>
+    /// Include archived (item 5): shows the archive with the search kept, when nothing on the board matches but an archived
+    /// card would. The board shows the archive in place of what is being worked on, as View › Archive always has.
+    /// </summary>
+    public void IncludeArchived() => ShowArchived = true;
+
+    private void OnSearchChanged()
+    {
+        _current = null;
+        Place();
+    }
+
+    /// <summary>What the search reads of a project card: its name, title and tags.</summary>
+    private static SearchableCard SearchableOf(ProjectCardViewModel project) =>
+        new(project.Name, project.Title, string.Empty, string.Empty, [], project.Tags, [], []);
+
+    /// <summary>
+    /// Works out what the search matches before the cards are placed (items 2, 3, 7): a card by its own fields, a project
+    /// card by its own or by any of its cards.
+    /// </summary>
+    private void Evaluate()
+    {
+        var filter = Search.Filter;
+
+        if (!filter.IsOn)
+        {
+            _matching = [];
+
+            return;
+        }
+
+        var matching = new HashSet<IBoardCard>(_all.Where(card => filter.Admits(card.Searchable)));
+
+        foreach (var project in _projects)
+        {
+            if (filter.Admits(SearchableOf(project)) || project.MemberKeys.Any(key => Card(key) is { } member && matching.Contains(member)))
+            {
+                matching.Add(project);
+            }
+        }
+
+        _matching = matching;
+    }
+
+    /// <summary>Hides what the search does not match while Hide the rest is on (item 3).</summary>
+    private bool HiddenBySearch(IBoardCard item) => Search.IsOn && Search.HideRest && !_matching.Contains(item);
+
+    /// <summary>
+    /// Shows the search on every card, project card, cell and row after placing (items 3, 4, 5, 7), and counts what is on
+    /// the board and what matches.
+    /// </summary>
+    private void ShowSearch()
+    {
+        var filter = Search.Filter;
+        var on = filter.IsOn;
+        var words = on ? filter.Query.Words : [];
+
+        foreach (var card in _all)
+        {
+            card.ShowSearch(on && !_matching.Contains(card), CardSearch.Highlights(card.Title, words));
+        }
+
+        foreach (var project in _projects)
+        {
+            var inside = on
+                ? project.MemberKeys.Where(key => Card(key) is { } member && _matching.Contains(member)).ToList()
+                : [];
+            project.ShowSearch(on && !_matching.Contains(project), CardSearch.Highlights(project.Title, words), inside);
+        }
+
+        var matches = new List<IBoardCard>();
+
+        foreach (var row in Rows)
+        {
+            var inRow = new List<IBoardCard>();
+
+            foreach (var cell in row.Cells)
+            {
+                var inCell = on
+                    ? cell.Projects.Cast<IBoardCard>().Concat(cell.Cards).Where(_matching.Contains).ToList()
+                    : [];
+                cell.MatchCount = inCell.Count;
+                inRow.AddRange(inCell);
+            }
+
+            row.ShowMatches(inRow);
+            matches.AddRange(inRow);
+        }
+
+        _matches = matches;
+
+        var onBoard = _all.Where(card => KeepOutOfGrid?.Invoke(card) != true).Cast<IBoardCard>().Concat(_projects).ToList();
+        var archivedWouldMatch = on && !ShowArchived && _archived.Any(workstream => filter.Admits(new SearchableCard(
+            workstream.Key, workstream.Title, workstream.Project ?? string.Empty, workstream.Area ?? string.Empty,
+            workstream.JiraKeys, workstream.Tags, [], [])));
+        Search.Counted(on ? onBoard.Count(_matching.Contains) : 0, onBoard.Count, archivedWouldMatch);
     }
 
     /// <summary>The stages, as configured: what a card's stage can be, whatever the columns show.</summary>
@@ -317,9 +473,9 @@ public sealed class BoardViewModel : ObservableObject
             }
         }
 
-        var workstreams = WorkstreamAssembler.Assemble(plans, _board.Read())
-            .Where(workstream => workstream.IsArchived == ShowArchived)
-            .ToList();
+        var assembled = WorkstreamAssembler.Assemble(plans, _board.Read());
+        var workstreams = assembled.Where(workstream => workstream.IsArchived == ShowArchived).ToList();
+        _archived = ShowArchived ? [] : [.. assembled.Where(workstream => workstream.IsArchived)];
 
         var lanes = ConfiguredLanes();
         var areas = ConfiguredAreas();
@@ -384,13 +540,14 @@ public sealed class BoardViewModel : ObservableObject
     {
         var (columns, rows) = ViewAxes();
         SyncGrid(columns, rows);
+        Evaluate();
 
         var wanted = Cells.ToDictionary(cell => cell, _ => new List<WorkstreamCardViewModel>());
         var byPlace = Cells.ToDictionary(cell => (cell.Column, cell.Area));
 
         foreach (var card in _all)
         {
-            if (KeepOutOfGrid?.Invoke(card) == true)
+            if (KeepOutOfGrid?.Invoke(card) == true || HiddenBySearch(card))
             {
                 continue;
             }
@@ -450,6 +607,8 @@ public sealed class BoardViewModel : ObservableObject
             row.RaiseCounts();
         }
 
+        ShowSearch();
+
         // A ticked card that has just left the grid (its project began to read, or it joined one) is unticked, so the
         // selection commands never reach a card that cannot be seen (PR 2 re-review, item 1).
         if (KeepOutOfGrid is not null || SelectionOrder is not null)
@@ -483,6 +642,7 @@ public sealed class BoardViewModel : ObservableObject
         foreach (var cell in Cells)
         {
             var wanted = _projects
+                .Where(project => !HiddenBySearch(project))
                 .Where(project =>
                 {
                     var place = places.FirstOrDefault(entry => string.Equals(entry.Key, project.Name, StringComparison.OrdinalIgnoreCase)).Value;
@@ -1151,7 +1311,10 @@ public sealed class BoardViewModel : ObservableObject
         {
             sidecars.Add(new WorkstreamSidecar(card.Key, card.Column, card.Workstream.IsBlocked, archived,
                 ColorIsManual: true, card.Workstream.ReopenTomorrow, card.JiraKeys,
-                card.Workstream.StatusDocumentPath, card.Workstream.LastSessionId, now, now));
+                card.Workstream.StatusDocumentPath, card.Workstream.LastSessionId, now, now)
+            {
+                Tags = card.Workstream.Tags,
+            });
         }
 
         _board.Write(sidecars);
@@ -1204,6 +1367,7 @@ public sealed class BoardViewModel : ObservableObject
                   LastSessionId = card.Workstream.LastSessionId,
                   EveryStartPrompt = card.Workstream.EveryStartPrompt,
                   Role = card.Workstream.Role,
+                  Tags = card.Workstream.Tags,
                   UpdatedUtc = now,
               }
             : new WorkstreamSidecar(card.Key, card.Column, card.Workstream.IsBlocked, IsArchived: false,
@@ -1218,6 +1382,7 @@ public sealed class BoardViewModel : ObservableObject
                   PausedBy = card.Workstream.IsPaused ? card.Workstream.PausedBy : null,
                   PauseReason = card.Workstream.IsPaused ? card.Workstream.PauseReason : null,
                   Role = card.Workstream.Role,
+                  Tags = card.Workstream.Tags,
               };
 
         if (index >= 0)

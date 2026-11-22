@@ -59,8 +59,20 @@ public partial class MainWindow : Window
         AddHandler(PreviewMouseLeftButtonUpEvent, new MouseButtonEventHandler(OnPreviewMouseUp), handledEventsToo: true);
         AddHandler(PreviewMouseMoveEvent, new MouseEventHandler(OnPreviewMouseMove), handledEventsToo: true);
 
-        DataContextChanged += (_, _) =>
+        PreviewKeyDown += OnWindowPreviewKeyDown;
+
+        DataContextChanged += (_, e) =>
         {
+            if (e.OldValue is ShellViewModel old)
+            {
+                old.MatchShown -= OnMatchShown;
+            }
+
+            if (e.NewValue is ShellViewModel shell)
+            {
+                shell.MatchShown += OnMatchShown;
+            }
+
             WatchSettings();
             WatchArrange();
             WatchDayReport();
@@ -79,6 +91,82 @@ public partial class MainWindow : Window
     }
 
     private BoardViewModel? Board => (DataContext as ShellViewModel)?.Board;
+
+    // Ctrl+F, or / anywhere but a text field, goes to the search box (card-search-and-tags item 1).
+    private void OnWindowPreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        var slash = e.Key is Key.Oem2 or Key.Divide && Keyboard.Modifiers == ModifierKeys.None
+                    && Keyboard.FocusedElement is not System.Windows.Controls.Primitives.TextBoxBase;
+
+        if ((e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control) || slash)
+        {
+            FocusSearch();
+            e.Handled = true;
+        }
+    }
+
+    private void FocusSearch()
+    {
+        SearchBox.Focus();
+
+        if (SearchBox.Template.FindName("PART_EditableTextBox", SearchBox) is TextBox edit)
+        {
+            edit.Focus();
+            edit.SelectAll();
+        }
+    }
+
+    // Enter goes to the next match, Ctrl+Enter opens it, Esc clears the search and gives the board the keys back (item 6).
+    private void OnSearchKeyDown(object sender, KeyEventArgs e)
+    {
+        if (DataContext is not ShellViewModel shell || SearchBox.IsDropDownOpen)
+        {
+            return;
+        }
+
+        var command = e.Key switch
+        {
+            Key.Enter when Keyboard.Modifiers == ModifierKeys.Control => shell.OpenMatchCommand,
+            Key.Enter => shell.NextMatchCommand,
+            _ => null,
+        };
+
+        if (command is not null)
+        {
+            shell.Board.Search.Remember();
+
+            if (command.CanExecute(null))
+            {
+                command.Execute(null);
+            }
+
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Escape)
+        {
+            shell.Board.Search.Clear();
+
+            if (shell.IsProjectOpen)
+            {
+                ProjectPane.Focus();
+            }
+            else
+            {
+                BoardSurface.Focus();
+            }
+
+            e.Handled = true;
+        }
+    }
+
+    private void OnSearchLostFocus(object sender, KeyboardFocusChangedEventArgs e) => Board?.Search.Remember();
+
+    private void OnMatchShown(IBoardCard item)
+    {
+        var row = Board?.Rows.FirstOrDefault(candidate =>
+            candidate.Cells.Any(cell => cell.Cards.Contains(item) || cell.Projects.Contains(item)));
+        BoardReveal.Show(BoardSurface, item, row);
+    }
 
     /// <summary>
     /// Lets the cards move, or stops them. A board nobody is looking at should not hold the render

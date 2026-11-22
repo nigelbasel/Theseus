@@ -30,6 +30,23 @@ public sealed class RecordsViewModel : ObservableObject
         Selected = Entries.FirstOrDefault(entry => entry.Stage == stage && entry.HasFile) ?? Entries.FirstOrDefault(entry => entry.HasFile);
     }
 
+    /// <summary>
+    /// Shows one document on its own, such as a proposal's brief: Theseus's own Markdown view rather than whatever editor
+    /// the file type opens in (Nigel, 2026-11-22).
+    /// </summary>
+    public RecordsViewModel(string title, RecordEntry document, Action<string> openPath)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        ArgumentNullException.ThrowIfNull(openPath);
+
+        Title = title;
+        Entries = [document];
+        var folder = document.File is { } file ? Path.GetDirectoryName(file) : null;
+        OpenFolderCommand = new RelayCommand(_ => openPath(folder!), _ => folder is not null && Directory.Exists(folder));
+        OpenInEditorCommand = new RelayCommand(_ => openPath(_selected!.File!), _ => _selected?.HasFile == true);
+        Selected = document;
+    }
+
     /// <summary>"Records of &lt;piece title&gt;".</summary>
     public string Title { get; }
 

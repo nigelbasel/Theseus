@@ -120,6 +120,19 @@ public sealed record TheseusSettings(
     public IReadOnlyDictionary<string, string> ProjectColours { get; init; } = new Dictionary<string, string>();
 
     /// <summary>
+    /// Each project card's tags, by project name (card-search-and-tags item 9): a project card has no sidecar, so its
+    /// tags are kept here, beside its place and colour. Per machine, never in a repo.
+    /// </summary>
+    public IReadOnlyDictionary<string, IReadOnlyList<string>> ProjectTags { get; init; } =
+        new Dictionary<string, IReadOnlyList<string>>();
+
+    /// <summary>
+    /// Each tag's colour, as <c>#rrggbb</c>, by tag (item 11): chosen from the tag palette on first use and changeable in
+    /// Options, Tags.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> TagColours { get; init; } = new Dictionary<string, string>();
+
+    /// <summary>
     /// Which one-off tidies of the grid this board has had. Zero for a board from before any; see
     /// <see cref="Domain.BoardTidy"/>.
     /// </summary>
