@@ -460,7 +460,7 @@ public sealed class ProjectViewModel : ObservableObject
 
         (Action Run, string? ToolTip) what = offer.Action switch
         {
-            StageAction.OpenSpec => (() => Run(spec, _actions.OpenSpec), "Open the spec as it was read, at the commit Accept spec names"),
+            StageAction.OpenSpec => (() => Run(spec, _actions.OpenSpec), "Open the spec in its window; Accept spec… there accepts the version on screen"),
             StageAction.AcceptSpec => (() => Run(spec, _actions.AcceptSpec), AcceptSpecToolTip),
             StageAction.VerifyWithHoldouts => (() => _actions.VerifyWithHoldouts(key),
                 $"Create a verifier card for {piece.Workstream}: it runs the holdout scenarios and reports only a verdict"),

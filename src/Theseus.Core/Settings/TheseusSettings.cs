@@ -238,6 +238,9 @@ public sealed record TheseusSettings(
     /// </summary>
     public Layout.WindowPlacement? MainWindow { get; init; }
 
+    /// <summary>Where the spec window was last left, so the next one opens there (1.1e AC 24a).</summary>
+    public Layout.WindowPlacement? SpecWindow { get; init; }
+
 
     /// <summary>Where workstreams are kept until the user points Theseus somewhere of their own.</summary>
     public static string DefaultPlanDirectory { get; } = Path.Combine(

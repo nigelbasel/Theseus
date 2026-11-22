@@ -1243,7 +1243,7 @@
                 <MenuItem Header="Ope_n spec" ItemsSource="{Binding OpenSpecChoices}"
                           ItemContainerStyle="{StaticResource ProjectChoiceItem}"
                           Visibility="{Binding HasSpecChoices, Converter={StaticResource BoolToVisibility}}"
-                          ToolTip="Open a spec waiting on you in the open project, as it was read" />
+                          ToolTip="Open a spec waiting on you in the open project, in its window" />
                 <MenuItem Header="Acc_ept spec" ItemsSource="{Binding AcceptSpecChoices}"
                           ItemContainerStyle="{StaticResource ProjectChoiceItem}"
                           Visibility="{Binding HasSpecChoices, Converter={StaticResource BoolToVisibility}}"
