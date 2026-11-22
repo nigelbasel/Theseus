@@ -103,7 +103,7 @@ public class ProjectOverviewTests
         var sentence = ProjectOverview.For(reading.File!, pieces, [], [], 0).Sentence;
 
         Assert.That(sentence, Does.Not.Contain("Round"));
-        Assert.That(sentence, Is.EqualTo("Projects in use is being built and the project view made obvious (design) is under way. "
+        Assert.That(sentence, Is.EqualTo("Being built: “projects in use”; under way: “the project view made obvious (design)”. "
                                          + "One thing waits for you: three builds need their independent check, which only you start."));
     }
 
@@ -137,6 +137,7 @@ public class ProjectOverviewTests
 
         Assert.That(lines.Keys, Is.EqualTo(new[] { 1, 2 }));
         Assert.That(lines[2], Does.StartWith("Four pieces of work: "));
+        Assert.That(lines.Values, Has.None.Matches(@"(two|three|four|five|six|seven|eight) s "), "no stray plural: \"five s built\"");
     }
 
     private static string Words(int count) => count switch

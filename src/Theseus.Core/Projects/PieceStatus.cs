@@ -66,6 +66,24 @@ public sealed record PieceStatus(StageNodeState State, string Text)
             };
         }
 
+        // Evidence missing after later records: nothing blocks it, so not Stuck, and never done or "next" either (G15). A spec
+        // waiting on the owner, or a build ahead of it, says so first.
+        if (!stages.Any(stage => stage.State == StageNodeState.WaitingOnYou)
+            && !(isWorking && piece.AwaitsSpecAcceptance && piece.Kind == PieceKind.Build)
+            && stages.FirstOrDefault(stage => stage.Reason == PiecesOfWork.NoEvidenceYet) is { } evidence)
+        {
+            var hasSession = piece.IsCurrentPiece && card is { HasSession: true };
+            var canStart = piece.IsCurrentPiece && card is { HasSession: false, CanStart: true };
+
+            return new PieceStatus(isWorking ? StageNodeState.Busy : StageNodeState.ToDo,
+                $"Evidence missing at {evidence.Name}: {evidence.Reason}; {(hasSession ? "its session can write it" : "nobody is working on it")}.")
+            {
+                WhoActs = hasSession ? $"{piece.Workstream}; nothing for you unless it asks."
+                    : canStart ? $"{piece.Workstream}, once you start it." : "Nobody yet.",
+                Action = hasSession ? PieceAction.Focus : canStart ? PieceAction.Start : PieceAction.None,
+            };
+        }
+
         if (isWorking && piece.AwaitsSpecAcceptance && piece.Kind == PieceKind.Build)
         {
             return new PieceStatus(StageNodeState.Busy, "Busy building, ahead of your acceptance of its spec (at its own risk).")
@@ -135,6 +153,18 @@ public sealed record PieceStatus(StageNodeState State, string Text)
             };
         }
 
+        var noSpecHere = stages.Any(stage => stage.Reason == PiecesOfWork.NoSpecHere);
+
+        if (finished && noSpecHere)
+        {
+            return new PieceStatus(StageNodeState.RecordsElsewhere,
+                "Its stages are recorded, but its spec gate is not passed here: no spec.md in its records.")
+            {
+                WhoActs = "You, if its spec was accepted elsewhere; Theseus has no record of that acceptance.",
+                Action = piece.RecordsFolder is null ? PieceAction.None : PieceAction.OpenRecords,
+            };
+        }
+
         if (finished)
         {
             return new PieceStatus(StageNodeState.Done, Finished(piece))
@@ -191,7 +221,7 @@ public sealed record PieceStatus(StageNodeState State, string Text)
         var next = StageOrder.NextToDo(stages, stage => stage.State);
         var nextName = next < 0 ? stages.First(stage => !StageNodeStates.IsFinished(stage.State)).Name : stages[next].Name;
 
-        return new PieceStatus(StageNodeState.ToDo, $"Next: {nextName}.")
+        return new PieceStatus(StageNodeState.ToDo, $"Next: {nextName}.{(noSpecHere ? " Its spec gate is not passed here: no spec.md in its records." : string.Empty)}")
         {
             WhoActs = startable ? $"{piece.Workstream}, once you start it." : $"{piece.Workstream}, when it gets there.",
             Action = startable ? PieceAction.Start : PieceAction.None,

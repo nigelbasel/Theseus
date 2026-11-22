@@ -308,9 +308,9 @@ public class ClarityModelTests
 
         Assert.That((piece.Stages[1].State, piece.Stages[1].Reason), Is.EqualTo((StageNodeState.RecordsElsewhere, PiecesOfWork.NoSpecHere)),
             "only the owner passes the spec gate; a missing spec.md is said as it is, never as Stuck (Nigel, 2026-11-22)");
-        Assert.That(piece.Stages[4].State, Is.EqualTo(StageNodeState.Stuck), "only the independent check passes Verify");
+        Assert.That(piece.Stages[4].State, Is.EqualTo(StageNodeState.ToDo), "only the independent check passes Verify");
         Assert.That(piece.Status.State, Is.Not.EqualTo(StageNodeState.Done));
-        Assert.That(piece.Status.State, Is.EqualTo(StageNodeState.Stuck), "Stuck here is the missing evidence, which 1.1d AC 4 makes Stuck");
+        Assert.That(piece.Status.Text, Does.StartWith("Evidence missing at Verify"), "said as it is, never Stuck (G15)");
     }
 
     [Test]

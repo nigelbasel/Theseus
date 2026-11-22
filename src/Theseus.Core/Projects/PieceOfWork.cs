@@ -60,6 +60,9 @@ public sealed record PieceOfWork(
     /// <summary>The title of the piece that handed it work, or null.</summary>
     public string? ParentTitle { get; init; }
 
+    /// <summary>The card of the piece it sits under, by hand-over; null for a root.</summary>
+    public string? ParentCardKey { get; init; }
+
     /// <summary>The titles of the pieces it handed work to, in file order (1.1f E26).</summary>
     public IReadOnlyList<string> HandedOnTo { get; init; } = [];
 

@@ -208,7 +208,7 @@ public sealed class ShellViewModel : ObservableObject
                 VerifyWithHoldouts(Chosen()[0]);
                 SaySkipped();
             },
-            _ => ProjectSelection.OneCard(Board) is { } only && CanVerify(only));
+            _ => Chosen() is [var only] && CanVerify(only));
         MarkSelectedPausedCommand = new RelayCommand(_ => MarkSelected(workstream => workstream with { IsPaused = true }, "paused"),
             _ => Chosen().Any(card => !card.IsPaused));
         MarkSelectedBlockedCommand = new RelayCommand(_ => MarkSelected(workstream => workstream with { IsBlocked = true }, "blocked"),
@@ -2244,6 +2244,7 @@ public sealed class ShellViewModel : ObservableObject
             {
                 ShowRecords = ShowRecordsWindow is { } show ? (piece, stage) => show(new RecordsViewModel(piece, stage, OpenFile)) : null,
                 OpenLinks = key => ShowCardLinksCommand.Execute(Board.Card(key)),
+                CardActions = CardActionsOf,
                 Ask = ConfirmAcceptSpec,
                 Jumped = Jumped,
                 GoBack = GoBackCommand,
@@ -3785,7 +3786,60 @@ public sealed class ShellViewModel : ObservableObject
         }
     }
 
-    private IReadOnlyList<WorkstreamCardViewModel> Chosen() => Board.ChosenCards;
+    // With a project open, the main menu's selection commands act on the card of the box selected in the view (Nigel,
+    // 2026-11-22: two cards he could not archive from the view).
+    private IReadOnlyList<WorkstreamCardViewModel> Chosen() =>
+        ProjectView?.Selection switch
+        {
+            PieceNodeViewModel node when Board.Card(node.Piece.CardKey) is { } card => [card],
+            StageNodeViewModel stage when Board.Card(stage.Piece.Piece.CardKey) is { } card => [card],
+            _ when ProjectView is not null => [],
+            _ => Board.ChosenCards,
+        };
+
+    // A card's board actions on its box in the view (Nigel, 2026-11-22).
+    private IReadOnlyList<PieceActionViewModel> CardActionsOf(PieceOfWork piece)
+    {
+        if (Board.Card(piece.CardKey) is not { } card)
+        {
+            return [];
+        }
+
+        var actions = new List<PieceActionViewModel>();
+        var canArchive = ArchiveCardCommand.CanExecute(card);
+        var verb = card.IsArchived ? "Restore" : "Archive";
+        actions.Add(new PieceActionViewModel(verb, () => ArchiveCardCommand.Execute(card), canArchive,
+            !canArchive ? $"{card.Title} has a session: stop it before archiving it"
+            : card.IsArchived ? $"Restore {card.Title} to the board" : $"Archive {card.Title}: it leaves the board"));
+
+        if (piece.IsListed && card.RemoveFromProjectCommand is { } remove)
+        {
+            actions.Add(new PieceActionViewModel("Remove from project…", () => remove.Execute(null), remove.CanExecute(null),
+                $"Take {card.Title}'s rows out of the project file"));
+        }
+        else if (!piece.IsListed && piece.ParentTitle is { } parent && piece.ParentCardKey is { } parentCard
+                 && Chains?.AllLinks.FirstOrDefault(link => link.IsActive && link.Kind == LinkKind.HandsOver
+                                                            && string.Equals(link.From, parentCard, StringComparison.OrdinalIgnoreCase)
+                                                            && string.Equals(link.To, card.Key, StringComparison.OrdinalIgnoreCase)) is { } handOver)
+        {
+            actions.Add(new PieceActionViewModel($"Unlink from {parent}", () =>
+            {
+                if (Chains.RemoveHandOver(handOver.From, handOver.To) is { } refused)
+                {
+                    Notice = refused;
+                }
+            }, toolTip: $"Remove the hand-over that shows {card.Title} under {parent}"));
+        }
+
+        actions.Add(new PieceActionViewModel("Show on the board", () =>
+        {
+            CloseProject();
+            card.IsCollapsed = false;
+            Board.ClickSelect(card, toggle: false, extend: false);
+        }, toolTip: $"Close the view and select {card.Title} on the board"));
+
+        return actions;
+    }
 
     private IReadOnlyList<Workstream> ChosenToStart() =>
         StartSelection.ForCards(

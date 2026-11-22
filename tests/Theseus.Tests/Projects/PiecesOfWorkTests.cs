@@ -194,12 +194,12 @@ public class PiecesOfWorkTests
     }
 
     [Test]
-    public void Verify_IsStuck_WithNoEvidenceThoughLaterRecordsAreWritten()
+    public void Verify_IsToDo_NotStuck_WithNoEvidenceThoughLaterRecordsAreWritten()
     {
         var verify = OnePiece(_folder, "feature", Files("spec.md", "review.md"), accepted: true).Stages[4];
 
-        Assert.That(verify.State, Is.EqualTo(StageNodeState.Stuck));
-        Assert.That(verify.Reason, Is.EqualTo("no evidence, though later records are written"));
+        Assert.That(verify.State, Is.EqualTo(StageNodeState.ToDo), "nothing blocks it (G15, Nigel 2026-11-22)");
+        Assert.That(verify.Reason, Is.EqualTo(PiecesOfWork.NoEvidenceYet));
     }
 
     [Test]

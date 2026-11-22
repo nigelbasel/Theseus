@@ -26,6 +26,24 @@ public partial class ProjectView : UserControl
     {
         InitializeComponent();
         DataContextChanged += OnDataContextChanged;
+        PreviewMouseMove += (_, e) => QuickToolTips(e.OriginalSource as DependencyObject);
+    }
+
+    /// <summary>How soon a tooltip in the view shows (I43).</summary>
+    public const int ToolTipDelay = 300;
+
+    // ToolTipService.InitialShowDelay is not inherited, and boxes, stages and links are made at run time, so each element
+    // under the pointer gets the short delay before WPF's tooltip timer reads it.
+    internal void QuickToolTips(DependencyObject? element)
+    {
+        for (var at = element; at is not null && !ReferenceEquals(at, this);
+             at = at is Visual or System.Windows.Media.Media3D.Visual3D ? VisualTreeHelper.GetParent(at) : LogicalTreeHelper.GetParent(at))
+        {
+            if (ToolTipService.GetToolTip(at) is not null && ToolTipService.GetInitialShowDelay(at) != ToolTipDelay)
+            {
+                ToolTipService.SetInitialShowDelay(at, ToolTipDelay);
+            }
+        }
     }
 
     /// <summary>
@@ -74,16 +92,19 @@ public partial class ProjectView : UserControl
     // Beside the dotted line, in the gap between the two boxes, so it crosses neither (1.1f D20, D22).
     private static TextBlock ThenWorkedOnLabel(Rect from, Rect to, string tag)
     {
+        const string Text = "then the same session moved on to";
         var label = new TextBlock
         {
-            Text = "then the same session moved on to",
-            FontSize = 11,
+            Text = Text,
+            FontSize = 13,
             Tag = tag + ":label",
-            IsHitTestVisible = false,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            MaxWidth = Math.Max(60, to.Width - ConnectorGeometry.ThenWorkedOnInset - 16),
+            ToolTip = Text,
         };
         label.SetResourceReference(TextBlock.ForegroundProperty, "TextFillColorSecondaryBrush");
-        Canvas.SetLeft(label, from.Left + ConnectorGeometry.ThenWorkedOnInset + 12);
-        Canvas.SetTop(label, to.Top - 16);
+        Canvas.SetLeft(label, from.Left + ConnectorGeometry.ThenWorkedOnInset + 10);
+        Canvas.SetTop(label, from.Bottom + 6);
 
         return label;
     }

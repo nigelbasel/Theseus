@@ -138,7 +138,7 @@ public class ProjectViewLayoutTests
     }
 
     [Test]
-    public void RootsStackDown_14PxApart_LeftAligned()
+    public void RootsStackDown_LeftAligned_48PxApart_WhereTheSameSessionMovedOn()
     {
         var control = LaidOut(WithRunsOpen(_views.Theseus()));
         var first = BoxOf(control, "method-kit");
@@ -148,7 +148,7 @@ public class ProjectViewLayoutTests
         var b = second.TranslatePoint(new Point(0, 0), connectors);
 
         Assert.That(b.X, Is.EqualTo(a.X));
-        Assert.That(b.Y - (a.Y + first.ActualHeight), Is.EqualTo(14).Within(0.5));
+        Assert.That(b.Y - (a.Y + first.ActualHeight), Is.EqualTo(48).Within(0.5), "room for the arrow and its label (Nigel, 2026-11-22)");
     }
 
     [Test]
@@ -252,6 +252,41 @@ public class ProjectViewLayoutTests
         Assert.That(lines, Has.Count.EqualTo(1), "only identity's one hand-over is a line; the spec's seven sit between bars");
         Assert.That(lines.Single().StrokeThickness, Is.EqualTo(2));
         Assert.That(arrow.Data.Bounds.Right, Is.EqualTo(left.X).Within(1));
+    }
+
+    [Test]
+    public void ATooltipUnderThePointer_ShowsWithinTheViewsShortDelay()
+    {
+        var control = LaidOut(_views.Theseus());
+        var tipped = new TextBlock { ToolTip = "tip" };
+        ((Panel)control.FindName("Connectors")).Children.Add(tipped);
+
+        control.QuickToolTips(tipped);
+
+        Assert.That(ToolTipService.GetInitialShowDelay(tipped), Is.EqualTo(ProjectView.ToolTipDelay), "review of PR 5, finding 3");
+    }
+
+    [Test]
+    public void NoConnectorLabel_OverlapsABox_AndItReadsAtTheViewsTextSize()
+    {
+        var control = LaidOut(WithRunsOpen(_views.Theseus()));
+        control.DrawConnectors();
+        var connectors = (Canvas)control.FindName("Connectors");
+        var labels = connectors.Children.OfType<TextBlock>().ToList();
+        var boxes = AllNamed<Border>(control, "Box")
+            .Select(box => new Rect(box.TranslatePoint(new Point(0, 0), connectors), new Size(box.ActualWidth, box.ActualHeight))).ToList();
+
+        Assert.That(labels, Is.Not.Empty);
+
+        foreach (var label in labels)
+        {
+            label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            var bounds = new Rect(new Point(Canvas.GetLeft(label), Canvas.GetTop(label)), label.DesiredSize);
+
+            Assert.That(boxes.Where(box => box.IntersectsWith(bounds) && Rect.Intersect(box, bounds) is { Width: > 0.5, Height: > 0.5 }),
+                Is.Empty, $"{label.Tag} sits under a box (Nigel, 2026-11-22)");
+            Assert.That((label.FontSize, label.TextTrimming), Is.EqualTo((13.0, TextTrimming.CharacterEllipsis)));
+        }
     }
 
     [Test]

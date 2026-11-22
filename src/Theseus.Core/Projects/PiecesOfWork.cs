@@ -12,8 +12,14 @@ public static class PiecesOfWork
 {
     private const string SpecCoveredIt = "the project's spec covered it";
 
+    /// <summary>
+    /// What a Verify stage says when later records are written but no evidence.md: to do, not Stuck, since nothing blocks it
+    /// (Nigel, 2026-11-22: "saying stuck and not being stuck are unacceptable").
+    /// </summary>
+    public const string NoEvidenceYet = "evidence.md not written, though later records are";
+
     /// <summary>What a feature's spec stage says when its records hold later work but no spec.md.</summary>
-    public const string NoSpecHere = "no spec.md in its records: the spec it builds from is not recorded here, so its gate is not shown as passed";
+    public const string NoSpecHere = "no spec.md in its records, so its gate is not shown as passed";
 
     private enum DraftKind
     {
@@ -265,6 +271,7 @@ public static class PiecesOfWork
             Repos = draft.Row?.Repos,
             IsObjectiveDone = isObjectiveDone,
             ParentTitle = parent?.Title,
+            ParentCardKey = parent?.CardKey,
             HandedOnTo = [.. children.Select(child => child.Title)],
             HasReportedBack = reported,
             IsReportConfirmed = confirmed,
@@ -302,7 +309,7 @@ public static class PiecesOfWork
 
     // Nothing before a finished stage is To do (1.1f E30a): a stage before the furthest recorded one is skipped with its
     // reason, or done with no record. Under the kit the owner's spec gate and the evidence are never assumed done: a
-    // missing one before later records is Stuck, as 1.1d AC 4 has it for evidence. Work from before the kit has no gate
+    // missing one before later records is said as missing, never Stuck, since nothing blocks it. Work from before the kit has no gate
     // states (1.1 AC 9), so there they too are done with no record. A session's own skip never stands in for either: only
     // the owner passes the spec gate, and only the independent check passes Verify (review of PR 1, finding 1).
     private static List<StageDraft> BeforeFurthest(List<StageDraft> stages, PieceDraft draft, PieceDraft? parent)
@@ -330,7 +337,7 @@ public static class PiecesOfWork
 
             if (stage.Stage == PipelineStage.Verify && !draft.IsBeforeKit)
             {
-                return stage with { State = StageNodeState.Stuck, Reason = "no evidence, though later records are written" };
+                return stage with { State = StageNodeState.ToDo, Reason = NoEvidenceYet };
             }
 
             // Not Stuck: nothing is blocked, the spec is only not in this folder (Nigel, 2026-11-22: "saying stuck and not being
@@ -406,7 +413,7 @@ public static class PiecesOfWork
         if (!isWritten)
         {
             return gate?.State == GateState.NoEvidence
-                ? Verify(StageNodeState.Stuck, "no evidence, though later records are written")
+                ? Verify(StageNodeState.ToDo, NoEvidenceYet)
                 : Verify(StageNodeState.ToDo);
         }
 

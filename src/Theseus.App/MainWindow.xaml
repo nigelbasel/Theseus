@@ -35,7 +35,7 @@
         <!-- The search's keys (card-search-and-tags item 6); Ctrl+F and / are handled in OnWindowPreviewKeyDown. -->
         <KeyBinding Gesture="F3" Command="{Binding NextMatchCommand}" />
         <KeyBinding Gesture="Shift+F3" Command="{Binding PreviousMatchCommand}" />
-        <!-- Back to the board from a project view (1.1d AC 16); CloseProjectCommand runs only while a project is open. -->
+        <!-- Back and Forward through the places visited in project views (I46). -->
         <KeyBinding Gesture="Alt+Left" Command="{Binding GoBackCommand}" />
         <KeyBinding Gesture="Alt+Right" Command="{Binding GoForwardCommand}" />
     </Window.InputBindings>

@@ -45,6 +45,12 @@ public sealed record ProjectViewActions(
     /// <summary>Opens a card's links and proposals on the board, where a report is confirmed or a proposal decided; null in tests.</summary>
     public Action<string>? OpenLinks { get; init; }
 
+    /// <summary>
+    /// A piece's card's own board actions, for its box and Properties: Archive, Remove from project or Unlink from its
+    /// parent, Show on the board (Nigel, 2026-11-22); null in tests.
+    /// </summary>
+    public Func<PieceOfWork, IReadOnlyList<PieceActionViewModel>>? CardActions { get; init; }
+
     /// <summary>Asks the owner a yes-or-no question first, as "Start the checks…" does; null in tests, where it is yes.</summary>
     public Func<string, bool>? Ask { get; init; }
 

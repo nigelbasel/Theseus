@@ -72,6 +72,25 @@ public class ObjectivesLensTests
     }
 
     [Test]
+    public void RecordedWork_WithNothingTicked_IsInProgress_NotNotStarted()
+    {
+        var file = ProjectFileReader.Read("p", TestProjectsFolder.ProjectText("P", body: "## Phase 0: S\n\n### Objective 0.1: O\n"
+            + "- [ ] One.\n\n**Pipeline:** freeform\n| Workstream | Slug | Branch | Repos |\n|---|---|---|---|\n")).File!;
+        var next = ProjectViewFixtures.OnePiece(_folder, "feature", ProjectViewFixtures.Files("spec.md"), accepted: true);
+
+        Assert.That(next.Status.Text, Does.StartWith("Next:"));
+        Assert.That(Rollup.Of(file.Objectives[0], [next]).State, Is.EqualTo(RollupState.InProgress), "review of PR 5, finding 2");
+    }
+
+    [Test]
+    public void TheWhoOfAMark_IsCappedAtTwoNames()
+    {
+        var rollup = new Rollup(RollupState.InProgress, "● In progress", ["A", "B", "C", "D"], "tip");
+
+        Assert.That(rollup.Who, Is.EqualTo("A, B and 2 more"));
+    }
+
+    [Test]
     public void AnOwnersWaitingLine_MakesItsObjectiveWaitForYou()
     {
         var file = ProjectFileReader.Read("p", TestProjectsFolder.ProjectText("P", body: "## Phase 0: S\n\n### Objective 0.1: O\n"

@@ -151,7 +151,7 @@ public sealed class ProjectOverview
         {
             var named = moving.Count == 0
                 ? "Nothing is moving"
-                : Capital(string.Join(" and ", moving.Select(piece => $"{piece.Title} {(piece.Kind == PieceKind.Build ? "is being built" : "is under way")}")));
+                : Moving(moving);
             var waiting = waits.Count switch
             {
                 0 => "Nothing waits for you.",
@@ -201,7 +201,7 @@ public sealed class ProjectOverview
 
         var parts = pieces.GroupBy(piece => piece.Status.State)
             .OrderBy(group => group.Key)
-            .Select(group => $"{Count(group.Count(), string.Empty).TrimEnd()} {StageNodeStates.Word(group.Key).ToLowerInvariant()}");
+            .Select(group => $"{Number(group.Count())} {StageNodeStates.Word(group.Key).ToLowerInvariant()}");
 
         return $"{Capital(Count(pieces.Count, "piece of work", "pieces of work"))}: {string.Join("; ", parts)}.";
     }
@@ -251,6 +251,36 @@ public sealed class ProjectOverview
 
     private static string Count(int count, string one, string? many = null) =>
         $"{(count < Numbers.Length ? Numbers[count] : count.ToString(CultureInfo.InvariantCulture))} {(count == 1 ? one : many ?? one + "s")}";
+
+    // Titles are quoted after a lead-in, so each keeps its own capitals and none runs into the verb (Nigel's capture,
+    // 2026-11-22: "…obvious: build is being built and Every question…").
+    private static string Moving(IReadOnlyList<PieceOfWork> moving)
+    {
+        static string Quoted(IReadOnlyList<PieceOfWork> pieces)
+        {
+            var titles = pieces.Select(piece => $"“{piece.Title}”").ToList();
+
+            return titles.Count <= 2 ? string.Join(" and ", titles) : $"{string.Join(", ", titles[..^1])} and {titles[^1]}";
+        }
+
+        var built = moving.Where(piece => piece.Kind == PieceKind.Build).ToList();
+        var other = moving.Where(piece => piece.Kind != PieceKind.Build).ToList();
+        var parts = new List<string>();
+
+        if (built.Count > 0)
+        {
+            parts.Add($"Being built: {Quoted(built)}");
+        }
+
+        if (other.Count > 0)
+        {
+            parts.Add($"{(parts.Count > 0 ? "under" : "Under")} way: {Quoted(other)}");
+        }
+
+        return string.Join("; ", parts);
+    }
+
+    private static string Number(int count) => count < Numbers.Length ? Numbers[count] : count.ToString(CultureInfo.InvariantCulture);
 
     private static string Capital(string text) => text.Length == 0 ? text : char.ToUpperInvariant(text[0]) + text[1..];
 
