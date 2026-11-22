@@ -259,7 +259,11 @@ public sealed class ShellViewModel : ObservableObject
             });
         Drawer.EventsOf = _cardEvents.For;
 
-        Settings = new SettingsViewModel(settings, Refresh) { Tags = new TagsViewModel(Board.Tags) };
+        Settings = new SettingsViewModel(settings, Refresh)
+        {
+            Tags = new TagsViewModel(Board.Tags),
+            Guard = new HoldoutGuardViewModel(new HoldoutGuardInstallation(HoldoutGuardInstallation.UserConfigFolder())),
+        };
         Drawer.TagsInUse = Board.Tags.InUse;
         Board.Tags.AskNewTag = () => AskText?.Invoke("New tag", "A tag: letters, digits and hyphens, such as security or waiting-on-dpo", string.Empty);
         Board.Tags.Say = message => Notice = message;

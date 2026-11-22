@@ -94,6 +94,9 @@ public sealed record TheseusSettings(
     /// <summary>The holdout's remote address, such as host/owner/repo, which the guard also refuses to non-verifiers.</summary>
     public string HoldoutRemote { get; init; } = string.Empty;
 
+    /// <summary>The bundled holdout guard's version the out-of-date notice was last given for, so it is said once.</summary>
+    public string? HoldoutGuardNoticeFor { get; init; }
+
     /// <summary>Which rows were folded away, so a board left tidy opens tidy.</summary>
     public IReadOnlyList<string> CollapsedAreas { get; init; } = [];
 

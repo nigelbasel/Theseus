@@ -499,11 +499,15 @@ public sealed class SettingsViewModel : ObservableObject
     {
         Load(_store.Read());
         Tags?.Load();
+        Guard?.Load();
         IsOpen = true;
     }
 
     /// <summary>Options, Tags (card-search-and-tags item 13); its changes apply at once, not at Save. Set by the shell.</summary>
     public TagsViewModel? Tags { get; set; }
+
+    /// <summary>Options, Holdouts: the installed holdout guard and its Install button; acts at once. Set by the shell.</summary>
+    public HoldoutGuardViewModel? Guard { get; set; }
 
     private void Load(TheseusSettings settings)
     {

@@ -3,9 +3,7 @@ using System.Text.RegularExpressions;
 namespace Theseus.Core.Links;
 
 /// <summary>
-/// Whether installing this Theseus's holdout guard would drop protection without a word (review of 1.1e PR 2b; git-22,
-/// 2026-11-21): an older installed guard names its own holdout in the file, while this one reads the folder from the
-/// settings and, with none set, protects only the default folder. Until a folder is set the board says so, at start.
+/// Where an installed holdout guard is: the paths the Claude Code hooks run it from (review of 1.1e PR 2c, finding 8).
 /// </summary>
 public static partial class HoldoutGuardUpgrade
 {
@@ -31,21 +29,6 @@ public static partial class HoldoutGuardUpgrade
 
         return [.. named, Path.Combine(configFolder, "bin", FileName)];
     }
-
-    /// <summary>What every guard that protects the holdout folders Theseus finds per project contains (1.1e AC 6e).</summary>
-    public const string FoldersMarker = HoldoutFolderFile.FileName;
-
-    /// <summary>
-    /// The warning, or null when there is nothing to lose: no guard is installed, or it reads the holdout folders Theseus
-    /// writes (1.1e AC 6e: the warning is needed only when the installed guard does not read them).
-    /// </summary>
-    /// <param name="installedGuard">The installed guard's text, or null when none is installed.</param>
-    public static string? Warning(string? installedGuard) =>
-        installedGuard is not null && !installedGuard.Contains(FoldersMarker, StringComparison.Ordinal)
-            ? "The installed holdout guard does not read holdout-folders.json, so it does not protect the holdout folders "
-              + "Theseus now finds for each project (beside a project's repo, or its own). Install the guard from this version "
-              + "to protect them; Tools > Options lists each folder."
-            : null;
 
     // A path ending in the guard's file name inside a hook command: a drive path, a home-relative one, or a quoted one.
     [GeneratedRegex(@"(?:[A-Za-z]:|~|\$HOME)?[^\s""'<>|]*holdout-guard\.js", RegexOptions.IgnoreCase)]

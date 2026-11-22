@@ -182,6 +182,22 @@ public class HoldoutGuardShellPathTests
             "review of verifier-runs, C2");
     }
 
+    [TestCase(@"bin\holdout-guard.js")]
+    [TestCase(@"bin\holdout-guard.js.previous")]
+    [TestCase("settings.json")]
+    public void TheInstalledGuardAndTheHookSettings_CannotBeWrittenByASession(string file)
+    {
+        Assert.That(Guard("Write", "file_path", Path.Combine(_local, ".claude", file), cwd: Code), Is.True,
+            "Theseus installs the guard; a session that rewrote it, or the hook, would switch it off (Nigel, 2026-11-22)");
+    }
+
+    [Test]
+    public void TheRestOfTheClaudeFolder_StaysWritable()
+    {
+        Assert.That(Guard("Write", "file_path", Path.Combine(_local, ".claude", "projects", "x", "memory", "note.md"), cwd: Code),
+            Is.False, "memory and logs are written there (Nigel, 2026-11-22: guard and hooks only)");
+    }
+
     [Test]
     public void ASettingsFileInTheCode_IsNotTheseus()
     {
@@ -210,6 +226,7 @@ public class HoldoutGuardShellPathTests
         };
         start.Environment["THESEUS_SETTINGS"] = settingsFile;
         start.Environment["LOCALAPPDATA"] = _local;
+        start.Environment["CLAUDE_CONFIG_DIR"] = Path.Combine(_local, ".claude");
         start.Environment.Remove("THESEUS_ROLE");
         start.Environment.Remove("THESEUS_HOLDOUT_AUTHOR");
 

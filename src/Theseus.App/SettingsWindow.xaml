@@ -189,6 +189,39 @@
                 <TextBlock Style="{StaticResource FieldHint}"
                            Text="Where each workstream's worktrees go: a folder per workstream, with a worktree in it for each repo the workstream changes." />
 
+                <CheckBox Content="Include pre-releases in Check for updates" Margin="0,8,0,0"
+                          IsChecked="{Binding IncludePreReleases, Mode=TwoWay}" />
+                <TextBlock Style="{StaticResource FieldHint}"
+                           Text="Pre-releases are built from a project's primary branch, before it is merged into main, so its work can be tried live first. Off offers releases from main only." />
+                    </StackPanel>
+                </Expander>
+
+                <Expander x:Name="HoldoutsSection" Style="{StaticResource Section}">
+                    <Expander.Header>
+                        <TextBlock Text="Holdouts" Style="{StaticResource SectionHeading}" />
+                    </Expander.Header>
+                    <StackPanel Margin="0,4,0,8">
+                <!-- The installed holdout guard, installed from here and never by a session (verifier-runs brief step 3). -->
+                <StackPanel DataContext="{Binding Guard}">
+                    <TextBlock Text="Holdout guard" Style="{StaticResource FieldLabel}" Margin="0,0,0,4" />
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="_Undo" Padding="10,2" Margin="6,0,0,0" Command="{Binding UndoCommand}"
+                                ToolTipService.ShowOnDisabled="True"
+                                ToolTip="Put back the holdout guard the last install replaced; offered only when an earlier copy is kept" />
+                        <Button DockPanel.Dock="Right" Content="_Install the holdout guard" Padding="10,2" Command="{Binding InstallCommand}"
+                                ToolTip="Copy this Theseus's holdout guard to where the Claude Code hook runs it, keeping the old copy, and check it on a fixture folder" />
+                        <TextBlock x:Name="HoldoutGuardLine" Text="{Binding Line}" VerticalAlignment="Center" TextWrapping="Wrap" />
+                    </DockPanel>
+                    <TextBlock Text="{Binding GuardPath}" Style="{StaticResource FieldHint}" />
+                    <DockPanel Margin="0,4,0,0" Visibility="{Binding HookIsMissing, Converter={StaticResource BoolToVisibility}}">
+                        <Button DockPanel.Dock="Right" Content="Add the hook entry…" Padding="10,2" Command="{Binding AddHookCommand}"
+                                ToolTip="Shows the exact change to Claude Code's settings first, and makes it only if you agree" />
+                        <TextBlock VerticalAlignment="Center" TextWrapping="Wrap"
+                                   Text="Claude Code's settings do not run the holdout guard, so no session is guarded." />
+                    </DockPanel>
+                    <TextBlock Text="{Binding Result}" Style="{StaticResource FieldHint}" />
+                </StackPanel>
+
                 <TextBlock Text="Holdout scenarios folder for every project" Style="{StaticResource FieldLabel}" />
                 <TextBox x:Name="HoldoutFolderBox" Text="{Binding HoldoutFolder, UpdateSourceTrigger=PropertyChanged}"
                          AutomationProperties.Name="Holdout scenarios folder" />
@@ -233,10 +266,6 @@
                 <TextBox Text="{Binding HoldoutRemote, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock Style="{StaticResource FieldHint}"
                            Text="The clone of the private scenarios that judge changes, and its address such as host/owner/repo. The holdout guard keeps both from implementing sessions; a verifier card reads the scenarios there and writes its report to the results folder. Leave the folder empty to use a folder per project under Theseus's own data folder, made on first use." />
-                <CheckBox Content="Include pre-releases in Check for updates" Margin="0,8,0,0"
-                          IsChecked="{Binding IncludePreReleases, Mode=TwoWay}" />
-                <TextBlock Style="{StaticResource FieldHint}"
-                           Text="Pre-releases are built from a project's primary branch, before it is merged into main, so its work can be tried live first. Off offers releases from main only." />
                     </StackPanel>
                 </Expander>
 

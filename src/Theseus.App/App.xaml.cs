@@ -157,11 +157,17 @@ public partial class App : Application
             shell.Warn(warning);
         }
 
-        // An older installed guard does not protect the folders Theseus finds per project (1.1e AC 6e).
-        if (HoldoutGuardUpgrade.Warning(InstalledHoldoutGuard()) is { } guardWarning)
+        // Said once for each newer guard an update brings, until it is installed from Options (verifier-runs step 3).
+        if (shell.Settings.Guard is { } guard)
         {
-            TheseusLog.Warning("{Warning}", guardWarning);
-            shell.Warn(guardWarning);
+            guard.ConfirmChange = change => MessageBox.Show(MainWindow, change, "Add the holdout guard's hook entry?",
+                MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes;
+        }
+
+        if (HoldoutGuardNotice(settings) is { } guardNotice)
+        {
+            TheseusLog.Warning("{Warning}", guardNotice);
+            shell.Warn(guardNotice);
         }
         shell.Refresh();
         proposed.Update();
@@ -448,21 +454,22 @@ public partial class App : Application
     private const string ClaudeCodeVersion = "2.1.246";
 
     /// <summary>
-    /// The installed holdout guard's text, or null when none is installed or it cannot be read: the one the Claude Code
-    /// settings' hooks name, else the usual place. Read only, never written.
+    /// The out-of-date notice for the installed holdout guard, or null; recorded as given, so each newer guard is said once.
+    /// Read only: the guard itself is written only by Install the holdout guard.
     /// </summary>
-    private static string? InstalledHoldoutGuard()
+    private static string? HoldoutGuardNotice(SettingsStore settings)
     {
-        var config = Environment.GetEnvironmentVariable("CLAUDE_CONFIG_DIR") is { Length: > 0 } set
-            ? set
-            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude");
-
         try
         {
-            var settings = Path.Combine(config, "settings.json");
-            var json = File.Exists(settings) ? File.ReadAllText(settings) : null;
+            var notice = new HoldoutGuardInstallation(HoldoutGuardInstallation.UserConfigFolder()).State()
+                .OutOfDateNotice(settings.Read().HoldoutGuardNoticeFor);
 
-            return HoldoutGuardUpgrade.Candidates(json, config).FirstOrDefault(File.Exists) is { } guard ? File.ReadAllText(guard) : null;
+            if (notice is not null)
+            {
+                settings.Write(settings.Read() with { HoldoutGuardNoticeFor = HoldoutGuardBundle.Version });
+            }
+
+            return notice;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {

@@ -25,19 +25,27 @@ folder named `<something>-holdout` as a holdout, however a session names it.
 To keep a project's scenarios in a private repository of your own, clone it beside the project's home repo as
 `<repo>-holdout`, or choose it with **Change…**, and set **Holdout remote address** to where it lives, such as
 `host/owner/repo` or the URL you clone it by (one address for all projects); the guard refuses its https, SSH and
-`owner/repo` forms alike. Then install the holdout guard (`tools/holdout/holdout-guard.js` in the Theseus repository) as a
-PreToolUse hook for every tool in your Claude Code settings, the same way as the lock guard. It reads the folders and the
-address from Theseus's files, so it holds no path of its own.
+`owner/repo` forms alike.
+
+## Installing the guard
+
+**Tools > Options, Holdouts** shows the installed guard: *Not installed*, *Up to date*, or when an older one was
+installed. **Install the holdout guard** copies this Theseus's guard to where your Claude Code hook runs it (by default
+`bin\holdout-guard.js` in your Claude Code folder), keeps the copy it replaces as `holdout-guard.js.previous`, then
+checks it on a folder made for the check: a session with no role must be refused a read of the holdout, and a verifier
+allowed it. **Undo** puts the previous copy back. If Claude Code's settings do not run the guard at all, Options says so;
+**Add the hook entry…** shows the exact change to `settings.json` and makes it only if you agree, keeping the old file
+as `settings.json.previous`. Hooks are read as a session starts, so a newly registered hook guards sessions started
+after it. The guard reads the folders and the address from Theseus's files, so it holds no path of its own.
+
+After an update that brings a newer guard, the board says once that the holdout guard is out of date.
 
 With the guard installed, a session with no role is refused reading, searching or fetching in the holdout. A verifier
 can read the scenarios and write only its report and its handoff, in the holdout's `results` folder. No session runs a
-shell command inside a holdout folder, and none writes Theseus's own settings, board or `holdout-folders.json` with the
-file tools. A session
-started with `THESEUS_HOLDOUT_AUTHOR=1`, as a scenario-writing card's are, can change the scenarios. With no folder
-chosen, the guard covers the whole default holdouts folder in the same way.
-
-If the installed guard is an older one that does not read `holdout-folders.json`, Theseus says so when it starts: it
-does not protect the folders found per project until this version's guard is installed.
+shell command inside a holdout folder, and none writes Theseus's own settings, board or `holdout-folders.json`, the
+installed guard or its previous copy, or Claude Code's `settings.json`, with the file tools; the rest of the Claude Code
+folder stays writable. A session started with `THESEUS_HOLDOUT_AUTHOR=1`, as a scenario-writing card's are, can change
+the scenarios. With no folder chosen, the guard covers the whole default holdouts folder in the same way.
 
 The guard is a tripwire against accidents, not a wall. It reads the paths, commands and addresses a tool is given, and
 the session's working directory, and reads each word of a shell command as a path from where it runs, so `../holdout`

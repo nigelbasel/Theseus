@@ -302,6 +302,16 @@ process.stdin.on('end', () => {
             .some(file => normalise(resolve(target, cwd)) === normalise(file))) {
             deny('Theseus\'s settings, board and holdout folders are changed from Theseus, not by a session.');
         }
+        // The installed guard and the hook that runs it: a session that rewrote either would switch the guard off.
+        // Theseus installs them (Options, Holdouts); the rest of the Claude Code folder stays writable (Nigel,
+        // 2026-11-22: guard and hooks only).
+        const config = process.env.CLAUDE_CONFIG_DIR || path.join(process.env.USERPROFILE || '', '.claude');
+        const written = target ? resolve(target, cwd) : '';
+        if (written && (normalise(written) === normalise(path.win32.join(config, 'settings.json'))
+            || (under(written, config) && /^holdout-guard\.js(\.previous)?$/i.test(path.win32.basename(written))))) {
+            deny('The holdout guard and the Claude Code hook that runs it are installed from Theseus (Tools > Options, '
+                + 'Holdouts), not by a session.');
+        }
     }
 
     // Where the tool acts: its path fields resolved against the working directory, and the working directory itself
