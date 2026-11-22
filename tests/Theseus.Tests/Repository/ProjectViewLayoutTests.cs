@@ -73,8 +73,9 @@ public class ProjectViewLayoutTests
         var back = (Button)control.FindName("BackButton");
         var tabs = Descendants<Button>(control).Where(button => button.DataContext is ProjectTabViewModel).ToList();
 
-        Assert.That(Descendants<Button>(control).First(), Is.SameAs(back), "the first control, and the first Tab stop");
-        Assert.That((back.Content, back.ToolTip), Is.EqualTo(("← Board", "Back to the board (Alt+Left)")));
+        Assert.That(Descendants<Button>(control).Take(3).Select(button => button.Name), Is.EqualTo(new[] { "GoBackButton", "GoForwardButton", "BackButton" }),
+            "Back, Forward, then the board, then the tabs (1.1f I46)");
+        Assert.That((back.Content, back.ToolTip), Is.EqualTo(("⊞ Board", "Leave the project for the board")));
         Assert.That(tabs.Select(tab => ((ProjectTabViewModel)tab.DataContext).Title), Is.EquivalentTo(new[]
         {
             "Theseus bootstrap", "BuildYourMarket MCP server",
@@ -162,7 +163,7 @@ public class ProjectViewLayoutTests
         Assert.That(Descendants<TextBlock>(Named<Border>(box, "KindWord")).Single().Text, Is.EqualTo("⚒ Build"));
         Assert.That(Named<TextBlock>(box, "PieceName").Text, Is.EqualTo(((PieceNodeViewModel)box.DataContext).Title));
         Assert.That(Named<TextBlock>(box, "WhoActs").Text, Is.EqualTo("No action needed."));
-        Assert.That(Named<TextBlock>(box, "Serves").Text, Is.EqualTo("serves Objective 0.3"));
+        Assert.That(Descendants<TextBlock>(Named<Button>(box, "Serves")).Single().Text, Is.EqualTo("serves Objective 0.3"));
         Assert.That(AllNamed<TextBlock>(box, "Gate").Single().Text, Is.EqualTo("◆"), "done before the gates were kept");
         Assert.That(chips.Select(chip => Descendants<TextBlock>(chip).Single().Text), Is.EqualTo(new[] { "Res", "Spe", "Pla", "Imp", "Ver", "Rev", "Com" }));
         Assert.That(chips.Select(chip => chip.ActualHeight), Has.All.EqualTo(18));
@@ -277,7 +278,7 @@ public class ProjectViewLayoutTests
         var stops = Descendants<FrameworkElement>(box).Where(element => element.Focusable && KeyboardNavigation.GetIsTabStop(element))
             .Select(element => element.Name).ToList();
 
-        Assert.That(stops, Is.EqualTo(new[] { "Chevron", "PieceHeader" }.Concat(Enumerable.Repeat("Stage", 7))
+        Assert.That(stops, Is.EqualTo(new[] { "Chevron", "PieceHeader" }.Concat(Enumerable.Repeat("Stage", 7)).Append("Serves")
             .Concat(Enumerable.Repeat("Action", 6))));
     }
 

@@ -32,9 +32,11 @@ public partial class ProjectViewRedesignMarkupTests
 
         Assert.That((string?)back.Attribute("Command"), Is.EqualTo("{Binding BackCommand}"));
         Assert.That((string?)bindings.Single(binding => (string?)binding.Attribute("Gesture") == "Alt+Left").Attribute("Command"),
-            Is.EqualTo("{Binding CloseProjectCommand}"));
+            Is.EqualTo("{Binding GoBackCommand}"), "Alt+Left is Back now; Board leaves directly (1.1f I46, replacing 1.1d AC 16)");
+        Assert.That((string?)bindings.Single(binding => (string?)binding.Attribute("Gesture") == "Alt+Right").Attribute("Command"),
+            Is.EqualTo("{Binding GoForwardCommand}"));
         Assert.That(window.Descendants(Presentation + "MenuItem").Single(item => (string?)item.Attribute("Header") == "Back to the boar_d")
-            .Attribute("InputGestureText")?.Value, Is.EqualTo("Alt+Left"));
+            .Attribute("InputGestureText"), Is.Null);
         Assert.That((string?)View().Descendants(Presentation + "KeyBinding").Single(binding => (string?)binding.Attribute("Key") == "Escape")
             .Attribute("Command"), Is.EqualTo("{Binding ClearSelectionCommand}"), "Esc in the view clears the selection");
         Assert.That((string?)bindings.Single(binding => (string?)binding.Attribute("Gesture") == "Escape").Attribute("Command"),

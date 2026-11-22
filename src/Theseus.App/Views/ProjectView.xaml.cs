@@ -150,6 +150,25 @@ public partial class ProjectView : UserControl
 
     private void OnBoxSizeChanged(object sender, SizeChangedEventArgs e) => QueueDraw();
 
+    // Hovering a box highlights its objective's chip, and a chip its boxes (1.1f I45).
+    private void OnBoxEnter(object sender, MouseEventArgs e)
+    {
+        if (DataContext is ProjectViewModel view && sender is FrameworkElement { DataContext: PieceNodeViewModel node })
+        {
+            view.HighlightObjective(node.Piece.ObjectiveNumber);
+        }
+    }
+
+    private void OnObjectiveChipEnter(object sender, MouseEventArgs e)
+    {
+        if (DataContext is ProjectViewModel view && sender is FrameworkElement { DataContext: RoundObjectiveViewModel chip })
+        {
+            view.HighlightObjective(chip.Objective.Number);
+        }
+    }
+
+    private void OnHoverLeave(object sender, MouseEventArgs e) => (DataContext as ProjectViewModel)?.HighlightObjective(null);
+
     private void OnFlowSizeChanged(object sender, SizeChangedEventArgs e) => QueueDraw();
 
     private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)

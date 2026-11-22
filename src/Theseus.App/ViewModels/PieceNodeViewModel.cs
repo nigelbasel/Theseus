@@ -22,6 +22,7 @@ public sealed class PieceNodeViewModel : ObservableObject, IFoldable
     private bool _isOpen;
     private bool _isSelected;
     private bool _isShown = true;
+    private bool _isHighlighted;
 
     internal PieceNodeViewModel(PieceNode node, IReadOnlyList<PieceNodeViewModel> children,
         IReadOnlyList<StageNodeViewModel> stages, IReadOnlyList<PieceActionViewModel> actions, bool isOpen,
@@ -296,6 +297,16 @@ public sealed class PieceNodeViewModel : ObservableObject, IFoldable
 
     /// <summary>Whether it has a proposal waiting.</summary>
     public bool HasProposals => Proposals.Count > 0;
+
+    /// <summary>Whether it is highlighted, as a box of the objective hovered or followed (I44, I45).</summary>
+    public bool IsHighlighted
+    {
+        get => _isHighlighted;
+        internal set => Set(ref _isHighlighted, value);
+    }
+
+    /// <summary>Follows its "serves Objective n" link (I42, I44); set by the view.</summary>
+    public System.Windows.Input.ICommand? ServesCommand { get; internal set; }
 
     /// <summary>Whether the filter shows it: it matches, or a piece under it does (1.1e item 26).</summary>
     public bool IsShown

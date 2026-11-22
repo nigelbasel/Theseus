@@ -2148,6 +2148,10 @@ public sealed class ShellViewModel : ObservableObject
             {
                 ShowRecords = ShowRecordsWindow is { } show ? (piece, stage) => show(new RecordsViewModel(piece, stage, OpenFile)) : null,
                 OpenLinks = key => ShowCardLinksCommand.Execute(Board.Card(key)),
+                Ask = ConfirmAcceptSpec,
+                Jumped = Jumped,
+                GoBack = GoBackCommand,
+                GoForward = GoForwardCommand,
                 ProposalsOf = key => [.. Chains?.Proposals?.Pending.Where(row =>
                     string.Equals(row.Proposal.RequesterKey, key, StringComparison.OrdinalIgnoreCase)) ?? []],
             },
@@ -2187,6 +2191,62 @@ public sealed class ShellViewModel : ObservableObject
         }
     }
 
+    /// <summary>Back and Forward through the places the owner jumped to (1.1f I46).</summary>
+    public ViewHistory History { get; } = new();
+
+    /// <summary>◀ Back, Alt+Left and the mouse's back button: where the owner was before; from a project's first view, the board.</summary>
+    public System.Windows.Input.ICommand GoBackCommand => _goBack ??= new RelayCommand(_ => GoTo(History.Back()), _ => History.CanGoBack);
+
+    /// <summary>Forward ▶, Alt+Right and the mouse's forward button.</summary>
+    public System.Windows.Input.ICommand GoForwardCommand => _goForward ??= new RelayCommand(_ => GoTo(History.Forward()), _ => History.CanGoForward);
+
+    private System.Windows.Input.ICommand? _goBack;
+    private System.Windows.Input.ICommand? _goForward;
+    private bool _goingTo;
+
+    /// <summary>Records a jump to a place in the open project: a link followed, or a tab switched (I46).</summary>
+    public void Jumped(string? selection)
+    {
+        if (!_goingTo && _openProjectName is { } project)
+        {
+            History.Jump(new ViewPlace(project, ProjectView?.Grouping.ToString(), selection));
+            System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+        }
+    }
+
+    // Shows a place from the history without recording it as a new jump.
+    private void GoTo(ViewPlace? place)
+    {
+        if (place is null)
+        {
+            return;
+        }
+
+        _goingTo = true;
+
+        try
+        {
+            if (place.IsBoard)
+            {
+                CloseProject();
+
+                return;
+            }
+
+            if (!string.Equals(_openProjectName, place.Project, StringComparison.OrdinalIgnoreCase))
+            {
+                OpenProject(place.Project!);
+            }
+
+            ProjectView?.GoTo(place.Lens, place.Selection);
+        }
+        finally
+        {
+            _goingTo = false;
+            System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+        }
+    }
+
     /// <summary>Replaces the board with a project's view (AC 14). The drawer, side panels and status bar stay.</summary>
     public void OpenProject(string name)
     {
@@ -2204,6 +2264,7 @@ public sealed class ShellViewModel : ObservableObject
 
         _viewHost.Opened();
         SelectionMoved();
+        Jumped(null);
         Raise(nameof(IsProjectOpen));
         Raise(nameof(IsBoardShown));
         System.Windows.Input.CommandManager.InvalidateRequerySuggested();
@@ -2212,6 +2273,11 @@ public sealed class ShellViewModel : ObservableObject
     /// <summary>Back to the board, from ← Board, Alt+Left or View › Back to the board (1.1d AC 16).</summary>
     public void CloseProject()
     {
+        if (!_goingTo && _openProjectName is not null)
+        {
+            History.Jump(ViewPlace.Board);
+        }
+
         _openProjectName = null;
         ProjectView = null;
         _viewHost.Closed();

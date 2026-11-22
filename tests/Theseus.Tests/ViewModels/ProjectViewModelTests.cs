@@ -48,52 +48,107 @@ public class ProjectViewModelTests
     }
 
     [Test]
-    public void TheWaitingBand_HasOneButtonPerWaitingPiece_InFileOrder()
+    public void WaitsForYou_HasALinePerWaitingPiece_InFileOrder_EachWithItsButton()
     {
         var view = _views.Theseus();
 
-        Assert.That(view.HasWaiting, Is.True);
-        Assert.That(view.Waiting.Select(button => button.Label), Is.EqualTo(new[]
+        Assert.That(view.HasWaits, Is.True);
+        Assert.That(view.Waits.Select(wait => (wait.Item.Pieces.Single(), wait.Button)), Is.EqualTo(new[]
         {
-            "Accept the spec of project-view…", "Accept the spec of project-home-folders…", "Accept the spec of projects-and-method-ui…",
+            ("project-view", "Accept spec…"), ("project-home-folders", "Accept spec…"), ("projects-and-method-ui", "Accept spec…"),
         }));
-        Assert.That(_views.BuildYourMarket().HasWaiting, Is.False, "only while something waits on you");
+        Assert.That(_views.BuildYourMarket().Waits.Select(wait => wait.Item.Kind), Has.None.EqualTo(WaitKind.AcceptSpec));
     }
 
     [Test]
-    public void AWaitingButton_OpensTheBox_SelectsTheWaitingStage_ThenAcceptsThatSpec()
+    public void AWaitsButton_AcceptsThatPiecesSpec_AsItsBoxsButtonDoes()
     {
         var view = _views.Theseus();
 
-        view.Waiting[0].Command.Execute(null);
+        view.Waits[0].Command!.Execute(null);
 
-        Assert.That(Box(view, "project-view").IsOpen, Is.True);
-        Assert.That(view.Selection, Is.SameAs(StageOf(view, "project-view", "Spec")));
         Assert.That(_views.Ran, Is.EqualTo(new[] { "AcceptSpec:project-view" }));
     }
 
     [Test]
-    public void ASessionAsking_HasAnAnswerButton_ThatFocusesItsTerminal()
+    public void ASessionAsking_HasAnAnswerItButton_ThatFocusesItsTerminal()
     {
         var view = _views.One("feature", Files("research.md"), SessionLifecycle.NeedsAttention);
+        var wait = view.Waits.Single();
 
-        Assert.That(view.Waiting.Single().Label, Is.EqualTo("Answer a-card in its terminal"));
+        Assert.That((wait.Button, wait.Text), Is.EqualTo(("Answer it", "Something: You; it does nothing until you answer.")));
 
-        view.Waiting.Single().Command.Execute(null);
+        wait.Command!.Execute(null);
 
-        Assert.That(view.Selection, Is.SameAs(StageOf(view, APiece, "Spec")));
         Assert.That(_views.Ran, Is.EqualTo(new[] { "Focus:a-card" }));
     }
 
     [Test]
-    public void ABugsWaitingButton_AcceptsTheRule()
+    public void ABugsWaitsButton_AcceptsTheRule()
     {
         var view = _views.One("bug", new Dictionary<string, string>
         {
             ["reproduction.md"] = "# Reproduction\n", ["fix.md"] = "# Fix\n\n## Spec\nThe rule.\n",
         });
 
-        Assert.That(view.Waiting.Single().Label, Is.EqualTo("Accept the rule of a-piece…"));
+        view.Waits.Single().Command!.Execute(null);
+
+        Assert.That(_views.Ran, Is.EqualTo(new[] { "AcceptSpec:a-piece" }));
+    }
+
+    [Test]
+    public void StartTheChecks_AsksFirst_ListingThem_AndStartsNothingOnNo()
+    {
+        var asked = new List<string>();
+        var answer = false;
+        var view = _views.BuildYourMarket(actions: _views.Actions with { Ask = question => { asked.Add(question); return answer; } });
+        var checks = view.Waits.Single(wait => wait.Item.Kind == WaitKind.StartChecks);
+
+        checks.Command!.Execute(null);
+
+        Assert.That(asked.Single(), Does.StartWith("Start the independent check of 5 builds? Each gets a verifier card:"));
+        Assert.That(_views.Ran, Is.Empty, "no means no verifier card");
+
+        answer = true;
+        checks.Command.Execute(null);
+
+        Assert.That(_views.Ran.Count(ran => ran.StartsWith("Verify:", StringComparison.Ordinal)), Is.EqualTo(5));
+    }
+
+    [Test]
+    public void TheChipFilter_ShowsOneState_CtrlAddsOne_TheSameChipClears_AndARebuildKeepsIt()
+    {
+        var view = _views.BuildYourMarket();
+
+        view.ToggleFilter(StageNodeState.HoldoutsNotRun, add: false);
+
+        Assert.That(view.AllNodes.Where(node => node.IsShown).Select(node => node.State).Distinct(),
+            Is.EquivalentTo(new[] { StageNodeState.HoldoutsNotRun, StageNodeState.Done }), "a shown piece keeps its parent");
+        Assert.That(view.FilterText, Does.StartWith("Showing: built, not yet checked (5 of"));
+
+        view.ToggleFilter(StageNodeState.NotInProject, add: true);
+
+        Assert.That(view.Filter, Is.EquivalentTo(new[] { StageNodeState.HoldoutsNotRun, StageNodeState.NotInProject }));
+
+        var rebuilt = _views.BuildYourMarket(view);
+
+        Assert.That(rebuilt.Filter, Is.EquivalentTo(view.Filter), "a refresh keeps it on");
+
+        rebuilt.ToggleFilter(StageNodeState.HoldoutsNotRun, add: true);
+        rebuilt.ToggleFilter(StageNodeState.NotInProject, add: false);
+
+        Assert.That((rebuilt.IsFiltered, rebuilt.AllNodes.All(node => node.IsShown)), Is.EqualTo((false, true)));
+    }
+
+    [Test]
+    public void Esc_ClearsTheFilter_WhenNothingIsSelected()
+    {
+        var view = _views.BuildYourMarket();
+        view.ToggleFilter(StageNodeState.Done, add: false);
+
+        view.ClearSelectionCommand.Execute(null);
+
+        Assert.That(view.IsFiltered, Is.False);
     }
 
     [Test]

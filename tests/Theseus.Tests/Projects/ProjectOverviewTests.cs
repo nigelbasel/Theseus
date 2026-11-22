@@ -48,7 +48,7 @@ public class ProjectOverviewTests
         var checks = Bym().Waits.Single(wait => wait.Kind == WaitKind.StartChecks);
 
         Assert.That(checks.Pieces, Has.Count.EqualTo(5));
-        Assert.That(checks.Text, Does.StartWith("Five builds from round 1 wait for the independent check, which only you start."));
+        Assert.That(checks.Text, Does.StartWith("Five builds from round 1 need their independent check, which only you start."));
         Assert.That(checks.Text, Does.EndWith("One of them, MCP host and staff plugin, is still busy: check it after it stops."));
         Assert.That(checks.Button, Is.EqualTo("Start the checks…"));
     }
@@ -103,7 +103,8 @@ public class ProjectOverviewTests
         var sentence = ProjectOverview.For(reading.File!, pieces, [], [], 0).Sentence;
 
         Assert.That(sentence, Does.Not.Contain("Round"));
-        Assert.That(sentence, Does.StartWith("projects in use is being built and the project view made obvious (design) is under way."));
+        Assert.That(sentence, Is.EqualTo("Projects in use is being built and the project view made obvious (design) is under way. "
+                                         + "One thing waits for you: three builds need their independent check, which only you start."));
     }
 
     [Test]

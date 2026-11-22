@@ -30,6 +30,23 @@ public partial class MainWindow : Window
 
         FitToWorkArea();
 
+        // The mouse's back and forward buttons go through the same history as ◀ Back and Forward ▶ (1.1f I46).
+        PreviewMouseDown += (_, e) =>
+        {
+            var command = e.ChangedButton switch
+            {
+                System.Windows.Input.MouseButton.XButton1 => (DataContext as ShellViewModel)?.GoBackCommand,
+                System.Windows.Input.MouseButton.XButton2 => (DataContext as ShellViewModel)?.GoForwardCommand,
+                _ => null,
+            };
+
+            if (command?.CanExecute(null) == true)
+            {
+                command.Execute(null);
+                e.Handled = true;
+            }
+        };
+
         // The remembered position is applied once the window has a handle, and saved as it closes.
         SourceInitialized += (_, _) => RestorePlacement();
         Closing += (_, _) => SavePlacement();

@@ -57,7 +57,7 @@ internal sealed class ProjectViews
     }
 
     /// <summary>BuildYourMarket MCP with its fifteen links and no session.</summary>
-    public ProjectViewModel BuildYourMarket(ProjectViewModel? previous = null)
+    public ProjectViewModel BuildYourMarket(ProjectViewModel? previous = null, ProjectViewActions? actions = null)
     {
         var links = BuildYourMarketLinks();
         var cards = BuildYourMarketBoard();
@@ -65,7 +65,7 @@ internal sealed class ProjectViews
         var reading = Read(_folder, ProjectViewFixtures.BuildYourMarket);
 
         return ProjectViewModel.Build(reading, pieces, LinksOn(links, cards), Tabs(ProjectViewFixtures.BuildYourMarket), Settings,
-            Actions, null, Edits, previous);
+            actions ?? Actions, null, Edits, previous);
     }
 
     /// <summary>The one-piece project of <see cref="ProjectViewFixtures.WriteOne"/>, its card in this state.</summary>

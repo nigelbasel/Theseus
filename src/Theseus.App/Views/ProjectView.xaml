@@ -285,8 +285,22 @@
                     <ColumnDefinition Width="*" MaxWidth="{Binding BoxWidth}" />
                 </Grid.ColumnDefinitions>
                 <Border x:Name="Box" CornerRadius="8" BorderThickness="1" SizeChanged="OnBoxSizeChanged"
-                        BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
-                        Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
+                        MouseEnter="OnBoxEnter" MouseLeave="OnHoverLeave">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+                            <Setter Property="Background" Value="{DynamicResource CardBackgroundFillColorDefaultBrush}" />
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="BorderBrush" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+                                </Trigger>
+                                <DataTrigger Binding="{Binding IsHighlighted}" Value="True">
+                                    <Setter Property="BorderBrush" Value="{DynamicResource LinkBrush}" />
+                                    <Setter Property="BorderThickness" Value="2" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
                     <StackPanel>
                         <Border x:Name="TitleBar" CornerRadius="7,7,0,0" Padding="4,4,8,4">
                             <Border.Style>
@@ -407,9 +421,11 @@
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
 
-                                <TextBlock x:Name="Serves" Text="{Binding ServesText}" ToolTip="{Binding ServesToolTip}" FontSize="12.5"
-                                           Margin="0,6,0,0" TextDecorations="Underline" Cursor="Hand"
-                                           Foreground="{DynamicResource LinkBrush}" AutomationProperties.Name="{Binding ServesText}" />
+                                <Button x:Name="Serves" Command="{Binding ServesCommand}" ToolTip="{Binding ServesToolTip}" Template="{StaticResource LinkTemplate}"
+                                        Margin="0,6,0,0" Cursor="Hand" HorizontalAlignment="Left" Foreground="{DynamicResource LinkBrush}"
+                                        AutomationProperties.Name="{Binding ServesText}">
+                                    <TextBlock Text="{Binding ServesText}" FontSize="12.5" TextWrapping="Wrap" />
+                                </Button>
                                 <TextBlock x:Name="ReportBack" Text="{Binding ReportBackText}" ToolTip="{Binding ReportBackToolTip}"
                                            FontSize="12" TextWrapping="Wrap" Margin="0,2,0,0"
                                            Visibility="{Binding HasReportBack, Converter={StaticResource Visible}}">
@@ -485,45 +501,6 @@
         <DataTemplate DataType="{x:Type vm:PieceNodeViewModel}">
             <StackPanel Margin="0,0,0,14" Visibility="{Binding IsShown, Converter={StaticResource Visible}}">
                 <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource PieceBox}" />
-                <!-- A proposal it raised, waiting for you: a dashed node under it (1.1e item 30). -->
-                <ItemsControl x:Name="Proposals" ItemsSource="{Binding Proposals}" Margin="34,10,0,0" Focusable="False"
-                              Visibility="{Binding HasProposals, Converter={StaticResource Visible}}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate DataType="{x:Type vm:ProposalRowViewModel}">
-                            <Border x:Name="ProposalNode" CornerRadius="8" BorderThickness="1.5" Padding="10,7" Margin="0,0,0,8" MaxWidth="420"
-                                    HorizontalAlignment="Left" BorderBrush="{DynamicResource StateWaitingBrush}">
-                                <StackPanel>
-                                    <TextBlock Text="◆ Proposed: waiting for you" FontSize="12.5" FontWeight="SemiBold"
-                                               Foreground="{DynamicResource StateWaitingBrush}" />
-                                    <TextBlock x:Name="ProposalTitle" Text="{Binding Proposal.Request.Title}" FontWeight="SemiBold" TextWrapping="Wrap"
-                                               Margin="0,2,0,0" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                    <TextBlock Text="{Binding DoneCriteria}" FontSize="12.5" TextWrapping="Wrap" Margin="0,2,0,6"
-                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                    <WrapPanel>
-                                        <Button x:Name="ProposalReview" Content="Approve…" Command="{Binding ReviewCommand}" Style="{StaticResource CommandButton}"
-                                                Padding="9,3" Margin="0,0,6,0" ToolTip="Read its brief, then approve it: creates its card and link"
-                                                AutomationProperties.Name="Approve the proposal" />
-                                        <Button x:Name="ProposalReject" Content="Reject…" Command="{Binding AskRejectCommand}" Style="{StaticResource CommandButton}"
-                                                Padding="9,3" ToolTip="Turn it down, with your reason, on the board's Chains panel"
-                                                AutomationProperties.Name="Reject the proposal" />
-                                    </WrapPanel>
-                                    <StackPanel x:Name="RejectPanel" Margin="0,6,0,0" Visibility="{Binding IsRejecting, Converter={StaticResource Visible}}">
-                                        <TextBox x:Name="RejectNote" Text="{Binding Note, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap"
-                                                 AutomationProperties.Name="Why you reject it" ToolTip="Your reason, kept with the proposal and told to its session" />
-                                        <WrapPanel Margin="0,4,0,0">
-                                            <Button Content="Reject" Command="{Binding RejectCommand}" Style="{StaticResource CommandButton}" Padding="9,3"
-                                                    Margin="0,0,6,0" AutomationProperties.Name="Confirm the rejection" />
-                                            <Button Content="Cancel" Command="{Binding CancelRejectCommand}" Style="{StaticResource CommandButton}" Padding="9,3"
-                                                    AutomationProperties.Name="Cancel the rejection" />
-                                        </WrapPanel>
-                                        <TextBlock Text="{Binding Refusal}" TextWrapping="Wrap" Foreground="{DynamicResource StateStuckBrush}"
-                                                   Visibility="{Binding Refusal, Converter={StaticResource NotEmpty}}" />
-                                    </StackPanel>
-                                </StackPanel>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
                 <Grid x:Name="BranchRow" Margin="0,10,0,0" Visibility="{Binding HasChildren, Converter={StaticResource Visible}}">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="{Binding BranchIndent}" />
@@ -563,6 +540,46 @@
                         </DockPanel>
                     </StackPanel>
                 </Grid>
+                <!-- A proposal it raised, waiting for you: a dashed node under it (1.1e item 30). -->
+                <ItemsControl x:Name="Proposals" ItemsSource="{Binding Proposals}" Margin="34,4,0,0" Focusable="False"
+                              Visibility="{Binding HasProposals, Converter={StaticResource Visible}}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type vm:ProposalRowViewModel}">
+                            <Grid x:Name="ProposalNode" Margin="0,0,0,8" MaxWidth="420" HorizontalAlignment="Left">
+                                <Rectangle RadiusX="8" RadiusY="8" StrokeThickness="1.5" StrokeDashArray="4 3"
+                                           Stroke="{DynamicResource StateWaitingBrush}" />
+                                <StackPanel Margin="10,7">
+                                    <TextBlock Text="◆ Proposed: waiting for you" FontSize="12.5" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource StateWaitingBrush}" />
+                                    <TextBlock x:Name="ProposalTitle" Text="{Binding Proposal.Request.Title}" FontWeight="SemiBold" TextWrapping="Wrap"
+                                               Margin="0,2,0,0" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                    <TextBlock Text="{Binding DoneCriteria}" FontSize="12.5" TextWrapping="Wrap" Margin="0,2,0,6"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                    <WrapPanel>
+                                        <Button x:Name="ProposalReview" Content="Approve…" Command="{Binding ReviewCommand}" Style="{StaticResource CommandButton}"
+                                                Padding="9,3" Margin="0,0,6,0" ToolTip="Read its brief, then approve it: creates its card and link"
+                                                AutomationProperties.Name="Approve the proposal" />
+                                        <Button x:Name="ProposalReject" Content="Reject…" Command="{Binding AskRejectCommand}" Style="{StaticResource CommandButton}"
+                                                Padding="9,3" ToolTip="Turn it down, with your reason, here"
+                                                AutomationProperties.Name="Reject the proposal" />
+                                    </WrapPanel>
+                                    <StackPanel x:Name="RejectPanel" Margin="0,6,0,0" Visibility="{Binding IsRejecting, Converter={StaticResource Visible}}">
+                                        <TextBox x:Name="RejectNote" Text="{Binding Note, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap"
+                                                 AutomationProperties.Name="Why you reject it" ToolTip="Your reason, kept with the proposal and told to its session" />
+                                        <WrapPanel Margin="0,4,0,0">
+                                            <Button Content="Reject" Command="{Binding RejectCommand}" Style="{StaticResource CommandButton}" Padding="9,3"
+                                                    Margin="0,0,6,0" AutomationProperties.Name="Confirm the rejection" />
+                                            <Button Content="Cancel" Command="{Binding CancelRejectCommand}" Style="{StaticResource CommandButton}" Padding="9,3"
+                                                    AutomationProperties.Name="Cancel the rejection" />
+                                        </WrapPanel>
+                                        <TextBlock Text="{Binding Refusal}" TextWrapping="Wrap" Foreground="{DynamicResource StateStuckBrush}"
+                                                   Visibility="{Binding Refusal, Converter={StaticResource NotEmpty}}" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
             </StackPanel>
         </DataTemplate>
 
@@ -651,8 +668,30 @@
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate DataType="{x:Type vm:RoundObjectiveViewModel}">
                                     <Border x:Name="ObjectiveChip" CornerRadius="10" BorderThickness="1" Padding="8,2" Margin="0,0,6,4"
-                                            ToolTip="{Binding ToolTip}" Cursor="Hand" AutomationProperties.Name="{Binding Text}"
-                                            BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
+                                            ToolTip="{Binding ToolTip}" Cursor="Hand" AutomationProperties.Name="{Binding Text}" Focusable="True"
+                                            MouseEnter="OnObjectiveChipEnter" MouseLeave="OnHoverLeave">
+                                        <Border.InputBindings>
+                                            <MouseBinding MouseAction="LeftClick" Command="{Binding OpenCommand}" />
+                                            <KeyBinding Key="Enter" Command="{Binding OpenCommand}" />
+                                        </Border.InputBindings>
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="BorderBrush" Value="{DynamicResource LinkBrush}" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsKeyboardFocused" Value="True">
+                                                        <Setter Property="BorderThickness" Value="2" />
+                                                        <Setter Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                                    </Trigger>
+                                                    <DataTrigger Binding="{Binding IsHighlighted}" Value="True">
+                                                        <Setter Property="Background" Value="{DynamicResource StateWaitingSoftBrush}" />
+                                                        <Setter Property="BorderBrush" Value="{DynamicResource LinkBrush}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
                                         <WrapPanel>
                                             <TextBlock Text="{Binding Text}" FontSize="12.5" TextDecorations="Underline" TextWrapping="Wrap"
                                                        Foreground="{DynamicResource LinkBrush}" VerticalAlignment="Center" />
@@ -803,9 +842,16 @@
         <Border DockPanel.Dock="Top" Padding="14,8" BorderThickness="0,0,0,1"
                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
             <WrapPanel>
-                <Button x:Name="BackButton" Content="← Board" Command="{Binding BackCommand}" Padding="10,4" Margin="0,0,10,0"
+                <!-- Back and Forward first, then the board, then the project tabs (1.1f I46). -->
+                <Button x:Name="GoBackButton" Content="◀ Back" Command="{Binding GoBackCommand}" Padding="10,4" Margin="0,0,4,0"
+                        BorderThickness="1" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" ToolTipService.ShowOnDisabled="True"
+                        ToolTip="Back to where you were (Alt+Left, or the mouse's back button)" AutomationProperties.Name="Back" />
+                <Button x:Name="GoForwardButton" Content="Forward ▶" Command="{Binding GoForwardCommand}" Padding="10,4" Margin="0,0,4,0"
+                        BorderThickness="1" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" ToolTipService.ShowOnDisabled="True"
+                        ToolTip="Forward again (Alt+Right, or the mouse's forward button)" AutomationProperties.Name="Forward" />
+                <Button x:Name="BackButton" Content="⊞ Board" Command="{Binding BackCommand}" Padding="10,4" Margin="0,0,10,0"
                         BorderThickness="1" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
-                        ToolTip="Back to the board (Alt+Left)" />
+                        ToolTip="Leave the project for the board" AutomationProperties.Name="Board" />
                 <ItemsControl x:Name="Tabs" ItemsSource="{Binding Tabs}" Focusable="False" VerticalAlignment="Center">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>

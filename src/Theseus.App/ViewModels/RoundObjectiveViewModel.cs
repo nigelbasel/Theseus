@@ -7,8 +7,17 @@ namespace Theseus.App.ViewModels;
 /// One chip of a round's "Set out to meet:" line: an objective's number and title as a link, and a bar of its criteria
 /// ticked of total (1.1f C12).
 /// </summary>
-public sealed class RoundObjectiveViewModel
+public sealed class RoundObjectiveViewModel : ObservableObject
 {
+    private bool _isHighlighted;
+
+    /// <summary>Whether it is highlighted, as the objective of the box hovered or followed (I45).</summary>
+    public bool IsHighlighted
+    {
+        get => _isHighlighted;
+        internal set => Set(ref _isHighlighted, value);
+    }
+
     internal RoundObjectiveViewModel(ProjectObjective objective, ICommand? open)
     {
         Objective = objective;
@@ -33,6 +42,6 @@ public sealed class RoundObjectiveViewModel
     /// <summary>Its hover.</summary>
     public string ToolTip => $"Objective {Objective.Number}: {Objective.Title}. {CriteriaText} criteria ticked.";
 
-    /// <summary>Goes to the objective, or null until links land.</summary>
+    /// <summary>Goes to the objective (I44).</summary>
     public ICommand? OpenCommand { get; }
 }

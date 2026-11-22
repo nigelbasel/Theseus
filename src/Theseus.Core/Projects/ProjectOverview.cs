@@ -72,6 +72,8 @@ public sealed class ProjectOverview
             {
                 waits.Add(new WaitItem(WaitKind.ConfirmAcceptance,
                     $"{piece.Title}: you accepted its spec in its tab; confirm it so the acceptance is recorded.", [piece.Name]));
+
+                continue;
             }
 
             if (!status.WaitsForYou || status.State == StageNodeState.HoldoutsNotRun)
@@ -95,8 +97,9 @@ public sealed class ProjectOverview
         {
             var builds = round.ToList();
             var busy = builds.FirstOrDefault(piece => piece.Card is { IsWorking: true } && piece.IsCurrentPiece);
-            var text = $"{Capital(Count(builds.Count, "build"))} from round {round.Key} {(builds.Count == 1 ? "waits" : "wait")} "
-                       + "for the independent check, which only you start."
+            var from = file.Rounds.Count > 1 ? $" from round {round.Key}" : string.Empty;
+            var text = $"{Capital(Count(builds.Count, "build"))}{from} {(builds.Count == 1 ? "needs" : "need")} "
+                       + "their independent check, which only you start."
                        + (busy is null ? string.Empty : $" One of them, {busy.Title}, is still busy: check it after it stops.");
             waits.Add(new WaitItem(WaitKind.StartChecks, text, [.. builds.Select(piece => piece.Name)]));
         }
@@ -148,11 +151,11 @@ public sealed class ProjectOverview
         {
             var named = moving.Count == 0
                 ? "Nothing is moving"
-                : string.Join(" and ", moving.Select(piece => $"{piece.Title} {(piece.Kind == PieceKind.Build ? "is being built" : "is under way")}"));
+                : Capital(string.Join(" and ", moving.Select(piece => $"{piece.Title} {(piece.Kind == PieceKind.Build ? "is being built" : "is under way")}")));
             var waiting = waits.Count switch
             {
                 0 => "Nothing waits for you.",
-                1 => $"One thing waits for you. {waits[0].Text}",
+                1 => $"One thing waits for you: {Uncapital(waits[0].Text)}",
                 _ => $"{Capital(Count(waits.Count, "thing"))} wait for you.",
             };
 
@@ -198,9 +201,9 @@ public sealed class ProjectOverview
 
         var parts = pieces.GroupBy(piece => piece.Status.State)
             .OrderBy(group => group.Key)
-            .Select(group => $"{group.Count()} {StageNodeStates.Word(group.Key).ToLowerInvariant()}");
+            .Select(group => $"{Count(group.Count(), string.Empty).TrimEnd()} {StageNodeStates.Word(group.Key).ToLowerInvariant()}");
 
-        return $"{Capital(Count(pieces.Count, "piece of work", "pieces of work"))}: {string.Join(", ", parts)}.";
+        return $"{Capital(Count(pieces.Count, "piece of work", "pieces of work"))}: {string.Join("; ", parts)}.";
     }
 
     private static PhaseCell Cell(ProjectPhase phase, IReadOnlyList<PieceOfWork> pieces)
@@ -250,6 +253,10 @@ public sealed class ProjectOverview
         $"{(count < Numbers.Length ? Numbers[count] : count.ToString(CultureInfo.InvariantCulture))} {(count == 1 ? one : many ?? one + "s")}";
 
     private static string Capital(string text) => text.Length == 0 ? text : char.ToUpperInvariant(text[0]) + text[1..];
+
+    // Only a line that starts with a counted word is lowered after a colon; a title keeps its own capital.
+    private static string Uncapital(string text) =>
+        Numbers.Any(number => text.StartsWith(Capital(number) + " ", StringComparison.Ordinal)) ? char.ToLowerInvariant(text[0]) + text[1..] : text;
 
     private static bool Same(string left, string right) => string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
 }
