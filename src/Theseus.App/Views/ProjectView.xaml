@@ -499,7 +499,7 @@
             children's ItemsControl uses it again.
         -->
         <DataTemplate DataType="{x:Type vm:PieceNodeViewModel}">
-            <StackPanel Margin="0,0,0,14" Visibility="{Binding IsShown, Converter={StaticResource Visible}}">
+            <StackPanel Margin="{Binding Gap}" Visibility="{Binding IsShown, Converter={StaticResource Visible}}">
                 <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource PieceBox}" />
                 <Grid x:Name="BranchRow" Margin="0,10,0,0" Visibility="{Binding HasChildren, Converter={StaticResource Visible}}">
                     <Grid.ColumnDefinitions>

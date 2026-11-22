@@ -414,6 +414,11 @@ public sealed class ProjectViewModel : ObservableObject
         view.Phases = [.. ObjectiveGrouping.Phases(file, pieces).Select(group => view.PhaseFor(group, byPiece, edits))];
         view.Unlisted = ObjectiveGrouping.Unlisted(pieces) is { } unlisted ? [view.ObjectiveFor(unlisted, null, byPiece, edits)] : [];
         view._thenWorkedOn = tree.ThenWorkedOn;
+
+        foreach (var link in tree.ThenWorkedOn)
+        {
+            byPiece[link.From].MovesOn = true;
+        }
         view.Signature = view.SignatureOf();
 
         // The window is as wide as it was, so a rebuild keeps the pane docked or not, and says nothing again.
