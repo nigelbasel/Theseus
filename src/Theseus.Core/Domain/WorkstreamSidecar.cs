@@ -68,4 +68,10 @@ public sealed record WorkstreamSidecar(
     /// files; and because only the board may set it (verifier-card AC 1 and 3).
     /// </summary>
     public WorkstreamRole Role { get; init; }
+
+    /// <summary>
+    /// The owner's tags on the card (card-search-and-tags item 9), lower case. Kept here, per machine, and never in a
+    /// plan file or a repo: sessions rewrite plan files, and tags are the owner's alone (decisions 3 and 4, 2026-11-21).
+    /// </summary>
+    public IReadOnlyList<string> Tags { get; init; } = [];
 }

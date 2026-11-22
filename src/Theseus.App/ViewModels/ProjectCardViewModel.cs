@@ -28,6 +28,10 @@ public sealed class ProjectCardViewModel : ObservableObject, IBoardCard
     private ProjectStart? _startPlan;
     private IReadOnlyList<string>? _runState;
     private ProjectStop? _stopPlan;
+    private IReadOnlyList<string> _tags = [];
+    private bool _isSearchDimmed;
+    private IReadOnlyList<Theseus.Core.Finding.TextSpan> _titleHighlights = [];
+    private int _matchesInside;
 
     /// <summary>Creates a project card.</summary>
     /// <param name="name">The project's name: its project home folder's name.</param>
@@ -73,8 +77,67 @@ public sealed class ProjectCardViewModel : ObservableObject, IBoardCard
         }
     }
 
-    /// <summary>The card's opacity: dimmed when its project does not read.</summary>
-    public double CardOpacity => _isDimmed ? 0.55 : 1.0;
+    /// <summary>The card's opacity: dimmed further while a search is on that it does not match, and when its project does not read.</summary>
+    public double CardOpacity => _isSearchDimmed ? 0.3 : _isDimmed ? 0.55 : 1.0;
+
+    /// <summary>The owner's tags on the project card, kept in settings by project name (card-search-and-tags item 9).</summary>
+    public IReadOnlyList<string> Tags
+    {
+        get => _tags;
+        set => Set(ref _tags, value);
+    }
+
+    /// <summary>Whether a search is on that neither the project nor any of its cards matches, so it is dimmed (item 3).</summary>
+    public bool IsSearchDimmed
+    {
+        get => _isSearchDimmed;
+        private set
+        {
+            if (Set(ref _isSearchDimmed, value))
+            {
+                Raise(nameof(CardOpacity));
+            }
+        }
+    }
+
+    /// <summary>Where the search's words fall in the title (item 3).</summary>
+    public IReadOnlyList<Theseus.Core.Finding.TextSpan> TitleHighlights
+    {
+        get => _titleHighlights;
+        private set => Set(ref _titleHighlights, value);
+    }
+
+    /// <summary>How many of its cards match the search (item 7).</summary>
+    public int MatchesInside
+    {
+        get => _matchesInside;
+        private set
+        {
+            if (Set(ref _matchesInside, value))
+            {
+                Raise(nameof(MatchesInsideText));
+            }
+        }
+    }
+
+    /// <summary>"1 match inside", under its title while a search matches its cards (item 7); empty otherwise.</summary>
+    public string MatchesInsideText => _matchesInside == 0 ? string.Empty : $"{_matchesInside} match{(_matchesInside == 1 ? string.Empty : "es")} inside";
+
+    /// <summary>The keys of its cards the search matches, which opening it carries into the project view (item 7).</summary>
+    public IReadOnlyList<string> MatchingKeys { get; private set; } = [];
+
+    /// <summary>Shows what the board's search makes of the project card.</summary>
+    internal void ShowSearch(bool dimmed, IReadOnlyList<Theseus.Core.Finding.TextSpan> highlights, IReadOnlyList<string> matchingKeys)
+    {
+        IsSearchDimmed = dimmed;
+        MatchingKeys = matchingKeys;
+        MatchesInside = matchingKeys.Count;
+
+        if (!highlights.SequenceEqual(_titleHighlights))
+        {
+            TitleHighlights = highlights;
+        }
+    }
 
     /// <summary>What Open does, for its menu item.</summary>
     public string OpenToolTip => _isDimmed

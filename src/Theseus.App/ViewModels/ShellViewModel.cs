@@ -190,6 +190,17 @@ public sealed class ShellViewModel : ObservableObject
             }
         }, _ => _viewHost.CanClearSelection(ProjectView));
         InvertSelectionCommand = new RelayCommand(_ => Invert(), _ => Board.ShownItems.Any());
+        NextMatchCommand = new RelayCommand(_ => StepMatch(forward: true), _ => Board.Search.IsOn && IsBoardShown);
+        PreviousMatchCommand = new RelayCommand(_ => StepMatch(forward: false), _ => Board.Search.IsOn && IsBoardShown);
+        OpenMatchCommand = new RelayCommand(_ => OpenMatch(), _ => Board.CurrentMatch is not null && IsBoardShown);
+        IncludeArchivedCommand = new RelayCommand(_ => Board.IncludeArchived(), _ => Board.Search.ShowsIncludeArchived);
+        Board.Search.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(BoardSearchViewModel.Filter))
+            {
+                CarrySearch(ProjectView);
+            }
+        };
         SelectLiveCommand = new RelayCommand(_ => SelectLive(), _ => Board.ShownItems.Any(item => item.IsLive));
         ArchiveSelectedCommand = new RelayCommand(_ => ArchiveSelected(), _ => Chosen().Any(card => !card.IsLive));
         VerifySelectedWithHoldoutsCommand = new RelayCommand(_ =>
@@ -449,6 +460,67 @@ public sealed class ShellViewModel : ObservableObject
 
     /// <summary>Unticks every card.</summary>
     public RelayCommand ClearSelectionCommand { get; }
+
+    /// <summary>Enter or F3 in the search: selects the next match (card-search-and-tags item 6).</summary>
+    public RelayCommand NextMatchCommand { get; }
+
+    /// <summary>Shift+F3: selects the match before (item 6).</summary>
+    public RelayCommand PreviousMatchCommand { get; }
+
+    /// <summary>Ctrl+Enter: opens the match the keys moved to, its drawer or its project view (item 6).</summary>
+    public RelayCommand OpenMatchCommand { get; }
+
+    /// <summary>Include archived, offered when only an archived card matches (item 5).</summary>
+    public RelayCommand IncludeArchivedCommand { get; }
+
+    /// <summary>A match the keys moved to, for the window to scroll into view (item 6).</summary>
+    public event Action<IBoardCard>? MatchShown;
+
+    private void StepMatch(bool forward)
+    {
+        if (Board.StepMatch(forward) is { } item)
+        {
+            MatchShown?.Invoke(item);
+        }
+    }
+
+    private void OpenMatch()
+    {
+        switch (Board.CurrentMatch)
+        {
+            case WorkstreamCardViewModel card:
+                ShowCard(card);
+                break;
+            case ProjectCardViewModel project:
+                project.OpenCommand?.Execute(null);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Carries the board's search into a project view (item 7): its boxes whose card the search matches, or whose title
+    /// it matches, are highlighted the way a followed objective's are. Null or no search clears it.
+    /// </summary>
+    private void CarrySearch(ProjectViewModel? view)
+    {
+        if (view is null)
+        {
+            return;
+        }
+
+        var filter = Board.Search.Filter;
+
+        if (!filter.IsOn)
+        {
+            view.ShowSearch(null);
+
+            return;
+        }
+
+        view.ShowSearch(node => node.Piece.Card is { } piece && Board.Card(piece.Key) is { } card
+            ? Board.IsMatch(card)
+            : filter.Admits(new Theseus.Core.Finding.SearchableCard(node.Name, node.Title, string.Empty, string.Empty, [], [], [], [])));
+    }
 
     /// <summary>Ticks what is not ticked and unticks what is.</summary>
     public RelayCommand InvertSelectionCommand { get; }
@@ -2262,6 +2334,12 @@ public sealed class ShellViewModel : ObservableObject
         }
 
         _viewHost.Opened();
+
+        if (Board.Search.IsOn)
+        {
+            ProjectView.RevealSearch();
+        }
+
         SelectionMoved();
         Jumped(null);
         Raise(nameof(IsProjectOpen));
@@ -2295,6 +2373,7 @@ public sealed class ShellViewModel : ObservableObject
         {
             if (Set(ref _projectView, value))
             {
+                CarrySearch(value);
                 Raise(nameof(IsProjectOpen));
                 Raise(nameof(IsBoardShown));
             }
@@ -3028,6 +3107,7 @@ public sealed class ShellViewModel : ObservableObject
 
             // The card's repos are found once per refresh and used for both its PR links and its branch line.
             var repos = CardRepos.Read(card.Workstream.AddDirectories);
+            card.Repos = repos;
             card.PullRequests = _pullRequests.Resolve(card.Workstream, [.. repos.Select(repo => repo.Path)]);
             var line = BranchLines.For(card.Workstream.WorkingDirectory, repos);
             card.Branch = line.Text;
@@ -3036,6 +3116,12 @@ public sealed class ShellViewModel : ObservableObject
             card.SetItems(
                 CardItemRows.Jira(card.JiraKeys, recorded, jiraBase, key => WorkItems?.TitleOf(WorkItemKind.Jira, key)),
                 CardItemRows.PullRequests(card.PullRequests, recorded, number => WorkItems?.TitleOf(WorkItemKind.PullRequest, number)));
+        }
+
+        // A search on branches or repos reads them only now they are known (card-search-and-tags item 2).
+        if (Board.Search.IsOn)
+        {
+            Board.Regroup();
         }
     }
 

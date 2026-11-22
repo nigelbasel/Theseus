@@ -129,6 +129,13 @@ public partial class App : Application
         {
             Arrived = shell.Warn,
             Rejected = shell.ProposalRejected,
+            ShowBrief = brief => new RecordsWindow(new RecordsViewModel($"Brief: {Path.GetFileName(Path.GetDirectoryName(brief))}",
+                new Theseus.Core.Projects.RecordEntry("Brief", "What the proposing session asks the new workstream to do",
+                    Theseus.Core.Projects.StageNodeState.Done, brief) { StateText = "written" },
+                path => System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true })))
+            {
+                Owner = MainWindow,
+            }.Show(),
         };
 
         chains.Proposals = proposed;
