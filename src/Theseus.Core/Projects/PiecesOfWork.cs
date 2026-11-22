@@ -12,6 +12,12 @@ public static class PiecesOfWork
 {
     private const string SpecCoveredIt = "the project's spec covered it";
 
+    /// <summary>
+    /// What a Verify stage says when later records are written but no evidence.md: to do, not Stuck, since nothing blocks it
+    /// (Nigel, 2026-11-22: "saying stuck and not being stuck are unacceptable").
+    /// </summary>
+    public const string NoEvidenceYet = "evidence.md not written yet, though later records are: its session writes it next";
+
     /// <summary>What a feature's spec stage says when its records hold later work but no spec.md.</summary>
     public const string NoSpecHere = "no spec.md in its records: the spec it builds from is not recorded here, so its gate is not shown as passed";
 
@@ -330,7 +336,7 @@ public static class PiecesOfWork
 
             if (stage.Stage == PipelineStage.Verify && !draft.IsBeforeKit)
             {
-                return stage with { State = StageNodeState.Stuck, Reason = "no evidence, though later records are written" };
+                return stage with { State = StageNodeState.ToDo, Reason = NoEvidenceYet };
             }
 
             // Not Stuck: nothing is blocked, the spec is only not in this folder (Nigel, 2026-11-22: "saying stuck and not being
@@ -406,7 +412,7 @@ public static class PiecesOfWork
         if (!isWritten)
         {
             return gate?.State == GateState.NoEvidence
-                ? Verify(StageNodeState.Stuck, "no evidence, though later records are written")
+                ? Verify(StageNodeState.ToDo, NoEvidenceYet)
                 : Verify(StageNodeState.ToDo);
         }
 

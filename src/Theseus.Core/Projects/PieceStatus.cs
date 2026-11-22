@@ -66,6 +66,17 @@ public sealed record PieceStatus(StageNodeState State, string Text)
             };
         }
 
+        // Evidence missing after later records: nothing blocks it, so not Stuck, and not done or "next" either (G15).
+        if (stages.FirstOrDefault(stage => stage.Reason == PiecesOfWork.NoEvidenceYet) is { } evidence)
+        {
+            return new PieceStatus(isWorking ? StageNodeState.Busy : StageNodeState.ToDo,
+                $"Evidence missing at {evidence.Name}: {evidence.Reason}.")
+            {
+                WhoActs = $"{piece.Workstream}; nothing for you unless it asks.",
+                Action = piece.IsCurrentPiece && card is { HasSession: true } ? PieceAction.Focus : PieceAction.None,
+            };
+        }
+
         if (isWorking && piece.AwaitsSpecAcceptance && piece.Kind == PieceKind.Build)
         {
             return new PieceStatus(StageNodeState.Busy, "Busy building, ahead of your acceptance of its spec (at its own risk).")

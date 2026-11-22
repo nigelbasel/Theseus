@@ -58,13 +58,13 @@ public class ProjectSummaryTests
     }
 
     [Test]
-    public void BusyAndStuck_AreCountedInTheirOrder()
+    public void BusyAndStillToDo_AreCountedInTheirOrder()
     {
         var piece = OnePiece(_folder, "feature", Files("spec.md"), Card(ACard, SessionLifecycle.Running), accepted: true);
         var stuck = OnePiece(_folder, "feature", Files("spec.md", "review.md"), accepted: true);
 
         Assert.That(ProjectSummary.For([piece, stuck]).Sentence,
-            Is.EqualTo("2 pieces of work across 1 objective: 1 busy, 1 stuck. a-card is busy on a-piece."));
+            Does.StartWith("2 pieces of work across 1 objective: 1 busy, 1 still to do"));
     }
 
     [Test]

@@ -117,10 +117,11 @@ public class PieceStatusTests
     }
 
     [Test]
-    public void MissingEvidence_IsStuckAtVerify()
+    public void MissingEvidence_IsSaidAsItIs_NotStuck_NorNext()
     {
-        Assert.That(OnePiece(_folder, "feature", Files("spec.md", "review.md"), accepted: true).Status.Text,
-            Is.EqualTo("Stuck at Verify: no evidence, though later records are written."));
+        var status = OnePiece(_folder, "feature", Files("spec.md", "review.md"), accepted: true).Status;
+
+        Assert.That((status.State, status.Text), Is.EqualTo((StageNodeState.ToDo, $"Evidence missing at Verify: {PiecesOfWork.NoEvidenceYet}.")));
     }
 
     [Test]
