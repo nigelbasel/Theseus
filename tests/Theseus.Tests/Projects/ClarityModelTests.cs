@@ -295,4 +295,48 @@ public class ClarityModelTests
             [PipelineStage.Review] = "one line",
         }));
     }
+
+    [Test]
+    public void ASessionsSkip_NeverPassesTheSpecGateOrTheIndependentCheck()
+    {
+        var piece = ProjectViewFixtures.OnePiece(_folder, "feature", new Dictionary<string, string>
+        {
+            ["plan.md"] = "# Plan\n",
+            ["review.md"] = "# Review\n",
+            ["skipped.md"] = "Spec: not needed\nVerify: n/a\n",
+        });
+
+        Assert.That(piece.Stages[1].State, Is.EqualTo(StageNodeState.Stuck), "only the owner passes the spec gate");
+        Assert.That(piece.Stages[4].State, Is.EqualTo(StageNodeState.Stuck), "only the independent check passes Verify");
+        Assert.That(piece.Status.State, Is.Not.EqualTo(StageNodeState.Done));
+    }
+
+    [Test]
+    public void AnUnlistedGrandchild_TakesItsParentsInheritedRound()
+    {
+        var reading = WriteBym(_folder);
+        var cards = BymBoard().Append(new PieceCard("e2", "E2 follow-up", "#d4683a", SessionLifecycle.Idle)).ToList();
+        var links = BymLinks().Append(ProjectViewFixtures.NewLink(Theseus.Core.Links.LinkKind.HandsOver, "e1", "e2")).ToList();
+
+        var pieces = PiecesOfWork.Build(reading, _ => null, cards, links);
+
+        Assert.That(pieces.Single(piece => piece.CardKey == "e2").Round, Is.EqualTo(1), "E1 is in round 1, under W1");
+    }
+
+    [Test]
+    public void ASpecPieceThatWroteNothing_NeverHandsOnItsOwnResearchOrSpec()
+    {
+        _folder.Write("s/project.md", TestProjectsFolder.ProjectText("S", body: "## Phase 0: Start\n\n### Objective 0.1: Specify\n- [ ] Spec.\n\n"
+            + "**Pipeline:** feature\n| Workstream | Slug | Branch | Repos |\n|---|---|---|---|\n| spec | the-spec | none | r |\n\n"
+            + "### Objective 0.2: Build\n- [ ] Built.\n\n**Pipeline:** feature\n| Workstream | Slug | Branch | Repos |\n|---|---|---|---|\n"
+            + "| builder | the-build | owner/b | r |\n"));
+        var cards = new[] { new PieceCard("spec", "Spec", "#000000", SessionLifecycle.Idle), new PieceCard("builder", "Builder", "#000000", SessionLifecycle.Idle) };
+        var spec = PiecesOfWork.Build(ProjectViewFixtures.Read(_folder, "s"), _ => null, cards,
+            [ProjectViewFixtures.NewLink(Theseus.Core.Links.LinkKind.HandsOver, "spec", "builder")]).Single(piece => piece.Name == "the-spec");
+
+        Assert.That(spec.Stages[0].State, Is.EqualTo(StageNodeState.ToDo));
+        Assert.That(spec.Stages[1].State, Is.EqualTo(StageNodeState.ToDo));
+        Assert.That(spec.Stages[3].State, Is.EqualTo(StageNodeState.HandedOn));
+        Assert.That(spec.Status.State, Is.Not.EqualTo(StageNodeState.Done));
+    }
 }

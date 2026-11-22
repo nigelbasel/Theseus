@@ -34,8 +34,8 @@ public sealed record Link(
 
     /// <summary>
     /// On a hand-over, the slug of the From card's current piece when the link was made, so a card's later pieces do not
-    /// take its earlier hand-overs with them (1.1f D15, D6). Never changed after; null on older links, which count as the
-    /// From card's first piece.
+    /// take its earlier hand-overs with them (1.1f D15). Never changed after; null on older links, which count as the From
+    /// card's piece in the child's round (decision G8, refining D6).
     /// </summary>
     public string? ParentPiece { get; init; }
 

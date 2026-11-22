@@ -5,7 +5,7 @@ namespace Theseus.Core.Projects;
 /// <summary>
 /// A project's pieces of work as a tree: time runs down the page, and work handed on sits under the piece that handed
 /// it on (1.1d AC 11 to 14; Nigel, 2026-11-20: "scrolling right is less natural than scrolling down"). Links join
-/// cards, so each end is the card's current piece (code fact 3).
+/// cards: the child end is the To card's current piece, the parent end the piece <see cref="PieceHandOvers"/> resolves.
 /// </summary>
 public sealed class PieceTree
 {
@@ -30,7 +30,7 @@ public sealed class PieceTree
 
     /// <summary>
     /// Places each piece under the piece that handed it work: the one its hand-over's <see cref="Link.ParentPiece"/>
-    /// names, else its From card's first piece (1.1f D16, replacing 1.1d AC 11's current piece). A child sits under a
+    /// names, else its From card's piece in the child's round (1.1f D16, G8; replacing 1.1d AC 11). A child sits under a
     /// parent of its own round only; one handed on across rounds starts its own round's tree. A second parent is
     /// ignored, and a cycle is broken at its piece met first in file order, as <see cref="ChainRoots"/> stops at the card
     /// it has met.

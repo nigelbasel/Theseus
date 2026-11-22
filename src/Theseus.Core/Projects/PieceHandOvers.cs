@@ -5,9 +5,9 @@ namespace Theseus.Core.Projects;
 /// <summary>
 /// Which piece handed work to which (1.1f D15, D16): a hand-over's parent is the From card's piece its
 /// <see cref="Link.ParentPiece"/> names; its child is the To card's current piece. A link older than ParentPiece names
-/// none, and takes the From card's last piece in the child's round: its current piece when the project has one round,
-/// as 1.1d placed it (decision G8, refining D6, which assumed every old link was made in round 1). A link whose parent
-/// piece is not in this project places nothing here.
+/// none, and takes the From card's current piece when that is in the child's round, else its last piece in that round;
+/// in a one-round project that is where 1.1d placed it (decision G8, refining D6, which assumed every old link was made in
+/// round 1). A link whose parent piece is not in this project places nothing here.
 /// </summary>
 internal static class PieceHandOvers
 {
@@ -54,14 +54,19 @@ internal static class PieceHandOvers
             return IndexOf(pieces, index => From(index) && Same(nameOf(pieces[index]), named));
         }
 
+        var current = LastIndexOf(pieces, index => From(index) && isCurrent(pieces[index]));
+
+        if (current >= 0 && (childRound is null || roundOf(pieces[current]) == childRound))
+        {
+            return current;
+        }
+
         var inRound = childRound is null ? -1 : LastIndexOf(pieces, index => From(index) && roundOf(pieces[index]) == childRound);
 
         if (inRound >= 0)
         {
             return inRound;
         }
-
-        var current = LastIndexOf(pieces, index => From(index) && isCurrent(pieces[index]));
 
         return current >= 0 ? current : IndexOf(pieces, From);
     }

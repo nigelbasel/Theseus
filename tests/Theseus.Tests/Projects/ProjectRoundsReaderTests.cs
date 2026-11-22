@@ -121,4 +121,20 @@ public class ProjectRoundsReaderTests
 
         Assert.That(ProjectFileReader.Read("p", edited).File!.Workstreams.Select(row => row.What), Is.EqualTo(new[] { "One", "Two" }));
     }
+
+    [Test]
+    public void ARoundLineWithWordsAfterItsNumber_IsRefused_NotReadAsRound1()
+    {
+        Assert.That(Read(Rounds + "## Phase 0: Start\n\n" + Objective("0.1", "**Round:** 2 (GUI parity)\n")).Reason,
+            Does.EndWith("objective 0.1's **Round:** line is not a round number"));
+    }
+
+    [Test]
+    public void ARoundLineBelowACriterion_IsRefused_ItGoesDirectlyUnderTheHeading()
+    {
+        var text = TestProjectsFolder.ProjectText("P", body: Rounds + "## Phase 0: Start\n\n### Objective 0.1: X\n- [ ] A.\n**Round:** 2\n\n"
+            + "**Pipeline:** feature\n| Workstream | Slug | Branch | Repos |\n|---|---|---|---|\n");
+
+        Assert.That(ProjectFileReader.Read("p", text).Reason, Does.EndWith("objective 0.1's **Round:** line goes directly under its heading"));
+    }
 }

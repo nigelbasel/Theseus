@@ -87,8 +87,24 @@ public static class PiecesOfWork
             draft => draft.Objective?.Round, linkList);
         var parentOf = handOvers.ToDictionary(pair => pair.Child, pair => pair.Parent);
         var latestRound = file.Rounds[^1].Number;
+        var rounds = new Dictionary<int, int>();
 
-        return [.. drafts.Select((draft, index) => Finish(draft, index, drafts, handOvers, parentOf, linkList, said, latestRound))];
+        // A piece no project file lists takes its parent's round, which may itself be inherited (1.1f C14).
+        int RoundOf(int index)
+        {
+            if (rounds.TryGetValue(index, out var known))
+            {
+                return known;
+            }
+
+            // Set before following the parent, so a loop of hand-overs ends in the latest round instead of recursing.
+            rounds[index] = latestRound;
+
+            return rounds[index] = drafts[index].Objective?.Round
+                                   ?? (parentOf.TryGetValue(index, out var parent) ? RoundOf(parent) : latestRound);
+        }
+
+        return [.. drafts.Select((draft, index) => Finish(draft, index, drafts, handOvers, parentOf, linkList, said, RoundOf(index)))];
     }
 
     // A verifier's subject is the card it reports back to, as ShellViewModel.ApplyMembership finds it.
@@ -202,7 +218,7 @@ public static class PiecesOfWork
     }
 
     private static PieceOfWork Finish(PieceDraft draft, int index, List<PieceDraft> all, List<(int Parent, int Child)> handOvers,
-        Dictionary<int, int> parentOf, List<Link> links, StageReports said, int latestRound)
+        Dictionary<int, int> parentOf, List<Link> links, StageReports said, int round)
     {
         var parent = parentOf.TryGetValue(index, out var parentIndex) ? all[parentIndex] : null;
         var children = handOvers.Where(pair => pair.Parent == index).Select(pair => all[pair.Child]).ToList();
@@ -240,7 +256,7 @@ public static class PiecesOfWork
             IsListed = draft.IsListed,
             Kind = draft.Kind,
             Title = draft.Title,
-            Round = draft.Objective?.Round ?? (parent?.Objective?.Round ?? latestRound),
+            Round = round,
             Branch = draft.Row?.Branch,
             Repos = draft.Row?.Repos,
             IsObjectiveDone = isObjectiveDone,
@@ -254,7 +270,7 @@ public static class PiecesOfWork
     }
 
     // A spec piece's later stages are done by the pieces it handed work to: every stage after the last it wrote itself, up
-    // to the one before its own lessons (1.1f E26).
+    // to the one before its own lessons (1.1f E26); never its own research or spec.
     private static List<StageDraft> HandOn(List<StageDraft> stages, PieceKind kind, List<PieceDraft> children)
     {
         if (kind != PieceKind.Spec || children.Count == 0)
@@ -270,7 +286,8 @@ public static class PiecesOfWork
             return stages;
         }
 
-        var lastOwn = stages.FindLastIndex(end - 1, end, stage => stage.IsWritten);
+        var spec = stages.FindIndex(stage => stage.Stage == PipelineStage.Spec);
+        var lastOwn = Math.Max(spec, stages.FindLastIndex(end - 1, end, stage => stage.IsWritten));
         var names = string.Join(", ", children.Select(child => child.Title));
 
         return [.. stages.Select((stage, index) => index > lastOwn && index < end && !stage.IsWritten
@@ -281,7 +298,8 @@ public static class PiecesOfWork
     // Nothing before a finished stage is To do (1.1f E30a): a stage before the furthest recorded one is skipped with its
     // reason, or done with no record. Under the kit the owner's spec gate and the evidence are never assumed done: a
     // missing one before later records is Stuck, as 1.1d AC 4 has it for evidence. Work from before the kit has no gate
-    // states (1.1 AC 9), so there they too are done with no record.
+    // states (1.1 AC 9), so there they too are done with no record. A session's own skip never stands in for either: only
+    // the owner passes the spec gate, and only the independent check passes Verify (review of PR 1, finding 1).
     private static List<StageDraft> BeforeFurthest(List<StageDraft> stages, PieceDraft draft, PieceDraft? parent)
     {
         var furthest = stages.FindLastIndex(stage => stage.IsWritten);
@@ -295,7 +313,7 @@ public static class PiecesOfWork
                 return stage;
             }
 
-            if (stage.Stage is { } named && draft.Skips.TryGetValue(named, out var reason))
+            if (stage.Stage is { } named and not (PipelineStage.Spec or PipelineStage.Verify) && draft.Skips.TryGetValue(named, out var reason))
             {
                 return stage with { State = StageNodeState.NotNeeded, Reason = reason };
             }

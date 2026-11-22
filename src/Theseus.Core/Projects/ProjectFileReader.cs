@@ -81,7 +81,7 @@ public static partial class ProjectFileReader
             .Cast<DateOnly?>()
             .FirstOrDefault();
 
-    [GeneratedRegex(@"^\*\*Round:\*\*\s*(\S+)\s*$")]
+    [GeneratedRegex(@"^\*\*Round:\*\*(.*)$")]
     private static partial Regex RoundLine();
 
     private static DateOnly? Date(string text) =>
@@ -358,6 +358,8 @@ public static partial class ProjectFileReader
             if (CriterionLine().Match(line) is { Success: true } criterion)
             {
                 var parts = new List<string> { criterion.Groups[2].Value.Trim() };
+                CriterionWaiting? waiting = null;
+                string? evidence = null;
 
                 // An indented tick box is a criterion of its own, not more of this one: joined in, an unticked
                 // sub-criterion would count as met.
@@ -365,10 +367,27 @@ public static partial class ProjectFileReader
                        && lines[index + 1].Trim().Length > 0 && !CriterionLine().IsMatch(lines[index + 1]))
                 {
                     index++;
-                    parts.Add(lines[index].Trim());
+                    var continuation = lines[index].Trim();
+
+                    if (CriterionWaiting.Parse(continuation) is { } note)
+                    {
+                        waiting = note;
+                    }
+                    else if (continuation.StartsWith(ProjectCriterion.EvidenceLabel, StringComparison.Ordinal))
+                    {
+                        evidence = continuation[ProjectCriterion.EvidenceLabel.Length..].Trim();
+                    }
+                    else
+                    {
+                        parts.Add(continuation);
+                    }
                 }
 
-                objective.Criteria.Add(new ProjectCriterion(string.Join(" ", parts), criterion.Groups[1].Value != " ", number));
+                objective.Criteria.Add(new ProjectCriterion(string.Join(" ", parts), criterion.Groups[1].Value != " ", number)
+                {
+                    Waiting = waiting,
+                    Evidence = evidence,
+                });
 
                 return index;
             }
@@ -380,7 +399,12 @@ public static partial class ProjectFileReader
                     throw new RefusalException(number, $"objective {objective.Number} has a second **Round:** line");
                 }
 
-                if (!int.TryParse(round.Groups[1].Value, System.Globalization.NumberStyles.None,
+                if (objective.Criteria.Count > 0 || objective.PipelineLine > 0)
+                {
+                    throw new RefusalException(number, $"objective {objective.Number}'s **Round:** line goes directly under its heading");
+                }
+
+                if (!int.TryParse(round.Groups[1].Value.Trim(), System.Globalization.NumberStyles.None,
                         System.Globalization.CultureInfo.InvariantCulture, out var roundNumber) || roundNumber < 1)
                 {
                     throw new RefusalException(number, $"objective {objective.Number}'s **Round:** line is not a round number");
