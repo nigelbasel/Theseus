@@ -71,7 +71,7 @@ public static partial class ProjectFileReader
     [GeneratedRegex(@"^\|(\s*:?-+:?\s*\|)+$")]
     private static partial Regex SeparatorRow();
 
-    [GeneratedRegex(@"(\d{4}-\d{2}-\d{2})")]
+    [GeneratedRegex(@"\b(\d{4}-\d{2}-\d{2})\b")]
     private static partial Regex WrittenDate();
 
     private static DateOnly? EarliestDate(string[] lines) =>

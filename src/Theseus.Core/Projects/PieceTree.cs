@@ -54,10 +54,13 @@ public sealed class PieceTree
         }
 
         var parentOf = new Dictionary<int, int>();
+        var handedBy = new Dictionary<int, int>();
 
         foreach (var (parent, child) in PieceHandOvers.Resolve(pieces, piece => piece.CardKey, piece => piece.Name,
-                     piece => piece.IsCurrentPiece, links.Links))
+                     piece => piece.IsCurrentPiece, piece => piece.IsListed ? piece.Round : null, links.Links))
         {
+            handedBy.TryAdd(child, parent);
+
             if (pieces[parent].Round == pieces[child].Round)
             {
                 parentOf.TryAdd(child, parent);
@@ -68,7 +71,7 @@ public sealed class PieceTree
 
         var childrenOf = parentOf.GroupBy(pair => pair.Value)
             .ToDictionary(group => group.Key, group => group.Select(pair => pair.Key).Order().ToList());
-        var marks = Marks(pieces, currentOf, links);
+        var marks = Marks(pieces, currentOf, handedBy, links);
 
         PieceNode Node(int index) => new(pieces[index],
             [.. childrenOf.GetValueOrDefault(index, []).Select(Node)],
@@ -115,8 +118,9 @@ public sealed class PieceTree
         }
     }
 
+    // A report goes back to the piece that handed the work on, not to whatever its card works on now.
     private static Dictionary<string, ReportBackMark> Marks(IReadOnlyList<PieceOfWork> pieces, Dictionary<string, int> currentOf,
-        LinkStatus links)
+        Dictionary<int, int> handedBy, LinkStatus links)
     {
         var marks = new Dictionary<string, ReportBackMark>(StringComparer.OrdinalIgnoreCase);
 
@@ -124,9 +128,16 @@ public sealed class PieceTree
         {
             var state = links.StateOf(link);
 
-            if (!currentOf.ContainsKey(link.From) || !currentOf.TryGetValue(link.To, out var parent) || state == LinkState.CardMissing)
+            if (!currentOf.TryGetValue(link.From, out var child) || !currentOf.TryGetValue(link.To, out var parent)
+                || state == LinkState.CardMissing)
             {
                 continue;
+            }
+
+            if (handedBy.TryGetValue(child, out var handing)
+                && string.Equals(pieces[handing].CardKey, link.To, StringComparison.OrdinalIgnoreCase))
+            {
+                parent = handing;
             }
 
             marks.TryAdd(link.From, new ReportBackMark(pieces[parent].Name, state));

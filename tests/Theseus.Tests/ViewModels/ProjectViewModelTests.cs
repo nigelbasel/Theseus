@@ -140,7 +140,7 @@ public class ProjectViewModelTests
     {
         Assert.That(ProjectViewModel.Legend.Select(item => $"{item.Mark} {item.Word}"), Is.EqualTo(new[]
         {
-            "✓ Done", "◆ Waiting on you", "● Busy", "⚠ Stuck", "◐ Holdouts not run yet", "– To do",
+            "✓ Done", "◆ Waiting for you", "● Busy", "⚠ Stuck", "◐ Built, not yet checked", "– Not started",
         }));
     }
 
@@ -180,7 +180,7 @@ public class ProjectViewModelTests
         Assert.That((box.IsOpen, box.BoxWidth, box.Chevron, box.ChevronToolTip), Is.EqualTo((false, 290.0, "▸", "Open into its stages")));
         Assert.That((box.Workstream, box.KindWord, box.ObjectiveLabel), Is.EqualTo(("git-22", "bug", "objective 0.3")));
         Assert.That(box.ColourHex, Is.EqualTo("#2f80ed"));
-        Assert.That(box.StatusText, Is.EqualTo("– Next: Review"));
+        Assert.That(box.StatusText, Is.EqualTo("– Next: Review."));
         Assert.That(box.Stages.Select(stage => stage.Abbreviation), Is.EqualTo(new[] { "Rep", "Rul", "Fix", "Ver", "Rev", "Com" }));
         Assert.That(box.Stages[0].ToolTip, Is.EqualTo("Reproduce: Done"));
     }

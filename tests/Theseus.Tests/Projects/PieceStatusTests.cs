@@ -88,7 +88,7 @@ public class PieceStatusTests
         var stale = new SpecAcceptance(OneProject, APiece, "an-older-hash", DateTimeOffset.UnixEpoch);
 
         Assert.That(PiecesOfWork.Build(reading, _ => stale, [Card(ACard)], []).Single().Status.Text,
-            Is.EqualTo("Waiting for you: accept the spec again: changed since you accepted it."));
+            Is.EqualTo("Waiting for you: accept the spec again."));
     }
 
     [Test]

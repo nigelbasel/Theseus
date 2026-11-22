@@ -120,7 +120,7 @@ public class ProjectViewFoldTests
 
         Assert.That(box.IsOpen, Is.False);
         Assert.That(box.State, Is.EqualTo(StageNodeState.WaitingOnYou));
-        Assert.That(box.StatusText, Does.StartWith("◆ Waiting on you"));
+        Assert.That(box.StatusText, Does.StartWith("◆ Waiting for you"));
         Assert.That(box.Stages.Select(stage => stage.State), Does.Contain(StageNodeState.WaitingOnYou));
     }
 

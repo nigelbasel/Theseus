@@ -53,10 +53,10 @@ public class ProjectViewPropertiesTests
         var pane = Selected(view, Box(view, "project-view"));
 
         Assert.That((pane.Heading, pane.StatusText, pane.State), Is.EqualTo(
-            ("project-view", "Waiting on you: accept the spec", Theseus.Core.Projects.StageNodeState.WaitingOnYou)));
+            ("project-view", "Waiting for you: accept the spec.", Theseus.Core.Projects.StageNodeState.WaitingOnYou)));
         Assert.That(pane.Rows.Select(row => (row.Label, row.Value)), Is.EqualTo(new[]
         {
-            ("Where", "◆ Waiting on you: accept the spec"),
+            ("Where", "◆ Waiting for you: accept the spec."),
             ("Worker", "git-22"),
             ("Kind", "feature"),
             ("Objective", "1.1 Checks shown on cards"),
@@ -95,11 +95,11 @@ public class ProjectViewPropertiesTests
         var pane = Selected(view, spec);
         var record = Path.Combine(Records(TheseusProject, "project-view"), "spec.md");
 
-        Assert.That((pane.Heading, pane.StatusText), Is.EqualTo(("Spec of project-view", "Waiting on you")));
+        Assert.That((pane.Heading, pane.StatusText), Is.EqualTo(("Spec of project-view", "Waiting for you")));
         Assert.That(pane.Rows.Select(row => (row.Label, row.Value)), Is.EqualTo(new[]
         {
             ("Stage", "Spec"),
-            ("State", "◆ Waiting on you"),
+            ("State", "◆ Waiting for you"),
             ("Record", record),
             ("Piece", "project-view"),
             ("Worker", "git-22"),

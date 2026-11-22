@@ -91,7 +91,7 @@ public class ProjectViewGroupingLayoutTests
         Assert.That(Shown(AllNamed<TextBlock>(readApi, "ReportBack").Single(), control), Is.True);
         Assert.That(AllNamed<TextBlock>(objectives, "ObjectiveCriteria").First().Text, Is.EqualTo("0/1"));
         Assert.That(AllNamed<ItemsControl>(objectives, "ObjectiveCounts").First().Items.Cast<StateCountViewModel>().Single().Text,
-            Is.EqualTo("– 1 to do"));
+            Is.EqualTo("✓ 1 answered"), "W0 reported back and you confirmed it (1.1f E29)");
     }
 
     [Test]

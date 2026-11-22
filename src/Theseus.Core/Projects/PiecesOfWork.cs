@@ -83,7 +83,8 @@ public static class PiecesOfWork
 
         drafts.AddRange(Unlisted(drafts, byKey, linkList, owners, verifiers));
 
-        var handOvers = PieceHandOvers.Resolve(drafts, draft => draft.CardKey, draft => draft.Name, draft => draft.IsCurrent, linkList);
+        var handOvers = PieceHandOvers.Resolve(drafts, draft => draft.CardKey, draft => draft.Name, draft => draft.IsCurrent,
+            draft => draft.Objective?.Round, linkList);
         var parentOf = handOvers.ToDictionary(pair => pair.Child, pair => pair.Parent);
         var latestRound = file.Rounds[^1].Number;
 

@@ -67,15 +67,36 @@ public class PieceTreeTests
     }
 
     [Test]
-    public void ALinkEnd_IsItsCardsCurrentPiece()
+    public void AHandOver_SitsUnderThePieceItsParentPieceNames()
+    {
+        var links = new[] { NewLink(LinkKind.HandsOver, Git22, "a-helper") with { ParentPiece = "project-view" } };
+        var pieces = PiecesOfWork.Build(WriteTheseus(_folder), _ => null, [Card(Git22), Card("a-helper")], links);
+
+        var tree = PieceTree.Build(pieces, LinksOn(links, [Card(Git22), Card("a-helper")]));
+
+        Assert.That(Node(tree, "project-view").Children.Select(child => child.Piece.Name), Is.EqualTo(new[] { "a-helper" }));
+        Assert.That(Node(tree, "projects-and-method-ui").Children, Is.Empty, "not the card's current piece (1.1f D16)");
+    }
+
+    [Test]
+    public void AHandOverWithNoParentPiece_InAOneRoundProject_SitsUnderTheFromCardsCurrentPiece()
     {
         var links = new[] { NewLink(LinkKind.HandsOver, Git22, "a-helper") };
         var pieces = PiecesOfWork.Build(WriteTheseus(_folder), _ => null, [Card(Git22), Card("a-helper")], links);
 
         var tree = PieceTree.Build(pieces, LinksOn(links, [Card(Git22), Card("a-helper")]));
 
-        Assert.That(Node(tree, "projects-and-method-ui").Children.Select(child => child.Piece.Name), Is.EqualTo(new[] { "a-helper" }));
-        Assert.That(Node(tree, "project-view").Children, Is.Empty);
+        Assert.That(Node(tree, "projects-and-method-ui").Children.Select(child => child.Piece.Name), Is.EqualTo(new[] { "a-helper" }),
+            "as 1.1d placed it (decision G8)");
+    }
+
+    [Test]
+    public void AHandOverWhoseParentPieceIsInAnotherProject_PlacesNothingHere()
+    {
+        var links = new[] { NewLink(LinkKind.HandsOver, Git22, "a-helper") with { ParentPiece = "elsewhere" } };
+        var pieces = PiecesOfWork.Build(WriteTheseus(_folder), _ => null, [Card(Git22), Card("a-helper")], links);
+
+        Assert.That(pieces.Select(piece => piece.Name), Has.None.EqualTo("a-helper"));
     }
 
     [Test]
