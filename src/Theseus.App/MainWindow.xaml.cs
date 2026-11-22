@@ -161,6 +161,25 @@ public partial class MainWindow : Window
 
     private void OnSearchLostFocus(object sender, KeyboardFocusChangedEventArgs e) => Board?.Search.Remember();
 
+    // Tags › is built as its menu opens, by right-click, the ⋯ button or Shift+F10 alike, from what is selected then (review T2).
+    private void OnCardMenuOpened(object sender, RoutedEventArgs e)
+    {
+        if (Board is not { } board || sender is not FrameworkElement { DataContext: var context })
+        {
+            return;
+        }
+
+        switch (context)
+        {
+            case WorkstreamCardViewModel card:
+                card.TagMenu = board.Tags.MenuFor(card);
+                break;
+            case ProjectCardViewModel project:
+                project.TagMenu = board.Tags.MenuFor(project);
+                break;
+        }
+    }
+
     // The Tags list is read as it opens, so it counts what is on the cards now (card-search-and-tags item 12).
     private void OnTagsOpened(object sender, RoutedEventArgs e)
     {
@@ -627,10 +646,6 @@ public partial class MainWindow : Window
             shell.Board.ClickSelect(project, toggle: false, extend: false);
         }
 
-        if (sender is FrameworkElement { DataContext: ProjectCardViewModel clicked } && Board is { } board)
-        {
-            clicked.TagMenu = board.Tags.MenuFor(clicked);
-        }
     }
 
     /// <summary>Something dropped on a cell's project strip goes to that cell, a card at the top of its cards.</summary>
@@ -693,10 +708,6 @@ public partial class MainWindow : Window
             shell.Clicked(card);
         }
 
-        if (sender is FrameworkElement { DataContext: WorkstreamCardViewModel clicked } && Board is { } board)
-        {
-            clicked.TagMenu = board.Tags.MenuFor(clicked);
-        }
     }
 
     /// <summary>A double-click opens the card's properties, as Alt+Enter and its menu do.</summary>

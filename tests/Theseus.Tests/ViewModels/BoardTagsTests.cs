@@ -207,6 +207,88 @@ public class BoardTagsTests
     }
 
     [Test]
+    public void AHashTagTyped_IsTickedInTheList_AndCountedOnTheButton_AndUntickingItTakesItOutOfTheBox()
+    {
+        var fixture = Board();
+        var search = fixture.Board.Search;
+        search.LoadTagRows(fixture.Board.Tags.InUse(), fixture.Board.Tags.ColourOf);
+
+        search.Text = "#bym w7";
+        var ticked = search.TagRows.Single(row => row.Tag == "bym").IsTicked;
+        var button = search.TagsButtonText;
+        search.TagRows.Single(row => row.Tag == "bym").IsTicked = false;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(ticked, Is.True, "review T4");
+            Assert.That(button, Is.EqualTo("Tags (1) ▾"));
+            Assert.That(search.Text, Is.EqualTo("w7"));
+        });
+    }
+
+    [Test]
+    public void ATickedTagNoCardHasAnyMore_KeepsItsRow_SoItCanBeUnticked()
+    {
+        var fixture = Board();
+        var search = fixture.Board.Search;
+        search.TickedTags.Add("waiting-on-dpo");
+        fixture.Board.Tags.Set([CardOf(fixture, "gdpr")], "waiting-on-dpo", on: false);
+
+        search.LoadTagRows(fixture.Board.Tags.InUse(), fixture.Board.Tags.ColourOf);
+        var row = search.TagRows.Single(candidate => candidate.Tag == "waiting-on-dpo");
+        row.IsTicked = false;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(row.Count, Is.Zero, "review T5");
+            Assert.That(search.TickedTags, Is.Empty);
+        });
+    }
+
+    [Test]
+    public void RenamingOrDeletingATag_FollowsItIntoTheBox()
+    {
+        var fixture = Board();
+        fixture.Board.Search.Text = "#bym w7";
+
+        fixture.Board.Tags.Rename("bym", "build");
+        var renamed = fixture.Board.Search.Text;
+        fixture.Board.Tags.Delete("build");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(renamed, Is.EqualTo("#build w7"), "review T6");
+            Assert.That(fixture.Board.Search.Text, Is.EqualTo("w7"));
+        });
+    }
+
+    [Test]
+    public void HideTheRest_WithATag_HidesTheCardsWithoutIt()
+    {
+        var fixture = Board();
+        fixture.Board.Search.TickedTags.Add("waiting-on-dpo");
+
+        fixture.Board.Search.HideRest = true;
+
+        Assert.That(fixture.Board.GridCards.Select(card => card.Key), Is.EqualTo(new[] { "gdpr" }));
+    }
+
+    [Test]
+    public void OptionsTags_MarksTheTagsColour_AndMovesTheMarkWhenItChanges()
+    {
+        var fixture = Board();
+        var row = new TagsViewModel(fixture.Board.Tags).Rows.Single(candidate => candidate.Tag == "bym");
+
+        row.Swatches[^1].Command.Execute(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(row.Swatches.Single(swatch => swatch.IsCurrent).ColourHex, Is.EqualTo(TagPalette.Colours[^1]), "review T8");
+            Assert.That(row.ColourHex, Is.EqualTo(TagPalette.Colours[^1]));
+        });
+    }
+
+    [Test]
     public void Clear_UnticksTheTags_AndEmptiesTheBox()
     {
         var fixture = Board();
@@ -226,6 +308,7 @@ public class BoardTagsTests
     public void Rename_ChangesTheTagOnEveryCard_KeepsItsColour_AndItsTick()
     {
         var fixture = Board();
+        fixture.Board.Tags.SetColour("bym", TagPalette.Colours[^1]);
         var colour = fixture.Board.Tags.ColourOf("bym");
         fixture.Board.Search.TickedTags.Add("bym");
 
@@ -356,5 +439,34 @@ public class BoardTagsTests
             Assert.That(editor.Tags, Is.EqualTo(new[] { "waiting-on-dpo" }));
             Assert.That(changes, Is.EqualTo(2));
         });
+    }
+
+    [Test]
+    public void Enter_WithARefusedTag_AddsNothing_AndSaysWhyUnderTheBox()
+    {
+        var editor = new TagEditorViewModel(() => [], () => { });
+        editor.Load([]);
+
+        editor.NewTag = "a/b";
+        editor.EnterCommand.Execute(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(editor.EnterCommand.CanExecute(null), Is.True, "Enter is handled, so it never presses a dialog's OK (review T7)");
+            Assert.That(editor.Tags, Is.Empty);
+            Assert.That(editor.Refusal, Is.EqualTo("A tag is letters, digits and hyphens"));
+        });
+    }
+
+    [Test]
+    public void ATagTypedButNotAdded_IsAddedAtOK()
+    {
+        var editor = new TagEditorViewModel(() => [], () => { });
+        editor.Load(["bym"]);
+        editor.NewTag = "security";
+
+        editor.AddPending();
+
+        Assert.That(editor.MergeInto(["bym"]), Is.EqualTo(new[] { "bym", "security" }));
     }
 }

@@ -84,12 +84,14 @@
                 <TextBox Text="{Binding NewTag, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,60,0"
                          AutomationProperties.Name="New tag" ToolTip="A tag: letters, digits and hyphens. Enter adds it">
                     <TextBox.InputBindings>
-                        <KeyBinding Key="Return" Command="{Binding AddCommand}" />
+                        <KeyBinding Key="Return" Command="{Binding EnterCommand}" />
                     </TextBox.InputBindings>
                 </TextBox>
                 <Button Content="Add" HorizontalAlignment="Right" Padding="12,3"
                         Command="{Binding AddCommand}" ToolTip="{Binding AddToolTip}" ToolTipService.ShowOnDisabled="True" />
             </Grid>
+            <TextBlock Text="{Binding Refusal}" FontSize="11" Margin="0,2,0,0" TextWrapping="Wrap"
+                       Foreground="{DynamicResource SystemFillColorCriticalBrush}" />
             <ItemsControl ItemsSource="{Binding Suggestions}" Margin="0,4,0,0" Focusable="False">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>

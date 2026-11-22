@@ -26,6 +26,9 @@ public sealed class BoardTags
     /// <summary>Asks the owner for a new tag's name (New tag…); null when cancelled. Set by the app.</summary>
     public Func<string?>? AskNewTag { get; set; }
 
+    /// <summary>Raised after tags change on any card, so an open Tags field shows the change (review T1).</summary>
+    public event Action? Changed;
+
     /// <summary>Tells the owner something in the status bar, such as why a typed tag was refused. Set by the shell.</summary>
     public Action<string>? Say { get; set; }
 
@@ -128,6 +131,7 @@ public sealed class BoardTags
         }
 
         _board.Regroup();
+        Changed?.Invoke();
     }
 
     /// <summary>
@@ -178,7 +182,9 @@ public sealed class BoardTags
             ticked.Add(to);
         }
 
+        _board.Search.RetypeTag(from, to);
         _board.Refresh();
+        Changed?.Invoke();
 
         return count;
     }
@@ -197,7 +203,9 @@ public sealed class BoardTags
         }
 
         _board.Search.TickedTags.Remove(tag);
+        _board.Search.RetypeTag(tag, null);
         _board.Refresh();
+        Changed?.Invoke();
 
         return count;
     }

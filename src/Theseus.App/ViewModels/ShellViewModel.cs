@@ -263,6 +263,13 @@ public sealed class ShellViewModel : ObservableObject
         Drawer.TagsInUse = Board.Tags.InUse;
         Board.Tags.AskNewTag = () => AskText?.Invoke("New tag", "A tag: letters, digits and hyphens, such as security or waiting-on-dpo", string.Empty);
         Board.Tags.Say = message => Notice = message;
+        Board.Tags.Changed += () =>
+        {
+            if (Drawer.Card is { } open)
+            {
+                Drawer.Reload(open);
+            }
+        };
 
         NewWorkstream = new NewWorkstreamViewModel(plans, colours,
             () => [.. Board.Stages],
@@ -856,9 +863,12 @@ public sealed class ShellViewModel : ObservableObject
             return;
         }
 
-        if (!tags.Tags.SequenceEqual(card.Tags))
+        tags.AddPending();
+        var merged = tags.MergeInto(card.Tags);
+
+        if (!merged.SequenceEqual(card.Tags))
         {
-            Board.Tags.SetProject(card.Name, [.. tags.Tags]);
+            Board.Tags.SetProject(card.Name, merged);
         }
 
         if (properties.Lead is { } chosen && !string.Equals(chosen, lead, StringComparison.OrdinalIgnoreCase))

@@ -460,6 +460,7 @@ public sealed class DetailDrawerViewModel : ObservableObject
         IsBlocked = card.Workstream.IsBlocked;
         IsPaused = card.Workstream.IsPaused;
         ReopenTomorrow = card.Workstream.ReopenTomorrow;
+        TagEditor.MergeInto(card.Workstream.Tags);
         _loading = false;
     }
 
@@ -615,7 +616,7 @@ public sealed class DetailDrawerViewModel : ObservableObject
             JiraKeys = [.. JiraKeys],
             RemovedJiraKeys = JiraKeySelection.Removed(
                 _card.Workstream.JiraKeys, JiraKeys, _card.Workstream.RemovedJiraKeys),
-            Tags = [.. TagEditor.Tags],
+            Tags = TagEditor.MergeInto(_card.Workstream.Tags),
         };
 
         _saved(_card);

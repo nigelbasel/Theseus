@@ -12,6 +12,7 @@ public sealed class TagRowViewModel : ObservableObject
     private readonly Action _reload;
     private string _newName;
     private bool _isConfirmingDelete;
+    private IReadOnlyList<TagColourChoice> _swatches;
 
     /// <summary>Creates a row over the board's tags; <paramref name="reload"/> rebuilds the list after a rename or delete.</summary>
     public TagRowViewModel(TagCount use, BoardTags tags, Action reload)
@@ -21,7 +22,7 @@ public sealed class TagRowViewModel : ObservableObject
         _tags = tags;
         _reload = reload;
         _newName = use.Tag;
-        Swatches = [.. TagPalette.Colours.Select(colour => new TagColourChoice(colour, new RelayCommand(_ => SetColour(colour))))];
+        _swatches = Choices();
         RenameCommand = new RelayCommand(_ => Rename(), _ => CanRename);
         DeleteCommand = new RelayCommand(_ => IsConfirmingDelete = true);
         ConfirmDeleteCommand = new RelayCommand(_ => Delete());
@@ -44,7 +45,11 @@ public sealed class TagRowViewModel : ObservableObject
     public string ColourHex => _tags.ColourOf(Tag);
 
     /// <summary>The palette's colours, each choosing itself for the tag.</summary>
-    public IReadOnlyList<TagColourChoice> Swatches { get; }
+    public IReadOnlyList<TagColourChoice> Swatches
+    {
+        get => _swatches;
+        private set => Set(ref _swatches, value);
+    }
 
     /// <summary>The name typed for a rename.</summary>
     public string NewName
@@ -97,6 +102,15 @@ public sealed class TagRowViewModel : ObservableObject
     {
         _tags.SetColour(Tag, colour);
         Raise(nameof(ColourHex));
+        Swatches = Choices();
+    }
+
+    private IReadOnlyList<TagColourChoice> Choices()
+    {
+        var current = _tags.ColourOf(Tag);
+
+        return [.. TagPalette.Colours.Select(colour => new TagColourChoice(colour, new RelayCommand(_ => SetColour(colour)),
+            string.Equals(colour, current, StringComparison.OrdinalIgnoreCase)))];
     }
 
     private void Rename()

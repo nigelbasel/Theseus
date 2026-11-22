@@ -274,10 +274,38 @@
                                                     </ItemsControl.ItemsPanel>
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate>
-                                                            <Button Width="20" Height="16" Margin="0,0,4,0" Padding="0" Cursor="Hand"
-                                                                    Background="{Binding ColourHex, Converter={StaticResource HexToBrush}}"
+                                                            <!-- Its own template, so hover does not paint over the colour; the current one is ringed (review T8). -->
+                                                            <Button Width="22" Height="18" Margin="0,0,4,0" Cursor="Hand"
                                                                     ToolTip="{Binding ToolTip}" AutomationProperties.Name="{Binding ToolTip}"
-                                                                    Command="{Binding Command}" />
+                                                                    Command="{Binding Command}">
+                                                                <Button.Template>
+                                                                    <ControlTemplate TargetType="Button">
+                                                                        <Grid x:Name="Face">
+                                                                            <Border x:Name="Ring" CornerRadius="4" BorderThickness="2" BorderBrush="Transparent" />
+                                                                            <Border Margin="3" CornerRadius="2"
+                                                                                    Background="{Binding ColourHex, Converter={StaticResource HexToBrush}}" />
+                                                                        </Grid>
+                                                                        <ControlTemplate.Triggers>
+                                                                            <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                                                                                <Setter TargetName="Ring" Property="BorderBrush" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                                                                            </DataTrigger>
+                                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                                <Setter TargetName="Ring" Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                                                            </Trigger>
+                                                                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                                                                <Setter TargetName="Ring" Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                                                            </Trigger>
+                                                                            <Trigger Property="IsPressed" Value="True">
+                                                                                <Setter TargetName="Face" Property="RenderTransform">
+                                                                                    <Setter.Value>
+                                                                                        <TranslateTransform Y="1" />
+                                                                                    </Setter.Value>
+                                                                                </Setter>
+                                                                            </Trigger>
+                                                                        </ControlTemplate.Triggers>
+                                                                    </ControlTemplate>
+                                                                </Button.Template>
+                                                            </Button>
                                                         </DataTemplate>
                                                     </ItemsControl.ItemTemplate>
                                                 </ItemsControl>

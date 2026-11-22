@@ -26,12 +26,7 @@ public sealed class BoardSearchViewModel : ObservableObject
         _changed = changed;
         TickedTags.CollectionChanged += (_, _) =>
         {
-            foreach (var row in TagRows)
-            {
-                row.Show(TickedTags.Contains(row.Tag));
-            }
-
-            Raise(nameof(TagsButtonText));
+            ShowTicks();
             Changed();
         };
         ClearCommand = new RelayCommand(_ => Clear(), _ => CanClear);
@@ -48,6 +43,7 @@ public sealed class BoardSearchViewModel : ObservableObject
             {
                 _query = SearchQuery.Parse(_text);
                 Raise(nameof(ShowsPlaceholder));
+                ShowTicks();
                 Changed();
             }
         }
@@ -69,21 +65,57 @@ public sealed class BoardSearchViewModel : ObservableObject
     public bool HasNoTags => TagRows.Count == 0;
 
     /// <summary>"Tags ▾", or "Tags (2) ▾" while two are ticked.</summary>
-    public string TagsButtonText => TickedTags.Count == 0 ? "Tags ▾" : $"Tags ({TickedTags.Count}) ▾";
+    public string TagsButtonText => Filter.Tags.Count == 0 ? "Tags ▾" : $"Tags ({Filter.Tags.Count}) ▾";
 
-    /// <summary>Fills the Tags ▾ list with the tags in use, each ticked if the board is filtered by it.</summary>
+    /// <summary>
+    /// Fills the Tags ▾ list with the tags in use, each ticked if the board is filtered by it, ticked or typed as #tag. A
+    /// tag filtered by that no card has any more keeps its row, with 0, so it can be unticked (review T5).
+    /// </summary>
     public void LoadTagRows(IReadOnlyList<TagCount> inUse, Func<string, string> colourOf)
     {
         ArgumentNullException.ThrowIfNull(inUse);
         ArgumentNullException.ThrowIfNull(colourOf);
         TagRows.Clear();
+        var filtered = Filter.Tags;
+        var rows = inUse.Concat(filtered.Where(tag => inUse.All(use => use.Tag != tag)).Select(tag => new TagCount(tag, 0)))
+            .OrderBy(use => use.Tag, StringComparer.Ordinal);
 
-        foreach (var use in inUse)
+        foreach (var use in rows)
         {
-            TagRows.Add(new TagFilterRowViewModel(use.Tag, use.Count, colourOf(use.Tag), TickedTags.Contains(use.Tag), Tick));
+            TagRows.Add(new TagFilterRowViewModel(use.Tag, use.Count, colourOf(use.Tag), filtered.Contains(use.Tag), Tick));
         }
 
         Raise(nameof(HasNoTags));
+    }
+
+    /// <summary>
+    /// Follows a renamed or deleted tag into what is typed (review T6): "#bym" becomes "#build", or goes, so the box never
+    /// filters by a tag no card can have.
+    /// </summary>
+    public void RetypeTag(string from, string? to)
+    {
+        if (!_query.Tags.Contains(from))
+        {
+            return;
+        }
+
+        var parts = _text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
+            .Select(part => part.StartsWith('#') && TagNames.Normalise(part[1..]) == from ? (to is null ? null : "#" + to) : part)
+            .OfType<string>();
+        Text = string.Join(' ', parts);
+    }
+
+    // The list's ticks and the button's count follow both the ticked tags and the #tags typed (review T4).
+    private void ShowTicks()
+    {
+        var filtered = Filter.Tags;
+
+        foreach (var row in TagRows)
+        {
+            row.Show(filtered.Contains(row.Tag));
+        }
+
+        Raise(nameof(TagsButtonText));
     }
 
     /// <summary>Clicking a tag on a card: filters by that tag, as ticking it does (item 12).</summary>
@@ -98,6 +130,7 @@ public sealed class BoardSearchViewModel : ObservableObject
         }
     }
 
+    // Unticking a tag typed as #tag takes it out of the box, since the two are the same (item 12).
     private void Tick(string tag, bool ticked)
     {
         if (ticked && !TickedTags.Contains(tag))
@@ -107,6 +140,7 @@ public sealed class BoardSearchViewModel : ObservableObject
         else if (!ticked)
         {
             TickedTags.Remove(tag);
+            RetypeTag(tag, null);
         }
     }
 

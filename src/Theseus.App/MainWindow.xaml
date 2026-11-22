@@ -243,19 +243,26 @@
 
         <!-- One item of Tags ›: the tag with its tick and a dot of its colour, or New tag… (item 10). -->
         <Style x:Key="TagMenuItem" TargetType="MenuItem">
-            <Setter Property="Header" Value="{Binding Header}" />
+            <Setter Property="Header" Value="{Binding}" />
             <Setter Property="IsChecked" Value="{Binding IsChecked, Mode=OneWay}" />
             <Setter Property="Command" Value="{Binding Command}" />
             <Setter Property="ToolTip" Value="{Binding ToolTip}" />
-            <Setter Property="Icon">
+            <!-- A template, not an Icon: one Icon element set by a style is shared, so only one item could show its dot (review T3). -->
+            <Setter Property="HeaderTemplate">
                 <Setter.Value>
-                    <Ellipse Width="8" Height="8" Fill="{Binding ColourHex, Converter={StaticResource HexToBrush}}"
-                             Visibility="{Binding IsTag, Converter={StaticResource BoolToVisibility}}" />
+                    <DataTemplate>
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="8" Height="8" Margin="0,0,6,0" VerticalAlignment="Center"
+                                     Fill="{Binding ColourHex, Converter={StaticResource HexToBrush}}"
+                                     Visibility="{Binding IsTag, Converter={StaticResource BoolToVisibility}}" />
+                            <TextBlock Text="{Binding Header}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </DataTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
 
-        <ContextMenu x:Key="CardMenu" x:Shared="False"
+        <ContextMenu x:Key="CardMenu" x:Shared="False" Opened="OnCardMenuOpened"
                      FontFamily="{x:Static SystemFonts.MessageFontFamily}"
                      DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
             <MenuItem Header="P_roperties" InputGestureText="Alt+Enter" FontWeight="SemiBold"
@@ -338,7 +345,7 @@
                     </Style>
                 </Border.Style>
                 <Border.ContextMenu>
-                    <ContextMenu FontFamily="{x:Static SystemFonts.MessageFontFamily}">
+                    <ContextMenu FontFamily="{x:Static SystemFonts.MessageFontFamily}" Opened="OnCardMenuOpened">
                         <MenuItem Header="_Open" FontWeight="SemiBold" Command="{Binding OpenCommand}"
                                   ToolTip="{Binding OpenToolTip}"
                                   Visibility="{Binding IsDimmed, Converter={StaticResource NotBoolToVisibility}}" />
@@ -2808,12 +2815,14 @@
                                             <TextBox Text="{Binding NewTag, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,60,0"
                                                      AutomationProperties.Name="New tag" ToolTip="A tag: letters, digits and hyphens. Enter adds it">
                                                 <TextBox.InputBindings>
-                                                    <KeyBinding Key="Return" Command="{Binding AddCommand}" />
+                                                    <KeyBinding Key="Return" Command="{Binding EnterCommand}" />
                                                 </TextBox.InputBindings>
                                             </TextBox>
                                             <Button Content="Add" HorizontalAlignment="Right" Padding="12,3" Style="{StaticResource CommandButton}"
                                                     Command="{Binding AddCommand}" ToolTip="{Binding AddToolTip}" ToolTipService.ShowOnDisabled="True" />
                                         </Grid>
+                                        <TextBlock Text="{Binding Refusal}" FontSize="11" Margin="0,2,0,0" TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource SystemFillColorCriticalBrush}" />
                                         <ItemsControl ItemsSource="{Binding Suggestions}" Margin="0,4,0,0" Focusable="False">
                                             <ItemsControl.ItemsPanel>
                                                 <ItemsPanelTemplate>
