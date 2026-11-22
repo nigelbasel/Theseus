@@ -59,8 +59,8 @@ public static class PiecesOfWork
             {
                 var card = byKey.GetValueOrDefault(row.Workstream);
 
-                // Verifiers join a project through their report-back link, not a row (1.1c plan, departure 1). A row
-                // naming a card that is not on the board cannot be told from any other, so it stays a piece.
+                // A verifier's row (written since 1.1e PR 6) is not a piece of work: it checks one. A row naming a card that
+                // is not on the board cannot be told from any other, so it stays a piece.
                 if (card?.Role == WorkstreamRole.Verifier)
                 {
                     continue;
@@ -126,6 +126,7 @@ public static class PiecesOfWork
         {
             Card = card,
             IsCurrentPiece = isCurrent,
+            Acceptance = acceptanceOf(row.Slug),
         };
     }
 

@@ -499,7 +499,12 @@ public sealed class ProjectViewModel : ObservableObject
         {
             var noun = node.Piece.Pipeline == PipelineKind.Bug ? "rule" : "spec";
 
-            return new WaitingButtonViewModel($"Accept the {noun} of {node.Name}…", new RelayCommand(_ =>
+            // A session reported the owner accepted this version in its tab: he confirms here (1.1e AC 28).
+            var label = node.Piece.Reported is { } reported && string.Equals(reported.ContentHash, spec.ContentHash, StringComparison.Ordinal)
+                ? $"You accepted this in {reported.CardTitle}'s tab: Confirm…"
+                : $"Accept the {noun} of {node.Name}…";
+
+            return new WaitingButtonViewModel(label, new RelayCommand(_ =>
             {
                 Reveal(stage);
                 _actions.AcceptSpec(spec);

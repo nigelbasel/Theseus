@@ -63,8 +63,28 @@ public sealed record SpecAtGate(string Project, string Slug, string ContentHash,
 
     /// <summary>What Accept spec asks first: the slug and the version it accepts (AC 15).</summary>
     public string ConfirmationQuestion =>
-        $"Accept the spec of {Slug} in {Project}, version {ShortVersion} ({Source.Describe})?"
-        + $"{Environment.NewLine}{Environment.NewLine}Its gate then stays passed until the spec changes.";
+        $"Accept the {(IsRule ? "rule" : "spec")} of {Slug} in {Project}, version {ShortVersion} ({Source.Describe})?"
+        + $"{Environment.NewLine}{Environment.NewLine}Its gate then stays passed until the {(IsRule ? "rule" : "spec")} changes.";
+
+    /// <summary>
+    /// The question before accepting (1.1e AC 27): it names the card Theseus then tells, and, for a report from a session,
+    /// the owner's words it quoted.
+    /// </summary>
+    public string QuestionFor(string? cardTitle, ReportedAcceptance? report = null, bool cardIsRunning = true)
+    {
+        var noun = IsRule ? "rule" : "spec";
+        var said = report is null
+            ? string.Empty
+            : $"{Environment.NewLine}{Environment.NewLine}{report.CardTitle}'s session reports you said: \"{report.OwnerWords}\"";
+        var tells = cardTitle is null
+            ? $"{Environment.NewLine}{Environment.NewLine}No card works it, so no session will be told."
+            : cardIsRunning
+                ? $"{Environment.NewLine}{Environment.NewLine}Theseus then tells {cardTitle} to carry on to the plan."
+                : $"{Environment.NewLine}{Environment.NewLine}{cardTitle} is stopped: Theseus then starts it, told to carry on to the plan.";
+
+        return $"Accept the {noun} of {Slug} in {Project}, version {ShortVersion} ({Source.Describe})?{said}"
+               + $"{Environment.NewLine}{Environment.NewLine}Its gate then stays passed until the {noun} changes.{tells}";
+    }
 
     /// <summary>The acceptance the owner gives it.</summary>
     public SpecAcceptance Accept(DateTimeOffset now) => new(Project, Slug, ContentHash, now);

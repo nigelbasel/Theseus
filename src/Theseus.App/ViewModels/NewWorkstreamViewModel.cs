@@ -148,6 +148,8 @@ public sealed class NewWorkstreamViewModel : ObservableObject
         Raise(nameof(IsProposal));
         Raise(nameof(ProposalText));
         Raise(nameof(ProposalWarnings));
+        Raise(nameof(ProposalBlock));
+        Raise(nameof(CanCreate));
         Raise(nameof(ReportPath));
     }
 
@@ -248,7 +250,16 @@ public sealed class NewWorkstreamViewModel : ObservableObject
     public bool CanCreate =>
         !string.IsNullOrWhiteSpace(_title)
         && !string.IsNullOrWhiteSpace(_prompt)
-        && WorkingDirectoryExists;
+        && WorkingDirectoryExists
+        && ProposalBlock.Length == 0;
+
+    /// <summary>Why a proposal cannot be approved yet, set by the board (1.1e AC 31).</summary>
+    public Func<WorkstreamProposal, string?>? WhyCannotApprove { get; set; }
+
+    /// <summary>Why this proposal cannot be approved yet, shown above Create; empty when it can.</summary>
+    public string ProposalBlock => _proposal is not null && WhyCannotApprove?.Invoke(_proposal) is { } why
+        ? $"Cannot be approved yet: {why}"
+        : string.Empty;
 
     private void Open()
     {
@@ -257,6 +268,8 @@ public sealed class NewWorkstreamViewModel : ObservableObject
         Raise(nameof(IsProposal));
         Raise(nameof(ProposalText));
         Raise(nameof(ProposalWarnings));
+        Raise(nameof(ProposalBlock));
+        Raise(nameof(CanCreate));
         Raise(nameof(IsFollowOn));
         Raise(nameof(ParentTitle));
         Title = string.Empty;

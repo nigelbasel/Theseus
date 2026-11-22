@@ -125,6 +125,7 @@ public partial class App : Application
         var proposed = new ProposalsViewModel(proposals, () => [.. shell.Board.Cards], shell.ReviewProposal)
         {
             Arrived = shell.Warn,
+            Rejected = shell.ProposalRejected,
         };
 
         chains.Proposals = proposed;
@@ -235,7 +236,11 @@ public partial class App : Application
                 briefFolderName: () => settings.Read().BriefFolderName,
                 approve: (proposal, startNow) => Dispatcher.Invoke(() => shell.ApproveFromSession(proposal, startNow)),
                 workItems: workItems,
-                control: new DispatchedWorkstreamControl(shell.WorkstreamControl, Dispatcher)),
+                control: new DispatchedWorkstreamControl(shell.WorkstreamControl, Dispatcher),
+                gates: new DispatchedSpecGates(shell.SpecGatesOnBoard, Dispatcher),
+                // Read off the UI thread: the log has its own lock, and a board busy with a dialog must not lose what it marks
+                // read (review of PR 6, finding 2).
+                events: shell.EventsFor),
             Theseus.Core.Mcp.TheseusMcp.DefaultPort,
             new LockHttpApi(locks, () => DateTimeOffset.UtcNow));
 

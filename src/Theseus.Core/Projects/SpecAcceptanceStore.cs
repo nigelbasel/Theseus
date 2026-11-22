@@ -61,16 +61,23 @@ public sealed class SpecAcceptanceStore
     /// Records the owner's acceptance of a spec only when he says yes to the question naming its slug and version
     /// (project-view AC 15); with no one to ask, nothing is accepted.
     /// </summary>
-    public bool AcceptIfConfirmed(SpecAtGate spec, Func<string, bool>? confirm, DateTimeOffset now)
+    public bool AcceptIfConfirmed(SpecAtGate spec, Func<string, bool>? confirm, DateTimeOffset now) =>
+        AcceptIfConfirmed(spec, confirm, now, spec?.ConfirmationQuestion ?? string.Empty, null, null);
+
+    /// <summary>
+    /// Records it after a yes to the question given, with who accepted it and how (1.1e AC 29); with no one to ask, nothing
+    /// is accepted.
+    /// </summary>
+    public bool AcceptIfConfirmed(SpecAtGate spec, Func<string, bool>? confirm, DateTimeOffset now, string question, string? by, string? how)
     {
         ArgumentNullException.ThrowIfNull(spec);
 
-        if (confirm?.Invoke(spec.ConfirmationQuestion) != true)
+        if (confirm?.Invoke(question) != true)
         {
             return false;
         }
 
-        Accept(spec.Accept(now));
+        Accept(spec.Accept(now) with { By = by, How = how ?? SpecAcceptance.OnTheBoard });
 
         return true;
     }
