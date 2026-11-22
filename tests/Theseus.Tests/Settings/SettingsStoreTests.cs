@@ -49,6 +49,7 @@ public class SettingsStoreTests
             ProjectColours = new Dictionary<string, string> { ["a-project"] = "#208DD7" },
             ProjectGrouping = new Dictionary<string, ProjectViewGrouping> { ["a-project"] = ProjectViewGrouping.Objectives },
             ProjectRunStates = new Dictionary<string, IReadOnlyList<string>> { ["a-project"] = ["git-22", "git-23"] },
+            ProjectLeads = new Dictionary<string, string> { ["a-project"] = "git-22" },
             CardsStoppedByOwner = ["git-24"],
             ProjectBranchRules = new Dictionary<string, ProjectBranchGrant>
             {
@@ -75,6 +76,7 @@ public class SettingsStoreTests
         Assert.That(read.ProjectColours["a-project"], Is.EqualTo("#208DD7"));
         Assert.That(read.ProjectGrouping["a-project"], Is.EqualTo(ProjectViewGrouping.Objectives));
         Assert.That(read.ProjectRunStates["a-project"], Is.EqualTo(new[] { "git-22", "git-23" }));
+        Assert.That(read.ProjectLeads["a-project"], Is.EqualTo("git-22"));
         Assert.That(read.CardsStoppedByOwner, Is.EqualTo(new[] { "git-24" }));
         Assert.That(read.ProjectBranchRules["a-project"],
             Is.EqualTo(new ProjectBranchGrant(new DateTimeOffset(2026, 11, 21, 20, 0, 0, TimeSpan.Zero), "nigel/a-project")));
@@ -88,7 +90,7 @@ public class SettingsStoreTests
                 CollapsedStages = settings.CollapsedStages, CollapsedCards = settings.CollapsedCards,
                 ViewFolds = settings.ViewFolds, ColumnWeights = settings.ColumnWeights, RowHeights = settings.RowHeights, AreaWindows = settings.AreaWindows,
                 ProjectCardPlaces = settings.ProjectCardPlaces, PaneSizes = settings.PaneSizes, ProjectColours = settings.ProjectColours,
-                ProjectGrouping = settings.ProjectGrouping, ProjectRunStates = settings.ProjectRunStates,
+                ProjectGrouping = settings.ProjectGrouping, ProjectRunStates = settings.ProjectRunStates, ProjectLeads = settings.ProjectLeads,
                 CardsStoppedByOwner = settings.CardsStoppedByOwner, ProjectBranchRules = settings.ProjectBranchRules,
                 CardsToldBranchRules = settings.CardsToldBranchRules, HiddenProjectFolders = settings.HiddenProjectFolders,
                 ProjectHoldoutFolders = settings.ProjectHoldoutFolders,

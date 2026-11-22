@@ -373,6 +373,11 @@
                                     ToolTip="{Binding OpenButtonToolTip}" AutomationProperties.Name="Update project file"
                                     Visibility="{Binding IsDimmed, Converter={StaticResource BoolToVisibility}}"
                                     Command="{Binding OpenCommand}" />
+                            <!-- The lead's terminal, beside Open (Nigel, 2026-11-22). -->
+                            <Button x:Name="ProjectFocusLead" Style="{StaticResource CardIcon}" Content="⌖"
+                                    ToolTip="{Binding FocusLeadToolTip}" ToolTipService.ShowOnDisabled="True"
+                                    AutomationProperties.Name="Focus lead" Command="{Binding FocusLeadCommand}"
+                                    Visibility="{Binding IsDimmed, Converter={StaticResource NotBoolToVisibility}}" />
                             <Button x:Name="ProjectStart" Style="{StaticResource CardIcon}" Content="&#xE768;"
                                     ToolTip="{Binding StartToolTip}" AutomationProperties.Name="Start project"
                                     Command="{Binding StartCommand}"

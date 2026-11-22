@@ -183,6 +183,9 @@ public sealed record TheseusSettings(
     public IReadOnlyDictionary<string, IReadOnlyList<string>> ProjectRunStates { get; init; } =
         new Dictionary<string, IReadOnlyList<string>>();
 
+    /// <summary>Each project's lead card, by project name, as chosen in Project properties (Nigel, 2026-11-22).</summary>
+    public IReadOnlyDictionary<string, string> ProjectLeads { get; init; } = new Dictionary<string, string>();
+
     /// <summary>
     /// The cards the owner stopped by hand while their project ran (1.1e AC 10, 12): the project does not start them again
     /// until they are started by hand. A start of the card removes it.

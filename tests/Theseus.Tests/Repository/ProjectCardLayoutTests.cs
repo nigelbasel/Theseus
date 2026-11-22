@@ -144,7 +144,7 @@ public class ProjectCardLayoutTests
         var buttons = Descendants<Button>(Named<StackPanel>(face, "ProjectButtons")).Select(button => button.Name);
         var open = Named<Button>(face, "ProjectOpen");
 
-        Assert.That(buttons, Is.EqualTo(new[] { "ProjectOpen", "ProjectUpdate", "ProjectStart", "ProjectStop" }),
+        Assert.That(buttons, Is.EqualTo(new[] { "ProjectOpen", "ProjectUpdate", "ProjectFocusLead", "ProjectStart", "ProjectStop" }),
             "Update stands in for ↗ only on a card that needs updating (1.1e AC 18)");
         Assert.That(Named<Button>(face, "ProjectUpdate").Visibility, Is.EqualTo(Visibility.Collapsed));
         Assert.That((open.ToolTip, open.Content), Is.EqualTo(((object)"Open the project (Enter)", (object)"")));

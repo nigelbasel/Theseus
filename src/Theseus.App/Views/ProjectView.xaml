@@ -485,6 +485,45 @@
         <DataTemplate DataType="{x:Type vm:PieceNodeViewModel}">
             <StackPanel Margin="0,0,0,14" Visibility="{Binding IsShown, Converter={StaticResource Visible}}">
                 <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource PieceBox}" />
+                <!-- A proposal it raised, waiting for you: a dashed node under it (1.1e item 30). -->
+                <ItemsControl x:Name="Proposals" ItemsSource="{Binding Proposals}" Margin="34,10,0,0" Focusable="False"
+                              Visibility="{Binding HasProposals, Converter={StaticResource Visible}}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type vm:ProposalRowViewModel}">
+                            <Border x:Name="ProposalNode" CornerRadius="8" BorderThickness="1.5" Padding="10,7" Margin="0,0,0,8" MaxWidth="420"
+                                    HorizontalAlignment="Left" BorderBrush="{DynamicResource StateWaitingBrush}">
+                                <StackPanel>
+                                    <TextBlock Text="◆ Proposed: waiting for you" FontSize="12.5" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource StateWaitingBrush}" />
+                                    <TextBlock x:Name="ProposalTitle" Text="{Binding Proposal.Request.Title}" FontWeight="SemiBold" TextWrapping="Wrap"
+                                               Margin="0,2,0,0" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                    <TextBlock Text="{Binding DoneCriteria}" FontSize="12.5" TextWrapping="Wrap" Margin="0,2,0,6"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                    <WrapPanel>
+                                        <Button x:Name="ProposalReview" Content="Approve…" Command="{Binding ReviewCommand}" Style="{StaticResource CommandButton}"
+                                                Padding="9,3" Margin="0,0,6,0" ToolTip="Read its brief, then approve it: creates its card and link"
+                                                AutomationProperties.Name="Approve the proposal" />
+                                        <Button x:Name="ProposalReject" Content="Reject…" Command="{Binding AskRejectCommand}" Style="{StaticResource CommandButton}"
+                                                Padding="9,3" ToolTip="Turn it down, with your reason, on the board's Chains panel"
+                                                AutomationProperties.Name="Reject the proposal" />
+                                    </WrapPanel>
+                                    <StackPanel x:Name="RejectPanel" Margin="0,6,0,0" Visibility="{Binding IsRejecting, Converter={StaticResource Visible}}">
+                                        <TextBox x:Name="RejectNote" Text="{Binding Note, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap"
+                                                 AutomationProperties.Name="Why you reject it" ToolTip="Your reason, kept with the proposal and told to its session" />
+                                        <WrapPanel Margin="0,4,0,0">
+                                            <Button Content="Reject" Command="{Binding RejectCommand}" Style="{StaticResource CommandButton}" Padding="9,3"
+                                                    Margin="0,0,6,0" AutomationProperties.Name="Confirm the rejection" />
+                                            <Button Content="Cancel" Command="{Binding CancelRejectCommand}" Style="{StaticResource CommandButton}" Padding="9,3"
+                                                    AutomationProperties.Name="Cancel the rejection" />
+                                        </WrapPanel>
+                                        <TextBlock Text="{Binding Refusal}" TextWrapping="Wrap" Foreground="{DynamicResource StateStuckBrush}"
+                                                   Visibility="{Binding Refusal, Converter={StaticResource NotEmpty}}" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
                 <Grid x:Name="BranchRow" Margin="0,10,0,0" Visibility="{Binding HasChildren, Converter={StaticResource Visible}}">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="{Binding BranchIndent}" />
@@ -793,6 +832,13 @@
                                Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                     <TextBlock x:Name="ProjectTag" Text="PROJECT" FontFamily="{StaticResource Mono}" FontSize="11" FontWeight="Medium"
                                Margin="10,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                </WrapPanel>
+                <WrapPanel x:Name="LeadLine" Margin="0,6,0,0" Visibility="{Binding HasLead, Converter={StaticResource Visible}}">
+                    <TextBlock x:Name="LeadText" Text="{Binding LeadText}" FontSize="13" VerticalAlignment="Center" Margin="0,0,8,0"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                    <Button x:Name="FocusLead" Content="⧉ Focus" Command="{Binding FocusLeadCommand}" ToolTip="{Binding FocusLeadToolTip}"
+                            ToolTipService.ShowOnDisabled="True" Style="{StaticResource CommandButton}" Padding="8,1" FontSize="12.5"
+                            AutomationProperties.Name="Focus the lead's terminal" />
                 </WrapPanel>
                 <TextBlock x:Name="Sentence" Text="{Binding Sentence}" FontSize="15" TextWrapping="Wrap" Margin="0,10,0,0"
                            Foreground="{DynamicResource TextFillColorPrimaryBrush}" />

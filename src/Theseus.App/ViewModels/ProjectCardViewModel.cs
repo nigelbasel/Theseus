@@ -318,6 +318,15 @@ public sealed class ProjectCardViewModel : ObservableObject, IBoardCard
     /// <summary>▶: starts its run state, or its first card when it was never stopped (1.1e AC 9).</summary>
     public ICommand? StartCommand { get; set; }
 
+    /// <summary>The lead card's key, or null when the project has no rows.</summary>
+    public string? LeadKey { get; set; }
+
+    /// <summary>⌖ Focus lead: brings the lead's terminal forward, disabled with its reason when it has no session.</summary>
+    public ICommand? FocusLeadCommand { get; set; }
+
+    /// <summary>"Bring &lt;lead&gt;'s terminal forward", or why it cannot.</summary>
+    public string FocusLeadToolTip { get; set; } = string.Empty;
+
     /// <summary>■: records its run state and asks each of its running sessions to write its handover and stop (1.1e AC 8).</summary>
     public ICommand? StopCommand { get; set; }
 

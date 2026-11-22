@@ -753,8 +753,15 @@ public sealed class ShellViewModel : ObservableObject
         var primary = PrimaryBranchOf(card.Name);
         var grant = ProjectBranchRules.GrantOf(card.Name, _settings.Read().ProjectBranchRules);
         var granted = grant is not null;
+        var file = Readable(card.Name)?.File;
+        var lead = file is null ? null : ProjectLead.KeyOf(file, _settings.Read().ProjectLeads);
         var properties = new ProjectPropertiesViewModel(card.Name, card.Title, card.ColourHex, card.ProjectFile, others)
         {
+            Leads = file is null
+                ? []
+                : [.. file.Workstreams.Select(row => row.Workstream).Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Select(key => new KeyValuePair<string, string>(key, $"{Board.Card(key)?.Title ?? key} ({key})"))],
+            Lead = lead,
             Problem = card.Problem,
             PrimaryBranch = primary,
             GrantsBranchRules = granted,
@@ -769,6 +776,17 @@ public sealed class ShellViewModel : ObservableObject
         if (AskProjectProperties?.Invoke(properties) != true)
         {
             return;
+        }
+
+        if (properties.Lead is { } chosen && !string.Equals(chosen, lead, StringComparison.OrdinalIgnoreCase))
+        {
+            var current = _settings.Read();
+            _settings.Write(current with
+            {
+                ProjectLeads = new Dictionary<string, string>(current.ProjectLeads, StringComparer.OrdinalIgnoreCase) { [card.Name] = chosen },
+            });
+            Notice = $"{card.Title}'s lead is now {Board.Card(chosen)?.Title ?? chosen}.";
+            WireProjectChoices();
         }
 
         // OK with the box ticked over a grant for another primary branch grants it for the one the file names now.
@@ -1952,8 +1970,15 @@ public sealed class ShellViewModel : ObservableObject
             projectCard.PhaseText = file.CurrentPhase is { } phase ? $"Phase {phase.Number}: {phase.Name}" : "Every objective done";
             projectCard.ObjectivesText = $"{file.ObjectivesDone} of {file.Objectives.Count} objectives done";
             WireProjectCard(projectCard, reading, colours);
+            var lead = ProjectLead.KeyOf(file, _settings.Read().ProjectLeads);
+            var leadCard = lead is null ? null : Board.Card(lead);
+            projectCard.FocusLeadToolTip = leadCard is null
+                ? "This project has no lead card on the board"
+                : FocusCardCommand.CanExecute(leadCard) ? $"Bring {leadCard.Title}'s terminal forward" : $"{leadCard.Title} has no session: start it first";
+            projectCard.FocusLeadCommand = new RelayCommand(_ => FocusCardCommand.Execute(leadCard), _ => leadCard is not null && FocusCardCommand.CanExecute(leadCard));
+
             if (ProjectCardFace.Fill(projectCard, pieces, _settings.Read().ProjectRunStates.GetValueOrDefault(name),
-                    _settings.Read().CardsStoppedByOwner, overview))
+                    _settings.Read().CardsStoppedByOwner, overview, lead))
             {
                 System.Windows.Input.CommandManager.InvalidateRequerySuggested();
             }
@@ -1973,7 +1998,7 @@ public sealed class ShellViewModel : ObservableObject
 
             if (string.Equals(name, _openProjectName, StringComparison.OrdinalIgnoreCase))
             {
-                openView = BuildView(reading, pieces, tabs, overview);
+                openView = BuildView(reading, pieces, tabs, overview, lead);
             }
         }
 
@@ -2116,18 +2141,21 @@ public sealed class ShellViewModel : ObservableObject
     /// so a refresh that changes what is drawn keeps what the owner was looking at (AC 36).
     /// </summary>
     private ProjectViewModel BuildView(ProjectFileReading reading, IReadOnlyList<PieceOfWork> pieces,
-        IReadOnlyList<ProjectTabViewModel> tabs, ProjectOverview overview) =>
+        IReadOnlyList<ProjectTabViewModel> tabs, ProjectOverview overview, string? lead) =>
         ProjectViewModel.Build(reading, pieces, Chains?.Status ?? new LinkStatus([], []), tabs, _settings,
             _projectActions ??= ProjectViewCommands.For(Board.Card, FocusCardCommand, StartCardCommand, StopCardCommand, OpenSpec,
                 AcceptSpec, OpenFile, text => Notice = text, (card, project) => AddToProject(card, project), WhyNot, WayOn) with
             {
                 ShowRecords = ShowRecordsWindow is { } show ? (piece, stage) => show(new RecordsViewModel(piece, stage, OpenFile)) : null,
                 OpenLinks = key => ShowCardLinksCommand.Execute(Board.Card(key)),
+                ProposalsOf = key => [.. Chains?.Proposals?.Pending.Where(row =>
+                    string.Equals(row.Proposal.RequesterKey, key, StringComparison.OrdinalIgnoreCase)) ?? []],
             },
             CloseProjectCommand,
             EditsOf(reading.Name),
             ProjectView,
-            overview);
+            overview,
+            lead);
 
     /// <summary>What the project view knows of a board card (1.1d AC 1): its session, marks, role and whether Start would start it.</summary>
     private PieceCard PieceCardOf(WorkstreamCardViewModel card) =>

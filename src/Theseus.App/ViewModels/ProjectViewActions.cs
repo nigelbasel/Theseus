@@ -44,4 +44,7 @@ public sealed record ProjectViewActions(
 
     /// <summary>Opens a card's links and proposals on the board, where a report is confirmed or a proposal decided; null in tests.</summary>
     public Action<string>? OpenLinks { get; init; }
+
+    /// <summary>The pending proposals a card raised, as the board's Chains panel shows them (1.1e item 30); null in tests.</summary>
+    public Func<string, IReadOnlyList<ProposalRowViewModel>>? ProposalsOf { get; init; }
 }

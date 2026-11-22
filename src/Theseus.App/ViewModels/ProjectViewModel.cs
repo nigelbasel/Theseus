@@ -79,6 +79,18 @@ public sealed class ProjectViewModel : ObservableObject
     /// <summary>The summary, phase strip, tallies and "Waits for you" (1.1f G33 to G37b).</summary>
     public ProjectOverview Overview { get; private set; } = null!;
 
+    /// <summary>"Lead: Theseus · idle", the project's lead card and its state (Nigel, 2026-11-22); empty with no rows.</summary>
+    public string LeadText { get; private set; } = string.Empty;
+
+    /// <summary>Brings the lead's terminal forward; disabled with its reason when it has no session.</summary>
+    public System.Windows.Input.ICommand? FocusLeadCommand { get; private set; }
+
+    /// <summary>What Focus does, or why it cannot.</summary>
+    public string FocusLeadToolTip { get; private set; } = string.Empty;
+
+    /// <summary>Whether the header shows a lead.</summary>
+    public bool HasLead => LeadText.Length > 0;
+
     /// <summary>"◆ Waits for you (4)" (G36).</summary>
     public string WaitsHeading => $"◆ Waits for you ({Waits.Count})";
 
@@ -251,7 +263,7 @@ public sealed class ProjectViewModel : ObservableObject
     /// <param name="previous">The view it replaces, whose selection it keeps while the piece and stage still exist.</param>
     public static ProjectViewModel Build(ProjectFileReading reading, IReadOnlyList<PieceOfWork> pieces, LinkStatus links,
         IReadOnlyList<ProjectTabViewModel> tabs, ISettingsStore settings, ProjectViewActions actions, ICommand? back = null,
-        ProjectViewEdits? edits = null, ProjectViewModel? previous = null, ProjectOverview? overview = null)
+        ProjectViewEdits? edits = null, ProjectViewModel? previous = null, ProjectOverview? overview = null, string? lead = null)
     {
         ArgumentNullException.ThrowIfNull(reading);
         ArgumentNullException.ThrowIfNull(pieces);
@@ -265,6 +277,24 @@ public sealed class ProjectViewModel : ObservableObject
         var marks = ObjectiveGrouping.Marks(tree);
         var view = new ProjectViewModel(file, ProjectSummary.For(pieces), settings, actions, edits) { BackCommand = back };
         view.Overview = overview ?? ProjectOverview.For(file, pieces, links.Links, [], 0);
+
+        if ((lead ?? ProjectLead.KeyOf(file, new Dictionary<string, string>())) is { } leadKey)
+        {
+            var card = pieces.Select(piece => piece.Card).FirstOrDefault(each => string.Equals(each?.Key, leadKey, StringComparison.OrdinalIgnoreCase));
+            var state = card switch
+            {
+                null => "not on the board",
+                { IsWorking: true } => "busy",
+                { Lifecycle: Theseus.Core.Domain.SessionLifecycle.NeedsAttention } => "asking you something",
+                { HasSession: true } => "idle",
+                _ => "no session",
+            };
+            view.LeadText = $"Lead: {card?.Title ?? leadKey} · {state}";
+            view.FocusLeadCommand = new RelayCommand(_ => actions.Focus(leadKey), _ => card?.HasSession == true);
+            view.FocusLeadToolTip = card?.HasSession == true
+                ? $"Bring {card.Title}'s terminal forward"
+                : $"{card?.Title ?? leadKey} has no session: start it first";
+        }
         var specs = SpecsOf(reading, file.Name, pieces);
         var parents = tree.All.SelectMany(node => node.Children.Select(child => (Child: child.Piece, Parent: node.Piece)))
             .ToDictionary(pair => pair.Child, pair => pair.Parent);
@@ -498,6 +528,7 @@ public sealed class ProjectViewModel : ObservableObject
             Spec = spec,
             CrossMarks = crossMarks,
             AddToProject = addToProject,
+            Proposals = piece.IsCurrentPiece ? _actions.ProposalsOf?.Invoke(piece.CardKey) ?? [] : [],
         };
     }
 

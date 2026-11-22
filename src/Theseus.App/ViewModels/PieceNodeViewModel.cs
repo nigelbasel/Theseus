@@ -288,6 +288,15 @@ public sealed class PieceNodeViewModel : ObservableObject, IFoldable
         }
     }
 
+    /// <summary>
+    /// The proposals its card raised that wait for the owner, drawn as dashed nodes under it with Approve and Reject
+    /// (1.1e item 30, placed by 1.1f's "What this replaces"); only on the card's current piece.
+    /// </summary>
+    public IReadOnlyList<ProposalRowViewModel> Proposals { get; init; } = [];
+
+    /// <summary>Whether it has a proposal waiting.</summary>
+    public bool HasProposals => Proposals.Count > 0;
+
     /// <summary>Whether the filter shows it: it matches, or a piece under it does (1.1e item 26).</summary>
     public bool IsShown
     {

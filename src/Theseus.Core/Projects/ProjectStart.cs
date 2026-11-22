@@ -46,8 +46,12 @@ public sealed class ProjectStart
     /// <param name="pieces">Its pieces of work.</param>
     /// <param name="runState">Its run state when it was stopped, or null when it is not stopped.</param>
     /// <param name="stoppedByOwner">The cards the owner stopped by hand, which a project never stopped does not start.</param>
+    /// <param name="lead">
+    /// The project's lead card: with no run state it is what Start starts, and it decides what else runs (Nigel,
+    /// 2026-11-22, replacing 1.1e's first unfinished piece's card). Null starts the first unfinished piece's card.
+    /// </param>
     public static ProjectStart For(string title, IReadOnlyList<PieceOfWork> pieces, IReadOnlyList<string>? runState = null,
-        IReadOnlyCollection<string>? stoppedByOwner = null)
+        IReadOnlyCollection<string>? stoppedByOwner = null, string? lead = null)
     {
         ArgumentNullException.ThrowIfNull(title);
         ArgumentNullException.ThrowIfNull(pieces);
@@ -60,6 +64,11 @@ public sealed class ProjectStart
         {
             return new ProjectStart(title, true,
                 [.. runState.Distinct(StringComparer.OrdinalIgnoreCase).Select(key => Entry(key, cards.GetValueOrDefault(key), null))]);
+        }
+
+        if (lead is not null)
+        {
+            return new ProjectStart(title, false, [Entry(lead, cards.GetValueOrDefault(lead), stoppedByOwner)]);
         }
 
         var first = pieces.FirstOrDefault(piece => piece.IsListed && piece.Card is not null && piece.Status.State != StageNodeState.Done)
