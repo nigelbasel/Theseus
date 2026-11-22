@@ -34,7 +34,9 @@ public static class ProjectFileEditor
             last++;
         }
 
-        lines.Insert(last + 1, NewLine(lines, last, $"| {row.Workstream} | {row.Slug} | {row.Branch} | {row.Repos} |"));
+        // A table with a What column takes a fifth cell, or the reader would refuse the row (1.1f B7).
+        var what = Cells(lines[header].Text).Length > TableHeader.Length ? $" {row.What} |" : string.Empty;
+        lines.Insert(last + 1, NewLine(lines, last, $"| {row.Workstream} | {row.Slug} | {row.Branch} | {row.Repos} |{what}"));
 
         return Close(lines, file.Name);
     }
@@ -304,10 +306,14 @@ public static class ProjectFileEditor
             return false;
         }
 
-        var cells = trimmed.Trim('|').Split('|').Select(cell => cell.Trim()).ToArray();
+        var cells = Cells(trimmed);
 
-        return cells.SequenceEqual(TableHeader, StringComparer.Ordinal);
+        return cells.SequenceEqual(TableHeader, StringComparer.Ordinal)
+               || (cells.Length == TableHeader.Length + 1 && cells.Take(TableHeader.Length).SequenceEqual(TableHeader, StringComparer.Ordinal)
+                   && cells[^1] == "What");
     }
+
+    private static string[] Cells(string line) => line.Trim().Trim('|').Split('|').Select(cell => cell.Trim()).ToArray();
 
     private static string OneLine(string text, string what)
     {

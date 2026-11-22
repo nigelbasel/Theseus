@@ -21,6 +21,9 @@ public sealed record ProjectObjective(
     /// <summary>Done when every criterion is ticked; an objective whose criteria are not written yet is not done (AC 11).</summary>
     public bool IsDone => Criteria.Count > 0 && Criteria.All(criterion => criterion.IsTicked);
 
+    /// <summary>The round it belongs to: its <c>**Round:**</c> line, or 1 when it has none (1.1f B6, B8, D3).</summary>
+    public int Round { get; init; } = 1;
+
     /// <summary>How many of its criteria are ticked.</summary>
     public int TickedCount => Criteria.Count(criterion => criterion.IsTicked);
 }

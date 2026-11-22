@@ -11,7 +11,13 @@ public static partial class ProjectFileReader
 {
     private static readonly string[] TableHeader = ["Workstream", "Slug", "Branch", "Repos"];
 
+    private static readonly string[] TableHeaderWithWhat = ["Workstream", "Slug", "Branch", "Repos", "What"];
+
+    private static readonly string[] RoundsHeader = ["Round", "Name", "Began", "Why", "By"];
+
     private const string TableHeaderText = "| Workstream | Slug | Branch | Repos |";
+
+    private const string RoundsHeaderText = "| Round | Name | Began | Why | By |";
 
     /// <summary>Reads a project file's text. <paramref name="name"/> is the project home folder's name.</summary>
     public static ProjectFileReading Read(string name, string text)
@@ -65,6 +71,25 @@ public static partial class ProjectFileReader
     [GeneratedRegex(@"^\|(\s*:?-+:?\s*\|)+$")]
     private static partial Regex SeparatorRow();
 
+    [GeneratedRegex(@"(\d{4}-\d{2}-\d{2})")]
+    private static partial Regex WrittenDate();
+
+    private static DateOnly? EarliestDate(string[] lines) =>
+        lines.SelectMany(line => WrittenDate().Matches(line).Select(match => Date(match.Value)))
+            .OfType<DateOnly>()
+            .Order()
+            .Cast<DateOnly?>()
+            .FirstOrDefault();
+
+    [GeneratedRegex(@"^\*\*Round:\*\*\s*(\S+)\s*$")]
+    private static partial Regex RoundLine();
+
+    private static DateOnly? Date(string text) =>
+        DateOnly.TryParseExact(text.Trim().Trim('`'), "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.None, out var date)
+            ? date
+            : null;
+
     private sealed class RefusalException(int line, string message) : Exception(message)
     {
         public int Line { get; } = line;
@@ -75,6 +100,10 @@ public static partial class ProjectFileReader
         private readonly List<ProjectPhase> _phases = [];
         private readonly Dictionary<string, int> _slugLines = new(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> _objectiveNumbers = new(StringComparer.Ordinal);
+        private readonly List<ProjectRound> _rounds = [];
+        private readonly List<(string Objective, int Round, int Line)> _roundLines = [];
+        private int _roundsLine;
+        private DateOnly? _firstDecision;
 
         private PhaseBuilder? _phase;
         private ObjectiveBuilder? _objective;
@@ -119,10 +148,14 @@ public static partial class ProjectFileReader
             }
 
             ReadBody(titleIndex + 1);
+            CheckRoundLines();
 
             return ProjectFileReading.Read(new ProjectFile(name, title, MethodKits.Current, primary, _phases)
             {
                 BeforeKit = beforeKit,
+                RoundsTable = _rounds,
+                FirstDecision = _firstDecision,
+                EarliestDate = EarliestDate(lines),
             });
         }
 
@@ -182,6 +215,21 @@ public static partial class ProjectFileReader
                 if (line.StartsWith("## ", StringComparison.Ordinal))
                 {
                     ClosePhase();
+
+                    if (line.TrimEnd() == "## Rounds")
+                    {
+                        index = ReadRounds(index);
+
+                        continue;
+                    }
+
+                    if (line.TrimEnd() == "## Decisions")
+                    {
+                        ReadFirstDecision(index);
+
+                        continue;
+                    }
+
                     OpenPhase(line, number);
 
                     continue;
@@ -325,6 +373,26 @@ public static partial class ProjectFileReader
                 return index;
             }
 
+            if (RoundLine().Match(line.TrimEnd()) is { Success: true } round)
+            {
+                if (objective.RoundLine > 0)
+                {
+                    throw new RefusalException(number, $"objective {objective.Number} has a second **Round:** line");
+                }
+
+                if (!int.TryParse(round.Groups[1].Value, System.Globalization.NumberStyles.None,
+                        System.Globalization.CultureInfo.InvariantCulture, out var roundNumber) || roundNumber < 1)
+                {
+                    throw new RefusalException(number, $"objective {objective.Number}'s **Round:** line is not a round number");
+                }
+
+                objective.RoundLine = number;
+                objective.Round = roundNumber;
+                _roundLines.Add((objective.Number, roundNumber, number));
+
+                return index;
+            }
+
             if (line.StartsWith("**Pipeline:**", StringComparison.Ordinal))
             {
                 if (objective.PipelineLine > 0)
@@ -367,9 +435,12 @@ public static partial class ProjectFileReader
             var objective = _objective!;
             var number = index + 1;
 
-            if (!Cells(lines[index]).SequenceEqual(TableHeader, StringComparer.Ordinal))
+            var header = Cells(lines[index]);
+
+            if (!header.SequenceEqual(TableHeader, StringComparer.Ordinal) && !header.SequenceEqual(TableHeaderWithWhat, StringComparer.Ordinal))
             {
-                throw new RefusalException(number, $"the table under objective {objective.Number} is not '{TableHeaderText}'");
+                throw new RefusalException(number,
+                    $"the table under objective {objective.Number} is not '{TableHeaderText}', with an optional What column after Repos");
             }
 
             if (objective.TableLine > 0)
@@ -394,22 +465,23 @@ public static partial class ProjectFileReader
             while (index + 1 < lines.Length && lines[index + 1].TrimStart().StartsWith('|'))
             {
                 index++;
-                objective.Rows.Add(Row(lines[index], index + 1));
+                objective.Rows.Add(Row(lines[index], index + 1, header.Length));
             }
 
             return index;
         }
 
-        private ProjectWorkstreamRow Row(string line, int number)
+        private ProjectWorkstreamRow Row(string line, int number, int columns)
         {
             var cells = Cells(line);
 
-            if (cells.Length != TableHeader.Length)
+            if (cells.Length != columns)
             {
-                throw new RefusalException(number, $"a workstreams row has {cells.Length} cells, not {TableHeader.Length}");
+                throw new RefusalException(number, $"a workstreams row has {cells.Length} cells, not {columns}");
             }
 
-            for (var cell = 0; cell < cells.Length; cell++)
+            // What may be left empty by a session that has not written it yet; the four before it may not.
+            for (var cell = 0; cell < TableHeader.Length; cell++)
             {
                 if (cells[cell].Length == 0)
                 {
@@ -431,7 +503,111 @@ public static partial class ProjectFileReader
 
             _slugLines[slug] = number;
 
-            return new ProjectWorkstreamRow(cells[0], slug, cells[2].Trim('`'), cells[3], number);
+            return new ProjectWorkstreamRow(cells[0], slug, cells[2].Trim('`'), cells[3], number)
+            {
+                What = columns > TableHeader.Length && cells[4].Length > 0 ? cells[4] : null,
+            };
+        }
+
+        private int ReadRounds(int index)
+        {
+            if (_roundsLine > 0)
+            {
+                throw new RefusalException(index + 1, $"a second ## Rounds section (the first is at line {_roundsLine})");
+            }
+
+            _roundsLine = index + 1;
+
+            while (index + 1 < lines.Length && lines[index + 1].Trim().Length == 0)
+            {
+                index++;
+            }
+
+            if (index + 1 >= lines.Length || !Cells(lines[index + 1]).SequenceEqual(RoundsHeader, StringComparer.Ordinal))
+            {
+                throw new RefusalException(index + 2, $"the Rounds table is not '{RoundsHeaderText}'");
+            }
+
+            index++;
+
+            if (index + 1 >= lines.Length || !SeparatorRow().IsMatch(lines[index + 1].Trim()))
+            {
+                throw new RefusalException(index + 2, "the Rounds table's second line must be its separator, '|---|---|---|---|---|'");
+            }
+
+            index++;
+
+            while (index + 1 < lines.Length && lines[index + 1].TrimStart().StartsWith('|'))
+            {
+                index++;
+                _rounds.Add(RoundRow(lines[index], index + 1));
+            }
+
+            if (_rounds.Count == 0)
+            {
+                throw new RefusalException(_roundsLine, "the Rounds table has no rows");
+            }
+
+            return index;
+        }
+
+        private ProjectRound RoundRow(string line, int number)
+        {
+            var cells = Cells(line);
+
+            if (cells.Length != RoundsHeader.Length)
+            {
+                throw new RefusalException(number, $"a Rounds row has {cells.Length} cells, not {RoundsHeader.Length}");
+            }
+
+            if (!int.TryParse(cells[0], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture,
+                    out var round) || round != _rounds.Count + 1)
+            {
+                throw new RefusalException(number, $"round '{cells[0]}' is out of order: rounds are numbered from 1, one after another");
+            }
+
+            if (cells[1].Length == 0)
+            {
+                throw new RefusalException(number, $"round {round} has no name");
+            }
+
+            var began = Date(cells[2]) ?? throw new RefusalException(number, $"round {round}'s Began is not a date written yyyy-MM-dd");
+
+            return new ProjectRound(round, cells[1], began, cells[3], cells[4], number);
+        }
+
+        // Decisions is prose the reader otherwise leaves alone, so a table it cannot read gives no date rather than a refusal.
+        private void ReadFirstDecision(int index)
+        {
+            for (var at = index + 1; at < lines.Length && !lines[at].StartsWith("## ", StringComparison.Ordinal); at++)
+            {
+                var trimmed = lines[at].Trim();
+
+                if (!trimmed.StartsWith('|') || SeparatorRow().IsMatch(trimmed))
+                {
+                    continue;
+                }
+
+                if (Date(Cells(trimmed)[0]) is { } date)
+                {
+                    _firstDecision = date;
+
+                    return;
+                }
+            }
+        }
+
+        private void CheckRoundLines()
+        {
+            foreach (var (objective, round, line) in _roundLines)
+            {
+                if (round > Math.Max(1, _rounds.Count))
+                {
+                    throw new RefusalException(line, _rounds.Count == 0
+                        ? $"objective {objective} names round {round}, but the file has no Rounds table"
+                        : $"objective {objective} names round {round}, which is not in the Rounds table");
+                }
+            }
         }
 
         private void CloseObjective()
@@ -452,7 +628,10 @@ public static partial class ProjectFileReader
             }
 
             _phase!.Objectives.Add(new ProjectObjective(objective.Number, objective.Title, objective.Criteria,
-                objective.Pipelines, objective.Rows, objective.Line));
+                objective.Pipelines, objective.Rows, objective.Line)
+            {
+                Round = objective.Round,
+            });
             _objective = null;
         }
 
@@ -494,6 +673,10 @@ public static partial class ProjectFileReader
         public int PipelineLine { get; set; }
 
         public int TableLine { get; set; }
+
+        public int RoundLine { get; set; }
+
+        public int Round { get; set; } = 1;
 
         public List<ProjectCriterion> Criteria { get; } = [];
 

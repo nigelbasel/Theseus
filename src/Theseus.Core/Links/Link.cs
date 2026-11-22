@@ -32,6 +32,13 @@ public sealed record Link(
     /// <summary>What <see cref="CreatedBy"/> says for a link Nigel made himself.</summary>
     public const string MadeOnTheBoard = "board";
 
+    /// <summary>
+    /// On a hand-over, the slug of the From card's current piece when the link was made, so a card's later pieces do not
+    /// take its earlier hand-overs with them (1.1f D15, D6). Never changed after; null on older links, which count as the
+    /// From card's first piece.
+    /// </summary>
+    public string? ParentPiece { get; init; }
+
     /// <summary>Whether the link still stands.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public bool IsActive => RemovedUtc is null;

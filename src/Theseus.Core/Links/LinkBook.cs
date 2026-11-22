@@ -30,6 +30,12 @@ public sealed class LinkBook
         _links = [.. store.Load()];
     }
 
+    /// <summary>
+    /// A card's current piece of work, by its key, or null when no project names it: read when a hand-over is made, to
+    /// record which piece handed the work on (1.1f D15).
+    /// </summary>
+    public Func<string, string?>? CurrentPieceOf { get; set; }
+
     /// <summary>Raised after any change is saved, on the thread that made it.</summary>
     public event EventHandler? Changed;
 
@@ -280,7 +286,10 @@ public sealed class LinkBook
             return LinkChange.Refused($"{to} does not hand over to {from}, so {from} has nothing to report back to it.");
         }
 
-        var link = new Link(NewId(), kind, from, to, _clock.UtcNow, createdBy, Output: Blank(output));
+        var link = new Link(NewId(), kind, from, to, _clock.UtcNow, createdBy, Output: Blank(output))
+        {
+            ParentPiece = kind == LinkKind.HandsOver ? CurrentPieceOf?.Invoke(from) : null,
+        };
 
         _links.Add(link);
         Save();

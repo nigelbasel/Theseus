@@ -6,4 +6,11 @@ namespace Theseus.Core.Projects;
 /// <param name="Branch">The branch its code is on until it is merged into the primary.</param>
 /// <param name="Repos">Every repo it changes, as written.</param>
 /// <param name="Line">Its line in the project file, from 1.</param>
-public sealed record ProjectWorkstreamRow(string Workstream, string Slug, string Branch, string Repos, int Line);
+public sealed record ProjectWorkstreamRow(string Workstream, string Slug, string Branch, string Repos, int Line)
+{
+    /// <summary>
+    /// Its optional What cell: a few words saying what the piece achieves, the title its box shows (1.1f A4, B7); null
+    /// when the table has no What column or the cell is empty.
+    /// </summary>
+    public string? What { get; init; }
+}

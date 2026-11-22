@@ -9,14 +9,18 @@ namespace Theseus.Core.Projects;
 /// </summary>
 public sealed class PieceTree
 {
-    private PieceTree(IReadOnlyList<PieceNode> roots, IReadOnlyList<ThenWorkedOnLink> thenWorkedOn)
+    private PieceTree(IReadOnlyList<PieceNode> roots, IReadOnlyList<ThenWorkedOnLink> thenWorkedOn, IReadOnlyList<PieceRound> rounds)
     {
         Roots = roots;
         ThenWorkedOn = thenWorkedOn;
+        Rounds = rounds;
     }
 
     /// <summary>The pieces with no parent in the project, in file order.</summary>
     public IReadOnlyList<PieceNode> Roots { get; }
+
+    /// <summary>The project's rounds in order, each with the roots of its pieces (1.1f C10, C14).</summary>
+    public IReadOnlyList<PieceRound> Rounds { get; }
 
     /// <summary>Each piece joined to the next row of the same workstream, in file order.</summary>
     public IReadOnlyList<ThenWorkedOnLink> ThenWorkedOn { get; }
@@ -25,12 +29,16 @@ public sealed class PieceTree
     public IEnumerable<PieceNode> All => Roots.SelectMany(Flatten);
 
     /// <summary>
-    /// Places each piece under the piece whose card hands work to its card. A second parent is ignored, and a cycle is
-    /// broken at its piece met first in file order, as <see cref="ChainRoots"/> stops at the card it has met.
+    /// Places each piece under the piece that handed it work: the one its hand-over's <see cref="Link.ParentPiece"/>
+    /// names, else its From card's first piece (1.1f D16, replacing 1.1d AC 11's current piece). A child sits under a
+    /// parent of its own round only; one handed on across rounds starts its own round's tree. A second parent is
+    /// ignored, and a cycle is broken at its piece met first in file order, as <see cref="ChainRoots"/> stops at the card
+    /// it has met.
     /// </summary>
     /// <param name="pieces">The project's pieces, as <see cref="PiecesOfWork.Build"/> gave them.</param>
     /// <param name="links">The links read against the board.</param>
-    public static PieceTree Build(IReadOnlyList<PieceOfWork> pieces, LinkStatus links)
+    /// <param name="rounds">The project's rounds; one "Round 1" when null.</param>
+    public static PieceTree Build(IReadOnlyList<PieceOfWork> pieces, LinkStatus links, IReadOnlyList<ProjectRound>? rounds = null)
     {
         ArgumentNullException.ThrowIfNull(pieces);
         ArgumentNullException.ThrowIfNull(links);
@@ -47,9 +55,10 @@ public sealed class PieceTree
 
         var parentOf = new Dictionary<int, int>();
 
-        foreach (var link in HandOvers(links.Links))
+        foreach (var (parent, child) in PieceHandOvers.Resolve(pieces, piece => piece.CardKey, piece => piece.Name,
+                     piece => piece.IsCurrentPiece, links.Links))
         {
-            if (currentOf.TryGetValue(link.From, out var parent) && currentOf.TryGetValue(link.To, out var child) && parent != child)
+            if (pieces[parent].Round == pieces[child].Round)
             {
                 parentOf.TryAdd(child, parent);
             }
@@ -66,8 +75,11 @@ public sealed class PieceTree
             pieces[index].IsCurrentPiece ? marks.GetValueOrDefault(pieces[index].CardKey) : null);
 
         var roots = Enumerable.Range(0, pieces.Count).Where(index => !parentOf.ContainsKey(index)).Select(Node).ToList();
+        var byRound = (rounds is { Count: > 0 } ? rounds : [ProjectRound.Implicit(null)])
+            .Select(round => new PieceRound(round, [.. roots.Where(root => root.Piece.Round == round.Number)]))
+            .ToList();
 
-        return new PieceTree(roots, ThenWorkedOnLinks(pieces));
+        return new PieceTree(roots, ThenWorkedOnLinks(pieces), byRound);
     }
 
     /// <summary>

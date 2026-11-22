@@ -103,7 +103,10 @@ public partial class App : Application
 
         // Sessions report on links from the MCP server's threads, so a change made off the UI thread
         // redraws the board. The board's own changes already refresh it.
-        var links = new LinkBook(new LinkStateStore(Path.Combine(DataDirectory, "links.json")), new SystemClock());
+        var links = new LinkBook(new LinkStateStore(Path.Combine(DataDirectory, "links.json")), new SystemClock())
+        {
+            CurrentPieceOf = shell.CurrentPieceOf,
+        };
         var snapshots = new BoardSnapshotSource();
         var chains = new ChainsViewModel(
             links,

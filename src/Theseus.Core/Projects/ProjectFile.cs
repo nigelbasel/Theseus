@@ -14,6 +14,27 @@ public sealed record ProjectFile(string Name, string Title, string Kit, string P
     /// </summary>
     public IReadOnlySet<string> BeforeKit { get; init; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>Its <c>## Rounds</c> table's rows, in order; empty when it has none (1.1f B6).</summary>
+    public IReadOnlyList<ProjectRound> RoundsTable { get; init; } = [];
+
+    /// <summary>The date of its first Decisions row, or null when it has none (1.1f B8).</summary>
+    public DateOnly? FirstDecision { get; init; }
+
+    /// <summary>
+    /// The earliest date written anywhere in the file, standing in for its first commit (1.1f B8): records are read as
+    /// plain files, never with git (1.1b AC 2). Null when it has none.
+    /// </summary>
+    public DateOnly? EarliestDate { get; init; }
+
+    /// <summary>
+    /// Its rounds: the Rounds table's, or the one round "Round 1" a file without the table reads as, begun on its first
+    /// Decisions row's date, else the earliest date the file names (1.1f B8, D4).
+    /// </summary>
+    public IReadOnlyList<ProjectRound> Rounds => RoundsTable.Count > 0 ? RoundsTable : [ProjectRound.Implicit(FirstDecision ?? EarliestDate)];
+
+    /// <summary>The round with this number, or null.</summary>
+    public ProjectRound? Round(int number) => Rounds.FirstOrDefault(round => round.Number == number);
+
     /// <summary>Every objective, in file order.</summary>
     public IReadOnlyList<ProjectObjective> Objectives => [.. Phases.SelectMany(phase => phase.Objectives)];
 
