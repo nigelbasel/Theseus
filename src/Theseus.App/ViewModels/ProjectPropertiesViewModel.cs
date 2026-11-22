@@ -39,6 +39,12 @@ public sealed class ProjectPropertiesViewModel : ObservableObject
             .Order(StringComparer.CurrentCultureIgnoreCase))))];
     }
 
+    /// <summary>The project card's Tags field (card-search-and-tags item 10), written at OK.</summary>
+    public TagEditorViewModel? TagEditor { get; init; }
+
+    /// <summary>Whether it has a Tags field.</summary>
+    public bool HasTagEditor => TagEditor is not null;
+
     /// <summary>The project's name, which keys its colour.</summary>
     public string Name { get; }
 

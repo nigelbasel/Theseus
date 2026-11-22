@@ -91,7 +91,14 @@ public sealed class DetailDrawerViewModel : ObservableObject
         AddJiraKeyCommand = new RelayCommand(_ => AddJiraKey(), _ => CanAddJiraKey);
         RemoveJiraKeyCommand = new RelayCommand(RemoveJiraKey, parameter => parameter is string);
         RescanPromptCommand = new RelayCommand(_ => RescanPrompt(), _ => UnclaimedKeys.Count > 0);
+        TagEditor = new TagEditorViewModel(() => [.. (TagsInUse?.Invoke() ?? []).Select(use => use.Tag)], ApplyOverview);
     }
+
+    /// <summary>The card's Tags field (card-search-and-tags item 10); a change applies at once, as the rest of the panel does.</summary>
+    public TagEditorViewModel TagEditor { get; }
+
+    /// <summary>The tags in use on the board, offered as a tag is typed. Set by the shell.</summary>
+    public Func<IReadOnlyList<Theseus.Core.Finding.TagCount>>? TagsInUse { get; set; }
 
     /// <summary>Puts this workstream away, or brings it back when it is already away.</summary>
     public RelayCommand ArchiveCommand { get; }
@@ -477,6 +484,7 @@ public sealed class DetailDrawerViewModel : ObservableObject
         }
 
         NewJiraKey = string.Empty;
+        TagEditor.Load(workstream.Tags);
         IsConfirmingDelete = false;
 
         Raise(nameof(IsArchived));
@@ -607,6 +615,7 @@ public sealed class DetailDrawerViewModel : ObservableObject
             JiraKeys = [.. JiraKeys],
             RemovedJiraKeys = JiraKeySelection.Removed(
                 _card.Workstream.JiraKeys, JiraKeys, _card.Workstream.RemovedJiraKeys),
+            Tags = [.. TagEditor.Tags],
         };
 
         _saved(_card);

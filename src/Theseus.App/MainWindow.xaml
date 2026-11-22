@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:Theseus.App.ViewModels"
         xmlns:controls="clr-namespace:Theseus.App.Controls"
+        xmlns:converters="clr-namespace:Theseus.App.Converters"
         xmlns:views="clr-namespace:Theseus.App.Views"
         xmlns:settings="clr-namespace:Theseus.Core.Settings;assembly=Theseus.Core"
         xmlns:launching="clr-namespace:Theseus.Core.Launching;assembly=Theseus.Core"
@@ -196,6 +197,64 @@
             The font is set here because a context menu is a logical child of the element that owns it
             and inherits its font: owned by the ⋯ icon button, it drew every label in the icon font.
         -->
+        <!--
+            A tag on a card (card-search-and-tags item 11): a small rounded label outlined in the tag's colour over a light
+            wash of it, readable in both themes. It is a button: clicking it filters the board by the tag (item 12).
+        -->
+        <converters:FormatConverter x:Key="TagToolTip" />
+        <Style x:Key="TagChipButton" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Margin" Value="0,0,4,2" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid x:Name="Face">
+                            <Border x:Name="Wash" CornerRadius="8" Opacity="0.16"
+                                    Background="{Binding ColourHex, Converter={StaticResource HexToBrush}}" />
+                            <Border CornerRadius="8" BorderThickness="1" Padding="7,0,7,1"
+                                    BorderBrush="{Binding ColourHex, Converter={StaticResource HexToBrush}}">
+                                <ContentPresenter x:Name="Label" TextElement.Foreground="{TemplateBinding Foreground}" />
+                            </Border>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Wash" Property="Opacity" Value="0.4" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Wash" Property="Opacity" Value="0.6" />
+                                <Setter TargetName="Face" Property="RenderTransform">
+                                    <Setter.Value>
+                                        <TranslateTransform Y="1" />
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Wash" Property="Opacity" Value="0" />
+                                <Setter TargetName="Label" Property="TextElement.Foreground" Value="{DynamicResource TextFillColorDisabledBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- One item of Tags ›: the tag with its tick and a dot of its colour, or New tag… (item 10). -->
+        <Style x:Key="TagMenuItem" TargetType="MenuItem">
+            <Setter Property="Header" Value="{Binding Header}" />
+            <Setter Property="IsChecked" Value="{Binding IsChecked, Mode=OneWay}" />
+            <Setter Property="Command" Value="{Binding Command}" />
+            <Setter Property="ToolTip" Value="{Binding ToolTip}" />
+            <Setter Property="Icon">
+                <Setter.Value>
+                    <Ellipse Width="8" Height="8" Fill="{Binding ColourHex, Converter={StaticResource HexToBrush}}"
+                             Visibility="{Binding IsTag, Converter={StaticResource BoolToVisibility}}" />
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <ContextMenu x:Key="CardMenu" x:Shared="False"
                      FontFamily="{x:Static SystemFonts.MessageFontFamily}"
                      DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
@@ -225,6 +284,9 @@
             <MenuItem Header="Reopen tomorrow" IsChecked="{Binding ReopenTomorrow, Mode=OneWay}"
                       Command="{Binding ToggleReopenTomorrowCommand}"
                       ToolTip="Include this workstream when the whole board is started" />
+            <Separator />
+            <MenuItem Header="T_ags" ItemsSource="{Binding TagMenu}" ItemContainerStyle="{StaticResource TagMenuItem}"
+                      ToolTip="Put a tag on this card, or the selected cards, or take one off" />
             <Separator />
             <MenuItem Header="Spawn follow-on…"
                       Command="{Binding SpawnFollowOnCommand}"
@@ -298,7 +360,9 @@
                         </MenuItem>
                         <Separator />
                         <MenuItem Header="Project p_roperties…" Command="{Binding PropertiesCommand}"
-                                  ToolTip="Its title, its colour and its project.md; the colour can be changed here" />
+                                  ToolTip="Its title, its colour, its tags and its project.md; the colour can be changed here" />
+                        <MenuItem Header="T_ags" ItemsSource="{Binding TagMenu}" ItemContainerStyle="{StaticResource TagMenuItem}"
+                                  ToolTip="Put a tag on this card, or the selected cards, or take one off" />
                         <MenuItem Header="Open project._md" Command="{Binding OpenFileCommand}"
                                   ToolTip="Open the project's file in its editor"
                                   Visibility="{Binding IsDimmed, Converter={StaticResource NotBoolToVisibility}}" />
@@ -341,6 +405,27 @@
                                    ToolTip="Open the project to see its matching pieces of work highlighted"
                                    Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
                                    Visibility="{Binding MatchesInsideText, Converter={StaticResource NotEmptyToVisibility}}" />
+                        <!-- Its tags, at most three then "+2"; clicking one filters the board by it (card-search-and-tags items 11, 12). -->
+                        <WrapPanel x:Name="ProjectTags" Margin="0,5,0,0" Visibility="{Binding HasTags, Converter={StaticResource BoolToVisibility}}">
+                            <ItemsControl ItemsSource="{Binding TagChips}" Focusable="False">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Style="{StaticResource TagChipButton}" Content="{Binding Label}" ToolTip="{Binding ToolTip}"
+                                                AutomationProperties.Name="{Binding ToolTip}"
+                                                Command="{Binding FilterCommand}" CommandParameter="{Binding Tag}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Text="{Binding MoreTags}" FontSize="11" Margin="2,1,0,0" VerticalAlignment="Center"
+                                       ToolTip="{Binding MoreTagsToolTip}"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                       Visibility="{Binding MoreTags, Converter={StaticResource NotEmptyToVisibility}}" />
+                        </WrapPanel>
                         <TextBlock Text="{Binding PhaseText}" FontSize="12" Margin="0,4,0,0" TextTrimming="CharacterEllipsis"
                                    ToolTip="{Binding PhaseText}"
                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
@@ -650,6 +735,27 @@
                         <TextBlock x:Name="BranchRules" Margin="0,4,0,0" HorizontalAlignment="Left" Text="{Binding BranchRulesMark}" FontSize="11"
                                    ToolTip="{Binding BranchRulesToolTip}" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                    Visibility="{Binding BranchRulesMark, Converter={StaticResource NotEmptyToVisibility}}" />
+                        <!-- Its tags, at most three then "+2"; clicking one filters the board by it (card-search-and-tags items 11, 12). -->
+                        <WrapPanel x:Name="CardTags" Margin="0,5,0,0" Visibility="{Binding HasTags, Converter={StaticResource BoolToVisibility}}">
+                            <ItemsControl ItemsSource="{Binding TagChips}" Focusable="False">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Style="{StaticResource TagChipButton}" Content="{Binding Label}" ToolTip="{Binding ToolTip}"
+                                                AutomationProperties.Name="{Binding ToolTip}"
+                                                Command="{Binding FilterCommand}" CommandParameter="{Binding Tag}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Text="{Binding MoreTags}" FontSize="11" Margin="2,1,0,0" VerticalAlignment="Center"
+                                       ToolTip="{Binding MoreTagsToolTip}"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                       Visibility="{Binding MoreTags, Converter={StaticResource NotEmptyToVisibility}}" />
+                        </WrapPanel>
 
                         <!--
                             Icons, as media and transport controls are everywhere (Nigel, 2026-10-30):
@@ -1382,6 +1488,50 @@
                                FontSize="13" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                Visibility="{Binding ShowsPlaceholder, Converter={StaticResource BoolToVisibility}}" />
                 </Grid>
+                <!-- Tags ▾ (card-search-and-tags item 12): every tag with its count; ticking filters, Any | All at the top. -->
+                <ToggleButton x:Name="TagsToggle" Style="{StaticResource ToolIconToggle}" Margin="6,0,0,0" Padding="8,4"
+                              Content="{Binding TagsButtonText}" Checked="OnTagsOpened"
+                              ToolTip="Filter the board by tags" AutomationProperties.Name="Tags" />
+                <Popup x:Name="TagsPopup" PlacementTarget="{Binding ElementName=TagsToggle}" Placement="Bottom" StaysOpen="False"
+                       AllowsTransparency="True" IsOpen="{Binding IsChecked, ElementName=TagsToggle, Mode=TwoWay}">
+                    <Border Padding="10" CornerRadius="6" MinWidth="220" MaxHeight="420"
+                            Background="{DynamicResource SolidBackgroundFillColorBaseBrush}"
+                            BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                        <DockPanel>
+                            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
+                                <TextBlock Text="Show cards with" VerticalAlignment="Center" FontSize="12" Margin="0,0,8,0"
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                <RadioButton x:Name="TagsAny" Content="Any" GroupName="TagMatch" IsChecked="{Binding IsAny, Mode=TwoWay}"
+                                             ToolTip="Show cards with any of the ticked tags" Margin="0,0,8,0" />
+                                <RadioButton x:Name="TagsAll" Content="All" GroupName="TagMatch" IsChecked="{Binding IsAll, Mode=TwoWay}"
+                                             ToolTip="Show only cards with every ticked tag" />
+                            </StackPanel>
+                            <TextBlock DockPanel.Dock="Top" FontSize="12" TextWrapping="Wrap" MaxWidth="260"
+                                       Text="No card has a tag yet. Add one from a card's menu, Tags, or its Properties."
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                       Visibility="{Binding HasNoTags, Converter={StaticResource BoolToVisibility}}" />
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <ItemsControl x:Name="TagRows" ItemsSource="{Binding TagRows}" Focusable="False">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <CheckBox IsChecked="{Binding IsTicked, Mode=TwoWay}" Margin="0,2"
+                                                      ToolTip="{Binding Label, Converter={StaticResource TagToolTip}, ConverterParameter=Show cards tagged {0}}"
+                                                      AutomationProperties.Name="{Binding Label}">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Ellipse Width="8" Height="8" Margin="0,0,6,0" VerticalAlignment="Center"
+                                                             Fill="{Binding ColourHex, Converter={StaticResource HexToBrush}}" />
+                                                    <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                                                    <TextBlock Text="{Binding Count}" Margin="8,0,0,0" VerticalAlignment="Center"
+                                                               Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                                                </StackPanel>
+                                            </CheckBox>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </DockPanel>
+                    </Border>
+                </Popup>
                 <ToggleButton x:Name="HideRestToggle" Style="{StaticResource ToolIconToggle}" Margin="6,0,0,0" Padding="8,4"
                               IsChecked="{Binding HideRest, Mode=TwoWay}" Content="Hide the rest"
                               ToolTip="Hide the cards the search does not match, instead of dimming them"
@@ -2628,6 +2778,58 @@
                                             Command="{Binding Drawer.RescanPromptCommand}"
                                             Visibility="{Binding Drawer.UnclaimedKeys.Count,
                                                          Converter={StaticResource CountToVisibility}}" />
+
+                                    <!-- Tags (card-search-and-tags item 10): each with ×; the tags in use are offered as you type; Enter adds. -->
+                                    <StackPanel x:Name="DrawerTags" DataContext="{Binding Drawer.TagEditor}">
+                                        <TextBlock Text="Tags" Style="{StaticResource FieldLabel}" />
+                                        <ItemsControl ItemsSource="{Binding Tags}" Focusable="False">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <WrapPanel />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border CornerRadius="8" Padding="8,1,2,1" Margin="0,0,4,4" BorderThickness="1"
+                                                            BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Text="{Binding StringFormat=#{0}}" FontSize="12" VerticalAlignment="Center" />
+                                                            <Button Content="×" Style="{StaticResource CommandButton}" Padding="5,0" Margin="4,0,0,0" FontSize="11"
+                                                                    ToolTip="{Binding Converter={StaticResource TagToolTip}, ConverterParameter=Take #{0} off}"
+                                                                    AutomationProperties.Name="{Binding StringFormat=Remove tag {0}}"
+                                                                    Command="{Binding DataContext.RemoveCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                    CommandParameter="{Binding}" />
+                                                        </StackPanel>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <Grid Margin="0,4,0,0">
+                                            <TextBox Text="{Binding NewTag, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,60,0"
+                                                     AutomationProperties.Name="New tag" ToolTip="A tag: letters, digits and hyphens. Enter adds it">
+                                                <TextBox.InputBindings>
+                                                    <KeyBinding Key="Return" Command="{Binding AddCommand}" />
+                                                </TextBox.InputBindings>
+                                            </TextBox>
+                                            <Button Content="Add" HorizontalAlignment="Right" Padding="12,3" Style="{StaticResource CommandButton}"
+                                                    Command="{Binding AddCommand}" ToolTip="{Binding AddToolTip}" ToolTipService.ShowOnDisabled="True" />
+                                        </Grid>
+                                        <ItemsControl ItemsSource="{Binding Suggestions}" Margin="0,4,0,0" Focusable="False">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <WrapPanel />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Button Content="{Binding}" ContentStringFormat="+ #{0}" Style="{StaticResource CommandButton}" Padding="8,1" Margin="0,0,4,4" FontSize="11"
+                                                            ToolTip="{Binding Converter={StaticResource TagToolTip}, ConverterParameter='Add #{0}, already used on other cards'}"
+                                                            Command="{Binding DataContext.ChooseCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                            CommandParameter="{Binding}" />
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
 
                                     <TextBlock Text="Setup" Style="{StaticResource FieldLabel}" />
                                     <TextBlock Text="{Binding Drawer.Card.Workstream.WorkingDirectory}" FontSize="12"

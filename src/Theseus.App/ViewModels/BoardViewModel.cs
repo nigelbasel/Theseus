@@ -37,6 +37,7 @@ public sealed class BoardViewModel : ObservableObject
         _columnsBy = settings.Read().ColumnsBy;
         _rowsBy = settings.Read().RowsBy;
         Search = new BoardSearchViewModel(OnSearchChanged);
+        Tags = new BoardTags(this, board, settings);
 
         SyncConfigured(ConfiguredLanes(), ConfiguredAreas());
         Place();
@@ -46,6 +47,9 @@ public sealed class BoardViewModel : ObservableObject
 
     /// <summary>The search box and tag filter (card-search-and-tags): applied on every placing of the cards.</summary>
     public BoardSearchViewModel Search { get; }
+
+    /// <summary>The owner's tags on the cards (card-search-and-tags items 9 to 13).</summary>
+    public BoardTags Tags { get; }
 
     /// <summary>The cards and project cards the search matches, in reading order; empty with no search.</summary>
     public IReadOnlyList<IBoardCard> Matches => _matches;
@@ -155,7 +159,9 @@ public sealed class BoardViewModel : ObservableObject
 
         foreach (var card in _all)
         {
-            card.ShowSearch(on && !_matching.Contains(card), CardSearch.Highlights(card.Title, words));
+            // Only a match is highlighted: a dimmed card can hold a word yet fail the tags (item 3).
+            var matched = on && _matching.Contains(card);
+            card.ShowSearch(on && !matched, matched ? CardSearch.Highlights(card.Title, words) : []);
         }
 
         foreach (var project in _projects)
@@ -163,7 +169,23 @@ public sealed class BoardViewModel : ObservableObject
             var inside = on
                 ? project.MemberKeys.Where(key => Card(key) is { } member && _matching.Contains(member)).ToList()
                 : [];
-            project.ShowSearch(on && !_matching.Contains(project), CardSearch.Highlights(project.Title, words), inside);
+            var projectMatched = on && _matching.Contains(project);
+            project.ShowSearch(on && !projectMatched, projectMatched ? CardSearch.Highlights(project.Title, words) : [], inside);
+        }
+
+        var colours = _settings.Read().TagColours;
+        string ColourOf(string tag) => colours.GetValueOrDefault(tag) ?? TagPalette.Colours[0];
+        IReadOnlyList<TagChipViewModel> Chips(IReadOnlyList<string> tags) =>
+            [.. TagDisplay.Visible(tags).Select(tag => new TagChipViewModel(tag, ColourOf(tag), Search.FilterByTagCommand))];
+
+        foreach (var card in _all)
+        {
+            card.ShowTags(Chips(card.Tags), TagDisplay.More(card.Tags), TagDisplay.Rest(card.Tags));
+        }
+
+        foreach (var project in _projects)
+        {
+            project.ShowTags(Chips(project.Tags), TagDisplay.More(project.Tags), TagDisplay.Rest(project.Tags));
         }
 
         var matches = new List<IBoardCard>();
@@ -293,6 +315,11 @@ public sealed class BoardViewModel : ObservableObject
     public void ShowProjects(IReadOnlyList<ProjectCardViewModel> projects)
     {
         ArgumentNullException.ThrowIfNull(projects);
+
+        foreach (var project in projects)
+        {
+            project.Tags = Tags.OfProject(project.Name);
+        }
 
         _projects = projects;
         Place();
@@ -1395,5 +1422,6 @@ public sealed class BoardViewModel : ObservableObject
         }
 
         _board.Write(sidecars);
+        Tags.EnsureColours(card.Workstream.Tags);
     }
 }

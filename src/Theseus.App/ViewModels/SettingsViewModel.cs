@@ -498,8 +498,12 @@ public sealed class SettingsViewModel : ObservableObject
     private void Open()
     {
         Load(_store.Read());
+        Tags?.Load();
         IsOpen = true;
     }
+
+    /// <summary>Options, Tags (card-search-and-tags item 13); its changes apply at once, not at Save. Set by the shell.</summary>
+    public TagsViewModel? Tags { get; set; }
 
     private void Load(TheseusSettings settings)
     {

@@ -194,7 +194,9 @@ public class ProjectCardLayoutTests
                 Style("MenuGlyph", "TextBlock"),
                 Style("CardIcon", "Button"),
                 Style("CommandButton", "Button"),
-                Style("ClickableCard", "Border")),
+                Style("ClickableCard", "Border"),
+                Style("TagChipButton", "Button"),
+                Style("TagMenuItem", "MenuItem")),
             new XElement(Presentation + "ContentControl.ContentTemplate", template));
 
         // The window's own namespaces name no assembly, which a parsed fragment needs.

@@ -161,6 +161,15 @@ public partial class MainWindow : Window
 
     private void OnSearchLostFocus(object sender, KeyboardFocusChangedEventArgs e) => Board?.Search.Remember();
 
+    // The Tags list is read as it opens, so it counts what is on the cards now (card-search-and-tags item 12).
+    private void OnTagsOpened(object sender, RoutedEventArgs e)
+    {
+        if (Board is { } board)
+        {
+            board.Search.LoadTagRows(board.Tags.InUse(), board.Tags.ColourOf);
+        }
+    }
+
     private void OnMatchShown(IBoardCard item)
     {
         var row = Board?.Rows.FirstOrDefault(candidate =>
@@ -617,6 +626,11 @@ public partial class MainWindow : Window
         {
             shell.Board.ClickSelect(project, toggle: false, extend: false);
         }
+
+        if (sender is FrameworkElement { DataContext: ProjectCardViewModel clicked } && Board is { } board)
+        {
+            clicked.TagMenu = board.Tags.MenuFor(clicked);
+        }
     }
 
     /// <summary>Something dropped on a cell's project strip goes to that cell, a card at the top of its cards.</summary>
@@ -677,6 +691,11 @@ public partial class MainWindow : Window
         {
             shell.Board.ClickSelect(card, toggle: false, extend: false);
             shell.Clicked(card);
+        }
+
+        if (sender is FrameworkElement { DataContext: WorkstreamCardViewModel clicked } && Board is { } board)
+        {
+            clicked.TagMenu = board.Tags.MenuFor(clicked);
         }
     }
 

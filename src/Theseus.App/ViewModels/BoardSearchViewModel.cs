@@ -24,8 +24,18 @@ public sealed class BoardSearchViewModel : ObservableObject
     public BoardSearchViewModel(Action changed)
     {
         _changed = changed;
-        TickedTags.CollectionChanged += (_, _) => Changed();
+        TickedTags.CollectionChanged += (_, _) =>
+        {
+            foreach (var row in TagRows)
+            {
+                row.Show(TickedTags.Contains(row.Tag));
+            }
+
+            Raise(nameof(TagsButtonText));
+            Changed();
+        };
         ClearCommand = new RelayCommand(_ => Clear(), _ => CanClear);
+        FilterByTagCommand = new RelayCommand(parameter => FilterByTag(parameter as string), parameter => parameter is string);
     }
 
     /// <summary>What is typed in the box (item 2). It filters as it changes.</summary>
@@ -51,6 +61,54 @@ public sealed class BoardSearchViewModel : ObservableObject
 
     /// <summary>The tags ticked in the Tags list (item 12).</summary>
     public ObservableCollection<string> TickedTags { get; } = [];
+
+    /// <summary>The Tags ▾ list: every tag in use with its count and a tick (item 12), read as the list opens.</summary>
+    public ObservableCollection<TagFilterRowViewModel> TagRows { get; } = [];
+
+    /// <summary>Whether no card has a tag yet, so the list says so.</summary>
+    public bool HasNoTags => TagRows.Count == 0;
+
+    /// <summary>"Tags ▾", or "Tags (2) ▾" while two are ticked.</summary>
+    public string TagsButtonText => TickedTags.Count == 0 ? "Tags ▾" : $"Tags ({TickedTags.Count}) ▾";
+
+    /// <summary>Fills the Tags ▾ list with the tags in use, each ticked if the board is filtered by it.</summary>
+    public void LoadTagRows(IReadOnlyList<TagCount> inUse, Func<string, string> colourOf)
+    {
+        ArgumentNullException.ThrowIfNull(inUse);
+        ArgumentNullException.ThrowIfNull(colourOf);
+        TagRows.Clear();
+
+        foreach (var use in inUse)
+        {
+            TagRows.Add(new TagFilterRowViewModel(use.Tag, use.Count, colourOf(use.Tag), TickedTags.Contains(use.Tag), Tick));
+        }
+
+        Raise(nameof(HasNoTags));
+    }
+
+    /// <summary>Clicking a tag on a card: filters by that tag, as ticking it does (item 12).</summary>
+    public RelayCommand FilterByTagCommand { get; }
+
+    /// <summary>Ticks a tag, if it is not ticked already.</summary>
+    public void FilterByTag(string? tag)
+    {
+        if (TagNames.Normalise(tag) is { } clean && !TickedTags.Contains(clean))
+        {
+            TickedTags.Add(clean);
+        }
+    }
+
+    private void Tick(string tag, bool ticked)
+    {
+        if (ticked && !TickedTags.Contains(tag))
+        {
+            TickedTags.Add(tag);
+        }
+        else if (!ticked)
+        {
+            TickedTags.Remove(tag);
+        }
+    }
 
     /// <summary>Any or All, for the tags (item 12).</summary>
     public TagMatch Match
