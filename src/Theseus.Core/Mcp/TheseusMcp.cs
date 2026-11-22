@@ -19,18 +19,20 @@ public static class TheseusMcp
             "approve_proposal", "reject_proposal", "record_work_item", "name_work_items",
             "start_workstream", "stop_workstream", "pause_workstream", "resume_workstream", "workstreams",
             "gates", "accept_spec", "events",
+            "now_at", "record_round", "tick_criterion", "add_objective", "record_decision", "set_waiting",
         ];
 
     /// <summary>
     /// The tools a launched session may use without being asked. Those that change the board are left
     /// out (decision 10, 2026-10-21): a report, a proposal or its withdrawal, a link made or removed, and
-    /// a proposal approved or rejected all pass the person in the tab before they are sent.
+    /// a proposal approved or rejected all pass the person in the tab before they are sent. So do a new objective and a new
+    /// round in a project file, which are the owner's acts (1.1g, decision G9, 2026-11-22).
     /// </summary>
     public static readonly IReadOnlyList<string> PreApproved =
         [.. ToolNames.Where(tool => tool is not ("report_back" or "propose_workstream" or "withdraw_proposal"
                                        or "link_workstream" or "unlink_workstream" or "approve_proposal" or "reject_proposal"
                                        or "start_workstream" or "stop_workstream" or "pause_workstream" or "resume_workstream"
-                                       or "accept_spec"))];
+                                       or "accept_spec" or "add_objective" or "record_round"))];
 
     /// <summary>
     /// The <c>--allowedTools</c> value that lets a launched session use exactly these tools without being

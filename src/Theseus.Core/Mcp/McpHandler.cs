@@ -66,7 +66,12 @@ public sealed partial class McpHandler
         + "Your descendants, the cards made from proposals your card raised and the user approved, and theirs in turn, "
         + "are listed by workstreams with their state and why each is stopped; you may start_workstream, "
         + "stop_workstream, pause_workstream and resume_workstream them, giving an instruction for a start when there "
-        + "is more work. Any other card is the user's.";
+        + "is more work. Any other card is the user's. "
+        + "In a project, call now_at(stage, doing) on entering each stage of your piece of work, with what you are doing in "
+        + "under 80 characters; a stage your pipeline lets you skip is reported as now_at(stage, \"skipped: <reason>\"). "
+        + "Theseus writes project.md's structured lines: record a round with record_round, tick a criterion with "
+        + "tick_criterion, add an objective with add_objective, record a decision with record_decision and say who a "
+        + "criterion waits on with set_waiting. Write prose by hand, never those lines.";
 
     private readonly WorkLog _work;
     private readonly LockBook? _locks;
@@ -84,6 +89,7 @@ public sealed partial class McpHandler
     private readonly IWorkstreamControl? _control;
     private readonly ISpecGates? _gates;
     private readonly Func<string, string>? _events;
+    private readonly ProjectTools? _projectTools;
 
     /// <summary>Creates the handler over the work log, the sampler's intervals and the launched sessions.</summary>
     /// <param name="sessions">Finds the session a request's path names, or null for one Theseus did not launch.</param>
@@ -96,6 +102,7 @@ public sealed partial class McpHandler
     /// <param name="briefFolderName">The board's brief folder, relative to a working directory.</param>
     /// <param name="workItems">The Jira issues and pull requests sessions record against their cards, or null.</param>
     /// <param name="control">Starts, stops, pauses and resumes a session's descendants on the board (1.1e AC 14), or null.</param>
+    /// <param name="projectTools">now_at and the tools that write project.md (1.1f E24, B9), or null.</param>
     /// <param name="approve">
     /// Creates the card for a proposal its session approves when Nigel asks, and whether to start it, or
     /// null when sessions cannot approve.
@@ -118,8 +125,10 @@ public sealed partial class McpHandler
         WorkItemBook? workItems = null,
         IWorkstreamControl? control = null,
         ISpecGates? gates = null,
-        Func<string, string>? events = null)
+        Func<string, string>? events = null,
+        ProjectTools? projectTools = null)
     {
+        _projectTools = projectTools;
         _events = events;
         _gates = gates;
         _control = control;
@@ -408,7 +417,81 @@ public sealed partial class McpHandler
                     ["proposal_id"] = Property("The id propose_workstream returned."),
                     ["note"] = Property("Optional: the user's reason, kept with the proposal."),
                 },
-                "proposal_id")),
+                "proposal_id"),
+            Tool("now_at",
+                "Say which stage of your piece of work you are at and what you are doing, on entering each stage. The project view shows it until your next call. To say a stage was skipped, give doing as \"skipped: <reason>\".",
+                new JsonObject
+                {
+                    ["stage"] = Property("One of your piece's stages, such as Research, Spec, Plan, Build, Verify, Review or Lessons (Reproduce, Rule, Fix for a bug; Work for freeform)."),
+                    ["doing"] = Property("What you are doing, in under 80 characters, or \"skipped: <reason>\"."),
+                },
+                "stage", "doing"),
+            Tool("record_round",
+                "Record that the owner changed the requirements and work went back to research: a row of project.md's Rounds table, and a Round line on each objective the round adds or reopens.",
+                new JsonObject
+                {
+                    ["name"] = Property("The round's name, a few words."),
+                    ["why"] = Property("Why the requirements changed, in one sentence, in the owner's words."),
+                    ["objectives"] = new JsonObject
+                    {
+                        ["type"] = "array",
+                        ["items"] = new JsonObject { ["type"] = "string" },
+                        ["description"] = "The objective numbers the round adds or reopens, such as 1.7.",
+                    },
+                    ["by"] = Property("Optional: who changed them; Nigel when left out."),
+                },
+                "name", "why", "objectives"),
+            Tool("tick_criterion",
+                "Tick or untick one acceptance criterion in project.md, with a one-line pointer to the evidence kept beside it.",
+                new JsonObject
+                {
+                    ["objective"] = Property("The objective's number, such as 1.2."),
+                    ["criterion"] = new JsonObject { ["type"] = "integer", ["description"] = "The criterion's number in the objective, from 1." },
+                    ["text"] = Property("The criterion's text as the file has it, checked before the tick is made."),
+                    ["ticked"] = new JsonObject { ["type"] = "boolean", ["description"] = "Optional: false to untick; true when left out." },
+                    ["evidence"] = Property("A one-line pointer to what shows it is met; needed to tick."),
+                },
+                "objective", "criterion", "text"),
+            Tool("add_objective",
+                "Add an objective at the end of a phase of project.md, with its criteria, its pipeline and an empty workstreams table.",
+                new JsonObject
+                {
+                    ["phase"] = new JsonObject { ["type"] = "integer", ["description"] = "The phase's number." },
+                    ["title"] = Property("The objective's title."),
+                    ["criteria"] = new JsonObject
+                    {
+                        ["type"] = "array",
+                        ["items"] = new JsonObject { ["type"] = "string" },
+                        ["description"] = "Its acceptance criteria, one line each.",
+                    },
+                    ["pipeline"] = Property("feature, bug or freeform; [to be chosen] when left out."),
+                    ["waiting"] = new JsonObject
+                    {
+                        ["type"] = "array",
+                        ["items"] = new JsonObject { ["type"] = "string" },
+                        ["description"] = "Optional: per criterion, in order, \"owner: <what>\", \"work: <what>\" or empty.",
+                    },
+                },
+                "phase", "title", "criteria"),
+            Tool("record_decision",
+                "Append a dated row to project.md's Decisions table.",
+                new JsonObject
+                {
+                    ["decision"] = Property("The decision, in one line."),
+                    ["by"] = Property("Who made it."),
+                },
+                "decision", "by"),
+            Tool("set_waiting",
+                "Say who an unticked criterion in project.md waits on: the owner (it then shows in his Waits for you) or work, with what it waits for.",
+                new JsonObject
+                {
+                    ["objective"] = Property("The objective's number."),
+                    ["criterion"] = new JsonObject { ["type"] = "integer", ["description"] = "The criterion's number in the objective, from 1." },
+                    ["text"] = Property("The criterion's text as the file has it."),
+                    ["who"] = Property("owner, work, or none to remove the note."),
+                    ["what"] = Property("What it waits for, in plain words."),
+                },
+                "objective", "criterion", "text", "who")),
     };
 
     private McpResponse CallTool(JsonNode id, string sessionId, JsonObject? parameters)
@@ -425,6 +508,14 @@ public sealed partial class McpHandler
         if (_sessions(sessionId) is not { } session)
         {
             return Ok(id, Result($"Session {sessionId} was not launched by Theseus, so it has no workstream to record time against.", isError: true));
+        }
+
+        if (ProjectTools.Names.Contains(name))
+        {
+            var outcome = _projectTools?.Call(name, session, arguments)
+                          ?? ProjectToolOutcome.Refused("This Theseus keeps no project tools.");
+
+            return Ok(id, Result(outcome.Text, isError: outcome.IsError));
         }
 
         return Ok(id, name switch

@@ -1532,6 +1532,28 @@ public sealed class ShellViewModel : ObservableObject
     /// Writes an owner's edit to a project's file (1.1c AC 9) and reads the projects again; a refusal, such as the file
     /// having changed since it was read, is the notice. Returns whether it was written.
     /// </summary>
+    /// <summary>
+    /// Applies a project tool's edit to a project's file on the UI thread, as the owner's own edits are made, so the two
+    /// are one at a time and a second edit is checked against the file as just written (1.1g review of PR 2, finding 2).
+    /// Throws <see cref="ProjectEditRefusedException"/> when it is refused.
+    /// </summary>
+    public string WriteProjectFile(string project, Func<string, string> edit) =>
+        Write(Readable(project) ?? throw new ProjectEditRefusedException($"{project} does not read"), edit);
+
+    private string Write(ProjectFileReading reading, Func<string, string> edit)
+    {
+        var written = ProjectFileWriter.Apply(reading, edit);
+        _projectReads.MarkStale();
+        _projectReads.Replace(ProjectFileReader.Read(reading.Name, written) with
+        {
+            Folder = reading.Folder,
+            Text = written,
+            Artefacts = reading.Artefacts,
+        });
+
+        return written;
+    }
+
     private bool EditProject(string project, Func<string, string> edit, string done)
     {
         if (Readable(project) is not { } reading)
@@ -1543,16 +1565,9 @@ public sealed class ShellViewModel : ObservableObject
 
         try
         {
-            var written = ProjectFileWriter.Apply(reading, edit);
+            Write(reading, edit);
             TheseusLog.Information("Edited the project file of {Project}: {Edit}", project, done);
             Notice = done;
-            _projectReads.MarkStale();
-            _projectReads.Replace(ProjectFileReader.Read(reading.Name, written) with
-            {
-                Folder = reading.Folder,
-                Text = written,
-                Artefacts = reading.Artefacts,
-            });
 
             return true;
         }
@@ -1810,6 +1825,16 @@ public sealed class ShellViewModel : ObservableObject
     /// </summary>
     public string? CurrentPieceOf(string cardKey) => _projectReads.Members.Of(cardKey)?.Slug;
 
+    /// <summary>A card's project and current piece, as the project files last read say; null when no project names it.</summary>
+    public ProjectMember? MemberOf(string cardKey) => _projectReads.Members.Of(cardKey);
+
+    /// <summary>A project as last read, by name, for the tools that write its file (1.1f B9); null when there is none.</summary>
+    public ProjectFileReading? ProjectReadingOf(string name) =>
+        _projectReads.Current.FirstOrDefault(reading => string.Equals(reading.Name, name, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>What sessions said about their stages through now_at (1.1f E24); none until the app sets it.</summary>
+    public StageReports StageReports { get; set; } = StageReports.None;
+
     /// <summary>
     /// Sets each card's project and slug from the members. A verifier no table names takes its subject's, its subject
     /// being the card it reports back to (1.1c plan, departure 1). Only a card whose place changed is touched.
@@ -1891,7 +1916,7 @@ public sealed class ShellViewModel : ObservableObject
             IReadOnlyList<PieceOfWork> pieces = PiecesOfWork.Build(reading, slug => acceptances.LastOrDefault(acceptance =>
                     string.Equals(acceptance.Project, reading.Name, StringComparison.OrdinalIgnoreCase)
                     && string.Equals(acceptance.Slug, slug, StringComparison.OrdinalIgnoreCase)),
-                pieceCards, links, _projectReads.Members);
+                pieceCards, links, _projectReads.Members, StageReports);
             pieces = [.. pieces.Select(piece => reportedAcceptances.LastOrDefault(report =>
                     string.Equals(report.Project, reading.Name, StringComparison.OrdinalIgnoreCase)
                     && string.Equals(report.Slug, piece.Name, StringComparison.OrdinalIgnoreCase)) is { } reported
