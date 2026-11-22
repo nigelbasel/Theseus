@@ -95,6 +95,19 @@ public class ProjectOverviewTests
     }
 
     [Test]
+    public void ABuildAwaitingItsCheck_WhoseSessionWorksOn_IsMoving()
+    {
+        var reading = WriteBym(_folder);
+        var pieces = BymPieces(_folder, live: false).ToList();
+        var index = pieces.FindIndex(piece => piece.Status.State == StageNodeState.HoldoutsNotRun && piece.IsCurrentPiece && piece.Card is not null);
+        pieces[index] = pieces[index] with { Card = pieces[index].Card! with { Lifecycle = Theseus.Core.Domain.SessionLifecycle.Running } };
+
+        Assert.That(pieces[index].Status.State, Is.EqualTo(StageNodeState.HoldoutsNotRun));
+        Assert.That(ProjectOverview.For(reading.File!, pieces, [], [], 0).Sentence, Does.Not.StartWith("Nothing is moving"),
+            "its session is working, so something is moving (Nigel's capture, 2026-11-22)");
+    }
+
+    [Test]
     public void AOneRoundProject_OmitsTheRoundClause_AndNamesWhatIsMoving()
     {
         var reading = WriteTheseus(_folder);
