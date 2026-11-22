@@ -27,6 +27,7 @@ public sealed class ObjectiveHeadingViewModel : ObservableObject, IFoldable
         PhaseTitle = phaseTitle;
         Pieces = pieces;
         Summary = ProjectSummary.For(group.Pieces);
+        Rollup = Objective is { } rolled ? Theseus.Core.Projects.Rollup.Of(rolled, group.Pieces) : null;
         _isOpen = isOpen;
         ToggleCommand = new RelayCommand(_ => toggle(this));
         SelectCommand = new RelayCommand(_ => select(this));
@@ -76,6 +77,12 @@ public sealed class ObjectiveHeadingViewModel : ObservableObject, IFoldable
 
     /// <summary>Its pieces of work, in file order, as the Flow's boxes.</summary>
     public IReadOnlyList<PieceNodeViewModel> Pieces { get; }
+
+    /// <summary>Its rolled-up mark, shown even when folded (Nigel, 2026-11-22); null for the heading of unlisted pieces.</summary>
+    public Rollup? Rollup { get; }
+
+    /// <summary>"◆ Waiting for you · Theseus 1.1g", or empty.</summary>
+    public string RollupText => Rollup is { } rollup ? rollup.Text + (rollup.Who.Length > 0 ? $" · {rollup.Who}" : string.Empty) : string.Empty;
 
     /// <summary>Whether nothing works on it yet, when it says "nothing yet".</summary>
     public bool IsEmpty => Pieces.Count == 0;

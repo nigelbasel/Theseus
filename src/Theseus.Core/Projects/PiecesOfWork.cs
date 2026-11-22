@@ -12,6 +12,9 @@ public static class PiecesOfWork
 {
     private const string SpecCoveredIt = "the project's spec covered it";
 
+    /// <summary>What a feature's spec stage says when its records hold later work but no spec.md.</summary>
+    public const string NoSpecHere = "no spec.md in its records: the spec it builds from is not recorded here, so its gate is not shown as passed";
+
     private enum DraftKind
     {
         Spec,
@@ -330,9 +333,11 @@ public static class PiecesOfWork
                 return stage with { State = StageNodeState.Stuck, Reason = "no evidence, though later records are written" };
             }
 
+            // Not Stuck: nothing is blocked, the spec is only not in this folder (Nigel, 2026-11-22: "saying stuck and not being
+            // stuck are unacceptable"). The stage says so, and its gate is not shown as passed.
             if (stage.Stage == PipelineStage.Spec && draft.Pipeline == PipelineKind.Feature && !draft.IsBeforeKit)
             {
-                return stage with { State = StageNodeState.Stuck, Reason = "no spec to accept, though later records are written" };
+                return stage with { State = StageNodeState.RecordsElsewhere, Reason = NoSpecHere };
             }
 
             return stage with { State = StageNodeState.DoneNoRecord, Reason = null };

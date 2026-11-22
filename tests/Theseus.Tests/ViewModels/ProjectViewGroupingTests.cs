@@ -87,7 +87,7 @@ public class ProjectViewGroupingTests
 
         Assert.That(view.IsGroupedByFlow, Is.True);
         Assert.That(raised, Does.Contain(nameof(ProjectViewModel.IsGroupedByFlow)), "a toggle unticked by a click is ticked again");
-        Assert.That(_views.Settings.Settings.ProjectGrouping, Is.Empty);
+        Assert.That(_views.Settings.Settings.ProjectGrouping[TheseusProject], Is.EqualTo(ProjectViewGrouping.Flow), "nothing new is written");
     }
 
     [Test]

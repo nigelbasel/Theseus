@@ -760,6 +760,9 @@
                                 <TextBlock x:Name="ObjectiveTitle" Text="{Binding Title}" ToolTip="{Binding Title}" FontSize="14" FontWeight="SemiBold"
                                            TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                                 <WrapPanel Margin="0,3,0,0">
+                                    <TextBlock x:Name="ObjectiveRollup" Text="{Binding RollupText}" ToolTip="{Binding Rollup.ToolTip}"
+                                               FontSize="12.5" FontWeight="SemiBold" Margin="0,0,10,0" TextWrapping="Wrap" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                                     <TextBlock x:Name="ObjectiveCriteria" Text="{Binding CriteriaText}" ToolTip="{Binding CriteriaToolTip}"
                                                FontFamily="{StaticResource Mono}" FontSize="12" Margin="0,0,10,4" VerticalAlignment="Center"
                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
@@ -814,6 +817,9 @@
                             </Border.ContextMenu>
                             <StackPanel>
                                 <TextBlock x:Name="PhaseTitle" Text="{Binding Title}" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                <TextBlock x:Name="PhaseRollup" Text="{Binding RollupText}" ToolTip="{Binding Rollup.ToolTip}" FontSize="12.5"
+                                           FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,2,0,0"
                                            Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                                 <TextBlock x:Name="PhaseExitGate" Text="{Binding ExitGate}" FontSize="12" TextWrapping="Wrap" Margin="0,2,0,0"
                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
