@@ -189,16 +189,46 @@
                 <TextBlock Style="{StaticResource FieldHint}"
                            Text="Where each workstream's worktrees go: a folder per workstream, with a worktree in it for each repo the workstream changes." />
 
-                <TextBlock Text="Holdout scenarios folder" Style="{StaticResource FieldLabel}" />
+                <TextBlock Text="Holdout scenarios folder for every project" Style="{StaticResource FieldLabel}" />
                 <TextBox x:Name="HoldoutFolderBox" Text="{Binding HoldoutFolder, UpdateSourceTrigger=PropertyChanged}"
                          AutomationProperties.Name="Holdout scenarios folder" />
                 <DockPanel Margin="0,4,0,0">
                     <Button DockPanel.Dock="Right" Content="C_hange…" Padding="10,2" Click="OnChooseHoldoutFolder"
                             ToolTip="Choose the folder the holdout scenarios are in, such as a private repository's clone" />
                     <TextBlock x:Name="HoldoutInUse" Text="{Binding HoldoutFolderInUse}" VerticalAlignment="Center" FontSize="11"
-                               TextTrimming="CharacterEllipsis" ToolTip="{Binding HoldoutFolderInUse}"
+                               TextWrapping="Wrap"
                                Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                 </DockPanel>
+                <!-- Each project's holdout folder and how it was found (1.1e AC 6e). -->
+                <TextBlock Text="Each project's holdout folder" Style="{StaticResource FieldLabel}" />
+                <ItemsControl x:Name="HoldoutRows" ItemsSource="{Binding HoldoutRows}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <DockPanel Margin="0,0,0,6">
+                                <Button DockPanel.Dock="Right" Content="Reset" Padding="10,2" Margin="6,0,0,0"
+                                        ToolTipService.ShowOnDisabled="True" ToolTip="{Binding ResetToolTip}"
+                                        AutomationProperties.Name="{Binding Project, StringFormat=Reset the holdout folder of {0}}"
+                                        Command="{Binding DataContext.ResetProjectHoldoutCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                        CommandParameter="{Binding}" />
+                                <Button DockPanel.Dock="Right" Content="Change…" Padding="10,2" Click="OnChooseProjectHoldout"
+                                        IsEnabled="{Binding CanChange}" ToolTipService.ShowOnDisabled="True" ToolTip="{Binding ChangeToolTip}"
+                                        AutomationProperties.Name="{Binding Project, StringFormat=Change the holdout folder of {0}}" />
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Project}" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding Line}" FontSize="11" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                    <!-- Theseus's own folder can be kept in a private repository (1.1e AC 6e). -->
+                                    <Button Content="Keep these in a private repository…" Style="{DynamicResource LinkButton}" HorizontalAlignment="Left"
+                                            Click="OnKeepInPrivateRepository" Visibility="{Binding IsTheseusOwn, Converter={StaticResource BoolToVisibility}}"
+                                            ToolTip="Add your own private repository as this folder's remote, so the scenarios are kept off this machine too" />
+                                </StackPanel>
+                            </DockPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Style="{StaticResource FieldHint}"
+                           Text="Found in this order: a folder chosen here; the folder for every project above; a folder named after the project's home repo with -holdout, beside its clone; otherwise Theseus's own, a local git repository." />
+
                 <TextBlock Text="Holdout remote address" Style="{StaticResource FieldLabel}" />
                 <TextBox Text="{Binding HoldoutRemote, UpdateSourceTrigger=PropertyChanged}" />
                 <TextBlock Style="{StaticResource FieldHint}"

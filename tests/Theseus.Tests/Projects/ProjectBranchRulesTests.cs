@@ -122,16 +122,18 @@ public class ProjectBranchRulesTests
     }
 
     [Test]
-    public void AnOlderInstalledGuard_WithNoFolderSet_IsWarnedAbout_BeforeTheUpgradeProtectsLess()
+    public void AnInstalledGuard_ThatDoesNotReadTheHoldoutFolders_IsWarnedAbout()
     {
-        const string old = "const HOLDOUT = /owner[\\\\/]+private-holdout/i;";
-        const string current = "const typed = typeof settings.holdoutFolder === 'string';";
+        const string old = "const typed = typeof settings.holdoutFolder === 'string';";
+        var current = System.IO.File.ReadAllText(Path.Combine(RepositoryRoot(), "tools", "holdout", "holdout-guard.js"));
 
-        Assert.That(HoldoutGuardUpgrade.Warning(old, ""), Does.StartWith("Holdout folder not set").And.Contain("Holdout scenarios folder"));
-        Assert.That(HoldoutGuardUpgrade.Warning(old, @"C:\clones\holdout"), Is.Null, "a folder is set");
-        Assert.That(HoldoutGuardUpgrade.Warning(current, ""), Is.Null, "the installed guard reads the settings");
-        Assert.That(HoldoutGuardUpgrade.Warning(null, ""), Is.Null, "no guard installed");
+        Assert.That(HoldoutGuardUpgrade.Warning(old), Does.StartWith("The installed holdout guard does not read holdout-folders.json"));
+        Assert.That(HoldoutGuardUpgrade.Warning(current), Is.Null, "this version's guard reads them");
+        Assert.That(HoldoutGuardUpgrade.Warning(null), Is.Null, "no guard installed");
     }
+
+    private static string RepositoryRoot([System.Runtime.CompilerServices.CallerFilePath] string thisFile = "") =>
+        Path.GetFullPath(Path.Combine(Path.GetDirectoryName(thisFile)!, "..", "..", ".."));
 
     [Test]
     public void TheInstalledGuard_IsLookedForWhereTheHooksNameIt_ThenInTheUsualPlace()

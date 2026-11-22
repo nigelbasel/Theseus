@@ -1331,6 +1331,44 @@ public sealed class ShellViewModel : ObservableObject
         _ => null,
     };
 
+    /// <summary>
+    /// Finds each project's holdout folder (1.1e AC 6e) and writes those in force to holdout-folders.json, which the
+    /// holdout guard reads, so the board and the guard always agree.
+    /// </summary>
+    private void RefreshHoldouts(IReadOnlyList<Workstream> cards)
+    {
+        _holdouts.Refresh(_holdoutFolder, _settings.Read().ProjectHoldoutFolders, HoldoutBesideRepo, cards);
+
+        if (HoldoutFolderFile.Write(HoldoutFolderFile.PathIn(), _holdouts.Entries))
+        {
+            TheseusLog.Information("Wrote the holdout folders in force: {Folders}",
+                string.Join("; ", _holdouts.Entries.Select(entry => $"{entry.Project}: {entry.Folder} ({entry.HowFound})")));
+        }
+
+        if (Settings is not null)
+        {
+            Settings.HoldoutEntries = _holdouts.Entries;
+        }
+    }
+
+    /// <summary>
+    /// The <c>&lt;repo&gt;-holdout</c> folder beside the clone of a project's home code repo, when there is one: the repo its
+    /// Repos table marks home, else the first, found among the folders its cards work in.
+    /// </summary>
+    private string? HoldoutBesideRepo(string project)
+    {
+        var reading = _projectReads.Current.FirstOrDefault(each => string.Equals(each.Name, project, StringComparison.OrdinalIgnoreCase));
+        var members = _projectReads.History.CardsOf(project);
+        // Only cards that build: a verifier, scenario writer or updater works in or beside a holdout (review of PR 7, 4).
+        var folders = Board.Cards
+            .Where(card => card.Workstream.Role == WorkstreamRole.None
+                           && (members.Contains(card.Key) || string.Equals(card.Workstream.Project, project, StringComparison.OrdinalIgnoreCase)))
+            .SelectMany(card => new[] { card.Workstream.WorkingDirectory }.Concat(card.Workstream.AddDirectories))
+            .Where(folder => !folder.Contains(HomeRepo.HoldoutSuffix, StringComparison.OrdinalIgnoreCase));
+
+        return HomeRepo.HoldoutBeside(HomeRepo.Clone(HomeRepo.NameIn(reading?.Text), folders));
+    }
+
     /// <summary>Opens Options at the holdout scenarios folder (1.1e AC 6a).</summary>
     private void OpenHoldoutSetting()
     {
@@ -1345,7 +1383,11 @@ public sealed class ShellViewModel : ObservableObject
     private void WriteScenarios(WorkstreamCardViewModel card)
     {
         var holdout = HoldoutOf(card);
-        holdout.Ensure();
+
+        if (holdout.IsDefault && !holdout.Ensure())
+        {
+            Notice = $"{holdout.Folder} could not be made a git repository (is git installed?); the scenarios there will have no history.";
+        }
         var project = card.Workstream.Project;
         var reading = project is null ? null : Readable(project);
         var writer = ScenarioWriterCard.For(reading?.File?.Title ?? card.Title, holdout.Folder, reading?.Folder);
@@ -1813,7 +1855,7 @@ public sealed class ShellViewModel : ObservableObject
         Board.KeepOutOfGrid = ProjectGridRule.KeepOutOfGrid(memberOf, anyMembers);
 
         // Membership has just been read, so the holdout folders are looked at again by project (1.1e AC 6c).
-        _holdouts.Refresh(_holdoutFolder, [.. cards.Select(card => card.Workstream)]);
+        RefreshHoldouts([.. cards.Select(card => card.Workstream)]);
 
         foreach (var card in cards)
         {
@@ -2891,7 +2933,7 @@ public sealed class ShellViewModel : ObservableObject
         var lastStage = Board.Stages.LastOrDefault();
         var reasons = _settings.Read();
         _branchGrants = reasons.ProjectBranchRules;
-        _holdouts.Refresh(_holdoutFolder, [.. Board.Cards.Select(card => card.Workstream)]);
+        RefreshHoldouts([.. Board.Cards.Select(card => card.Workstream)]);
 
         foreach (var card in Board.Cards)
         {

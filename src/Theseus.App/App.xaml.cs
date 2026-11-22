@@ -147,8 +147,8 @@ public partial class App : Application
             shell.Warn(warning);
         }
 
-        // An older installed guard names its own holdout; this one reads the folder from the settings (git-22, 1.1e PR 2c).
-        if (HoldoutGuardUpgrade.Warning(InstalledHoldoutGuard(), current.HoldoutFolder) is { } guardWarning)
+        // An older installed guard does not protect the folders Theseus finds per project (1.1e AC 6e).
+        if (HoldoutGuardUpgrade.Warning(InstalledHoldoutGuard()) is { } guardWarning)
         {
             TheseusLog.Warning("{Warning}", guardWarning);
             shell.Warn(guardWarning);

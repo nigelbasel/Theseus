@@ -51,10 +51,34 @@ function readHoldout() {
         const folder = chosen || defaultHoldouts();
         const isDefault = !chosen;
         const remote = typeof settings.holdoutRemote === 'string' ? settings.holdoutRemote.trim() : '';
-        return { folder, remote, isDefault };
+        return { folder, remote, isDefault, listed: listedFolders() };
     } catch {
-        return { folder: defaultHoldouts(), remote: '', isDefault: true };
+        return { folder: defaultHoldouts(), remote: '', isDefault: true, listed: listedFolders() };
     }
+}
+
+// The holdout folders in force, one per project, as Theseus last wrote them (1.1e AC 6e): chosen in Options, found beside
+// a project's home repo, or Theseus's own. Each is protected, so the board and the guard agree. None listed, or a file
+// that does not read, leaves the settings' folder or the default alone, as before.
+function listedFolders() {
+    try {
+        const listed = JSON.parse(fs.readFileSync(path.join(theseusFolder(), 'holdout-folders.json'), 'utf8').replace(/^\uFEFF/, ''));
+        // Each entry is judged on its own, so one malformed entry cannot drop the rest (review of PR 7, finding 8).
+        return (Array.isArray(listed.folders) ? listed.folders : [])
+            .filter(entry => entry && typeof entry === 'object')
+            .map(entry => typeof entry.folder === 'string' ? entry.folder.trim() : '')
+            .filter(folder => folder && path.win32.isAbsolute(folder) && path.win32.resolve(folder) !== path.win32.parse(path.win32.resolve(folder)).root)
+            .map(folder => path.win32.resolve(folder));
+    } catch {
+        return [];
+    }
+}
+
+// The <repo>-holdout folder a path is in, by convention, or '' (1.1e AC 6e).
+function conventionalFolder(target) {
+    const parts = path.win32.resolve(target).split('\\');
+    const index = parts.findIndex(part => /-holdout$/i.test(part));
+    return index < 0 ? '' : parts.slice(0, index + 1).join('\\');
 }
 
 // Where the default holdout folders are, one per project, when the owner chose none (1.1e AC 6c).
@@ -155,9 +179,10 @@ process.stdin.on('end', () => {
     if (WRITING.has(tool)) {
         const target = input.file_path || input.notebook_path || '';
         const own = theseusFolder();
-        if (target && [path.win32.join(own, 'settings.json'), path.win32.join(own, 'board.json')]
+        if (target && [path.win32.join(own, 'settings.json'), path.win32.join(own, 'board.json'),
+            path.win32.join(own, 'holdout-folders.json')]
             .some(file => normalise(resolve(target, cwd)) === normalise(file))) {
-            deny('Theseus\'s settings and board are changed from Theseus, not by a session.');
+            deny('Theseus\'s settings, board and holdout folders are changed from Theseus, not by a session.');
         }
     }
 
@@ -171,11 +196,22 @@ process.stdin.on('end', () => {
     }
 
     const texts = [...PATH_FIELDS, ...TEXT_FIELDS].map(field => input[field]).filter(value => typeof value === 'string');
-    const touches = located.some(where => under(where, holdout.folder))
-        || texts.some(text => names(text, holdout.folder) || names(text, holdout.remote));
+    // A folder named <repo>-holdout is a holdout by convention wherever it is, so one beside a repo is protected even when
+    // a session names it relative to its own folder, or before Theseus has listed it (review of PR 7, findings 5 and 6).
+    const conventional = /(^|[\\/\s'"=(<>|;&:])[^\\/\s'"=(<>|;&:]*-holdout(?=$|[\\/\s'"=(<>|;&:])/i;
+    const folders = [holdout.folder, ...holdout.listed];
+    const touches = located.some(where => folders.some(folder => under(where, folder)) || conventional.test(normalise(where)))
+        || texts.some(text => folders.some(folder => names(text, folder)) || names(text, holdout.remote) || conventional.test(text));
     // A chosen holdout has one results folder; the default has one per project, holdouts\<project>\results (review of
     // 1.1e PR 2b, finding 1), since each project's verifier writes its report beside its own scenarios.
     function inResults(target) {
+        // A listed folder has its own results folder (1.1e AC 6e); the deepest that holds the target is its holdout.
+        const listed = holdout.listed.filter(folder => under(target, folder)).sort((a, b) => b.length - a.length)[0]
+            || conventionalFolder(target);
+        if (listed) {
+            const results = path.win32.join(listed, 'results');
+            return under(target, results) && normalise(target) !== normalise(results);
+        }
         if (!holdout.isDefault) {
             const results = path.win32.join(holdout.folder, 'results');
             return under(target, results) && normalise(target) !== normalise(results);
@@ -190,7 +226,14 @@ process.stdin.on('end', () => {
 
     // No shell command runs inside the holdout, for any role but author: there is no telling what it would change.
     // A verifier reads the scenarios with the file tools and runs its builds in the code it checks.
-    if (SHELLS.has(tool) && cwd && under(cwd, holdout.folder)) {
+    // Theseus's own files are not changed by a shell command either: deleting the holdout list would drop its folders
+    // from the guard until Theseus wrote it again (review of PR 7, finding 7).
+    if (SHELLS.has(tool) && texts.some(text => /holdout-folders\.json/i.test(text)
+        || ['settings.json', 'board.json'].some(file => names(text, path.win32.join(theseusFolder(), file))))) {
+        deny('Theseus\'s settings, board and holdout folders are changed from Theseus, not by a session.');
+    }
+
+    if (SHELLS.has(tool) && cwd && (folders.some(folder => under(cwd, folder)) || conventional.test(normalise(cwd)))) {
         deny('No shell command runs inside the holdout folder. Read the scenarios with the file tools, and run builds '
             + 'and tests from the code\'s own folder.');
     }

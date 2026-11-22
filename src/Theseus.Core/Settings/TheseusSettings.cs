@@ -209,6 +209,12 @@ public sealed record TheseusSettings(
     public IReadOnlyList<string> HiddenProjectFolders { get; init; } = [];
 
     /// <summary>
+    /// The holdout folder the owner chose for a project, by project folder name (1.1e AC 6e): first in the order a
+    /// project's holdout is found; Reset in Options removes it.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> ProjectHoldoutFolders { get; init; } = new Dictionary<string, string>();
+
+    /// <summary>
     /// The projects whose updater has run while their file does not read, by project folder name (review of 1.1e PR 4):
     /// the fingerprint of the file when it started, or empty once it has been asked to stop. Its card says "Still needs
     /// updating" while the name is here; the name leaves once the file reads and the updater has stopped.

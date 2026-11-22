@@ -1,3 +1,4 @@
+using Theseus.Core.Links;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -77,6 +78,78 @@ public class HoldoutGuardSettingsTests
             Is.True, "and Theseus's own files are protected, since a holdout is always in force");
         Assert.That(Guard("Read", "file_path", Path.Combine(_folder, "Theseus", "holdouts-notes.md"), string.Empty, localAppData: _folder),
             Is.False, "a name only counts whole");
+    }
+
+    // A holdout-folders.json as Theseus writes it, with one folder found beside a fixture repo (1.1e AC 6e).
+    private string ListBesideRepo()
+    {
+        var beside = Path.Combine(_folder, "src", "Theseus-holdout");
+        var theseus = Path.Combine(_folder, "Theseus");
+        Directory.CreateDirectory(theseus);
+        HoldoutFolderFile.Write(Path.Combine(theseus, HoldoutFolderFile.FileName),
+            [new HoldoutFolderEntry("theseus", beside, HoldoutSource.BesideRepo)]);
+
+        return beside;
+    }
+
+    [Test]
+    public void AFolderListedByTheseus_IsGuarded_AsTheDefaultIs()
+    {
+        var beside = ListBesideRepo();
+
+        Assert.That(Guard("Read", "file_path", Path.Combine(beside, "scenario.md"), string.Empty, localAppData: _folder), Is.True);
+        Assert.That(Guard("Grep", "path", beside, string.Empty, localAppData: _folder), Is.True);
+        Assert.That(Guard("Bash", "command", "dir", string.Empty, cwd: beside, localAppData: _folder), Is.True, "no shell inside it");
+        Assert.That(Guard("Read", "file_path", Path.Combine(_folder, "src", "Theseus", "code.cs"), string.Empty, localAppData: _folder),
+            Is.False, "the repo beside it is not the holdout");
+    }
+
+    [Test]
+    public void AVerifierWithAListedFolder_WritesOnlyInItsResults()
+    {
+        var beside = ListBesideRepo();
+
+        Assert.That(Guard("Write", "file_path", Path.Combine(beside, "results", "verify.md"), string.Empty, localAppData: _folder,
+            role: "verifier"), Is.False);
+        Assert.That(Guard("Write", "file_path", Path.Combine(beside, "scenario.md"), string.Empty, localAppData: _folder,
+            role: "verifier"), Is.True);
+    }
+
+    [Test]
+    public void AFolderNamedForTheConvention_IsGuarded_EvenNamedRelatively_OrNotYetListed()
+    {
+        Assert.That(Guard("Bash", "command", "cat ../Repo-holdout/a.md", string.Empty, localAppData: _folder), Is.True);
+        Assert.That(Guard("PowerShell", "command", @"Get-Content ..\Repo-holdout\a.md", string.Empty, localAppData: _folder), Is.True);
+        Assert.That(Guard("Glob", "pattern", "../Repo-holdout/**", string.Empty, localAppData: _folder), Is.True);
+        Assert.That(Guard("Read", "file_path", Path.Combine(_folder, "src", "Repo-holdout", "a.md"), string.Empty, localAppData: _folder), Is.True);
+        Assert.That(Guard("Read", "file_path", Path.Combine(_folder, "src", "Repo", "holdout-notes.md"), string.Empty, localAppData: _folder),
+            Is.False, "only a folder named <repo>-holdout");
+        Assert.That(Guard("Write", "file_path", Path.Combine(_folder, "src", "Repo-holdout", "results", "r.md"), string.Empty,
+            localAppData: _folder, role: "verifier"), Is.False, "a verifier writes in its results");
+    }
+
+    [Test]
+    public void TheHoldoutFoldersFile_CannotBeRemovedByAShellCommand_AndOneBadEntryDropsNothing()
+    {
+        var beside = ListBesideRepo();
+        File.WriteAllText(Path.Combine(_folder, "Theseus", HoldoutFolderFile.FileName),
+            $$"""{"folders":[{"folder":{{System.Text.Json.JsonSerializer.Serialize(Path.Combine(_folder, "elsewhere"))}}},null]}""");
+
+        Assert.That(Guard("Bash", "command", "rm \"$LOCALAPPDATA/Theseus/holdout-folders.json\"", string.Empty, localAppData: _folder), Is.True);
+        Assert.That(Guard("Read", "file_path", Path.Combine(_folder, "elsewhere", "a.md"), string.Empty, localAppData: _folder), Is.True,
+            "the good entry still counts");
+        Assert.That(beside, Does.EndWith("-holdout"));
+    }
+
+    [Test]
+    public void TheHoldoutFoldersFile_CannotBeWrittenByASession()
+    {
+        ListBesideRepo();
+
+        Assert.That(Guard("Write", "file_path", Path.Combine(_folder, "Theseus", HoldoutFolderFile.FileName), string.Empty,
+            localAppData: _folder), Is.True);
+        Assert.That(Guard("Read", "file_path", Path.Combine(_folder, "Theseus", HoldoutFolderFile.FileName), string.Empty,
+            localAppData: _folder), Is.False, "reading it is fine");
     }
 
     [Test]
