@@ -53,18 +53,28 @@ public class ProjectViewPropertiesTests
         var pane = Selected(view, Box(view, "project-view"));
 
         Assert.That((pane.Heading, pane.StatusText, pane.State), Is.EqualTo(
-            ("project-view", "Waiting for you: accept the spec.", Theseus.Core.Projects.StageNodeState.WaitingOnYou)));
+            ("Checks shown on cards", "Waiting for you: accept the spec.", Theseus.Core.Projects.StageNodeState.WaitingOnYou)));
         Assert.That(pane.Rows.Select(row => (row.Label, row.Value)), Is.EqualTo(new[]
         {
             ("Where", "◆ Waiting for you: accept the spec."),
-            ("Worker", "git-22"),
-            ("Kind", "feature"),
+            ("What it means", "Waiting for you: nothing moves until you act."),
+            ("Who acts next", "You; nothing moves until you do."),
+            ("Kind", "⚒ Build: Builds a change on its own branch, through spec, plan, build, check and review."),
+            ("Card", "git-22 (its session is idle)"),
             ("Objective", "1.1 Checks shown on cards"),
-            ("Records", Records(TheseusProject, "project-view")),
+            ("Round", "Round 1"),
+            ("Records", "in the project: Open records below"),
+            ("Branch", "owner/project-view"),
             ("Evidence", "open"),
             ("Accepted", "not yet"),
-            ("Stages", "✓ Research  ◆ Spec  ✓ Plan  ✓ Implement  ◐ Verify  ✓ Review  – Compound"),
-        }));
+            ("Research", "✓ Done. Finished: its record is written and any gate you accepted."),
+            ("Spec", "◆ Waiting for you: accept the spec. Waiting for you: nothing moves until you act."),
+            ("Plan", "✓ Done. Finished: its record is written and any gate you accepted."),
+            ("Implement", "✓ Done. Finished: its record is written and any gate you accepted."),
+            ("Verify", "◐ Built, not yet checked. " + Theseus.Core.Projects.StageNodeStates.Meaning(Theseus.Core.Projects.StageNodeState.HoldoutsNotRun)),
+            ("Review", "✓ Done. Finished: its record is written and any gate you accepted."),
+            ("Compound", "– Not started. No work recorded for this stage."),
+        }), "never a path or a folder name (1.1f H40)");
         Assert.That(pane.Buttons.Select(button => button.Label), Is.EqualTo(new[] { "Accept spec…", "Open records" }));
     }
 
@@ -83,7 +93,7 @@ public class ProjectViewPropertiesTests
         var view = _views.BuildYourMarket();
         var pane = Selected(view, Box(view, ClientFixes));
 
-        Assert.That(pane.Rows.Single(row => row.Label == "Records").Value, Is.EqualTo("no records folder in the project"));
+        Assert.That(pane.Rows.Single(row => row.Label == "Records").Value, Is.EqualTo("none in the project"));
         Assert.That(pane.Rows.Single(row => row.Label == "Objective").Value, Is.EqualTo("not in project.md"));
         Assert.That(pane.HasObjective, Is.False);
     }
@@ -96,13 +106,14 @@ public class ProjectViewPropertiesTests
         var pane = Selected(view, spec);
         var record = Path.Combine(Records(TheseusProject, "project-view"), "spec.md");
 
-        Assert.That((pane.Heading, pane.StatusText), Is.EqualTo(("Spec of project-view", "Waiting for you")));
+        Assert.That((pane.Heading, pane.StatusText), Is.EqualTo(("Spec of Checks shown on cards", "Waiting for you")));
         Assert.That(pane.Rows.Select(row => (row.Label, row.Value)), Is.EqualTo(new[]
         {
             ("Stage", "Spec"),
             ("State", "◆ Waiting for you"),
-            ("Record", record),
-            ("Piece", "project-view"),
+            ("Means", "Waiting for you: nothing moves until you act."),
+            ("Record", "spec.md, in its records"),
+            ("Piece", "Checks shown on cards"),
             ("Worker", "git-22"),
             ("Objective", "1.1 Checks shown on cards"),
             ("Why", "accept the spec"),

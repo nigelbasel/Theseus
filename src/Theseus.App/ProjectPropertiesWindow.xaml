@@ -54,6 +54,12 @@
         <TextBlock Margin="0,4,0,0" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                    Text="The project card's stripe and mark, and the project's tab and summary, take this colour. Project colours are never workstream colours; a dot marks one another project has." />
 
+        <!-- The lead card, kept by project folder name; by default the first row's card (Nigel, 2026-11-22). -->
+        <TextBlock Text="Lead" FontWeight="SemiBold" Margin="0,12,0,0" />
+        <ComboBox x:Name="LeadBox" Margin="0,4,0,0" ItemsSource="{Binding Leads}" DisplayMemberPath="Value" SelectedValuePath="Key"
+                  SelectedValue="{Binding Lead, Mode=TwoWay}" AutomationProperties.Name="Lead card"
+                  ToolTip="The project's main card: ⌖ Focus lead brings its terminal forward, and a project's Start starts it" />
+
         <!-- Granted by the owner here, never by the file, which sessions write (1.1e AC 12b). -->
         <CheckBox x:Name="BranchRulesBox" Margin="0,12,0,0" IsChecked="{Binding GrantsBranchRules, Mode=TwoWay}"
                   IsEnabled="{Binding CanChangeBranchRules, Mode=OneWay}" ToolTipService.ShowOnDisabled="True"

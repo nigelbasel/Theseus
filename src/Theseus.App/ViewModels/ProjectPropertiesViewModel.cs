@@ -121,6 +121,12 @@ public sealed class ProjectPropertiesViewModel : ObservableObject
     /// <summary>Why the file's path cannot be edited here.</summary>
     public string FileToolTip => $"{ProjectFile}. Read only: the file is where the project's folder is; move the folder to move it";
 
+    /// <summary>The cards that may lead it, by key, each shown as "Title (key)".</summary>
+    public IReadOnlyList<KeyValuePair<string, string>> Leads { get; init; } = [];
+
+    /// <summary>The lead card's key.</summary>
+    public string? Lead { get; set; }
+
     /// <summary>OK: writes a changed title and says whether the dialog may close; a refusal stays, shown under the title.</summary>
     public bool Apply()
     {

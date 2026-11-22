@@ -21,6 +21,8 @@ public sealed class PieceNodeViewModel : ObservableObject, IFoldable
 
     private bool _isOpen;
     private bool _isSelected;
+    private bool _isShown = true;
+    private bool _isHighlighted;
 
     internal PieceNodeViewModel(PieceNode node, IReadOnlyList<PieceNodeViewModel> children,
         IReadOnlyList<StageNodeViewModel> stages, IReadOnlyList<PieceActionViewModel> actions, bool isOpen,
@@ -196,6 +198,122 @@ public sealed class PieceNodeViewModel : ObservableObject, IFoldable
 
     /// <summary>Its spec as read, when it waits at its gate, for Open spec and Accept spec.</summary>
     public SpecAtGate? Spec { get; init; }
+
+    /// <summary>Its kind, shown by its title bar (1.1f A1, A2).</summary>
+    public PieceKind Kind => Piece.Kind;
+
+    /// <summary>The title bar's icon and word, such as "⚒ Build".</summary>
+    public string KindLabel => $"{PieceKinds.Icon(Kind)} {PieceKinds.Word(Kind)}";
+
+    /// <summary>The kind word's hover: what the kind means and how it was worked out (A3).</summary>
+    public string KindToolTip => $"{PieceKinds.Word(Kind)}: {PieceKinds.Means(Kind)} {PieceKinds.HowWorkedOut}";
+
+    /// <summary>The theme brush its title bar is filled with.</summary>
+    public string KindBrushKey => $"Kind{Kind}Brush";
+
+    /// <summary>What the piece achieves, its box's title (A4).</summary>
+    public string Title => Piece.Title;
+
+    /// <summary>Who acts next, and when, in the same words as its "Waits for you" item (F31, G37).</summary>
+    public string WhoActs => Status.WhoActs;
+
+    /// <summary>The state's three answers, for the state line's hover.</summary>
+    public string StatusToolTip => $"{Status.Word}: {Status.Meaning}\nWho acts next: {Status.WhoActs}";
+
+    /// <summary>"serves Objective 1.2", or "not in project.md" (H38).</summary>
+    public string ServesText => Piece.ObjectiveNumber is { } number ? $"serves Objective {number}" : "not in project.md";
+
+    /// <summary>The objective's title, for the serves link's hover.</summary>
+    public string ServesToolTip => Piece.ObjectiveTitle is { } title ? $"Objective {Piece.ObjectiveNumber}: {title}" : "No project row lists it";
+
+    /// <summary>Its gate diamond, or null when it has none (D21).</summary>
+    public GateMarkViewModel? Gate => GateMarkViewModel.For(Piece);
+
+    /// <summary>
+    /// The folded strip: its stages with the gate diamond after the Spec stage (after Rule for a bug), so the diamond
+    /// sits between Spec and Plan (D21).
+    /// </summary>
+    public IReadOnlyList<object> StripItems
+    {
+        get
+        {
+            var items = new List<object>(Stages);
+
+            if (Gate is { } gate && Stages.ToList().FindIndex(stage => stage.Node is SpecStageNode) is var at and >= 0)
+            {
+                items.Insert(at + 1, gate);
+            }
+
+            return items;
+        }
+    }
+
+    /// <summary>The folded box's one button: its status's action, when the box offers it (F31).</summary>
+    public PieceActionViewModel? PrimaryAction => Status.Action switch
+    {
+        PieceAction.Focus or PieceAction.Answer => Actions.FirstOrDefault(action => action.Label.Contains("Focus", StringComparison.Ordinal)),
+        PieceAction.Start => Actions.FirstOrDefault(action => action.Label.Contains("Start", StringComparison.Ordinal)),
+        PieceAction.Accept => Actions.FirstOrDefault(action => action.Label.StartsWith("Accept", StringComparison.Ordinal)),
+        PieceAction.StartCheck => Actions.FirstOrDefault(action => action.Label.StartsWith("Verify", StringComparison.Ordinal)),
+        PieceAction.OpenRecords => Actions.FirstOrDefault(action => action.Label == "Open records"),
+        PieceAction.OpenEvidence => Actions.FirstOrDefault(action => action.Label.StartsWith("Open records", StringComparison.Ordinal)),
+        PieceAction.AddToObjective => AddToProject,
+        _ => null,
+    };
+
+    /// <summary>Whether its folded box shows a button.</summary>
+    public bool HasPrimaryAction => PrimaryAction is not null;
+
+    /// <summary>Whether it hands work to exactly one piece, shown "↳ handed on" with no bars (D19).</summary>
+    public bool IsSingleHandOver => Children.Count == 1;
+
+    /// <summary>The fork bar's label: "3 in parallel · 1 busy, 1 waiting for you, 1 answered, criteria not ticked" (D18).</summary>
+    public string ForkText => $"{Children.Count} in parallel · " + string.Join(", ", Children
+        .GroupBy(child => child.State)
+        .Select(group => $"{group.Count()} {StageNodeStates.Word(group.Key).ToLowerInvariant()}"));
+
+    /// <summary>
+    /// The join bar's label: waiting for some to report back, or all back, then what happens next, which defaults to the
+    /// parent's session taking their reports (D18, D7). A Reported or Satisfied report-back counts as back.
+    /// </summary>
+    public string JoinText
+    {
+        get
+        {
+            var back = Children.Count(child => child.Piece.HasReportedBack);
+            var next = $"then the {Title} session takes their reports";
+
+            return back == Children.Count
+                ? $"All {Children.Count} reported back, {next}"
+                : $"Waiting for {Children.Count - back} of {Children.Count} to report back, {next}";
+        }
+    }
+
+    /// <summary>
+    /// The proposals its card raised that wait for the owner, drawn as dashed nodes under it with Approve and Reject
+    /// (1.1e item 30, placed by 1.1f's "What this replaces"); only on the card's current piece.
+    /// </summary>
+    public IReadOnlyList<ProposalRowViewModel> Proposals { get; init; } = [];
+
+    /// <summary>Whether it has a proposal waiting.</summary>
+    public bool HasProposals => Proposals.Count > 0;
+
+    /// <summary>Whether it is highlighted, as a box of the objective hovered or followed (I44, I45).</summary>
+    public bool IsHighlighted
+    {
+        get => _isHighlighted;
+        internal set => Set(ref _isHighlighted, value);
+    }
+
+    /// <summary>Follows its "serves Objective n" link (I42, I44); set by the view.</summary>
+    public System.Windows.Input.ICommand? ServesCommand { get; internal set; }
+
+    /// <summary>Whether the filter shows it: it matches, or a piece under it does (1.1e item 26).</summary>
+    public bool IsShown
+    {
+        get => _isShown;
+        internal set => Set(ref _isShown, value);
+    }
 
     /// <summary>Every box at and under this one, depth first.</summary>
     public IEnumerable<PieceNodeViewModel> SelfAndDescendants => Children.SelectMany(child => child.SelfAndDescendants).Prepend(this);

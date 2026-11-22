@@ -22,6 +22,7 @@ stages:
       kind: evidence
       passes_when: the new test fails, for the reported reason, on the unfixed code
       blocks: true
+    skip: never
 
   - id: rule
     role: specifier
@@ -37,6 +38,7 @@ stages:
       kind: human
       who: owner
       passes_when: the owner approves the rule
+    skip: when the expected behaviour is already stated; write no rule, and the view shows it done with no record
 
   - id: fix
     role: implementer
@@ -67,6 +69,8 @@ stages:
       blocks: true
 
   # Only when the fix needed a rule stage: a rule means new behaviour, which is what review is for (resumed-stop P7).
+    skip: never
+
   - id: review
     role: reviewer
     when: the rule stage ran

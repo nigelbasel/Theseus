@@ -32,7 +32,8 @@
         <KeyBinding Gesture="Alt+Enter" Command="{Binding PropertiesCommand}" />
         <KeyBinding Gesture="Escape" Command="{Binding ClearSelectionCommand}" />
         <!-- Back to the board from a project view (1.1d AC 16); CloseProjectCommand runs only while a project is open. -->
-        <KeyBinding Gesture="Alt+Left" Command="{Binding CloseProjectCommand}" />
+        <KeyBinding Gesture="Alt+Left" Command="{Binding GoBackCommand}" />
+        <KeyBinding Gesture="Alt+Right" Command="{Binding GoForwardCommand}" />
     </Window.InputBindings>
 
     <Window.Resources>
@@ -373,6 +374,11 @@
                                     ToolTip="{Binding OpenButtonToolTip}" AutomationProperties.Name="Update project file"
                                     Visibility="{Binding IsDimmed, Converter={StaticResource BoolToVisibility}}"
                                     Command="{Binding OpenCommand}" />
+                            <!-- The lead's terminal, beside Open (Nigel, 2026-11-22). -->
+                            <Button x:Name="ProjectFocusLead" Style="{StaticResource CardIcon}" Content="⌖"
+                                    ToolTip="{Binding FocusLeadToolTip}" ToolTipService.ShowOnDisabled="True"
+                                    AutomationProperties.Name="Focus lead" Command="{Binding FocusLeadCommand}"
+                                    Visibility="{Binding IsDimmed, Converter={StaticResource NotBoolToVisibility}}" />
                             <Button x:Name="ProjectStart" Style="{StaticResource CardIcon}" Content="&#xE768;"
                                     ToolTip="{Binding StartToolTip}" AutomationProperties.Name="Start project"
                                     Command="{Binding StartCommand}"
@@ -1197,7 +1203,7 @@
                           ItemContainerStyle="{StaticResource ProjectChoiceItem}"
                           Visibility="{Binding HasOpenProjectChoices, Converter={StaticResource BoolToVisibility}}"
                           ToolTip="Fill the main area with a project: where it is, and its pieces of work as they run down the page" />
-                <MenuItem Header="Back to the boar_d" Command="{Binding CloseProjectCommand}" InputGestureText="Alt+Left"
+                <MenuItem Header="Back to the boar_d" Command="{Binding CloseProjectCommand}"
                           Visibility="{Binding IsProjectOpen, Converter={StaticResource BoolToVisibility}}"
                           ToolTip="Close the project view and show the board again" />
                 <MenuItem Header="Bring project _window forward" Command="{Binding BringProjectWindowForwardCommand}"

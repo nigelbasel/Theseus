@@ -8,6 +8,15 @@ namespace Theseus.App.ViewModels;
 /// <param name="Words">What they are, such as "waiting on you".</param>
 public sealed record StateCountViewModel(StageNodeState State, int Count, string Words)
 {
+    /// <summary>Shows only pieces in this state, Ctrl adding it (1.1e item 26); null on the project card.</summary>
+    public System.Windows.Input.ICommand? Command { get; init; }
+
+    /// <summary>Whether the view is filtered to this state.</summary>
+    public bool IsActive { get; init; }
+
+    /// <summary>Its hover: what a click does.</summary>
+    public string ToolTip => $"Show only what is {StageNodeStates.Word(State).ToLowerInvariant()}; Ctrl+click adds it; click again or Esc to show everything";
+
     private static readonly (StageNodeState State, string Words)[] Order =
     [
         (StageNodeState.Done, "done"), (StageNodeState.Busy, "busy"), (StageNodeState.WaitingOnYou, "waiting on you"),

@@ -61,6 +61,7 @@ public partial class ProjectView : UserControl
             if (link.Kind == ConnectorKind.ThenWorkedOn)
             {
                 line.StrokeDashArray = [1.33, 2.67];
+                Connectors.Children.Add(ThenWorkedOnLabel(from, to, tag));
             }
 
             line.SetResourceReference(Shape.StrokeProperty, "ConnectorBrush");
@@ -70,19 +71,50 @@ public partial class ProjectView : UserControl
         }
     }
 
+    // Beside the dotted line, in the gap between the two boxes, so it crosses neither (1.1f D20, D22).
+    private static TextBlock ThenWorkedOnLabel(Rect from, Rect to, string tag)
+    {
+        var label = new TextBlock
+        {
+            Text = "then the same session moved on to",
+            FontSize = 11,
+            Tag = tag + ":label",
+            IsHitTestVisible = false,
+        };
+        label.SetResourceReference(TextBlock.ForegroundProperty, "TextFillColorSecondaryBrush");
+        Canvas.SetLeft(label, from.Left + ConnectorGeometry.ThenWorkedOnInset + 12);
+        Canvas.SetTop(label, to.Top - 16);
+
+        return label;
+    }
+
     private Dictionary<PieceNodeViewModel, Rect> Boxes()
     {
         var boxes = new Dictionary<PieceNodeViewModel, Rect>();
 
         foreach (var box in Descendants(RootList).OfType<Border>().Where(border => border.Name == "Box"))
         {
-            if (box.DataContext is PieceNodeViewModel node)
+            if (box.DataContext is PieceNodeViewModel node && !UnderCollapsed(box))
             {
                 boxes[node] = new Rect(box.TranslatePoint(new Point(0, 0), Connectors), box.RenderSize);
             }
         }
 
         return boxes;
+    }
+
+    // A box under a folded round or run keeps the place it had when last shown, so it is left out.
+    private static bool UnderCollapsed(DependencyObject element)
+    {
+        for (var at = element; at is not null; at = VisualTreeHelper.GetParent(at))
+        {
+            if (at is UIElement { Visibility: not Visibility.Visible })
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static IEnumerable<DependencyObject> Descendants(DependencyObject root)
@@ -117,6 +149,25 @@ public partial class ProjectView : UserControl
     }
 
     private void OnBoxSizeChanged(object sender, SizeChangedEventArgs e) => QueueDraw();
+
+    // Hovering a box highlights its objective's chip, and a chip its boxes (1.1f I45).
+    private void OnBoxEnter(object sender, MouseEventArgs e)
+    {
+        if (DataContext is ProjectViewModel view && sender is FrameworkElement { DataContext: PieceNodeViewModel node })
+        {
+            view.HighlightObjective(node.Piece.ObjectiveNumber);
+        }
+    }
+
+    private void OnObjectiveChipEnter(object sender, MouseEventArgs e)
+    {
+        if (DataContext is ProjectViewModel view && sender is FrameworkElement { DataContext: RoundObjectiveViewModel chip })
+        {
+            view.HighlightObjective(chip.Objective.Number);
+        }
+    }
+
+    private void OnHoverLeave(object sender, MouseEventArgs e) => (DataContext as ProjectViewModel)?.HighlightObjective(null);
 
     private void OnFlowSizeChanged(object sender, SizeChangedEventArgs e) => QueueDraw();
 

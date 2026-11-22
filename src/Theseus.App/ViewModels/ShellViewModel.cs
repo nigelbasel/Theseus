@@ -753,8 +753,15 @@ public sealed class ShellViewModel : ObservableObject
         var primary = PrimaryBranchOf(card.Name);
         var grant = ProjectBranchRules.GrantOf(card.Name, _settings.Read().ProjectBranchRules);
         var granted = grant is not null;
+        var file = Readable(card.Name)?.File;
+        var lead = file is null ? null : ProjectLead.KeyOf(file, _settings.Read().ProjectLeads);
         var properties = new ProjectPropertiesViewModel(card.Name, card.Title, card.ColourHex, card.ProjectFile, others)
         {
+            Leads = file is null
+                ? []
+                : [.. file.Workstreams.Select(row => row.Workstream).Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Select(key => new KeyValuePair<string, string>(key, $"{Board.Card(key)?.Title ?? key} ({key})"))],
+            Lead = lead,
             Problem = card.Problem,
             PrimaryBranch = primary,
             GrantsBranchRules = granted,
@@ -769,6 +776,17 @@ public sealed class ShellViewModel : ObservableObject
         if (AskProjectProperties?.Invoke(properties) != true)
         {
             return;
+        }
+
+        if (properties.Lead is { } chosen && !string.Equals(chosen, lead, StringComparison.OrdinalIgnoreCase))
+        {
+            var current = _settings.Read();
+            _settings.Write(current with
+            {
+                ProjectLeads = new Dictionary<string, string>(current.ProjectLeads, StringComparer.OrdinalIgnoreCase) { [card.Name] = chosen },
+            });
+            Notice = $"{card.Title}'s lead is now {Board.Card(chosen)?.Title ?? chosen}.";
+            WireProjectChoices();
         }
 
         // OK with the box ticked over a grant for another primary branch grants it for the one the file names now.
@@ -1923,6 +1941,8 @@ public sealed class ShellViewModel : ObservableObject
                 ? piece with { Reported = reported }
                 : piece)];
             var waitingSpecs = ProjectViewModel.SpecsWaiting(reading, pieces);
+            var overview = ProjectOverview.For(reading.File!, pieces, links, Chains?.Proposals?.Pending.Select(row => row.Proposal) ?? [],
+                acceptances.Count(acceptance => string.Equals(acceptance.Project, reading.Name, StringComparison.OrdinalIgnoreCase)));
             var file = reading.File!;
 
             foreach (var piece in pieces.Where(piece => piece.IsCurrentPiece && piece.Card is not null))
@@ -1950,8 +1970,15 @@ public sealed class ShellViewModel : ObservableObject
             projectCard.PhaseText = file.CurrentPhase is { } phase ? $"Phase {phase.Number}: {phase.Name}" : "Every objective done";
             projectCard.ObjectivesText = $"{file.ObjectivesDone} of {file.Objectives.Count} objectives done";
             WireProjectCard(projectCard, reading, colours);
+            var lead = ProjectLead.KeyOf(file, _settings.Read().ProjectLeads);
+            var leadCard = lead is null ? null : Board.Card(lead);
+            projectCard.FocusLeadToolTip = leadCard is null
+                ? "This project has no lead card on the board"
+                : FocusCardCommand.CanExecute(leadCard) ? $"Bring {leadCard.Title}'s terminal forward" : $"{leadCard.Title} has no session: start it first";
+            projectCard.FocusLeadCommand = new RelayCommand(_ => FocusCardCommand.Execute(leadCard), _ => leadCard is not null && FocusCardCommand.CanExecute(leadCard));
+
             if (ProjectCardFace.Fill(projectCard, pieces, _settings.Read().ProjectRunStates.GetValueOrDefault(name),
-                    _settings.Read().CardsStoppedByOwner))
+                    _settings.Read().CardsStoppedByOwner, overview, lead))
             {
                 System.Windows.Input.CommandManager.InvalidateRequerySuggested();
             }
@@ -1971,7 +1998,7 @@ public sealed class ShellViewModel : ObservableObject
 
             if (string.Equals(name, _openProjectName, StringComparison.OrdinalIgnoreCase))
             {
-                openView = BuildView(reading, pieces, tabs);
+                openView = BuildView(reading, pieces, tabs, overview, lead);
             }
         }
 
@@ -2114,13 +2141,25 @@ public sealed class ShellViewModel : ObservableObject
     /// so a refresh that changes what is drawn keeps what the owner was looking at (AC 36).
     /// </summary>
     private ProjectViewModel BuildView(ProjectFileReading reading, IReadOnlyList<PieceOfWork> pieces,
-        IReadOnlyList<ProjectTabViewModel> tabs) =>
+        IReadOnlyList<ProjectTabViewModel> tabs, ProjectOverview overview, string? lead) =>
         ProjectViewModel.Build(reading, pieces, Chains?.Status ?? new LinkStatus([], []), tabs, _settings,
             _projectActions ??= ProjectViewCommands.For(Board.Card, FocusCardCommand, StartCardCommand, StopCardCommand, OpenSpec,
-                AcceptSpec, OpenFile, text => Notice = text, (card, project) => AddToProject(card, project), WhyNot, WayOn),
+                AcceptSpec, OpenFile, text => Notice = text, (card, project) => AddToProject(card, project), WhyNot, WayOn) with
+            {
+                ShowRecords = ShowRecordsWindow is { } show ? (piece, stage) => show(new RecordsViewModel(piece, stage, OpenFile)) : null,
+                OpenLinks = key => ShowCardLinksCommand.Execute(Board.Card(key)),
+                Ask = ConfirmAcceptSpec,
+                Jumped = Jumped,
+                GoBack = GoBackCommand,
+                GoForward = GoForwardCommand,
+                ProposalsOf = key => [.. Chains?.Proposals?.Pending.Where(row =>
+                    string.Equals(row.Proposal.RequesterKey, key, StringComparison.OrdinalIgnoreCase)) ?? []],
+            },
             CloseProjectCommand,
             EditsOf(reading.Name),
-            ProjectView);
+            ProjectView,
+            overview,
+            lead);
 
     /// <summary>What the project view knows of a board card (1.1d AC 1): its session, marks, role and whether Start would start it.</summary>
     private PieceCard PieceCardOf(WorkstreamCardViewModel card) =>
@@ -2152,6 +2191,62 @@ public sealed class ShellViewModel : ObservableObject
         }
     }
 
+    /// <summary>Back and Forward through the places the owner jumped to (1.1f I46).</summary>
+    public ViewHistory History { get; } = new();
+
+    /// <summary>◀ Back, Alt+Left and the mouse's back button: where the owner was before; from a project's first view, the board.</summary>
+    public System.Windows.Input.ICommand GoBackCommand => _goBack ??= new RelayCommand(_ => GoTo(History.Back()), _ => History.CanGoBack);
+
+    /// <summary>Forward ▶, Alt+Right and the mouse's forward button.</summary>
+    public System.Windows.Input.ICommand GoForwardCommand => _goForward ??= new RelayCommand(_ => GoTo(History.Forward()), _ => History.CanGoForward);
+
+    private System.Windows.Input.ICommand? _goBack;
+    private System.Windows.Input.ICommand? _goForward;
+    private bool _goingTo;
+
+    /// <summary>Records a jump to a place in the open project: a link followed, or a tab switched (I46).</summary>
+    public void Jumped(string? selection)
+    {
+        if (!_goingTo && _openProjectName is { } project)
+        {
+            History.Jump(new ViewPlace(project, ProjectView?.Grouping.ToString(), selection));
+            System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+        }
+    }
+
+    // Shows a place from the history without recording it as a new jump.
+    private void GoTo(ViewPlace? place)
+    {
+        if (place is null)
+        {
+            return;
+        }
+
+        _goingTo = true;
+
+        try
+        {
+            if (place.IsBoard)
+            {
+                CloseProject();
+
+                return;
+            }
+
+            if (!string.Equals(_openProjectName, place.Project, StringComparison.OrdinalIgnoreCase))
+            {
+                OpenProject(place.Project!);
+            }
+
+            ProjectView?.GoTo(place.Lens, place.Selection);
+        }
+        finally
+        {
+            _goingTo = false;
+            System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+        }
+    }
+
     /// <summary>Replaces the board with a project's view (AC 14). The drawer, side panels and status bar stay.</summary>
     public void OpenProject(string name)
     {
@@ -2169,6 +2264,7 @@ public sealed class ShellViewModel : ObservableObject
 
         _viewHost.Opened();
         SelectionMoved();
+        Jumped(null);
         Raise(nameof(IsProjectOpen));
         Raise(nameof(IsBoardShown));
         System.Windows.Input.CommandManager.InvalidateRequerySuggested();
@@ -2177,6 +2273,11 @@ public sealed class ShellViewModel : ObservableObject
     /// <summary>Back to the board, from ← Board, Alt+Left or View › Back to the board (1.1d AC 16).</summary>
     public void CloseProject()
     {
+        if (!_goingTo && _openProjectName is not null)
+        {
+            History.Jump(ViewPlace.Board);
+        }
+
         _openProjectName = null;
         ProjectView = null;
         _viewHost.Closed();
@@ -2409,6 +2510,9 @@ public sealed class ShellViewModel : ObservableObject
 
     /// <summary>Shows a spec window. Set by the App; one window per piece of work, brought forward if open already.</summary>
     public Action<SpecWindowViewModel>? ShowSpec { get; set; }
+
+    /// <summary>Shows a piece's Records window; set by the app, null in tests, where Open records opens the folder.</summary>
+    public Action<RecordsViewModel>? ShowRecordsWindow { get; set; }
 
     /// <summary>The spec window's model for a spec as read (1.1e AC 24a).</summary>
     public SpecWindowViewModel SpecWindowFor(SpecAtGate spec) =>

@@ -1,4 +1,5 @@
 using System.Windows.Input;
+using Theseus.Core.Domain;
 using Theseus.Core.Projects;
 
 namespace Theseus.App.ViewModels;
@@ -43,6 +44,15 @@ public sealed class PropertiesViewModel
     /// <summary>The label and value rows.</summary>
     public IReadOnlyList<PropertyRowViewModel> Rows { get; private init; } = [];
 
+    /// <summary>A piece's Records panel: one row per stage, then its other records; empty for anything else (Nigel, 2026-11-22).</summary>
+    public IReadOnlyList<RecordRowViewModel> Records { get; private init; } = [];
+
+    /// <summary>What the Records panel says when there are no rows, or null.</summary>
+    public string? RecordsNone { get; private init; }
+
+    /// <summary>Whether it shows a Records panel.</summary>
+    public bool HasRecords => Records.Count > 0 || RecordsNone is not null;
+
     /// <summary>One line per link, with its state in words.</summary>
     public IReadOnlyList<string> Links { get; private init; } = [];
 
@@ -73,29 +83,57 @@ public sealed class PropertiesViewModel
         var piece = node.Piece;
         var status = node.Status;
 
-        return new PropertiesViewModel(piece.Name)
+        // Properties carries what the box leaves out (1.1f H40): never a path or a folder name; Open records opens them.
+        return new PropertiesViewModel(node.Title)
         {
             StatusText = status.Text,
             State = status.State,
             Rows =
             [
                 new("Where", node.StatusText),
-                new("Worker", piece.Workstream),
+                new("What it means", status.Meaning),
+                new("Who acts next", status.WhoActs),
+                new("Kind", $"{node.KindLabel}: {PieceKinds.Means(piece.Kind)}"),
+                new("Card", $"{piece.Workstream} ({SessionWords(piece.Card)})"),
                 .. piece.Card?.StopLine is { } stopped ? new PropertyRowViewModel[] { new("Stopped", stopped) } : [],
-                new("Kind", piece.KindWord),
                 new("Objective", ObjectiveText(piece)),
-                new("Records", piece.RecordsFolder ?? "no records folder in the project"),
+                new("Round", $"Round {piece.Round}"),
+                .. piece.ParentTitle is { } parent ? new PropertyRowViewModel[] { new("Handed on from", parent) } : [],
+                new("Records", piece.RecordsFolder is null ? "none in the project" : "in the project: Open records below"),
+                new("Branch", piece.Branch ?? "not recorded"),
                 new("Evidence", node.Evidence),
                 .. piece.IsFreeform ? [] : new PropertyRowViewModel[] { new("Accepted", AcceptedText(piece)) },
-                new("Stages", string.Join("  ", node.Stages.Select(stage => stage.Label))),
+                .. node.Stages.Select(stage => new PropertyRowViewModel(stage.Name,
+                    $"{stage.Mark} {stage.Word}{(stage.Node.Reason is { } why ? $": {why}" : string.Empty)}. {StageNodeStates.Meaning(stage.State)}")),
             ],
             Links = node.LinkLines,
+            Records = [.. PieceRecords.For(piece).Select(entry => new RecordRowViewModel(entry, new RelayCommand(_ =>
+            {
+                if (actions.ShowRecords is { } show)
+                {
+                    show(piece, entry.IsOther ? null : entry.Stage);
+                }
+                else if (entry.File is { } file)
+                {
+                    actions.OpenPath(file);
+                }
+            })))],
+            RecordsNone = PieceRecords.NoneText(piece),
             Buttons = [.. ButtonsOf(node, null, actions)],
             ObjectiveHeading = ObjectiveHeadingOf(node),
             Criteria = CriteriaOf(node, edits),
             EditObjectiveCommand = EditOf(node, edits),
         };
     }
+
+    private static string SessionWords(PieceCard? card) => card switch
+    {
+        null => "not on the board",
+        { IsWorking: true } => "its session is busy",
+        { Lifecycle: SessionLifecycle.NeedsAttention } => "its session asks you something",
+        { HasSession: true } => "its session is idle",
+        _ => "no session",
+    };
 
     /// <summary>The pane for one stage of a piece of work.</summary>
     internal static PropertiesViewModel ForStage(StageNodeViewModel stage, ProjectViewActions actions, ProjectViewEdits? edits)
@@ -106,8 +144,9 @@ public sealed class PropertiesViewModel
         {
             new("Stage", stage.Name),
             new("State", $"{stage.Mark} {stage.Word}"),
-            new("Record", stage.Node.RecordFile ?? "not written yet"),
-            new("Piece", piece.Name),
+            new("Means", StageNodeStates.Meaning(stage.State)),
+            new("Record", stage.Node.RecordFile is null ? "not written yet" : $"{stage.Node.RecordName}, in its records"),
+            new("Piece", node.Title),
             new("Worker", piece.Workstream),
             new("Objective", ObjectiveText(piece)),
         };
@@ -122,7 +161,7 @@ public sealed class PropertiesViewModel
             rows.Add(new("Verifier", string.Join(", ", verify.Verifiers)));
         }
 
-        return new PropertiesViewModel($"{stage.Name} of {piece.Name}")
+        return new PropertiesViewModel($"{stage.Name} of {node.Title}")
         {
             StatusText = stage.Word,
             State = stage.State,

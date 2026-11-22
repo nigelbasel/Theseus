@@ -30,7 +30,7 @@ public class ProjectViewGroupingMarkupTests
 
         Assert.That(buttons.Select(button => ((string?)button.Attribute("Content"), (string?)button.Attribute("IsChecked"))), Is.EqualTo(new[]
         {
-            ("Flow", "{Binding IsGroupedByFlow, Mode=TwoWay}"), ("Objectives", "{Binding IsGroupedByObjectives, Mode=TwoWay}"),
+            ("Rounds and work", "{Binding IsGroupedByFlow, Mode=TwoWay}"), ("Objectives only", "{Binding IsGroupedByObjectives, Mode=TwoWay}"),
         }));
         Assert.That((string?)style.Attribute("BasedOn"), Is.EqualTo("{StaticResource {x:Type ToggleButton}}"), "drawn as toggle buttons");
         Assert.That(style.Elements(Presentation + "Setter").Single(setter => (string?)setter.Attribute("Property") == "GroupName")

@@ -17,6 +17,7 @@ stages:
       format), measure its failure modes as well as its happy path: what errors come back, how often, and
       whether they pass (parked-cores P15). No code changes.
     gate: {kind: none}
+    skip: when an approved project spec, or another piece's research, already covers it; say so with now_at or skipped.md
 
   - id: spec
     role: specifier
@@ -29,6 +30,7 @@ stages:
       kind: human
       who: owner
       passes_when: the owner approves spec.md
+    skip: never
 
   - id: plan
     role: planner
@@ -78,6 +80,7 @@ stages:
         every repo has a result, every result passes, and every holdout scenario the spec names has been run by
         an independent verifier and passed. A named scenario nobody could run keeps the stage open (P18).
       blocks: true
+    skip: never
 
   - id: review
     role: reviewer

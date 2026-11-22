@@ -29,7 +29,8 @@ public class ProjectCardFaceTests
     private ProjectCardViewModel TheseusCard(SessionLifecycle git22 = SessionLifecycle.Idle)
     {
         var card = new ProjectCardViewModel(TheseusProject, "Theseus bootstrap");
-        ProjectCardFace.Fill(card, TheseusPieces(_folder, git22));
+        var pieces = TheseusPieces(_folder, git22);
+        ProjectCardFace.Fill(card, pieces, overview: ProjectOverview.For(Read(_folder, TheseusProject).File!, pieces, [], [], 0));
 
         return card;
     }
@@ -50,9 +51,8 @@ public class ProjectCardFaceTests
         var card = TheseusCard();
         var view = _views.Theseus();
 
-        Assert.That(card.Sentence, Is.EqualTo(view.Sentence));
-        Assert.That(card.Sentence, Is.EqualTo("12 pieces of work across 5 objectives: 7 done, 3 waiting on you, 2 still to do or not started. "
-            + "git-22 is idle on projects-and-method-ui. Next: you accept the spec of projects-and-method-ui."));
+        Assert.That(card.Sentence, Is.EqualTo(view.Sentence), "one overview says both (1.1f G33)");
+        Assert.That(card.Sentence, Is.EqualTo("Nothing is moving. Three things wait for you."));
         Assert.That(card.Counts.Select(chip => chip.Text), Is.EqualTo(new[] { "✓ 7 done", "◆ 3 waiting on you", "– 2 to do" }));
         Assert.That(view.Counts.Select(chip => chip.Text), Has.Exactly(6).Items, "the view keeps its zeros (AC 19)");
     }

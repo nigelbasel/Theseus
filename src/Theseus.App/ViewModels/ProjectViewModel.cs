@@ -40,6 +40,7 @@ public sealed class ProjectViewModel : ObservableObject
     private bool _isPaneDocked = true;
     private bool _isOverlayOpen;
     private IReadOnlyList<ThenWorkedOnLink> _thenWorkedOn = [];
+    private HashSet<StageNodeState> _filter = [];
 
     private ProjectViewModel(ProjectFile file, ProjectSummary summary, ISettingsStore settings, ProjectViewActions actions,
         ProjectViewEdits? edits)
@@ -59,7 +60,7 @@ public sealed class ProjectViewModel : ObservableObject
         CollapseAllCommand = new RelayCommand(_ => SetAll(false));
         ExpandAllCommand = new RelayCommand(_ => SetAll(true));
         OpenWhatNeedsAttentionCommand = new RelayCommand(_ => OpenWhatNeedsAttention());
-        ClearSelectionCommand = new RelayCommand(_ => Escape(), _ => _selection is not null);
+        ClearSelectionCommand = new RelayCommand(_ => Escape(), _ => _selection is not null || _filter.Count > 0);
         CloseOverlayCommand = new RelayCommand(_ => SetOverlay(false), _ => _isOverlayOpen);
     }
 
@@ -73,10 +74,147 @@ public sealed class ProjectViewModel : ObservableObject
     public ProjectSummary Summary { get; }
 
     /// <summary>The summary's sentence.</summary>
-    public string Sentence => Summary.Sentence;
+    public string Sentence => Overview.Sentence;
+
+    /// <summary>The summary, phase strip, tallies and "Waits for you" (1.1f G33 to G37b).</summary>
+    public ProjectOverview Overview { get; private set; } = null!;
+
+    /// <summary>"Lead: Theseus · idle", the project's lead card and its state (Nigel, 2026-11-22); empty with no rows.</summary>
+    public string LeadText { get; private set; } = string.Empty;
+
+    /// <summary>Brings the lead's terminal forward; disabled with its reason when it has no session.</summary>
+    public System.Windows.Input.ICommand? FocusLeadCommand { get; private set; }
+
+    /// <summary>What Focus does, or why it cannot.</summary>
+    public string FocusLeadToolTip { get; private set; } = string.Empty;
+
+    /// <summary>Whether the header shows a lead.</summary>
+    public bool HasLead => LeadText.Length > 0;
+
+    /// <summary>◀ Back (I46); null in tests without a shell.</summary>
+    public System.Windows.Input.ICommand? GoBackCommand => _actions.GoBack;
+
+    /// <summary>Forward ▶ (I46).</summary>
+    public System.Windows.Input.ICommand? GoForwardCommand => _actions.GoForward;
+
+    /// <summary>
+    /// Follows a link to an objective (I44): opens the rounds that hold its pieces, highlights its boxes and its chips, and
+    /// selects its first box; with Objectives only on, selects its heading. A jump, so Back returns to where the owner was.
+    /// </summary>
+    public void GoToObjective(string number)
+    {
+        HighlightObjective(number);
+
+        if (IsGroupedByObjectives && AllObjectives.FirstOrDefault(objective => objective.Objective?.Number == number) is { } heading)
+        {
+            Select(heading);
+        }
+        else if (AllNodes.FirstOrDefault(node => node.Piece.ObjectiveNumber == number) is { } first)
+        {
+            Reveal(first);
+            Select(first);
+        }
+
+        _actions.Jumped?.Invoke($"objective:{number}");
+    }
+
+    /// <summary>Follows a link to a piece (I44): opens its round and run, selects it, and records the jump.</summary>
+    public void GoToPiece(string name)
+    {
+        if (AllNodes.FirstOrDefault(node => node.Name == name) is { } node)
+        {
+            Reveal(node);
+            Select(node);
+            _actions.Jumped?.Invoke(name);
+        }
+    }
+
+    /// <summary>Puts the view back at a place from the history: its lens and what was selected (I46). Not a jump.</summary>
+    public void GoTo(string? lens, string? selection)
+    {
+        if (lens is not null && Enum.TryParse<ProjectViewGrouping>(lens, out var grouping))
+        {
+            IsGroupedByObjectives = grouping == ProjectViewGrouping.Objectives;
+        }
+
+        if (selection is null)
+        {
+            Select(null);
+            HighlightObjective(null);
+        }
+        else if (selection.StartsWith("objective:", StringComparison.Ordinal))
+        {
+            var number = selection["objective:".Length..];
+            HighlightObjective(number);
+            Select(AllNodes.FirstOrDefault(node => node.Piece.ObjectiveNumber == number));
+        }
+        else if (AllNodes.FirstOrDefault(node => node.Name == selection) is { } node)
+        {
+            Reveal(node);
+            Select(node);
+        }
+    }
+
+    /// <summary>Hovering a box highlights its objective's chip; hovering a chip highlights its boxes (I45). Null clears.</summary>
+    public void HighlightObjective(string? number)
+    {
+        foreach (var node in AllNodes)
+        {
+            node.IsHighlighted = number is not null && node.Piece.ObjectiveNumber == number;
+        }
+
+        foreach (var chip in Rounds.SelectMany(round => round.Objectives))
+        {
+            chip.IsHighlighted = number is not null && chip.Objective.Number == number;
+        }
+    }
+
+    // Opens what hides a box: its round and the run of finished pieces it sits in.
+    private void Reveal(PieceNodeViewModel node)
+    {
+        if (Rounds.FirstOrDefault(round => round.Boxes.Contains(node)) is { IsOpen: false } round)
+        {
+            ToggleFold(round);
+        }
+
+        if (FinishedRuns.FirstOrDefault(run => run.Boxes.Contains(node)) is { IsOpen: false } run)
+        {
+            ToggleFold(run);
+        }
+    }
+
+    /// <summary>"◆ Waits for you (4)" (G36).</summary>
+    public string WaitsHeading => $"◆ Waits for you ({Waits.Count})";
+
+    /// <summary>Everything that waits for the owner, each with its button (G36, G37a).</summary>
+    public IReadOnlyList<WaitItemViewModel> Waits { get; private set; } = [];
+
+    /// <summary>Whether anything waits; the block reads "Nothing waits for you." when not, still in place (G36).</summary>
+    public bool HasWaits => Waits.Count > 0;
+
+    /// <summary>The phase strip (G34).</summary>
+    public IReadOnlyList<PhaseCell> PhaseStrip => Overview.Phases;
+
+    /// <summary>The value of the process, as tallies (G35).</summary>
+    public IReadOnlyList<string> Tallies => Overview.Tallies;
+
+    /// <summary>
+    /// The states shown while a filter is on, from the legend row's chips (1.1e item 26, moved there by 1.1f D15); empty
+    /// shows everything.
+    /// </summary>
+    public IReadOnlySet<StageNodeState> Filter => _filter;
+
+    /// <summary>"Showing: busy, stuck (3 of 13)" while a filter is on; empty otherwise.</summary>
+    public string FilterText => _filter.Count == 0
+        ? string.Empty
+        : $"Showing: {string.Join(", ", _filter.Select(state => StageNodeStates.Word(state).ToLowerInvariant()))} "
+          + $"({AllNodes.Count(node => _filter.Contains(node.State))} of {AllNodes.Count()})";
+
+    /// <summary>Whether a filter is on.</summary>
+    public bool IsFiltered => _filter.Count > 0;
 
     /// <summary>The six count chips, zeros included (AC 19).</summary>
-    public IReadOnlyList<StateCountViewModel> Counts => StateCountViewModel.For(Summary, zeros: true);
+    public IReadOnlyList<StateCountViewModel> Counts { get; private set; } = [];
 
     /// <summary>
     /// The project's own colour, for the summary's mark (1.1d AC 40): its tab's, or null before it has one, when the mark
@@ -84,18 +222,21 @@ public sealed class ProjectViewModel : ObservableObject
     /// </summary>
     public string? ColourHex => Tabs.FirstOrDefault(tab => string.Equals(tab.Name, Name, StringComparison.OrdinalIgnoreCase))?.ColourHex;
 
-    /// <summary>The Waiting on you band's buttons, one per waiting piece in file order (AC 20).</summary>
-    public IReadOnlyList<WaitingButtonViewModel> Waiting { get; private set; } = [];
-
-    /// <summary>Whether the band shows: only while something waits on the owner.</summary>
-    public bool HasWaiting => Waiting.Count > 0;
-
     /// <summary>The legend's states, in the order AC 22 gives.</summary>
     public static IReadOnlyList<LegendItemViewModel> Legend { get; } =
     [
         new(StageNodeState.Done), new(StageNodeState.WaitingOnYou), new(StageNodeState.Busy), new(StageNodeState.Stuck),
         new(StageNodeState.HoldoutsNotRun), new(StageNodeState.ToDo),
     ];
+
+    /// <summary>The project's rounds, the main area's top level (1.1f C10).</summary>
+    public IReadOnlyList<RoundViewModel> Rounds { get; private set; } = [];
+
+    /// <summary>The rounds while the view shows rounds and work; none in the objectives lens.</summary>
+    public IReadOnlyList<RoundViewModel> ShownRounds => IsGroupedByFlow ? Rounds : [];
+
+    /// <summary>The runs of finished pieces folded to one line, in every round (D22).</summary>
+    public IEnumerable<FinishedRunViewModel> FinishedRuns => Rounds.SelectMany(round => round.Items.OfType<FinishedRunViewModel>());
 
     /// <summary>The tree's roots, in file order (AC 23).</summary>
     public IReadOnlyList<PieceNodeViewModel> Roots { get; private set; } = [];
@@ -208,7 +349,7 @@ public sealed class ProjectViewModel : ObservableObject
     /// <param name="previous">The view it replaces, whose selection it keeps while the piece and stage still exist.</param>
     public static ProjectViewModel Build(ProjectFileReading reading, IReadOnlyList<PieceOfWork> pieces, LinkStatus links,
         IReadOnlyList<ProjectTabViewModel> tabs, ISettingsStore settings, ProjectViewActions actions, ICommand? back = null,
-        ProjectViewEdits? edits = null, ProjectViewModel? previous = null)
+        ProjectViewEdits? edits = null, ProjectViewModel? previous = null, ProjectOverview? overview = null, string? lead = null)
     {
         ArgumentNullException.ThrowIfNull(reading);
         ArgumentNullException.ThrowIfNull(pieces);
@@ -218,9 +359,28 @@ public sealed class ProjectViewModel : ObservableObject
         ArgumentNullException.ThrowIfNull(actions);
 
         var file = reading.File ?? throw new ArgumentException("Only a readable project has a view.", nameof(reading));
-        var tree = PieceTree.Build(pieces, links);
+        var tree = PieceTree.Build(pieces, links, file.Rounds);
         var marks = ObjectiveGrouping.Marks(tree);
         var view = new ProjectViewModel(file, ProjectSummary.For(pieces), settings, actions, edits) { BackCommand = back };
+        view.Overview = overview ?? ProjectOverview.For(file, pieces, links.Links, [], 0);
+
+        if ((lead ?? ProjectLead.KeyOf(file, new Dictionary<string, string>())) is { } leadKey)
+        {
+            var card = pieces.Select(piece => piece.Card).FirstOrDefault(each => string.Equals(each?.Key, leadKey, StringComparison.OrdinalIgnoreCase));
+            var state = card switch
+            {
+                null => "not on the board",
+                { IsWorking: true } => "busy",
+                { Lifecycle: Theseus.Core.Domain.SessionLifecycle.NeedsAttention } => "asking you something",
+                { HasSession: true } => "idle",
+                _ => "no session",
+            };
+            view.LeadText = $"Lead: {card?.Title ?? leadKey} · {state}";
+            view.FocusLeadCommand = new RelayCommand(_ => actions.Focus(leadKey), _ => card?.HasSession == true);
+            view.FocusLeadToolTip = card?.HasSession == true
+                ? $"Bring {card.Title}'s terminal forward"
+                : $"{card?.Title ?? leadKey} has no session: start it first";
+        }
         var specs = SpecsOf(reading, file.Name, pieces);
         var parents = tree.All.SelectMany(node => node.Children.Select(child => (Child: child.Piece, Parent: node.Piece)))
             .ToDictionary(pair => pair.Child, pair => pair.Parent);
@@ -234,12 +394,22 @@ public sealed class ProjectViewModel : ObservableObject
 
         var byPiece = view.AllNodes.ToDictionary(node => node.Piece);
 
+        view.Rounds = [.. tree.Rounds.Select((round, index) => view.RoundFor(round, tree.Rounds.ElementAtOrDefault(index + 1)?.Round,
+            index == tree.Rounds.Count - 1, file, byPiece))];
+
+        // Work handed to several pieces is drawn by the fork and join bars, so no line crosses them (1.1f D18, D20).
         view.Connectors =
         [
-            .. view.AllNodes.SelectMany(node => node.Children.Select(child => new ConnectorLink(node, child, ConnectorKind.HandsOver))),
+            .. view.AllNodes.Where(node => node.Children.Count == 1)
+                .SelectMany(node => node.Children.Select(child => new ConnectorLink(node, child, ConnectorKind.HandsOver))),
             .. tree.ThenWorkedOn.Select(link => new ConnectorLink(byPiece[link.From], byPiece[link.To], ConnectorKind.ThenWorkedOn)),
         ];
-        view.Waiting = [.. pieces.Select(piece => view.WaitingButton(byPiece[piece])).OfType<WaitingButtonViewModel>()];
+        view.Waits = [.. view.Overview.Waits.Select(item => new WaitItemViewModel(item, view.WaitCommand(item, reading.Name)))];
+        view.Counts = [.. StateCountViewModel.For(view.Summary, zeros: true).Select(chip => chip with
+        {
+            Command = new RelayCommand(_ => view.ToggleFilter(chip.State,
+                System.Windows.Input.Keyboard.Modifiers.HasFlag(System.Windows.Input.ModifierKeys.Control))),
+        })];
         view.Phases = [.. ObjectiveGrouping.Phases(file, pieces).Select(group => view.PhaseFor(group, byPiece, edits))];
         view.Unlisted = ObjectiveGrouping.Unlisted(pieces) is { } unlisted ? [view.ObjectiveFor(unlisted, null, byPiece, edits)] : [];
         view._thenWorkedOn = tree.ThenWorkedOn;
@@ -251,6 +421,13 @@ public sealed class ProjectViewModel : ObservableObject
         if (previous is not null && string.Equals(previous.Name, view.Name, StringComparison.OrdinalIgnoreCase))
         {
             view.Select(view.Find(previous._selection));
+
+            // The view is rebuilt whenever a session or a file changes, so the owner's filter stays on (review of PR 4, 1).
+            if (previous._filter.Count > 0)
+            {
+                view._filter = [.. previous._filter];
+                view.ApplyFilter();
+            }
             view.SetOverlay(previous._isOverlayOpen && view._selection is not null);
         }
 
@@ -295,6 +472,13 @@ public sealed class ProjectViewModel : ObservableObject
         }
 
         _selection = item is PieceNodeViewModel or StageNodeViewModel or PhaseHeadingViewModel or ObjectiveHeadingViewModel ? item : null;
+
+        // A selected box is never hidden in a folded run of finished pieces (D22).
+        if ((item as PieceNodeViewModel ?? (item as StageNodeViewModel)?.Piece) is { } box
+            && FinishedRuns.FirstOrDefault(run => !run.IsOpen && run.Boxes.Contains(box)) is { } folded)
+        {
+            ToggleFold(folded);
+        }
 
         switch (_selection)
         {
@@ -383,7 +567,9 @@ public sealed class ProjectViewModel : ObservableObject
     /// <summary>Open records, disabled with its reason when the piece has no records folder (AC 27).</summary>
     internal static PieceActionViewModel OpenRecords(PieceOfWork piece, ProjectViewActions actions) =>
         piece.RecordsFolder is { } folder
-            ? new PieceActionViewModel("Open records", () => actions.OpenPath(folder), toolTip: folder)
+            ? new PieceActionViewModel("Open records",
+                () => (actions.ShowRecords ?? ((_, _) => actions.OpenPath(folder)))(piece, null),
+                toolTip: "Show its records: each stage's document, what it is for and where it stands")
             : new PieceActionViewModel("Open records", () => { }, false, "No records folder in the project yet");
 
     private PieceNodeViewModel NodeFor(PieceNode node, IReadOnlyList<PieceNodeViewModel> children, ProjectFileReading reading,
@@ -434,6 +620,8 @@ public sealed class ProjectViewModel : ObservableObject
             Spec = spec,
             CrossMarks = crossMarks,
             AddToProject = addToProject,
+            Proposals = piece.IsCurrentPiece ? _actions.ProposalsOf?.Invoke(piece.CardKey) ?? [] : [],
+            ServesCommand = piece.ObjectiveNumber is { } served ? new RelayCommand(_ => GoToObjective(served)) : null,
         };
     }
 
@@ -467,7 +655,11 @@ public sealed class ProjectViewModel : ObservableObject
             StageAction.Focus => (() => _actions.Focus(key), "Bring its terminal forward"),
             StageAction.Start => (() => _actions.Start(key), $"Start {piece.Workstream}"),
             StageAction.Stop => (() => _actions.Stop(key), $"Ask {piece.Workstream} to write its handover and stop"),
+            StageAction.OpenRecord when _actions.ShowRecords is { } show => (() => show(piece, stage.Name),
+                $"Show {stage.RecordName} in the Records window"),
             StageAction.OpenRecord => (() => _actions.OpenPath(stage.RecordFile!), stage.RecordFile),
+            _ when _actions.ShowRecords is { } show => (() => show(piece, null),
+                "Show its records: each stage's document, what it is for and where it stands"),
             _ => (() => _actions.OpenPath(piece.RecordsFolder!), piece.RecordsFolder),
         };
 
@@ -487,37 +679,6 @@ public sealed class ProjectViewModel : ObservableObject
         }
     }
 
-    private WaitingButtonViewModel? WaitingButton(PieceNodeViewModel node)
-    {
-        if (node.State != StageNodeState.WaitingOnYou
-            || node.Stages.FirstOrDefault(stage => stage.State == StageNodeState.WaitingOnYou) is not { } stage)
-        {
-            return null;
-        }
-
-        if (stage.Node is SpecStageNode { AwaitsAcceptance: true } && node.Spec is { } spec)
-        {
-            var noun = node.Piece.Pipeline == PipelineKind.Bug ? "rule" : "spec";
-
-            // A session reported the owner accepted this version in its tab: he confirms here (1.1e AC 28).
-            var label = node.Piece.Reported is { } reported && string.Equals(reported.ContentHash, spec.ContentHash, StringComparison.Ordinal)
-                ? $"You accepted this in {reported.CardTitle}'s tab: Confirm…"
-                : $"Accept the {noun} of {node.Name}…";
-
-            return new WaitingButtonViewModel(label, new RelayCommand(_ =>
-            {
-                Reveal(stage);
-                _actions.AcceptSpec(spec);
-            }));
-        }
-
-        return new WaitingButtonViewModel($"Answer {node.Workstream} in its terminal", new RelayCommand(_ =>
-        {
-            Reveal(stage);
-            _actions.Focus(node.Piece.CardKey);
-        }));
-    }
-
     // The owner's own press opens the box, so it is remembered like any other toggle (AC 20, 33).
     private void Reveal(StageNodeViewModel stage)
     {
@@ -529,7 +690,157 @@ public sealed class ProjectViewModel : ObservableObject
         Select(stage);
     }
 
-    private IEnumerable<IFoldable> Headings => Phases.Cast<IFoldable>().Concat(AllObjectives);
+    private IEnumerable<IFoldable> Headings =>
+        Phases.Cast<IFoldable>().Concat(AllObjectives).Concat(Rounds).Concat(FinishedRuns);
+
+    // A round's top level: a run of two or more finished roots with no children folds to one line (1.1f D22, D12).
+    private RoundViewModel RoundFor(PieceRound round, ProjectRound? next, bool isLatest, ProjectFile file,
+        IReadOnlyDictionary<PieceOfWork, PieceNodeViewModel> byPiece)
+    {
+        var items = new List<object>();
+        var run = new List<PieceNodeViewModel>();
+
+        void Flush()
+        {
+            if (run.Count >= 2)
+            {
+                var first = run[0].Name;
+                items.Add(new FinishedRunViewModel([.. run], PieceFolds.IsOpen(_folds, $"run:{first}", false), ToggleFold));
+            }
+            else
+            {
+                items.AddRange(run);
+            }
+
+            run.Clear();
+        }
+
+        foreach (var box in round.Roots.Select(root => byPiece[root.Piece]))
+        {
+            if (box.Children.Count == 0 && box.State is StageNodeState.Done or StageNodeState.Answered)
+            {
+                // One session worked through them in turn: a finished piece of another card starts a run of its own.
+                if (run.Count > 0 && !string.Equals(run[0].Piece.CardKey, box.Piece.CardKey, StringComparison.OrdinalIgnoreCase))
+                {
+                    Flush();
+                }
+
+                run.Add(box);
+
+                continue;
+            }
+
+            Flush();
+            items.Add(box);
+        }
+
+        Flush();
+
+        var objectives = file.Objectives.Where(objective => objective.Round == round.Round.Number)
+            .Select(objective => new RoundObjectiveViewModel(objective, new RelayCommand(_ => GoToObjective(objective.Number))))
+            .ToList();
+
+        return new RoundViewModel(round.Round, next, isLatest, objectives, items,
+            [.. round.All.Select(node => byPiece[node.Piece])],
+            RoundViewModel.IsOpenIn(_folds, round.Round.Number, isLatest), ToggleFold)
+        {
+            Line = Overview.RoundLines.GetValueOrDefault(round.Round.Number) ?? string.Empty,
+        };
+    }
+
+    /// <summary>
+    /// Shows only the pieces in a state, or adds it with Ctrl; the same chip again, or Esc, shows everything (1.1e item 26).
+    /// A shown piece keeps its round, its parent and its fork and join, so its place in the flow is kept.
+    /// </summary>
+    public void ToggleFilter(StageNodeState state, bool add)
+    {
+        if (add)
+        {
+            if (!_filter.Remove(state))
+            {
+                _filter.Add(state);
+            }
+        }
+        else
+        {
+            _filter = _filter.Count == 1 && _filter.Contains(state) ? [] : [state];
+        }
+
+        ApplyFilter();
+    }
+
+    private void ApplyFilter()
+    {
+        bool Shown(PieceNodeViewModel node) => _filter.Count == 0 || _filter.Contains(node.State) || node.Children.Any(Shown);
+
+        foreach (var node in AllNodes)
+        {
+            node.IsShown = Shown(node);
+        }
+
+        foreach (var run in FinishedRuns)
+        {
+            run.IsShown = run.Boxes.Any(box => box.IsShown);
+        }
+
+        foreach (var round in Rounds)
+        {
+            round.IsShown = round.Boxes.Any(box => box.IsShown);
+        }
+
+        Counts = [.. Counts.Select(chip => chip with { IsActive = _filter.Contains(chip.State) })];
+        Raise(nameof(Counts));
+        Raise(nameof(Filter));
+        Raise(nameof(FilterText));
+        Raise(nameof(IsFiltered));
+    }
+
+    // "Start the checks…" names the builds it will check, leaves out one still busy, and asks first (G36).
+    private void StartChecks(WaitItem item)
+    {
+        var builds = item.Pieces.Select(name => AllNodes.First(each => each.Name == name).Piece)
+            .Where(piece => piece.Card is not { IsWorking: true })
+            .ToList();
+
+        if (builds.Count == 0)
+        {
+            _actions.Notice?.Invoke("Every build waiting for its check is still busy: start the checks after they stop.");
+
+            return;
+        }
+
+        var question = $"Start the independent check of {builds.Count} {(builds.Count == 1 ? "build" : "builds")}? Each gets a verifier card:\n"
+                       + string.Join("\n", builds.Select(piece => $"  • {piece.Title}"));
+
+        if (_actions.Ask?.Invoke(question) == false)
+        {
+            return;
+        }
+
+        foreach (var key in builds.Select(piece => piece.CardKey).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            _actions.VerifyWithHoldouts(key);
+        }
+    }
+
+    // Each kind of wait runs what its piece's own button runs, so the two never disagree (G37).
+    private System.Windows.Input.ICommand? WaitCommand(WaitItem item, string project)
+    {
+        var node = item.Pieces.Count == 0 ? null : AllNodes.FirstOrDefault(each => each.Name == item.Pieces[0]);
+
+        return item.Kind switch
+        {
+            WaitKind.AcceptSpec or WaitKind.ConfirmAcceptance when node?.Spec is { } spec => new RelayCommand(_ => _actions.AcceptSpec(spec)),
+            WaitKind.AcceptSpec when node?.PrimaryAction is { } action => action.Command,
+            WaitKind.Answer when item.CardKey is { } card => new RelayCommand(_ => _actions.Focus(card)),
+            WaitKind.Unblock when item.CardKey is { } card && node?.PrimaryAction is { } action => action.Command,
+            WaitKind.StartChecks => new RelayCommand(_ => StartChecks(item)),
+            WaitKind.AddToObjective when item.CardKey is { } card && _actions.AddToProject is { } add => new RelayCommand(_ => add(project, card)),
+            WaitKind.ConfirmReport or WaitKind.Proposal when item.CardKey is { } card && _actions.OpenLinks is { } open =>
+                new RelayCommand(_ => open(card)),
+            _ => null,
+        };
+    }
 
     private void ToggleFold(IFoldable fold)
     {
@@ -540,12 +851,13 @@ public sealed class ProjectViewModel : ObservableObject
     // Headings and boxes together, in either grouping, through the one * entry (AC 21, 48).
     private void SetAll(bool open)
     {
-        foreach (var fold in AllNodes.Cast<IFoldable>().Concat(Headings))
+        foreach (var fold in AllNodes.Cast<IFoldable>().Concat(Headings).Where(fold => fold is not RoundViewModel))
         {
             fold.IsOpen = open;
         }
 
-        RememberFolds(PieceFolds.All(open));
+        // A round keeps its own fold, so the next open matches what is on screen (review of PR 3, finding 6).
+        RememberFolds([.. PieceFolds.All(open), .. _folds.Where(entry => entry.StartsWith("round:", StringComparison.Ordinal))]);
     }
 
     // Grouped by objectives, a heading opens when a box under it does (AC 48). The Flow shows no headings, so there each
@@ -556,6 +868,11 @@ public sealed class ProjectViewModel : ObservableObject
         foreach (var node in AllNodes)
         {
             node.IsOpen = NeedsAttention.Contains(node.State);
+        }
+
+        foreach (var round in Rounds)
+        {
+            round.IsOpen = round.IsLatest || round.Boxes.Any(box => NeedsAttention.Contains(box.State));
         }
 
         if (!IsGroupedByObjectives)
@@ -604,6 +921,7 @@ public sealed class ProjectViewModel : ObservableObject
         Raise(nameof(IsGroupedByFlow));
         Raise(nameof(IsGroupedByObjectives));
         Raise(nameof(FlowRoots));
+        Raise(nameof(ShownRounds));
         Raise(nameof(ShownPhases));
         Raise(nameof(ShownUnlisted));
     }
@@ -613,6 +931,11 @@ public sealed class ProjectViewModel : ObservableObject
         if (_isOverlayOpen)
         {
             SetOverlay(false);
+        }
+        else if (_selection is null && _filter.Count > 0)
+        {
+            _filter = [];
+            ApplyFilter();
         }
         else
         {
@@ -731,7 +1054,8 @@ public sealed class ProjectViewModel : ObservableObject
         IEnumerable<string> Lines(PieceNodeViewModel node, int depth) =>
             node.Children.SelectMany(child => Lines(child, depth + 1)).Prepend(string.Join("/",
                 depth.ToString(CultureInfo.InvariantCulture), node.Name, node.Workstream, node.ColourHex, node.KindWord,
-                node.ObjectiveLabel, node.StatusText, node.ReportBackText, node.IsReportLost, node.Piece.RecordsFolder,
+                node.ObjectiveLabel, node.StatusText, node.WhoActs, node.Title, node.KindLabel, node.Gate?.ToolTip,
+                node.Piece.Round, node.ReportBackText, node.IsReportLost, node.Piece.RecordsFolder,
                 node.Evidence, node.Spec?.ContentHash, string.Join(";", node.CrossMarks), node.Piece.Card?.StopLine, node.BranchRulesToolTip,
                 node.Objective is { } objective
                     ? $"{objective.Title}:{string.Join(",", objective.Criteria.Select(each => $"{each.Text}={each.IsTicked}"))}"
@@ -751,6 +1075,9 @@ public sealed class ProjectViewModel : ObservableObject
             .Concat(view.Tabs.Select(tab => $"{tab.Name}:{tab.Title}:{tab.IsOpen}:{tab.ColourHex}"))
             .Concat(view.Roots.SelectMany(root => Lines(root, 0)))
             .Concat(view._thenWorkedOn.Select(link => $"{link.From.Name}>{link.To.Name}"))
+            .Concat(view.Rounds.Select(round => string.Join("/", round.Title, round.Dates, round.StateText, round.Line, round.Banner,
+                string.Join(",", round.Objectives.Select(objective => $"{objective.Text}:{objective.CriteriaText}")),
+                string.Join(",", round.Items.Select(item => item is FinishedRunViewModel run ? run.Text + run.Titles : ((PieceNodeViewModel)item).Name)))))
             .Concat(view.Phases.Select(phase => $"{phase.Title}/{phase.ExitGate}/{phase.DoneText}:"
                                                 + string.Join(";", phase.Objectives.Select(Heading))))
             .Concat(view.Unlisted.Select(Heading)));

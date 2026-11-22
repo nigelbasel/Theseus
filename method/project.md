@@ -24,6 +24,11 @@ One paragraph: the outcome the whole project exists for.
 ## Acceptance criteria
 - [ ] Observable facts that mean the objective is met. Evidence, not dates.
 
+## Rounds
+| Round | Name | Began | Why | By |
+|---|---|---|---|---|
+| 1 | <name> | <yyyy-mm-dd> | The first requirements | <owner> |
+
 ## Repos
 | Repo | Role | Autonomy |
 |---|---|---|
@@ -34,13 +39,15 @@ One paragraph: the outcome the whole project exists for.
 **Exit gate:** who decides, on what evidence.
 
 ### Objective <n>.<m>: <title>
+**Round:** <n>
 What this part of the work must achieve.
 - [ ] Its acceptance criteria.
+      Waiting: owner: <what, in plain words>
 
 **Pipeline:** feature | bug | freeform
-| Workstream | Slug | Branch | Repos |
-|---|---|---|---|
-| <card> | <slug> | <user>/<slug> | <repo>, <other-repo> |
+| Workstream | Slug | Branch | Repos | What |
+|---|---|---|---|---|
+| <card> | <slug> | <user>/<slug> | <repo>, <other-repo> | <what the piece achieves> |
 
 ## Decisions
 | Date | Decision | By |
@@ -57,9 +64,13 @@ What this part of the work must achieve.
 | `## Phase <n>: <name>` | A phase. Phases are numbered from 0 in order. Any other `## ` heading ends the phase |
 | `**Exit gate:**` | The phase's exit gate. More than one line under a phase are read together, in order |
 | `### Objective <n>.<m>: <title>` | Every objective is a heading of this form, numbered within its phase (`<n>` is the phase's number) |
+| `## Rounds` | Optional, after Acceptance criteria. One row per round, numbered from 1: when the owner changed the requirements and work went back to research, its name, the date it began, why in one sentence, and who. No table: the file reads as one round, "Round 1" |
+| `**Round:** <n>` | Optional, directly under an objective's heading: the round that added or reopened it. No line: round 1. A round not in the table makes the file need updating |
 | `- [ ]` and `- [x]` | Under an objective: its criteria, ticked when met. A criterion may run onto indented lines below it |
+| `Waiting: owner: <what>`, `Waiting: work: <what>` | Optional, an indented line under an unticked criterion: who it waits on, in plain words. An owner line puts it in the owner's "Waits for you"; no line means it waits on work |
+| `Evidence: <pointer>` | Optional, an indented line under a ticked criterion: a one-line pointer to what shows it is met |
 | `**Pipeline:** <name>` | Under every objective, once: `feature`, `bug` or `freeform`. An objective whose workstreams run different pipelines names them, `feature or bug`; each workstream's is then read from its artefacts (`reproduction.md` or `fix.md` means bug). `[to be chosen]` while no workstream serves the objective yet |
-| `\| Workstream \| Slug \| Branch \| Repos \|` | Under every objective, once, after its pipeline: one row per workstream slug, and no rows while no workstream serves it |
+| `\| Workstream \| Slug \| Branch \| Repos \|` | Under every objective, once, after its pipeline: one row per workstream slug, and no rows while no workstream serves it. An optional fifth column, `What`, says in a few words what each piece achieves; it is the title its box shows. A What cell may be empty |
 
 In the workstreams table:
 
@@ -112,11 +123,43 @@ accepted: carry on to the plan", and a running one is told with its next turn. E
 a session (its proposal approved or rejected, a report to it confirmed) is told the same way, and `events()` lists them,
 so a session never asks the owner to do what he has already done.
 
-**Theseus writes a workstream's row; sessions write the rest.** When the owner approves a proposal from a card in a
+**Theseus writes the structured lines; sessions write the prose.** When the owner approves a proposal from a card in a
 project, Theseus adds the new card's row under the objective the proposal names, with the branch and repos it names
 (none named: branch `none`, repos `read-only`, never invented). It writes a verifier card's row too. A proposal from a
-project's card must name its objective. Everything else in `project.md` (objectives, criteria, ticks, decisions and
-prose) is written by sessions.
+project's card must name its objective. Every other line Theseus reads is written through its tools, never by hand,
+so a session cannot leave the file unreadable:
+
+| Tool | Writes |
+|---|---|
+| `record_round(name, why, objectives)` | A row of the Rounds table (making the table, with round 1, when there is none) and a Round line on each objective the round adds or reopens. It asks the owner in the tab first |
+| `add_objective(phase, title, criteria, pipeline, waiting)` | An objective at the end of a phase, with its criteria, its pipeline line and an empty workstreams table. It asks the owner in the tab first |
+| `tick_criterion(objective, criterion, text, ticked, evidence)` | A tick, with its Evidence line; unticking removes the Evidence line |
+| `set_waiting(objective, criterion, text, who, what)` | A criterion's `Waiting: owner:` or `Waiting: work:` line, or removes it |
+| `record_decision(decision, by)` | A dated row of the Decisions table |
+
+Each is refused, with its reason, when the file changed since Theseus read it or the edit would not read. Prose
+(descriptions, notes under a table, everything Theseus does not read) is written by hand.
+
+## Rounds
+
+When the owner changes the requirements and work goes back to research, a new **round** begins. The session that
+records the change calls `record_round` with the round's name, why the requirements changed in one sentence in his
+words, and the objectives the round adds or reopens. The project view lists rounds in order, each after a banner saying
+when, by whom and why the requirements changed.
+
+## Telling Theseus where you are
+
+A session in a project calls `now_at(stage, doing)` **on entering each stage** of its piece of work, with what it is
+doing in under 80 characters ("re-researching from the GUI's features"). The project view shows that stage busy, with
+those words, until the next call; with no call it says the session "has not said on what", and guesses nothing.
+
+**A stage may be skipped only where its pipeline says so** (each stage's `skip` in `pipelines/*.yaml`). A stage with
+no `skip` may not be skipped. Say so with
+`now_at(stage, "skipped: <reason>")`, or a line `<Stage>: <reason>` in `work/<slug>/skipped.md`. A feature's spec and
+the verify stage are never skipped: only the owner's acceptance passes the first, and only the evidence and the
+independent check pass the second. A bug's rule is written only when the fix needs one; with none, nothing needs
+saying. A stage before the furthest recorded one that is neither recorded nor skipped
+shows as "done, no record".
 
 ## The evidence result block
 

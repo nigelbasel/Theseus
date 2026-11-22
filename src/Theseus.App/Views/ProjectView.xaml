@@ -24,6 +24,7 @@
         <BooleanToVisibilityConverter x:Key="Visible" />
         <converters:HexToBrushConverter x:Key="HexToBrush" />
         <converters:NotEmptyToVisibilityConverter x:Key="NotEmpty" />
+        <converters:NotBoolToVisibilityConverter x:Key="NotVisible" />
         <FontFamily x:Key="Mono">Cascadia Mono, Consolas</FontFamily>
 
         <!--
@@ -239,8 +240,8 @@
                                     <Rectangle DockPanel.Dock="Top" Height="3" Style="{StaticResource StateStrongFill}" />
                                     <StackPanel Margin="5,3,5,5">
                                         <TextBlock x:Name="StageLabel" Text="{Binding Label}" FontSize="12.5" FontWeight="SemiBold"
-                                                   TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                        <TextBlock x:Name="StageWord" Text="{Binding Word}" FontSize="11.5" TextTrimming="CharacterEllipsis"
+                                                   TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                        <TextBlock x:Name="StageWord" Text="{Binding Word}" FontSize="11.5" TextWrapping="Wrap"
                                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                                     </StackPanel>
                                 </DockPanel>
@@ -273,239 +274,459 @@
         </Style>
 
         <!--
-            A piece of work's box (AC 26, 27), the same in the Flow and grouped by objectives (AC 47). Folded it is 290 px
-            and open up to 640 px, each as wide as the flow leaves and left-aligned, so it never scrolls sideways, even at
-            720 px with the Live sessions panel open (AC 31, 54).
+            A piece of work's box (1.1f A2, H38, H39), the same in rounds and work and grouped by objectives: a title bar in
+            its kind's colour with the kind's word, then its state, who acts next, its stages with the gate diamond, the
+            objective it serves and its report-back mark. Folded it shows one button; open, its stages by name and every
+            action. Each as wide as the flow leaves, so it never scrolls sideways (1.1d AC 31, 54).
         -->
         <DataTemplate x:Key="PieceBox" DataType="{x:Type vm:PieceNodeViewModel}">
             <Grid x:Name="BoxFrame">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" MaxWidth="{Binding BoxWidth}" />
                 </Grid.ColumnDefinitions>
-                <Border x:Name="Box" CornerRadius="7" BorderThickness="5,0,0,0"
-                        BorderBrush="{Binding ColourHex, Converter={StaticResource HexToBrush}}"
-                        Background="{DynamicResource CardBackgroundFillColorDefaultBrush}" SizeChanged="OnBoxSizeChanged">
-                    <Border BorderThickness="0,1,1,1" CornerRadius="0,7,7,0" Padding="10,8,10,9"
-                            BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
-                        <StackPanel>
+                <Border x:Name="Box" CornerRadius="8" BorderThickness="1" SizeChanged="OnBoxSizeChanged"
+                        MouseEnter="OnBoxEnter" MouseLeave="OnHoverLeave">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+                            <Setter Property="Background" Value="{DynamicResource CardBackgroundFillColorDefaultBrush}" />
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="BorderBrush" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+                                </Trigger>
+                                <DataTrigger Binding="{Binding IsHighlighted}" Value="True">
+                                    <Setter Property="BorderBrush" Value="{DynamicResource LinkBrush}" />
+                                    <Setter Property="BorderThickness" Value="2" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <StackPanel>
+                        <Border x:Name="TitleBar" CornerRadius="7,7,0,0" Padding="4,4,8,4">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Background" Value="{DynamicResource KindBuildBrush}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Kind}" Value="Spec">
+                                            <Setter Property="Background" Value="{DynamicResource KindSpecBrush}" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding Kind}" Value="Verify">
+                                            <Setter Property="Background" Value="{DynamicResource KindVerifyBrush}" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding Kind}" Value="Bug">
+                                            <Setter Property="Background" Value="{DynamicResource KindBugBrush}" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding Kind}" Value="Freeform">
+                                            <Setter Property="Background" Value="{DynamicResource KindFreeformBrush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
                             <DockPanel>
                                 <Button x:Name="Chevron" DockPanel.Dock="Left" Content="{Binding Chevron}" Command="{Binding ToggleCommand}"
-                                        ToolTip="{Binding ChevronToolTip}" Padding="2,0" Margin="0,0,8,0" MinWidth="0" MinHeight="0"
-                                        FontSize="14" Background="Transparent" BorderThickness="0" VerticalAlignment="Center"
-                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                <Border x:Name="PieceHeader" Background="Transparent" Focusable="True"
-                                        AutomationProperties.Name="{Binding Name}">
+                                        ToolTip="{Binding ChevronToolTip}" AutomationProperties.Name="{Binding ChevronToolTip}"
+                                        Padding="4,0" Margin="0,0,4,0" MinWidth="0" MinHeight="0" FontSize="14" Background="Transparent"
+                                        BorderThickness="0" VerticalAlignment="Center" Foreground="White" Cursor="Hand" />
+                                <Border x:Name="KindWord" DockPanel.Dock="Left" CornerRadius="3" Background="#38000000" Padding="5,1"
+                                        Margin="0,0,8,0" VerticalAlignment="Center" ToolTip="{Binding KindToolTip}"
+                                        AutomationProperties.Name="{Binding KindLabel}">
+                                    <TextBlock Text="{Binding KindLabel}" FontSize="11" FontWeight="Bold" Foreground="White" />
+                                </Border>
+                                <Border x:Name="PieceHeader" Background="Transparent" Focusable="True" Cursor="Hand"
+                                        AutomationProperties.Name="{Binding Title}">
                                     <Border.InputBindings>
                                         <MouseBinding MouseAction="LeftClick" Command="{Binding SelectCommand}" />
                                         <KeyBinding Key="Enter" Command="{Binding SelectCommand}" />
                                         <KeyBinding Key="Space" Command="{Binding SelectCommand}" />
                                     </Border.InputBindings>
-                                    <TextBlock x:Name="PieceName" Text="{Binding Name}" ToolTip="{Binding Name}" FontWeight="SemiBold"
-                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
-                                               Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                    <TextBlock x:Name="PieceName" Text="{Binding Title}" ToolTip="{Binding Title}" FontWeight="SemiBold"
+                                               TextWrapping="Wrap" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Foreground="White" />
                                 </Border>
                             </DockPanel>
-                            <Border Background="Transparent">
-                                <Border.InputBindings>
-                                    <MouseBinding MouseAction="LeftClick" Command="{Binding SelectCommand}" />
-                                </Border.InputBindings>
-                                <StackPanel>
-                                    <DockPanel Margin="0,1,0,0">
-                                        <Ellipse DockPanel.Dock="Left" Width="9" Height="9" Margin="0,0,5,0" VerticalAlignment="Center"
-                                                 Fill="{Binding ColourHex, Converter={StaticResource HexToBrush}}" />
-                                        <TextBlock x:Name="Meta" FontSize="12" TextTrimming="CharacterEllipsis" ToolTip="{Binding MetaText}"
-                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}">
-                                            <Run Text="{Binding Workstream, Mode=OneWay}" FontWeight="Medium"
-                                                 Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                            <Run Text="  " />
-                                            <Run Text="{Binding KindWord, Mode=OneWay}" />
-                                            <Run Text="  " />
-                                            <Run Text="{Binding ObjectiveLabel, Mode=OneWay}" />
-                                        </TextBlock>
-                                    </DockPanel>
-                                    <TextBlock x:Name="BranchRules" Text="{Binding BranchRulesMark}" FontSize="11" Margin="14,1,0,0"
-                                               ToolTip="{Binding BranchRulesToolTip}" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                               Visibility="{Binding BranchRulesMark, Converter={StaticResource NotEmpty}}" />
-                                    <TextBlock x:Name="Status" Text="{Binding StatusText}" Style="{StaticResource StateForeground}"
-                                               FontSize="13" FontWeight="Medium" TextWrapping="Wrap" Margin="0,6,0,0" />
-                                    <TextBlock x:Name="ReportBack" Text="{Binding ReportBackText}" ToolTip="{Binding ReportBackToolTip}"
-                                               FontSize="12" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"
-                                               Visibility="{Binding HasReportBack, Converter={StaticResource Visible}}">
-                                        <TextBlock.Style>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding IsReportLost}" Value="True">
-                                                        <Setter Property="Foreground" Value="{DynamicResource StateStuckBrush}" />
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </TextBlock.Style>
-                                    </TextBlock>
-                                    <!-- Grouped by objectives, the hand-overs and moves that the Flow draws as lines (AC 47). -->
-                                    <ItemsControl x:Name="CrossMarks" ItemsSource="{Binding CrossMarks}" Focusable="False" Margin="0,2,0,0"
-                                                  Visibility="{Binding DataContext.IsGroupedByObjectives, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource Visible}}">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <TextBlock x:Name="CrossMark" Text="{Binding}" ToolTip="{Binding}" FontSize="12" TextTrimming="CharacterEllipsis"
-                                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </StackPanel>
-                            </Border>
+                        </Border>
+                        <Border Background="Transparent" Padding="10,7,10,9" Cursor="Hand">
+                            <Border.InputBindings>
+                                <MouseBinding MouseAction="LeftClick" Command="{Binding SelectCommand}" />
+                            </Border.InputBindings>
+                            <StackPanel>
+                                <TextBlock x:Name="Status" Text="{Binding StatusText}" ToolTip="{Binding StatusToolTip}"
+                                           Style="{StaticResource StateForeground}" FontSize="13" FontWeight="Medium" TextWrapping="Wrap" />
+                                <TextBlock x:Name="WhoActs" Text="{Binding WhoActs}" FontSize="12.5" TextWrapping="Wrap" Margin="0,2,0,0"
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
 
-                            <!-- Folded: one chip per stage, sharing the width 3 px apart (AC 26). -->
-                            <ItemsControl x:Name="Strip" ItemsSource="{Binding Stages}" Margin="0,7,-3,0" Focusable="False"
-                                          Visibility="{Binding IsFolded, Converter={StaticResource Visible}}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <UniformGrid Rows="1" />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate DataType="{x:Type vm:StageNodeViewModel}">
-                                        <Grid x:Name="Chip" Height="18" Margin="0,0,3,0" ToolTip="{Binding ToolTip}" Background="Transparent">
-                                            <Grid.InputBindings>
-                                                <MouseBinding MouseAction="LeftClick" Command="{Binding SelectCommand}" />
-                                            </Grid.InputBindings>
-                                            <Rectangle Style="{StaticResource StripChip}" RadiusX="3" RadiusY="3" StrokeThickness="1" />
-                                            <TextBlock Text="{Binding Abbreviation}" FontFamily="{StaticResource Mono}" FontSize="10" FontWeight="Medium"
-                                                       Style="{StaticResource StateForeground}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                        </Grid>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
+                                <!-- Folded: one chip per stage and the gate diamond after Spec (1.1f D21; 1.1d AC 26). -->
+                                <ItemsControl x:Name="Strip" ItemsSource="{Binding StripItems}" Margin="0,7,-3,0" Focusable="False"
+                                              Visibility="{Binding IsFolded, Converter={StaticResource Visible}}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <UniformGrid Rows="1" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.Resources>
+                                        <DataTemplate DataType="{x:Type vm:StageNodeViewModel}">
+                                            <Grid x:Name="Chip" Height="18" Margin="0,0,3,0" ToolTip="{Binding ToolTip}" Background="Transparent"
+                                                  Cursor="Hand" AutomationProperties.Name="{Binding ToolTip}">
+                                                <Grid.InputBindings>
+                                                    <MouseBinding MouseAction="LeftClick" Command="{Binding SelectCommand}" />
+                                                </Grid.InputBindings>
+                                                <Rectangle Style="{StaticResource StripChip}" RadiusX="4" RadiusY="4" StrokeThickness="1" />
+                                                <TextBlock Text="{Binding Abbreviation}" FontFamily="{StaticResource Mono}" FontSize="10" FontWeight="Medium"
+                                                           Style="{StaticResource StateForeground}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Grid>
+                                        </DataTemplate>
+                                        <DataTemplate DataType="{x:Type vm:GateMarkViewModel}">
+                                            <TextBlock x:Name="Gate" Text="{Binding Mark}" ToolTip="{Binding ToolTip}" FontSize="15"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-3,3,0"
+                                                       AutomationProperties.Name="{Binding AutomationName}"
+                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                            <DataTemplate.Triggers>
+                                                <DataTrigger Binding="{Binding IsWaiting}" Value="True">
+                                                    <Setter TargetName="Gate" Property="Foreground" Value="{DynamicResource StateWaitingBrush}" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding IsPassed}" Value="True">
+                                                    <Setter TargetName="Gate" Property="Foreground" Value="{DynamicResource StateDoneBrush}" />
+                                                </DataTrigger>
+                                            </DataTemplate.Triggers>
+                                        </DataTemplate>
+                                    </ItemsControl.Resources>
+                                </ItemsControl>
 
-                            <!-- Open: the chain of stages joined by ▶, then the actions (AC 27). -->
-                            <ItemsControl x:Name="Chain" ItemsSource="{Binding Stages}" Margin="0,8,0,0" Focusable="False"
-                                          Visibility="{Binding IsOpen, Converter={StaticResource Visible}}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <UniformGrid Rows="1" />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate DataType="{x:Type vm:StageNodeViewModel}">
-                                        <DockPanel>
-                                            <TextBlock x:Name="Arrow" DockPanel.Dock="Left" Text="▶" Width="12" FontSize="11" TextAlignment="Center"
-                                                       VerticalAlignment="Center" Foreground="{DynamicResource ConnectorBrush}" />
-                                            <Button x:Name="Stage" Style="{StaticResource ChainStage}" Command="{Binding SelectCommand}"
-                                                    ToolTip="{Binding ToolTip}" AutomationProperties.Name="{Binding ToolTip}">
-                                                <Button.ContextMenu>
-                                                    <ContextMenu ItemsSource="{Binding MenuItems}" ItemContainerStyle="{StaticResource StageMenuItem}"
-                                                                 FontFamily="{x:Static SystemFonts.MessageFontFamily}" />
-                                                </Button.ContextMenu>
-                                            </Button>
-                                        </DockPanel>
-                                        <DataTemplate.Triggers>
-                                            <DataTrigger Binding="{Binding IsFirst}" Value="True">
-                                                <Setter TargetName="Arrow" Property="Visibility" Value="Collapsed" />
-                                            </DataTrigger>
-                                        </DataTemplate.Triggers>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                            <ItemsControl x:Name="Actions" ItemsSource="{Binding Actions}" Margin="0,8,0,0" Focusable="False"
-                                          Visibility="{Binding IsOpen, Converter={StaticResource Visible}}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <WrapPanel />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate DataType="{x:Type vm:PieceActionViewModel}">
-                                        <!-- A way on is a link beside the button it unblocks (1.1e AC 6a). -->
-                                        <Button x:Name="Action" Command="{Binding Command}" ToolTip="{Binding ToolTip}"
-                                                AutomationProperties.Name="{Binding Label}"
-                                                ToolTipService.ShowOnDisabled="True" Padding="9,3" Margin="0,0,6,6" FontSize="13">
-                                            <Button.Style>
-                                                <!-- The shared command button, so a button that cannot act looks it (1.1e AC 6a, 6b). -->
-                                                <Style TargetType="Button" BasedOn="{StaticResource CommandButton}">
-                                                    <Setter Property="MinHeight" Value="30" />
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsLink}" Value="True">
-                                                            <Setter Property="Template" Value="{StaticResource LinkTemplate}" />
-                                                            <Setter Property="Cursor" Value="Hand" />
-                                                            <Setter Property="Foreground" Value="{DynamicResource AccentTextFillColorPrimaryBrush}" />
-                                                            <Setter Property="Padding" Value="2,3" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Button.Style>
-                                            <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
-                                        </Button>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </Border>
+                                <!-- Open: the stages by name, joined by ▶, wrapping whole stages so no word is cut (H39). -->
+                                <ItemsControl x:Name="Chain" ItemsSource="{Binding Stages}" Margin="0,8,0,0" Focusable="False"
+                                              Visibility="{Binding IsOpen, Converter={StaticResource Visible}}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type vm:StageNodeViewModel}">
+                                            <DockPanel>
+                                                <TextBlock x:Name="Arrow" DockPanel.Dock="Left" Text="▶" Width="12" FontSize="11" TextAlignment="Center"
+                                                           VerticalAlignment="Center" Foreground="{DynamicResource ConnectorBrush}" />
+                                                <Button x:Name="Stage" Style="{StaticResource ChainStage}" Command="{Binding SelectCommand}"
+                                                        ToolTip="{Binding ToolTip}" AutomationProperties.Name="{Binding ToolTip}">
+                                                    <Button.ContextMenu>
+                                                        <ContextMenu ItemsSource="{Binding MenuItems}" ItemContainerStyle="{StaticResource StageMenuItem}"
+                                                                     FontFamily="{x:Static SystemFonts.MessageFontFamily}" />
+                                                    </Button.ContextMenu>
+                                                </Button>
+                                            </DockPanel>
+                                            <DataTemplate.Triggers>
+                                                <DataTrigger Binding="{Binding IsFirst}" Value="True">
+                                                    <Setter TargetName="Arrow" Property="Visibility" Value="Collapsed" />
+                                                </DataTrigger>
+                                            </DataTemplate.Triggers>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <Button x:Name="Serves" Command="{Binding ServesCommand}" ToolTip="{Binding ServesToolTip}" Template="{StaticResource LinkTemplate}"
+                                        Margin="0,6,0,0" Cursor="Hand" HorizontalAlignment="Left" Foreground="{DynamicResource LinkBrush}"
+                                        AutomationProperties.Name="{Binding ServesText}">
+                                    <TextBlock Text="{Binding ServesText}" FontSize="12.5" TextWrapping="Wrap" />
+                                </Button>
+                                <TextBlock x:Name="ReportBack" Text="{Binding ReportBackText}" ToolTip="{Binding ReportBackToolTip}"
+                                           FontSize="12" TextWrapping="Wrap" Margin="0,2,0,0"
+                                           Visibility="{Binding HasReportBack, Converter={StaticResource Visible}}">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsReportLost}" Value="True">
+                                                    <Setter Property="Foreground" Value="{DynamicResource StateStuckBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                                <TextBlock x:Name="BranchRules" Text="{Binding BranchRulesMark}" FontSize="11" Margin="0,2,0,0"
+                                           ToolTip="{Binding BranchRulesToolTip}" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                           Visibility="{Binding BranchRulesMark, Converter={StaticResource NotEmpty}}" />
+                                <!-- Grouped by objectives, the hand-overs and moves that rounds and work draw as lines (AC 47). -->
+                                <ItemsControl x:Name="CrossMarks" ItemsSource="{Binding CrossMarks}" Focusable="False" Margin="0,2,0,0"
+                                              Visibility="{Binding DataContext.IsGroupedByObjectives, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource Visible}}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock x:Name="CrossMark" Text="{Binding}" ToolTip="{Binding}" FontSize="12" TextWrapping="Wrap"
+                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <!-- Folded: the one primary action (H38). -->
+                                <ContentControl x:Name="PrimaryAction" Content="{Binding PrimaryAction}" Margin="0,8,0,0" Focusable="False"
+                                                HorizontalAlignment="Left">
+                                    <ContentControl.Style>
+                                        <Style TargetType="ContentControl">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <MultiDataTrigger>
+                                                    <MultiDataTrigger.Conditions>
+                                                        <Condition Binding="{Binding IsFolded}" Value="True" />
+                                                        <Condition Binding="{Binding HasPrimaryAction}" Value="True" />
+                                                    </MultiDataTrigger.Conditions>
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </MultiDataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </ContentControl.Style>
+                                </ContentControl>
+
+                                <!-- Open: every action (H39). -->
+                                <ItemsControl x:Name="Actions" ItemsSource="{Binding Actions}" Margin="0,8,0,0" Focusable="False"
+                                              Visibility="{Binding IsOpen, Converter={StaticResource Visible}}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
                 </Border>
-                <Border x:Name="Outline" IsHitTestVisible="False" Margin="-3" BorderThickness="2" CornerRadius="9"
+                <Border x:Name="Outline" IsHitTestVisible="False" Margin="-3" BorderThickness="2" CornerRadius="10"
                         BorderBrush="{DynamicResource AccentFillColorDefaultBrush}"
                         Visibility="{Binding IsSelected, Converter={StaticResource Visible}}" />
             </Grid>
         </DataTemplate>
 
         <!--
-            A piece of work's box, then its branch of the pieces it hands work to (AC 24). Implicit, so the branch's
-            ItemsControl uses it again for each child.
+            A box, then the pieces it hands work to (1.1f D17 to D20). Two or more sit between a fork bar and a join bar
+            (UML activity notation), each labelled to its right; the children's line runs from below the fork to above the
+            join, so nothing is drawn across a line. One alone has no bars: "↳ handed on" above it. Implicit, so the
+            children's ItemsControl uses it again.
         -->
         <DataTemplate DataType="{x:Type vm:PieceNodeViewModel}">
-            <StackPanel Margin="0,0,0,14">
+            <StackPanel Margin="0,0,0,14" Visibility="{Binding IsShown, Converter={StaticResource Visible}}">
                 <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource PieceBox}" />
-
-                <!--
-                    The branch: the pieces this one hands work to (AC 24). Pieces that ran in parallel are grouped by a
-                    brace to the left of the hand-over line, spanning them, labelled beside it, so no connector crosses it
-                    (1.1e AC 6d; Nigel: "a left hand brace to the left of them all").
-                -->
-                <Grid x:Name="BranchRow" Margin="0,14,0,0" Visibility="{Binding HasChildren, Converter={StaticResource Visible}}">
+                <Grid x:Name="BranchRow" Margin="0,10,0,0" Visibility="{Binding HasChildren, Converter={StaticResource Visible}}">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="{Binding BranchIndent}" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
-                    <StackPanel x:Name="ParallelMark" Orientation="Horizontal" HorizontalAlignment="Left"
-                                AutomationProperties.Name="{Binding ParallelText}"
-                                Visibility="{Binding IsParallel, Converter={StaticResource Visible}}">
-                        <TextBlock x:Name="ParallelLabel" Text="{Binding ParallelText}" FontFamily="{StaticResource Mono}" FontSize="11"
-                                   FontWeight="Medium" VerticalAlignment="Top" Margin="0,4,0,0"
-                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}">
-                            <TextBlock.LayoutTransform>
-                                <RotateTransform Angle="-90" />
-                            </TextBlock.LayoutTransform>
-                        </TextBlock>
-                        <!-- Curls of a fixed size and straight runs that stretch, so it reads as { at any height. -->
-                        <Grid x:Name="ParallelBrace" Width="10" Margin="3,0,0,0">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="8" />
-                                <RowDefinition Height="*" />
-                                <RowDefinition Height="12" />
-                                <RowDefinition Height="*" />
-                                <RowDefinition Height="8" />
-                            </Grid.RowDefinitions>
-                            <Path Grid.Row="0" Data="M 10,0.75 C 6,0.75 5,3 5,8" StrokeThickness="1.5" Stroke="{DynamicResource ConnectorBrush}" />
-                            <Rectangle Grid.Row="1" Width="1.5" HorizontalAlignment="Left" Margin="4.25,0,0,0" Fill="{DynamicResource ConnectorBrush}" />
-                            <Path Grid.Row="2" Data="M 5,0 C 5,4 3,6 0.75,6 C 3,6 5,8 5,12" StrokeThickness="1.5" Stroke="{DynamicResource ConnectorBrush}" />
-                            <Rectangle Grid.Row="3" Width="1.5" HorizontalAlignment="Left" Margin="4.25,0,0,0" Fill="{DynamicResource ConnectorBrush}" />
-                            <Path Grid.Row="4" Data="M 5,0 C 5,5 6,7.25 10,7.25" StrokeThickness="1.5" Stroke="{DynamicResource ConnectorBrush}" />
-                        </Grid>
+                    <StackPanel Grid.Column="1">
+                        <TextBlock x:Name="HandedOn" Text="↳ handed on" FontSize="12" Margin="0,0,0,6"
+                                   Foreground="{DynamicResource StateHandedOnBrush}"
+                                   Visibility="{Binding IsSingleHandOver, Converter={StaticResource Visible}}" />
+                        <DockPanel x:Name="Fork" Margin="0,0,0,8" Visibility="{Binding IsParallel, Converter={StaticResource Visible}}"
+                                   AutomationProperties.Name="{Binding ForkText}">
+                            <Rectangle x:Name="ForkBar" DockPanel.Dock="Left" Width="140" Height="5" RadiusX="1" RadiusY="1"
+                                       VerticalAlignment="Center" Fill="{DynamicResource TextFillColorPrimaryBrush}" />
+                            <TextBlock x:Name="ForkLabel" Text="{Binding ForkText}" FontSize="12" Margin="10,0,0,0" TextWrapping="Wrap"
+                                       VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        </DockPanel>
+                        <Border x:Name="Branch" Margin="9,0,0,0" Padding="16,0,0,0">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="BorderThickness" Value="0" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsParallel}" Value="True">
+                                            <Setter Property="BorderThickness" Value="2,0,0,0" />
+                                            <Setter Property="BorderBrush" Value="{DynamicResource StateHandedOnBrush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <ItemsControl x:Name="Children" ItemsSource="{Binding Children}" Focusable="False" />
+                        </Border>
+                        <DockPanel x:Name="Join" Margin="0,0,0,4" Visibility="{Binding IsParallel, Converter={StaticResource Visible}}"
+                                   AutomationProperties.Name="{Binding JoinText}">
+                            <Rectangle x:Name="JoinBar" DockPanel.Dock="Left" Width="140" Height="5" RadiusX="1" RadiusY="1"
+                                       VerticalAlignment="Center" Fill="{DynamicResource TextFillColorPrimaryBrush}" />
+                            <TextBlock x:Name="JoinLabel" Text="{Binding JoinText}" FontSize="12" Margin="10,0,0,0" TextWrapping="Wrap"
+                                       VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        </DockPanel>
                     </StackPanel>
-                    <Border x:Name="Branch" Grid.Column="1" Padding="16,0,0,0">
-                        <Border.Style>
-                            <Style TargetType="Border">
-                                <Setter Property="BorderThickness" Value="2,0,0,0" />
-                                <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsParallel}" Value="True">
-                                        <Setter Property="BorderThickness" Value="0" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Border.Style>
-                        <ItemsControl x:Name="Children" ItemsSource="{Binding Children}" Focusable="False" />
-                    </Border>
                 </Grid>
+                <!-- A proposal it raised, waiting for you: a dashed node under it (1.1e item 30). -->
+                <ItemsControl x:Name="Proposals" ItemsSource="{Binding Proposals}" Margin="34,4,0,0" Focusable="False"
+                              Visibility="{Binding HasProposals, Converter={StaticResource Visible}}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type vm:ProposalRowViewModel}">
+                            <Grid x:Name="ProposalNode" Margin="0,0,0,8" MaxWidth="420" HorizontalAlignment="Left">
+                                <Rectangle RadiusX="8" RadiusY="8" StrokeThickness="1.5" StrokeDashArray="4 3"
+                                           Stroke="{DynamicResource StateWaitingBrush}" />
+                                <StackPanel Margin="10,7">
+                                    <TextBlock Text="◆ Proposed: waiting for you" FontSize="12.5" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource StateWaitingBrush}" />
+                                    <TextBlock x:Name="ProposalTitle" Text="{Binding Proposal.Request.Title}" FontWeight="SemiBold" TextWrapping="Wrap"
+                                               Margin="0,2,0,0" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                    <TextBlock Text="{Binding DoneCriteria}" FontSize="12.5" TextWrapping="Wrap" Margin="0,2,0,6"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                    <WrapPanel>
+                                        <Button x:Name="ProposalReview" Content="Approve…" Command="{Binding ReviewCommand}" Style="{StaticResource CommandButton}"
+                                                Padding="9,3" Margin="0,0,6,0" ToolTip="Read its brief, then approve it: creates its card and link"
+                                                AutomationProperties.Name="Approve the proposal" />
+                                        <Button x:Name="ProposalReject" Content="Reject…" Command="{Binding AskRejectCommand}" Style="{StaticResource CommandButton}"
+                                                Padding="9,3" ToolTip="Turn it down, with your reason, here"
+                                                AutomationProperties.Name="Reject the proposal" />
+                                    </WrapPanel>
+                                    <StackPanel x:Name="RejectPanel" Margin="0,6,0,0" Visibility="{Binding IsRejecting, Converter={StaticResource Visible}}">
+                                        <TextBox x:Name="RejectNote" Text="{Binding Note, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap"
+                                                 AutomationProperties.Name="Why you reject it" ToolTip="Your reason, kept with the proposal and told to its session" />
+                                        <WrapPanel Margin="0,4,0,0">
+                                            <Button Content="Reject" Command="{Binding RejectCommand}" Style="{StaticResource CommandButton}" Padding="9,3"
+                                                    Margin="0,0,6,0" AutomationProperties.Name="Confirm the rejection" />
+                                            <Button Content="Cancel" Command="{Binding CancelRejectCommand}" Style="{StaticResource CommandButton}" Padding="9,3"
+                                                    AutomationProperties.Name="Cancel the rejection" />
+                                        </WrapPanel>
+                                        <TextBlock Text="{Binding Refusal}" TextWrapping="Wrap" Foreground="{DynamicResource StateStuckBrush}"
+                                                   Visibility="{Binding Refusal, Converter={StaticResource NotEmpty}}" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- An action button: the shared command button, a way on drawn as a link (1.1e AC 6a, 6b). -->
+        <DataTemplate DataType="{x:Type vm:PieceActionViewModel}">
+            <Button x:Name="Action" Command="{Binding Command}" ToolTip="{Binding ToolTip}" AutomationProperties.Name="{Binding Label}"
+                    ToolTipService.ShowOnDisabled="True" Padding="9,3" Margin="0,0,6,6" FontSize="13">
+                <Button.Style>
+                    <Style TargetType="Button" BasedOn="{StaticResource CommandButton}">
+                        <Setter Property="MinHeight" Value="30" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsLink}" Value="True">
+                                <Setter Property="Template" Value="{StaticResource LinkTemplate}" />
+                                <Setter Property="Cursor" Value="Hand" />
+                                <Setter Property="Foreground" Value="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+                                <Setter Property="Padding" Value="2,3" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
+                <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
+            </Button>
+        </DataTemplate>
+
+        <!-- A round (1.1f C10 to C13): the change banner before it, its heading, then what it set out to meet and its work. -->
+        <DataTemplate DataType="{x:Type vm:RoundViewModel}">
+            <StackPanel Margin="0,0,0,16" Visibility="{Binding IsShown, Converter={StaticResource Visible}}">
+                <Border x:Name="ChangeBanner" BorderThickness="4,0,0,0" CornerRadius="0,6,6,0" Padding="10,8" Margin="0,0,0,10"
+                        BorderBrush="{DynamicResource ChangeBrush}" Background="{DynamicResource ChangeSoftBrush}"
+                        Visibility="{Binding HasBanner, Converter={StaticResource Visible}}">
+                    <StackPanel>
+                        <TextBlock x:Name="BannerText" Text="{Binding Banner}" TextWrapping="Wrap" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource ChangeBrush}" />
+                        <TextBlock x:Name="BannerObjectives" Text="{Binding BannerObjectives}" TextWrapping="Wrap" Margin="0,2,0,0"
+                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                    </StackPanel>
+                </Border>
+                <Border x:Name="RoundHeading" CornerRadius="6" Padding="6,5" Cursor="Hand" Focusable="True"
+                        AutomationProperties.Name="{Binding Title}">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="BorderThickness" Value="1" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+                            <Setter Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="{DynamicResource SubtleFillColorTertiaryBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+                                </Trigger>
+                                <Trigger Property="IsKeyboardFocused" Value="True">
+                                    <Setter Property="BorderThickness" Value="2" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <Border.InputBindings>
+                        <MouseBinding MouseAction="LeftClick" Command="{Binding ToggleCommand}" />
+                        <KeyBinding Key="Enter" Command="{Binding ToggleCommand}" />
+                        <KeyBinding Key="Space" Command="{Binding ToggleCommand}" />
+                    </Border.InputBindings>
+                    <WrapPanel>
+                        <TextBlock Text="{Binding Chevron}" FontSize="13" Width="18" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        <TextBlock x:Name="RoundTitle" Text="{Binding Title}" FontSize="15" FontWeight="SemiBold" Margin="0,0,10,0"
+                                   VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                        <TextBlock x:Name="RoundDates" Text="{Binding Dates}" FontSize="13" Margin="0,0,10,0" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        <TextBlock x:Name="RoundState" Text="{Binding StateText}" Style="{StaticResource StateForeground}" FontSize="12.5"
+                                   FontWeight="Medium" Margin="0,0,10,0" VerticalAlignment="Center" />
+                        <TextBlock x:Name="RoundLine" Text="{Binding Line}" FontSize="13" TextWrapping="Wrap" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                   Visibility="{Binding Line, Converter={StaticResource NotEmpty}}" />
+                    </WrapPanel>
+                </Border>
+                <StackPanel x:Name="RoundBody" Margin="10,10,0,0" Visibility="{Binding IsOpen, Converter={StaticResource Visible}}">
+                    <DockPanel x:Name="SetOutToMeet" Margin="0,0,0,12">
+                        <TextBlock DockPanel.Dock="Left" Text="Set out to meet:" FontSize="13" Margin="0,2,8,4" VerticalAlignment="Top"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        <ItemsControl x:Name="RoundObjectives" ItemsSource="{Binding Objectives}" Focusable="False">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type vm:RoundObjectiveViewModel}">
+                                    <Border x:Name="ObjectiveChip" CornerRadius="10" BorderThickness="1" Padding="8,2" Margin="0,0,6,4"
+                                            ToolTip="{Binding ToolTip}" Cursor="Hand" AutomationProperties.Name="{Binding Text}" Focusable="True"
+                                            MouseEnter="OnObjectiveChipEnter" MouseLeave="OnHoverLeave">
+                                        <Border.InputBindings>
+                                            <MouseBinding MouseAction="LeftClick" Command="{Binding OpenCommand}" />
+                                            <KeyBinding Key="Enter" Command="{Binding OpenCommand}" />
+                                        </Border.InputBindings>
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="BorderBrush" Value="{DynamicResource LinkBrush}" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsKeyboardFocused" Value="True">
+                                                        <Setter Property="BorderThickness" Value="2" />
+                                                        <Setter Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                                    </Trigger>
+                                                    <DataTrigger Binding="{Binding IsHighlighted}" Value="True">
+                                                        <Setter Property="Background" Value="{DynamicResource StateWaitingSoftBrush}" />
+                                                        <Setter Property="BorderBrush" Value="{DynamicResource LinkBrush}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <WrapPanel>
+                                            <TextBlock Text="{Binding Text}" FontSize="12.5" TextDecorations="Underline" TextWrapping="Wrap"
+                                                       Foreground="{DynamicResource LinkBrush}" VerticalAlignment="Center" />
+                                            <Grid Width="60" Height="6" Margin="8,0,6,0" VerticalAlignment="Center">
+                                                <Rectangle RadiusX="3" RadiusY="3" Fill="{DynamicResource StateToDoSoftBrush}"
+                                                           Stroke="{DynamicResource CardStrokeColorDefaultBrush}" />
+                                                <Rectangle RadiusX="3" RadiusY="3" HorizontalAlignment="Left" Width="{Binding FilledWidth}"
+                                                           Fill="{DynamicResource StateDoneBrush}" />
+                                            </Grid>
+                                            <TextBlock Text="{Binding CriteriaText}" FontSize="12" VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                        </WrapPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </DockPanel>
+                    <ItemsControl x:Name="RoundItems" ItemsSource="{Binding Items}" Focusable="False" />
+                </StackPanel>
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- Finished pieces one session worked through in turn, folded to one line (1.1f D22). -->
+        <DataTemplate DataType="{x:Type vm:FinishedRunViewModel}">
+            <StackPanel Margin="0,0,0,14" Visibility="{Binding IsShown, Converter={StaticResource Visible}}">
+                <WrapPanel>
+                    <Button x:Name="RunToggle" Content="{Binding Text}" Command="{Binding ToggleCommand}" Template="{StaticResource LinkTemplate}"
+                            Cursor="Hand" FontSize="13" Margin="0,0,10,0" Foreground="{DynamicResource LinkBrush}"
+                            AutomationProperties.Name="{Binding Text}" />
+                    <TextBlock x:Name="RunTitles" Text="{Binding Titles}" FontSize="12.5" TextWrapping="Wrap" VerticalAlignment="Center"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                               Visibility="{Binding IsFolded, Converter={StaticResource Visible}}" />
+                </WrapPanel>
+                <ItemsControl x:Name="RunBoxes" ItemsSource="{Binding Boxes}" Margin="0,10,0,0" Focusable="False"
+                              Visibility="{Binding IsOpen, Converter={StaticResource Visible}}" />
             </StackPanel>
         </DataTemplate>
 
@@ -621,9 +842,16 @@
         <Border DockPanel.Dock="Top" Padding="14,8" BorderThickness="0,0,0,1"
                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
             <WrapPanel>
-                <Button x:Name="BackButton" Content="← Board" Command="{Binding BackCommand}" Padding="10,4" Margin="0,0,10,0"
+                <!-- Back and Forward first, then the board, then the project tabs (1.1f I46). -->
+                <Button x:Name="GoBackButton" Content="◀ Back" Command="{Binding GoBackCommand}" Padding="10,4" Margin="0,0,4,0"
+                        BorderThickness="1" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" ToolTipService.ShowOnDisabled="True"
+                        ToolTip="Back to where you were (Alt+Left, or the mouse's back button)" AutomationProperties.Name="Back" />
+                <Button x:Name="GoForwardButton" Content="Forward ▶" Command="{Binding GoForwardCommand}" Padding="10,4" Margin="0,0,4,0"
+                        BorderThickness="1" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" ToolTipService.ShowOnDisabled="True"
+                        ToolTip="Forward again (Alt+Right, or the mouse's forward button)" AutomationProperties.Name="Forward" />
+                <Button x:Name="BackButton" Content="⊞ Board" Command="{Binding BackCommand}" Padding="10,4" Margin="0,0,10,0"
                         BorderThickness="1" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
-                        ToolTip="Back to the board (Alt+Left)" />
+                        ToolTip="Leave the project for the board" AutomationProperties.Name="Board" />
                 <ItemsControl x:Name="Tabs" ItemsSource="{Binding Tabs}" Focusable="False" VerticalAlignment="Center">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
@@ -651,40 +879,75 @@
                     <TextBlock x:Name="ProjectTag" Text="PROJECT" FontFamily="{StaticResource Mono}" FontSize="11" FontWeight="Medium"
                                Margin="10,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                 </WrapPanel>
+                <WrapPanel x:Name="LeadLine" Margin="0,6,0,0" Visibility="{Binding HasLead, Converter={StaticResource Visible}}">
+                    <TextBlock x:Name="LeadText" Text="{Binding LeadText}" FontSize="13" VerticalAlignment="Center" Margin="0,0,8,0"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                    <Button x:Name="FocusLead" Content="⧉ Focus" Command="{Binding FocusLeadCommand}" ToolTip="{Binding FocusLeadToolTip}"
+                            ToolTipService.ShowOnDisabled="True" Style="{StaticResource CommandButton}" Padding="8,1" FontSize="12.5"
+                            AutomationProperties.Name="Focus the lead's terminal" />
+                </WrapPanel>
                 <TextBlock x:Name="Sentence" Text="{Binding Sentence}" FontSize="15" TextWrapping="Wrap" Margin="0,10,0,0"
                            Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                <ItemsControl x:Name="Counts" ItemsSource="{Binding Counts}" Margin="0,10,0,0" Focusable="False">
+                <!-- What waits for you, the most prominent block, in place even when empty (1.1f G36, G37a). -->
+                <Border x:Name="WaitingBand" Margin="0,10,0,0" Padding="12,8,12,6" CornerRadius="6" BorderThickness="1"
+                        BorderBrush="{DynamicResource StateWaitingBrush}" Background="{DynamicResource StateWaitingSoftBrush}">
+                    <StackPanel>
+                        <TextBlock x:Name="WaitsHeading" Text="{Binding WaitsHeading}" FontWeight="Bold" FontSize="13.5" Margin="0,0,0,6"
+                                   Foreground="{DynamicResource StateWaitingBrush}"
+                                   Visibility="{Binding HasWaits, Converter={StaticResource Visible}}" />
+                        <TextBlock x:Name="NothingWaits" Text="Nothing waits for you." FontSize="13" Margin="0,0,0,2"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                   Visibility="{Binding HasWaits, Converter={StaticResource NotVisible}}" />
+                        <ItemsControl x:Name="WaitItems" ItemsSource="{Binding Waits}" Focusable="False">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type vm:WaitItemViewModel}">
+                                    <DockPanel Margin="0,0,0,6">
+                                        <Button x:Name="WaitButton" DockPanel.Dock="Right" Content="{Binding Button}" Command="{Binding Command}"
+                                                Style="{StaticResource CommandButton}" Padding="9,3" Margin="10,0,0,0" FontSize="13"
+                                                VerticalAlignment="Top" AutomationProperties.Name="{Binding Button}"
+                                                Visibility="{Binding HasButton, Converter={StaticResource Visible}}" />
+                                        <TextBlock x:Name="WaitText" Text="{Binding Text}" FontSize="13" TextWrapping="Wrap" VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis" ToolTip="{Binding Text}"
+                                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+                <!-- The phase strip (G34), then the value of the process as tallies (G35). -->
+                <ItemsControl x:Name="PhaseStrip" ItemsSource="{Binding PhaseStrip}" Margin="0,10,0,0" Focusable="False">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
                             <WrapPanel />
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
-                        <DataTemplate DataType="{x:Type vm:StateCountViewModel}">
-                            <controls:StateCountChip />
+                        <DataTemplate>
+                            <Border x:Name="PhaseCell" BorderThickness="1" CornerRadius="5" Padding="8,4" Margin="0,0,6,6" MaxWidth="260"
+                                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" ToolTip="{Binding Phase.ExitGate}">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Title}" FontSize="12.5" FontWeight="SemiBold" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                    <TextBlock Text="{Binding Line}" FontSize="12" TextWrapping="Wrap" Style="{StaticResource StateForeground}" />
+                                </StackPanel>
+                            </Border>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
-                <Border x:Name="WaitingBand" Margin="0,6,0,0" Padding="10,8,10,2" CornerRadius="6"
-                        Background="{DynamicResource StateWaitingSoftBrush}"
-                        Visibility="{Binding HasWaiting, Converter={StaticResource Visible}}">
-                    <WrapPanel>
-                        <TextBlock Text="◆ Waiting on you:" FontWeight="Bold" Margin="0,0,8,6" VerticalAlignment="Center"
-                                   Foreground="{DynamicResource StateWaitingBrush}" />
-                        <ItemsControl x:Name="WaitingButtons" ItemsSource="{Binding Waiting}" Focusable="False">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <WrapPanel />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate DataType="{x:Type vm:WaitingButtonViewModel}">
-                                    <Button Content="{Binding Label}" Command="{Binding Command}" Padding="9,3" Margin="0,0,8,6" FontSize="13" />
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </WrapPanel>
-                </Border>
+                <ItemsControl x:Name="Tallies" ItemsSource="{Binding Tallies}" Margin="0,2,0,0" Focusable="False">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock x:Name="Tally" Text="{Binding}" FontSize="12.5" Margin="0,0,16,2" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
             </StackPanel>
         </Border>
 
@@ -695,10 +958,10 @@
                 <StackPanel x:Name="GroupBy" Orientation="Horizontal" Margin="0,0,12,6" VerticalAlignment="Center">
                     <TextBlock Text="Group by:" FontSize="13" Margin="0,0,6,0" VerticalAlignment="Center"
                                Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                    <RadioButton x:Name="GroupByFlow" Content="Flow" Style="{StaticResource GroupByButton}" Margin="0,0,2,0"
+                    <RadioButton x:Name="GroupByFlow" Content="Rounds and work" Style="{StaticResource GroupByButton}" Margin="0,0,2,0"
                                  IsChecked="{Binding IsGroupedByFlow, Mode=TwoWay}"
                                  ToolTip="Pieces of work as they hand work on, time running down the page" />
-                    <RadioButton x:Name="GroupByObjectives" Content="Objectives" Style="{StaticResource GroupByButton}"
+                    <RadioButton x:Name="GroupByObjectives" Content="Objectives only" Style="{StaticResource GroupByButton}"
                                  IsChecked="{Binding IsGroupedByObjectives, Mode=TwoWay}"
                                  ToolTip="Pieces of work under the phases and objectives of project.md" />
                 </StackPanel>
@@ -710,22 +973,32 @@
                         Style="{StaticResource ToolbarButton}" Margin="0,0,12,6"
                         ToolTip="Open what is busy, waiting on you, stuck or waiting for its holdout check, and the headings on the way to it; fold the rest" />
                 <WrapPanel x:Name="Legend" Margin="0,0,0,6" VerticalAlignment="Center">
-                    <ItemsControl ItemsSource="{x:Static vm:ProjectViewModel.Legend}" Focusable="False">
+                    <!-- The legend row is the state chips, and a click filters by them (1.1e item 26, moved here by 1.1f D15). -->
+                    <ItemsControl x:Name="Counts" ItemsSource="{Binding Counts}" Focusable="False">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <WrapPanel />
                             </ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
-                            <DataTemplate DataType="{x:Type vm:LegendItemViewModel}">
-                                <StackPanel Orientation="Horizontal" Margin="0,2,10,2">
-                                    <TextBlock Text="{Binding Mark}" Style="{StaticResource StateForeground}" FontWeight="SemiBold" FontSize="12.5"
-                                               Margin="0,0,4,0" />
-                                    <TextBlock Text="{Binding Word}" FontSize="12.5" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                </StackPanel>
+                            <DataTemplate DataType="{x:Type vm:StateCountViewModel}">
+                                <Button x:Name="ChipButton" Command="{Binding Command}" ToolTip="{Binding ToolTip}" Template="{StaticResource LinkTemplate}"
+                                        Cursor="Hand" Margin="0,0,4,2" AutomationProperties.Name="{Binding Text}">
+                                    <Border x:Name="ChipFrame" CornerRadius="10" BorderThickness="2" BorderBrush="Transparent">
+                                        <controls:StateCountChip />
+                                    </Border>
+                                </Button>
+                                <DataTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                        <Setter TargetName="ChipFrame" Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
+                    <TextBlock x:Name="FilterText" Text="{Binding FilterText}" FontSize="12.5" FontWeight="SemiBold" Margin="4,2,10,2"
+                               VerticalAlignment="Center" Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
+                               Visibility="{Binding IsFiltered, Converter={StaticResource Visible}}" />
                     <StackPanel Orientation="Horizontal" Margin="0,2,10,2">
                         <Line x:Name="HandsOverSample" X1="0" X2="26" Y1="4" Y2="4" StrokeThickness="2" Margin="0,0,4,0"
                               VerticalAlignment="Center" Stroke="{DynamicResource ConnectorBrush}" />
@@ -757,7 +1030,7 @@
                 <Border x:Name="FlowFrame" Padding="20" VerticalAlignment="Top" MaxWidth="{Binding ViewportWidth, ElementName=Flow}">
                     <Grid x:Name="FlowContent" SizeChanged="OnFlowSizeChanged">
                         <Canvas x:Name="Connectors" IsHitTestVisible="False" />
-                        <ItemsControl x:Name="RootList" ItemsSource="{Binding FlowRoots}" Focusable="False" />
+                        <ItemsControl x:Name="RootList" ItemsSource="{Binding ShownRounds}" Focusable="False" />
                         <StackPanel x:Name="ObjectiveList">
                             <ItemsControl x:Name="PhaseList" ItemsSource="{Binding ShownPhases}" Focusable="False" />
                             <ItemsControl x:Name="UnlistedList" ItemsSource="{Binding ShownUnlisted}" Focusable="False" />
@@ -814,15 +1087,39 @@
                                 <TextBlock x:Name="PropertiesStatus" Text="{Binding StatusText}" FontSize="13" FontWeight="Medium" TextWrapping="Wrap"
                                            Style="{StaticResource StateForeground}" />
                             </Border>
+                            <StackPanel x:Name="RecordsPanel" Margin="0,12,0,0" Visibility="{Binding HasRecords, Converter={StaticResource Visible}}">
+                                <TextBlock Text="Records" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                <TextBlock x:Name="RecordsNone" Text="{Binding RecordsNone}" FontSize="12.5" TextWrapping="Wrap" Margin="0,4,0,0"
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                           Visibility="{Binding RecordsNone, Converter={StaticResource NotEmpty}}" />
+                                <ItemsControl x:Name="RecordRows" ItemsSource="{Binding Records}" Focusable="False">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type vm:RecordRowViewModel}">
+                                            <StackPanel Margin="0,4,0,0">
+                                                <Button x:Name="RecordRow" Command="{Binding OpenCommand}" Template="{StaticResource LinkTemplate}"
+                                                        Cursor="Hand" HorizontalAlignment="Left" AutomationProperties.Name="{Binding Text}"
+                                                        Foreground="{DynamicResource LinkBrush}">
+                                                    <TextBlock Text="{Binding Text}" FontSize="12.5" TextWrapping="Wrap" />
+                                                </Button>
+                                                <TextBlock FontSize="11.5" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}">
+                                                    <Run Text="{Binding StateText, Mode=OneWay}" />
+                                                    <Run Text="  " />
+                                                    <Run Text="{Binding FileName, Mode=OneWay}" FontSize="10.5" />
+                                                </TextBlock>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
                             <ItemsControl x:Name="PropertyRows" ItemsSource="{Binding Rows}" Margin="0,12,0,6" Focusable="False">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate DataType="{x:Type vm:PropertyRowViewModel}">
                                         <Grid Margin="0,0,0,6">
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="82" />
+                                                <ColumnDefinition Width="Auto" MaxWidth="120" />
                                                 <ColumnDefinition Width="*" />
                                             </Grid.ColumnDefinitions>
-                                            <TextBlock Text="{Binding Label}" FontSize="13" Margin="0,0,10,0" TextTrimming="CharacterEllipsis"
+                                            <TextBlock Text="{Binding Label}" FontSize="13" Margin="0,0,10,0" TextWrapping="Wrap"
                                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                                             <TextBlock Grid.Column="1" Text="{Binding Value}" FontSize="13" TextWrapping="Wrap"
                                                        Foreground="{DynamicResource TextFillColorPrimaryBrush}" />

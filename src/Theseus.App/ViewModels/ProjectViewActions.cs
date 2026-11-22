@@ -34,4 +34,29 @@ public sealed record ProjectViewActions(
     Action<string>? Notice = null,
     Action<string, string>? AddToProject = null,
     Func<string, StageAction, string?>? WhyNot = null,
-    Func<string, StageAction, PieceActionViewModel?>? WayOn = null);
+    Func<string, StageAction, PieceActionViewModel?>? WayOn = null)
+{
+    /// <summary>
+    /// Opens a piece's Records window, a stage's document chosen when one is named (Nigel, 2026-11-22);
+    /// when null, Open records opens the folder as before.
+    /// </summary>
+    public Action<PieceOfWork, string?>? ShowRecords { get; init; }
+
+    /// <summary>Opens a card's links and proposals on the board, where a report is confirmed or a proposal decided; null in tests.</summary>
+    public Action<string>? OpenLinks { get; init; }
+
+    /// <summary>Asks the owner a yes-or-no question first, as "Start the checks…" does; null in tests, where it is yes.</summary>
+    public Func<string, bool>? Ask { get; init; }
+
+    /// <summary>Told each jump within the view (a link followed), with what is now selected, for Back and Forward (1.1f I46).</summary>
+    public Action<string?>? Jumped { get; init; }
+
+    /// <summary>◀ Back, from the shell's history; null in tests.</summary>
+    public System.Windows.Input.ICommand? GoBack { get; init; }
+
+    /// <summary>Forward ▶, from the shell's history; null in tests.</summary>
+    public System.Windows.Input.ICommand? GoForward { get; init; }
+
+    /// <summary>The pending proposals a card raised, as the board's Chains panel shows them (1.1e item 30); null in tests.</summary>
+    public Func<string, IReadOnlyList<ProposalRowViewModel>>? ProposalsOf { get; init; }
+}
