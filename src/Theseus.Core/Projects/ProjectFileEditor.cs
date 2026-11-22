@@ -157,10 +157,11 @@ public static class ProjectFileEditor
     }
 
     /// <summary>
-    /// Adds an objective at the end of a phase, numbered after its last, with its criteria, a pipeline still to be chosen
-    /// and an empty workstreams table. Returns the text and the new objective's number.
+    /// Adds an objective at the end of a phase, numbered after its last, with its criteria, its pipeline (still to be
+    /// chosen when none is given) and an empty workstreams table. Returns the text and the new objective's number.
     /// </summary>
-    public static (string Text, string Number) AddObjective(string text, int phase, string title, IReadOnlyList<string> criteria)
+    public static (string Text, string Number) AddObjective(string text, int phase, string title, IReadOnlyList<string> criteria,
+        PipelineKind? pipeline = null)
     {
         ArgumentNullException.ThrowIfNull(criteria);
 
@@ -194,7 +195,7 @@ public static class ProjectFileEditor
             string.Empty,
             .. criteria.Where(criterion => criterion.Trim().Length > 0).Select(criterion => $"- [ ] {OneLine(criterion, "a criterion")}"),
             string.Empty,
-            "**Pipeline:** [to be chosen]",
+            $"**Pipeline:** {(pipeline is { } chosen ? chosen.ToString().ToLowerInvariant() : "[to be chosen]")}",
             "| Workstream | Slug | Branch | Repos |",
             "|---|---|---|---|",
         ];
@@ -203,6 +204,185 @@ public static class ProjectFileEditor
 
         return (Close(lines, file.Name), number);
     }
+
+    /// <summary>
+    /// Sets or clears a criterion's note line (its <c>Waiting:</c> or <c>Evidence:</c> line), addressed as a view showed it
+    /// and refused when the criterion no longer reads that way (brief, PR 2: Theseus writes the structured lines).
+    /// </summary>
+    /// <param name="text">The project file's text.</param>
+    /// <param name="objective">The objective's number.</param>
+    /// <param name="index">The criterion's place in the objective, from 0.</param>
+    /// <param name="shown">The criterion's text, checked against the file.</param>
+    /// <param name="label">The note's prefix, such as <c>Waiting:</c>.</param>
+    /// <param name="value">What follows it, or null to remove the note.</param>
+    public static string SetCriterionNote(string text, string objective, int index, string shown, string label, string? value)
+    {
+        var file = Open(text, out var lines);
+        var heading = Objective(file, objective);
+
+        if (index < 0 || index >= heading.Criteria.Count || !string.Equals(heading.Criteria[index].Text, shown, StringComparison.Ordinal))
+        {
+            throw new ProjectEditRefusedException($"criterion {index + 1} of objective {objective} does not read \"{shown}\" in the file");
+        }
+
+        var at = heading.Criteria[index].Line - 1;
+        var last = at;
+
+        while (last + 1 < lines.Count && lines[last + 1].Text.Length > 0 && char.IsWhiteSpace(lines[last + 1].Text[0])
+               && lines[last + 1].Text.Trim().Length > 0 && !lines[last + 1].Text.TrimStart().StartsWith("- [", StringComparison.Ordinal))
+        {
+            last++;
+        }
+
+        for (var line = last; line > at; line--)
+        {
+            if (lines[line].Text.TrimStart().StartsWith(label, StringComparison.Ordinal))
+            {
+                lines.RemoveAt(line);
+                last--;
+            }
+        }
+
+        if (value is not null)
+        {
+            var indent = new string(' ', lines[at].Text.IndexOf("- [", StringComparison.Ordinal) + 6);
+            lines.Insert(last + 1, NewLine(lines, last, $"{indent}{label} {OneLine(value, "a note")}"));
+        }
+
+        return Close(lines, file.Name);
+    }
+
+    /// <summary>
+    /// Records a new round: a row of the Rounds table, made after the Acceptance criteria section when the file has none
+    /// (with round 1 for the work so far), and a Round line on each objective the round adds or reopens (1.1f B6, B9).
+    /// Returns the text and the new round's number.
+    /// </summary>
+    public static (string Text, int Number) AddRound(string text, string name, string why, string by, DateOnly began,
+        IReadOnlyList<string> objectives)
+    {
+        ArgumentNullException.ThrowIfNull(objectives);
+
+        var file = Open(text, out var lines);
+        var cleanName = OneLine(name, "a round's name");
+        var cleanWhy = OneLine(why, "why the requirements changed");
+        var cleanBy = OneLine(by, "who changed them");
+
+        foreach (var named in objectives)
+        {
+            Objective(file, named);
+        }
+
+        if (objectives.Count == 0)
+        {
+            throw new ProjectEditRefusedException("a round names the objectives it adds or reopens");
+        }
+
+        string Row(int round, string roundName, DateOnly date, string roundWhy, string roundBy) =>
+            $"| {round} | {Cell(roundName)} | {date:yyyy-MM-dd} | {Cell(roundWhy)} | {Cell(roundBy)} |";
+
+        int number;
+
+        if (file.RoundsTable.Count > 0)
+        {
+            number = file.RoundsTable.Count + 1;
+            var lastRow = file.RoundsTable[^1].Line - 1;
+            lines.Insert(lastRow + 1, NewLine(lines, lastRow, Row(number, cleanName, began, cleanWhy, cleanBy)));
+        }
+        else
+        {
+            number = 2;
+            var first = file.Rounds[0];
+            var at = RoundsPlace(lines);
+            string[] block =
+            [
+                "## Rounds",
+                string.Empty,
+                "| Round | Name | Began | Why | By |",
+                "|---|---|---|---|---|",
+                Row(1, "Round 1", first.Began ?? began, "The first requirements", cleanBy),
+                Row(2, cleanName, began, cleanWhy, cleanBy),
+                string.Empty,
+            ];
+            lines.InsertRange(at, block.Select(each => new Line(each, Ending(lines))));
+        }
+
+        // The Round lines go in by heading text, since the rows above moved every line number.
+        foreach (var objective in objectives)
+        {
+            var heading = lines.FindIndex(line => line.Text.StartsWith($"### Objective {objective}:", StringComparison.Ordinal));
+
+            if (heading + 1 < lines.Count && lines[heading + 1].Text.StartsWith("**Round:**", StringComparison.Ordinal))
+            {
+                lines[heading + 1] = lines[heading + 1] with { Text = $"**Round:** {number}" };
+            }
+            else
+            {
+                lines.Insert(heading + 1, NewLine(lines, heading, $"**Round:** {number}"));
+            }
+        }
+
+        return (Close(lines, file.Name), number);
+    }
+
+    /// <summary>Adds a dated row at the end of the Decisions table, making the table at the file's end when there is none.</summary>
+    public static string AddDecision(string text, DateOnly date, string decision, string by)
+    {
+        var file = Open(text, out var lines);
+        var row = $"| {date:yyyy-MM-dd} | {Cell(OneLine(decision, "a decision"))} | {Cell(OneLine(by, "who decided"))} |";
+        var section = Headings(lines).Where(index => lines[index].Text.TrimEnd() == "## Decisions").DefaultIfEmpty(-1).First();
+
+        if (section < 0)
+        {
+            if (lines[^1].Ending.Length == 0)
+            {
+                lines[^1] = lines[^1] with { Ending = Ending(lines) };
+            }
+
+            string[] block = [string.Empty, "## Decisions", string.Empty, "| Date | Decision | By |", "|---|---|---|", row];
+            lines.AddRange(block.Select(each => new Line(each, Ending(lines))));
+
+            return Close(lines, file.Name);
+        }
+
+        var header = section + 1;
+
+        while (header < lines.Count && !lines[header].Text.TrimStart().StartsWith('|'))
+        {
+            if (lines[header].Text.StartsWith('#'))
+            {
+                throw new ProjectEditRefusedException("the Decisions section has no table");
+            }
+
+            header++;
+        }
+
+        var last = header;
+
+        while (last + 1 < lines.Count && lines[last + 1].Text.TrimStart().StartsWith('|'))
+        {
+            last++;
+        }
+
+        lines.Insert(last + 1, NewLine(lines, last, row));
+
+        return Close(lines, file.Name);
+    }
+
+    // After the Acceptance criteria section, else before the first phase (1.1f B6).
+    private static int RoundsPlace(List<Line> lines)
+    {
+        var headings = Headings(lines).Where(index => lines[index].Text.StartsWith("## ", StringComparison.Ordinal)).ToList();
+        var criteria = headings.FindIndex(index => lines[index].Text.TrimEnd() == "## Acceptance criteria");
+
+        if (criteria >= 0 && criteria + 1 < headings.Count)
+        {
+            return headings[criteria + 1];
+        }
+
+        return headings.FirstOrDefault(index => lines[index].Text.StartsWith("## Phase", StringComparison.Ordinal), lines.Count);
+    }
+
+    private static string Cell(string text) => text.Replace("|", "/", StringComparison.Ordinal);
 
     private sealed record Line(string Text, string Ending);
 

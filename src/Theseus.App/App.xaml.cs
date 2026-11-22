@@ -221,6 +221,15 @@ public partial class App : Application
             }
         };
 
+        var stageReports = new Theseus.Core.Projects.StageReportBook(Path.Combine(DataDirectory, "stage-skips.json"));
+        shell.StageReports = stageReports.Reports;
+        stageReports.Changed += (_, _) => Dispatcher.BeginInvoke(shell.Refresh);
+
+        if (_launcher is not null)
+        {
+            _launcher.LaunchedCard = stageReports.Forget;
+        }
+
         _mcp = new McpHttpServer(
             new Theseus.Core.Mcp.McpHandler(
                 new Theseus.Core.Attention.WorkLog(Path.Combine(DataDirectory, "work.jsonl")),
@@ -243,7 +252,9 @@ public partial class App : Application
                 gates: new DispatchedSpecGates(shell.SpecGatesOnBoard, Dispatcher),
                 // Read off the UI thread: the log has its own lock, and a board busy with a dialog must not lose what it marks
                 // read (review of PR 6, finding 2).
-                events: shell.EventsFor),
+                events: shell.EventsFor,
+                projectTools: new Theseus.Core.Mcp.ProjectTools(shell.MemberOf, shell.ProjectReadingOf, stageReports,
+                    () => DateTimeOffset.UtcNow)),
             Theseus.Core.Mcp.TheseusMcp.DefaultPort,
             new LockHttpApi(locks, () => DateTimeOffset.UtcNow));
 

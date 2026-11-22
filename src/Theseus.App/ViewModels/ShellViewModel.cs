@@ -1810,6 +1810,16 @@ public sealed class ShellViewModel : ObservableObject
     /// </summary>
     public string? CurrentPieceOf(string cardKey) => _projectReads.Members.Of(cardKey)?.Slug;
 
+    /// <summary>A card's project and current piece, as the project files last read say; null when no project names it.</summary>
+    public ProjectMember? MemberOf(string cardKey) => _projectReads.Members.Of(cardKey);
+
+    /// <summary>A project as last read, by name, for the tools that write its file (1.1f B9); null when there is none.</summary>
+    public ProjectFileReading? ProjectReadingOf(string name) =>
+        _projectReads.Current.FirstOrDefault(reading => string.Equals(reading.Name, name, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>What sessions said about their stages through now_at (1.1f E24); none until the app sets it.</summary>
+    public StageReports StageReports { get; set; } = StageReports.None;
+
     /// <summary>
     /// Sets each card's project and slug from the members. A verifier no table names takes its subject's, its subject
     /// being the card it reports back to (1.1c plan, departure 1). Only a card whose place changed is touched.
@@ -1891,7 +1901,7 @@ public sealed class ShellViewModel : ObservableObject
             IReadOnlyList<PieceOfWork> pieces = PiecesOfWork.Build(reading, slug => acceptances.LastOrDefault(acceptance =>
                     string.Equals(acceptance.Project, reading.Name, StringComparison.OrdinalIgnoreCase)
                     && string.Equals(acceptance.Slug, slug, StringComparison.OrdinalIgnoreCase)),
-                pieceCards, links, _projectReads.Members);
+                pieceCards, links, _projectReads.Members, StageReports);
             pieces = [.. pieces.Select(piece => reportedAcceptances.LastOrDefault(report =>
                     string.Equals(report.Project, reading.Name, StringComparison.OrdinalIgnoreCase)
                     && string.Equals(report.Slug, piece.Name, StringComparison.OrdinalIgnoreCase)) is { } reported

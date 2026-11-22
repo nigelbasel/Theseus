@@ -95,6 +95,9 @@ public sealed class LaunchCoordinator : IAsyncDisposable
     /// <summary>Marks a session as Theseus's at launch, so its hook tells it when Theseus stops or restarts.</summary>
     public Action<string>? Launched { get; set; }
 
+    /// <summary>Told the card's key at each launch, so what its last session said through now_at is forgotten (1.1f E24).</summary>
+    public Action<string>? LaunchedCard { get; set; }
+
     /// <summary>The related-workstreams paragraph a fresh session of a workstream is given, by key.</summary>
     public Func<string, string?>? RelatedFor { get; set; }
 
@@ -212,6 +215,7 @@ public sealed class LaunchCoordinator : IAsyncDisposable
         }
 
         Launched?.Invoke(sessionId);
+        LaunchedCard?.Invoke(workstream.Key);
 
         _runs.Append(new SessionRun(runId, sessionId, workstream.Key, workstream.WorkingDirectory,
             null, resume ? SessionLaunchMode.Resume : SessionLaunchMode.FirstRun, workstream.Prompt,

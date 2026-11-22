@@ -19,6 +19,7 @@ public static class TheseusMcp
             "approve_proposal", "reject_proposal", "record_work_item", "name_work_items",
             "start_workstream", "stop_workstream", "pause_workstream", "resume_workstream", "workstreams",
             "gates", "accept_spec", "events",
+            "now_at", "record_round", "tick_criterion", "add_objective", "record_decision", "set_waiting",
         ];
 
     /// <summary>
