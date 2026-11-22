@@ -112,8 +112,17 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
     public IReadOnlyList<Theseus.Core.Finding.TextSpan> TitleHighlights
     {
         get => _titleHighlights;
-        private set => Set(ref _titleHighlights, value);
+        private set
+        {
+            if (Set(ref _titleHighlights, value))
+            {
+                Raise(nameof(HasTitleHighlights));
+            }
+        }
     }
+
+    /// <summary>Whether the search highlights part of the title, so it wraps rather than trims (review R4).</summary>
+    public bool HasTitleHighlights => _titleHighlights.Count > 0;
 
     /// <summary>Shows what the board's search makes of the card.</summary>
     internal void ShowSearch(bool dimmed, IReadOnlyList<Theseus.Core.Finding.TextSpan> highlights)

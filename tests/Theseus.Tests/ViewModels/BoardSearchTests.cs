@@ -336,6 +336,88 @@ public class BoardSearchTests
     }
 
     [Test]
+    public void WhoeverHearsTheFilterChange_ReadsTheNewMatches()
+    {
+        var fixture = Board();
+        var heard = new List<bool>();
+        fixture.Board.Search.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(BoardSearchViewModel.Filter))
+            {
+                heard.Add(fixture.Board.IsMatch(CardOf(fixture, "gdpr")));
+            }
+        };
+
+        fixture.Board.Search.Text = "bym";
+        fixture.Board.Search.Text = "gdpr";
+
+        Assert.That(heard, Is.EqualTo(new[] { false, true }), "the project view's highlight is never a keystroke behind (review R1)");
+    }
+
+    [Test]
+    public void RememberingASearch_MovesItsEntry_NeverEmptyingTheList()
+    {
+        var fixture = Board();
+        var search = fixture.Board.Search;
+        search.Text = "one";
+        search.Remember();
+        search.Text = "two";
+        search.Remember();
+        var emptied = false;
+        search.History.CollectionChanged += (_, e) => emptied |= e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Reset;
+
+        search.Text = "one";
+        search.Remember();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(search.History, Is.EqualTo(new[] { "one", "two" }));
+            Assert.That(emptied, Is.False, "clearing the list the box shows would empty the search (review R2)");
+            Assert.That(search.Text, Is.EqualTo("one"));
+        });
+    }
+
+    [Test]
+    public void CtrlEnter_OpensNothing_OnceTheOwnerHasSelectedAnotherCard()
+    {
+        var fixture = Board();
+        fixture.Board.Search.Text = "bym";
+        fixture.Board.StepMatch(forward: true);
+
+        fixture.Board.ClickSelect(CardOf(fixture, "gdpr"), toggle: false, extend: false);
+
+        Assert.That(fixture.Board.CurrentMatch, Is.Null, "a stale match is never opened (review R3)");
+    }
+
+    [Test]
+    public void CtrlEnter_OpensTheSameCard_AfterARefreshReordersTheMatches()
+    {
+        var fixture = Board();
+        fixture.Board.Search.Text = "bym";
+        var first = fixture.Board.StepMatch(forward: true);
+
+        fixture.Board.Refresh();
+
+        Assert.That(fixture.Board.CurrentMatch, Is.SameAs(first));
+    }
+
+    [Test]
+    public void Clear_TurnsHideTheRestOffToo_AndIsOfferedWhileItIsOn()
+    {
+        var fixture = Board();
+        fixture.Board.Search.HideRest = true;
+        var offered = fixture.Board.Search.ClearCommand.CanExecute(null);
+
+        fixture.Board.Search.Clear();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(offered, Is.True);
+            Assert.That(fixture.Board.Search.HideRest, Is.False, "the board shows exactly as before (item 16)");
+        });
+    }
+
+    [Test]
     public void ARefresh_KeepsTheSearchApplied()
     {
         var fixture = Board();

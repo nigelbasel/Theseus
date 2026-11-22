@@ -25,7 +25,7 @@ public sealed class BoardViewModel : ObservableObject
     private IReadOnlyList<Workstream> _archived = [];
     private IReadOnlyList<IBoardCard> _matches = [];
     private HashSet<IBoardCard> _matching = [];
-    private int _matchIndex = -1;
+    private IBoardCard? _current;
 
     /// <summary>Creates the board over its stores.</summary>
     public BoardViewModel(IPlanStore plans, IBoardStore board, ISettingsStore settings)
@@ -64,22 +64,37 @@ public sealed class BoardViewModel : ObservableObject
             return null;
         }
 
-        var current = _matchIndex >= 0 && _matchIndex < _matches.Count && _matches[_matchIndex].IsSelected ? _matchIndex : -1;
-        _matchIndex = MatchCursor.Step(_matches.Count, current, forward);
+        var current = CurrentMatch is { } item ? IndexOf(item) : -1;
+        var next = MatchCursor.Step(_matches.Count, current, forward);
 
-        if (_matchIndex < 0)
+        if (next < 0)
         {
+            _current = null;
+
             return null;
         }
 
-        var item = _matches[_matchIndex];
-        ClickSelect(item, toggle: false, extend: false);
+        _current = _matches[next];
+        ClickSelect(_current, toggle: false, extend: false);
 
-        return item;
+        return _current;
     }
 
     /// <summary>The match the keys last moved to, if it is still a match and still selected: what Ctrl+Enter opens.</summary>
-    public IBoardCard? CurrentMatch => _matchIndex >= 0 && _matchIndex < _matches.Count ? _matches[_matchIndex] : null;
+    public IBoardCard? CurrentMatch => _current is { IsSelected: true } item && IndexOf(item) >= 0 ? item : null;
+
+    private int IndexOf(IBoardCard item)
+    {
+        for (var index = 0; index < _matches.Count; index++)
+        {
+            if (ReferenceEquals(_matches[index], item))
+            {
+                return index;
+            }
+        }
+
+        return -1;
+    }
 
     /// <summary>
     /// Include archived (item 5): shows the archive with the search kept, when nothing on the board matches but an archived
@@ -89,7 +104,7 @@ public sealed class BoardViewModel : ObservableObject
 
     private void OnSearchChanged()
     {
-        _matchIndex = -1;
+        _current = null;
         Place();
     }
 

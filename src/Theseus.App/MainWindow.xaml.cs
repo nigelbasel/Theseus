@@ -145,7 +145,16 @@ public partial class MainWindow : Window
         else if (e.Key == Key.Escape)
         {
             shell.Board.Search.Clear();
-            BoardSurface.Focus();
+
+            if (shell.IsProjectOpen)
+            {
+                ProjectPane.Focus();
+            }
+            else
+            {
+                BoardSurface.Focus();
+            }
+
             e.Handled = true;
         }
     }

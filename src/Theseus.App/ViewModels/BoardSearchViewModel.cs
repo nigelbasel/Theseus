@@ -108,6 +108,9 @@ public sealed class BoardSearchViewModel : ObservableObject
             if (Set(ref _hideRest, value))
             {
                 _changed();
+                Raise(nameof(CanClear));
+                Raise(nameof(ClearToolTip));
+                System.Windows.Input.CommandManager.InvalidateRequerySuggested();
             }
         }
     }
@@ -118,14 +121,29 @@ public sealed class BoardSearchViewModel : ObservableObject
     /// <summary>Keeps what is typed in the drop-down: called on Enter and when the box is left.</summary>
     public void Remember()
     {
-        if (_history.Add(_text))
+        if (!_history.Add(_text))
         {
-            History.Clear();
+            return;
+        }
 
-            foreach (var item in _history.Items)
+        // Moved and inserted, never cleared: clearing the list the box shows empties its text, and with it the search (review R2).
+        for (var index = 0; index < _history.Items.Count; index++)
+        {
+            var at = History.IndexOf(_history.Items[index]);
+
+            if (at < 0)
             {
-                History.Add(item);
+                History.Insert(index, _history.Items[index]);
             }
+            else if (at != index)
+            {
+                History.Move(at, index);
+            }
+        }
+
+        while (History.Count > _history.Items.Count)
+        {
+            History.RemoveAt(History.Count - 1);
         }
     }
 
@@ -156,7 +174,7 @@ public sealed class BoardSearchViewModel : ObservableObject
     public RelayCommand ClearCommand { get; }
 
     /// <summary>Whether Clear has anything to clear.</summary>
-    public bool CanClear => _text.Length > 0 || TickedTags.Count > 0;
+    public bool CanClear => _text.Length > 0 || TickedTags.Count > 0 || _hideRest;
 
     /// <summary>What Clear says, enabled or not (1.1e item 6b: a button that cannot act says why).</summary>
     public string ClearToolTip => CanClear ? "Clear the search and the tag filter (Esc)" : "Nothing to clear: no search or tag is on";
@@ -173,6 +191,8 @@ public sealed class BoardSearchViewModel : ObservableObject
         _query = SearchQuery.Empty;
         Raise(nameof(Text));
         Raise(nameof(ShowsPlaceholder));
+        _hideRest = false;
+        Raise(nameof(HideRest));
         TickedTags.Clear();
         Changed();
     }
@@ -194,13 +214,14 @@ public sealed class BoardSearchViewModel : ObservableObject
         return $"'{string.Join(' ', parts)}'";
     }
 
+    // The board places first, so whoever hears Filter change reads the new matches (review R1).
     private void Changed()
     {
+        _changed();
         Raise(nameof(IsOn));
         Raise(nameof(Filter));
         Raise(nameof(CanClear));
         Raise(nameof(ClearToolTip));
-        _changed();
         RaiseReadings();
         System.Windows.Input.CommandManager.InvalidateRequerySuggested();
     }

@@ -45,6 +45,7 @@ public static class HighlightedText
         // Plain text when nothing is highlighted, so Text reads as it always has; runs alone leave Text empty.
         if (spans.Count == 0)
         {
+            block.ClearValue(System.Windows.Automation.AutomationProperties.NameProperty);
             block.Text = text;
 
             return;
