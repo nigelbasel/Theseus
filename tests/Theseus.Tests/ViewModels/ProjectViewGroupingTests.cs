@@ -229,7 +229,8 @@ public class ProjectViewGroupingTests
         Assert.That(view.Phases.Select(phase => phase.IsOpen), Is.EqualTo(new[] { false, true }));
         Assert.That(Stored(TheseusProject), Does.Contain("phase:Seed the method=folded").And.Contain("objective:Checks shown on cards=open")
             .And.Contain("project-view=open"));
-        Assert.That(Stored(TheseusProject), Has.Count.EqualTo(12 + 5 + 2), "every box and every heading");
+        Assert.That(Stored(TheseusProject), Has.Count.EqualTo(12 + 5 + 2 + 1 + 2),
+            "every box and every heading, the one round, and its two runs of finished pieces (1.1f C13, D22)");
     }
 
     [Test]

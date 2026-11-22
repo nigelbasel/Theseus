@@ -52,6 +52,16 @@ public class ProjectViewLayoutTests
     private static IEnumerable<T> AllNamed<T>(DependencyObject root, string name) where T : FrameworkElement =>
         Descendants<T>(root).Where(element => element.Name == name);
 
+    private static ProjectViewModel WithRunsOpen(ProjectViewModel view)
+    {
+        foreach (var run in view.FinishedRuns.ToList())
+        {
+            run.ToggleCommand.Execute(null);
+        }
+
+        return view;
+    }
+
     private static Border BoxOf(ProjectView control, string piece) =>
         AllNamed<Border>(control, "Box").Single(box => box.DataContext is PieceNodeViewModel node && node.Name == piece);
 
@@ -126,7 +136,7 @@ public class ProjectViewLayoutTests
     [Test]
     public void RootsStackDown_14PxApart_LeftAligned()
     {
-        var control = LaidOut(_views.Theseus());
+        var control = LaidOut(WithRunsOpen(_views.Theseus()));
         var first = BoxOf(control, "method-kit");
         var second = BoxOf(control, "holdout-scenarios");
         var connectors = (Canvas)control.FindName("Connectors");
@@ -138,15 +148,19 @@ public class ProjectViewLayoutTests
     }
 
     [Test]
-    public void AFoldedBox_Is290Wide_WithItsStripeAndAStripOfSevenChips()
+    public void AFoldedBox_Is290Wide_Rounded_WithItsKindsTitleBar_ItsTitle_AndAStripOfSevenChipsAndTheGate()
     {
-        var control = LaidOut(_views.Theseus());
+        var control = LaidOut(WithRunsOpen(_views.Theseus()));
         var box = BoxOf(control, "stop-timing");
         var chips = AllNamed<Grid>(box, "Chip").ToList();
 
-        Assert.That((box.ActualWidth, box.BorderThickness.Left, box.CornerRadius.TopLeft), Is.EqualTo((290.0, 5.0, 7.0)));
+        Assert.That((box.ActualWidth, box.CornerRadius.TopLeft), Is.EqualTo((290.0, 8.0)), "a rounded action node (D17)");
         Assert.That(((Button)Named<Button>(box, "Chevron")).Content, Is.EqualTo("▸"));
-        Assert.That(Named<TextBlock>(box, "PieceName").TextTrimming, Is.EqualTo(TextTrimming.CharacterEllipsis));
+        Assert.That(Descendants<TextBlock>(Named<Border>(box, "KindWord")).Single().Text, Is.EqualTo("⚒ Build"));
+        Assert.That(Named<TextBlock>(box, "PieceName").Text, Is.EqualTo(((PieceNodeViewModel)box.DataContext).Title));
+        Assert.That(Named<TextBlock>(box, "WhoActs").Text, Is.EqualTo("No action needed."));
+        Assert.That(Named<TextBlock>(box, "Serves").Text, Is.EqualTo("serves Objective 0.3"));
+        Assert.That(AllNamed<TextBlock>(box, "Gate").Single().Text, Is.EqualTo("◆"), "done before the gates were kept");
         Assert.That(chips.Select(chip => Descendants<TextBlock>(chip).Single().Text), Is.EqualTo(new[] { "Res", "Spe", "Pla", "Imp", "Ver", "Rev", "Com" }));
         Assert.That(chips.Select(chip => chip.ActualHeight), Has.All.EqualTo(18));
         Assert.That(chips[0].ToolTip, Is.EqualTo("Research: Done"));
@@ -173,92 +187,73 @@ public class ProjectViewLayoutTests
     }
 
     [Test]
-    public void TheBranch_IsIndented_AndAParallelOneIsGroupedByALabelledBraceLeftOfIt()
+    public void ParallelWork_SitsBetweenAForkBarAndAJoinBar_EachLabelled_AndASingleHandOverHasNoBars()
     {
         var control = LaidOut(_views.BuildYourMarket());
         var rows = AllNamed<Grid>(control, "BranchRow").Where(row => row.Visibility == Visibility.Visible).ToList();
         var parallel = rows.Single(row => ((PieceNodeViewModel)row.DataContext).Name == ServerSpec);
         var single = rows.Single(row => ((PieceNodeViewModel)row.DataContext).Name == "bym-mcp-identity");
-        var label = AllNamed<TextBlock>(parallel, "ParallelLabel").Single(text => text.DataContext == parallel.DataContext);
-        var branch = (Border)parallel.Children.OfType<Border>().Single();
+        T Own<T>(Grid row, string name) where T : FrameworkElement =>
+            AllNamed<T>(row, name).First(element => element.DataContext == row.DataContext);
 
-        Assert.That((parallel.ColumnDefinitions[0].Width.Value, branch.Padding.Left, branch.BorderThickness.Left), Is.EqualTo((56.0, 16.0, 0.0)),
-            "a parallel branch has a brace, not a bar (1.1e AC 6d)");
-        Assert.That((single.ColumnDefinitions[0].Width.Value, ((Border)single.Children.OfType<Border>().Single()).BorderThickness.Left),
-            Is.EqualTo((34.0, 2.0)));
-        Assert.That(label.Text, Is.EqualTo("7 in parallel"));
-        Assert.That(AllNamed<StackPanel>(parallel, "ParallelMark").Single(mark => mark.DataContext == parallel.DataContext).Visibility,
-            Is.EqualTo(Visibility.Visible));
-        Assert.That(((RotateTransform)label.LayoutTransform).Angle, Is.EqualTo(-90));
-        Assert.That(AllNamed<StackPanel>(single, "ParallelMark").Single(mark => mark.DataContext == single.DataContext).Visibility,
-            Is.EqualTo(Visibility.Collapsed));
+        Assert.That(Own<DockPanel>(parallel, "Fork").Visibility, Is.EqualTo(Visibility.Visible));
+        Assert.That(Own<DockPanel>(parallel, "Join").Visibility, Is.EqualTo(Visibility.Visible));
+        Assert.That(Own<TextBlock>(parallel, "ForkLabel").Text, Does.StartWith("7 in parallel · "));
+        Assert.That(Own<TextBlock>(parallel, "JoinLabel").Text, Does.EndWith("then the Specify the BuildYourMarket MCP server session takes their reports"));
+        Assert.That(Own<Border>(parallel, "Branch").BorderThickness.Left, Is.EqualTo(2), "the children's line runs from fork to join");
+        Assert.That(Own<TextBlock>(parallel, "HandedOn").Visibility, Is.EqualTo(Visibility.Collapsed));
+        Assert.That(Own<DockPanel>(single, "Fork").Visibility, Is.EqualTo(Visibility.Collapsed), "one hand-over has no bars (D19)");
+        Assert.That(Own<TextBlock>(single, "HandedOn").Text, Is.EqualTo("↳ handed on"));
+        Assert.That(Own<TextBlock>(single, "HandedOn").Visibility, Is.EqualTo(Visibility.Visible));
     }
 
     [Test]
-    public void NoConnector_CrossesTheParallelBrace_WhichSpansTheChildrenLeftOfTheHandOverLine()
+    public void NoLineOrBar_CrossesALine_TheChildrenSitBetweenForkAndJoin()
     {
         var view = _views.BuildYourMarket();
         var control = LaidOut(view);
         control.DrawConnectors();
         var connectors = (Canvas)control.FindName("Connectors");
         var row = AllNamed<Grid>(control, "BranchRow").Single(each => ((PieceNodeViewModel)each.DataContext).Name == ServerSpec);
-        var brace = AllNamed<Grid>(row, "ParallelBrace").Single(grid => grid.DataContext == row.DataContext);
-        var markPanel = AllNamed<StackPanel>(row, "ParallelMark").Single(panel => panel.DataContext == row.DataContext);
         Rect InCanvas(FrameworkElement element) =>
             new(element.TranslatePoint(new Point(0, 0), connectors), new Size(element.ActualWidth, element.ActualHeight));
-        var mark = InCanvas(markPanel);
+        var fork = InCanvas(AllNamed<DockPanel>(row, "Fork").First(panel => panel.DataContext == row.DataContext));
+        var join = InCanvas(AllNamed<DockPanel>(row, "Join").First(panel => panel.DataContext == row.DataContext));
         var children = view.Roots.Single().Children.Select(child => InCanvas(BoxOf(control, child.Name))).ToList();
-        var lines = connectors.Children.OfType<System.Windows.Shapes.Path>().ToList();
 
-        Assert.That(lines, Is.Not.Empty);
+        Assert.That(fork.Bottom, Is.LessThanOrEqualTo(children.Min(child => child.Top)), "the fork is above every child");
+        Assert.That(join.Top, Is.GreaterThanOrEqualTo(children.Max(child => child.Bottom)), "the join is below every child");
 
-        foreach (var line in lines)
+        foreach (var line in connectors.Children.OfType<Path>())
         {
-            var bounds = line.Data.Bounds;
-            var crosses = bounds.IntersectsWith(mark) && bounds.Right > mark.Left + 0.5 && bounds.Left < mark.Right - 0.5
-                          && bounds.Bottom > mark.Top + 0.5 && bounds.Top < mark.Bottom - 0.5;
-
-            Assert.That(crosses, Is.False, $"{line.Tag} crosses the brace at {mark}");
+            Assert.That(line.Data.Bounds.IntersectsWith(fork) || line.Data.Bounds.IntersectsWith(join), Is.False, $"{line.Tag} crosses a bar");
+            Assert.That((string)line.Tag, Does.Not.StartWith($"HandsOver:{view.Roots.Single().Children[0].Name}"),
+                "parallel children get no line of their own (D20)");
         }
-
-        Assert.That(InCanvas(brace).Top, Is.EqualTo(children.Min(child => child.Top)).Within(1), "it starts at the first child");
-        Assert.That(InCanvas(brace).Bottom, Is.GreaterThanOrEqualTo(children.Max(child => child.Bottom) - 1), "and reaches the last");
-        Assert.That(mark.Right, Is.LessThan(InCanvas(BoxOf(control, ServerSpec)).Left + Theseus.App.Views.ConnectorGeometry.ParallelHandOverInset),
-            "left of the hand-over line");
     }
 
     [Test]
-    public void TheHandOverConnectors_EndOnTheChildrensLeftEdges_WithinAPixel()
+    public void ASingleHandOversConnector_EndsOnTheChildsLeftEdge_WithinAPixel()
     {
         var view = _views.BuildYourMarket();
         var control = LaidOut(view);
         control.DrawConnectors();
         var connectors = (Canvas)control.FindName("Connectors");
-        var root = view.Roots.Single();
-
-        foreach (var child in root.Children)
-        {
-            var arrow = connectors.Children.OfType<Path>().Single(path => (string)path.Tag == $"HandsOver:{child.Name}:arrow");
-            var box = BoxOf(control, child.Name);
-            var left = box.TranslatePoint(new Point(0, 0), connectors);
-
-            Assert.That(arrow.Data.Bounds.Right, Is.EqualTo(left.X).Within(1), child.Name);
-            Assert.That(arrow.Data.Bounds.Top + 3.5, Is.EqualTo(left.Y + 16).Within(1), child.Name);
-        }
-
-        Assert.That(root.Children, Has.Count.EqualTo(7));
         var lines = connectors.Children.OfType<Path>().Where(path => ((string)path.Tag).StartsWith("HandsOver", StringComparison.Ordinal)
-                                                                    && !((string)path.Tag).EndsWith(":arrow", StringComparison.Ordinal))
-            .Select(path => path.StrokeThickness).ToList();
+                                                                    && !((string)path.Tag).EndsWith(":arrow", StringComparison.Ordinal)).ToList();
+        var child = view.AllNodes.Single(node => node.Name == RedirectAnchoring);
+        var arrow = connectors.Children.OfType<Path>().Single(path => (string)path.Tag == $"HandsOver:{child.Name}:arrow");
+        var left = BoxOf(control, child.Name).TranslatePoint(new Point(0, 0), connectors);
 
-        Assert.That(lines, Has.Count.EqualTo(8), "seven from the spec, one from identity");
-        Assert.That(lines, Has.All.EqualTo(2));
+        Assert.That(lines, Has.Count.EqualTo(1), "only identity's one hand-over is a line; the spec's seven sit between bars");
+        Assert.That(lines.Single().StrokeThickness, Is.EqualTo(2));
+        Assert.That(arrow.Data.Bounds.Right, Is.EqualTo(left.X).Within(1));
     }
 
     [Test]
     public void ThenWorkedOn_IsDotted_InUnitsOfItsStroke()
     {
-        var control = LaidOut(_views.Theseus());
+        var control = LaidOut(WithRunsOpen(_views.Theseus()));
         control.DrawConnectors();
         var lines = ((Canvas)control.FindName("Connectors")).Children.OfType<Path>()
             .Where(path => ((string)path.Tag).StartsWith("ThenWorkedOn", StringComparison.Ordinal) && !((string)path.Tag).EndsWith(":arrow", StringComparison.Ordinal))
@@ -345,7 +340,7 @@ public class ProjectViewLayoutTests
         var control = LaidOut(view);
         var rows = Descendants<TextBlock>((ItemsControl)control.FindName("PropertyRows")).ToList();
 
-        Assert.That(((TextBlock)control.FindName("PropertiesHeading")).Text, Is.EqualTo("project-view"));
+        Assert.That(((TextBlock)control.FindName("PropertiesHeading")).Text, Is.EqualTo("Checks shown on cards"));
         Assert.That(rows.Where(text => Grid.GetColumn(text) == 1).Select(text => text.TextWrapping), Has.All.EqualTo(TextWrapping.Wrap));
         Assert.That(((StackPanel)control.FindName("ObjectiveSection")).Visibility, Is.EqualTo(Visibility.Visible));
         Assert.That(Descendants<Button>((ItemsControl)control.FindName("Criteria")).Single().Content, Is.EqualTo("☐"));

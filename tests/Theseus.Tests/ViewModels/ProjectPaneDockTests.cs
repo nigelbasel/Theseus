@@ -136,6 +136,6 @@ public class ProjectPaneDockTests
         view.PaneFits(true);
 
         Assert.That((view.IsPaneDocked, view.IsOverlayOpen, view.Selection), Is.EqualTo((true, false, box)));
-        Assert.That(view.Properties.Heading, Is.EqualTo("stop-timing"));
+        Assert.That(view.Properties.Heading, Is.EqualTo("Five changes through the method by hand"));
     }
 }

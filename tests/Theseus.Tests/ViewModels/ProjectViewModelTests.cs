@@ -354,7 +354,7 @@ public class ProjectViewModelTests
         var second = _views.Theseus(SessionLifecycle.Running, previous: first);
 
         Assert.That(second.Selection, Is.SameAs(StageOf(second, "stop-timing", "Plan")));
-        Assert.That(second.Properties.Heading, Is.EqualTo("Plan of stop-timing"));
+        Assert.That(second.Properties.Heading, Is.EqualTo("Plan of Five changes through the method by hand"));
     }
 
     [Test]

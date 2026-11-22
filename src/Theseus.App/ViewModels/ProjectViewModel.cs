@@ -97,6 +97,15 @@ public sealed class ProjectViewModel : ObservableObject
         new(StageNodeState.HoldoutsNotRun), new(StageNodeState.ToDo),
     ];
 
+    /// <summary>The project's rounds, the main area's top level (1.1f C10).</summary>
+    public IReadOnlyList<RoundViewModel> Rounds { get; private set; } = [];
+
+    /// <summary>The rounds while the view shows rounds and work; none in the objectives lens.</summary>
+    public IReadOnlyList<RoundViewModel> ShownRounds => IsGroupedByFlow ? Rounds : [];
+
+    /// <summary>The runs of finished pieces folded to one line, in every round (D22).</summary>
+    public IEnumerable<FinishedRunViewModel> FinishedRuns => Rounds.SelectMany(round => round.Items.OfType<FinishedRunViewModel>());
+
     /// <summary>The tree's roots, in file order (AC 23).</summary>
     public IReadOnlyList<PieceNodeViewModel> Roots { get; private set; } = [];
 
@@ -218,7 +227,7 @@ public sealed class ProjectViewModel : ObservableObject
         ArgumentNullException.ThrowIfNull(actions);
 
         var file = reading.File ?? throw new ArgumentException("Only a readable project has a view.", nameof(reading));
-        var tree = PieceTree.Build(pieces, links);
+        var tree = PieceTree.Build(pieces, links, file.Rounds);
         var marks = ObjectiveGrouping.Marks(tree);
         var view = new ProjectViewModel(file, ProjectSummary.For(pieces), settings, actions, edits) { BackCommand = back };
         var specs = SpecsOf(reading, file.Name, pieces);
@@ -234,9 +243,14 @@ public sealed class ProjectViewModel : ObservableObject
 
         var byPiece = view.AllNodes.ToDictionary(node => node.Piece);
 
+        view.Rounds = [.. tree.Rounds.Select((round, index) => view.RoundFor(round, tree.Rounds.ElementAtOrDefault(index + 1)?.Round,
+            index == tree.Rounds.Count - 1, file, byPiece))];
+
+        // Work handed to several pieces is drawn by the fork and join bars, so no line crosses them (1.1f D18, D20).
         view.Connectors =
         [
-            .. view.AllNodes.SelectMany(node => node.Children.Select(child => new ConnectorLink(node, child, ConnectorKind.HandsOver))),
+            .. view.AllNodes.Where(node => node.Children.Count == 1)
+                .SelectMany(node => node.Children.Select(child => new ConnectorLink(node, child, ConnectorKind.HandsOver))),
             .. tree.ThenWorkedOn.Select(link => new ConnectorLink(byPiece[link.From], byPiece[link.To], ConnectorKind.ThenWorkedOn)),
         ];
         view.Waiting = [.. pieces.Select(piece => view.WaitingButton(byPiece[piece])).OfType<WaitingButtonViewModel>()];
@@ -529,7 +543,54 @@ public sealed class ProjectViewModel : ObservableObject
         Select(stage);
     }
 
-    private IEnumerable<IFoldable> Headings => Phases.Cast<IFoldable>().Concat(AllObjectives);
+    private IEnumerable<IFoldable> Headings =>
+        Phases.Cast<IFoldable>().Concat(AllObjectives).Concat(Rounds).Concat(FinishedRuns);
+
+    // A round's top level: a run of two or more finished roots with no children folds to one line (1.1f D22, D12).
+    private RoundViewModel RoundFor(PieceRound round, ProjectRound? next, bool isLatest, ProjectFile file,
+        IReadOnlyDictionary<PieceOfWork, PieceNodeViewModel> byPiece)
+    {
+        var items = new List<object>();
+        var run = new List<PieceNodeViewModel>();
+
+        void Flush()
+        {
+            if (run.Count >= 2)
+            {
+                var first = run[0].Name;
+                items.Add(new FinishedRunViewModel([.. run], PieceFolds.IsOpen(_folds, $"run:{first}", false), ToggleFold));
+            }
+            else
+            {
+                items.AddRange(run);
+            }
+
+            run.Clear();
+        }
+
+        foreach (var box in round.Roots.Select(root => byPiece[root.Piece]))
+        {
+            if (box.Children.Count == 0 && box.State is StageNodeState.Done or StageNodeState.Answered)
+            {
+                run.Add(box);
+
+                continue;
+            }
+
+            Flush();
+            items.Add(box);
+        }
+
+        Flush();
+
+        var objectives = file.Objectives.Where(objective => objective.Round == round.Round.Number)
+            .Select(objective => new RoundObjectiveViewModel(objective, null))
+            .ToList();
+
+        return new RoundViewModel(round.Round, next, isLatest, objectives, items,
+            [.. round.All.Select(node => byPiece[node.Piece])],
+            RoundViewModel.IsOpenIn(_folds, round.Round.Number, isLatest), ToggleFold);
+    }
 
     private void ToggleFold(IFoldable fold)
     {
@@ -540,7 +601,7 @@ public sealed class ProjectViewModel : ObservableObject
     // Headings and boxes together, in either grouping, through the one * entry (AC 21, 48).
     private void SetAll(bool open)
     {
-        foreach (var fold in AllNodes.Cast<IFoldable>().Concat(Headings))
+        foreach (var fold in AllNodes.Cast<IFoldable>().Concat(Headings).Where(fold => fold is not RoundViewModel))
         {
             fold.IsOpen = open;
         }
@@ -556,6 +617,11 @@ public sealed class ProjectViewModel : ObservableObject
         foreach (var node in AllNodes)
         {
             node.IsOpen = NeedsAttention.Contains(node.State);
+        }
+
+        foreach (var round in Rounds)
+        {
+            round.IsOpen = round.IsLatest || round.Boxes.Any(box => NeedsAttention.Contains(box.State));
         }
 
         if (!IsGroupedByObjectives)
@@ -604,6 +670,7 @@ public sealed class ProjectViewModel : ObservableObject
         Raise(nameof(IsGroupedByFlow));
         Raise(nameof(IsGroupedByObjectives));
         Raise(nameof(FlowRoots));
+        Raise(nameof(ShownRounds));
         Raise(nameof(ShownPhases));
         Raise(nameof(ShownUnlisted));
     }
@@ -731,7 +798,8 @@ public sealed class ProjectViewModel : ObservableObject
         IEnumerable<string> Lines(PieceNodeViewModel node, int depth) =>
             node.Children.SelectMany(child => Lines(child, depth + 1)).Prepend(string.Join("/",
                 depth.ToString(CultureInfo.InvariantCulture), node.Name, node.Workstream, node.ColourHex, node.KindWord,
-                node.ObjectiveLabel, node.StatusText, node.ReportBackText, node.IsReportLost, node.Piece.RecordsFolder,
+                node.ObjectiveLabel, node.StatusText, node.WhoActs, node.Title, node.KindLabel, node.Gate?.ToolTip,
+                node.Piece.Round, node.ReportBackText, node.IsReportLost, node.Piece.RecordsFolder,
                 node.Evidence, node.Spec?.ContentHash, string.Join(";", node.CrossMarks), node.Piece.Card?.StopLine, node.BranchRulesToolTip,
                 node.Objective is { } objective
                     ? $"{objective.Title}:{string.Join(",", objective.Criteria.Select(each => $"{each.Text}={each.IsTicked}"))}"
@@ -751,6 +819,9 @@ public sealed class ProjectViewModel : ObservableObject
             .Concat(view.Tabs.Select(tab => $"{tab.Name}:{tab.Title}:{tab.IsOpen}:{tab.ColourHex}"))
             .Concat(view.Roots.SelectMany(root => Lines(root, 0)))
             .Concat(view._thenWorkedOn.Select(link => $"{link.From.Name}>{link.To.Name}"))
+            .Concat(view.Rounds.Select(round => string.Join("/", round.Title, round.Dates, round.StateText, round.Line, round.Banner,
+                string.Join(",", round.Objectives.Select(objective => $"{objective.Text}:{objective.CriteriaText}")),
+                string.Join(",", round.Items.Select(item => item is FinishedRunViewModel run ? run.Text + run.Titles : ((PieceNodeViewModel)item).Name)))))
             .Concat(view.Phases.Select(phase => $"{phase.Title}/{phase.ExitGate}/{phase.DoneText}:"
                                                 + string.Join(";", phase.Objectives.Select(Heading))))
             .Concat(view.Unlisted.Select(Heading)));

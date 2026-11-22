@@ -17,4 +17,15 @@
     <SolidColorBrush x:Key="StateToDoBrush" Color="#8a9490" />
     <SolidColorBrush x:Key="StateToDoSoftBrush" Color="#eef1f0" />
     <SolidColorBrush x:Key="ConnectorBrush" Color="#6b7672" />
+    <!-- Kind title bars, hand-overs and the change banner (1.1f A2, J49, D16): no kind colour is used for a state. -->
+    <SolidColorBrush x:Key="KindSpecBrush" Color="#0f7b74" />
+    <SolidColorBrush x:Key="KindBuildBrush" Color="#3d4f66" />
+    <SolidColorBrush x:Key="KindVerifyBrush" Color="#8a3c78" />
+    <SolidColorBrush x:Key="KindBugBrush" Color="#8a5a2b" />
+    <SolidColorBrush x:Key="KindFreeformBrush" Color="#6b6f45" />
+    <SolidColorBrush x:Key="StateHandedOnBrush" Color="#4d6a86" />
+    <SolidColorBrush x:Key="StateHandedOnSoftBrush" Color="#e8eef4" />
+    <SolidColorBrush x:Key="ChangeBrush" Color="#b5472a" />
+    <SolidColorBrush x:Key="ChangeSoftBrush" Color="#fff1ea" />
+    <SolidColorBrush x:Key="LinkBrush" Color="#0b5cad" />
 </ResourceDictionary>

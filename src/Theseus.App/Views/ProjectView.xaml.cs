@@ -61,6 +61,7 @@ public partial class ProjectView : UserControl
             if (link.Kind == ConnectorKind.ThenWorkedOn)
             {
                 line.StrokeDashArray = [1.33, 2.67];
+                Connectors.Children.Add(ThenWorkedOnLabel(from, to, tag));
             }
 
             line.SetResourceReference(Shape.StrokeProperty, "ConnectorBrush");
@@ -68,6 +69,23 @@ public partial class ProjectView : UserControl
             Connectors.Children.Add(line);
             Connectors.Children.Add(arrow);
         }
+    }
+
+    // Beside the dotted line, in the gap between the two boxes, so it crosses neither (1.1f D20, D22).
+    private static TextBlock ThenWorkedOnLabel(Rect from, Rect to, string tag)
+    {
+        var label = new TextBlock
+        {
+            Text = "then the same session moved on to",
+            FontSize = 11,
+            Tag = tag + ":label",
+            IsHitTestVisible = false,
+        };
+        label.SetResourceReference(TextBlock.ForegroundProperty, "TextFillColorSecondaryBrush");
+        Canvas.SetLeft(label, from.Left + ConnectorGeometry.HandOverInset + 10);
+        Canvas.SetTop(label, from.Bottom + Math.Max(0, (to.Top - from.Bottom - 15) / 2));
+
+        return label;
     }
 
     private Dictionary<PieceNodeViewModel, Rect> Boxes()

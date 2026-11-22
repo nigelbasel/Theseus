@@ -144,7 +144,8 @@ public class ProjectViewGroupingLayoutTests
         Relaid(control, 1400, 400);
         Pump();
 
-        Assert.That(connectors.Children.Count, Is.EqualTo(2 * 8), "the eight hand-overs again, each a line and an arrow");
+        Assert.That(connectors.Children.Count, Is.EqualTo(2 * 1),
+            "identity's one hand-over again, a line and an arrow; the spec's seven sit between fork and join bars (1.1f D20)");
     }
 
     // Runs what the view queued on the dispatcher (its connector drawing and scrolling), as a running window would.
@@ -156,6 +157,12 @@ public class ProjectViewGroupingLayoutTests
     {
         var view = _views.Theseus();
         view.Toggle(view.AllNodes.Single(node => node.Name == "project-view"));
+
+        foreach (var run in view.FinishedRuns.ToList())
+        {
+            run.ToggleCommand.Execute(null);
+        }
+
         var control = LaidOut(view);
         var connectors = (Canvas)control.FindName("Connectors");
         var folded = BoxOf(control, "method-kit");
@@ -224,7 +231,7 @@ public class ProjectViewGroupingLayoutTests
         Assert.That((pane.Visibility, pane.ActualWidth), Is.EqualTo((Visibility.Visible, ProjectPaneWidth.Minimum)));
         Assert.That(left + pane.ActualWidth, Is.EqualTo(Narrow).Within(0.5), "on the right of the view");
         Assert.That(Panel.GetZIndex(pane), Is.GreaterThan(Panel.GetZIndex(flow)), "over the flow");
-        Assert.That(((TextBlock)control.FindName("PropertiesHeading")).Text, Is.EqualTo("bym-mcp-read-api"));
+        Assert.That(((TextBlock)control.FindName("PropertiesHeading")).Text, Is.EqualTo("BuildYourMarket.Api, release 2a"), "its title, never a folder name (1.1f H40)");
         Assert.That(((Button)control.FindName("CloseOverlay")).Visibility, Is.EqualTo(Visibility.Visible));
         Assert.That((flow.ActualWidth, box.TranslatePoint(new Point(0, 0), flow)), Is.EqualTo(before), "the flow under it is not changed");
         Assert.That(pane.TranslatePoint(new Point(pane.ActualWidth, 0), control).X, Is.LessThanOrEqualTo(Narrow + 0.5));
@@ -264,7 +271,7 @@ public class ProjectViewGroupingLayoutTests
         Assert.That((view.IsPaneDocked, pane.Visibility, Grid.GetColumn(pane)), Is.EqualTo((true, Visibility.Visible, 2)));
         Assert.That(pane.ActualWidth, Is.EqualTo(420), "at its remembered width");
         Assert.That(((Button)control.FindName("CloseOverlay")).Visibility, Is.EqualTo(Visibility.Collapsed));
-        Assert.That(((TextBlock)control.FindName("PropertiesHeading")).Text, Is.EqualTo("stop-timing"));
+        Assert.That(((TextBlock)control.FindName("PropertiesHeading")).Text, Is.EqualTo("Five changes through the method by hand"));
     }
 
     // Shown: it and every element above it are Visible. IsVisible needs a window, and these views are laid out without one.
