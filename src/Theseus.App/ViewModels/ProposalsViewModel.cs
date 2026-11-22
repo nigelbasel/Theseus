@@ -29,6 +29,9 @@ public sealed class ProposalsViewModel : ObservableObject
     /// <summary>The pending proposals, oldest first.</summary>
     public ObservableCollection<ProposalRowViewModel> Pending { get; } = [];
 
+    /// <summary>Shows a proposal's brief in Theseus's Markdown view (Nigel, 2026-11-22). Set by the app.</summary>
+    public Action<string>? ShowBrief { get; set; }
+
     /// <summary>Told, in words, when a proposal arrives that the board has not shown before.</summary>
     public Action<string>? Arrived { get; set; }
 
@@ -48,7 +51,7 @@ public sealed class ProposalsViewModel : ObservableObject
             var requester = cards.FirstOrDefault(card => string.Equals(card.Key, proposal.RequesterKey, StringComparison.OrdinalIgnoreCase));
 
             Pending.Add(new ProposalRowViewModel(proposal, requester?.Title ?? proposal.RequesterKey, requester?.ColorHex ?? "#808080",
-                _review, Reject));
+                _review, Reject, ShowBrief));
 
             if (_announced.Add(proposal.Id) && _seeded)
             {

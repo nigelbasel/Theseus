@@ -23,8 +23,9 @@ public sealed class ProposalRowViewModel : ObservableObject
     /// <param name="colorHex">The proposing card's colour, as the row's left border.</param>
     /// <param name="review">Opens the composer for this proposal.</param>
     /// <param name="reject">Rejects it with a note, returning why not if it was refused.</param>
+    /// <param name="showBrief">Shows the brief in Theseus's Markdown view; null opens it with the system's handler.</param>
     public ProposalRowViewModel(WorkstreamProposal proposal, string requesterTitle, string colorHex,
-        Action<WorkstreamProposal> review, Func<string, string?, string?> reject)
+        Action<WorkstreamProposal> review, Func<string, string?, string?> reject, Action<string>? showBrief = null)
     {
         Proposal = proposal;
         RequesterTitle = requesterTitle;
@@ -32,7 +33,7 @@ public sealed class ProposalRowViewModel : ObservableObject
         _reject = reject;
 
         ReviewCommand = new RelayCommand(_ => review(proposal));
-        OpenBriefCommand = new RelayCommand(_ => Open(proposal.Request.Brief), _ => File.Exists(proposal.Request.Brief));
+        OpenBriefCommand = new RelayCommand(_ => (showBrief ?? Open)(proposal.Request.Brief), _ => File.Exists(proposal.Request.Brief));
         AskRejectCommand = new RelayCommand(_ => IsRejecting = true);
         CancelRejectCommand = new RelayCommand(_ =>
         {
