@@ -82,7 +82,7 @@ public partial class ProjectView : UserControl
             IsHitTestVisible = false,
         };
         label.SetResourceReference(TextBlock.ForegroundProperty, "TextFillColorSecondaryBrush");
-        Canvas.SetLeft(label, from.Left + ConnectorGeometry.HandOverInset + 10);
+        Canvas.SetLeft(label, from.Left + ConnectorGeometry.HandOverInset + 18);
         Canvas.SetTop(label, from.Bottom + Math.Max(0, (to.Top - from.Bottom - 15) / 2));
 
         return label;

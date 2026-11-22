@@ -397,7 +397,9 @@ public sealed class ProjectViewModel : ObservableObject
     /// <summary>Open records, disabled with its reason when the piece has no records folder (AC 27).</summary>
     internal static PieceActionViewModel OpenRecords(PieceOfWork piece, ProjectViewActions actions) =>
         piece.RecordsFolder is { } folder
-            ? new PieceActionViewModel("Open records", () => actions.OpenPath(folder), toolTip: folder)
+            ? new PieceActionViewModel("Open records",
+                () => (actions.ShowRecords ?? ((_, _) => actions.OpenPath(folder)))(piece, null),
+                toolTip: "Show its records: each stage's document, what it is for and where it stands")
             : new PieceActionViewModel("Open records", () => { }, false, "No records folder in the project yet");
 
     private PieceNodeViewModel NodeFor(PieceNode node, IReadOnlyList<PieceNodeViewModel> children, ProjectFileReading reading,
@@ -481,7 +483,11 @@ public sealed class ProjectViewModel : ObservableObject
             StageAction.Focus => (() => _actions.Focus(key), "Bring its terminal forward"),
             StageAction.Start => (() => _actions.Start(key), $"Start {piece.Workstream}"),
             StageAction.Stop => (() => _actions.Stop(key), $"Ask {piece.Workstream} to write its handover and stop"),
+            StageAction.OpenRecord when _actions.ShowRecords is { } show => (() => show(piece, stage.Name),
+                $"Show {stage.RecordName} in the Records window"),
             StageAction.OpenRecord => (() => _actions.OpenPath(stage.RecordFile!), stage.RecordFile),
+            _ when _actions.ShowRecords is { } show => (() => show(piece, null),
+                "Show its records: each stage's document, what it is for and where it stands"),
             _ => (() => _actions.OpenPath(piece.RecordsFolder!), piece.RecordsFolder),
         };
 

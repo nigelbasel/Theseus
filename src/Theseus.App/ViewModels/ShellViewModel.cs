@@ -2117,7 +2117,10 @@ public sealed class ShellViewModel : ObservableObject
         IReadOnlyList<ProjectTabViewModel> tabs) =>
         ProjectViewModel.Build(reading, pieces, Chains?.Status ?? new LinkStatus([], []), tabs, _settings,
             _projectActions ??= ProjectViewCommands.For(Board.Card, FocusCardCommand, StartCardCommand, StopCardCommand, OpenSpec,
-                AcceptSpec, OpenFile, text => Notice = text, (card, project) => AddToProject(card, project), WhyNot, WayOn),
+                AcceptSpec, OpenFile, text => Notice = text, (card, project) => AddToProject(card, project), WhyNot, WayOn) with
+            {
+                ShowRecords = ShowRecordsWindow is { } show ? (piece, stage) => show(new RecordsViewModel(piece, stage, OpenFile)) : null,
+            },
             CloseProjectCommand,
             EditsOf(reading.Name),
             ProjectView);
@@ -2409,6 +2412,9 @@ public sealed class ShellViewModel : ObservableObject
 
     /// <summary>Shows a spec window. Set by the App; one window per piece of work, brought forward if open already.</summary>
     public Action<SpecWindowViewModel>? ShowSpec { get; set; }
+
+    /// <summary>Shows a piece's Records window; set by the app, null in tests, where Open records opens the folder.</summary>
+    public Action<RecordsViewModel>? ShowRecordsWindow { get; set; }
 
     /// <summary>The spec window's model for a spec as read (1.1e AC 24a).</summary>
     public SpecWindowViewModel SpecWindowFor(SpecAtGate spec) =>

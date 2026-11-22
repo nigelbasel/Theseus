@@ -34,4 +34,11 @@ public sealed record ProjectViewActions(
     Action<string>? Notice = null,
     Action<string, string>? AddToProject = null,
     Func<string, StageAction, string?>? WhyNot = null,
-    Func<string, StageAction, PieceActionViewModel?>? WayOn = null);
+    Func<string, StageAction, PieceActionViewModel?>? WayOn = null)
+{
+    /// <summary>
+    /// Opens a piece's Records window, a stage's document chosen when one is named (brief, Records view, 2026-11-22);
+    /// when null, Open records opens the folder as before.
+    /// </summary>
+    public Action<PieceOfWork, string?>? ShowRecords { get; init; }
+}
