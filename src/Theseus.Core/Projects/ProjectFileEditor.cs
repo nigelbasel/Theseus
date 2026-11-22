@@ -309,7 +309,7 @@ public static class ProjectFileEditor
         // The Round lines go in by heading text, since the rows above moved every line number.
         foreach (var objective in objectives)
         {
-            var heading = lines.FindIndex(line => line.Text.StartsWith($"### Objective {objective}:", StringComparison.Ordinal));
+            var heading = Headings(lines).First(index => lines[index].Text.StartsWith($"### Objective {objective}:", StringComparison.Ordinal));
 
             if (heading + 1 < lines.Count && lines[heading + 1].Text.StartsWith("**Round:**", StringComparison.Ordinal))
             {
@@ -433,8 +433,18 @@ public static class ProjectFileEditor
     }
 
     // A new line takes the ending of the line it follows, so a file keeps its own style.
-    private static Line NewLine(List<Line> lines, int after, string text) =>
-        new(text, lines[after].Ending.Length > 0 ? lines[after].Ending : Ending(lines));
+    // The line it follows may be the file's last, with no ending: it gets one first, or the two would run together.
+    private static Line NewLine(List<Line> lines, int after, string text)
+    {
+        var ending = lines[after].Ending.Length > 0 ? lines[after].Ending : Ending(lines);
+
+        if (lines[after].Ending.Length == 0)
+        {
+            lines[after] = lines[after] with { Ending = ending };
+        }
+
+        return new Line(text, after == lines.Count - 1 ? string.Empty : ending);
+    }
 
     private static string Ending(List<Line> lines) => lines.Any(line => line.Ending == "\r\n") ? "\r\n" : "\n";
 

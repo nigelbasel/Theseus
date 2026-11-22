@@ -63,14 +63,103 @@ public class ProjectToolsTests
 
         Assert.That(outcome.IsError, Is.False, "Reproduce names Research, which a feature has");
         Assert.That(Call("now_at", new JsonObject { ["stage"] = "Dance", ["doing"] = "x" }).Text,
-            Does.Contain("Its stages are Research, Spec, Plan, Implement, Verify, Review, Lessons"));
+            Does.Contain("Its stages are Research, Spec, Plan, Build, Verify, Review, Lessons"));
     }
 
     [Test]
-    public void NowAt_RefusesADoingOf80CharactersOrMore()
+    public void NowAt_TakesADoingUnder80Characters_AndRefuses80()
     {
-        Assert.That(Call("now_at", new JsonObject { ["stage"] = "Plan", ["doing"] = new string('x', 81) }).IsError, Is.True);
+        Assert.That(Call("now_at", new JsonObject { ["stage"] = "Plan", ["doing"] = new string('x', 80) }).IsError, Is.True);
         Assert.That(_book.NowAtOf("card"), Is.Null);
+        Assert.That(Call("now_at", new JsonObject { ["stage"] = "Plan", ["doing"] = new string('x', 79) }).IsError, Is.False);
+    }
+
+    [TestCase("Spec")]
+    [TestCase("Verify")]
+    public void NowAt_RefusesASkipOfTheSpecGateOrTheCheck_AndKeepsNothing(string stage)
+    {
+        var outcome = Call("now_at", new JsonObject { ["stage"] = stage, ["doing"] = "skipped: not needed" });
+
+        Assert.That(outcome.IsError, Is.True);
+        Assert.That(outcome.Text, Does.Contain("cannot be skipped"));
+        Assert.That(_book.SkipsOf(Project, "build-it"), Is.Empty);
+    }
+
+    [Test]
+    public void TheToolsWrite_ThroughTheWriterTheyAreGiven()
+    {
+        var written = new List<string>();
+        var tools = new ProjectTools(_ => new ProjectMember(Project, "build-it"), _ => ProjectViewFixtures.Read(_folder, Project), _book,
+            () => Now, TimeZoneInfo.Utc, (project, edit) =>
+            {
+                written.Add(project);
+
+                return edit(Text);
+            });
+
+        tools.Call("record_decision", _session, new JsonObject { ["decision"] = "x", ["by"] = "Nigel" });
+
+        Assert.That(written, Is.EqualTo(new[] { Project }));
+        Assert.That(System.IO.File.ReadAllText(_folder.Home(Project) + "/project.md"), Is.EqualTo(Text), "the writer, not the tool, writes");
+    }
+
+    [Test]
+    public void AWriteThatFails_IsRefusedWithItsReason()
+    {
+        var tools = new ProjectTools(_ => new ProjectMember(Project, "build-it"), _ => ProjectViewFixtures.Read(_folder, Project), _book,
+            () => Now, TimeZoneInfo.Utc, (_, _) => throw new IOException("the file is locked"));
+
+        var outcome = tools.Call("record_decision", _session, new JsonObject { ["decision"] = "x", ["by"] = "Nigel" });
+
+        Assert.That((outcome.IsError, outcome.Text), Is.EqualTo((true, "Refused: the file could not be written (the file is locked).")));
+    }
+
+    [Test]
+    public void UntickingACriterion_TakesItsEvidenceAway_AndAWaitingNoteIsRefusedOnATick()
+    {
+        JsonObject Tick(bool ticked) => new()
+        {
+            ["objective"] = "0.1", ["criterion"] = 1, ["text"] = "One.", ["ticked"] = ticked, ["evidence"] = "review.md",
+        };
+
+        Call("tick_criterion", Tick(true));
+        Assert.That(Call("set_waiting", new JsonObject
+        {
+            ["objective"] = "0.1", ["criterion"] = 1, ["text"] = "One.", ["who"] = "owner", ["what"] = "x",
+        }).Text, Does.Contain("is ticked"));
+
+        Call("tick_criterion", Tick(false));
+        Assert.That(File().Objectives[0].Criteria[0].Evidence, Is.Null);
+    }
+
+    [Test]
+    public void EditsAfterAFinalLineWithNoNewline_NeverJoinIt()
+    {
+        var bare = TestProjectsFolder.ProjectText("P", body: "## Phase 0: Start\n\n### Objective 0.1: Build it\n- [ ] Last.\n\n"
+            + "**Pipeline:** feature\n| Workstream | Slug | Branch | Repos |\n|---|---|---|---|\n| card | build-it | owner/b | r |\n\n"
+            + "## Decisions\n\n| Date | Decision | By |\n|---|---|---|\n| 2026-11-01 | a | Nigel |");
+
+        var decided = ProjectFileEditor.AddDecision(bare, new DateOnly(2026, 11, 22), "b", "Ana");
+
+        Assert.That(decided, Does.EndWith("| 2026-11-01 | a | Nigel |\n| 2026-11-22 | b | Ana |"));
+
+        var criterionLast = bare[..bare.IndexOf("\n\n**Pipeline:**", StringComparison.Ordinal)];
+        var noted = ProjectFileEditor.SetCriterionNote(criterionLast + "\n\n**Pipeline:** feature\n| Workstream | Slug | Branch | Repos |\n|---|---|---|---|",
+            "0.1", 0, "Last.", CriterionWaiting.Label, "owner: x");
+
+        Assert.That(ProjectFileReader.Read("p", noted).File!.Objectives[0].Criteria[0].Waiting, Is.EqualTo(new CriterionWaiting(true, "x")));
+    }
+
+    [Test]
+    public void AddRound_PutsTheRoundLineUnderTheRealHeading_NotAFencedExample()
+    {
+        var text = TestProjectsFolder.ProjectText("P", body: "An example:\n\n```\n### Objective 0.1: Example\n```\n\n## Phase 0: Start\n\n"
+            + "### Objective 0.1: Build it\n- [ ] One.\n\n**Pipeline:** feature\n| Workstream | Slug | Branch | Repos |\n|---|---|---|---|\n");
+
+        var (edited, _) = ProjectFileEditor.AddRound(text, "Two", "why", "Nigel", new DateOnly(2026, 11, 22), ["0.1"]);
+
+        Assert.That(edited, Does.Contain("```\n### Objective 0.1: Example\n```"));
+        Assert.That(ProjectFileReader.Read("p", edited).File!.Objectives[0].Round, Is.EqualTo(2));
     }
 
     [Test]
@@ -227,8 +316,8 @@ public class ProjectToolsTests
             ["objective"] = "0.1", ["criterion"] = 1, ["text"] = "One.", ["who"] = who, ["what"] = what,
         };
 
-        Call("set_waiting", Args("owner", "Hygiene PR 23062 is held for your review"));
-        Assert.That(File().Objectives[0].Criteria[0].Waiting, Is.EqualTo(new CriterionWaiting(true, "Hygiene PR 23062 is held for your review")));
+        Call("set_waiting", Args("owner", "pull request 42 is held for your review"));
+        Assert.That(File().Objectives[0].Criteria[0].Waiting, Is.EqualTo(new CriterionWaiting(true, "pull request 42 is held for your review")));
         Assert.That(File().Objectives[0].Criteria[0].WaitsOnOwner, Is.True);
 
         Call("set_waiting", Args("work", "run the checks in QA"));
@@ -255,10 +344,11 @@ public class ProjectToolsTests
     }
 
     [Test]
-    public void TheToolsAreOffered_AndNeedNoAskingInTheTab()
+    public void TheToolsAreOffered_AndOnlyTheOwnersActsAskInTheTab()
     {
         Assert.That(ProjectTools.Names, Is.SubsetOf(TheseusMcp.ToolNames));
-        Assert.That(ProjectTools.Names, Is.SubsetOf(TheseusMcp.PreApproved));
+        Assert.That(ProjectTools.Names.Where(TheseusMcp.PreApproved.Contains),
+            Is.EqualTo(new[] { "now_at", "tick_criterion", "record_decision", "set_waiting" }), "decision G9");
         Assert.That(McpHandler.Instructions, Does.Contain("now_at(stage, doing)"));
     }
 }

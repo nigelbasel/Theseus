@@ -22,6 +22,8 @@ public sealed class ProjectTools
     private readonly StageReportBook _reports;
     private readonly Func<DateTimeOffset> _clock;
     private readonly TimeZoneInfo _zone;
+    private readonly Func<string, Func<string, string>, string> _write;
+    private readonly Lock _writing = new();
 
     /// <summary>Creates the tools.</summary>
     /// <param name="memberOf">A card's project and current piece, by key, or null when no project names it.</param>
@@ -29,9 +31,16 @@ public sealed class ProjectTools
     /// <param name="reports">Where now_at's reports and skips are kept.</param>
     /// <param name="clock">The time now.</param>
     /// <param name="zone">The zone a date is written in; this machine's when null.</param>
+    /// <param name="write">
+    /// Applies an edit to a project's file, by name, and returns the text written, throwing
+    /// <see cref="ProjectEditRefusedException"/> when it is refused. The app passes the board's own edit path, so tools and
+    /// the owner's edits are one at a time and each is read back before the next (review of PR 2, finding 2). When null,
+    /// the file is written directly under this object's lock.
+    /// </param>
     public ProjectTools(Func<string, ProjectMember?> memberOf, Func<string, ProjectFileReading?> readingOf, StageReportBook reports,
-        Func<DateTimeOffset> clock, TimeZoneInfo? zone = null)
+        Func<DateTimeOffset> clock, TimeZoneInfo? zone = null, Func<string, Func<string, string>, string>? write = null)
     {
+        _write = write ?? WriteDirectly;
         _memberOf = memberOf;
         _readingOf = readingOf;
         _reports = reports;
@@ -73,6 +82,12 @@ public sealed class ProjectTools
 
             return ProjectToolOutcome.Refused($"Refused: {refused.Message}.");
         }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            TheseusLog.Warning(exception, "{Tool} by {Card} in {Project} could not write", name, session.WorkstreamKey, member.Project);
+
+            return ProjectToolOutcome.Refused($"Refused: the file could not be written ({exception.Message}).");
+        }
     }
 
     private ProjectToolOutcome NowAt(McpSession session, ProjectMember member, ProjectFileReading reading, JsonObject arguments)
@@ -113,9 +128,16 @@ public sealed class ProjectTools
         {
             var reason = doing[SkippedPrefix.Length..].Trim();
 
-            if (stage is not { } skipped || reason.Length == 0)
+            if (stage is not { } skipped || reason.Length == 0 || reason.Length > 200 || reason.Contains('\n'))
             {
-                return ProjectToolOutcome.Refused("A skip names a stage of the pipeline and says why: now_at(stage, \"skipped: <reason>\").");
+                return ProjectToolOutcome.Refused("A skip names a stage of the pipeline and says why in one line: now_at(stage, \"skipped: <reason>\").");
+            }
+
+            // Only the owner passes the spec gate and only the independent check passes Verify, so neither is skipped.
+            if (skipped is PipelineStage.Spec or PipelineStage.Verify)
+            {
+                return ProjectToolOutcome.Refused(
+                    $"{stageWord} cannot be skipped: only the owner's acceptance passes the spec gate, and only the independent check passes Verify.");
             }
 
             _reports.Skip(member.Project, member.Slug, skipped, reason, _clock());
@@ -125,7 +147,7 @@ public sealed class ProjectTools
             return new ProjectToolOutcome($"Recorded: {stageWord} of {member.Slug} was skipped ({reason}).");
         }
 
-        if (doing.Length > DoingLength || doing.Contains('\n'))
+        if (doing.Length >= DoingLength || doing.Contains('\n'))
         {
             return ProjectToolOutcome.Refused($"Say what you are doing in one line of under {DoingLength} characters.");
         }
@@ -180,9 +202,9 @@ public sealed class ProjectTools
         {
             var edited = ProjectFileEditor.SetCriterion(text, at.Objective, at.Index, at.Text, ticked);
 
-            return evidence is null
-                ? edited
-                : ProjectFileEditor.SetCriterionNote(edited, at.Objective, at.Index, at.Text, ProjectCriterion.EvidenceLabel, evidence);
+            // An unticked criterion keeps no evidence: the pointer said it was met.
+            return ProjectFileEditor.SetCriterionNote(edited, at.Objective, at.Index, at.Text, ProjectCriterion.EvidenceLabel,
+                ticked ? evidence : null);
         });
         Log(session, reading, $"{(ticked ? "ticked" : "unticked")} criterion {at.Index + 1} of objective {at.Objective}");
 
@@ -268,6 +290,12 @@ public sealed class ProjectTools
             return ProjectToolOutcome.Refused("who is owner, work or none; owner and work need what it waits for.");
         }
 
+        if (who != "none" && reading.File!.Objectives.FirstOrDefault(objective => objective.Number == at.Objective)?.Criteria
+                .ElementAtOrDefault(at.Index) is { IsTicked: true })
+        {
+            return ProjectToolOutcome.Refused("That criterion is ticked, so it waits on no one.");
+        }
+
         Write(reading, text => ProjectFileEditor.SetCriterionNote(text, at.Objective, at.Index, at.Text, CriterionWaiting.Label,
             who == "none" ? null : $"{who}: {what}"));
         Log(session, reading, $"criterion {at.Index + 1} of objective {at.Objective} waits on {who}");
@@ -294,7 +322,15 @@ public sealed class ProjectTools
         return (objective, number - 1, text);
     }
 
-    private static void Write(ProjectFileReading reading, Func<string, string> edit) => ProjectFileWriter.Apply(reading, edit);
+    private void Write(ProjectFileReading reading, Func<string, string> edit) => _write(reading.Name, edit);
+
+    private string WriteDirectly(string project, Func<string, string> edit)
+    {
+        lock (_writing)
+        {
+            return ProjectFileWriter.Apply(_readingOf(project) ?? throw new ProjectEditRefusedException($"{project} does not read"), edit);
+        }
+    }
 
     private static void Log(McpSession session, ProjectFileReading reading, string what) =>
         TheseusLog.Information("{Card} wrote {Project}'s project.md through a tool: {What}", session.WorkstreamKey, reading.Name, what);
@@ -306,6 +342,7 @@ public sealed class ProjectTools
         (PipelineKind.Bug, PipelineStage.Research) => "Reproduce",
         (PipelineKind.Bug, PipelineStage.Spec) => "Rule",
         (PipelineKind.Bug, PipelineStage.Implement) => "Fix",
+        (_, PipelineStage.Implement) => "Build",
         (_, PipelineStage.Compound) => "Lessons",
         _ => stage.ToString(),
     };

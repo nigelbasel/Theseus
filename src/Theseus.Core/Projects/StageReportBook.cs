@@ -88,7 +88,7 @@ public sealed class StageReportBook
         {
             return File.Exists(file) ? JsonSerializer.Deserialize<List<StageSkip>>(File.ReadAllText(file), TheseusJson.Readable) ?? [] : [];
         }
-        catch (JsonException exception)
+        catch (Exception exception) when (exception is JsonException or IOException or UnauthorizedAccessException)
         {
             Diagnostics.TheseusLog.Warning(exception, "The stage skips in {File} could not be read; starting with none", file);
 
