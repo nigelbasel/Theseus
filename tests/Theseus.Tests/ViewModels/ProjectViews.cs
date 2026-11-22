@@ -1,3 +1,4 @@
+using Grouping = Theseus.Core.Settings.ProjectViewGrouping;
 using Theseus.App.ViewModels;
 using Theseus.Core.Domain;
 using Theseus.Core.Links;
@@ -18,7 +19,27 @@ internal sealed class ProjectViews
     public ProjectViews(TestProjectsFolder folder) => _folder = folder;
 
     /// <summary>Where folds and the pane's width are kept; a view built again over it is Theseus restarted.</summary>
-    public MemorySettingsStore Settings { get; } = new();
+    public MemorySettingsStore Settings { get; } = Flow();
+
+    // The 1.1d and 1.1f view tests read the rounds-and-work lens; the objectives lens is the default (Nigel, 2026-11-22),
+    // which ProjectLensDefaultTests checks on a store of its own.
+    private static MemorySettingsStore Flow()
+    {
+        var store = new MemorySettingsStore();
+        store.Write(store.Read() with
+        {
+            ProjectGrouping = new Dictionary<string, Grouping>(StringComparer.OrdinalIgnoreCase)
+            {
+                [TheseusProject] = Grouping.Flow,
+                [ProjectViewFixtures.BuildYourMarket] = Grouping.Flow,
+                [OneProject] = Grouping.Flow,
+                ["bym"] = Grouping.Flow,
+                ["theseus-clarity"] = Grouping.Flow,
+            },
+        });
+
+        return store;
+    }
 
     /// <summary>What the buttons ran, in order, such as "AcceptSpec:project-view" or "Focus:git-22".</summary>
     public List<string> Ran { get; } = [];

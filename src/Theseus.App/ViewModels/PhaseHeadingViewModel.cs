@@ -22,6 +22,7 @@ public sealed class PhaseHeadingViewModel : ObservableObject, IFoldable
     {
         Group = group;
         Objectives = objectives;
+        Rollup = Theseus.Core.Projects.Rollup.Of([.. objectives.Select(objective => objective.Rollup).OfType<Rollup>()]);
         _isOpen = isOpen;
         ToggleCommand = new RelayCommand(_ => toggle(this));
         SelectCommand = new RelayCommand(_ => select(this));
@@ -67,6 +68,12 @@ public sealed class PhaseHeadingViewModel : ObservableObject, IFoldable
 
     /// <summary>Its objectives, in file order.</summary>
     public IReadOnlyList<ObjectiveHeadingViewModel> Objectives { get; }
+
+    /// <summary>Its objectives rolled up the same way, shown even when folded (Nigel, 2026-11-22).</summary>
+    public Rollup Rollup { get; }
+
+    /// <summary>"● In progress · Theseus 1.1e", for its heading.</summary>
+    public string RollupText => Rollup.Text + (Rollup.Who.Length > 0 ? $" · {Rollup.Who}" : string.Empty);
 
     /// <summary>Add objective…, or null when the view cannot edit.</summary>
     public PieceActionViewModel? AddObjective { get; }

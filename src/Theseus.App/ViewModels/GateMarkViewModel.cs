@@ -39,6 +39,11 @@ public sealed record GateMarkViewModel(bool IsPassed, bool IsWaiting, string Too
             return new GateMarkViewModel(true, false, $"Passed: you accepted the {noun} {accepted.AcceptedUtc.ToLocalTime():d MMM}");
         }
 
+        if (spec.State == StageNodeState.RecordsElsewhere)
+        {
+            return new GateMarkViewModel(false, false, $"Not passed here: {spec.Reason}");
+        }
+
         return spec.State is StageNodeState.Done or StageNodeState.DoneNoRecord
             ? new GateMarkViewModel(true, false, $"Passed: the {noun} was done before the gates were kept")
             : new GateMarkViewModel(false, false, "Not reached yet");

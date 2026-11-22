@@ -164,7 +164,8 @@ public class ClarityViewTests
         var view = Bym();
 
         Assert.That(Box(view, "bym-mcp-gui-search-reads").PrimaryAction?.Label, Does.StartWith("⧉ Focus"), "its session asks: answer it there");
-        Assert.That(Box(view, Spec2).Status.State, Is.EqualTo(StageNodeState.Stuck), "no spec.md to accept yet (G4)");
+        Assert.That(Box(view, Spec2).Status.State, Is.Not.EqualTo(StageNodeState.Stuck), "a spec kept outside its records is not Stuck");
+        Assert.That(Box(view, Spec2).Gate!.ToolTip, Does.StartWith("Not passed here: no spec.md in its records"));
         Assert.That(Box(view, "bym-mcp-identity").PrimaryAction?.Label, Does.StartWith("Verify"));
         Assert.That(Box(view, "bym-mcp-preconditions").HasPrimaryAction, Is.False, "answered: nothing for you");
     }

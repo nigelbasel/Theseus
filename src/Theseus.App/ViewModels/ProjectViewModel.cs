@@ -55,7 +55,8 @@ public sealed class ProjectViewModel : ObservableObject
         var stored = settings.Read();
         _folds = stored.ViewFolds.GetValueOrDefault(PieceFolds.KeyFor(file.Name)) ?? [];
         PaneWidth = stored.PaneSizes.TryGetValue(ProjectPaneWidth.SettingsKey, out var width) ? width : ProjectPaneWidth.Default;
-        _grouping = stored.ProjectGrouping.GetValueOrDefault(file.Name);
+        // The objectives lens is the main view; a remembered choice for the project still wins (Nigel, 2026-11-22).
+        _grouping = stored.ProjectGrouping.GetValueOrDefault(file.Name, ProjectViewGrouping.Objectives);
 
         CollapseAllCommand = new RelayCommand(_ => SetAll(false));
         ExpandAllCommand = new RelayCommand(_ => SetAll(true));
