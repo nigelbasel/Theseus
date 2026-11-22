@@ -43,6 +43,15 @@ public sealed class SettingsViewModel : ObservableObject
         _saved = saved;
 
         OpenCommand = new RelayCommand(_ => Open());
+        ResetProjectHoldoutCommand = new RelayCommand(parameter =>
+            {
+                if (parameter is HoldoutRowViewModel row && _projectHoldouts.Remove(row.Project))
+                {
+                    _resetHere.Add(row.Project);
+                    Raise(nameof(HoldoutRows));
+                }
+            },
+            parameter => parameter is HoldoutRowViewModel { IsChosenHere: true });
         ShowProjectFolderCommand = new RelayCommand(parameter =>
         {
             if (parameter is string name)
@@ -193,10 +202,66 @@ public sealed class SettingsViewModel : ObservableObject
         }
     }
 
-    /// <summary>The holdout folder in use, marked "(default)" when the owner chose none (1.1e AC 6c).</summary>
+    /// <summary>What the single folder does (1.1e AC 6e): empty, each project's is found by convention below.</summary>
     public string HoldoutFolderInUse => string.IsNullOrWhiteSpace(_holdoutFolder)
-        ? $"{System.IO.Path.Combine(Theseus.Core.Links.HoldoutLocation.DefaultRoot(), "<project folder name>")} (default)"
-        : _holdoutFolder.Trim();
+        ? "None: each project's folder is found by convention, listed below"
+        : $"{_holdoutFolder.Trim()}, for every project that has no folder of its own";
+
+    /// <summary>
+    /// Each project's holdout folder and how it was found (1.1e AC 6e), from the board's last look, with this dialog's own
+    /// choices over it until saved.
+    /// </summary>
+    public IReadOnlyList<HoldoutRowViewModel> HoldoutRows =>
+        [.. _holdoutEntries.Select(entry => _projectHoldouts.TryGetValue(entry.Project, out var chosen)
+            ? new HoldoutRowViewModel(entry.Project, chosen, "chosen by you", true)
+            : _resetHere.Contains(entry.Project)
+                ? new HoldoutRowViewModel(entry.Project, "found by convention once saved", string.Empty, false)
+                : new HoldoutRowViewModel(entry.Project, entry.Folder, entry.HowFound, false) { IsTheseusOwn = entry.Source == Theseus.Core.Links.HoldoutSource.TheseusOwn })];
+
+    /// <summary>
+    /// Why a folder cannot be a project's holdout, or null (review of PR 7, finding 9): the guard protects neither a whole
+    /// drive nor a relative path.
+    /// </summary>
+    public static string? WhyNotHoldout(string folder) =>
+        string.IsNullOrWhiteSpace(folder) || !System.IO.Path.IsPathFullyQualified(folder)
+            ? "Choose a full path, such as C:\\src\\Repo-holdout."
+            : string.Equals(System.IO.Path.GetPathRoot(folder)?.TrimEnd('\\', '/'), folder.TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase)
+                ? "A whole drive cannot be a holdout folder: the guard would protect nothing."
+                : null;
+
+    /// <summary>The folders in force, set by the board each time it looks.</summary>
+    public IReadOnlyList<Theseus.Core.Links.HoldoutFolderEntry> HoldoutEntries
+    {
+        get => _holdoutEntries;
+        set
+        {
+            _holdoutEntries = value ?? [];
+            Raise(nameof(HoldoutRows));
+        }
+    }
+
+    /// <summary>Chooses a project's holdout folder, saved with the rest (1.1e AC 6e).</summary>
+    public string? ChooseProjectHoldout(string project, string folder)
+    {
+        if (WhyNotHoldout(folder) is { } why)
+        {
+            return why;
+        }
+
+        _projectHoldouts[project] = folder;
+        _resetHere.Remove(project);
+        Raise(nameof(HoldoutRows));
+
+        return null;
+    }
+
+    private readonly HashSet<string> _resetHere = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Reset: the project's folder is found by convention again, once saved.</summary>
+    public RelayCommand ResetProjectHoldoutCommand { get; }
+
+    private IReadOnlyList<Theseus.Core.Links.HoldoutFolderEntry> _holdoutEntries = [];
+    private readonly Dictionary<string, string> _projectHoldouts = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>The folders said not to be projects (1.1e AC 20), each to be shown again; saved with the rest.</summary>
     public System.Collections.ObjectModel.ObservableCollection<string> HiddenProjectFolders { get; } = [];
@@ -444,6 +509,15 @@ public sealed class SettingsViewModel : ObservableObject
         ClaudeExecutablePath = settings.ClaudeExecutablePath;
         JiraBaseUrl = settings.JiraBaseUrl;
         HoldoutFolder = settings.HoldoutFolder;
+        _projectHoldouts.Clear();
+        _resetHere.Clear();
+
+        foreach (var (project, folder) in settings.ProjectHoldoutFolders)
+        {
+            _projectHoldouts[project] = folder;
+        }
+
+        Raise(nameof(HoldoutRows));
         HiddenProjectFolders.Clear();
 
         foreach (var folder in settings.HiddenProjectFolders)
@@ -476,6 +550,7 @@ public sealed class SettingsViewModel : ObservableObject
             ClaudeExecutablePath = ClaudeExecutablePath,
             JiraBaseUrl = JiraBaseUrl,
             HoldoutFolder = HoldoutFolder.Trim(),
+            ProjectHoldoutFolders = new Dictionary<string, string>(_projectHoldouts, StringComparer.OrdinalIgnoreCase),
             HiddenProjectFolders = [.. HiddenProjectFolders],
             HoldoutRemote = HoldoutRemote.Trim(),
             ProjectsFolder = ProjectsFolderPath.Normalize(ProjectsFolder),

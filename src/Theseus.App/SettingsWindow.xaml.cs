@@ -41,6 +41,35 @@ public partial class SettingsWindow : Window
         }
     }
 
+    private void OnChooseProjectHoldout(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is SettingsViewModel settings && (sender as FrameworkElement)?.DataContext is HoldoutRowViewModel row
+            && Choose($"Choose the holdout folder of {row.Project}", row.Folder) is { } folder
+            && settings.ChooseProjectHoldout(row.Project, folder) is { } why)
+        {
+            MessageBox.Show(this, why, "Holdout folder", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void OnKeepInPrivateRepository(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is not HoldoutRowViewModel row)
+        {
+            return;
+        }
+
+        var ask = new TextPromptWindow("Keep these in a private repository", $"The address of a private repository for {row.Project}'s holdout scenarios", string.Empty)
+        {
+            Owner = this,
+        };
+
+        if (ask.ShowDialog() == true
+            && new Theseus.Core.Links.HoldoutLocation(row.Folder, true).AddRemote(ask.Text) is { } why)
+        {
+            MessageBox.Show(this, why, "Keep these in a private repository", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
     private void FitToWorkArea() =>
         MaxHeight = SystemParameters.WorkArea.Height - 80;
 

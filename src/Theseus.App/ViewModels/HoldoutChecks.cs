@@ -15,6 +15,8 @@ public sealed class HoldoutChecks
     private readonly HashSet<string> _beingWritten = new(StringComparer.OrdinalIgnoreCase);
     private readonly string? _localAppData;
     private string _chosen = string.Empty;
+    private IReadOnlyDictionary<string, string> _chosenByProject = new Dictionary<string, string>();
+    private Func<string, string?> _besideRepo = _ => null;
 
     /// <summary>Creates the checks.</summary>
     /// <param name="localAppData">Where default holdout folders go, for tests; null for the user's own.</param>
@@ -26,12 +28,26 @@ public sealed class HoldoutChecks
     /// </summary>
     /// <param name="chosen">The folder chosen in Options, or empty.</param>
     /// <param name="cards">The board's cards.</param>
-    public void Refresh(string chosen, IEnumerable<Workstream> cards)
+    public void Refresh(string chosen, IEnumerable<Workstream> cards) =>
+        Refresh(chosen, new Dictionary<string, string>(), _ => null, cards);
+
+    /// <summary>
+    /// Finds each project's holdout folder in the order of 1.1e AC 6e: chosen for the project, the old single setting, a
+    /// folder beside the home repo's clone, Theseus's own.
+    /// </summary>
+    /// <param name="chosen">The old single setting, for every project when set.</param>
+    /// <param name="chosenByProject">The folders chosen per project.</param>
+    /// <param name="besideRepo">The <c>&lt;repo&gt;-holdout</c> folder beside a project's home repo clone, or null.</param>
+    /// <param name="cards">The board's cards, whose projects are looked up.</param>
+    public void Refresh(string chosen, IReadOnlyDictionary<string, string> chosenByProject, Func<string, string?> besideRepo,
+        IEnumerable<Workstream> cards)
     {
         ArgumentNullException.ThrowIfNull(cards);
 
         var all = cards.ToList();
         _chosen = chosen ?? string.Empty;
+        _chosenByProject = new Dictionary<string, string>(chosenByProject, StringComparer.OrdinalIgnoreCase);
+        _besideRepo = besideRepo;
         _byProject.Clear();
         _beingWritten.Clear();
 
@@ -105,6 +121,14 @@ public sealed class HoldoutChecks
     private (HoldoutLocation Location, bool HasScenarios) Known(Workstream card) =>
         _byProject.TryGetValue(card.Project ?? string.Empty, out var known) ? known : (Locate(card.Project), false);
 
+    /// <summary>The folders in force, one per project on the board and one for ad hoc cards, as the guard is to cover them.</summary>
+    public IReadOnlyList<HoldoutFolderEntry> Entries =>
+        [.. _byProject.OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(pair => new HoldoutFolderEntry(pair.Key.Length == 0 ? HoldoutLocation.AdHocFolder : pair.Key, pair.Value.Location.Folder,
+                pair.Value.Location.Source))];
+
     private HoldoutLocation Locate(string? project) =>
-        HoldoutLocation.For(_chosen, string.IsNullOrEmpty(project) ? null : project, _localAppData);
+        string.IsNullOrEmpty(project)
+            ? HoldoutLocation.Find(null, null, _chosen, null, _localAppData)
+            : HoldoutLocation.Find(project, _chosenByProject.GetValueOrDefault(project), _chosen, _besideRepo(project), _localAppData);
 }

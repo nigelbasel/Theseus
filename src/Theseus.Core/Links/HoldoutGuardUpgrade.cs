@@ -32,18 +32,19 @@ public static partial class HoldoutGuardUpgrade
         return [.. named, Path.Combine(configFolder, "bin", FileName)];
     }
 
-    /// <summary>What every guard that reads its holdout from Theseus's settings contains.</summary>
-    public const string SettingsMarker = "holdoutFolder";
+    /// <summary>What every guard that protects the holdout folders Theseus finds per project contains (1.1e AC 6e).</summary>
+    public const string FoldersMarker = HoldoutFolderFile.FileName;
 
-    /// <summary>The warning, or null when there is nothing to lose: a folder is set, no guard is installed, or it reads the settings.</summary>
+    /// <summary>
+    /// The warning, or null when there is nothing to lose: no guard is installed, or it reads the holdout folders Theseus
+    /// writes (1.1e AC 6e: the warning is needed only when the installed guard does not read them).
+    /// </summary>
     /// <param name="installedGuard">The installed guard's text, or null when none is installed.</param>
-    /// <param name="holdoutFolder">The holdout folder chosen in Options.</param>
-    public static string? Warning(string? installedGuard, string? holdoutFolder) =>
-        string.IsNullOrWhiteSpace(holdoutFolder) && installedGuard is not null
-                                                 && !installedGuard.Contains(SettingsMarker, StringComparison.Ordinal)
-            ? "Holdout folder not set: the installed holdout guard names its own holdout, but the guard in this version reads "
-              + "the Holdout scenarios folder from Tools > Options and, with none set, protects only the default folder. Set the "
-              + "Holdout scenarios folder before installing it."
+    public static string? Warning(string? installedGuard) =>
+        installedGuard is not null && !installedGuard.Contains(FoldersMarker, StringComparison.Ordinal)
+            ? "The installed holdout guard does not read holdout-folders.json, so it does not protect the holdout folders "
+              + "Theseus now finds for each project (beside a project's repo, or its own). Install the guard from this version "
+              + "to protect them; Tools > Options lists each folder."
             : null;
 
     // A path ending in the guard's file name inside a hook command: a drive path, a home-relative one, or a quoted one.
