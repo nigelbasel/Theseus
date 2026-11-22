@@ -1,0 +1,50 @@
+<Window x:Class="Theseus.App.SpecWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Width="900" Height="760" MinWidth="480" MinHeight="320"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize"
+        PreviewKeyDown="OnKey"
+        Background="{DynamicResource SolidBackgroundFillColorSecondaryBrush}">
+    <!-- The spec window (1.1e AC 24a): the spec as read, Preview | Source, Ctrl+F, Accept spec… at its foot. -->
+    <DockPanel Margin="16,12,16,12">
+        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8" LastChildFill="False">
+            <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center">
+                <Button x:Name="PreviewTab" Content="Preview" Style="{DynamicResource LinkButton}" Padding="6,1"
+                        ToolTip="The spec drawn, as it reads" Command="{Binding PreviewCommand}" />
+                <TextBlock Text="|" Margin="4,0" VerticalAlignment="Center" Opacity="0.6" />
+                <Button x:Name="SourceTab" Content="Source" Style="{DynamicResource LinkButton}" Padding="6,1"
+                        ToolTip="The spec's Markdown, as written" Command="{Binding SourceCommand}" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                <TextBlock x:Name="FindResult" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="12"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                <TextBox x:Name="SearchBox" Width="220" Text="{Binding Search, UpdateSourceTrigger=PropertyChanged}"
+                         ToolTip="Find in the spec (Ctrl+F); Enter or F3 finds the next" KeyDown="OnSearchKey"
+                         AutomationProperties.Name="Find in the spec" />
+            </StackPanel>
+        </DockPanel>
+
+        <DockPanel DockPanel.Dock="Bottom" Margin="0,10,0,0" LastChildFill="False">
+            <Button x:Name="AcceptButton" DockPanel.Dock="Left" Content="Accept spec…" Style="{DynamicResource CommandButton}"
+                    Padding="12,4" Command="{Binding AcceptCommand}" ToolTip="{Binding AcceptToolTip}"
+                    ToolTipService.ShowOnDisabled="True" />
+            <Button DockPanel.Dock="Right" Content="_Close" IsCancel="True" MinWidth="88" Margin="8,0,0,0" Click="OnClose" />
+            <Button x:Name="EditorButton" DockPanel.Dock="Right" Content="Open in _editor" MinWidth="88" Padding="10,2"
+                    ToolTip="Open the spec's file in its editor; this window follows its changes"
+                    ToolTipService.ShowOnDisabled="True" Command="{Binding OpenInEditorCommand}" />
+        </DockPanel>
+
+        <TextBlock x:Name="NoticeText" DockPanel.Dock="Bottom" Text="{Binding Notice}" TextWrapping="Wrap" Margin="0,8,0,0"
+                   Foreground="{DynamicResource SystemFillColorCautionBrush}" />
+
+        <Grid>
+            <FlowDocumentScrollViewer x:Name="PreviewView" IsToolBarVisible="False" VerticalScrollBarVisibility="Auto"
+                                      IsInactiveSelectionHighlightEnabled="True"
+                                      AutomationProperties.Name="The spec, drawn" />
+            <TextBox x:Name="SourceView" IsReadOnly="True" Visibility="Collapsed" IsInactiveSelectionHighlightEnabled="True"
+                     TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FontFamily="Cascadia Mono, Consolas, monospace"
+                     FontSize="12" AutomationProperties.Name="The spec's Markdown" />
+        </Grid>
+    </DockPanel>
+</Window>

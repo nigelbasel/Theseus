@@ -58,6 +58,23 @@ the headings too, and Open what needs attention opens the headings on the way to
 its boxes and headings as you leave them, across restarts. Nothing opens or folds by itself: a folded box that starts
 waiting on you stays folded and says so in its status line and strip.
 
+## The spec window
+
+**Open spec**, from a box, the board or the menus, opens the spec in its own window, which can be resized and opens
+where you last left it. It is titled with the piece of work and the spec's version. **Preview** shows the spec drawn,
+**Source** its Markdown as written; **Ctrl+F** finds in it, and **Enter** or **F3** finds the next match. **Accept spec…** at its
+foot accepts the version on screen, after the same question; it is disabled, saying why, once that version is accepted.
+The window follows its file: a spec changed on disk is drawn again and says so, and one changed since it was drawn is
+drawn again before it can be accepted. **Open in editor** opens the file itself; **Close** or **Esc** closes the window.
+
+## Writing prompts
+
+The prompt boxes (a new workstream's prompt, Setup's two, and Settings' identity, standing, continue and stop prompts)
+and Add objective's criteria take Markdown. The bar above each inserts it: **B** bold (**Ctrl+B**), **I** italic
+(**Ctrl+I**), **H** a heading, a bulleted list, a numbered list, a check box, code, and a link (**Ctrl+K**). Bold,
+italic, inline code and the line buttons take their Markdown off again when pressed on it. **Write | Preview** shows the text drawn. What is saved is exactly what is
+typed; the bar only types Markdown for you.
+
 ## Group by
 
 **Group by: Flow | Objectives** on the toolbar, or **View > Group project by**, chooses how the boxes are laid out.

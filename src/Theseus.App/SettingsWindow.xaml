@@ -1,6 +1,7 @@
 ﻿<Window x:Class="Theseus.App.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:Theseus.App.Controls"
         Title="Options"
         Width="620"
         SizeToContent="Height"
@@ -238,10 +239,7 @@
                     </Expander.Header>
                     <StackPanel Margin="0,4,0,8">
                 <TextBlock Text="Who the session is" Style="{StaticResource FieldLabel}" Margin="0,0,0,4" />
-                <TextBox Text="{Binding IdentityPrompt, UpdateSourceTrigger=PropertyChanged}"
-                         AcceptsReturn="True" TextWrapping="Wrap" MinHeight="120"
-                         VerticalScrollBarVisibility="Auto"
-                         FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12" />
+                <controls:MarkdownBox x:Name="IdentityBox" Text="{Binding IdentityPrompt}" EditorMinHeight="120" EditorMaxHeight="400" />
                 <Grid>
                     <TextBlock Text="{Binding IdentityPromptState}" Style="{StaticResource FieldHint}"
                                Margin="0,4,150,0" />
@@ -253,26 +251,17 @@
                            Text="Opens every first run and fresh start, before anything else; a resume keeps its conversation and opens with one line instead. {title}, {key}, {handoff} and {plan} are filled in; a line naming {plan} is left out when a session has no plan file." />
 
                 <TextBlock Text="Standing prompt" Style="{StaticResource FieldLabel}" />
-                <TextBox Text="{Binding SessionPreamble, UpdateSourceTrigger=PropertyChanged}"
-                         AcceptsReturn="True" TextWrapping="Wrap" MinHeight="90"
-                         VerticalScrollBarVisibility="Auto"
-                         FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12" />
+                <controls:MarkdownBox x:Name="StandingBox" Text="{Binding SessionPreamble}" EditorMinHeight="90" EditorMaxHeight="400" />
                 <TextBlock Text="{Binding SessionPreambleState}" Style="{StaticResource FieldHint}" />
 
                 <TextBlock Text="Continuing a workstream" Style="{StaticResource FieldLabel}" />
-                <TextBox Text="{Binding ContinuePrompt, UpdateSourceTrigger=PropertyChanged}"
-                         AcceptsReturn="True" TextWrapping="Wrap" MinHeight="90"
-                         VerticalScrollBarVisibility="Auto"
-                         FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12" />
+                <controls:MarkdownBox x:Name="ContinueBox" Text="{Binding ContinuePrompt}" EditorMinHeight="90" EditorMaxHeight="400" />
                 <TextBlock Style="{StaticResource FieldHint}"
                            Text="Replaces the workstream's own prompt on a fresh start once it has run before. Use {handoff} for its notes. A resume is not given it." />
                 <TextBlock Text="{Binding ContinuePromptState}" Style="{StaticResource FieldHint}" />
 
                 <TextBlock Text="Stopping a session" Style="{StaticResource FieldLabel}" />
-                <TextBox Text="{Binding StopPrompt, UpdateSourceTrigger=PropertyChanged}"
-                         AcceptsReturn="True" TextWrapping="Wrap" MinHeight="90"
-                         VerticalScrollBarVisibility="Auto"
-                         FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12" />
+                <controls:MarkdownBox x:Name="StopBox" Text="{Binding StopPrompt}" EditorMinHeight="90" EditorMaxHeight="400" />
                 <TextBlock Style="{StaticResource FieldHint}"
                            Text="Put on the clipboard when you press Stop, for you to paste into the session. Use {handoff} for the file it should write." />
                     </StackPanel>

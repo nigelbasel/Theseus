@@ -44,6 +44,20 @@ public sealed class SpecAcceptanceStore
         Load().LastOrDefault(acceptance => Matches(acceptance, project, slug));
 
     /// <summary>
+    /// Why Accept spec… cannot run for a version, or null (1.1e AC 24a): it is accepted already at that version, so its gate
+    /// stays passed until the spec changes.
+    /// </summary>
+    public string? WhyNotAccept(SpecAtGate spec)
+    {
+        ArgumentNullException.ThrowIfNull(spec);
+
+        return Latest(spec.Project, spec.Slug) is { } accepted
+               && string.Equals(accepted.ContentHash, spec.ContentHash, StringComparison.OrdinalIgnoreCase)
+            ? $"Version {spec.ShortVersion} was accepted on {accepted.AcceptedUtc.ToLocalTime():d MMM yyyy, HH:mm}; its gate stays passed until the spec changes"
+            : null;
+    }
+
+    /// <summary>
     /// Records the owner's acceptance of a spec only when he says yes to the question naming its slug and version
     /// (project-view AC 15); with no one to ask, nothing is accepted.
     /// </summary>

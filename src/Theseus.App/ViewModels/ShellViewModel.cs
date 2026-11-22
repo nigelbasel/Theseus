@@ -2007,7 +2007,7 @@ public sealed class ShellViewModel : ObservableObject
     {
         var specs = ProjectView?.WaitingSpecs ?? [];
         var open = specs.Select(spec => new ProjectChoice(spec.Slug, false, new RelayCommand(_ => OpenSpec(spec)), [],
-            $"Open the spec of {spec.Slug} as read, version {spec.ShortVersion}") { ShowsTick = false }).ToList();
+            $"Open the spec of {spec.Slug} in its window; Accept spec… there accepts the version on screen") { ShowsTick = false }).ToList();
         var accept = specs.Select(spec => new ProjectChoice(spec.Slug, false, new RelayCommand(_ => AcceptSpec(spec)), [],
             $"Accept the spec of {spec.Slug}, version {spec.ShortVersion}, after a confirmation") { ShowsTick = false }).ToList();
 
@@ -2126,34 +2126,52 @@ public sealed class ShellViewModel : ObservableObject
     /// Accepts a spec on the board after a confirmation naming the slug and the commit, recording it in Theseus's own
     /// store and never in a file a session can write (AC 7, 15).
     /// </summary>
-    public void AcceptSpec(SpecAtGate spec)
+    public void AcceptSpec(SpecAtGate spec) => AcceptSpecConfirmed(spec);
+
+    /// <summary>Accepts a spec after its confirmation; whether it was accepted.</summary>
+    private bool AcceptSpecConfirmed(SpecAtGate spec)
     {
         ArgumentNullException.ThrowIfNull(spec);
 
         if (!_acceptances.AcceptIfConfirmed(spec, ConfirmAcceptSpec, DateTimeOffset.UtcNow))
         {
-            return;
+            return false;
         }
 
         TheseusLog.Information("Accepted the spec of {Slug} in {Project}, version {Version}", spec.Slug, spec.Project, spec.ContentHash);
         Notice = $"Accepted the spec of {spec.Slug}, version {spec.ShortVersion}.";
         WireProjectChoices();
+
+        return true;
     }
 
-    /// <summary>Opens a spec as it was read: a copy in Theseus's data folder, named for its slug and version.</summary>
+    /// <summary>Shows a spec window. Set by the App; one window per piece of work, brought forward if open already.</summary>
+    public Action<SpecWindowViewModel>? ShowSpec { get; set; }
+
+    /// <summary>The spec window's model for a spec as read (1.1e AC 24a).</summary>
+    public SpecWindowViewModel SpecWindowFor(SpecAtGate spec) =>
+        new(spec, shown => shown.ReadAgain(), WhyNotAcceptSpec, AcceptSpecConfirmed, shown =>
+        {
+            if (shown.FilePath is { } path)
+            {
+                OpenFile(path);
+            }
+        });
+
+    /// <summary>
+    /// Why Accept spec… cannot run for a version, or null (1.1e AC 24a): it is accepted already at that version, so its gate
+    /// is passed until the spec changes.
+    /// </summary>
+    private string? WhyNotAcceptSpec(SpecAtGate spec) => _acceptances.WhyNotAccept(spec);
+
+    /// <summary>
+    /// Open spec, wherever it appears (view, board, menus): the spec window, not the editor (1.1e AC 24a; Nigel, 2026-11-21).
+    /// </summary>
     private void OpenSpec(SpecAtGate spec)
     {
-        try
+        if (ShowSpec is { } show)
         {
-            var folder = Path.Combine(App.DataDirectory, "specs");
-            Directory.CreateDirectory(folder);
-            var path = Path.Combine(folder, $"{spec.Project}-{spec.Slug}-{spec.ShortVersion}.md");
-            File.WriteAllText(path, spec.Text);
-            Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
-        {
-            Notice = $"The spec of {spec.Slug} could not be opened: {exception.Message}";
+            show(SpecWindowFor(spec));
         }
     }
 
