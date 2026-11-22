@@ -71,6 +71,9 @@ public sealed class ProposalsViewModel : ObservableObject
     public IReadOnlyCollection<string> TakenKeys =>
         [.. _book.All.SelectMany(proposal => new[] { proposal.RequesterKey, proposal.ResultingKey }).OfType<string>()];
 
+    /// <summary>Told when the owner rejects a proposal on the board, so its proposer is told (1.1e AC 27a).</summary>
+    public Action<WorkstreamProposal, string?>? Rejected { get; set; }
+
     /// <summary>Marks a proposal approved once the composer has created its card.</summary>
     public void Approved(string proposalId, string key)
     {
@@ -84,6 +87,11 @@ public sealed class ProposalsViewModel : ObservableObject
 
         if (outcome.Refusal is null)
         {
+            if (_book.Find(id) is { } rejected)
+            {
+                Rejected?.Invoke(rejected, note);
+            }
+
             Update();
         }
 

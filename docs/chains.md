@@ -47,6 +47,14 @@ your permission before each of these.
 | Stop one of those cards' sessions | `stop_workstream` |
 | Pause one of those cards, with a reason; its project's Start leaves it alone | `pause_workstream` |
 | Clear its own pause on one of those cards and start it | `resume_workstream` |
+| Show its spec's gate: the version on disk, and whether, when, by whom and how you accepted it | `gates` (runs without asking) |
+| Report that you accepted its spec in its tab, quoting you | `accept_spec`. Nothing is accepted until you confirm on the board |
+| Show what you did on the board that concerns it since it last asked | `events` (runs without asking) |
+
+**What you do on the board, its session is told.** Approving or rejecting a proposal tells the card that proposed it;
+confirming a report or a hand-over tells the card it was for; accepting a spec tells the card that wrote it. A running
+session is told with its next turn, as a stop request is; `events` lists them all. Accepting a spec also starts its card
+if it is stopped, told to carry on to the plan; nothing else starts a card.
 
 A session acts only on its **descendants**: cards made from proposals its card raised and you approved, and theirs in
 turn. Theseus works this out from its own records, not from what the session says, so it can never reach your other

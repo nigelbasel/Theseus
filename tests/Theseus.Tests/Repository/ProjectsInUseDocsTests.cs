@@ -30,6 +30,9 @@ public class ProjectsInUseDocsTests
     [TestCase("chains.md", "`start_workstream`")]
     [TestCase("cards.md", "says only **Needs updating**")]
     [TestCase("project-view.md", "## The spec window")]
+    [TestCase("chains.md", "`events` (runs without asking)")]
+    [TestCase("chains.md", "`gates` (runs without asking)")]
+    [TestCase("project-view.md", "You accepted this in <card>'s tab: Confirm…")]
     [TestCase("project-view.md", "## Writing prompts")]
     [TestCase("cards.md", "**Not a project** on its menu hides a folder's card")]
     public void TheHelp_SaysHowProjectsAreUsed(string page, string part)

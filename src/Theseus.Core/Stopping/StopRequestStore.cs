@@ -24,6 +24,9 @@ public sealed class StopRequestStore : IStopRequestStore
     /// <summary>Creates the store over the directory that holds the requests.</summary>
     public StopRequestStore(string root) => _root = root;
 
+    /// <summary>The folder the requests are kept in.</summary>
+    public string Root => _root;
+
     /// <inheritdoc />
     public void Write(PendingStopRequest request, DateTimeOffset? sessionStartedUtc = null)
     {
