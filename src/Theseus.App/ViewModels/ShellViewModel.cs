@@ -1451,23 +1451,22 @@ public sealed class ShellViewModel : ObservableObject
         Refresh();
         Board.Place(key, card.Column, card.Workstream.Area);
 
-        if (Board.Card(key) is { } created)
+        // Without the card there is no role to give it, and a card with no role must not be linked as a verifier
+        // (verifier-card attempt 1, C10).
+        if (Board.Card(key) is not { } created)
         {
-            created.Workstream = created.Workstream with
-            {
-                Role = VerifierCard.Role,
-                StatusDocumentPath = verifier.HandoffPath,
-            };
-            Board.Persist(created);
+            Notice = $"{verifier.Title} was written but is not on the board, so it was not made a verifier; refresh and try again.";
+            TheseusLog.Warning("Created {Verifier} but could not find its card to make it a verifier", key);
+
+            return;
         }
+
+        created.Workstream = verifier.Apply(created.Workstream);
+        Board.Persist(created);
 
         Chains?.FollowedOn(card.Key, key, verifier.ReportPath);
         Notice = $"Created {verifier.Title}. Start it when you are ready.";
-
-        if (Board.Card(key) is { } made)
-        {
-            WriteVerifierRow(card, made);
-        }
+        WriteVerifierRow(card, created);
 
         WireProjectChoices();
 

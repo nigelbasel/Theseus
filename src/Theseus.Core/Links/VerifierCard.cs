@@ -32,6 +32,15 @@ public sealed record VerifierCard(
     /// <summary>The folder in the holdout clone that a verifier may write to.</summary>
     public const string ResultsFolder = "results";
 
+    /// <summary>The card Verify with holdouts… placed, made this verifier: its role, and its handoff in the results.</summary>
+    /// <param name="created">The card as placed on the board.</param>
+    public Workstream Apply(Workstream created)
+    {
+        ArgumentNullException.ThrowIfNull(created);
+
+        return created with { Role = Role, StatusDocumentPath = HandoffPath };
+    }
+
     /// <summary>The verifier card for a checked card.</summary>
     /// <param name="checkedCard">The card whose change is verified.</param>
     /// <param name="holdoutFolder">The holdout clone, from Settings.</param>
@@ -46,7 +55,7 @@ public sealed record VerifierCard(
         ArgumentException.ThrowIfNullOrWhiteSpace(holdoutFolder);
 
         var stem = Path.Combine(holdoutFolder, ResultsFolder,
-            $"{checkedCard.Key}-{now.ToString("yyyyMMdd-HHmm", CultureInfo.InvariantCulture)}");
+            $"{checkedCard.Key}-{now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture)}");
         var report = stem + ".md";
 
         // It starts in the checked card's own folder, with the holdout as an extra directory: the holdout guard refuses

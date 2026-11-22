@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using Theseus.Core.Diagnostics;
 
 namespace Theseus.Core.Links;
@@ -37,12 +38,12 @@ public sealed record HoldoutLocation(string Folder, bool IsDefault)
     public static HoldoutLocation Find(string? project, string? chosenForProject, string? chosenForAll, string? besideRepo,
         string? localAppData = null)
     {
-        if (!string.IsNullOrWhiteSpace(chosenForProject))
+        if (IsFolderPath(chosenForProject))
         {
             return new HoldoutLocation(chosenForProject.Trim(), false) { Source = HoldoutSource.Chosen };
         }
 
-        if (!string.IsNullOrWhiteSpace(chosenForAll))
+        if (IsFolderPath(chosenForAll))
         {
             return new HoldoutLocation(chosenForAll.Trim(), false) { Source = HoldoutSource.Chosen };
         }
@@ -53,6 +54,23 @@ public sealed record HoldoutLocation(string Folder, bool IsDefault)
         }
 
         return new HoldoutLocation(Path.Combine(DefaultRoot(localAppData), string.IsNullOrWhiteSpace(project) ? AdHocFolder : project), true);
+    }
+
+    /// <summary>
+    /// Whether a chosen folder names a folder the holdout guard guards: a full path with a drive or share, not a whole
+    /// drive. Any other the guard counts as unset, so the board does not verify against it (re-verify C1 and C2).
+    /// </summary>
+    private static bool IsFolderPath([NotNullWhen(true)] string? typed)
+    {
+        if (string.IsNullOrWhiteSpace(typed) || !Path.IsPathFullyQualified(typed.Trim()))
+        {
+            return false;
+        }
+
+        var full = Path.GetFullPath(typed.Trim());
+
+        return !string.Equals(Path.TrimEndingDirectorySeparator(full), Path.TrimEndingDirectorySeparator(Path.GetPathRoot(full) ?? string.Empty),
+            StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>Whether a folder the owner chose is not there: the way on is to set it again.</summary>

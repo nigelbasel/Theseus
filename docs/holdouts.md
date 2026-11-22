@@ -24,7 +24,8 @@ folder named `<something>-holdout` as a holdout, however a session names it.
 
 To keep a project's scenarios in a private repository of your own, clone it beside the project's home repo as
 `<repo>-holdout`, or choose it with **Change…**, and set **Holdout remote address** to where it lives, such as
-`host/owner/repo` (one address for all projects). Then install the holdout guard (`tools/holdout/holdout-guard.js` in the Theseus repository) as a
+`host/owner/repo` or the URL you clone it by (one address for all projects); the guard refuses its https, SSH and
+`owner/repo` forms alike. Then install the holdout guard (`tools/holdout/holdout-guard.js` in the Theseus repository) as a
 PreToolUse hook for every tool in your Claude Code settings, the same way as the lock guard. It reads the folders and the
 address from Theseus's files, so it holds no path of its own.
 
@@ -39,8 +40,10 @@ If the installed guard is an older one that does not read `holdout-folders.json`
 does not protect the folders found per project until this version's guard is installed.
 
 The guard is a tripwire against accidents, not a wall. It reads the paths, commands and addresses a tool is given, and
-the session's working directory. A search rooted in a folder above the holdout is not refused, so it could return
-scenario lines; and a shell command can still do what the file tools are refused.
+the session's working directory, and reads each word of a shell command as a path from where it runs, so `../holdout`
+counts as naming the holdout. A search rooted in a folder above the holdout is not refused, so it could return
+scenario lines; and a shell command that builds a path the guard cannot see (a variable of its own, a short 8.3 name,
+a quote inside a name) can still do what the file tools are refused.
 
 ## Writing the scenarios
 

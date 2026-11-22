@@ -32,7 +32,7 @@ public class VerifierCardTests
     [Test]
     public void ItReportsToADatedFileInTheHoldoutsResults()
     {
-        Assert.That(For().ReportPath, Is.EqualTo(@"C:\holdout\results\close-step-20261119-1805.md"));
+        Assert.That(For().ReportPath, Is.EqualTo(@"C:\holdout\results\close-step-20261119-180500.md"));
     }
 
     [Test]
@@ -48,7 +48,7 @@ public class VerifierCardTests
         Assert.That(brief, Does.Contain("Run each named scenario."));
         Assert.That(brief, Does.Contain(
             "Ask the owner in this tab for any step only a person can do, quoting the scenario's step."));
-        Assert.That(brief, Does.Contain(@"Write the details, steps and observations to C:\holdout\results\close-step-20261119-1805.md."));
+        Assert.That(brief, Does.Contain(@"Write the details, steps and observations to C:\holdout\results\close-step-20261119-180500.md."));
         Assert.That(brief, Does.Contain(
             "Report back with a summary that gives only, for each scenario, its name, pass or fail, and one line of reason."));
         Assert.That(brief, Does.Contain("Change nothing in the checked card's repos."));
@@ -63,7 +63,7 @@ public class VerifierCardTests
     [Test]
     public void ItsHandoff_GoesInTheHoldoutsResults_WhereItMayWrite()
     {
-        Assert.That(For().HandoffPath, Is.EqualTo(@"C:\holdout\results\close-step-20261119-1805-handoff.md"),
+        Assert.That(For().HandoffPath, Is.EqualTo(@"C:\holdout\results\close-step-20261119-180500-handoff.md"),
             "the stop its confirmed report starts asks for a handoff; anywhere else the guard refuses it, and it never closes (review M1)");
     }
 
@@ -85,6 +85,25 @@ public class VerifierCardTests
             "records are kept outside every code repo (1.1b AC 9)");
         Assert.That(card.Prompt, Does.Contain(
             @"Find the checked change's spec in C:\projects\theseus\work\close-step, and its section naming the holdout scenarios that apply."));
+    }
+
+    [Test]
+    public void TwoVerificationsInOneMinute_ReportToDifferentFiles()
+    {
+        var later = VerifierCard.For(Checked(), Holdout, Now.AddSeconds(30));
+
+        Assert.That(later.ReportPath, Is.Not.EqualTo(For().ReportPath), "re-verify C3");
+        Assert.That(later.HandoffPath, Is.Not.EqualTo(For().HandoffPath));
+    }
+
+    [Test]
+    public void TheCreatedCard_IsMadeAVerifier_ThatHandsOverInTheResults()
+    {
+        var made = For().Apply(Checked());
+
+        Assert.That(made.Role, Is.EqualTo(WorkstreamRole.Verifier));
+        Assert.That(made.StatusDocumentPath, Is.EqualTo(@"C:\holdout\results\close-step-20261119-180500-handoff.md"),
+            "re-verify m1: without it the stop asks for a handoff the guard refuses, and the verifier never closes");
     }
 
     private static VerifierCard For() => VerifierCard.For(Checked(), Holdout, Now);

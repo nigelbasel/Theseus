@@ -126,6 +126,19 @@ public class HoldoutLocationTests
             "ad hoc cards have no repo to sit beside");
     }
 
+    [TestCase("holdout")]
+    [TestCase(@"..\holdout")]
+    [TestCase(@"\holdout")]
+    [TestCase("/c/holdout")]
+    [TestCase(@"C:\")]
+    [TestCase("C:holdout")]
+    public void AChosenFolderTheGuardWouldIgnore_IsNotChosen(string typed)
+    {
+        Assert.That(HoldoutLocation.Find("theseus", typed, typed, null, _root),
+            Is.EqualTo(new HoldoutLocation(Path.Combine(_root, "Theseus", "holdouts", "theseus"), true)),
+            "re-verify C1 and C2: the guard counts it as unset, so the board must not verify against it");
+    }
+
     [Test]
     public void AFolderBesideTheHomeReposClone_IsFound_ForAFixtureRepo()
     {
