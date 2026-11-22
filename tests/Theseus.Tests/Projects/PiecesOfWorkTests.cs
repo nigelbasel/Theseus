@@ -210,11 +210,11 @@ public class PiecesOfWorkTests
     }
 
     [Test]
-    public void EveryOtherStage_IsDoneByItsRecord_AndASkippedStageIsToDo()
+    public void EveryOtherStage_IsDoneByItsRecord_AndAStageBeforeTheFurthestRecordIsDoneWithNoRecord()
     {
         var projectHome = Named(TheseusPieces(_folder), "project-home-folders");
 
-        Assert.That(projectHome.Stages[0].State, Is.EqualTo(StageNodeState.ToDo), "research was skipped by later work");
+        Assert.That(projectHome.Stages[0].State, Is.EqualTo(StageNodeState.DoneNoRecord), "research came before later work (1.1f E30a)");
         Assert.That(projectHome.Stages[2].State, Is.EqualTo(StageNodeState.Done));
         Assert.That(projectHome.Stages[6].State, Is.EqualTo(StageNodeState.ToDo));
     }
@@ -227,9 +227,10 @@ public class PiecesOfWorkTests
 
         Assert.That(States(readme), Is.EqualTo(new[]
         {
-            StageNodeState.Done, StageNodeState.ToDo, StageNodeState.Done, StageNodeState.Done, StageNodeState.ToDo, StageNodeState.ToDo,
+            StageNodeState.Done, StageNodeState.DoneNoRecord, StageNodeState.Done, StageNodeState.Done, StageNodeState.ToDo,
+            StageNodeState.ToDo,
         }));
-        Assert.That(verifierCard.Stages[4].State, Is.EqualTo(StageNodeState.ToDo), "no evidence, yet nothing is Stuck before the kit");
+        Assert.That(verifierCard.Stages[4].State, Is.EqualTo(StageNodeState.DoneNoRecord), "no evidence, yet nothing is Stuck before the kit");
     }
 
     [Test]
@@ -244,12 +245,23 @@ public class PiecesOfWorkTests
     }
 
     [Test]
-    public void WithGit22Running_ItsCurrentPiece_ShowsSpecWaitingOnYou_AndCompoundBusy()
+    public void WithGit22Running_AndNothingSaid_NoStageIsBusy_AndTheRecordsStand()
     {
         var current = Named(TheseusPieces(_folder, SessionLifecycle.Running), "projects-and-method-ui");
 
         Assert.That(current.Stages[1].State, Is.EqualTo(StageNodeState.WaitingOnYou));
+        Assert.That(current.Stages, Has.None.Matches<StageNode>(stage => stage.State == StageNodeState.Busy));
+        Assert.That(current.Stages[6].State, Is.EqualTo(StageNodeState.ToDo));
+    }
+
+    [Test]
+    public void WithGit22Running_AndAtCompound_CompoundIsBusy_WithWhatItSaid()
+    {
+        var current = Named(TheseusPieces(_folder, SessionLifecycle.Running,
+            reports: Said(Git22, PipelineStage.Compound, "writing the lessons")), "projects-and-method-ui");
+
         Assert.That(current.Stages[6].State, Is.EqualTo(StageNodeState.Busy));
+        Assert.That(current.Stages[6].Reason, Is.EqualTo("writing the lessons"));
         Assert.That(current.Stages[6].IsSessionState, Is.True);
     }
 
@@ -263,11 +275,21 @@ public class PiecesOfWorkTests
     }
 
     [Test]
-    public void ALaunchingSession_IsBusyToo_AtTheNextStage()
+    public void ALaunchingSession_IsBusyToo_AtTheStageItSaid()
     {
-        var piece = OnePiece(_folder, "feature", Files("research.md", "spec.md"), Card(ACard, SessionLifecycle.Launching), accepted: true);
+        var piece = OnePiece(_folder, "feature", Files("research.md", "spec.md"), Card(ACard, SessionLifecycle.Launching), accepted: true,
+            reports: Said(ACard, PipelineStage.Plan, "planning"));
 
         Assert.That(piece.Stages[2].State, Is.EqualTo(StageNodeState.Busy));
+    }
+
+    [Test]
+    public void ASessionThatIsNotWorking_IsNotBusy_WhateverItLastSaid()
+    {
+        var piece = OnePiece(_folder, "feature", Files("research.md", "spec.md"), Card(ACard, SessionLifecycle.Idle), accepted: true,
+            reports: Said(ACard, PipelineStage.Plan, "planning"));
+
+        Assert.That(piece.Stages, Has.None.Matches<StageNode>(stage => stage.State == StageNodeState.Busy));
     }
 
     [Test]
@@ -289,12 +311,13 @@ public class PiecesOfWorkTests
     }
 
     [Test]
-    public void WithEverythingDone_TheSessionLiesOverTheLastStage()
+    public void WithEverythingDone_AndASessionThatHasNotSaid_EveryStageStaysDone_AndTheLineSaysItHasNotSaid()
     {
         var piece = OnePiece(_folder, "feature", Files("research.md", "spec.md", "plan.md", "implementation.md", "evidence.md",
             "review.md", "lessons.md"), Card(ACard, SessionLifecycle.Running), accepted: true);
 
-        Assert.That(piece.Stages[^1].State, Is.EqualTo(StageNodeState.Busy));
+        Assert.That(piece.Stages, Has.All.Matches<StageNode>(stage => stage.State == StageNodeState.Done));
+        Assert.That(piece.Status.Text, Is.EqualTo("Busy, but has not said on what."));
     }
 
     [Test]
@@ -325,7 +348,7 @@ public class PiecesOfWorkTests
 
         Assert.That(States(old), Is.EqualTo(States(fresh)));
         Assert.That(old.Stages, Has.None.Matches<StageNode>(stage => stage.State == StageNodeState.Stuck));
-        Assert.That(old.Status.Text, Is.EqualTo("Next: Implement"));
+        Assert.That(old.Status.Text, Is.EqualTo("Next: Implement."));
     }
 
     [Test]

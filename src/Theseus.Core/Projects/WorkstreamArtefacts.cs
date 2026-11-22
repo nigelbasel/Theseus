@@ -21,6 +21,9 @@ public sealed record WorkstreamArtefacts(string Slug, WorkstreamSource Source, I
     /// <summary>The identity of fix.md's Spec section, a bug's rule, when there is one.</summary>
     public string? RuleHash { get; init; }
 
+    /// <summary>The stages its <c>skipped.md</c> says were skipped, with each reason (1.1f E30a).</summary>
+    public IReadOnlyDictionary<PipelineStage, string> Skipped { get; init; } = new Dictionary<PipelineStage, string>();
+
     /// <summary>Whether the project file lists the slug as work from before method-v0.2 (1.1 AC 9).</summary>
     public bool IsBeforeKit { get; init; }
 

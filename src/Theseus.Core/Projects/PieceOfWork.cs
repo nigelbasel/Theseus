@@ -39,6 +39,45 @@ public sealed record PieceOfWork(
     /// <summary>Whether a project file lists it; false for a linked card listed nowhere (AC 13).</summary>
     public bool IsListed { get; init; } = true;
 
+    /// <summary>Its kind, shown by its box's title bar (1.1f A1).</summary>
+    public PieceKind Kind { get; init; } = PieceKind.Build;
+
+    /// <summary>What its box is titled: what it achieves (1.1f A4).</summary>
+    public string Title { get; init; } = string.Empty;
+
+    /// <summary>The round it belongs to: its objective's, else its parent's, else the latest (1.1f C14).</summary>
+    public int Round { get; init; } = 1;
+
+    /// <summary>Its row's Branch, or null when no project file lists it.</summary>
+    public string? Branch { get; init; }
+
+    /// <summary>Its row's Repos, or null when no project file lists it.</summary>
+    public string? Repos { get; init; }
+
+    /// <summary>Whether every criterion of its objective is ticked.</summary>
+    public bool IsObjectiveDone { get; init; }
+
+    /// <summary>The title of the piece that handed it work, or null.</summary>
+    public string? ParentTitle { get; init; }
+
+    /// <summary>The titles of the pieces it handed work to, in file order (1.1f E26).</summary>
+    public IReadOnlyList<string> HandedOnTo { get; init; } = [];
+
+    /// <summary>Whether its card has reported back on the hand-over that gave it this work.</summary>
+    public bool HasReportedBack { get; init; }
+
+    /// <summary>Whether that report was confirmed by the owner on the board.</summary>
+    public bool IsReportConfirmed { get; init; }
+
+    /// <summary>What its card's session said it is doing, while it is working on this piece; null when it has not said.</summary>
+    public SessionStageReport? NowAt { get; init; }
+
+    /// <summary>Whether its spec (a bug's rule) is written and waits for the owner's acceptance.</summary>
+    public bool AwaitsSpecAcceptance { get; init; }
+
+    /// <summary>Whether it was reported back and confirmed while its objective's criteria are not all ticked (1.1f E29).</summary>
+    public bool IsAnswered => IsReportConfirmed && !IsObjectiveDone && ObjectiveNumber is not null;
+
     /// <summary>Whether it is freeform: its pipeline is freeform or not chosen yet, so it has the one Work stage.</summary>
     public bool IsFreeform => Pipeline is null or PipelineKind.Freeform;
 

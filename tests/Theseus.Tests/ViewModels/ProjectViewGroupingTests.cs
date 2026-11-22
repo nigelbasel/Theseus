@@ -157,7 +157,7 @@ public class ProjectViewGroupingTests
         Assert.That((unlisted.Title, unlisted.CriteriaText), Is.EqualTo(("Not in project.md", string.Empty)));
         Assert.That(unlisted.Pieces.Select(piece => piece.Name), Is.EqualTo(new[] { RedirectAnchoring, ClientFixes }), "in link order, after the listed pieces");
         Assert.That(unlisted.FoldName, Is.EqualTo("unlisted:"));
-        Assert.That(unlisted.Counts.Select(chip => chip.Text), Is.EqualTo(new[] { "– 2 to do" }));
+        Assert.That(unlisted.Counts.Select(chip => chip.Text), Is.EqualTo(new[] { "+ 2 not in project.md" }));
     }
 
     [Test]

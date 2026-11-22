@@ -30,6 +30,12 @@ public sealed class LinkBook
         _links = [.. store.Load()];
     }
 
+    /// <summary>
+    /// A card's current piece of work, by its key, or null when no project names it: read when a hand-over is made, to
+    /// record which piece handed the work on (1.1f D15).
+    /// </summary>
+    public Func<string, string?>? CurrentPieceOf { get; set; }
+
     /// <summary>Raised after any change is saved, on the thread that made it.</summary>
     public event EventHandler? Changed;
 
@@ -67,9 +73,12 @@ public sealed class LinkBook
     {
         LinkChange change;
 
+        // Read outside the lock: it may read the project members, which can touch the disk before the first read lands.
+        var parentPiece = kind == LinkKind.HandsOver ? CurrentPieceOf?.Invoke(from) : null;
+
         lock (_gate)
         {
-            change = TryAdd(kind, from, to, output, createdBy);
+            change = TryAdd(kind, from, to, output, createdBy, parentPiece);
         }
 
         if (change.Refusal is { } refusal)
@@ -247,7 +256,7 @@ public sealed class LinkBook
         return change;
     }
 
-    private LinkChange TryAdd(LinkKind kind, string from, string to, string? output, string createdBy)
+    private LinkChange TryAdd(LinkKind kind, string from, string to, string? output, string createdBy, string? parentPiece)
     {
         if (SameKey(from, to))
         {
@@ -280,7 +289,10 @@ public sealed class LinkBook
             return LinkChange.Refused($"{to} does not hand over to {from}, so {from} has nothing to report back to it.");
         }
 
-        var link = new Link(NewId(), kind, from, to, _clock.UtcNow, createdBy, Output: Blank(output));
+        var link = new Link(NewId(), kind, from, to, _clock.UtcNow, createdBy, Output: Blank(output))
+        {
+            ParentPiece = parentPiece,
+        };
 
         _links.Add(link);
         Save();

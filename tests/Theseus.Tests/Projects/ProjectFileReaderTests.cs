@@ -221,7 +221,7 @@ public class ProjectFileReaderTests
         new object[] { "## Phase 0: Seed\n" + Objective(pipeline: "**Pipeline:** feature\n**Pipeline:** bug\n"), Header, "line 11: objective 0.1 has a second **Pipeline:** line" },
         new object[] { "## Phase 0: Seed\n" + Objective(table: ""), Header, "line 7: objective 0.1 has no workstreams table '| Workstream | Slug | Branch | Repos |'" },
         new object[] { "## Phase 0: Seed\n### Objective 0.1: Something\n" + Table + "\n**Pipeline:** feature\n", Header, "line 8: the workstreams table comes after the **Pipeline:** line" },
-        new object[] { "## Phase 0: Seed\n" + Objective(table: "| Slug | Change | Pipeline |\n|---|---|---|\n"), Header, "line 11: the table under objective 0.1 is not '| Workstream | Slug | Branch | Repos |'" },
+        new object[] { "## Phase 0: Seed\n" + Objective(table: "| Slug | Change | Pipeline |\n|---|---|---|\n"), Header, "line 11: the table under objective 0.1 is not '| Workstream | Slug | Branch | Repos |', with an optional What column after Repos" },
         new object[] { "## Phase 0: Seed\n" + Objective(table: Table + "\n" + Table), Header, "line 14: objective 0.1 has a second table" },
         new object[] { "## Phase 0: Seed\n" + Objective(table: "| Workstream | Slug | Branch | Repos |\n| A | a-slug | main | Repo |\n"), Header, "line 12: the workstreams table's second line must be its separator, '|---|---|---|---|'" },
         new object[] { "## Phase 0: Seed\n" + Objective(table: Table + "| A | a-slug | main |\n"), Header, "line 13: a workstreams row has 3 cells, not 4" },

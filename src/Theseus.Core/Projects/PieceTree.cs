@@ -5,18 +5,22 @@ namespace Theseus.Core.Projects;
 /// <summary>
 /// A project's pieces of work as a tree: time runs down the page, and work handed on sits under the piece that handed
 /// it on (1.1d AC 11 to 14; Nigel, 2026-11-20: "scrolling right is less natural than scrolling down"). Links join
-/// cards, so each end is the card's current piece (code fact 3).
+/// cards: the child end is the To card's current piece, the parent end the piece <see cref="PieceHandOvers"/> resolves.
 /// </summary>
 public sealed class PieceTree
 {
-    private PieceTree(IReadOnlyList<PieceNode> roots, IReadOnlyList<ThenWorkedOnLink> thenWorkedOn)
+    private PieceTree(IReadOnlyList<PieceNode> roots, IReadOnlyList<ThenWorkedOnLink> thenWorkedOn, IReadOnlyList<PieceRound> rounds)
     {
         Roots = roots;
         ThenWorkedOn = thenWorkedOn;
+        Rounds = rounds;
     }
 
     /// <summary>The pieces with no parent in the project, in file order.</summary>
     public IReadOnlyList<PieceNode> Roots { get; }
+
+    /// <summary>The project's rounds in order, each with the roots of its pieces (1.1f C10, C14).</summary>
+    public IReadOnlyList<PieceRound> Rounds { get; }
 
     /// <summary>Each piece joined to the next row of the same workstream, in file order.</summary>
     public IReadOnlyList<ThenWorkedOnLink> ThenWorkedOn { get; }
@@ -25,12 +29,16 @@ public sealed class PieceTree
     public IEnumerable<PieceNode> All => Roots.SelectMany(Flatten);
 
     /// <summary>
-    /// Places each piece under the piece whose card hands work to its card. A second parent is ignored, and a cycle is
-    /// broken at its piece met first in file order, as <see cref="ChainRoots"/> stops at the card it has met.
+    /// Places each piece under the piece that handed it work: the one its hand-over's <see cref="Link.ParentPiece"/>
+    /// names, else its From card's piece in the child's round (1.1f D16, G8; replacing 1.1d AC 11). A child sits under a
+    /// parent of its own round only; one handed on across rounds starts its own round's tree. A second parent is
+    /// ignored, and a cycle is broken at its piece met first in file order, as <see cref="ChainRoots"/> stops at the card
+    /// it has met.
     /// </summary>
     /// <param name="pieces">The project's pieces, as <see cref="PiecesOfWork.Build"/> gave them.</param>
     /// <param name="links">The links read against the board.</param>
-    public static PieceTree Build(IReadOnlyList<PieceOfWork> pieces, LinkStatus links)
+    /// <param name="rounds">The project's rounds; one "Round 1" when null.</param>
+    public static PieceTree Build(IReadOnlyList<PieceOfWork> pieces, LinkStatus links, IReadOnlyList<ProjectRound>? rounds = null)
     {
         ArgumentNullException.ThrowIfNull(pieces);
         ArgumentNullException.ThrowIfNull(links);
@@ -46,10 +54,14 @@ public sealed class PieceTree
         }
 
         var parentOf = new Dictionary<int, int>();
+        var handedBy = new Dictionary<int, int>();
 
-        foreach (var link in HandOvers(links.Links))
+        foreach (var (parent, child) in PieceHandOvers.Resolve(pieces, piece => piece.CardKey, piece => piece.Name,
+                     piece => piece.IsCurrentPiece, piece => piece.IsListed ? piece.Round : null, links.Links))
         {
-            if (currentOf.TryGetValue(link.From, out var parent) && currentOf.TryGetValue(link.To, out var child) && parent != child)
+            handedBy.TryAdd(child, parent);
+
+            if (pieces[parent].Round == pieces[child].Round)
             {
                 parentOf.TryAdd(child, parent);
             }
@@ -59,15 +71,18 @@ public sealed class PieceTree
 
         var childrenOf = parentOf.GroupBy(pair => pair.Value)
             .ToDictionary(group => group.Key, group => group.Select(pair => pair.Key).Order().ToList());
-        var marks = Marks(pieces, currentOf, links);
+        var marks = Marks(pieces, currentOf, handedBy, links);
 
         PieceNode Node(int index) => new(pieces[index],
             [.. childrenOf.GetValueOrDefault(index, []).Select(Node)],
             pieces[index].IsCurrentPiece ? marks.GetValueOrDefault(pieces[index].CardKey) : null);
 
         var roots = Enumerable.Range(0, pieces.Count).Where(index => !parentOf.ContainsKey(index)).Select(Node).ToList();
+        var byRound = (rounds is { Count: > 0 } ? rounds : [ProjectRound.Implicit(null)])
+            .Select(round => new PieceRound(round, [.. roots.Where(root => root.Piece.Round == round.Number)]))
+            .ToList();
 
-        return new PieceTree(roots, ThenWorkedOnLinks(pieces));
+        return new PieceTree(roots, ThenWorkedOnLinks(pieces), byRound);
     }
 
     /// <summary>
@@ -103,8 +118,9 @@ public sealed class PieceTree
         }
     }
 
+    // A report goes back to the piece that handed the work on, not to whatever its card works on now.
     private static Dictionary<string, ReportBackMark> Marks(IReadOnlyList<PieceOfWork> pieces, Dictionary<string, int> currentOf,
-        LinkStatus links)
+        Dictionary<int, int> handedBy, LinkStatus links)
     {
         var marks = new Dictionary<string, ReportBackMark>(StringComparer.OrdinalIgnoreCase);
 
@@ -112,9 +128,16 @@ public sealed class PieceTree
         {
             var state = links.StateOf(link);
 
-            if (!currentOf.ContainsKey(link.From) || !currentOf.TryGetValue(link.To, out var parent) || state == LinkState.CardMissing)
+            if (!currentOf.TryGetValue(link.From, out var child) || !currentOf.TryGetValue(link.To, out var parent)
+                || state == LinkState.CardMissing)
             {
                 continue;
+            }
+
+            if (handedBy.TryGetValue(child, out var handing)
+                && string.Equals(pieces[handing].CardKey, link.To, StringComparison.OrdinalIgnoreCase))
+            {
+                parent = handing;
             }
 
             marks.TryAdd(link.From, new ReportBackMark(pieces[parent].Name, state));

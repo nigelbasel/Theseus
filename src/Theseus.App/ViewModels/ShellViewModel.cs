@@ -1805,6 +1805,12 @@ public sealed class ShellViewModel : ObservableObject
     }
 
     /// <summary>
+    /// A card's current piece of work, as the project files last read say, for the hand-over a link records (1.1f D15).
+    /// Read from any thread: the members are replaced whole, never changed in place.
+    /// </summary>
+    public string? CurrentPieceOf(string cardKey) => _projectReads.Members.Of(cardKey)?.Slug;
+
+    /// <summary>
     /// Sets each card's project and slug from the members. A verifier no table names takes its subject's, its subject
     /// being the card it reports back to (1.1c plan, departure 1). Only a card whose place changed is touched.
     /// </summary>

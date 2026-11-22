@@ -12,7 +12,8 @@ public sealed class ProjectSummary
     private static readonly StageNodeState[] PartOrder =
     [
         StageNodeState.Done, StageNodeState.Busy, StageNodeState.WaitingOnYou, StageNodeState.HoldoutsNotRun,
-        StageNodeState.Stuck, StageNodeState.ToDo,
+        StageNodeState.Stuck, StageNodeState.ToDo, StageNodeState.Answered, StageNodeState.HandedOn,
+        StageNodeState.RecordsElsewhere, StageNodeState.NotInProject,
     ];
 
     private readonly Dictionary<StageNodeState, int> _counts;
@@ -60,6 +61,10 @@ public sealed class ProjectSummary
         StageNodeState.WaitingOnYou => "waiting on you",
         StageNodeState.HoldoutsNotRun => "waiting for their holdout check",
         StageNodeState.Stuck => "stuck",
+        StageNodeState.Answered => "answered, criteria not ticked",
+        StageNodeState.HandedOn => "handed on",
+        StageNodeState.RecordsElsewhere => "with records kept elsewhere",
+        StageNodeState.NotInProject => "not in project.md",
         _ => "still to do or not started",
     };
 

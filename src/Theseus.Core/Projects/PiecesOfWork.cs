@@ -4,12 +4,14 @@ using Theseus.Core.Links;
 namespace Theseus.Core.Projects;
 
 /// <summary>
-/// Builds a project's pieces of work and their stages (1.1d AC 1 to 6, 13; Nigel accepted the mockup, 2026-11-20). Stage
-/// and gate logic is <see cref="StageCalculator"/>'s and the evidence block's; this only names the stages, words their
-/// states and lays the card's session over its current piece.
+/// Builds a project's pieces of work and their stages (1.1d AC 1 to 6, 13; 1.1f A, E). Stage and gate logic is
+/// <see cref="StageCalculator"/>'s and the evidence block's; this names the stages, words their states, says what the
+/// hand-overs did, and lays the card's session over its current piece from what the session said (E24, D8).
 /// </summary>
 public static class PiecesOfWork
 {
+    private const string SpecCoveredIt = "the project's spec covered it";
+
     private enum DraftKind
     {
         Spec,
@@ -17,6 +19,7 @@ public static class PiecesOfWork
         Verify,
         Record,
         Freeform,
+        Elsewhere,
     }
 
     /// <summary>
@@ -32,8 +35,9 @@ public static class PiecesOfWork
     /// it), so a card two projects name is live in one view only; and a linked card another project lists is not made a
     /// piece here. When null, only this project is read.
     /// </param>
+    /// <param name="reports">What sessions said about their stages; none when null.</param>
     public static IReadOnlyList<PieceOfWork> Build(ProjectFileReading reading, Func<string, SpecAcceptance?> acceptanceOf,
-        IEnumerable<PieceCard> cards, IEnumerable<Link> links, ProjectMembers? members = null)
+        IEnumerable<PieceCard> cards, IEnumerable<Link> links, ProjectMembers? members = null, StageReports? reports = null)
     {
         ArgumentNullException.ThrowIfNull(reading);
         ArgumentNullException.ThrowIfNull(acceptanceOf);
@@ -46,12 +50,13 @@ public static class PiecesOfWork
         }
 
         var file = reading.File!;
+        var said = reports ?? StageReports.None;
         var byKey = cards.GroupBy(card => card.Key, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
         var owners = members ?? ProjectMembers.From([reading]);
-        var linkList = links.ToList();
+        var linkList = links.Where(link => link.IsActive).ToList();
         var verifiers = VerifiersBySubject(byKey, linkList);
-        var pieces = new List<PieceOfWork>();
+        var drafts = new List<PieceDraft>();
 
         foreach (var objective in file.Objectives)
         {
@@ -71,22 +76,42 @@ public static class PiecesOfWork
                                 && string.Equals(member.Project, file.Name, StringComparison.OrdinalIgnoreCase)
                                 && string.Equals(member.Slug, row.Slug, StringComparison.OrdinalIgnoreCase);
 
-                pieces.Add(Listed(reading, file, objective, row, card, isCurrent, member?.Slug,
-                    isCurrent ? verifiers.GetValueOrDefault(row.Workstream, []) : [], acceptanceOf));
+                drafts.Add(Listed(reading, file, objective, row, card, isCurrent, member?.Slug,
+                    isCurrent ? verifiers.GetValueOrDefault(row.Workstream, []) : [], acceptanceOf, said));
             }
         }
 
-        pieces.AddRange(Unlisted(pieces, byKey, linkList, owners, verifiers));
+        drafts.AddRange(Unlisted(drafts, byKey, linkList, owners, verifiers));
 
-        return pieces;
+        var handOvers = PieceHandOvers.Resolve(drafts, draft => draft.CardKey, draft => draft.Name, draft => draft.IsCurrent,
+            draft => draft.Objective?.Round, linkList);
+        var parentOf = handOvers.ToDictionary(pair => pair.Child, pair => pair.Parent);
+        var latestRound = file.Rounds[^1].Number;
+        var rounds = new Dictionary<int, int>();
+
+        // A piece no project file lists takes its parent's round, which may itself be inherited (1.1f C14).
+        int RoundOf(int index)
+        {
+            if (rounds.TryGetValue(index, out var known))
+            {
+                return known;
+            }
+
+            // Set before following the parent, so a loop of hand-overs ends in the latest round instead of recursing.
+            rounds[index] = latestRound;
+
+            return rounds[index] = drafts[index].Objective?.Round
+                                   ?? (parentOf.TryGetValue(index, out var parent) ? RoundOf(parent) : latestRound);
+        }
+
+        return [.. drafts.Select((draft, index) => Finish(draft, index, drafts, handOvers, parentOf, linkList, said, RoundOf(index)))];
     }
 
     // A verifier's subject is the card it reports back to, as ShellViewModel.ApplyMembership finds it.
     private static Dictionary<string, List<string>> VerifiersBySubject(Dictionary<string, PieceCard> byKey, List<Link> links)
     {
         var subjects = links
-            .Where(link => link.IsActive && link.Kind == LinkKind.ReportsBack
-                           && byKey.GetValueOrDefault(link.From)?.Role == WorkstreamRole.Verifier)
+            .Where(link => link.Kind == LinkKind.ReportsBack && byKey.GetValueOrDefault(link.From)?.Role == WorkstreamRole.Verifier)
             .GroupBy(link => link.From, StringComparer.OrdinalIgnoreCase)
             .Select(group => (Verifier: byKey[group.Key].Title, Subject: group.Last().To));
         var bySubject = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
@@ -104,9 +129,9 @@ public static class PiecesOfWork
         return bySubject;
     }
 
-    private static PieceOfWork Listed(ProjectFileReading reading, ProjectFile file, ProjectObjective objective,
+    private static PieceDraft Listed(ProjectFileReading reading, ProjectFile file, ProjectObjective objective,
         ProjectWorkstreamRow row, PieceCard? card, bool isCurrent, string? currentPiece, IReadOnlyList<string> verifiers,
-        Func<string, SpecAcceptance?> acceptanceOf)
+        Func<string, SpecAcceptance?> acceptanceOf, StageReports said)
     {
         var isBeforeKit = file.BeforeKit.Contains(row.Slug);
         var artefacts = (reading.Artefacts.GetValueOrDefault(row.Slug) ?? WorkstreamArtefacts.NotStarted(row.Slug))
@@ -115,48 +140,54 @@ public static class PiecesOfWork
         var workstream = card?.Title ?? row.Workstream;
         var context = new StageNodeContext(workstream, artefacts.Source.Folder, card is not null, isCurrent,
             card?.HasSession == true, card is null ? null : currentPiece, card?.CanStart == true);
-
-        var drafts = stage.Pipeline is null or PipelineKind.Freeform
+        var stages = stage.Pipeline is null or PipelineKind.Freeform
             ? [FreeformDraft(isBeforeKit || objective.IsDone)]
             : RecordDrafts(stage.Pipeline.Value, stage, artefacts, isBeforeKit);
+        var skips = new Dictionary<PipelineStage, string>(artefacts.Skipped);
 
-        return new PieceOfWork(row.Slug, row.Workstream, workstream, objective.Number, objective.Title, stage.Pipeline,
-            artefacts.Source.Folder, isBeforeKit,
-            Nodes(LaySessionOver(drafts, card, isCurrent, workstream), context, verifiers))
+        foreach (var (skipped, reason) in said.SkipsOf(file.Name, row.Slug))
         {
-            Card = card,
-            IsCurrentPiece = isCurrent,
+            skips[skipped] = reason;
+        }
+
+        return new PieceDraft(row.Slug, row.Workstream, workstream, card, isCurrent, stage.Pipeline, context, verifiers, stages)
+        {
+            Objective = objective,
+            Row = row,
+            RecordsFolder = artefacts.Source.Folder,
+            IsBeforeKit = isBeforeKit,
+            Skips = skips,
+            Kind = PieceKinds.Of(card?.Role ?? WorkstreamRole.None, stage.Pipeline, row.Branch),
+            Title = PieceTitle.For(row.What, objective.Title, objective.Workstreams.Count, workstream),
+            AwaitsSpecAcceptance = stage.IsWaitingOnOwner,
             Acceptance = acceptanceOf(row.Slug),
         };
     }
 
     // A card handed work by a piece here but listed in no project file is shown under its parent (Question 1, followed
-    // provisionally overnight on 2026-11-20), so a hand-over never vanishes from the tree. Only a hand-over from a card
-    // whose current piece is here can place it, the same links PieceTree places pieces by.
-    private static List<PieceOfWork> Unlisted(List<PieceOfWork> listed, Dictionary<string, PieceCard> byKey, List<Link> links,
+    // provisionally overnight on 2026-11-20), so a hand-over never vanishes from the tree.
+    private static List<PieceDraft> Unlisted(List<PieceDraft> listed, Dictionary<string, PieceCard> byKey, List<Link> links,
         ProjectMembers owners, Dictionary<string, List<string>> verifiers)
     {
-        var handOvers = PieceTree.HandOvers(links).ToList();
-        var parents = new HashSet<string>(listed.Where(piece => piece.IsCurrentPiece).Select(piece => piece.CardKey),
-            StringComparer.OrdinalIgnoreCase);
         var inProject = new HashSet<string>(listed.Select(piece => piece.CardKey), StringComparer.OrdinalIgnoreCase);
-        var added = new List<PieceOfWork>();
+        var added = new List<PieceDraft>();
         bool grew;
 
         do
         {
             grew = false;
+            var all = listed.Concat(added).ToList();
 
-            foreach (var link in handOvers)
+            foreach (var link in PieceTree.HandOvers(links))
             {
-                if (!parents.Contains(link.From) || inProject.Contains(link.To)
+                if (inProject.Contains(link.To)
                     || byKey.GetValueOrDefault(link.To) is not { Role: not WorkstreamRole.Verifier } card
-                    || owners.Of(card.Key) is not null)
+                    || owners.Of(card.Key) is not null
+                    || !HasParentHere(all, link))
                 {
                     continue;
                 }
 
-                parents.Add(card.Key);
                 inProject.Add(card.Key);
                 added.Add(UnlistedPiece(card, verifiers.GetValueOrDefault(card.Key, [])));
                 grew = true;
@@ -167,20 +198,145 @@ public static class PiecesOfWork
         return added;
     }
 
-    private static PieceOfWork UnlistedPiece(PieceCard card, IReadOnlyList<string> verifiers)
+    private static bool HasParentHere(List<PieceDraft> pieces, Link link) =>
+        link.ParentPiece is { } named
+            ? pieces.Any(piece => piece.Card is not null && Same(piece.CardKey, link.From) && Same(piece.Name, named))
+            : pieces.Any(piece => piece.Card is not null && Same(piece.CardKey, link.From));
+
+    private static PieceDraft UnlistedPiece(PieceCard card, IReadOnlyList<string> verifiers)
     {
         var context = new StageNodeContext(card.Title, null, true, true, card.HasSession, card.Title, card.CanStart);
-        var drafts = StageCalculator.StagesOf(PipelineKind.Feature)
+        var stages = StageCalculator.StagesOf(PipelineKind.Feature)
             .Select(stage => Draft(PipelineKind.Feature, stage, StageNodeState.ToDo, null, false))
             .ToList();
 
-        return new PieceOfWork(card.Title, card.Key, card.Title, null, null, PipelineKind.Feature, null, false,
-            Nodes(LaySessionOver(drafts, card, true, card.Title), context, verifiers))
+        return new PieceDraft(card.Title, card.Key, card.Title, card, true, PipelineKind.Feature, context, verifiers, stages)
         {
-            Card = card,
-            IsCurrentPiece = true,
             IsListed = false,
+            Kind = PieceKinds.Of(card.Role, PipelineKind.Feature, null),
+            Title = PieceTitle.For(null, null, 0, card.Title),
         };
+    }
+
+    private static PieceOfWork Finish(PieceDraft draft, int index, List<PieceDraft> all, List<(int Parent, int Child)> handOvers,
+        Dictionary<int, int> parentOf, List<Link> links, StageReports said, int round)
+    {
+        var parent = parentOf.TryGetValue(index, out var parentIndex) ? all[parentIndex] : null;
+        var children = handOvers.Where(pair => pair.Parent == index).Select(pair => all[pair.Child]).ToList();
+        var backLink = parent is null
+            ? null
+            : links.LastOrDefault(link => link.Kind == LinkKind.ReportsBack && Same(link.From, draft.CardKey) && Same(link.To, parent.CardKey));
+        var reported = draft.IsCurrent && backLink is not null && (backLink.LatestReport is not null || backLink.SatisfiedUtc is not null);
+        var confirmed = draft.IsCurrent && backLink?.SatisfiedUtc is not null;
+        var nowAt = draft.IsCurrent && draft.Card is { IsWorking: true } ? said.NowAtOf(draft.CardKey) : null;
+        var isObjectiveDone = draft.Objective?.IsDone == true;
+        var stages = draft.Stages;
+
+        if (draft.IsListed && draft.RecordsFolder is null && !draft.IsBeforeKit && reported)
+        {
+            stages = [new StageDraft(DraftKind.Elsewhere, null, "Records", StageNodeState.RecordsElsewhere,
+                "its records are kept outside the project", null, false)];
+        }
+        else if (draft.Pipeline is PipelineKind.Feature or PipelineKind.Bug && draft.IsListed)
+        {
+            stages = HandOn(stages, draft.Kind, children);
+            stages = BeforeFurthest(stages, draft, parent);
+        }
+        else if (draft.IsListed && confirmed && !isObjectiveDone && stages.Count == 1 && stages[0].State == StageNodeState.ToDo)
+        {
+            stages = [stages[0] with { State = StageNodeState.Answered }];
+        }
+
+        stages = LaySessionOver(stages, draft.Card, draft.IsCurrent, draft.Workstream, nowAt);
+
+        return new PieceOfWork(draft.Name, draft.CardKey, draft.Workstream, draft.Objective?.Number, draft.Objective?.Title,
+            draft.Pipeline, draft.RecordsFolder, draft.IsBeforeKit, Nodes(stages, draft.Context, draft.Verifiers))
+        {
+            Card = draft.Card,
+            IsCurrentPiece = draft.IsCurrent,
+            IsListed = draft.IsListed,
+            Kind = draft.Kind,
+            Title = draft.Title,
+            Round = round,
+            Branch = draft.Row?.Branch,
+            Repos = draft.Row?.Repos,
+            IsObjectiveDone = isObjectiveDone,
+            ParentTitle = parent?.Title,
+            HandedOnTo = [.. children.Select(child => child.Title)],
+            HasReportedBack = reported,
+            IsReportConfirmed = confirmed,
+            NowAt = nowAt,
+            AwaitsSpecAcceptance = draft.AwaitsSpecAcceptance,
+            Acceptance = draft.Acceptance,
+        };
+    }
+
+    // A spec piece's later stages are done by the pieces it handed work to: every stage after the last it wrote itself, up
+    // to the one before its own lessons (1.1f E26); never its own research or spec.
+    private static List<StageDraft> HandOn(List<StageDraft> stages, PieceKind kind, List<PieceDraft> children)
+    {
+        if (kind != PieceKind.Spec || children.Count == 0)
+        {
+            return stages;
+        }
+
+        var lessons = stages.FindIndex(stage => stage.Stage == PipelineStage.Compound);
+        var end = lessons < 0 ? stages.Count : lessons;
+
+        if (end == 0)
+        {
+            return stages;
+        }
+
+        var spec = stages.FindIndex(stage => stage.Stage == PipelineStage.Spec);
+        var lastOwn = Math.Max(spec, stages.FindLastIndex(end - 1, end, stage => stage.IsWritten));
+        var names = string.Join(", ", children.Select(child => child.Title));
+
+        return [.. stages.Select((stage, index) => index > lastOwn && index < end && !stage.IsWritten
+            ? stage with { State = StageNodeState.HandedOn, Reason = $"done by {names}" }
+            : stage)];
+    }
+
+    // Nothing before a finished stage is To do (1.1f E30a): a stage before the furthest recorded one is skipped with its
+    // reason, or done with no record. Under the kit the owner's spec gate and the evidence are never assumed done: a
+    // missing one before later records is Stuck, as 1.1d AC 4 has it for evidence. Work from before the kit has no gate
+    // states (1.1 AC 9), so there they too are done with no record. A session's own skip never stands in for either: only
+    // the owner passes the spec gate, and only the independent check passes Verify (review of PR 1, finding 1).
+    private static List<StageDraft> BeforeFurthest(List<StageDraft> stages, PieceDraft draft, PieceDraft? parent)
+    {
+        var furthest = stages.FindLastIndex(stage => stage.IsWritten);
+        var specStandsIn = draft.Kind == PieceKind.Build && parent is { Kind: PieceKind.Spec }
+                           && !string.Equals(parent.Objective?.Number, draft.Objective?.Number, StringComparison.Ordinal);
+
+        return [.. stages.Select((stage, index) =>
+        {
+            if (index >= furthest || stage.IsWritten || stage.State is not (StageNodeState.ToDo or StageNodeState.Stuck))
+            {
+                return stage;
+            }
+
+            if (stage.Stage is { } named and not (PipelineStage.Spec or PipelineStage.Verify) && draft.Skips.TryGetValue(named, out var reason))
+            {
+                return stage with { State = StageNodeState.NotNeeded, Reason = reason };
+            }
+
+            if (stage.Stage == PipelineStage.Research && specStandsIn)
+            {
+                return stage with { State = StageNodeState.NotNeeded, Reason = SpecCoveredIt };
+            }
+
+            if (stage.Stage == PipelineStage.Verify && !draft.IsBeforeKit)
+            {
+                return stage with { State = StageNodeState.Stuck, Reason = "no evidence, though later records are written" };
+            }
+
+            if (stage.Stage == PipelineStage.Spec && draft.Pipeline == PipelineKind.Feature && !draft.IsBeforeKit)
+            {
+                return stage with { State = StageNodeState.Stuck, Reason = "no spec to accept, though later records are written" };
+            }
+
+            return stage with { State = StageNodeState.DoneNoRecord, Reason = null };
+        })];
     }
 
     private static List<StageDraft> RecordDrafts(PipelineKind pipeline, WorkstreamStage stage, WorkstreamArtefacts artefacts,
@@ -273,21 +429,41 @@ public static class PiecesOfWork
             isWritten);
     }
 
-    // The session lies over the records on its card's current piece only, at the stage it is working towards; a stage
-    // the records already hold waiting on you or stuck keeps that (AC 5). Asking outranks blocked, and blocked outranks
-    // working, in the order the status sentence reads them (AC 7).
-    private static List<StageDraft> LaySessionOver(List<StageDraft> drafts, PieceCard? card, bool isCurrent, string workstream)
+    // The session lies over the records on its card's current piece only. A question or a block lies on the stage it is
+    // working towards, unless the records already hold one waiting on you or stuck (1.1d AC 5). A working session is Busy
+    // only on the stage it said it is at (1.1f E25, D8): with no report the records stand and nothing is guessed.
+    private static List<StageDraft> LaySessionOver(List<StageDraft> drafts, PieceCard? card, bool isCurrent, string workstream,
+        SessionStageReport? nowAt)
     {
         if (card is null || !isCurrent || drafts.Count == 0)
         {
             return drafts;
         }
 
+        if (card is { Lifecycle: not SessionLifecycle.NeedsAttention, IsBlocked: false, IsWorking: true })
+        {
+            if (nowAt is null)
+            {
+                return drafts;
+            }
+
+            var at = drafts.FindIndex(draft => draft.Stage == nowAt.Stage);
+
+            if (at < 0)
+            {
+                at = drafts.Count == 1 ? 0 : -1;
+            }
+
+            return at < 0
+                ? drafts
+                : [.. drafts.Select((draft, index) =>
+                    index == at ? draft with { State = StageNodeState.Busy, Reason = nowAt.Doing, IsSessionState = true } : draft)];
+        }
+
         (StageNodeState State, string Reason)? session = card switch
         {
             { Lifecycle: SessionLifecycle.NeedsAttention } => (StageNodeState.WaitingOnYou, $"answer {workstream} in its terminal"),
             { IsBlocked: true } => (StageNodeState.Stuck, $"{workstream} is blocked"),
-            { IsWorking: true } => (StageNodeState.Busy, $"{workstream} is working on it"),
             _ => null,
         };
 
@@ -297,15 +473,15 @@ public static class PiecesOfWork
         }
 
         var next = StageOrder.NextToDo(drafts, draft => draft.State);
-        var at = next >= 0 ? next : drafts.Count - 1;
+        var on = next >= 0 ? next : drafts.Count - 1;
 
-        if (drafts[at].State is StageNodeState.WaitingOnYou or StageNodeState.Stuck)
+        if (drafts[on].State is StageNodeState.WaitingOnYou or StageNodeState.Stuck)
         {
             return drafts;
         }
 
         return [.. drafts.Select((draft, index) =>
-            index == at ? draft with { State = laid.State, Reason = laid.Reason, IsSessionState = true } : draft)];
+            index == on ? draft with { State = laid.State, Reason = laid.Reason, IsSessionState = true } : draft)];
     }
 
     private static IReadOnlyList<StageNode> Nodes(List<StageDraft> drafts, StageNodeContext context,
@@ -317,8 +493,8 @@ public static class PiecesOfWork
         {
             DraftKind.Spec => new SpecStageNode(draft.Stage!.Value, draft.Name, draft.State, draft.Reason, draft.RecordName,
                 draft.IsWritten, draft.IsSessionState, context, draft.AwaitsAcceptance, draft.IsChangedSinceAccepted),
-            DraftKind.Work => new WorkStageNode(draft.Stage, draft.Name, draft.State, draft.Reason, draft.RecordName,
-                draft.IsWritten, draft.IsSessionState, context),
+            DraftKind.Work or DraftKind.Elsewhere => new WorkStageNode(draft.Stage, draft.Name, draft.State, draft.Reason,
+                draft.RecordName, draft.IsWritten, draft.IsSessionState, context),
             DraftKind.Verify => new VerifyStageNode(draft.State, draft.Reason, draft.RecordName!, draft.IsWritten,
                 draft.IsSessionState, context, verifiers),
             DraftKind.Freeform => new FreeformStageNode(draft.State, draft.Reason, draft.IsSessionState, context),
@@ -334,6 +510,8 @@ public static class PiecesOfWork
         _ => stage.ToString(),
     };
 
+    private static bool Same(string left, string right) => string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
+
     private sealed record StageDraft(
         DraftKind Kind,
         PipelineStage? Stage,
@@ -348,5 +526,37 @@ public static class PiecesOfWork
         public bool AwaitsAcceptance { get; init; }
 
         public bool IsChangedSinceAccepted { get; init; }
+    }
+
+    private sealed record PieceDraft(
+        string Name,
+        string CardKey,
+        string Workstream,
+        PieceCard? Card,
+        bool IsCurrent,
+        PipelineKind? Pipeline,
+        StageNodeContext Context,
+        IReadOnlyList<string> Verifiers,
+        List<StageDraft> Stages)
+    {
+        public ProjectObjective? Objective { get; init; }
+
+        public ProjectWorkstreamRow? Row { get; init; }
+
+        public string? RecordsFolder { get; init; }
+
+        public bool IsBeforeKit { get; init; }
+
+        public bool IsListed { get; init; } = true;
+
+        public IReadOnlyDictionary<PipelineStage, string> Skips { get; init; } = new Dictionary<PipelineStage, string>();
+
+        public PieceKind Kind { get; init; }
+
+        public string Title { get; init; } = string.Empty;
+
+        public bool AwaitsSpecAcceptance { get; init; }
+
+        public SpecAcceptance? Acceptance { get; init; }
     }
 }

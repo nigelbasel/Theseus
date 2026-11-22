@@ -42,6 +42,7 @@ public static class WorkstreamArtefactReader
             SpecHash = spec is null ? null : SpecIdentity.Hash(spec),
             RuleHash = rule is null ? null : SpecIdentity.Hash(rule),
             IsBeforeKit = project.BeforeKit.Contains(slug),
+            Skipped = SkippedStages.Read(Text(SkippedStages.FileName)),
         };
     }
 }

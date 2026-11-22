@@ -88,8 +88,17 @@ internal static class ProjectViewFixtures
 
     /// <summary>Theseus bootstrap's pieces, with git-22 in the given state and no spec accepted.</summary>
     public static IReadOnlyList<PieceOfWork> TheseusPieces(TestProjectsFolder folder,
-        SessionLifecycle git22 = SessionLifecycle.Idle, bool blocked = false) =>
-        PiecesOfWork.Build(WriteTheseus(folder), _ => null, [Card(Git22, git22, blocked)], []);
+        SessionLifecycle git22 = SessionLifecycle.Idle, bool blocked = false, StageReports? reports = null) =>
+        PiecesOfWork.Build(WriteTheseus(folder), _ => null, [Card(Git22, git22, blocked)], [], reports: reports);
+
+    /// <summary>Reports in which only this card's session has said what it is doing.</summary>
+    public static StageReports Said(string card, PipelineStage? stage, string doing) =>
+        StageReports.None with
+        {
+            NowAtOf = key => string.Equals(key, card, StringComparison.OrdinalIgnoreCase)
+                ? new SessionStageReport(stage, doing, DateTimeOffset.UnixEpoch)
+                : null,
+        };
 
     /// <summary>Writes BuildYourMarket MCP and reads it as the catalog does.</summary>
     public static ProjectFileReading WriteBuildYourMarket(TestProjectsFolder folder)
@@ -180,14 +189,14 @@ internal static class ProjectViewFixtures
 
     /// <summary>The one piece of <see cref="WriteOne"/>, with its card in this state and its spec accepted when asked.</summary>
     public static PieceOfWork OnePiece(TestProjectsFolder folder, string pipeline, IReadOnlyDictionary<string, string>? records = null,
-        PieceCard? card = null, bool accepted = false, bool beforeKit = false, bool objectiveDone = false)
+        PieceCard? card = null, bool accepted = false, bool beforeKit = false, bool objectiveDone = false, StageReports? reports = null)
     {
         var reading = WriteOne(folder, pipeline, records, beforeKit, objectiveDone);
         var artefacts = reading.Artefacts[APiece];
         var hash = artefacts.SpecHash ?? artefacts.RuleHash;
         SpecAcceptance? acceptance = accepted && hash is not null ? new SpecAcceptance(OneProject, APiece, hash, DateTimeOffset.UnixEpoch) : null;
 
-        return PiecesOfWork.Build(reading, _ => acceptance, [card ?? Card(ACard)], []).Single();
+        return PiecesOfWork.Build(reading, _ => acceptance, [card ?? Card(ACard)], [], reports: reports).Single();
     }
 
     /// <summary>Records for <see cref="OnePiece"/>: each named file with a heading, evidence.md passing.</summary>
@@ -251,6 +260,7 @@ internal static class ProjectViewFixtures
                 body: "## Phase 0: Specify\n\n**Exit gate:** Nigel approves the spec.\n\n"
                       + Objective("0.1", "Specify the BuildYourMarket MCP server", "feature", Row(ServerSpec))
                           .Replace("- [ ] A criterion.", "- [x] A criterion.", StringComparison.Ordinal)
+                          .Replace($"| owner/{ServerSpec} |", "| none |", StringComparison.Ordinal)
                       + "## Phase 1: Build read-only, internal\n\n"
                       + Objective("1.1", "Preconditions", "freeform", Row("bym-mcp-preconditions"))
                       + Objective("1.2", "Identity and Config", "feature", Row("bym-mcp-identity"), Row("bym-mcp-config"))

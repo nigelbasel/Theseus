@@ -14,6 +14,13 @@ public sealed record StateCountViewModel(StageNodeState State, int Count, string
         (StageNodeState.HoldoutsNotRun, "holdouts not run"), (StageNodeState.Stuck, "stuck"), (StageNodeState.ToDo, "to do"),
     ];
 
+    // The states 1.1f added (E26 to E29) are counted only when there are some, so the six chips stay as AC 19 has them.
+    private static readonly (StageNodeState State, string Words)[] Added =
+    [
+        (StageNodeState.Answered, "answered"), (StageNodeState.HandedOn, "handed on"),
+        (StageNodeState.RecordsElsewhere, "records elsewhere"), (StageNodeState.NotInProject, "not in project.md"),
+    ];
+
     /// <summary>The chip's text: mark, number and words.</summary>
     public string Text => $"{StageNodeStates.Mark(State)} {Count} {Words}";
 
@@ -29,6 +36,8 @@ public sealed record StateCountViewModel(StageNodeState State, int Count, string
         [
             .. Order.Select(entry => new StateCountViewModel(entry.State, summary.CountOf(entry.State), entry.Words))
                 .Where(chip => zeros || chip.Count > 0),
+            .. Added.Select(entry => new StateCountViewModel(entry.State, summary.CountOf(entry.State), entry.Words))
+                .Where(chip => chip.Count > 0),
         ];
     }
 }

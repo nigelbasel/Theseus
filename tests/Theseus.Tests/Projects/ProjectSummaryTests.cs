@@ -28,7 +28,8 @@ public class ProjectSummaryTests
     public void TheBuildYourMarketFixture_WithNoSession()
     {
         Assert.That(ProjectSummary.For(BuildYourMarketPieces(_folder)).Sentence, Is.EqualTo(
-            "9 pieces of work across 5 objectives: 1 done, 5 waiting for their holdout check, 3 still to do or not started. "
+            "9 pieces of work across 5 objectives: 1 done, 5 waiting for their holdout check, 1 answered, criteria not ticked, "
+            + "2 not in project.md. "
             + "No session is working on it right now. Next: run the holdout scenarios."));
     }
 
