@@ -582,6 +582,15 @@ public sealed class ChainsViewModel : ObservableObject
 
     private string? Remove(string id) => Changed(_book.Remove(id));
 
+    /// <summary>
+    /// Removes the standing hand-over from one card to another, and its report back with it; the reason it was refused,
+    /// or null. For a box shown in a project only by that hand-over (Nigel, 2026-11-22).
+    /// </summary>
+    public string? RemoveHandOver(string from, string to) =>
+        _book.Active.FirstOrDefault(link => link.Kind == LinkKind.HandsOver && Same(link.From, from) && Same(link.To, to)) is { } link
+            ? Remove(link.Id)
+            : $"{from} no longer hands over to {to}.";
+
     private string? Changed(LinkChange change)
     {
         if (change.Refusal is null)

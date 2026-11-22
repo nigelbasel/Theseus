@@ -616,6 +616,8 @@ public sealed class ProjectViewModel : ObservableObject
             boxActions.Add(addToProject);
         }
 
+        boxActions.AddRange(_actions.CardActions?.Invoke(piece) ?? []);
+
         return new PieceNodeViewModel(node, children, stages, boxActions, PieceFolds.IsOpen(_folds, piece.Name), Toggle, Select)
         {
             LinkLines = LinkLines(node, links, tree, parents),

@@ -2148,6 +2148,7 @@ public sealed class ShellViewModel : ObservableObject
             {
                 ShowRecords = ShowRecordsWindow is { } show ? (piece, stage) => show(new RecordsViewModel(piece, stage, OpenFile)) : null,
                 OpenLinks = key => ShowCardLinksCommand.Execute(Board.Card(key)),
+                CardActions = CardActionsOf,
                 Ask = ConfirmAcceptSpec,
                 Jumped = Jumped,
                 GoBack = GoBackCommand,
@@ -3675,7 +3676,55 @@ public sealed class ShellViewModel : ObservableObject
         }
     }
 
-    private IReadOnlyList<WorkstreamCardViewModel> Chosen() => Board.ChosenCards;
+    // With a project open, the main menu's selection commands act on the card of the box selected in the view (Nigel,
+    // 2026-11-22: two cards he could not archive from the view).
+    private IReadOnlyList<WorkstreamCardViewModel> Chosen() =>
+        ProjectView?.Selection switch
+        {
+            PieceNodeViewModel node when Board.Card(node.Piece.CardKey) is { } card => [card],
+            StageNodeViewModel stage when Board.Card(stage.Piece.Piece.CardKey) is { } card => [card],
+            _ => Board.ChosenCards,
+        };
+
+    // A card's board actions on its box in the view (Nigel, 2026-11-22).
+    private IReadOnlyList<PieceActionViewModel> CardActionsOf(PieceOfWork piece)
+    {
+        if (Board.Card(piece.CardKey) is not { } card)
+        {
+            return [];
+        }
+
+        var actions = new List<PieceActionViewModel>();
+        var canArchive = ArchiveCardCommand.CanExecute(card);
+        actions.Add(new PieceActionViewModel("Archive…", () => ArchiveCardCommand.Execute(card), canArchive,
+            canArchive ? $"Archive {card.Title}: it leaves the board" : $"{card.Title} has a session: stop it before archiving it"));
+
+        if (piece.IsListed && card.RemoveFromProjectCommand is { } remove)
+        {
+            actions.Add(new PieceActionViewModel("Remove from project…", () => remove.Execute(null), remove.CanExecute(null),
+                $"Take {card.Title}'s rows out of the project file"));
+        }
+        else if (!piece.IsListed && piece.ParentTitle is { } parent
+                 && Chains?.AllLinks.FirstOrDefault(link => link.IsActive && link.Kind == LinkKind.HandsOver
+                                                            && string.Equals(link.To, card.Key, StringComparison.OrdinalIgnoreCase)) is { } handOver)
+        {
+            actions.Add(new PieceActionViewModel($"Unlink from {parent}", () =>
+            {
+                if (Chains.RemoveHandOver(handOver.From, handOver.To) is { } refused)
+                {
+                    Notice = refused;
+                }
+            }, toolTip: $"Remove the hand-over that shows {card.Title} under {parent}"));
+        }
+
+        actions.Add(new PieceActionViewModel("Show on the board", () =>
+        {
+            CloseProject();
+            Board.ClickSelect(card, toggle: false, extend: false);
+        }, toolTip: $"Close the view and select {card.Title} on the board"));
+
+        return actions;
+    }
 
     private IReadOnlyList<Workstream> ChosenToStart() =>
         StartSelection.ForCards(
