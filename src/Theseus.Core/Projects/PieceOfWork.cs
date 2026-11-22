@@ -30,6 +30,12 @@ public sealed record PieceOfWork(
     /// <summary>Whether its card's current piece is this one (its last row), so the card's session and actions apply.</summary>
     public bool IsCurrentPiece { get; init; }
 
+    /// <summary>The owner's latest acceptance of its spec, any version, for Properties (1.1e AC 29).</summary>
+    public SpecAcceptance? Acceptance { get; init; }
+
+    /// <summary>What its session reported the owner said in its tab, waiting for him to confirm (1.1e AC 28).</summary>
+    public ReportedAcceptance? Reported { get; init; }
+
     /// <summary>Whether a project file lists it; false for a linked card listed nowhere (AC 13).</summary>
     public bool IsListed { get; init; } = true;
 

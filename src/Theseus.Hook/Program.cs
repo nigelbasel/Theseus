@@ -47,16 +47,13 @@ try
         return 0;
     }
 
-    // Decide before claiming. Claiming is what makes a request undeliverable to anyone else, so
-    // claiming first and then declining - on a subagent's turn, or one a stop hook already extended
-    // - would consume the request and leave the session that was meant to have it none the wiser.
-    var store = new StopRequestStore(StopRequestRoot.Default);
-    var waiting = store.Waiting(sessionId);
-
-    if (StopHookDecision.Deliver(input, waiting, DateTimeOffset.UtcNow) is null
-        || store.Claim(sessionId, DateTimeOffset.UtcNow) is not { } request)
+    // A stop request first, else something the owner's board action tells it (1.1e AC 27), each decided before it is
+    // claimed: claiming first and then declining, on a subagent's turn or one a stop hook already extended, would
+    // consume it and leave the session that was meant to have it none the wiser.
+    if (HookTurn.Deliver(input, new StopRequestStore(StopRequestRoot.Default), new StopRequestStore(StopRequestRoot.Tells),
+            DateTimeOffset.UtcNow) is not { } request)
     {
-        // Nothing to stop for. A session Theseus launched is told, once, if Theseus has stopped or
+        // A session Theseus launched is told, once, if Theseus has stopped or
         // restarted since it last looked: it cannot be told by Theseus itself once Theseus is gone.
         if (input.HookEventName == "UserPromptSubmit"
             && StatusHook.PromptReply(sessionId, new StatusSeenStore(), TheseusStatusFile.Read(), TheseusStatusFile.IsRunning,

@@ -49,7 +49,7 @@ public class SpecAtGateTests
 
         Assert.That(store.AcceptIfConfirmed(spec, _ => true, DateTimeOffset.UnixEpoch), Is.True);
         Assert.That(store.Latest("a-project", "a-slug"),
-            Is.EqualTo(new SpecAcceptance("a-project", "a-slug", "abcdef1234567", DateTimeOffset.UnixEpoch)));
+            Is.EqualTo(new SpecAcceptance("a-project", "a-slug", "abcdef1234567", DateTimeOffset.UnixEpoch) { How = SpecAcceptance.OnTheBoard }));
         Assert.That(asked.Single(), Is.EqualTo(spec.ConfirmationQuestion));
     }
 

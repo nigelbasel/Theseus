@@ -111,7 +111,7 @@ public class McpHandlerTests
             Is.EquivalentTo(new[] { "start_work", "stop_work", "time_for", "whoami", "locks", "lock_acquire", "lock_release", "related", "report_back",
                 "propose_workstream", "proposal_status", "withdraw_proposal", "link_workstream", "unlink_workstream",
                 "approve_proposal", "reject_proposal", "record_work_item", "name_work_items",
-                "start_workstream", "stop_workstream", "pause_workstream", "resume_workstream", "workstreams" }));
+                "start_workstream", "stop_workstream", "pause_workstream", "resume_workstream", "workstreams", "gates", "accept_spec", "events" }));
         Assert.That(tools.All(tool => tool!["inputSchema"]!["type"]!.GetValue<string>() == "object"), Is.True);
     }
 

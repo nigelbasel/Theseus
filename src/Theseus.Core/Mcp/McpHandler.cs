@@ -82,6 +82,8 @@ public sealed partial class McpHandler
     private readonly Func<WorkstreamProposal, bool, ProposalApproval>? _approve;
     private readonly WorkItemBook? _workItems;
     private readonly IWorkstreamControl? _control;
+    private readonly ISpecGates? _gates;
+    private readonly Func<string, string>? _events;
 
     /// <summary>Creates the handler over the work log, the sampler's intervals and the launched sessions.</summary>
     /// <param name="sessions">Finds the session a request's path names, or null for one Theseus did not launch.</param>
@@ -98,6 +100,8 @@ public sealed partial class McpHandler
     /// Creates the card for a proposal its session approves when Nigel asks, and whether to start it, or
     /// null when sessions cannot approve.
     /// </param>
+    /// <param name="gates">Answers gates() and keeps accept_spec's reports (1.1e AC 28), or null.</param>
+    /// <param name="events">What the owner did on the board for a card since its session last asked (1.1e AC 27a), or null.</param>
     public McpHandler(
         WorkLog work,
         Func<IReadOnlyList<AttentionInterval>> attention,
@@ -112,8 +116,12 @@ public sealed partial class McpHandler
         Func<string>? briefFolderName = null,
         Func<WorkstreamProposal, bool, ProposalApproval>? approve = null,
         WorkItemBook? workItems = null,
-        IWorkstreamControl? control = null)
+        IWorkstreamControl? control = null,
+        ISpecGates? gates = null,
+        Func<string, string>? events = null)
     {
+        _events = events;
+        _gates = gates;
         _control = control;
         _workItems = workItems;
         _approve = approve;
@@ -266,7 +274,15 @@ public sealed partial class McpHandler
                         ["description"] = "Optional: issues it carries. Each must already be on this workstream's card.",
                     },
                     ["reason"] = Property("Optional: why it is wanted, shown to the user."),
-                    ["slug"] = Property("Optional, for a workstream in a project: a new slug for its records folder and branch (work/<slug>/, <user>/<slug>), lower-case letters, digits and hyphens, not one already in the project file's workstreams table. On approval the new card's row is added under this workstream's objective."),
+                    ["slug"] = Property("For a workstream in a project: the name of its records folder (work/<slug>/), lower-case letters, digits and hyphens, not one already in the project file's workstreams table."),
+                    ["objective"] = Property("For a workstream in a project, required: the objective it serves, by number (\"1.2\") or title. On approval Theseus writes its row under that objective; a proposal from a project's card naming none cannot be approved."),
+                    ["branch"] = Property("Optional, for a workstream in a project: its branch, for its row. None named, the row says none; Theseus never invents one."),
+                    ["repos"] = new JsonObject
+                    {
+                        ["type"] = "array",
+                        ["items"] = new JsonObject { ["type"] = "string" },
+                        ["description"] = "Optional, for a workstream in a project: the repos it works in, for its row. None named, the row says read-only.",
+                    },
                 },
                 "title", "brief", "done_criteria", "report_back"),
             Tool("proposal_status",
@@ -295,6 +311,21 @@ public sealed partial class McpHandler
                 "Remove a link this workstream is at either end of, by its id from related. Removing a hand-over also removes the report back that depended on it. Use only when the user asks for it in this tab.",
                 new JsonObject { ["link_id"] = Property("The link's id, from related.") },
                 "link_id"),
+            Tool("events",
+                "What the owner did on the board that concerns this workstream since you last called this: proposals of yours approved or rejected, reports to you confirmed, your spec accepted. Read-only. Call it before asking the owner to do something on the board, rather than asking him again.",
+                new JsonObject()),
+            Tool("gates",
+                "This workstream's owner's gates (its spec, or a bug's rule) and whether each is accepted for the version on disk now, with when, by whom and how. Read-only. Stop at the spec and call this before you plan: plan only when it says accepted.",
+                new JsonObject()),
+            Tool("accept_spec",
+                "Report that the owner accepted this workstream's spec in this tab, quoting his words. Nothing is accepted by this call: he confirms on the board, and only then is it accepted. Refused when the version is not the spec's current text. Never take his \"accept\" in chat as the gate itself.",
+                new JsonObject
+                {
+                    ["slug"] = Property("This workstream's records folder name."),
+                    ["version"] = Property("The version he accepted: the spec's version as gates() gives it."),
+                    ["owner_words"] = Property("His words, as he said them in this tab."),
+                },
+                "slug", "version", "owner_words"),
             Tool("workstreams",
                 "Your descendants: the cards made from proposals your card raised and the user approved, and theirs in turn, each with its state and why it is stopped. Read-only. Only these can be started, stopped, paused or resumed from here.",
                 new JsonObject()),
@@ -416,12 +447,36 @@ public sealed partial class McpHandler
             "name_work_items" => NameWorkItems(arguments),
             "reject_proposal" => RejectProposal(session, arguments),
             "workstreams" => Workstreams(session),
+            "gates" => _gates is null
+                ? Result("This Theseus does not answer on gates.", isError: true)
+                : Result(_gates.Gates(session.WorkstreamKey)),
+            "accept_spec" => AcceptSpec(session, arguments),
+            "events" => _events is null
+                ? Result("This Theseus does not keep the owner's board actions.", isError: true)
+                : Result(_events(session.WorkstreamKey)),
             "start_workstream" => ControlWorkstream(session, arguments, WorkstreamCall.Start),
             "stop_workstream" => ControlWorkstream(session, arguments, WorkstreamCall.Stop),
             "pause_workstream" => ControlWorkstream(session, arguments, WorkstreamCall.Pause),
             "resume_workstream" => ControlWorkstream(session, arguments, WorkstreamCall.Resume),
             _ => WhoAmI(session),
         });
+    }
+
+    /// <summary>accept_spec (1.1e AC 28): keeps the owner's words for him to confirm on the board; it accepts nothing.</summary>
+    private JsonObject AcceptSpec(McpSession session, JsonObject arguments)
+    {
+        if (_gates is null)
+        {
+            return Result("This Theseus does not take reports of acceptance.", isError: true);
+        }
+
+        var slug = Text(arguments["slug"])?.Trim() ?? string.Empty;
+        var version = Text(arguments["version"])?.Trim() ?? string.Empty;
+        var words = Text(arguments["owner_words"])?.Trim() ?? string.Empty;
+
+        return _gates.ReportAcceptance(session.WorkstreamKey, slug, version, words) is { } refusal
+            ? Result(refusal, isError: true)
+            : Result("Reported. Nothing is accepted until the owner confirms it on the board; call gates() to see when he has, and do not plan before.");
     }
 
     /// <summary>workstreams (1.1e AC 14): the caller's descendants with their state and why, so a session decides from facts.</summary>
@@ -833,6 +888,9 @@ public sealed partial class McpHandler
             Text(arguments["reason"])?.Trim() is { Length: > 0 } reason ? reason : null)
         {
             Slug = Text(arguments["slug"])?.Trim() is { Length: > 0 } slug ? slug : null,
+            Objective = Text(arguments["objective"])?.Trim() is { Length: > 0 } objective ? objective : null,
+            Branch = Text(arguments["branch"])?.Trim() is { Length: > 0 } branch ? branch : null,
+            Repos = [.. Ids(arguments["repos"]).Select(repo => repo.Trim()).Where(repo => repo.Length > 0)],
         };
 
         var check = ProposalCheck.Check(request, session.WorkstreamKey, _board(), _links.All, _paths, _briefFolderName());
@@ -884,6 +942,9 @@ public sealed partial class McpHandler
             ["jiraKeys"] = new JsonArray([.. proposal.Request.JiraKeys.Select(key => (JsonNode?)key)]),
             ["reason"] = proposal.Request.Reason,
             ["slug"] = proposal.Request.Slug,
+            ["objective"] = proposal.Request.Objective,
+            ["branch"] = proposal.Request.Branch,
+            ["repos"] = new JsonArray([.. proposal.Request.Repos.Select(repo => (JsonNode?)JsonValue.Create(repo))]),
             ["warnings"] = new JsonArray([.. proposal.Warnings.Select(warning => (JsonNode?)warning)]),
         })]);
 

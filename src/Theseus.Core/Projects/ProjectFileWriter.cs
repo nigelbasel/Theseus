@@ -8,6 +8,22 @@ namespace Theseus.Core.Projects;
 /// </summary>
 public static class ProjectFileWriter
 {
+    /// <summary>Whether the file on disk is still the text read, so an edit now would not be refused.</summary>
+    public static bool IsCurrent(ProjectFileReading reading)
+    {
+        ArgumentNullException.ThrowIfNull(reading);
+
+        try
+        {
+            return reading is { Folder: { } home, Text: { } read }
+                   && string.Equals(File.ReadAllText(Path.Combine(home, ProjectCatalog.ProjectFileName)), read, StringComparison.Ordinal);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
     /// <summary>Applies an edit to the project's file and returns the new text.</summary>
     /// <param name="reading">The project as last read, with its folder and text.</param>
     /// <param name="edit">The edit, from <see cref="ProjectFileEditor"/>.</param>

@@ -128,6 +128,7 @@ public partial class App : Application
         var proposed = new ProposalsViewModel(proposals, () => [.. shell.Board.Cards], shell.ReviewProposal)
         {
             Arrived = shell.Warn,
+            Rejected = shell.ProposalRejected,
         };
 
         chains.Proposals = proposed;
@@ -149,8 +150,8 @@ public partial class App : Application
             shell.Warn(warning);
         }
 
-        // An older installed guard names its own holdout; this one reads the folder from the settings (git-22, 1.1e PR 2c).
-        if (HoldoutGuardUpgrade.Warning(InstalledHoldoutGuard(), current.HoldoutFolder) is { } guardWarning)
+        // An older installed guard does not protect the folders Theseus finds per project (1.1e AC 6e).
+        if (HoldoutGuardUpgrade.Warning(InstalledHoldoutGuard()) is { } guardWarning)
         {
             TheseusLog.Warning("{Warning}", guardWarning);
             shell.Warn(guardWarning);
@@ -238,7 +239,11 @@ public partial class App : Application
                 briefFolderName: () => settings.Read().BriefFolderName,
                 approve: (proposal, startNow) => Dispatcher.Invoke(() => shell.ApproveFromSession(proposal, startNow)),
                 workItems: workItems,
-                control: new DispatchedWorkstreamControl(shell.WorkstreamControl, Dispatcher)),
+                control: new DispatchedWorkstreamControl(shell.WorkstreamControl, Dispatcher),
+                gates: new DispatchedSpecGates(shell.SpecGatesOnBoard, Dispatcher),
+                // Read off the UI thread: the log has its own lock, and a board busy with a dialog must not lose what it marks
+                // read (review of PR 6, finding 2).
+                events: shell.EventsFor),
             Theseus.Core.Mcp.TheseusMcp.DefaultPort,
             new LockHttpApi(locks, () => DateTimeOffset.UtcNow));
 

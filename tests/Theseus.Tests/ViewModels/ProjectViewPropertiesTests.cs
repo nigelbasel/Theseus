@@ -62,6 +62,7 @@ public class ProjectViewPropertiesTests
             ("Objective", "1.1 Checks shown on cards"),
             ("Records", Records(TheseusProject, "project-view")),
             ("Evidence", "open"),
+            ("Accepted", "not yet"),
             ("Stages", "✓ Research  ◆ Spec  ✓ Plan  ✓ Implement  ◐ Verify  ✓ Review  – Compound"),
         }));
         Assert.That(pane.Buttons.Select(button => button.Label), Is.EqualTo(new[] { "Accept spec…", "Open records" }));

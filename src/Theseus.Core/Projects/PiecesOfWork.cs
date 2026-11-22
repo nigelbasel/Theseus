@@ -64,8 +64,8 @@ public static class PiecesOfWork
             {
                 var card = byKey.GetValueOrDefault(row.Workstream);
 
-                // Verifiers join a project through their report-back link, not a row (1.1c plan, departure 1). A row
-                // naming a card that is not on the board cannot be told from any other, so it stays a piece.
+                // A verifier's row (written since 1.1e PR 6) is not a piece of work: it checks one. A row naming a card that
+                // is not on the board cannot be told from any other, so it stays a piece.
                 if (card?.Role == WorkstreamRole.Verifier)
                 {
                     continue;
@@ -160,6 +160,7 @@ public static class PiecesOfWork
             Kind = PieceKinds.Of(card?.Role ?? WorkstreamRole.None, stage.Pipeline, row.Branch),
             Title = PieceTitle.For(row.What, objective.Title, objective.Workstreams.Count, workstream),
             AwaitsSpecAcceptance = stage.IsWaitingOnOwner,
+            Acceptance = acceptanceOf(row.Slug),
         };
     }
 
@@ -266,6 +267,7 @@ public static class PiecesOfWork
             IsReportConfirmed = confirmed,
             NowAt = nowAt,
             AwaitsSpecAcceptance = draft.AwaitsSpecAcceptance,
+            Acceptance = draft.Acceptance,
         };
     }
 
@@ -554,5 +556,7 @@ public static class PiecesOfWork
         public string Title { get; init; } = string.Empty;
 
         public bool AwaitsSpecAcceptance { get; init; }
+
+        public SpecAcceptance? Acceptance { get; init; }
     }
 }

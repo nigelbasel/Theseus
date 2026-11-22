@@ -63,9 +63,19 @@ waiting on you stays folded and says so in its status line and strip.
 **Open spec**, from a box, the board or the menus, opens the spec in its own window, which can be resized and opens
 where you last left it. It is titled with the piece of work and the spec's version. **Preview** shows the spec drawn,
 **Source** its Markdown as written; **Ctrl+F** finds in it, and **Enter** or **F3** finds the next match. **Accept spec…** at its
-foot accepts the version on screen, after the same question; it is disabled, saying why, once that version is accepted.
+foot accepts the version on screen, after the same question, which names the card Theseus then tells and says whether it
+will be started; it is disabled, saying why, once that version is accepted. Accepting tells the card: a running session
+with its next turn, a stopped card started and told to carry on to the plan. When you say "accept" in the session's tab
+instead, the session reports it, and the box shows **You accepted this in <card>'s tab: Confirm…**: only your confirmation
+on the board accepts it. **Properties** shows the record: the version, when, by whom, and how ("on the board", or "said in
+<card>'s tab, confirmed on the board").
 The window follows its file: a spec changed on disk is drawn again and says so, and one changed since it was drawn is
 drawn again before it can be accepted. **Open in editor** opens the file itself; **Close** or **Esc** closes the window.
+
+A session in a project proposes a new workstream naming the objective it serves, its branch and its repos. Approving it
+writes its row under that objective, with branch `none` and repos `read-only` when it names none; a proposal from a
+project's card that names no objective says so in New workstream, and Create waits until it does. A verifier card's row
+is written too, under the checked card's objective, its records folder named verify- and the checked one's.
 
 ## Writing prompts
 

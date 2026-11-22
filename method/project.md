@@ -102,6 +102,22 @@ gate passes on its artefact or its evidence: plan and review are evidence gates 
 (`pipelines/feature.yaml`, `pipelines/bug.yaml`). The owner's acceptance of a spec is recorded by Theseus on the board,
 by the content of the spec he accepted, not in a file a session can write.
 
+**A session stops at its spec.** Once `spec.md` (a bug's rule) is written, the session says so and waits. Before it
+plans it calls Theseus's `gates()`, which gives this workstream's gate and whether the version on disk is accepted,
+with when, by whom and how, and it plans only when that version is accepted. The owner saying "accept" in the
+session's tab is not the gate: the session reports it with `accept_spec(slug, version, owner_words)`, quoting him, and
+Theseus asks him to confirm on the board; only then is it recorded, as said in that card's tab and confirmed on the
+board. Whichever way he accepts, Theseus tells the session: a stopped card is started with "Your spec (version <v>) was
+accepted: carry on to the plan", and a running one is told with its next turn. Every other board action that concerns
+a session (its proposal approved or rejected, a report to it confirmed) is told the same way, and `events()` lists them,
+so a session never asks the owner to do what he has already done.
+
+**Theseus writes a workstream's row; sessions write the rest.** When the owner approves a proposal from a card in a
+project, Theseus adds the new card's row under the objective the proposal names, with the branch and repos it names
+(none named: branch `none`, repos `read-only`, never invented). It writes a verifier card's row too. A proposal from a
+project's card must name its objective. Everything else in `project.md` (objectives, criteria, ticks, decisions and
+prose) is written by sessions.
+
 ## The evidence result block
 
 `work/<slug>/evidence.md` carries the verify stage's result as a fenced block tagged `theseus-evidence`, holding

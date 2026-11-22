@@ -86,6 +86,7 @@ public sealed class PropertiesViewModel
                 new("Objective", ObjectiveText(piece)),
                 new("Records", piece.RecordsFolder ?? "no records folder in the project"),
                 new("Evidence", node.Evidence),
+                .. piece.IsFreeform ? [] : new PropertyRowViewModel[] { new("Accepted", AcceptedText(piece)) },
                 new("Stages", string.Join("  ", node.Stages.Select(stage => stage.Label))),
             ],
             Links = node.LinkLines,
@@ -184,6 +185,22 @@ public sealed class PropertiesViewModel
             ],
             Buttons = heading.AddObjective is { } add ? [add] : [],
         };
+
+    // When, by whom and how its spec was accepted, and whether a session reported more since (1.1e AC 29).
+    private static string AcceptedText(PieceOfWork piece)
+    {
+        var accepted = piece.Acceptance?.Describe(TimeZoneInfo.Local) ?? "not yet";
+
+        // Said when the record is of an earlier version (review of PR 6, finding 15).
+        if (piece.Acceptance is not null && piece.Stages.OfType<SpecStageNode>().Any(spec => spec.IsChangedSinceAccepted))
+        {
+            accepted += "; an earlier version: the spec has changed since";
+        }
+
+        return piece.Reported is { } reported
+            ? $"{accepted}; {reported.CardTitle}'s session reports you accepted version {reported.ContentHash[..Math.Min(7, reported.ContentHash.Length)]} in its tab: confirm on the board"
+            : accepted;
+    }
 
     private static string ObjectiveText(PieceOfWork piece) =>
         piece.ObjectiveNumber is { } number ? $"{number} {piece.ObjectiveTitle}" : "not in project.md";

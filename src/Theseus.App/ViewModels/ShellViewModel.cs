@@ -31,6 +31,11 @@ public sealed class ShellViewModel : ObservableObject
     private readonly ProjectFolderWatcher _projectWatcher;
     private bool _hasProjectsFolder;
     private readonly SpecAcceptanceStore _acceptances;
+    private readonly ReportedAcceptanceStore _reported;
+    private readonly OwnerEventLog _ownerEvents = new(Path.Combine(App.DataDirectory, "owner-events.jsonl"));
+    private SessionTells? _sessionTells;
+
+    private SessionTells Tells => _sessionTells ??= new SessionTells(new StopRequestStore(StopRequestRoot.Tells), _ownerEvents);
     private IReadOnlyList<SessionRun>? _refreshRuns;
     private string? _openProjectName;
     private ProjectViewModel? _projectView;
@@ -138,15 +143,19 @@ public sealed class ShellViewModel : ObservableObject
             WireProjects();
         }), TimeSpan.FromMilliseconds(500), TimeSpan.FromSeconds(1.5));
         _acceptances = new SpecAcceptanceStore(Path.Combine(App.DataDirectory, "spec-acceptances.json"));
+        _reported = new ReportedAcceptanceStore(Path.Combine(App.DataDirectory, "reported-acceptances.json"));
         CloseProjectCommand = new RelayCommand(_ => CloseProject(), _ => IsProjectOpen);
         NewProjectCommand = new RelayCommand(_ => NewProject());
         BringProjectWindowForwardCommand = new RelayCommand(_ => BringProjectWindowForward(),
             _ => IsProjectOpen && _projectWindow.SessionId is not null && Sessions.Find(_projectWindow.SessionId) is not null);
         launcher.ReadableProjects = () => _projectReads.ReadableNames;
-        // Asked at each start, from the settings as they are then; the card's own branch is named after its records folder,
-        // as its row's branch is (review of PR 2c, finding 1).
+        // Asked at each start, from the settings as they are then; the card's own branch is named after its records folder
+        // (review of PR 2c, finding 1). A card with a role of its own, or whose row's branch is none, gets none: Theseus
+        // wrote it no branch to make (review of 1.1e PR 6, finding 7).
         launcher.BranchRulesFor = workstream =>
-            ProjectBranchRules.GrantedPrimary(workstream.Project, _settings.Read().ProjectBranchRules, PrimaryBranchOf) is { } primary
+            workstream.Role == WorkstreamRole.None
+            && !string.Equals(RowBranchOf(workstream), Theseus.Core.Proposals.ProposalRow.NoBranch, StringComparison.OrdinalIgnoreCase)
+            && ProjectBranchRules.GrantedPrimary(workstream.Project, _settings.Read().ProjectBranchRules, PrimaryBranchOf) is { } primary
                 ? ProjectBranchRules.Text(primary, workstream.Slug ?? workstream.Key)
                 : null;
         _projectReads.Changed += (_, _) => WireProjectChoices();
@@ -270,6 +279,11 @@ public sealed class ShellViewModel : ObservableObject
                 }
 
                 var joined = approved is null ? null : JoinProposersProject(card, approved);
+
+                if (approved is not null)
+                {
+                    Tell(Board.Card(approved.RequesterKey), OwnerEvents.Approved(approved.Request.Title, card.Title, card.Key));
+                }
 
                 if (created.StartNow)
                 {
@@ -1147,6 +1161,7 @@ public sealed class ShellViewModel : ObservableObject
         Timed("stops", StopsChanged);
         Timed("account", () => SyncAccount());
         _stopRequests.Sweep(DateTimeOffset.UtcNow, _closed.IsFinished);
+        Tells.Waiting.Sweep(DateTimeOffset.UtcNow, _ => true);
     }
 
     // Start-up has taken anything from 4 seconds to over 2 minutes on the same machine, with nothing
@@ -1177,6 +1192,7 @@ public sealed class ShellViewModel : ObservableObject
             return;
         }
 
+        NewWorkstream.WhyCannotApprove = WhyCannotApprove;
         NewWorkstream.OpenProposal(parent.Workstream, proposal);
     }
 
@@ -1197,6 +1213,11 @@ public sealed class ShellViewModel : ObservableObject
         if (Board.Card(proposal.RequesterKey) is not { } parent)
         {
             return Theseus.Core.Proposals.ProposalApproval.Refused($"{proposal.RequesterKey} is no longer on the board.");
+        }
+
+        if (WhyCannotApprove(proposal) is { } cannot)
+        {
+            return Theseus.Core.Proposals.ProposalApproval.Refused($"It cannot be approved yet: {cannot}");
         }
 
         NewWorkstream.OpenProposal(parent.Workstream, proposal);
@@ -1310,6 +1331,44 @@ public sealed class ShellViewModel : ObservableObject
         _ => null,
     };
 
+    /// <summary>
+    /// Finds each project's holdout folder (1.1e AC 6e) and writes those in force to holdout-folders.json, which the
+    /// holdout guard reads, so the board and the guard always agree.
+    /// </summary>
+    private void RefreshHoldouts(IReadOnlyList<Workstream> cards)
+    {
+        _holdouts.Refresh(_holdoutFolder, _settings.Read().ProjectHoldoutFolders, HoldoutBesideRepo, cards);
+
+        if (HoldoutFolderFile.Write(HoldoutFolderFile.PathIn(), _holdouts.Entries))
+        {
+            TheseusLog.Information("Wrote the holdout folders in force: {Folders}",
+                string.Join("; ", _holdouts.Entries.Select(entry => $"{entry.Project}: {entry.Folder} ({entry.HowFound})")));
+        }
+
+        if (Settings is not null)
+        {
+            Settings.HoldoutEntries = _holdouts.Entries;
+        }
+    }
+
+    /// <summary>
+    /// The <c>&lt;repo&gt;-holdout</c> folder beside the clone of a project's home code repo, when there is one: the repo its
+    /// Repos table marks home, else the first, found among the folders its cards work in.
+    /// </summary>
+    private string? HoldoutBesideRepo(string project)
+    {
+        var reading = _projectReads.Current.FirstOrDefault(each => string.Equals(each.Name, project, StringComparison.OrdinalIgnoreCase));
+        var members = _projectReads.History.CardsOf(project);
+        // Only cards that build: a verifier, scenario writer or updater works in or beside a holdout (review of PR 7, 4).
+        var folders = Board.Cards
+            .Where(card => card.Workstream.Role == WorkstreamRole.None
+                           && (members.Contains(card.Key) || string.Equals(card.Workstream.Project, project, StringComparison.OrdinalIgnoreCase)))
+            .SelectMany(card => new[] { card.Workstream.WorkingDirectory }.Concat(card.Workstream.AddDirectories))
+            .Where(folder => !folder.Contains(HomeRepo.HoldoutSuffix, StringComparison.OrdinalIgnoreCase));
+
+        return HomeRepo.HoldoutBeside(HomeRepo.Clone(HomeRepo.NameIn(reading?.Text), folders));
+    }
+
     /// <summary>Opens Options at the holdout scenarios folder (1.1e AC 6a).</summary>
     private void OpenHoldoutSetting()
     {
@@ -1324,7 +1383,11 @@ public sealed class ShellViewModel : ObservableObject
     private void WriteScenarios(WorkstreamCardViewModel card)
     {
         var holdout = HoldoutOf(card);
-        holdout.Ensure();
+
+        if (holdout.IsDefault && !holdout.Ensure())
+        {
+            Notice = $"{holdout.Folder} could not be made a git repository (is git installed?); the scenarios there will have no history.";
+        }
         var project = card.Workstream.Project;
         var reading = project is null ? null : Readable(project);
         var writer = ScenarioWriterCard.For(reading?.File?.Title ?? card.Title, holdout.Folder, reading?.Folder);
@@ -1381,10 +1444,16 @@ public sealed class ShellViewModel : ObservableObject
         }
 
         Chains?.FollowedOn(card.Key, key, verifier.ReportPath);
+        Notice = $"Created {verifier.Title}. Start it when you are ready.";
+
+        if (Board.Card(key) is { } made)
+        {
+            WriteVerifierRow(card, made);
+        }
+
         WireProjectChoices();
 
         TheseusLog.Information("Created {Verifier} to verify {Workstream} with the holdout scenarios", key, card.Key);
-        Notice = $"Created {verifier.Title}. Start it when you are ready.";
     }
 
     /// <summary>A project workstream's records folder in its project home, as last read; null for any other card.</summary>
@@ -1530,40 +1599,70 @@ public sealed class ShellViewModel : ObservableObject
     }
 
     /// <summary>
-    /// A card made from a proposal by a card in a project joins that project (1.1c AC 3): its row goes under the
-    /// proposer's objective, with the slug the proposal named, else the new card's key. The approval is the owner's act,
-    /// so the row is written as Add to project… writes it; a proposal from an ad hoc card makes an ad hoc card.
+    /// A card made from a proposal by a card in a project joins that project (1.1e AC 31): its row goes under the objective
+    /// the proposal names, with its records folder name, branch and repos (none named: branch none, repos read-only),
+    /// written as Add to project… writes it and refused if the file changed underneath. A proposal from an ad hoc card
+    /// makes an ad hoc card.
     /// </summary>
     private string? JoinProposersProject(WorkstreamCardViewModel card, Theseus.Core.Proposals.WorkstreamProposal proposal)
     {
-        if (Board.Card(proposal.RequesterKey) is not { Workstream: { Project: { } project, Slug: { } proposerSlug } }
-            || Readable(project)?.File is not { } file
-            || file.ObjectiveOf(proposerSlug) is not { } objective)
+        if (Board.Card(proposal.RequesterKey) is not { Workstream.Project: { } project } || Readable(project)?.File is not { } file)
         {
             return null;
         }
 
-        var slug = proposal.Request.Slug is { } named && ProjectMembership.IsSlug(named) ? named
-            : ProjectMembership.IsSlug(card.Key) ? card.Key
-            : null;
-
-        if (slug is null)
+        if (Theseus.Core.Proposals.ProposalRow.For(file, proposal.Request, card.Key) is not { } placed)
         {
-            return $"Created {card.Title}, not in {project}: give it a slug with Add to project….";
+            return $"Created {card.Title}, not in {project}: "
+                   + (Theseus.Core.Proposals.ProposalRow.WhyNot(file, proposal.Request) ?? "it has no records folder name; add it with Add to project….");
         }
 
-        var row = new ProjectWorkstreamRow(card.Key, slug, BranchFor(file, slug), ReposOf(card), 0);
-
-        if (!EditProject(project, text => ProjectFileEditor.AddRow(text, objective.Number, row),
-                $"Created {card.Title}, in {project} as {slug} under objective {objective.Number}."))
+        if (!EditProject(project, text => ProjectFileEditor.AddRow(text, placed.Objective, placed.Row),
+                $"Created {card.Title}, in {project} as {placed.Row.Slug} under objective {placed.Objective}."))
         {
             return $"Created {card.Title}, not in {project}: {Notice}";
         }
 
         // In the project now, not when the read lands, so a Start now opens it in the project's window.
-        card.Workstream = card.Workstream with { Project = project, Slug = slug };
+        card.Workstream = card.Workstream with { Project = project, Slug = placed.Row.Slug };
 
         return Notice;
+    }
+
+    /// <summary>
+    /// Why a proposal cannot be approved yet, or null (1.1e AC 31): one from a card in a project must name an objective of
+    /// its file, and the file must read.
+    /// </summary>
+    private string? WhyCannotApprove(Theseus.Core.Proposals.WorkstreamProposal proposal) =>
+        Board.Card(proposal.RequesterKey) is not { Workstream.Project: { } project }
+            ? null
+            : Readable(project) is { File: { } file } reading
+                ? Theseus.Core.Proposals.ProposalRow.WhyNot(file, proposal.Request)
+                  ?? (ProjectFileWriter.IsCurrent(reading) ? null : $"{project}'s project.md changed since Theseus read it; wait a moment and try again.")
+                : $"{project}'s project.md does not read, so its row cannot be written. Update it first.";
+
+    /// <summary>
+    /// A verifier's row (1.1e AC 31): under the checked card's objective, its records folder verify-&lt;slug&gt;, branch none
+    /// and repos read-only.
+    /// </summary>
+    private void WriteVerifierRow(WorkstreamCardViewModel checkedCard, WorkstreamCardViewModel verifier)
+    {
+        if (checkedCard.Workstream is not { Project: { } project, Slug: { } slug }
+            || Readable(project)?.File is not { } file
+            || file.ObjectiveOf(slug) is not { } objective)
+        {
+            return;
+        }
+
+        var row = Theseus.Core.Proposals.ProposalRow.ForVerifier(file, slug, verifier.Key);
+        var name = row.Slug;
+
+        if (EditProject(project, text => ProjectFileEditor.AddRow(text, objective.Number, row),
+                $"Created {verifier.Title}, in {project} as {name} under objective {objective.Number}. Start it when you are ready."))
+        {
+            verifier.Workstream = verifier.Workstream with { Project = project, Slug = name };
+            Board.Persist(verifier);
+        }
     }
 
     /// <summary>Remove from project on a card (1.1c AC 7): removes its rows; its records stay.</summary>
@@ -1762,7 +1861,7 @@ public sealed class ShellViewModel : ObservableObject
         Board.KeepOutOfGrid = ProjectGridRule.KeepOutOfGrid(memberOf, anyMembers);
 
         // Membership has just been read, so the holdout folders are looked at again by project (1.1e AC 6c).
-        _holdouts.Refresh(_holdoutFolder, [.. cards.Select(card => card.Workstream)]);
+        RefreshHoldouts([.. cards.Select(card => card.Workstream)]);
 
         foreach (var card in cards)
         {
@@ -1777,6 +1876,7 @@ public sealed class ShellViewModel : ObservableObject
 
         // Read once per wiring, not once per project.
         IReadOnlyList<SpecAcceptance> acceptances = readable.Count == 0 ? [] : _acceptances.Load();
+        IReadOnlyList<ReportedAcceptance> reportedAcceptances = readable.Count == 0 ? [] : _reported.Load();
         IReadOnlyList<PieceCard> pieceCards = readable.Count == 0 ? [] : [.. cards.Select(PieceCardOf)];
         var links = Chains?.AllLinks ?? [];
         var dimmed = readings.Where(reading =>
@@ -1788,10 +1888,15 @@ public sealed class ShellViewModel : ObservableObject
 
         foreach (var reading in readable)
         {
-            var pieces = PiecesOfWork.Build(reading, slug => acceptances.LastOrDefault(acceptance =>
+            IReadOnlyList<PieceOfWork> pieces = PiecesOfWork.Build(reading, slug => acceptances.LastOrDefault(acceptance =>
                     string.Equals(acceptance.Project, reading.Name, StringComparison.OrdinalIgnoreCase)
                     && string.Equals(acceptance.Slug, slug, StringComparison.OrdinalIgnoreCase)),
                 pieceCards, links, _projectReads.Members);
+            pieces = [.. pieces.Select(piece => reportedAcceptances.LastOrDefault(report =>
+                    string.Equals(report.Project, reading.Name, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(report.Slug, piece.Name, StringComparison.OrdinalIgnoreCase)) is { } reported
+                ? piece with { Reported = reported }
+                : piece)];
             var waitingSpecs = ProjectViewModel.SpecsWaiting(reading, pieces);
             var file = reading.File!;
 
@@ -2133,17 +2238,149 @@ public sealed class ShellViewModel : ObservableObject
     {
         ArgumentNullException.ThrowIfNull(spec);
 
-        if (!_acceptances.AcceptIfConfirmed(spec, ConfirmAcceptSpec, DateTimeOffset.UtcNow))
+        // The question names the card it reaches and, when its session reported the owner's words, quotes them; the record
+        // says who and how (1.1e AC 27 to 29).
+        var card = CardOfPiece(spec.Project, spec.Slug);
+        var report = _reported.For(spec.Project, spec.Slug) is { } said && string.Equals(said.ContentHash, spec.ContentHash, StringComparison.Ordinal)
+            ? said
+            : null;
+        var how = report is null ? SpecAcceptance.OnTheBoard : SpecAcceptance.SaidIn(report.CardTitle);
+
+        if (!_acceptances.AcceptIfConfirmed(spec, ConfirmAcceptSpec, DateTimeOffset.UtcNow, spec.QuestionFor(card?.Title, report, card?.IsLive ?? true),
+                Environment.UserName, how))
         {
             return false;
         }
 
-        TheseusLog.Information("Accepted the spec of {Slug} in {Project}, version {Version}", spec.Slug, spec.Project, spec.ContentHash);
-        Notice = $"Accepted the spec of {spec.Slug}, version {spec.ShortVersion}.";
+        _reported.Remove(spec.Project, spec.Slug);
+        TheseusLog.Information("Accepted the spec of {Slug} in {Project}, version {Version}, {How}", spec.Slug, spec.Project, spec.ContentHash, how);
+        var accepted = $"Accepted the {(spec.IsRule ? "rule" : "spec")} of {spec.Slug}, version {spec.ShortVersion}.";
+        Notice = accepted;
+        var told = TellAccepted(card, spec);
+        Notice = string.Equals(Notice, accepted, StringComparison.Ordinal) ? $"{accepted} {told}" : $"{accepted} {told} {Notice}";
         WireProjectChoices();
 
         return true;
     }
+
+    /// <summary>
+    /// Tells the card of an accepted spec (1.1e AC 27): a running one with its next turn, as a stop request is told; a
+    /// stopped one is started with the text. What was done, for the notice.
+    /// </summary>
+    private string TellAccepted(WorkstreamCardViewModel? card, SpecAtGate spec)
+    {
+        if (card is null)
+        {
+            return "No card works it, so no session was told.";
+        }
+
+        if (Tell(card, AcceptedTell.Text(spec)))
+        {
+            return $"{card.Title} is told with its next turn.";
+        }
+
+        StartMany([card.Workstream with { StartInstruction = AcceptedTell.Text(spec) }], trigger: "SpecAccepted");
+
+        return $"Starting {card.Title}, told to carry on to the plan.";
+    }
+
+    /// <summary>
+    /// Tells a card's session of something the owner did on the board (1.1e AC 27a): logged for events(), and given to a
+    /// running session with its next turn, joined to anything else still waiting for it. Whether a session was running.
+    /// It never starts a card.
+    /// </summary>
+    private bool Tell(WorkstreamCardViewModel? card, string text) =>
+        card is not null && Tells.Tell(card.Key, card.Title, card.IsLive, card.Workstream.LastSessionId, text, DateTimeOffset.UtcNow);
+
+    /// <summary>events() (1.1e AC 27a): what the owner did on the board that concerns the calling card, since it last asked.</summary>
+    public string EventsFor(string callerKey) =>
+        OwnerEvents.Describe(_ownerEvents.TakeNew(callerKey, DateTimeOffset.UtcNow), TimeZoneInfo.Local);
+
+    /// <summary>A proposal the owner rejected on the board: its proposer is told, with his note (1.1e AC 27a).</summary>
+    public void ProposalRejected(Theseus.Core.Proposals.WorkstreamProposal proposal, string? note)
+    {
+        ArgumentNullException.ThrowIfNull(proposal);
+        Tell(Board.Card(proposal.RequesterKey), OwnerEvents.Rejected(proposal.Request.Title, note));
+    }
+
+    /// <summary>The Branch cell of a card's row in its project file, or null.</summary>
+    private string? RowBranchOf(Workstream workstream) =>
+        workstream is { Project: { } project, Slug: { } slug }
+            ? Readable(project)?.File?.Workstreams.LastOrDefault(row => string.Equals(row.Slug, slug, StringComparison.OrdinalIgnoreCase))?.Branch
+            : null;
+
+    /// <summary>The card that works a piece of work: its last row in the project file.</summary>
+    private WorkstreamCardViewModel? CardOfPiece(string project, string slug) =>
+        Readable(project)?.File?.Workstreams.LastOrDefault(row => string.Equals(row.Slug, slug, StringComparison.OrdinalIgnoreCase)) is { } row
+            ? Board.Card(row.Workstream)
+            : null;
+
+    /// <summary>gates() (1.1e AC 28): the calling card's gate, for the version on disk now.</summary>
+    public string GatesFor(string callerKey)
+    {
+        if (Board.Card(callerKey) is { Workstream.Role: not WorkstreamRole.None })
+        {
+            return SpecGates.NoGateForRole;
+        }
+
+        if (Board.Card(callerKey) is not { Workstream: { Project: { } project, Slug: { } slug } })
+        {
+            return "This workstream is not in a project's workstreams table, so it has no owner's gate: work as the owner asks in this tab.";
+        }
+
+        if (Readable(project) is not { } reading)
+        {
+            return $"{project}'s project.md does not read now, so its gates cannot be read. Ask the owner.";
+        }
+
+        var gate = SpecGates.State(SpecGates.SpecOf(reading, slug), _acceptances.Latest(project, slug), _reported.For(project, slug));
+
+        return SpecGates.Describe(gate, project, slug, TimeZoneInfo.Local);
+    }
+
+    /// <summary>
+    /// accept_spec (1.1e AC 28): keeps the owner's words for him to confirm on the board, or says why not. It accepts
+    /// nothing.
+    /// </summary>
+    public string? ReportAcceptance(string callerKey, string slug, string version, string ownerWords)
+    {
+        if (Board.Card(callerKey) is not { } card)
+        {
+            return "This workstream is not on the board.";
+        }
+
+        var project = card.Workstream.Project;
+        var reading = project is null ? null : Readable(project);
+        var spec = reading is null ? null : SpecGates.SpecOf(reading, slug);
+
+        if (SpecGates.WhoMayReport(project, card.Workstream.Slug, card.Workstream.Role, slug,
+                spec is not null && _acceptances.WhyNotAccept(spec) is not null, spec?.ShortVersion) is { } cannot)
+        {
+            return cannot;
+        }
+
+        if (reading is null)
+        {
+            return $"{project}'s project.md does not read now, so its spec cannot be checked. Ask the owner.";
+        }
+
+        var (report, refusal) = SpecGates.Report(spec, version, card.Key, card.Title, ownerWords, DateTimeOffset.UtcNow);
+
+        if (refusal is not null || report is null)
+        {
+            return refusal;
+        }
+
+        _reported.Report(report);
+        TheseusLog.Information("{Card} reports the owner accepted the spec of {Slug}, version {Version}, in its tab", card.Key, slug, report.ContentHash);
+        Notice = $"{card.Title}'s session reports you accepted the spec of {slug} in its tab: confirm it on the board, in {project}'s view.";
+        WireProjectChoices();
+
+        return null;
+    }
+
+    /// <summary>The session tools on its gate, for the MCP server.</summary>
+    public Theseus.Core.Mcp.ISpecGates SpecGatesOnBoard => new SpecGatesOnBoard(GatesFor, ReportAcceptance);
 
     /// <summary>Shows a spec window. Set by the App; one window per piece of work, brought forward if open already.</summary>
     public Action<SpecWindowViewModel>? ShowSpec { get; set; }
@@ -2182,6 +2419,9 @@ public sealed class ShellViewModel : ObservableObject
     public void ReportConfirmed(Link link)
     {
         ArgumentNullException.ThrowIfNull(link);
+
+        // Its recipient is told (1.1e AC 27a).
+        Tell(Board.Card(link.To), OwnerEvents.Confirmed(link.Kind, Board.Card(link.From)?.Title ?? link.From, link.Output));
 
         if (Board.Card(link.From) is not { IsLive: true } card
             || !VerifierEnding.StopsOnConfirm(link.Kind, card.Workstream.Role))
@@ -2699,7 +2939,7 @@ public sealed class ShellViewModel : ObservableObject
         var lastStage = Board.Stages.LastOrDefault();
         var reasons = _settings.Read();
         _branchGrants = reasons.ProjectBranchRules;
-        _holdouts.Refresh(_holdoutFolder, [.. Board.Cards.Select(card => card.Workstream)]);
+        RefreshHoldouts([.. Board.Cards.Select(card => card.Workstream)]);
 
         foreach (var card in Board.Cards)
         {
@@ -3430,6 +3670,18 @@ public sealed class ShellViewModel : ObservableObject
         foreach (var candidate in workstreams)
         {
             var workstream = Board.Pin(candidate);
+
+            // What the owner's board actions told its last session, still waiting, is given with this start instead, so it
+            // is neither lost nor told twice (review of PR 6, finding 3).
+            if (Tells.TakeForStart(workstream.LastSessionId, DateTimeOffset.UtcNow) is { } waitingTell)
+            {
+                workstream = workstream with
+                {
+                    StartInstruction = string.IsNullOrWhiteSpace(workstream.StartInstruction)
+                        ? waitingTell
+                        : $"{workstream.StartInstruction}{Environment.NewLine}{Environment.NewLine}{waitingTell}",
+                };
+            }
 
             if (_launcher.Launch(workstream, _plans.PathFor(workstream.Key), startMode) is not { } sessionId)
             {
