@@ -9,7 +9,7 @@
 //   no role                    a tool naming the holdout is refused;
 //   THESEUS_ROLE=verifier      may read, search and list the holdout, and write only in its results folder; may not
 //                              write anywhere else, nor run a shell command naming the holdout;
-//   THESEUS_HOLDOUT_AUTHOR=1   may do anything.
+//   THESEUS_HOLDOUT_AUTHOR=1   may do anything in the holdout; not write Theseus's files, the guard or its hook.
 //
 // For every role but author, no shell command runs with its working directory inside the holdout, and no file tool
 // writes Theseus's own settings or board.
@@ -270,10 +270,6 @@ function deny(reason) {
 let raw = '';
 process.stdin.on('data', chunk => { raw += chunk; });
 process.stdin.on('end', () => {
-    if (process.env.THESEUS_HOLDOUT_AUTHOR === '1') {
-        process.exit(0);
-    }
-
     const holdout = readHoldout();
 
     let tool = '';
@@ -312,6 +308,12 @@ process.stdin.on('end', () => {
             deny('The holdout guard and the Claude Code hook that runs it are installed from Theseus (Tools > Options, '
                 + 'Holdouts), not by a session.');
         }
+    }
+
+    // An author writes the scenarios, so the holdout itself is open to it; the files above are not (review of the
+    // install, S4).
+    if (process.env.THESEUS_HOLDOUT_AUTHOR === '1') {
+        process.exit(0);
     }
 
     // Where the tool acts: its path fields resolved against the working directory, and the working directory itself

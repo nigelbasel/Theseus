@@ -169,7 +169,141 @@ public class HoldoutGuardInstallationTests
         Assert.That(state.OutOfDateNotice(HoldoutGuardBundle.Version), Is.Null, "already said for this guard");
     }
 
-    private HoldoutGuardInstallation Installation() => new(_config);
+    [Test]
+    public void HooksOfAnUnexpectedShape_AreNeverReplaced()
+    {
+        const string odd = """{ "hooks": { "PreToolUse": { "matcher": "Bash", "hooks": [ { "type": "command", "command": "node lock.js" } ] } } }""";
+        File.WriteAllText(Path.Combine(_config, "settings.json"), odd);
+
+        var outcome = Installation().AddHookEntry();
+
+        Assert.That(outcome.Succeeded, Is.False, "review of the install, M1: the user's hook was deleted");
+        Assert.That(File.ReadAllText(Path.Combine(_config, "settings.json")), Is.EqualTo(odd));
+    }
+
+    [Test]
+    public void TheSettingsStayReadable_AsTheChangeShownDoes()
+    {
+        File.WriteAllText(Path.Combine(_config, "settings.json"), """{ "statusLine": "it's café > tea & <cake>" }""");
+        var installation = Installation();
+
+        var change = installation.HookEntryChange()!;
+        installation.AddHookEntry();
+        var written = File.ReadAllText(Path.Combine(_config, "settings.json"));
+
+        Assert.That(change, Does.Contain("2>/dev/null").And.Not.Contain(@"\u00"), "review of the install, M2");
+        Assert.That(written, Does.Contain("it's café > tea & <cake>").And.Contain("2>/dev/null").And.Not.Contain(@"\u00"));
+    }
+
+    [Test]
+    public void SettingsWithADuplicateKey_DoNotStopTheseus()
+    {
+        File.WriteAllText(Path.Combine(_config, "settings.json"), """{ "model": "a", "model": "b" }""");
+
+        Assert.That(() => Installation().State(), Throws.Nothing, "review of the install, M3: Theseus failed to start");
+        Assert.That(Installation().AddHookEntry().Succeeded, Is.False, "it does not read as settings, so nothing is written");
+    }
+
+    [Test]
+    public void InstallingAgainWhenUpToDate_KeepsTheOldCopyForUndo()
+    {
+        RequireNode();
+        var guard = Path.Combine(_config, "bin", "holdout-guard.js");
+        Directory.CreateDirectory(Path.GetDirectoryName(guard)!);
+        File.WriteAllText(guard, "// the 18 November guard");
+        var installation = Installation();
+
+        installation.Install();
+        installation.Install();
+        installation.Undo();
+
+        Assert.That(File.ReadAllText(guard), Is.EqualTo("// the 18 November guard"), "review of the install, S1");
+    }
+
+    [TestCase("node \"$HOME/.claude/my hooks/holdout-guard.js\" 2>/dev/null")]
+    [TestCase("node \"${HOME}/.claude/my hooks/holdout-guard.js\"")]
+    [TestCase("node \"%USERPROFILE%\\.claude\\my hooks\\holdout-guard.js\"")]
+    [TestCase("node '~/.claude/my hooks/holdout-guard.js'")]
+    [TestCase("node \"$CLAUDE_CONFIG_DIR/my hooks/holdout-guard.js\"")]
+    public void TheGuardPath_IsReadAsTheHookRunsIt(string command)
+    {
+        WriteSettings(command);
+
+        Assert.That(Installation().State().GuardPath, Is.EqualTo(Path.Combine(_config, "my hooks", "holdout-guard.js")),
+            "review of the install, S2");
+    }
+
+    [Test]
+    public void AGitBashGuardPath_IsTheWindowsPath()
+    {
+        var windows = Path.Combine(_config, "bin", "holdout-guard.js");
+        WriteSettings($"node \"/{char.ToLowerInvariant(windows[0])}{windows[2..].Replace('\\', '/')}\"");
+
+        Assert.That(Installation().State().GuardPath, Is.EqualTo(windows), "review of the install, S2");
+    }
+
+    [Test]
+    public void ABackupOfTheGuard_IsNotTheGuard()
+    {
+        WriteSettings("node \"$HOME/.claude/bin/holdout-guard.js.bak\"");
+
+        Assert.That(Installation().State().HookIsRegistered, Is.False, "review of the install, S2");
+    }
+
+    [Test]
+    public void AGuardRunFromOutsideTheClaudeFolder_IsNotOverwritten()
+    {
+        var repoCopy = Path.Combine(_home, "src", "Theseus", "tools", "holdout", "holdout-guard.js");
+        Directory.CreateDirectory(Path.GetDirectoryName(repoCopy)!);
+        File.WriteAllText(repoCopy, "// tracked in a repo");
+        WriteSettings($"node \"{repoCopy.Replace('\\', '/')}\"");
+
+        var outcome = Installation().Install();
+
+        Assert.That(outcome.Succeeded, Is.False, "review of the install, S3: it overwrote a file a repo tracks");
+        Assert.That(outcome.Message, Does.Contain("outside Claude Code's folder"));
+        Assert.That(File.ReadAllText(repoCopy), Is.EqualTo("// tracked in a repo"));
+    }
+
+    [Test]
+    public void AHookForSomeToolsOnly_IsNotTheGuardRegistered()
+    {
+        File.WriteAllText(Path.Combine(_config, "settings.json"),
+            """{ "hooks": { "PreToolUse": [ { "matcher": "Bash", "hooks": [ { "type": "command", "command": "node \"$HOME/.claude/bin/holdout-guard.js\"" } ] } ] } }""");
+
+        Assert.That(Installation().State().HookIsRegistered, Is.False, "review of the install, S6: it must run before every tool");
+    }
+
+    [Test]
+    public void AGuardThatHangs_FailsTheCheck_InsteadOfHangingTheseus()
+    {
+        RequireNode();
+        var guard = Path.Combine(_home, "hanging.js");
+        File.WriteAllText(guard, "setInterval(() => {}, 1000);");
+
+        var proof = HoldoutGuardProof.Run(guard, TimeSpan.FromSeconds(2));
+
+        Assert.That(proof.Succeeded, Is.False, "review of the install, S5");
+        Assert.That(proof.Message, Does.Contain("did not answer"));
+    }
+
+    [Test]
+    public void ARelativeConfigFolder_DoesNotStopTheseus()
+    {
+        Assert.That(() => new HoldoutGuardInstallation(".claude-relative", _home).State(), Throws.Nothing,
+            "review of the install, consider: .First() threw");
+    }
+
+    [TearDown]
+    public void RemoveFixtureFolder()
+    {
+        if (Directory.Exists(_home))
+        {
+            Directory.Delete(_home, recursive: true);
+        }
+    }
+
+    private HoldoutGuardInstallation Installation() => new(_config, _home);
 
     private void WriteSettings(string command) =>
         File.WriteAllText(Path.Combine(_config, "settings.json"), new JsonObject

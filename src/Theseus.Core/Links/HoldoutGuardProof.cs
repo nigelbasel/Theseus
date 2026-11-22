@@ -19,10 +19,24 @@ public static class HoldoutGuardProof
 
     /// <summary>Runs the guard at a path against a fixture folder.</summary>
     /// <param name="guardPath">The installed guard.</param>
-    public static HoldoutGuardOutcome Run(string guardPath)
+    /// <param name="timeout">How long each run may take; null for 15 seconds. The hook itself allows 10.</param>
+    public static HoldoutGuardOutcome Run(string guardPath, TimeSpan? timeout = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(guardPath);
 
+        try
+        {
+            return Check(guardPath, timeout ?? TimeSpan.FromSeconds(15));
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException
+                                          or System.ComponentModel.Win32Exception)
+        {
+            return new HoldoutGuardOutcome(false, $"Could not run the check: {exception.Message}");
+        }
+    }
+
+    private static HoldoutGuardOutcome Check(string guardPath, TimeSpan timeout)
+    {
         if (FindNode() is not { } node)
         {
             return new HoldoutGuardOutcome(false, "Node is not on the PATH, so the hook cannot run the guard.");
@@ -37,13 +51,25 @@ public static class HoldoutGuardProof
 
         try
         {
-            if (!Refuses(node, guardPath, fixture, settings, scenario, role: null))
+            var noRole = Refuses(node, guardPath, fixture, settings, scenario, role: null, timeout);
+            if (noRole is null)
+            {
+                return new HoldoutGuardOutcome(false, $"Checked on a fixture folder: the installed guard did not answer within {timeout.TotalSeconds:0} seconds.");
+            }
+
+            if (noRole == false)
             {
                 return new HoldoutGuardOutcome(false,
                     "Checked on a fixture folder: the installed guard did not refuse a read of the holdout by a session with no role, so it protects nothing.");
             }
 
-            if (Refuses(node, guardPath, fixture, settings, scenario, role: "verifier"))
+            var verifier = Refuses(node, guardPath, fixture, settings, scenario, role: "verifier", timeout);
+            if (verifier is null)
+            {
+                return new HoldoutGuardOutcome(false, $"Checked on a fixture folder: the installed guard did not answer within {timeout.TotalSeconds:0} seconds.");
+            }
+
+            if (verifier == true)
             {
                 return new HoldoutGuardOutcome(false,
                     "Checked on a fixture folder: the installed guard refused a verifier's read of the holdout, so no verifier can run.");
@@ -54,11 +80,20 @@ public static class HoldoutGuardProof
         }
         finally
         {
-            Directory.Delete(fixture, recursive: true);
+            try
+            {
+                Directory.Delete(fixture, recursive: true);
+            }
+            catch (IOException)
+            {
+                // A fixture left in the temp folder harms nothing.
+            }
         }
     }
 
-    private static bool Refuses(string node, string guardPath, string fixture, string settings, string scenario, string? role)
+    // Whether the guard refused, or null when it did not answer in time.
+    private static bool? Refuses(string node, string guardPath, string fixture, string settings, string scenario, string? role,
+        TimeSpan timeout)
     {
         var start = new ProcessStartInfo(node)
         {
@@ -87,9 +122,15 @@ public static class HoldoutGuardProof
             tool_input = new { file_path = scenario },
         }));
         process.StandardInput.Close();
-        var output = process.StandardOutput.ReadToEnd();
-        process.WaitForExit(30_000);
+        var output = process.StandardOutput.ReadToEndAsync();
 
-        return output.Contains("\"deny\"", StringComparison.Ordinal);
+        if (!process.WaitForExit(timeout))
+        {
+            process.Kill(entireProcessTree: true);
+
+            return null;
+        }
+
+        return output.Result.Contains("\"deny\"", StringComparison.Ordinal);
     }
 }

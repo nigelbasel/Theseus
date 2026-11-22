@@ -157,13 +157,13 @@ public partial class App : Application
             shell.Warn(warning);
         }
 
-        // Said once for each newer guard an update brings, until it is installed from Options (verifier-runs step 3).
         if (shell.Settings.Guard is { } guard)
         {
             guard.ConfirmChange = change => MessageBox.Show(MainWindow, change, "Add the holdout guard's hook entry?",
                 MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes;
         }
 
+        // Said once for each newer guard an update brings, until it is installed from Options.
         if (HoldoutGuardNotice(settings) is { } guardNotice)
         {
             TheseusLog.Warning("{Warning}", guardNotice);

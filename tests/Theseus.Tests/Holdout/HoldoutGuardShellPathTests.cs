@@ -192,6 +192,13 @@ public class HoldoutGuardShellPathTests
     }
 
     [Test]
+    public void AHoldoutAuthor_CannotRewriteTheGuardEither()
+    {
+        Assert.That(Guard("Write", "file_path", Path.Combine(_local, ".claude", "settings.json"), cwd: Code, role: "author"),
+            Is.True, "review of the install, S4: an author writes scenarios, not the guard");
+    }
+
+    [Test]
     public void TheRestOfTheClaudeFolder_StaysWritable()
     {
         Assert.That(Guard("Write", "file_path", Path.Combine(_local, ".claude", "projects", "x", "memory", "note.md"), cwd: Code),
@@ -230,7 +237,11 @@ public class HoldoutGuardShellPathTests
         start.Environment.Remove("THESEUS_ROLE");
         start.Environment.Remove("THESEUS_HOLDOUT_AUTHOR");
 
-        if (role is not null)
+        if (role == "author")
+        {
+            start.Environment["THESEUS_HOLDOUT_AUTHOR"] = "1";
+        }
+        else if (role is not null)
         {
             start.Environment["THESEUS_ROLE"] = role;
         }
