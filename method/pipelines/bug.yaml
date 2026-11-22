@@ -69,6 +69,8 @@ stages:
       blocks: true
 
   # Only when the fix needed a rule stage: a rule means new behaviour, which is what review is for (resumed-stop P7).
+    skip: never
+
   - id: review
     role: reviewer
     when: the rule stage ran

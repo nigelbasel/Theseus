@@ -153,7 +153,8 @@ A session in a project calls `now_at(stage, doing)` **on entering each stage** o
 doing in under 80 characters ("re-researching from the GUI's features"). The project view shows that stage busy, with
 those words, until the next call; with no call it says the session "has not said on what", and guesses nothing.
 
-**A stage may be skipped only where its pipeline says so** (each stage's `skip` in `pipelines/*.yaml`). Say so with
+**A stage may be skipped only where its pipeline says so** (each stage's `skip` in `pipelines/*.yaml`). A stage with
+no `skip` may not be skipped. Say so with
 `now_at(stage, "skipped: <reason>")`, or a line `<Stage>: <reason>` in `work/<slug>/skipped.md`. A feature's spec and
 the verify stage are never skipped: only the owner's acceptance passes the first, and only the evidence and the
 independent check pass the second. A bug's rule is written only when the fix needs one; with none, nothing needs

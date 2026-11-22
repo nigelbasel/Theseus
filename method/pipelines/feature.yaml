@@ -80,6 +80,7 @@ stages:
         every repo has a result, every result passes, and every holdout scenario the spec names has been run by
         an independent verifier and passed. A named scenario nobody could run keeps the stage open (P18).
       blocks: true
+    skip: never
 
   - id: review
     role: reviewer
