@@ -67,13 +67,26 @@ function folderPath(typed) {
 
 // A remote setting as host/owner/repo, whichever form was pasted: https://, ssh://, user@, host:owner, a trailing .git
 // (verify part 1 attempt 2, C13).
+// A remote that is a folder on disk is kept as typed: its drive's colon is not a host's (review of this change, S4).
 function remotePath(typed) {
-    return typed.trim().replace(/^[a-z][a-z0-9+.-]*:\/\//i, '').replace(/^[^@/]+@/, '').replace(/:(?!\d)/, '/')
+    const trimmed = typed.trim();
+    if (isLocalPath(trimmed)) {
+        return trimmed.replace(/[\\/]+$/, '').replace(/\.git$/i, '');
+    }
+    return trimmed.replace(/^[a-z][a-z0-9+.-]*:\/\//i, '').replace(/^[^@/]+@/, '').replace(/:(?!\d)/, '/')
         .replace(/\/+$/, '').replace(/\.git$/i, '');
 }
 
-// The owner/repo part of a remote, which gh and the hosts' APIs take alone; '' for a remote too short to have one.
+function isLocalPath(text) {
+    return /^([a-z]:[\\/]|[\\/]{2}[^\\/]|\/(mnt\/)?[a-z]\/)/i.test(text);
+}
+
+// The owner/repo part of a remote, which gh and the hosts' APIs take alone; '' for a remote too short to have one, or a
+// folder on disk.
 function ownerAndRepo(remote) {
+    if (isLocalPath(remote)) {
+        return '';
+    }
     const parts = remote.split('/').filter(part => part.length > 0);
     return parts.length >= 3 ? parts.slice(-2).join('/') : '';
 }
@@ -132,9 +145,11 @@ function names(text, location, alone = false) {
         while (index !== -1) {
             const before = index === 0 ? '' : haystack.charAt(index - 1);
             const rest = haystack.slice(index + needle.length);
-            // Alone, owner/repo after a host is that host's repo, which the whole remote decides; gh api's repos/ is not a host.
+            // Alone, owner/repo after a host is that host's repo, which the whole remote decides; gh api's repos/ and a
+            // raw-file host are not another repo's host.
             const wholeBefore = before === '' || !(NAME_CHARACTER.test(before) || before === '.'
-                || (alone && (before === '/' || before === ':') && !haystack.slice(0, index).endsWith('repos/')));
+                || (alone && (before === '/' || before === ':')
+                    && !/(^|[^a-z0-9_.-])(repos|raw\.githubusercontent\.com)\/$/.test(haystack.slice(0, index))));
             const wholeAfter = rest === '' || !(NAME_CHARACTER.test(rest.charAt(0)) || rest.charAt(0) === '.')
                 || /^\.git(?![a-z0-9_.-])/.test(rest);
             if (wholeBefore && wholeAfter) {
@@ -149,7 +164,7 @@ function names(text, location, alone = false) {
 // A path as the tool will use it: relative to the session's working directory, with any .. resolved, so that
 // "results\..\scenarios" is not under results and "scenarios\x" typed inside the holdout is in it (M1, S4).
 function resolve(value, cwd) {
-    const written = windowsPaths(value.replace(/\\ /g, ' ').replace(/\\/g, '/'));
+    const written = windowsPaths(value.replace(/\\/g, '/'));
     return path.win32.isAbsolute(written) || !cwd ? path.win32.resolve(written) : path.win32.resolve(cwd, written);
 }
 
@@ -158,16 +173,17 @@ function resolve(value, cwd) {
 function expandVariables(command) {
     const known = name => process.env[name] || (name === 'HOME' ? process.env.USERPROFILE : '') || '';
     return command
+        .replace(/\$\{env:(LOCALAPPDATA|USERPROFILE|HOME|APPDATA)\}/gi, (_, name) => known(name.toUpperCase()))
         .replace(/\$env:(LOCALAPPDATA|USERPROFILE|HOME|APPDATA)\b/gi, (_, name) => known(name.toUpperCase()))
         .replace(/\$\{?(LOCALAPPDATA|USERPROFILE|HOME|APPDATA)\}?(?![a-z0-9_])/gi, (_, name) => known(name.toUpperCase()))
         .replace(/%(LOCALAPPDATA|USERPROFILE|HOME|APPDATA)%/gi, (_, name) => known(name.toUpperCase()))
         .replace(/(^|[\s'"=(<>|;&])~(?=[\\/]|$|\s)/g, (_, lead) => lead + known('HOME'));
 }
 
-// The words of a shell command, as the shell would split them: quoted text kept whole, a Bash-escaped space kept in its
-// word, and operators and redirections as breaks. Each is then read as a path relative to where the command runs, so a
-// holdout reached as ../../holdout is seen (attempt 2, C11).
-function shellWords(command) {
+// The words of a shell command, as the shell would split them: quoted text kept whole, in Bash an escaped space kept in
+// its word (in PowerShell a backslash before a space ends a folder, as tab completion writes it), and operators and
+// redirections as breaks (attempt 2, C11).
+function shellWords(command, bash) {
     const words = [];
     let word = '';
     let quote = '';
@@ -181,7 +197,7 @@ function shellWords(command) {
             }
         } else if (character === '"' || character === '\'') {
             quote = character;
-        } else if (character === '\\' && command.charAt(index + 1) === ' ') {
+        } else if (bash && character === '\\' && command.charAt(index + 1) === ' ') {
             word += ' ';
             index++;
         } else if (/[\s;&|<>()=,`]/.test(character)) {
@@ -197,6 +213,37 @@ function shellWords(command) {
         words.push(word);
     }
     return words.filter(candidate => !candidate.includes('$') && !/^[a-z][a-z0-9+.-]*:\/\//i.test(candidate));
+}
+
+const CHANGES_FOLDER = /^(cd|chdir|pushd|set-location|sl|push-location)$/i;
+
+// The paths a shell command's words reach, read from where each runs: a cd earlier in the command moves the rest
+// (review of this change, S3). Only a word written as a path counts (it has a separator or a file extension, starts with
+// . or ~, or is the folder a cd goes to), so a bare word that happens to be a holdout's name, as in git commit -m hold, is not one (S1).
+// A PowerShell parameter written -Name:value is its value (C4).
+function shellPaths(command, bash, cwd) {
+    const paths = [];
+    let here = cwd;
+    let moving = false;
+    for (const typed of shellWords(command, bash)) {
+        const word = typed.replace(/^-[a-z]+:(?=.)/i, '');
+        if (CHANGES_FOLDER.test(word)) {
+            moving = true;
+            continue;
+        }
+        if (moving && word.startsWith('-')) {
+            continue;
+        }
+        if (moving || /[\\/]/.test(word) || /^[.~]/.test(word) || /\.[a-z0-9]+$/i.test(word)) {
+            const reached = resolve(word, here);
+            paths.push(reached);
+            if (moving) {
+                here = reached;
+            }
+        }
+        moving = false;
+    }
+    return paths;
 }
 
 // Whether a resolved path is the folder or inside it. "results old" is not inside "results".
@@ -268,7 +315,7 @@ process.stdin.on('end', () => {
     // A shell command's words, and a Glob pattern, read as paths from where they run: a relative route is otherwise
     // invisible, since it names no holdout (attempt 2, C11).
     const reached = SHELLS.has(tool) && typeof input.command === 'string'
-        ? shellWords(input.command).map(word => resolve(word, cwd))
+        ? shellPaths(input.command, tool === 'Bash', cwd)
         : tool === 'Glob' && typeof input.pattern === 'string'
             ? [resolve(input.pattern, input.path ? resolve(input.path, cwd) : cwd)]
             : [];

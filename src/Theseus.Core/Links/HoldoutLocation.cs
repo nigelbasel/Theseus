@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
+using System.Text.RegularExpressions;
 using Theseus.Core.Diagnostics;
 
 namespace Theseus.Core.Links;
@@ -13,7 +13,7 @@ namespace Theseus.Core.Links;
 /// </summary>
 /// <param name="Folder">The folder.</param>
 /// <param name="IsDefault">Whether it is Theseus's own, not one the owner chose or one beside the repo.</param>
-public sealed record HoldoutLocation(string Folder, bool IsDefault)
+public sealed partial record HoldoutLocation(string Folder, bool IsDefault)
 {
     /// <summary>The default folder of a card in no project.</summary>
     public const string AdHocFolder = "ad-hoc";
@@ -38,14 +38,14 @@ public sealed record HoldoutLocation(string Folder, bool IsDefault)
     public static HoldoutLocation Find(string? project, string? chosenForProject, string? chosenForAll, string? besideRepo,
         string? localAppData = null)
     {
-        if (IsFolderPath(chosenForProject))
+        if (FolderPath(chosenForProject) is { } forProject)
         {
-            return new HoldoutLocation(chosenForProject.Trim(), false) { Source = HoldoutSource.Chosen };
+            return new HoldoutLocation(forProject, false) { Source = HoldoutSource.Chosen };
         }
 
-        if (IsFolderPath(chosenForAll))
+        if (FolderPath(chosenForAll) is { } forAll)
         {
-            return new HoldoutLocation(chosenForAll.Trim(), false) { Source = HoldoutSource.Chosen };
+            return new HoldoutLocation(forAll, false) { Source = HoldoutSource.Chosen };
         }
 
         if (!string.IsNullOrWhiteSpace(project) && !string.IsNullOrWhiteSpace(besideRepo))
@@ -57,21 +57,37 @@ public sealed record HoldoutLocation(string Folder, bool IsDefault)
     }
 
     /// <summary>
-    /// Whether a chosen folder names a folder the holdout guard guards: a full path with a drive or share, not a whole
-    /// drive. Any other the guard counts as unset, so the board does not verify against it (re-verify C1 and C2).
+    /// The folder a chosen setting names, as the holdout guard reads it, or null: a full path with a drive or share, a
+    /// Git Bash or WSL form standing for one, never a whole drive. Any other the guard counts as unset, so the board does
+    /// not verify against it either (re-verify C1 and C2; review of verifier-runs, M1).
     /// </summary>
-    private static bool IsFolderPath([NotNullWhen(true)] string? typed)
+    private static string? FolderPath(string? typed)
     {
-        if (string.IsNullOrWhiteSpace(typed) || !Path.IsPathFullyQualified(typed.Trim()))
+        if (string.IsNullOrWhiteSpace(typed))
         {
-            return false;
+            return null;
         }
 
-        var full = Path.GetFullPath(typed.Trim());
+        var trimmed = typed.Trim();
+        var written = GitBashPath().Match(trimmed) is { Success: true } bash
+            ? $"{bash.Groups["drive"].Value.ToUpperInvariant()}:\\{bash.Groups["rest"].Value.Replace('/', '\\')}"
+            : trimmed;
 
-        return !string.Equals(Path.TrimEndingDirectorySeparator(full), Path.TrimEndingDirectorySeparator(Path.GetPathRoot(full) ?? string.Empty),
-            StringComparison.OrdinalIgnoreCase);
+        if (!Path.IsPathFullyQualified(written))
+        {
+            return null;
+        }
+
+        var full = Path.GetFullPath(written);
+
+        return string.Equals(Path.TrimEndingDirectorySeparator(full), Path.TrimEndingDirectorySeparator(Path.GetPathRoot(full) ?? string.Empty),
+            StringComparison.OrdinalIgnoreCase)
+            ? null
+            : written;
     }
+
+    [GeneratedRegex(@"^/(?:mnt/)?(?<drive>[a-zA-Z])(?:/(?<rest>.*))?$")]
+    private static partial Regex GitBashPath();
 
     /// <summary>Whether a folder the owner chose is not there: the way on is to set it again.</summary>
     public bool IsMissing => Source == HoldoutSource.Chosen && !Directory.Exists(Folder);

@@ -134,6 +134,54 @@ public class HoldoutGuardShellPathTests
         Assert.That(Guard(tool, "command", command, cwd: Code), Is.True, "attempt 2, C6");
     }
 
+    [TestCase("Bash", "cd ../.. ; cat holdout/scenarios/stop.md")]
+    [TestCase("PowerShell", @"cd ..\..; Get-Content holdout\stop.md")]
+    [TestCase("PowerShell", @"Get-ChildItem ..\..\holdout\ -Recurse")]
+    [TestCase("PowerShell", @"Get-Content -LiteralPath:..\..\holdout\stop.md")]
+    public void NoRole_IsRefusedTheHoldoutAfterACdOrInPowerShellsForms(string tool, string command)
+    {
+        Assert.That(Guard(tool, "command", command, cwd: Code), Is.True, "review of verifier-runs, S2, S3 and C4");
+    }
+
+    [TestCase("echo holdout")]
+    [TestCase("git commit -m holdout")]
+    [TestCase("grep -rn \"holdout\" work")]
+    public void NoRole_IsNotRefusedAWordThatIsOnlyTheHoldoutsName(string command)
+    {
+        Assert.That(Guard("Bash", "command", command, cwd: @"C:\"), Is.False,
+            "review of verifier-runs, S1: from the holdout's parent a bare word is not a path");
+    }
+
+    [Test]
+    public void TheseusOwnBoard_CannotBeRewrittenAfterACdToTheDataFolder()
+    {
+        Assert.That(Guard("Bash", "command", "cd ${env:LOCALAPPDATA}/Theseus && echo x > board.json", cwd: Code), Is.True,
+            "review of verifier-runs, S3 and C4");
+    }
+
+    [Test]
+    public void ARemoteThatIsAFolderOnDisk_IsStillGuarded()
+    {
+        Assert.That(Guard("Bash", "command", @"git clone C:\repos\holdout.git", cwd: Code,
+            settings: JsonSerializer.Serialize(new { holdoutFolder = Folder, holdoutRemote = @"C:\repos\holdout.git" })),
+            Is.True, "review of verifier-runs, S4");
+    }
+
+    [Test]
+    public void NoRole_IsRefusedARawFileOfTheRemote()
+    {
+        Assert.That(Guard("WebFetch", "url", "https://raw.githubusercontent.com/owner/holdout/main/scenarios/stop.md", cwd: Code,
+            settings: JsonSerializer.Serialize(new { holdoutFolder = Folder, holdoutRemote = "github.com/owner/holdout" })),
+            Is.True, "review of verifier-runs, C1");
+    }
+
+    [Test]
+    public void TheSameOwnerAndNameOnAnotherHost_IsAnotherRepo()
+    {
+        Assert.That(Guard("Bash", "command", "git clone https://other.example/owner/holdout", cwd: Code), Is.False,
+            "review of verifier-runs, C2");
+    }
+
     [Test]
     public void ASettingsFileInTheCode_IsNotTheseus()
     {

@@ -129,14 +129,23 @@ public class HoldoutLocationTests
     [TestCase("holdout")]
     [TestCase(@"..\holdout")]
     [TestCase(@"\holdout")]
-    [TestCase("/c/holdout")]
     [TestCase(@"C:\")]
+    [TestCase("/c")]
     [TestCase("C:holdout")]
     public void AChosenFolderTheGuardWouldIgnore_IsNotChosen(string typed)
     {
         Assert.That(HoldoutLocation.Find("theseus", typed, typed, null, _root),
             Is.EqualTo(new HoldoutLocation(Path.Combine(_root, "Theseus", "holdouts", "theseus"), true)),
             "re-verify C1 and C2: the guard counts it as unset, so the board must not verify against it");
+    }
+
+    [TestCase("/c/holdout")]
+    [TestCase("/mnt/c/holdout")]
+    public void AChosenFolderTypedTheGitBashWay_IsTheFolderItStandsFor(string typed)
+    {
+        Assert.That(HoldoutLocation.Find("theseus", typed, null, null, _root),
+            Is.EqualTo(new HoldoutLocation(@"C:\holdout", false) { Source = HoldoutSource.Chosen }),
+            "the guard guards C:\\holdout for it, so the board must verify there (review of verifier-runs, M1)");
     }
 
     [Test]
