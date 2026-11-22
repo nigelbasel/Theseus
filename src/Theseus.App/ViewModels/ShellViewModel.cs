@@ -259,7 +259,17 @@ public sealed class ShellViewModel : ObservableObject
             });
         Drawer.EventsOf = _cardEvents.For;
 
-        Settings = new SettingsViewModel(settings, Refresh);
+        Settings = new SettingsViewModel(settings, Refresh) { Tags = new TagsViewModel(Board.Tags) };
+        Drawer.TagsInUse = Board.Tags.InUse;
+        Board.Tags.AskNewTag = () => AskText?.Invoke("New tag", "A tag: letters, digits and hyphens, such as security or waiting-on-dpo", string.Empty);
+        Board.Tags.Say = message => Notice = message;
+        Board.Tags.Changed += () =>
+        {
+            if (Drawer.Card is { } open)
+            {
+                Drawer.Reload(open);
+            }
+        };
 
         NewWorkstream = new NewWorkstreamViewModel(plans, colours,
             () => [.. Board.Stages],
@@ -827,8 +837,11 @@ public sealed class ShellViewModel : ObservableObject
         var granted = grant is not null;
         var file = Readable(card.Name)?.File;
         var lead = file is null ? null : ProjectLead.KeyOf(file, _settings.Read().ProjectLeads);
+        var tags = new TagEditorViewModel(() => [.. Board.Tags.InUse().Select(use => use.Tag)], () => { });
+        tags.Load(card.Tags);
         var properties = new ProjectPropertiesViewModel(card.Name, card.Title, card.ColourHex, card.ProjectFile, others)
         {
+            TagEditor = tags,
             Leads = file is null
                 ? []
                 : [.. file.Workstreams.Select(row => row.Workstream).Distinct(StringComparer.OrdinalIgnoreCase)
@@ -848,6 +861,14 @@ public sealed class ShellViewModel : ObservableObject
         if (AskProjectProperties?.Invoke(properties) != true)
         {
             return;
+        }
+
+        tags.AddPending();
+        var merged = tags.MergeInto(card.Tags);
+
+        if (!merged.SequenceEqual(card.Tags))
+        {
+            Board.Tags.SetProject(card.Name, merged);
         }
 
         if (properties.Lead is { } chosen && !string.Equals(chosen, lead, StringComparison.OrdinalIgnoreCase))
