@@ -17,6 +17,7 @@ public sealed class RoundViewModel : ObservableObject, IFoldable
     ];
 
     private bool _isOpen;
+    private bool _isShown = true;
 
     /// <summary>
     /// Whether a round is open: its own entry only, else open when it is the latest (C13). Collapse all and Expand all
@@ -60,7 +61,14 @@ public sealed class RoundViewModel : ObservableObject, IFoldable
     /// <summary>The chip's mark and word.</summary>
     public string StateText => $"{StageNodeStates.Mark(State)} {StageNodeStates.Word(State)}";
 
-    /// <summary>The one line saying what the round did; empty until the summary gives it (G).</summary>
+    /// <summary>Whether the filter leaves any of its pieces shown.</summary>
+    public bool IsShown
+    {
+        get => _isShown;
+        internal set => Set(ref _isShown, value);
+    }
+
+    /// <summary>The one line saying what the round did (C10).</summary>
     public string Line { get; init; } = string.Empty;
 
     /// <summary>The banner before it, or null for the first round (C11).</summary>

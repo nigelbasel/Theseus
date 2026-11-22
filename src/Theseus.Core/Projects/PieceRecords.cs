@@ -1,27 +1,39 @@
 namespace Theseus.Core.Projects;
 
 /// <summary>
-/// A piece's records as Theseus shows them: one row per stage with its document's purpose and state, so the owner reads
-/// Theseus's screen first and the raw folder is one click further (brief, Records view and its principle, 2026-11-22).
+/// A piece's records as Theseus shows them: one row per stage with its document's purpose and state, then the folder's
+/// other files, so the owner reads Theseus's screen first and the raw folder is one click further (Nigel, 2026-11-22).
 /// </summary>
 public static class PieceRecords
 {
-    /// <summary>The rows of a piece's Records view, in stage order; for freeform work, each document in its folder.</summary>
+    /// <summary>The rows of a piece's Records view: its stages in order, then "Other records".</summary>
     public static IReadOnlyList<RecordEntry> For(PieceOfWork piece)
     {
         ArgumentNullException.ThrowIfNull(piece);
 
-        if (piece.IsFreeform)
-        {
-            var state = piece.Stages.FirstOrDefault()?.State ?? StageNodeState.ToDo;
+        List<RecordEntry> stages = piece.IsFreeform || piece.Stages is [{ State: StageNodeState.RecordsElsewhere }]
+            ? []
+            : piece.Stages.Select(stage => new RecordEntry(stage.Name, Purpose(piece.Pipeline, stage.Stage), stage.State, stage.RecordFile)
+            {
+                StateText = StateText(piece, stage),
+            }).ToList();
 
-            return piece.RecordsFolder is { } folder && Directory.Exists(folder)
-                ? [.. Directory.EnumerateFiles(folder, "*.md").Order(StringComparer.OrdinalIgnoreCase)
-                    .Select(file => new RecordEntry(Path.GetFileNameWithoutExtension(file), "A record of the work", state, file))]
-                : [];
+        if (piece.RecordsFolder is not { } folder || !Directory.Exists(folder))
+        {
+            return stages;
         }
 
-        return [.. piece.Stages.Select(stage => new RecordEntry(stage.Name, Purpose(piece.Pipeline, stage.Stage), stage.State, stage.RecordFile))];
+        var stageFiles = piece.Stages.Select(stage => stage.RecordName).OfType<string>().ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var others = Directory.EnumerateFiles(folder)
+            .Where(file => !stageFiles.Contains(Path.GetFileName(file)))
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .Select(file => new RecordEntry(Path.GetFileName(file), "Other records", StageNodeState.Done, file)
+            {
+                StateText = "written",
+                IsOther = true,
+            });
+
+        return [.. stages, .. others];
     }
 
     /// <summary>What the view says when there is nothing to list, or null when there is.</summary>
@@ -31,7 +43,7 @@ public static class PieceRecords
 
         if (piece.Stages is [{ State: StageNodeState.RecordsElsewhere }])
         {
-            return "Its records are kept outside the project, so Theseus has none to show.";
+            return "Records are kept outside the project, so Theseus has none to show.";
         }
 
         if (piece.RecordsFolder is null)
@@ -41,6 +53,17 @@ public static class PieceRecords
 
         return For(piece).Any(entry => entry.HasFile) ? null : "Its records folder holds no documents yet.";
     }
+
+    private static string StateText(PieceOfWork piece, StageNode stage) => stage.State switch
+    {
+        StageNodeState.Done when stage is SpecStageNode && piece.Acceptance is { } accepted =>
+            $"accepted by you on {accepted.AcceptedUtc.ToLocalTime():d MMM}",
+        StageNodeState.NotNeeded => $"skipped: {stage.Reason}",
+        StageNodeState.DoneNoRecord => "done with no record",
+        StageNodeState.HandedOn => $"handed on: {stage.Reason}",
+        _ when stage.RecordFile is not null => "written",
+        _ => "not written",
+    };
 
     private static string Purpose(PipelineKind? pipeline, PipelineStage? stage) => (pipeline, stage) switch
     {

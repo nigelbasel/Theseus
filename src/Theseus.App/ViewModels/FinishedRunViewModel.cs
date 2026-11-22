@@ -9,6 +9,7 @@ namespace Theseus.App.ViewModels;
 public sealed class FinishedRunViewModel : ObservableObject, IFoldable
 {
     private bool _isOpen;
+    private bool _isShown = true;
 
     internal FinishedRunViewModel(IReadOnlyList<PieceNodeViewModel> boxes, bool isOpen, Action<FinishedRunViewModel> toggle)
     {
@@ -54,6 +55,13 @@ public sealed class FinishedRunViewModel : ObservableObject, IFoldable
 
     /// <summary>Whether only its line shows.</summary>
     public bool IsFolded => !_isOpen;
+
+    /// <summary>Whether the filter leaves any of its boxes shown.</summary>
+    public bool IsShown
+    {
+        get => _isShown;
+        internal set => Set(ref _isShown, value);
+    }
 
     /// <summary>Opens or folds it.</summary>
     public ICommand ToggleCommand { get; }

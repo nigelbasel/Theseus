@@ -37,9 +37,8 @@ public class ProjectViewModelTests
     {
         var view = _views.Theseus();
 
-        Assert.That(view.Sentence, Is.EqualTo("12 pieces of work across 5 objectives: 7 done, 3 waiting on you, 2 still to do or "
-                                              + "not started. git-22 is idle on projects-and-method-ui. Next: you accept the spec of "
-                                              + "projects-and-method-ui."));
+        Assert.That(view.Sentence, Is.EqualTo(view.Overview.Sentence));
+        Assert.That(view.Sentence, Is.EqualTo("Nothing is moving. Three things wait for you."), "1.1f G33, replacing 1.1d AC 8");
         Assert.That(view.Counts.Select(chip => chip.Text), Is.EqualTo(new[]
         {
             "✓ 7 done", "● 0 busy", "◆ 3 waiting on you", "◐ 0 holdouts not run", "⚠ 0 stuck", "– 2 to do",

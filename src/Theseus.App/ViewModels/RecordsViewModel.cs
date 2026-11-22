@@ -5,7 +5,7 @@ using Theseus.Core.Projects;
 namespace Theseus.App.ViewModels;
 
 /// <summary>
-/// The Records window of a piece of work (brief, Records view, 2026-11-22): its documents one row per stage, each with
+/// The Records window of a piece of work (Nigel, 2026-11-22): its documents one row per stage, each with
 /// its purpose in plain words and its state, and the chosen one shown formatted. The folder itself is a small link at the
 /// foot, one click further: Theseus's own screen first, the raw file second.
 /// </summary>
@@ -13,6 +13,7 @@ public sealed class RecordsViewModel : ObservableObject
 {
     private RecordEntry? _selected;
     private string _text = string.Empty;
+    private bool _isSource;
 
     /// <summary>Opens the records of a piece, the given stage's document chosen when there is one.</summary>
     public RecordsViewModel(PieceOfWork piece, string? stage, Action<string> openPath)
@@ -60,6 +61,28 @@ public sealed class RecordsViewModel : ObservableObject
         get => _text;
         private set => Set(ref _text, value);
     }
+
+    /// <summary>Whether the document shows as its Markdown source rather than drawn.</summary>
+    public bool IsSource
+    {
+        get => _isSource;
+        set
+        {
+            if (Set(ref _isSource, value))
+            {
+                Raise(nameof(IsPreview));
+            }
+        }
+    }
+
+    /// <summary>Whether it is drawn.</summary>
+    public bool IsPreview => !_isSource;
+
+    /// <summary>Shows it drawn.</summary>
+    public ICommand PreviewCommand => new RelayCommand(_ => IsSource = false);
+
+    /// <summary>Shows its Markdown.</summary>
+    public ICommand SourceCommand => new RelayCommand(_ => IsSource = true);
 
     /// <summary>The small link at the foot: the folder in Explorer.</summary>
     public ICommand OpenFolderCommand { get; }

@@ -21,6 +21,7 @@ public sealed class PieceNodeViewModel : ObservableObject, IFoldable
 
     private bool _isOpen;
     private bool _isSelected;
+    private bool _isShown = true;
 
     internal PieceNodeViewModel(PieceNode node, IReadOnlyList<PieceNodeViewModel> children,
         IReadOnlyList<StageNodeViewModel> stages, IReadOnlyList<PieceActionViewModel> actions, bool isOpen,
@@ -285,6 +286,13 @@ public sealed class PieceNodeViewModel : ObservableObject, IFoldable
                 ? $"All {Children.Count} reported back, {next}"
                 : $"Waiting for {Children.Count - back} of {Children.Count} to report back, {next}";
         }
+    }
+
+    /// <summary>Whether the filter shows it: it matches, or a piece under it does (1.1e item 26).</summary>
+    public bool IsShown
+    {
+        get => _isShown;
+        internal set => Set(ref _isShown, value);
     }
 
     /// <summary>Every box at and under this one, depth first.</summary>

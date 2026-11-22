@@ -44,6 +44,15 @@ public sealed class PropertiesViewModel
     /// <summary>The label and value rows.</summary>
     public IReadOnlyList<PropertyRowViewModel> Rows { get; private init; } = [];
 
+    /// <summary>A piece's Records panel: one row per stage, then its other records; empty for anything else (Nigel, 2026-11-22).</summary>
+    public IReadOnlyList<RecordRowViewModel> Records { get; private init; } = [];
+
+    /// <summary>What the Records panel says when there are no rows, or null.</summary>
+    public string? RecordsNone { get; private init; }
+
+    /// <summary>Whether it shows a Records panel.</summary>
+    public bool HasRecords => Records.Count > 0 || RecordsNone is not null;
+
     /// <summary>One line per link, with its state in words.</summary>
     public IReadOnlyList<string> Links { get; private init; } = [];
 
@@ -98,6 +107,18 @@ public sealed class PropertiesViewModel
                     $"{stage.Mark} {stage.Word}{(stage.Node.Reason is { } why ? $": {why}" : string.Empty)}. {StageNodeStates.Meaning(stage.State)}")),
             ],
             Links = node.LinkLines,
+            Records = [.. PieceRecords.For(piece).Select(entry => new RecordRowViewModel(entry, new RelayCommand(_ =>
+            {
+                if (actions.ShowRecords is { } show)
+                {
+                    show(piece, entry.IsOther ? null : entry.Stage);
+                }
+                else if (entry.File is { } file)
+                {
+                    actions.OpenPath(file);
+                }
+            })))],
+            RecordsNone = PieceRecords.NoneText(piece),
             Buttons = [.. ButtonsOf(node, null, actions)],
             ObjectiveHeading = ObjectiveHeadingOf(node),
             Criteria = CriteriaOf(node, edits),

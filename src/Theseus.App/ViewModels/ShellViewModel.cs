@@ -1923,6 +1923,8 @@ public sealed class ShellViewModel : ObservableObject
                 ? piece with { Reported = reported }
                 : piece)];
             var waitingSpecs = ProjectViewModel.SpecsWaiting(reading, pieces);
+            var overview = ProjectOverview.For(reading.File!, pieces, links, Chains?.Proposals?.Pending.Select(row => row.Proposal) ?? [],
+                acceptances.Count(acceptance => string.Equals(acceptance.Project, reading.Name, StringComparison.OrdinalIgnoreCase)));
             var file = reading.File!;
 
             foreach (var piece in pieces.Where(piece => piece.IsCurrentPiece && piece.Card is not null))
@@ -1951,7 +1953,7 @@ public sealed class ShellViewModel : ObservableObject
             projectCard.ObjectivesText = $"{file.ObjectivesDone} of {file.Objectives.Count} objectives done";
             WireProjectCard(projectCard, reading, colours);
             if (ProjectCardFace.Fill(projectCard, pieces, _settings.Read().ProjectRunStates.GetValueOrDefault(name),
-                    _settings.Read().CardsStoppedByOwner))
+                    _settings.Read().CardsStoppedByOwner, overview))
             {
                 System.Windows.Input.CommandManager.InvalidateRequerySuggested();
             }
@@ -1971,7 +1973,7 @@ public sealed class ShellViewModel : ObservableObject
 
             if (string.Equals(name, _openProjectName, StringComparison.OrdinalIgnoreCase))
             {
-                openView = BuildView(reading, pieces, tabs);
+                openView = BuildView(reading, pieces, tabs, overview);
             }
         }
 
@@ -2114,16 +2116,18 @@ public sealed class ShellViewModel : ObservableObject
     /// so a refresh that changes what is drawn keeps what the owner was looking at (AC 36).
     /// </summary>
     private ProjectViewModel BuildView(ProjectFileReading reading, IReadOnlyList<PieceOfWork> pieces,
-        IReadOnlyList<ProjectTabViewModel> tabs) =>
+        IReadOnlyList<ProjectTabViewModel> tabs, ProjectOverview overview) =>
         ProjectViewModel.Build(reading, pieces, Chains?.Status ?? new LinkStatus([], []), tabs, _settings,
             _projectActions ??= ProjectViewCommands.For(Board.Card, FocusCardCommand, StartCardCommand, StopCardCommand, OpenSpec,
                 AcceptSpec, OpenFile, text => Notice = text, (card, project) => AddToProject(card, project), WhyNot, WayOn) with
             {
                 ShowRecords = ShowRecordsWindow is { } show ? (piece, stage) => show(new RecordsViewModel(piece, stage, OpenFile)) : null,
+                OpenLinks = key => ShowCardLinksCommand.Execute(Board.Card(key)),
             },
             CloseProjectCommand,
             EditsOf(reading.Name),
-            ProjectView);
+            ProjectView,
+            overview);
 
     /// <summary>What the project view knows of a board card (1.1d AC 1): its session, marks, role and whether Start would start it.</summary>
     private PieceCard PieceCardOf(WorkstreamCardViewModel card) =>

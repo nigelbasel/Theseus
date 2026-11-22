@@ -112,8 +112,11 @@ public class ProjectViewLayoutTests
         Assert.That(((TextBlock)control.FindName("Sentence")).Text, Is.EqualTo(view.Sentence));
         Assert.That(chips, Is.EqualTo(view.Counts.Select(chip => chip.Text)));
         Assert.That(band.Visibility, Is.EqualTo(Visibility.Visible));
-        Assert.That(Descendants<Button>(band).Select(button => button.Content), Has.Exactly(3).Items);
-        Assert.That(((Border)LaidOut(_views.BuildYourMarket()).FindName("WaitingBand")).Visibility, Is.EqualTo(Visibility.Collapsed));
+        Assert.That(((TextBlock)control.FindName("WaitsHeading")).Text, Is.EqualTo($"◆ Waits for you ({view.Waits.Count})"));
+        Assert.That(Descendants<Button>(band).Where(button => button.Visibility == Visibility.Visible).Select(button => button.Content),
+            Has.Exactly(view.Waits.Count(wait => wait.HasButton)).Items);
+        Assert.That(((Border)LaidOut(_views.BuildYourMarket()).FindName("WaitingBand")).Visibility, Is.EqualTo(Visibility.Visible),
+            "always in place, even when nothing waits (G36)");
     }
 
     [Test]
@@ -390,7 +393,7 @@ public class ProjectViewLayoutTests
     }
 
     [Test]
-    public void AnOpenBox_InANarrowFlow_TakesTheWidthLeft_AndItsStagesTrimTheirWordsWithATooltip()
+    public void AnOpenBox_InANarrowFlow_TakesTheWidthLeft_AndItsStagesWrapRatherThanCutAWord()
     {
         var view = _views.BuildYourMarket();
         view.ExpandAllCommand.Execute(null);
@@ -399,8 +402,8 @@ public class ProjectViewLayoutTests
         var stages = AllNamed<Button>(deepest, "Stage").ToList();
 
         Assert.That(deepest.ActualWidth, Is.LessThan(PieceNodeViewModel.OpenWidth));
-        Assert.That(stages.SelectMany(stage => Descendants<TextBlock>(stage)).Select(text => text.TextTrimming),
-            Has.All.EqualTo(TextTrimming.CharacterEllipsis));
+        Assert.That(stages.SelectMany(stage => Descendants<TextBlock>(stage)).Select(text => (text.TextTrimming, text.TextWrapping)),
+            Has.All.EqualTo((TextTrimming.None, TextWrapping.Wrap)), "a stage's word is never cut (review of PR 3, finding 2)");
         Assert.That(stages.Select(stage => stage.ToolTip), Has.All.Not.Null);
     }
 

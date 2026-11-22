@@ -18,7 +18,7 @@ public static class ProjectCardFace
     /// <param name="runState">Its run state, when the project is stopped (1.1e AC 8); null when it is not.</param>
     /// <param name="stoppedByOwner">The cards the owner stopped by hand (1.1e AC 10).</param>
     public static bool Fill(ProjectCardViewModel card, IReadOnlyList<PieceOfWork> pieces, IReadOnlyList<string>? runState = null,
-        IReadOnlyCollection<string>? stoppedByOwner = null)
+        IReadOnlyCollection<string>? stoppedByOwner = null, ProjectOverview? overview = null)
     {
         ArgumentNullException.ThrowIfNull(card);
         ArgumentNullException.ThrowIfNull(pieces);
@@ -26,7 +26,8 @@ public static class ProjectCardFace
         var summary = ProjectSummary.For(pieces);
         var could = (card.StartPlan?.CanStart, card.StopPlan?.CanStop);
 
-        card.Sentence = summary.Sentence;
+        // The card and the view say the same sentence, from the one overview (1.1f G33).
+        card.Sentence = overview?.Sentence ?? summary.Sentence;
         card.Counts = StateCountViewModel.For(summary, zeros: false);
         card.IsLive = pieces.Any(piece => piece.IsCurrentPiece && piece.Card is { HasSession: true });
         card.StateColumn = ProjectBoardStanding.StateColumn(pieces);

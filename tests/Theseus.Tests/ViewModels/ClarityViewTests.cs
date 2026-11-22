@@ -114,9 +114,7 @@ public class ClarityViewTests
         view.CollapseAllCommand.Execute(null);
 
         Assert.That(view.Rounds.Select(round => round.IsOpen), Is.EqualTo(new[] { true, true }));
-        Assert.That(Bym().Rounds[0].IsOpen, Is.False, "Collapse all dropped round 1's own entry, so it starts folded again");
-        Bym().Rounds[0].ToggleCommand.Execute(null);
-        Assert.That(Bym().Rounds[0].IsOpen, Is.True, "its own entry is kept");
+        Assert.That(Bym().Rounds[0].IsOpen, Is.True, "Collapse all keeps round 1's own entry, so the next open matches the screen");
     }
 
     [Test]

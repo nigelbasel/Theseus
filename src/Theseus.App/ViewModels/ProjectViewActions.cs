@@ -37,8 +37,11 @@ public sealed record ProjectViewActions(
     Func<string, StageAction, PieceActionViewModel?>? WayOn = null)
 {
     /// <summary>
-    /// Opens a piece's Records window, a stage's document chosen when one is named (brief, Records view, 2026-11-22);
+    /// Opens a piece's Records window, a stage's document chosen when one is named (Nigel, 2026-11-22);
     /// when null, Open records opens the folder as before.
     /// </summary>
     public Action<PieceOfWork, string?>? ShowRecords { get; init; }
+
+    /// <summary>Opens a card's links and proposals on the board, where a report is confirmed or a proposal decided; null in tests.</summary>
+    public Action<string>? OpenLinks { get; init; }
 }

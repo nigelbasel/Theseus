@@ -82,8 +82,8 @@ public partial class ProjectView : UserControl
             IsHitTestVisible = false,
         };
         label.SetResourceReference(TextBlock.ForegroundProperty, "TextFillColorSecondaryBrush");
-        Canvas.SetLeft(label, from.Left + ConnectorGeometry.HandOverInset + 18);
-        Canvas.SetTop(label, from.Bottom + Math.Max(0, (to.Top - from.Bottom - 15) / 2));
+        Canvas.SetLeft(label, from.Left + ConnectorGeometry.ThenWorkedOnInset + 12);
+        Canvas.SetTop(label, to.Top - 16);
 
         return label;
     }
@@ -94,13 +94,27 @@ public partial class ProjectView : UserControl
 
         foreach (var box in Descendants(RootList).OfType<Border>().Where(border => border.Name == "Box"))
         {
-            if (box.DataContext is PieceNodeViewModel node)
+            if (box.DataContext is PieceNodeViewModel node && !UnderCollapsed(box))
             {
                 boxes[node] = new Rect(box.TranslatePoint(new Point(0, 0), Connectors), box.RenderSize);
             }
         }
 
         return boxes;
+    }
+
+    // A box under a folded round or run keeps the place it had when last shown, so it is left out.
+    private static bool UnderCollapsed(DependencyObject element)
+    {
+        for (var at = element; at is not null; at = VisualTreeHelper.GetParent(at))
+        {
+            if (at is UIElement { Visibility: not Visibility.Visible })
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static IEnumerable<DependencyObject> Descendants(DependencyObject root)

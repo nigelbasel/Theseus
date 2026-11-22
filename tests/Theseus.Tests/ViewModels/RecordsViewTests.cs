@@ -28,7 +28,9 @@ public class RecordsViewTests
 
         Assert.That(rows.Select(row => row.Stage), Is.EqualTo(new[] { "Research", "Spec", "Plan", "Implement", "Verify", "Review", "Compound" }));
         Assert.That(rows[1].Purpose, Is.EqualTo("What will be built, for you to accept"));
-        Assert.That(rows[0].StateText, Is.EqualTo("· Not needed"));
+        Assert.That(rows[0].StateText, Is.EqualTo("skipped: the project's spec covered it"));
+        Assert.That(rows[1].StateText, Is.EqualTo($"accepted by you on {DateTimeOffset.UnixEpoch.ToLocalTime():d MMM}"));
+        Assert.That(rows[1].FileName, Is.EqualTo("spec.md"));
         Assert.That((rows[0].HasFile, rows[1].HasFile), Is.EqualTo((false, true)));
         Assert.That(PieceRecords.NoneText(w1), Is.Null);
     }
@@ -52,7 +54,7 @@ public class RecordsViewTests
         var pieces = BymPieces(_folder);
 
         Assert.That(PieceRecords.NoneText(Named(pieces, "identityserver-client-api-and-cli-fixes")),
-            Is.EqualTo("Its records are kept outside the project, so Theseus has none to show."));
+            Is.EqualTo("Records are kept outside the project, so Theseus has none to show."));
         Assert.That(PieceRecords.NoneText(Named(TheseusPieces(_folder), "method-kit")),
             Is.EqualTo("Nothing is recorded in the project for this piece of work yet."));
     }
