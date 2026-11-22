@@ -204,6 +204,37 @@ public class DetailDrawerViewModelTests
         Assert.That(_drawer.IsOpen, Is.False);
     }
 
+    [Test]
+    public void TheTagsField_SavesItsTags_AndATagAddedElsewhereMeanwhileIsKept()
+    {
+        _drawer.Show(Card("one"));
+        _drawer.TagEditor.NewTag = "security";
+        _drawer.TagEditor.EnterCommand.Execute(null);
+
+        _fixture.Board.Tags.Set([Card("one")], "bym", on: true);
+        _drawer.Reload(Card("one"));
+        _drawer.TagEditor.RemoveCommand.Execute("security");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(Card("one").Tags, Is.EqualTo(new[] { "bym" }), "the menu's tag is not undone by the drawer (review T1)");
+            Assert.That(_drawer.TagEditor.Tags, Is.EqualTo(new[] { "bym" }));
+            Assert.That(_fixture.Sidecars.Single(sidecar => sidecar.Key == "one").Tags, Is.EqualTo(new[] { "bym" }));
+        });
+    }
+
+    [Test]
+    public void TheTagsField_KeepsATagAddedElsewhere_EvenBeforeItHearsOfIt()
+    {
+        _drawer.Show(Card("one"));
+        _fixture.Board.Tags.Set([Card("one")], "bym", on: true);
+
+        _drawer.TagEditor.NewTag = "security";
+        _drawer.TagEditor.EnterCommand.Execute(null);
+
+        Assert.That(Card("one").Tags, Is.EqualTo(new[] { "bym", "security" }));
+    }
+
     private WorkstreamCardViewModel Card(string key) => _fixture.Card(key)!;
 
     private sealed class NoRuns : IRunLog

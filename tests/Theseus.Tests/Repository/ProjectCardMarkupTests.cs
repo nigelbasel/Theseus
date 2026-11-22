@@ -48,6 +48,7 @@ public class ProjectCardMarkupTests
             ("_Start", "{Binding StartCommand}"),
             ("S_top", "{Binding StopCommand}"),
             ("Project p_roperties…", "{Binding PropertiesCommand}"),
+            ("T_ags", null),
             ("Open project._md", "{Binding OpenFileCommand}"),
             ("Add o_bjective…", "{Binding AddObjectiveCommand}"),
         }));

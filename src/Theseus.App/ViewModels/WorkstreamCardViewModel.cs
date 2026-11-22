@@ -50,6 +50,10 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
     private IReadOnlyList<CardRepo> _repos = [];
     private bool _isSearchDimmed;
     private IReadOnlyList<Theseus.Core.Finding.TextSpan> _titleHighlights = [];
+    private IReadOnlyList<TagChipViewModel> _tagChips = [];
+    private string _moreTags = string.Empty;
+    private string _moreTagsToolTip = string.Empty;
+    private IReadOnlyList<TagMenuItemViewModel> _tagMenu = [];
 
     /// <summary>Creates a card over a workstream.</summary>
     public WorkstreamCardViewModel(Workstream workstream) => _workstream = workstream;
@@ -123,6 +127,55 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
 
     /// <summary>Whether the search highlights part of the title, so it wraps rather than trims (review R4).</summary>
     public bool HasTitleHighlights => _titleHighlights.Count > 0;
+
+    /// <summary>The tags shown under the title, at most three (card-search-and-tags item 11).</summary>
+    public IReadOnlyList<TagChipViewModel> TagChips
+    {
+        get => _tagChips;
+        private set
+        {
+            if (Set(ref _tagChips, value))
+            {
+                Raise(nameof(HasTags));
+            }
+        }
+    }
+
+    /// <summary>Whether it shows any tags.</summary>
+    public bool HasTags => _tagChips.Count > 0;
+
+    /// <summary>"+2" for the tags not shown, or empty.</summary>
+    public string MoreTags
+    {
+        get => _moreTags;
+        private set => Set(ref _moreTags, value);
+    }
+
+    /// <summary>The tags not shown, for the "+2" label's tooltip.</summary>
+    public string MoreTagsToolTip
+    {
+        get => _moreTagsToolTip;
+        private set => Set(ref _moreTagsToolTip, value);
+    }
+
+    /// <summary>Its menu's Tags ›, built as the menu opens (item 10).</summary>
+    public IReadOnlyList<TagMenuItemViewModel> TagMenu
+    {
+        get => _tagMenu;
+        set => Set(ref _tagMenu, value);
+    }
+
+    /// <summary>Shows its tags on its face, unchanged chips left in place.</summary>
+    internal void ShowTags(IReadOnlyList<TagChipViewModel> chips, string more, string rest)
+    {
+        if (!chips.Select(chip => (chip.Tag, chip.ColourHex)).SequenceEqual(_tagChips.Select(chip => (chip.Tag, chip.ColourHex))))
+        {
+            TagChips = chips;
+        }
+
+        MoreTags = more;
+        MoreTagsToolTip = rest;
+    }
 
     /// <summary>Shows what the board's search makes of the card.</summary>
     internal void ShowSearch(bool dimmed, IReadOnlyList<Theseus.Core.Finding.TextSpan> highlights)

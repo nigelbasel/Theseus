@@ -176,7 +176,7 @@ public class ProjectCardLayoutTests
 
         // The window's handlers need the window behind them; what they do is tested apart (BoardGestureTests).
         foreach (var handled in template.Descendants().Attributes()
-                     .Where(attribute => attribute.Name.LocalName is "MouseLeftButtonDown" or "MouseLeftButtonUp" or "PreviewMouseRightButtonDown")
+                     .Where(attribute => attribute.Name.LocalName is "MouseLeftButtonDown" or "MouseLeftButtonUp" or "PreviewMouseRightButtonDown" or "Opened")
                      .ToList())
         {
             handled.Remove();
@@ -194,7 +194,9 @@ public class ProjectCardLayoutTests
                 Style("MenuGlyph", "TextBlock"),
                 Style("CardIcon", "Button"),
                 Style("CommandButton", "Button"),
-                Style("ClickableCard", "Border")),
+                Style("ClickableCard", "Border"),
+                Style("TagChipButton", "Button"),
+                Style("TagMenuItem", "MenuItem")),
             new XElement(Presentation + "ContentControl.ContentTemplate", template));
 
         // The window's own namespaces name no assembly, which a parsed fragment needs.

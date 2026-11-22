@@ -240,6 +240,99 @@
                     </StackPanel>
                 </Expander>
 
+                <!-- Tags (card-search-and-tags items 11, 13): each with its count and colour; renamed or deleted on every card, at once. -->
+                <Expander x:Name="TagsSection" Style="{StaticResource Section}" IsExpanded="False" DataContext="{Binding Tags}">
+                    <Expander.Header>
+                        <TextBlock Text="Tags" Style="{StaticResource SectionHeading}" />
+                    </Expander.Header>
+                    <StackPanel Margin="0,4,0,8">
+                        <TextBlock Style="{StaticResource FieldHint}"
+                                   Text="Your tags on cards, kept on this machine. Renaming or deleting one changes every card that has it, straight away." />
+                        <TextBlock Style="{StaticResource FieldHint}" Text="No card has a tag yet."
+                                   Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVisibility}}" />
+                        <ItemsControl ItemsSource="{Binding Rows}" Focusable="False">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Margin="0,6,0,0" Padding="8,6" CornerRadius="4"
+                                            BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                                        <StackPanel>
+                                            <DockPanel>
+                                                <TextBlock DockPanel.Dock="Right" Text="{Binding CountText}" VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                <Ellipse Width="10" Height="10" Margin="0,0,8,0" VerticalAlignment="Center"
+                                                         Fill="{Binding ColourHex, Converter={StaticResource HexToBrush}}" />
+                                                <TextBlock Text="{Binding Label}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                            </DockPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                                <TextBlock Text="Colour" VerticalAlignment="Center" Margin="0,0,8,0"
+                                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                <ItemsControl ItemsSource="{Binding Swatches}" Focusable="False">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <StackPanel Orientation="Horizontal" />
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <!-- Its own template, so hover does not paint over the colour; the current one is ringed (review T8). -->
+                                                            <Button Width="22" Height="18" Margin="0,0,4,0" Cursor="Hand"
+                                                                    ToolTip="{Binding ToolTip}" AutomationProperties.Name="{Binding ToolTip}"
+                                                                    Command="{Binding Command}">
+                                                                <Button.Template>
+                                                                    <ControlTemplate TargetType="Button">
+                                                                        <Grid x:Name="Face">
+                                                                            <Border x:Name="Ring" CornerRadius="4" BorderThickness="2" BorderBrush="Transparent" />
+                                                                            <Border Margin="3" CornerRadius="2"
+                                                                                    Background="{Binding ColourHex, Converter={StaticResource HexToBrush}}" />
+                                                                        </Grid>
+                                                                        <ControlTemplate.Triggers>
+                                                                            <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                                                                                <Setter TargetName="Ring" Property="BorderBrush" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                                                                            </DataTrigger>
+                                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                                <Setter TargetName="Ring" Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                                                            </Trigger>
+                                                                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                                                                <Setter TargetName="Ring" Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                                                            </Trigger>
+                                                                            <Trigger Property="IsPressed" Value="True">
+                                                                                <Setter TargetName="Face" Property="RenderTransform">
+                                                                                    <Setter.Value>
+                                                                                        <TranslateTransform Y="1" />
+                                                                                    </Setter.Value>
+                                                                                </Setter>
+                                                                            </Trigger>
+                                                                        </ControlTemplate.Triggers>
+                                                                    </ControlTemplate>
+                                                                </Button.Template>
+                                                            </Button>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                            <DockPanel Margin="0,6,0,0">
+                                                <Button DockPanel.Dock="Right" Content="Delete…" Style="{StaticResource CommandButton}" Padding="10,2" Margin="6,0,0,0"
+                                                        Command="{Binding DeleteCommand}" ToolTip="Take this tag off every card, after asking" />
+                                                <Button DockPanel.Dock="Right" Content="Rename" Style="{StaticResource CommandButton}" Padding="10,2" Margin="6,0,0,0"
+                                                        Command="{Binding RenameCommand}" ToolTip="{Binding RenameToolTip}" ToolTipService.ShowOnDisabled="True" />
+                                                <TextBox Text="{Binding NewName, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="New name"
+                                                         ToolTip="The tag's new name: letters, digits and hyphens" />
+                                            </DockPanel>
+                                            <DockPanel Margin="0,6,0,0" Visibility="{Binding IsConfirmingDelete, Converter={StaticResource BoolToVisibility}}">
+                                                <Button DockPanel.Dock="Right" Content="Keep it" Style="{StaticResource CommandButton}" Padding="10,2" Margin="6,0,0,0"
+                                                        Command="{Binding CancelDeleteCommand}" ToolTip="Leave the tag where it is" />
+                                                <Button DockPanel.Dock="Right" Content="Delete" Style="{StaticResource CommandButton}" Padding="10,2" Margin="6,0,0,0"
+                                                        Command="{Binding ConfirmDeleteCommand}" ToolTip="{Binding DeleteQuestion}" />
+                                                <TextBlock Text="{Binding DeleteQuestion}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                            </DockPanel>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Expander>
+
                 <Expander Style="{StaticResource Section}">
                     <Expander.Header>
                         <TextBlock Text="Starting sessions" Style="{StaticResource SectionHeading}" />
