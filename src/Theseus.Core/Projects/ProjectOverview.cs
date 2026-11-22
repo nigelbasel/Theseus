@@ -145,7 +145,10 @@ public sealed class ProjectOverview
     {
         var rounds = file.Rounds;
         var latest = rounds[^1];
-        var moving = pieces.Where(piece => piece.Round == latest.Number && piece.Status.State == StageNodeState.Busy).ToList();
+        // A built piece awaiting its check keeps that state while its session works on, so "moving" also counts a working session.
+        var moving = pieces.Where(piece => piece.Round == latest.Number
+                                           && (piece.Status.State == StageNodeState.Busy || piece.IsCurrentPiece && piece.Card is { IsWorking: true }))
+            .ToList();
 
         if (rounds.Count == 1)
         {
