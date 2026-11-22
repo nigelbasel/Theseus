@@ -302,7 +302,19 @@ public sealed class PieceNodeViewModel : ObservableObject, IFoldable
     /// Whether its card moved on from it to a next piece, drawn as a "then worked on" arrow below it: it then keeps room
     /// under it for the arrow and its label, so neither sits under a box (Nigel, 2026-11-22).
     /// </summary>
-    public bool MovesOn { get; internal set; }
+    public bool MovesOn
+    {
+        get => _movesOn;
+        internal set
+        {
+            if (Set(ref _movesOn, value))
+            {
+                Raise(nameof(Gap));
+            }
+        }
+    }
+
+    private bool _movesOn;
 
     /// <summary>The room under it: enough for the arrow and two lines of label when its card moved on, else 14 px.</summary>
     public System.Windows.Thickness Gap => new(0, 0, 0, MovesOn ? 48 : 14);

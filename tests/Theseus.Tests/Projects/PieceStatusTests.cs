@@ -121,7 +121,28 @@ public class PieceStatusTests
     {
         var status = OnePiece(_folder, "feature", Files("spec.md", "review.md"), accepted: true).Status;
 
-        Assert.That((status.State, status.Text), Is.EqualTo((StageNodeState.ToDo, $"Evidence missing at Verify: {PiecesOfWork.NoEvidenceYet}.")));
+        Assert.That((status.State, status.Text, status.WhoActs), Is.EqualTo((StageNodeState.ToDo,
+            $"Evidence missing at Verify: {PiecesOfWork.NoEvidenceYet}; nobody is working on it.", "a-card, once you start it.")),
+            "with no session, nobody is said to write it (review of PR 5, finding 13)");
+    }
+
+    [Test]
+    public void ASpecWaitingForYou_IsSaidBeforeMissingEvidence()
+    {
+        var status = OnePiece(_folder, "feature", Files("spec.md", "review.md")).Status;
+
+        Assert.That((status.State, status.WaitsForYou), Is.EqualTo((StageNodeState.WaitingOnYou, true)), "review of PR 5, finding 1");
+    }
+
+    [Test]
+    public void AFeatureWithNoSpecMd_NeverReadsDone_NorSkipsItsGateUnsaid()
+    {
+        var finished = OnePiece(_folder, "feature", Files("plan.md", "evidence.md", "review.md", "lessons.md"), accepted: true).Status;
+        var next = OnePiece(_folder, "feature", Files("plan.md", "evidence.md", "review.md"), accepted: true).Status;
+
+        Assert.That(finished.State, Is.Not.EqualTo(StageNodeState.Done));
+        Assert.That(finished.Text, Does.Contain("spec gate is not passed here"));
+        Assert.That(next.Text, Does.Contain("spec gate is not passed here"), "review of PR 5, finding 12");
     }
 
     [Test]

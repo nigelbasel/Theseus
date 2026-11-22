@@ -22,7 +22,7 @@ internal sealed class ProjectViews
     public MemorySettingsStore Settings { get; } = Flow();
 
     // The 1.1d and 1.1f view tests read the rounds-and-work lens; the objectives lens is the default (Nigel, 2026-11-22),
-    // which ProjectLensDefaultTests checks on a store of its own.
+    // which ObjectivesLensTests checks on a store of its own.
     private static MemorySettingsStore Flow()
     {
         var store = new MemorySettingsStore();

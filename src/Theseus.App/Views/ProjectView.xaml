@@ -6,8 +6,7 @@
              xmlns:converters="clr-namespace:Theseus.App.Converters"
              xmlns:controls="clr-namespace:Theseus.App.Controls"
              xmlns:projects="clr-namespace:Theseus.Core.Projects;assembly=Theseus.Core"
-             xmlns:local="clr-namespace:Theseus.App.Views"
-             ToolTipService.InitialShowDelay="300">
+             xmlns:local="clr-namespace:Theseus.App.Views">
     <!--
         The project view (1.1d AC 15 to 54; Nigel accepted the mockup, 2026-11-20): time runs down the page. Every
         StaticResource it uses is defined here, because the tests load it without the application's resources; brushes

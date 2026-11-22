@@ -31,10 +31,16 @@ public static class LinkedText
 
         block.Loaded -= OnLoaded;
         block.Loaded += OnLoaded;
+        block.DataContextChanged -= OnDataContextChanged;
+        block.DataContextChanged += OnDataContextChanged;
         Fill(block);
     }
 
     private static void OnLoaded(object sender, RoutedEventArgs e) => Fill((TextBlock)sender);
+
+    // The view keeps one ProjectView and swaps its view model on every rebuild; a link built for the old one would act on
+    // a view no longer shown, so links resolve their target again when followed.
+    private static void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e) => Fill((TextBlock)sender);
 
     private static void Fill(TextBlock block)
     {
@@ -50,10 +56,11 @@ public static class LinkedText
 
         foreach (var span in LinkedSpans.Of(text, view.LinkTarget))
         {
-            if (span.Follow is { } follow)
+            if (span.Follow is not null)
             {
                 var link = new Hyperlink(new Run(span.Text)) { ToolTip = span.ToolTip, Cursor = System.Windows.Input.Cursors.Hand };
-                link.Click += (_, _) => follow();
+                var token = span.Text;
+                link.Click += (_, _) => ViewOf(block)?.LinkTarget(token)?.Follow();
                 System.Windows.Automation.AutomationProperties.SetName(link, span.ToolTip);
                 block.Inlines.Add(link);
             }

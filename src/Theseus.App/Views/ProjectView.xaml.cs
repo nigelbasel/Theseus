@@ -26,6 +26,24 @@ public partial class ProjectView : UserControl
     {
         InitializeComponent();
         DataContextChanged += OnDataContextChanged;
+        PreviewMouseMove += (_, e) => QuickToolTips(e.OriginalSource as DependencyObject);
+    }
+
+    /// <summary>How soon a tooltip in the view shows (I43).</summary>
+    public const int ToolTipDelay = 300;
+
+    // ToolTipService.InitialShowDelay is not inherited, and boxes, stages and links are made at run time, so each element
+    // under the pointer gets the short delay before WPF's tooltip timer reads it.
+    internal void QuickToolTips(DependencyObject? element)
+    {
+        for (var at = element; at is not null && !ReferenceEquals(at, this);
+             at = at is Visual or System.Windows.Media.Media3D.Visual3D ? VisualTreeHelper.GetParent(at) : LogicalTreeHelper.GetParent(at))
+        {
+            if (ToolTipService.GetToolTip(at) is not null && ToolTipService.GetInitialShowDelay(at) != ToolTipDelay)
+            {
+                ToolTipService.SetInitialShowDelay(at, ToolTipDelay);
+            }
+        }
     }
 
     /// <summary>
@@ -86,7 +104,7 @@ public partial class ProjectView : UserControl
         };
         label.SetResourceReference(TextBlock.ForegroundProperty, "TextFillColorSecondaryBrush");
         Canvas.SetLeft(label, from.Left + ConnectorGeometry.ThenWorkedOnInset + 10);
-        Canvas.SetTop(label, to.Top - 30);
+        Canvas.SetTop(label, from.Bottom + 6);
 
         return label;
     }

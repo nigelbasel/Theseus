@@ -31,7 +31,7 @@
         <KeyBinding Gesture="F1" Command="{Binding Help.OpenCommand}" />
         <KeyBinding Gesture="Alt+Enter" Command="{Binding PropertiesCommand}" />
         <KeyBinding Gesture="Escape" Command="{Binding ClearSelectionCommand}" />
-        <!-- Back to the board from a project view (1.1d AC 16); CloseProjectCommand runs only while a project is open. -->
+        <!-- Back and Forward through the places visited in project views (I46). -->
         <KeyBinding Gesture="Alt+Left" Command="{Binding GoBackCommand}" />
         <KeyBinding Gesture="Alt+Right" Command="{Binding GoForwardCommand}" />
     </Window.InputBindings>

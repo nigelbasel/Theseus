@@ -255,6 +255,18 @@ public class ProjectViewLayoutTests
     }
 
     [Test]
+    public void ATooltipUnderThePointer_ShowsWithinTheViewsShortDelay()
+    {
+        var control = LaidOut(_views.Theseus());
+        var tipped = new TextBlock { ToolTip = "tip" };
+        ((Panel)control.FindName("Connectors")).Children.Add(tipped);
+
+        control.QuickToolTips(tipped);
+
+        Assert.That(ToolTipService.GetInitialShowDelay(tipped), Is.EqualTo(ProjectView.ToolTipDelay), "review of PR 5, finding 3");
+    }
+
+    [Test]
     public void NoConnectorLabel_OverlapsABox_AndItReadsAtTheViewsTextSize()
     {
         var control = LaidOut(WithRunsOpen(_views.Theseus()));

@@ -82,12 +82,24 @@ public class ProjectViewGroupingTests
         var view = _views.Theseus();
         var raised = new List<string?>();
         view.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+        var writes = _views.Settings.Writes;
 
         view.IsGroupedByFlow = false;
 
         Assert.That(view.IsGroupedByFlow, Is.True);
         Assert.That(raised, Does.Contain(nameof(ProjectViewModel.IsGroupedByFlow)), "a toggle unticked by a click is ticked again");
-        Assert.That(_views.Settings.Settings.ProjectGrouping[TheseusProject], Is.EqualTo(ProjectViewGrouping.Flow), "nothing new is written");
+        Assert.That(_views.Settings.Writes, Is.EqualTo(writes), "nothing is written");
+    }
+
+    [Test]
+    public void GoingBack_ToAFlowPlace_RestoresTheFlowLens()
+    {
+        var view = _views.Theseus();
+        view.IsGroupedByObjectives = true;
+
+        view.GoTo(nameof(ProjectViewGrouping.Flow), null);
+
+        Assert.That(view.IsGroupedByFlow, Is.True, "review of PR 5, finding 6");
     }
 
     [Test]

@@ -138,7 +138,7 @@ public sealed class ProjectViewModel : ObservableObject
 
         var code = new System.Text.RegularExpressions.Regex($@"\b{System.Text.RegularExpressions.Regex.Escape(token)}\b");
 
-        return AllNodes.FirstOrDefault(node => code.IsMatch(node.Workstream)) is { } piece
+        return AllNodes.Where(node => code.IsMatch(node.Workstream)).OrderByDescending(node => node.Piece.IsCurrentPiece).FirstOrDefault() is { } piece
             ? (() => GoToPiece(piece.Name), $"Go to {piece.Title}")
             : null;
     }
@@ -159,7 +159,14 @@ public sealed class ProjectViewModel : ObservableObject
     {
         if (lens is not null && Enum.TryParse<ProjectViewGrouping>(lens, out var grouping))
         {
-            IsGroupedByObjectives = grouping == ProjectViewGrouping.Objectives;
+            if (grouping == ProjectViewGrouping.Objectives)
+            {
+                IsGroupedByObjectives = true;
+            }
+            else
+            {
+                IsGroupedByFlow = true;
+            }
         }
 
         if (selection is null)
@@ -171,7 +178,15 @@ public sealed class ProjectViewModel : ObservableObject
         {
             var number = selection["objective:".Length..];
             HighlightObjective(number);
-            Select(AllNodes.FirstOrDefault(node => node.Piece.ObjectiveNumber == number));
+
+            if (IsGroupedByObjectives && AllObjectives.FirstOrDefault(objective => objective.Objective?.Number == number) is { } heading)
+            {
+                Select(heading);
+            }
+            else
+            {
+                Select(AllNodes.FirstOrDefault(node => node.Piece.ObjectiveNumber == number));
+            }
         }
         else if (AllNodes.FirstOrDefault(node => node.Name == selection) is { } node)
         {
@@ -205,6 +220,24 @@ public sealed class ProjectViewModel : ObservableObject
         if (FinishedRuns.FirstOrDefault(run => run.Boxes.Contains(node)) is { IsOpen: false } run)
         {
             ToggleFold(run);
+        }
+
+        foreach (var phase in Phases.Where(phase => phase.Objectives.Any(objective => objective.Pieces.Contains(node))))
+        {
+            if (!phase.IsOpen)
+            {
+                ToggleFold(phase);
+            }
+
+            foreach (var objective in phase.Objectives.Where(objective => objective.Pieces.Contains(node) && !objective.IsOpen))
+            {
+                ToggleFold(objective);
+            }
+        }
+
+        foreach (var objective in Unlisted.Where(objective => objective.Pieces.Contains(node) && !objective.IsOpen))
+        {
+            ToggleFold(objective);
         }
     }
 
@@ -439,10 +472,7 @@ public sealed class ProjectViewModel : ObservableObject
         view.Unlisted = ObjectiveGrouping.Unlisted(pieces) is { } unlisted ? [view.ObjectiveFor(unlisted, null, byPiece, edits)] : [];
         view._thenWorkedOn = tree.ThenWorkedOn;
 
-        foreach (var link in tree.ThenWorkedOn)
-        {
-            byPiece[link.From].MovesOn = true;
-        }
+        view.ApplyGaps();
         view.Signature = view.SignatureOf();
 
         // The window is as wide as it was, so a rebuild keeps the pane docked or not, and says nothing again.
@@ -929,11 +959,23 @@ public sealed class ProjectViewModel : ObservableObject
         RememberFolds(PieceFolds.Each(AllNodes.Cast<IFoldable>().Concat(Headings).Select(fold => (fold.FoldName, fold.IsOpen))));
     }
 
+    // The room for a "then worked on" arrow is kept only where the arrow is drawn: in the flow lens.
+    private void ApplyGaps()
+    {
+        var moving = _thenWorkedOn.Select(link => link.From.Name).ToHashSet(StringComparer.Ordinal);
+
+        foreach (var node in AllNodes)
+        {
+            node.MovesOn = _grouping == ProjectViewGrouping.Flow && moving.Contains(node.Name);
+        }
+    }
+
     private void Choose(bool chosen, ProjectViewGrouping grouping)
     {
         if (chosen && grouping != _grouping)
         {
             _grouping = grouping;
+            ApplyGaps();
 
             var settings = _settings.Read();
             var groupings = new Dictionary<string, ProjectViewGrouping>(settings.ProjectGrouping) { [Name] = grouping };
@@ -1100,7 +1142,8 @@ public sealed class ProjectViewModel : ObservableObject
                     + "=" + string.Join(",", stage.MenuItems.Select(item => $"{item.Label}:{item.IsEnabled}:{item.ToolTip}"))))));
 
         string Heading(ObjectiveHeadingViewModel objective) =>
-            string.Join("/", objective.Title, objective.CriteriaText, string.Join(",", objective.Counts.Select(chip => chip.Text)),
+            string.Join("/", objective.Title, objective.CriteriaText, objective.RollupText, objective.Rollup?.ToolTip,
+                string.Join(",", objective.Counts.Select(chip => chip.Text)),
                 string.Join(",", objective.Pieces.Select(piece => piece.Name)));
 
         return string.Join("|", new[] { view.Name, view.Title, view.Sentence, view._grouping.ToString() }
@@ -1110,7 +1153,7 @@ public sealed class ProjectViewModel : ObservableObject
             .Concat(view.Rounds.Select(round => string.Join("/", round.Title, round.Dates, round.StateText, round.Line, round.Banner,
                 string.Join(",", round.Objectives.Select(objective => $"{objective.Text}:{objective.CriteriaText}")),
                 string.Join(",", round.Items.Select(item => item is FinishedRunViewModel run ? run.Text + run.Titles : ((PieceNodeViewModel)item).Name)))))
-            .Concat(view.Phases.Select(phase => $"{phase.Title}/{phase.ExitGate}/{phase.DoneText}:"
+            .Concat(view.Phases.Select(phase => $"{phase.Title}/{phase.ExitGate}/{phase.DoneText}/{phase.RollupText}/{phase.Rollup.ToolTip}:"
                                                 + string.Join(";", phase.Objectives.Select(Heading))))
             .Concat(view.Unlisted.Select(Heading)));
     }

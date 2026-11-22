@@ -10,5 +10,12 @@ internal sealed class MemorySettingsStore : ISettingsStore
 
     public TheseusSettings Read() => Settings;
 
-    public void Write(TheseusSettings settings) => Settings = settings;
+    /// <summary>How many times settings were written.</summary>
+    public int Writes { get; private set; }
+
+    public void Write(TheseusSettings settings)
+    {
+        Settings = settings;
+        Writes++;
+    }
 }

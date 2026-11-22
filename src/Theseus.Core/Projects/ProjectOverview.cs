@@ -256,7 +256,12 @@ public sealed class ProjectOverview
     // 2026-11-22: "…obvious: build is being built and Every question…").
     private static string Moving(IReadOnlyList<PieceOfWork> moving)
     {
-        static string Quoted(IEnumerable<PieceOfWork> pieces) => string.Join(" and ", pieces.Select(piece => $"“{piece.Title}”"));
+        static string Quoted(IReadOnlyList<PieceOfWork> pieces)
+        {
+            var titles = pieces.Select(piece => $"“{piece.Title}”").ToList();
+
+            return titles.Count <= 2 ? string.Join(" and ", titles) : $"{string.Join(", ", titles[..^1])} and {titles[^1]}";
+        }
 
         var built = moving.Where(piece => piece.Kind == PieceKind.Build).ToList();
         var other = moving.Where(piece => piece.Kind != PieceKind.Build).ToList();

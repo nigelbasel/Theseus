@@ -197,7 +197,7 @@ public sealed class ShellViewModel : ObservableObject
                 VerifyWithHoldouts(Chosen()[0]);
                 SaySkipped();
             },
-            _ => ProjectSelection.OneCard(Board) is { } only && CanVerify(only));
+            _ => Chosen() is [var only] && CanVerify(only));
         MarkSelectedPausedCommand = new RelayCommand(_ => MarkSelected(workstream => workstream with { IsPaused = true }, "paused"),
             _ => Chosen().Any(card => !card.IsPaused));
         MarkSelectedBlockedCommand = new RelayCommand(_ => MarkSelected(workstream => workstream with { IsBlocked = true }, "blocked"),
@@ -3683,6 +3683,7 @@ public sealed class ShellViewModel : ObservableObject
         {
             PieceNodeViewModel node when Board.Card(node.Piece.CardKey) is { } card => [card],
             StageNodeViewModel stage when Board.Card(stage.Piece.Piece.CardKey) is { } card => [card],
+            _ when ProjectView is not null => [],
             _ => Board.ChosenCards,
         };
 
@@ -3696,16 +3697,19 @@ public sealed class ShellViewModel : ObservableObject
 
         var actions = new List<PieceActionViewModel>();
         var canArchive = ArchiveCardCommand.CanExecute(card);
-        actions.Add(new PieceActionViewModel("Archive…", () => ArchiveCardCommand.Execute(card), canArchive,
-            canArchive ? $"Archive {card.Title}: it leaves the board" : $"{card.Title} has a session: stop it before archiving it"));
+        var verb = card.IsArchived ? "Restore" : "Archive";
+        actions.Add(new PieceActionViewModel(verb, () => ArchiveCardCommand.Execute(card), canArchive,
+            !canArchive ? $"{card.Title} has a session: stop it before archiving it"
+            : card.IsArchived ? $"Restore {card.Title} to the board" : $"Archive {card.Title}: it leaves the board"));
 
         if (piece.IsListed && card.RemoveFromProjectCommand is { } remove)
         {
             actions.Add(new PieceActionViewModel("Remove from project…", () => remove.Execute(null), remove.CanExecute(null),
                 $"Take {card.Title}'s rows out of the project file"));
         }
-        else if (!piece.IsListed && piece.ParentTitle is { } parent
+        else if (!piece.IsListed && piece.ParentTitle is { } parent && piece.ParentCardKey is { } parentCard
                  && Chains?.AllLinks.FirstOrDefault(link => link.IsActive && link.Kind == LinkKind.HandsOver
+                                                            && string.Equals(link.From, parentCard, StringComparison.OrdinalIgnoreCase)
                                                             && string.Equals(link.To, card.Key, StringComparison.OrdinalIgnoreCase)) is { } handOver)
         {
             actions.Add(new PieceActionViewModel($"Unlink from {parent}", () =>
@@ -3720,6 +3724,7 @@ public sealed class ShellViewModel : ObservableObject
         actions.Add(new PieceActionViewModel("Show on the board", () =>
         {
             CloseProject();
+            card.IsCollapsed = false;
             Board.ClickSelect(card, toggle: false, extend: false);
         }, toolTip: $"Close the view and select {card.Title} on the board"));
 
