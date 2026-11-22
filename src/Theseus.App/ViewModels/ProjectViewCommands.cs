@@ -15,7 +15,7 @@ public static class ProjectViewCommands
     /// <param name="focus">The shell's Focus command, which takes a card.</param>
     /// <param name="start">The shell's Start command, which takes a card.</param>
     /// <param name="stop">The shell's Stop command, which takes a card.</param>
-    /// <param name="openSpec">Opens a spec as it was read.</param>
+    /// <param name="openSpec">Opens a spec in its window.</param>
     /// <param name="acceptSpec">Accepts a spec, after asking.</param>
     /// <param name="openPath">Opens a folder or a file.</param>
     /// <param name="notice">Says in the status bar why nothing happened.</param>

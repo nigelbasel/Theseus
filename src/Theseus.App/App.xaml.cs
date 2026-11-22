@@ -278,9 +278,10 @@ public partial class App : Application
             new QuestionWindow($"{action} a card of a running project?", question, action) { Owner = MainWindow }.ShowDialog() == true;
         shell.AskProjectProperties = properties =>
             new ProjectPropertiesWindow(properties) { Owner = MainWindow }.ShowDialog() == true;
+        // Owned by the window it was asked from, so a spec window is blocked behind its question (review of PR 5, 13).
         shell.ConfirmAcceptSpec = question =>
-            MessageBox.Show(MainWindow, question, "Accept spec?", MessageBoxButton.YesNo, MessageBoxImage.Question,
-                MessageBoxResult.No) == MessageBoxResult.Yes;
+            MessageBox.Show(Windows.OfType<Window>().FirstOrDefault(window => window.IsActive) ?? MainWindow, question, "Accept spec?",
+                MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes;
         shell.AskNewProject = (name, title) =>
         {
             var window = new NewProjectWindow(name, title) { Owner = MainWindow };
@@ -292,6 +293,27 @@ public partial class App : Application
             var window = new TextPromptWindow(title, label, initial) { Owner = MainWindow };
 
             return window.ShowDialog() == true ? window.Text : null;
+        };
+        var specWindows = new Dictionary<string, SpecWindow>(StringComparer.OrdinalIgnoreCase);
+        shell.ShowSpec = model =>
+        {
+            var key = $"{model.Shown.Project}/{model.Shown.Slug}";
+
+            if (specWindows.TryGetValue(key, out var open))
+            {
+                open.Activate();
+
+                return;
+            }
+
+            var window = new SpecWindow(model, shell.SettingsStore.Read().SpecWindow,
+                placement => shell.SettingsStore.Write(shell.SettingsStore.Read() with { SpecWindow = placement }))
+            {
+                Owner = MainWindow,
+            };
+            window.Closed += (_, _) => specWindows.Remove(key);
+            specWindows[key] = window;
+            window.Show();
         };
         shell.AskObjective = () =>
         {

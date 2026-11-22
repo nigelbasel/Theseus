@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using Theseus.App.ViewModels;
+using Theseus.Core.Markdown;
 
 namespace Theseus.App;
 
@@ -16,7 +17,7 @@ public partial class AddObjectiveWindow : Window
 
     /// <summary>What was given, once Add was pressed.</summary>
     public NewObjective Objective =>
-        new(TitleBox.Text.Trim(), [.. CriteriaBox.Text.Split('\n').Select(line => line.Trim()).Where(line => line.Length > 0)]);
+        new(TitleBox.Text.Trim(), [.. CriteriaBox.Text.Split('\n').Select(MarkdownFormat.WithoutListMark).Where(line => line.Length > 0)]);
 
     private void OnChanged(object sender, TextChangedEventArgs e) => AddButton.IsEnabled = TitleBox.Text.Trim().Length > 0;
 

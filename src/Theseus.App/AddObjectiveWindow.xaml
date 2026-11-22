@@ -1,6 +1,7 @@
 <Window x:Class="Theseus.App.AddObjectiveWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:Theseus.App.Controls"
         Title="Add objective"
         Width="560"
         SizeToContent="Height"
@@ -13,8 +14,7 @@
         <TextBox x:Name="TitleBox" Margin="0,6,0,0" TextChanged="OnChanged" />
 
         <TextBlock Text="Acceptance criteria" FontWeight="SemiBold" Margin="0,12,0,0" />
-        <TextBox x:Name="CriteriaBox" Margin="0,6,0,0" MinHeight="90" AcceptsReturn="True" TextWrapping="Wrap"
-                 VerticalScrollBarVisibility="Auto" />
+        <controls:MarkdownBox x:Name="CriteriaBox" Margin="0,6,0,0" EditorMinHeight="90" EditorMaxHeight="320" />
         <TextBlock Margin="0,4,0,0" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                    Text="One per line: observable facts that mean it is met. It is added at the end of the phase with its pipeline still to be chosen and no workstreams yet." />
 
