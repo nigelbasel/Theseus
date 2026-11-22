@@ -78,11 +78,22 @@ public sealed class StageHeaderViewModel : ObservableObject
     /// <summary>How many cards in the stage, across every row, have a session running.</summary>
     public int LiveCount => _cells.Sum(cell => cell.LiveCount);
 
+    /// <summary>How many of the stage's cards, across every row, the board's search matches (item 4).</summary>
+    public int MatchCount => _cells.Sum(cell => cell.MatchCount);
+
+    /// <summary>"2 match" while a search matches cards here (item 4), so a fold never hides a match; empty otherwise.</summary>
+    public string MatchText => MatchCount == 0 ? string.Empty : $"{MatchCount} match";
+
     private void OnCellChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(ColumnViewModel.LiveCount))
         {
             Raise(nameof(LiveCount));
+        }
+        else if (e.PropertyName == nameof(ColumnViewModel.MatchCount))
+        {
+            Raise(nameof(MatchCount));
+            Raise(nameof(MatchText));
         }
     }
 }

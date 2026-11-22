@@ -47,6 +47,9 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
     private string _branchTooltip = string.Empty;
     private bool _branchesDiffer;
     private DateTimeOffset? _lifecycleSinceUtc;
+    private IReadOnlyList<CardRepo> _repos = [];
+    private bool _isSearchDimmed;
+    private IReadOnlyList<Theseus.Core.Finding.TextSpan> _titleHighlights = [];
 
     /// <summary>Creates a card over a workstream.</summary>
     public WorkstreamCardViewModel(Workstream workstream) => _workstream = workstream;
@@ -78,7 +81,48 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
                 Raise(nameof(Column));
                 Raise(nameof(IsArchived));
                 Raise(nameof(ArchiveLabel));
+                Raise(nameof(Tags));
             }
+        }
+    }
+
+    /// <summary>The owner's tags on the card (card-search-and-tags item 9).</summary>
+    public IReadOnlyList<string> Tags => _workstream.Tags;
+
+    /// <summary>The card's repos and their branches, read with its branch line, for the search to match (item 2).</summary>
+    public IReadOnlyList<CardRepo> Repos
+    {
+        get => _repos;
+        set => Set(ref _repos, value);
+    }
+
+    /// <summary>What the search reads of the card (item 2): title, key, project, area, Jira keys, tags, branches, repos.</summary>
+    public Theseus.Core.Finding.SearchableCard Searchable => new(
+        Key, Title, _workstream.Project ?? string.Empty, Area, JiraKeys, Tags,
+        [.. _repos.Select(repo => repo.Branch).OfType<string>()], [.. _repos.Select(repo => repo.Name)]);
+
+    /// <summary>Whether a search is on that the card does not match, so it is dimmed (item 3, decision 1).</summary>
+    public bool IsSearchDimmed
+    {
+        get => _isSearchDimmed;
+        private set => Set(ref _isSearchDimmed, value);
+    }
+
+    /// <summary>Where the search's words fall in the title, to be highlighted (item 3); empty with no search.</summary>
+    public IReadOnlyList<Theseus.Core.Finding.TextSpan> TitleHighlights
+    {
+        get => _titleHighlights;
+        private set => Set(ref _titleHighlights, value);
+    }
+
+    /// <summary>Shows what the board's search makes of the card.</summary>
+    internal void ShowSearch(bool dimmed, IReadOnlyList<Theseus.Core.Finding.TextSpan> highlights)
+    {
+        IsSearchDimmed = dimmed;
+
+        if (!highlights.SequenceEqual(_titleHighlights))
+        {
+            TitleHighlights = highlights;
         }
     }
 

@@ -15,6 +15,8 @@ public sealed class BoardRowViewModel : ObservableObject
 {
     private bool _isCollapsed;
     private double _height = double.NaN;
+    private int _matchCount;
+    private IReadOnlyList<IBoardCard> _matched = [];
 
     /// <summary>Creates a row for one area.</summary>
     public BoardRowViewModel(string area)
@@ -84,6 +86,40 @@ public sealed class BoardRowViewModel : ObservableObject
         ? "nothing here"
         : string.Join("   ", Cells.Where(cell => cell.Count > 0)
             .Select(cell => $"{cell.Count} {cell.Column.ToLowerInvariant()}"));
+
+    /// <summary>How many of the row's cards and project cards the board's search matches; zero with no search (item 4).</summary>
+    public int MatchCount
+    {
+        get => _matchCount;
+        private set
+        {
+            if (Set(ref _matchCount, value))
+            {
+                Raise(nameof(MatchText));
+            }
+        }
+    }
+
+    /// <summary>"2 match" while a search matches cards here (item 4), so a fold never hides a match; empty otherwise.</summary>
+    public string MatchText => MatchCount == 0 ? string.Empty : $"{MatchCount} match";
+
+    /// <summary>The matches in the row, in reading order, drawn in a strip while it is folded (item 4).</summary>
+    public IReadOnlyList<IBoardCard> Matched
+    {
+        get => _matched;
+        private set => Set(ref _matched, value);
+    }
+
+    /// <summary>Shows the search's matches in the row.</summary>
+    internal void ShowMatches(IReadOnlyList<IBoardCard> matched)
+    {
+        if (!matched.SequenceEqual(_matched))
+        {
+            Matched = matched;
+        }
+
+        MatchCount = matched.Count;
+    }
 
     /// <summary>Says the counts have changed, after cards have been put into the cells.</summary>
     public void RaiseCounts()

@@ -28,4 +28,7 @@
     <SolidColorBrush x:Key="ChangeBrush" Color="#f08a62" />
     <SolidColorBrush x:Key="ChangeSoftBrush" Color="#3d271d" />
     <SolidColorBrush x:Key="LinkBrush" Color="#7db3ff" />
+    <!-- What a board search found in a title (card-search-and-tags item 3). -->
+    <SolidColorBrush x:Key="SearchHighlightBrush" Color="#6b5a12" />
+    <SolidColorBrush x:Key="SearchHighlightTextBrush" Color="#fff4c2" />
 </ResourceDictionary>

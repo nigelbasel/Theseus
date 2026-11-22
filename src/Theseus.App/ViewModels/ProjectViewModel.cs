@@ -33,6 +33,8 @@ public sealed class ProjectViewModel : ObservableObject
     private readonly ISettingsStore _settings;
     private readonly ProjectViewActions _actions;
     private readonly ProjectViewEdits? _edits;
+    private HashSet<PieceNodeViewModel> _searchHits = [];
+    private string? _highlightedObjective;
     private IReadOnlyList<string> _folds;
     private object? _selection;
     private PropertiesViewModel _properties = PropertiesViewModel.Empty;
@@ -156,12 +158,60 @@ public sealed class ProjectViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Highlights the boxes the board's search matches (card-search-and-tags item 7), with the highlight a followed
+    /// objective uses, and keeps them highlighted while objectives are hovered. Null clears it.
+    /// </summary>
+    public void ShowSearch(Func<PieceNodeViewModel, bool>? matches)
+    {
+        _searchHits = matches is null ? [] : [.. AllNodes.Where(matches)];
+        HighlightObjective(_highlightedObjective);
+    }
+
+    /// <summary>
+    /// Opens what hides the search's matching boxes, as following a link does: their round, run, objective and phase. Run
+    /// when a project is opened with a search on, so the highlight is seen and not folded away (item 7).
+    /// </summary>
+    public void RevealSearch()
+    {
+        foreach (var node in _searchHits)
+        {
+            Reveal(node);
+
+            foreach (var phase in Phases)
+            {
+                foreach (var heading in phase.Objectives.Where(heading => heading.Pieces.Contains(node)))
+                {
+                    if (!phase.IsOpen)
+                    {
+                        ToggleFold(phase);
+                    }
+
+                    if (!heading.IsOpen)
+                    {
+                        ToggleFold(heading);
+                    }
+                }
+            }
+
+            if (AllObjectives.FirstOrDefault(heading => heading.Pieces.Contains(node)) is { IsOpen: false } loose)
+            {
+                ToggleFold(loose);
+            }
+        }
+    }
+
+    /// <summary>The boxes the board's search matches, highlighted while it is on (item 7).</summary>
+    public IReadOnlyCollection<PieceNodeViewModel> SearchHits => _searchHits;
+
     /// <summary>Hovering a box highlights its objective's chip; hovering a chip highlights its boxes (I45). Null clears.</summary>
     public void HighlightObjective(string? number)
     {
+        _highlightedObjective = number;
+
         foreach (var node in AllNodes)
         {
-            node.IsHighlighted = number is not null && node.Piece.ObjectiveNumber == number;
+            node.IsHighlighted = (number is not null && node.Piece.ObjectiveNumber == number) || _searchHits.Contains(node);
         }
 
         foreach (var chip in Rounds.SelectMany(round => round.Objectives))

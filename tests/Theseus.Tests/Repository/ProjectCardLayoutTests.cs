@@ -190,6 +190,7 @@ public class ProjectCardLayoutTests
                 Converter("HexToBrushConverter", "HexToBrush"),
                 Converter("BoolToVisibilityConverter", "BoolToVisibility"),
                 Converter("NotBoolToVisibilityConverter", "NotBoolToVisibility"),
+                Converter("NotEmptyToVisibilityConverter", "NotEmptyToVisibility"),
                 Style("MenuGlyph", "TextBlock"),
                 Style("CardIcon", "Button"),
                 Style("CommandButton", "Button"),
@@ -201,6 +202,16 @@ public class ProjectCardLayoutTests
                      && !element.Name.NamespaceName.Contains(";assembly=", StringComparison.Ordinal)))
         {
             element.Name = XName.Get(element.Name.LocalName, element.Name.NamespaceName + ";assembly=Theseus");
+        }
+
+        // So are attached properties, such as the search's highlighted title (card-search-and-tags item 3).
+        foreach (var attribute in host.DescendantsAndSelf().Attributes().Where(attribute =>
+                     attribute.Name.NamespaceName.StartsWith("clr-namespace:Theseus.App.", StringComparison.Ordinal)
+                     && !attribute.Name.NamespaceName.Contains(";assembly=", StringComparison.Ordinal)).ToList())
+        {
+            var parent = attribute.Parent!;
+            attribute.Remove();
+            parent.Add(new XAttribute(XName.Get(attribute.Name.LocalName, attribute.Name.NamespaceName + ";assembly=Theseus"), attribute.Value));
         }
 
         return host.ToString();

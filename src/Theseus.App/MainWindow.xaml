@@ -31,6 +31,9 @@
         <KeyBinding Gesture="F1" Command="{Binding Help.OpenCommand}" />
         <KeyBinding Gesture="Alt+Enter" Command="{Binding PropertiesCommand}" />
         <KeyBinding Gesture="Escape" Command="{Binding ClearSelectionCommand}" />
+        <!-- The search's keys (card-search-and-tags item 6); Ctrl+F and / are handled in OnWindowPreviewKeyDown. -->
+        <KeyBinding Gesture="F3" Command="{Binding NextMatchCommand}" />
+        <KeyBinding Gesture="Shift+F3" Command="{Binding PreviousMatchCommand}" />
         <!-- Back to the board from a project view (1.1d AC 16); CloseProjectCommand runs only while a project is open. -->
         <KeyBinding Gesture="Alt+Left" Command="{Binding GoBackCommand}" />
         <KeyBinding Gesture="Alt+Right" Command="{Binding GoForwardCommand}" />
@@ -328,10 +331,16 @@
                             <TextBlock x:Name="ProjectTag" DockPanel.Dock="Right" Text="PROJECT" FontFamily="Cascadia Mono, Consolas"
                                        FontSize="11" FontWeight="Medium" Margin="8,0,0,0" VerticalAlignment="Center"
                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                            <TextBlock x:Name="ProjectTitle" Text="{Binding Title}" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"
+                            <TextBlock x:Name="ProjectTitle" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"
+                                       controls:HighlightedText.Text="{Binding Title}" controls:HighlightedText.Spans="{Binding TitleHighlights}"
                                        TextTrimming="CharacterEllipsis" ToolTip="{Binding Title}"
                                        Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                         </DockPanel>
+                        <!-- A search that matches its cards says so, since they are not on the board (card-search-and-tags item 7). -->
+                        <TextBlock x:Name="ProjectMatchesInside" Text="{Binding MatchesInsideText}" FontSize="12" FontWeight="SemiBold" Margin="0,4,0,0"
+                                   ToolTip="Open the project to see its matching pieces of work highlighted"
+                                   Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
+                                   Visibility="{Binding MatchesInsideText, Converter={StaticResource NotEmptyToVisibility}}" />
                         <TextBlock Text="{Binding PhaseText}" FontSize="12" Margin="0,4,0,0" TextTrimming="CharacterEllipsis"
                                    ToolTip="{Binding PhaseText}"
                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
@@ -424,6 +433,10 @@
                             <!-- A done card is muted as a pinned project card is, and stays where it was put (1.1e AC 12). -->
                             <DataTrigger Binding="{Binding IsDone}" Value="True">
                                 <Setter Property="Opacity" Value="0.55" />
+                            </DataTrigger>
+                            <!-- Not matched by the board's search: dimmed, not removed, so the board keeps its shape (card-search-and-tags item 3). -->
+                            <DataTrigger Binding="{Binding IsSearchDimmed}" Value="True">
+                                <Setter Property="Opacity" Value="0.3" />
                             </DataTrigger>
                             <DataTrigger Binding="{Binding IsLive}" Value="True">
                                 <Setter Property="Background"
@@ -543,7 +556,8 @@
                                        VerticalAlignment="Center" Foreground="#2E8B57"
                                        ToolTip="{Binding LinkTooltip}"
                                        Visibility="{Binding IsLinkReady, Converter={StaticResource BoolToVisibility}}" />
-                            <TextBlock Text="{Binding Title}" FontSize="13"
+                            <TextBlock FontSize="13"
+                                       controls:HighlightedText.Text="{Binding Title}" controls:HighlightedText.Spans="{Binding TitleHighlights}"
                                        VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                        ToolTip="{Binding Title}"
                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
@@ -593,7 +607,8 @@
                                 the next gesture, not what to do with it now.
                             -->
 
-                            <TextBlock Grid.Column="1" Text="{Binding Title}" FontSize="15"
+                            <TextBlock x:Name="CardTitle" Grid.Column="1" FontSize="15"
+                                       controls:HighlightedText.Text="{Binding Title}" controls:HighlightedText.Spans="{Binding TitleHighlights}"
                                        FontWeight="SemiBold" VerticalAlignment="Center"
                                        TextTrimming="CharacterEllipsis" Margin="0,0,8,0"
                                        ToolTip="{Binding Title}"
@@ -893,6 +908,14 @@
                                HorizontalAlignment="Center"
                                Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
                                Visibility="{Binding LiveCount, Converter={StaticResource CountToVisibility}}" />
+                    <!-- A match folded away shows without unfolding anything (card-search-and-tags item 4). -->
+                    <StackPanel x:Name="FoldedMatches" Margin="0,6,0,0" HorizontalAlignment="Center"
+                                Visibility="{Binding MatchText, Converter={StaticResource NotEmptyToVisibility}}">
+                        <TextBlock Text="{Binding MatchText}" FontSize="11" FontWeight="SemiBold" TextWrapping="Wrap" TextAlignment="Center"
+                                   MaxWidth="40" Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+                        <Border Width="4" Height="24" Margin="0,4,0,0" CornerRadius="2" HorizontalAlignment="Center"
+                                Background="{DynamicResource SearchHighlightBrush}" />
+                    </StackPanel>
                 </StackPanel>
                 <DockPanel Visibility="{Binding IsCollapsed, Converter={StaticResource NotBoolToVisibility}}">
                     <!--
@@ -1044,12 +1067,50 @@
                                    TextWrapping="Wrap" Margin="0,6,0,0"
                                    ToolTip="{Binding Area}"
                                    Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                        <TextBlock x:Name="RowMatchText" Text="{Binding MatchText}" FontSize="12" FontWeight="SemiBold" Margin="0,4,0,0"
+                                   ToolTip="Cards in this row the search matches"
+                                   Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <MultiDataTrigger>
+                                            <MultiDataTrigger.Conditions>
+                                                <Condition Binding="{Binding IsCollapsed}" Value="True" />
+                                                <Condition Binding="{Binding MatchText, Converter={StaticResource NotEmptyToVisibility}}"
+                                                           Value="{x:Static Visibility.Visible}" />
+                                            </MultiDataTrigger.Conditions>
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </MultiDataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
                     </StackPanel>
-
-                    <TextBlock Text="{Binding Summary}" FontSize="12" Margin="8,0,0,0"
-                               VerticalAlignment="Center"
-                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                               Visibility="{Binding IsCollapsed, Converter={StaticResource BoolToVisibility}}" />
+                    <!-- Folded: the counts per stage, and the search's matches drawn in a strip (card-search-and-tags item 4). -->
+                    <StackPanel Margin="8,0,0,0" VerticalAlignment="Center"
+                                Visibility="{Binding IsCollapsed, Converter={StaticResource BoolToVisibility}}">
+                        <TextBlock Text="{Binding Summary}" FontSize="12"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        <ItemsControl x:Name="RowMatchStrip" ItemsSource="{Binding Matched}" Margin="0,4,0,0" Focusable="False"
+                                      Visibility="{Binding MatchText, Converter={StaticResource NotEmptyToVisibility}}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border CornerRadius="4" Padding="6,1" Margin="0,0,6,2"
+                                            Background="{DynamicResource SearchHighlightBrush}">
+                                        <TextBlock Text="{Binding Title}" FontSize="11" MaxWidth="220" TextTrimming="CharacterEllipsis"
+                                                   ToolTip="{Binding Title}"
+                                                   Foreground="{DynamicResource SearchHighlightTextBrush}" />
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
 
 
                     <ItemsControl ItemsSource="{Binding Cells}"
@@ -1292,7 +1353,32 @@
             name and its shortcut. Selection commands are greyed until something is ticked, as any
             toolbar's are.
         -->
-        <ToolBarTray DockPanel.Dock="Top" Margin="6,0,6,4" IsLocked="True" Background="Transparent"
+        <!--
+            The search sits at the toolbar's right, as a find box does (card-search-and-tags item 1), and stays when the
+            toolbar is hidden, since Ctrl+F reaches it from anywhere.
+        -->
+        <DockPanel DockPanel.Dock="Top" Margin="6,0,6,4">
+            <StackPanel x:Name="SearchBar" DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center"
+                        DataContext="{Binding Board.Search}">
+                <Grid Width="260" VerticalAlignment="Center">
+                    <ComboBox x:Name="SearchBox" IsEditable="True" IsTextSearchEnabled="False" StaysOpenOnEdit="True"
+                              ItemsSource="{Binding History}"
+                              Text="{Binding Text, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              ToolTip="Find cards by any part of a title, key, project, area, Jira key, tag, branch or repo. #tag filters by a tag. Enter goes to the next match, Ctrl+Enter opens it, Esc clears"
+                              AutomationProperties.Name="Find cards"
+                              PreviewKeyDown="OnSearchKeyDown" LostKeyboardFocus="OnSearchLostFocus" />
+                    <TextBlock Text="Find cards (Ctrl+F)" IsHitTestVisible="False" Margin="12,0,0,0" VerticalAlignment="Center"
+                               FontSize="13" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                               Visibility="{Binding ShowsPlaceholder, Converter={StaticResource BoolToVisibility}}" />
+                </Grid>
+                <ToggleButton x:Name="HideRestToggle" Style="{StaticResource ToolIconToggle}" Margin="6,0,0,0" Padding="8,4"
+                              IsChecked="{Binding HideRest, Mode=TwoWay}" Content="Hide the rest"
+                              ToolTip="Hide the cards the search does not match, instead of dimming them"
+                              AutomationProperties.Name="Hide the rest" />
+                <Button x:Name="ClearSearch" Style="{StaticResource CommandButton}" Content="Clear" Margin="6,0,0,0" Padding="10,3"
+                        Command="{Binding ClearCommand}" ToolTip="{Binding ClearToolTip}" ToolTipService.ShowOnDisabled="True" />
+            </StackPanel>
+        <ToolBarTray IsLocked="True" Background="Transparent"
                      Visibility="{Binding IsToolbarVisible, Converter={StaticResource BoolToVisibility}}">
             <ToolBar Background="Transparent">
                 <Button Style="{StaticResource ToolIcon}" Content="&#xE710;" ToolTip="New workstream (Ctrl+N)" AutomationProperties.Name="New workstream"
@@ -1388,6 +1474,7 @@
                         Command="{Binding RefreshCommand}" />
             </ToolBar>
         </ToolBarTray>
+        </DockPanel>
 
         <!--
             The information bar, as in Visual Studio and Office: shown only while a newer build is
@@ -2012,6 +2099,16 @@
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right"
                             VerticalAlignment="Center">
+                    <!-- While a search or tag filter is on, the count says how many match (card-search-and-tags item 5). -->
+                    <TextBlock x:Name="SearchStatus" FontSize="11" Margin="12,0,0,0" VerticalAlignment="Center"
+                               Text="{Binding Board.Search.StatusText}"
+                               Visibility="{Binding Board.Search.HasStatus, Converter={StaticResource BoolToVisibility}}"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                    <Button x:Name="IncludeArchived" Style="{StaticResource CommandButton}" Content="Include archived" FontSize="11"
+                            Padding="8,0" Margin="8,3,0,3" VerticalAlignment="Center"
+                            ToolTip="Show the archive, keeping the search: an archived card matches it"
+                            Command="{Binding IncludeArchivedCommand}"
+                            Visibility="{Binding Board.Search.ShowsIncludeArchived, Converter={StaticResource BoolToVisibility}}" />
                     <TextBlock FontSize="11" Margin="12,0,0,0" VerticalAlignment="Center"
                                Foreground="{DynamicResource TextFillColorTertiaryBrush}">
                         <Run Text="{Binding Board.Status, Mode=OneWay}" />
@@ -2203,6 +2300,21 @@
                     </DockPanel>
                 </Border>
 
+                <!-- While a search or tag filter is on, the board says so, so it never looks complete when it is not (item 17). -->
+                <Border x:Name="FilteredLine" DockPanel.Dock="Top" Margin="4,0,4,8" Padding="12,6" CornerRadius="6"
+                        Background="{DynamicResource LayerFillColorDefaultBrush}"
+                        BorderBrush="{DynamicResource SearchHighlightBrush}" BorderThickness="1"
+                        DataContext="{Binding Board.Search}"
+                        Visibility="{Binding IsOn, Converter={StaticResource BoolToVisibility}}">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Style="{StaticResource CommandButton}" Content="Clear" Padding="10,2"
+                                Command="{Binding ClearCommand}" ToolTip="{Binding ClearToolTip}" ToolTipService.ShowOnDisabled="True" />
+                        <TextBlock Text="{Binding FilteredLine}" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis" ToolTip="{Binding FilteredLine}"
+                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                    </DockPanel>
+                </Border>
+
                 <!--
                     The stage headings, written once. The left margin matches the width of a row's
                     header so the headings line up with the cells beneath them; both are fixed, and
@@ -2276,6 +2388,25 @@
                                             </Style>
                                         </TextBlock.Style>
                                     </TextBlock>
+                                    <TextBlock DockPanel.Dock="Right" FontSize="11" FontWeight="SemiBold" Margin="0,0,6,0" VerticalAlignment="Center"
+                                               Text="{Binding MatchText}" ToolTip="Cards in this stage the search matches"
+                                               Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                <Style.Triggers>
+                                                    <MultiDataTrigger>
+                                                        <MultiDataTrigger.Conditions>
+                                                            <Condition Binding="{Binding IsCollapsed}" Value="True" />
+                                                            <Condition Binding="{Binding MatchText, Converter={StaticResource NotEmptyToVisibility}}"
+                                                                       Value="{x:Static Visibility.Visible}" />
+                                                        </MultiDataTrigger.Conditions>
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                    </MultiDataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
                                     <TextBlock Text="{Binding Stage}" FontSize="13" FontWeight="SemiBold"
                                                Margin="4,0,0,0" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
                                                ToolTip="{Binding Stage}"
@@ -2294,7 +2425,7 @@
                 -->
                 <!-- The board, or the open project's view in its place (project-view AC 14). -->
                 <Grid>
-                <Grid x:Name="BoardSurface" Background="Transparent"
+                <Grid x:Name="BoardSurface" Background="Transparent" Focusable="True" FocusVisualStyle="{x:Null}"
                       Visibility="{Binding IsBoardShown, Converter={StaticResource BoolToVisibility}}"
                       PreviewMouseLeftButtonDown="OnBoardMouseDown"
                       PreviewMouseMove="OnBoardMouseMove"
