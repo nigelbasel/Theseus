@@ -119,6 +119,30 @@ public sealed class ProjectViewModel : ObservableObject
         _actions.Jumped?.Invoke($"objective:{number}");
     }
 
+    /// <summary>
+    /// Where a token in a sentence leads (I42): "Objective 1.5" to that objective, "W4" to the first piece whose workstream
+    /// carries that code; null when nothing in the view matches, so the token stays plain text.
+    /// </summary>
+    public (Action Follow, string ToolTip)? LinkTarget(string token)
+    {
+        ArgumentNullException.ThrowIfNull(token);
+
+        if (token.StartsWith("Objective ", StringComparison.OrdinalIgnoreCase))
+        {
+            var number = token[(token.IndexOf(' ', StringComparison.Ordinal) + 1)..];
+
+            return AllObjectives.Any(heading => heading.Objective?.Number == number)
+                ? (() => GoToObjective(number), $"Go to objective {number}")
+                : null;
+        }
+
+        var code = new System.Text.RegularExpressions.Regex($@"\b{System.Text.RegularExpressions.Regex.Escape(token)}\b");
+
+        return AllNodes.FirstOrDefault(node => code.IsMatch(node.Workstream)) is { } piece
+            ? (() => GoToPiece(piece.Name), $"Go to {piece.Title}")
+            : null;
+    }
+
     /// <summary>Follows a link to a piece (I44): opens its round and run, selects it, and records the jump.</summary>
     public void GoToPiece(string name)
     {

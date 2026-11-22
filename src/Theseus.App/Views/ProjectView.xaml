@@ -5,7 +5,9 @@
              xmlns:vm="clr-namespace:Theseus.App.ViewModels"
              xmlns:converters="clr-namespace:Theseus.App.Converters"
              xmlns:controls="clr-namespace:Theseus.App.Controls"
-             xmlns:projects="clr-namespace:Theseus.Core.Projects;assembly=Theseus.Core">
+             xmlns:projects="clr-namespace:Theseus.Core.Projects;assembly=Theseus.Core"
+             xmlns:local="clr-namespace:Theseus.App.Views"
+             ToolTipService.InitialShowDelay="300">
     <!--
         The project view (1.1d AC 15 to 54; Nigel accepted the mockup, 2026-11-20): time runs down the page. Every
         StaticResource it uses is defined here, because the tests load it without the application's resources; brushes
@@ -650,7 +652,7 @@
                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                         <TextBlock x:Name="RoundState" Text="{Binding StateText}" Style="{StaticResource StateForeground}" FontSize="12.5"
                                    FontWeight="Medium" Margin="0,0,10,0" VerticalAlignment="Center" />
-                        <TextBlock x:Name="RoundLine" Text="{Binding Line}" FontSize="13" TextWrapping="Wrap" VerticalAlignment="Center"
+                        <TextBlock x:Name="RoundLine" local:LinkedText.Text="{Binding Line}" FontSize="13" TextWrapping="Wrap" VerticalAlignment="Center"
                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                    Visibility="{Binding Line, Converter={StaticResource NotEmpty}}" />
                     </WrapPanel>
@@ -892,7 +894,7 @@
                             ToolTipService.ShowOnDisabled="True" Style="{StaticResource CommandButton}" Padding="8,1" FontSize="12.5"
                             AutomationProperties.Name="Focus the lead's terminal" />
                 </WrapPanel>
-                <TextBlock x:Name="Sentence" Text="{Binding Sentence}" FontSize="15" TextWrapping="Wrap" Margin="0,10,0,0"
+                <TextBlock x:Name="Sentence" local:LinkedText.Text="{Binding Sentence}" FontSize="15" TextWrapping="Wrap" Margin="0,10,0,0"
                            Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                 <!-- What waits for you, the most prominent block, in place even when empty (1.1f G36, G37a). -->
                 <Border x:Name="WaitingBand" Margin="0,10,0,0" Padding="12,8,12,6" CornerRadius="6" BorderThickness="1"
@@ -912,7 +914,7 @@
                                                 Style="{StaticResource CommandButton}" Padding="9,3" Margin="10,0,0,0" FontSize="13"
                                                 VerticalAlignment="Top" AutomationProperties.Name="{Binding Button}"
                                                 Visibility="{Binding HasButton, Converter={StaticResource Visible}}" />
-                                        <TextBlock x:Name="WaitText" Text="{Binding Text}" FontSize="13" TextWrapping="Wrap" VerticalAlignment="Center"
+                                        <TextBlock x:Name="WaitText" local:LinkedText.Text="{Binding Text}" FontSize="13" TextWrapping="Wrap" VerticalAlignment="Center"
                                                    TextTrimming="CharacterEllipsis" ToolTip="{Binding Text}"
                                                    Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                                     </DockPanel>
