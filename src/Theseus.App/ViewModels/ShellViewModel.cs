@@ -22,7 +22,6 @@ namespace Theseus.App.ViewModels;
 public sealed class ShellViewModel : ObservableObject
 {
     private readonly ISettingsStore _settings;
-    private string _holdoutFolder = string.Empty;
     private readonly HoldoutChecks _holdouts = new();
     private string _updaterStates = string.Empty;
     private readonly CardEventLog _cardEvents = new(Path.Combine(App.DataDirectory, "card-events.jsonl"));
@@ -266,6 +265,8 @@ public sealed class ShellViewModel : ObservableObject
                     Path.Combine(App.DataDirectory, "folder-trust-undo.json")),
                 () => Board.Cards.Where(card => !card.IsArchived).SelectMany(card => SessionFolders(card.Workstream))),
         };
+        Settings.OpenProjectHoldouts = OpenProjectHoldouts;
+        Settings.HasProjectCard = project => Board.ProjectCards.Any(each => string.Equals(each.Name, project, StringComparison.OrdinalIgnoreCase));
         Drawer.TagsInUse = Board.Tags.InUse;
         Board.Tags.AskNewTag = () => AskText?.Invoke("New tag", "A tag: letters, digits and hyphens, such as security or waiting-on-dpo", string.Empty);
         Board.Tags.Say = message => Notice = message;
@@ -800,9 +801,14 @@ public sealed class ShellViewModel : ObservableObject
         }
     }
 
-    /// <summary>Project properties…: changes only the project's colour, kept by name (1.1d AC 40).</summary>
-    private void ShowProjectProperties(ProjectCardViewModel card)
+    /// <summary>
+    /// Project properties…: the project's title, colour, tags, lead, branch rules and holdout folder (1.1d AC 40;
+    /// options-made-clear item 1), opened at the tab named, or the first.
+    /// </summary>
+    private void ShowProjectProperties(ProjectCardViewModel card, string? openAt = null)
     {
+        var chosenHoldouts = _settings.Read().ProjectHoldoutFolders;
+        var chosenHoldout = chosenHoldouts.FirstOrDefault(pair => string.Equals(pair.Key, card.Name, StringComparison.OrdinalIgnoreCase)).Value;
         var others = Board.ProjectCards
             .Where(other => !string.Equals(other.Name, card.Name, StringComparison.OrdinalIgnoreCase))
             .GroupBy(other => other.Title, StringComparer.CurrentCultureIgnoreCase)
@@ -826,6 +832,10 @@ public sealed class ShellViewModel : ObservableObject
             PrimaryBranch = primary,
             GrantsBranchRules = granted,
             GrantedPrimary = grant?.Primary,
+            OpenAt = openAt,
+            Holdout = _holdouts.LocationOfProject(card.Name),
+            HoldoutByConvention = HoldoutLocation.Find(card.Name, null, HoldoutConventionOf(card.Name)),
+            ChosenHoldout = chosenHoldout,
             // The title is written at OK, and a refusal is shown in the dialog (1.1e AC 12a).
             WriteTitle = title => EditProject(card.Name, text => ProjectFileEditor.SetTitle(text, card.Title, title),
                 $"{card.Title} is now called {title}.")
@@ -836,6 +846,26 @@ public sealed class ShellViewModel : ObservableObject
         if (AskProjectProperties?.Invoke(properties) != true)
         {
             return;
+        }
+
+        if (properties.HoldoutChanged)
+        {
+            var current = _settings.Read();
+            var holdouts = new Dictionary<string, string>(current.ProjectHoldoutFolders, StringComparer.OrdinalIgnoreCase);
+            holdouts.Remove(card.Name);
+
+            if (properties.HoldoutChoice is { } folder)
+            {
+                holdouts[card.Name] = folder;
+            }
+
+            _settings.Write(current with { ProjectHoldoutFolders = holdouts });
+            RefreshHoldouts([.. Board.Cards.Select(each => each.Workstream)]);
+            Notice = properties.HoldoutChoice is { } chosenFolder
+                ? $"{card.Title}'s holdout folder is now {chosenFolder}."
+                : _holdouts.LocationOfProject(card.Name) is { Folder.Length: > 0 } found
+                    ? $"{card.Title}'s holdout folder is found by convention again: {found.Folder}."
+                    : $"{card.Title}'s holdout folder is found by convention again, but its recorded repository is not found.";
         }
 
         tags.AddPending();
@@ -1227,8 +1257,6 @@ public sealed class ShellViewModel : ObservableObject
     /// <summary>Re-reads the plans, the board and the live sessions.</summary>
     public void Refresh()
     {
-        // Read here, not on every command check: saving Settings refreshes the shell, and a check runs on every input.
-        _holdoutFolder = _settings.Read().HoldoutFolder;
         Timed("board", Board.Refresh);
 
         // A refresh replaces every card, so the new ones need telling where to report a tick. Wiring
@@ -1511,8 +1539,9 @@ public sealed class ShellViewModel : ObservableObject
             ? null
             : _holdouts.WayOn(card.Workstream) switch
             {
-                HoldoutWayOn.SetFolder => new PieceActionViewModel("Set the holdout folder…", OpenHoldoutSetting,
-                    toolTip: "Open Options at the holdout scenarios folder") { IsLink = true },
+                HoldoutWayOn.SetFolder => new PieceActionViewModel("Set the holdout folder…",
+                    () => OpenProjectHoldouts(card.Workstream.Project ?? string.Empty),
+                    toolTip: "Open the project's Project properties at its holdout folder") { IsLink = true },
                 HoldoutWayOn.WriteScenarios => new PieceActionViewModel("Write scenarios…", () => WriteScenarios(card),
                     toolTip: $"Create a card that writes the holdout scenarios in {HoldoutOf(card).Folder}; it starts when you start it")
                 {
@@ -1540,9 +1569,9 @@ public sealed class ShellViewModel : ObservableObject
     /// </summary>
     private void RefreshHoldouts(IReadOnlyList<Workstream> cards)
     {
-        _holdouts.Refresh(_holdoutFolder, _settings.Read().ProjectHoldoutFolders, HoldoutBesideRepo, cards);
+        _holdouts.Refresh(_settings.Read().ProjectHoldoutFolders, HoldoutConventionOf, cards);
 
-        if (HoldoutFolderFile.Write(HoldoutFolderFile.PathIn(), _holdouts.Entries))
+        if (HoldoutFolderFile.Write(HoldoutFolderFile.PathIn(), _holdouts.GuardedEntries))
         {
             TheseusLog.Information("Wrote the holdout folders in force: {Folders}",
                 string.Join("; ", _holdouts.Entries.Select(entry => $"{entry.Project}: {entry.Folder} ({entry.HowFound})")));
@@ -1555,10 +1584,10 @@ public sealed class ShellViewModel : ObservableObject
     }
 
     /// <summary>
-    /// The <c>&lt;repo&gt;-holdout</c> folder beside the clone of a project's home code repo, when there is one: the repo its
-    /// Repos table marks home, else the first, found among the folders its cards work in.
+    /// What a project's holdout folder is found from: the clone of its home code repo (the first in its Repos table, found
+    /// among the folders its cards work in), and the holdout repository its project.md records.
     /// </summary>
-    private string? HoldoutBesideRepo(string project)
+    private HoldoutConvention HoldoutConventionOf(string project)
     {
         var reading = _projectReads.Current.FirstOrDefault(each => string.Equals(each.Name, project, StringComparison.OrdinalIgnoreCase));
         var members = _projectReads.History.CardsOf(project);
@@ -1569,14 +1598,16 @@ public sealed class ShellViewModel : ObservableObject
             .SelectMany(card => new[] { card.Workstream.WorkingDirectory }.Concat(card.Workstream.AddDirectories))
             .Where(folder => !folder.Contains(HomeRepo.HoldoutSuffix, StringComparison.OrdinalIgnoreCase));
 
-        return HomeRepo.HoldoutBeside(HomeRepo.Clone(HomeRepo.NameIn(reading?.Text), folders));
+        return new HoldoutConvention(HomeRepo.Clone(HomeRepo.NameIn(reading?.Text), folders), HomeRepo.RecordedHoldoutIn(reading?.Text));
     }
 
-    /// <summary>Opens Options at the holdout scenarios folder (1.1e AC 6a).</summary>
-    private void OpenHoldoutSetting()
+    /// <summary>Opens a project's Project properties at its Holdouts tab (options-made-clear item 1), by folder name.</summary>
+    private void OpenProjectHoldouts(string project)
     {
-        Settings.FocusField = SettingsViewModel.HoldoutFolderField;
-        Settings.OpenCommand.Execute(null);
+        if (Board.ProjectCards.FirstOrDefault(each => string.Equals(each.Name, project, StringComparison.OrdinalIgnoreCase)) is { } card)
+        {
+            ShowProjectProperties(card, ProjectPropertiesViewModel.HoldoutsTab);
+        }
     }
 
     /// <summary>

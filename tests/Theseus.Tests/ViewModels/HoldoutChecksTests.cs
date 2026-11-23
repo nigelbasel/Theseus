@@ -1,5 +1,6 @@
 using Theseus.App.ViewModels;
 using Theseus.Core.Domain;
+using Theseus.Core.Links;
 using Theseus.Tests.Projects;
 
 namespace Theseus.Tests.ViewModels;
@@ -29,11 +30,49 @@ public class HoldoutChecksTests
     private string Scenario(string project) =>
         Path.Combine(_root, "Theseus", "holdouts", project, "scenarios", "stop.md");
 
+    // The folder chosen for project "p", or none.
+    private static Dictionary<string, string> Chosen(string? folder = null) =>
+        folder is null ? [] : new Dictionary<string, string> { ["p"] = folder };
+
+    [Test]
+    public void ARecordedRepositoryWithNoClone_RefusesVerifyWithItsReason_AndOffersSetTheHoldoutFolder()
+    {
+        var home = Path.Combine(_root, "src", "Repo");
+        Directory.CreateDirectory(home);
+        var checks = new HoldoutChecks(_root);
+        checks.Refresh(Chosen(), _ => new HoldoutConvention(home, new RecordedHoldout(null)), [Card()]);
+
+        Assert.That(checks.WhyCannotVerify(Card(), "A card"), Is.EqualTo(
+            $"project.md records a holdout repository, but no clone was found at {Path.Combine(_root, "src", "Repo-holdout")}: clone it there, or choose a folder in Project properties"));
+        Assert.That(checks.WayOn(Card()), Is.EqualTo(HoldoutWayOn.SetFolder));
+        Assert.That(checks.LocationOf(Card()).IsDefault, Is.False, "never Theseus's own, which would judge against an empty folder");
+    }
+
+    [Test]
+    public void ARecordedRepositoryWithNoHomeClone_SaysNeitherIsFound()
+    {
+        var checks = new HoldoutChecks(_root);
+        checks.Refresh(Chosen(), _ => new HoldoutConvention(null, new RecordedHoldout("Repo-holdout")), [Card()]);
+
+        Assert.That(checks.WhyCannotVerify(Card(), "A card"),
+            Is.EqualTo("project.md records a holdout repository, but the home repo's clone is not found, so neither is it"));
+    }
+
+    [Test]
+    public void CardsInNoProject_AlwaysUseTheseussOwnAdHocFolder_WhateverIsChosen()
+    {
+        var checks = new HoldoutChecks(_root);
+        checks.Refresh(new Dictionary<string, string> { [""] = Path.Combine(_root, "mine") },
+            _ => new HoldoutConvention(_root, new RecordedHoldout(null)), [Card(project: null)]);
+
+        Assert.That(checks.LocationOf(Card(project: null)).Folder, Is.EqualTo(Path.Combine(_root, "Theseus", "holdouts", "ad-hoc")));
+    }
+
     [Test]
     public void AProjectWithNoScenarios_SaysSo_AndOffersWriteScenarios()
     {
         var checks = new HoldoutChecks(_root);
-        checks.Refresh(string.Empty, [Card()]);
+        checks.Refresh(Chosen(), _ => HoldoutConvention.None, [Card()]);
 
         Assert.That(checks.WhyCannotVerify(Card(), "A card"), Is.EqualTo("No holdout scenarios for this project yet"));
         Assert.That(checks.WayOn(Card()), Is.EqualTo(HoldoutWayOn.WriteScenarios));
@@ -43,13 +82,13 @@ public class HoldoutChecksTests
     public void ScenariosWritten_AreSeenAtTheNextRefresh_NotOnEveryQuery()
     {
         var checks = new HoldoutChecks(_root);
-        checks.Refresh(string.Empty, [Card()]);
+        checks.Refresh(Chosen(), _ => HoldoutConvention.None, [Card()]);
         Directory.CreateDirectory(Path.GetDirectoryName(Scenario("p"))!);
         File.WriteAllText(Scenario("p"), "x");
 
         Assert.That(checks.WhyCannotVerify(Card(), "A card"), Is.Not.Null, "the folder is not read again on a query");
 
-        checks.Refresh(string.Empty, [Card()]);
+        checks.Refresh(Chosen(), _ => HoldoutConvention.None, [Card()]);
 
         Assert.That((checks.WhyCannotVerify(Card(), "A card"), checks.WayOn(Card())), Is.EqualTo(((string?)null, HoldoutWayOn.None)));
     }
@@ -59,7 +98,7 @@ public class HoldoutChecksTests
     {
         var missing = Path.Combine(_root, "gone");
         var checks = new HoldoutChecks(_root);
-        checks.Refresh(missing, [Card()]);
+        checks.Refresh(Chosen(missing), _ => HoldoutConvention.None, [Card()]);
 
         Assert.That(checks.WhyCannotVerify(Card(), "A card"), Is.EqualTo($"The holdout folder {missing} is missing"));
         Assert.That(checks.WayOn(Card()), Is.EqualTo(HoldoutWayOn.SetFolder));
@@ -69,7 +108,7 @@ public class HoldoutChecksTests
     public void SetTheHoldoutFolder_IsNeverOfferedForTheDefault()
     {
         var checks = new HoldoutChecks(_root);
-        checks.Refresh(string.Empty, [Card()]);
+        checks.Refresh(Chosen(), _ => HoldoutConvention.None, [Card()]);
 
         Assert.That(checks.WayOn(Card()), Is.Not.EqualTo(HoldoutWayOn.SetFolder));
     }
@@ -78,7 +117,7 @@ public class HoldoutChecksTests
     public void AVerifierOrScenarioWriterOrArchivedCard_IsNotVerified_AndOffersNothing()
     {
         var checks = new HoldoutChecks(_root);
-        checks.Refresh(string.Empty, [Card()]);
+        checks.Refresh(Chosen(), _ => HoldoutConvention.None, [Card()]);
 
         Assert.That(checks.WhyCannotVerify(Card(role: WorkstreamRole.Verifier), "V"), Is.EqualTo("V checks or writes holdout scenarios itself"));
         Assert.That(checks.WhyCannotVerify(Card(role: WorkstreamRole.ScenarioWriter), "W"), Is.EqualTo("W checks or writes holdout scenarios itself"));
@@ -95,7 +134,7 @@ public class HoldoutChecksTests
             WorkingDirectory = Path.Combine(_root, "Theseus", "holdouts", "p"),
         };
 
-        checks.Refresh(string.Empty, [Card(), writer]);
+        checks.Refresh(Chosen(), _ => HoldoutConvention.None, [Card(), writer]);
 
         Assert.That(checks.WayOn(Card()), Is.EqualTo(HoldoutWayOn.None));
         Assert.That(checks.WhyCannotVerify(Card(), "A card"), Is.EqualTo("No holdout scenarios for this project yet"));

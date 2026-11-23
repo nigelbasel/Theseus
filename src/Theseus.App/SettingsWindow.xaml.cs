@@ -8,9 +8,8 @@ using Theseus.App.ViewModels;
 namespace Theseus.App;
 
 /// <summary>
-/// The settings editor, as a window of its own rather than a panel inside the board. A dialog drawn
-/// inside the application window is bounded by it, and the settings are taller than a small window:
-/// its footer went off the bottom edge where nothing could reach it.
+/// Options, as a window of its own rather than a panel inside the board. Every Change… here opens a picker or a small
+/// dialog and sets the value, which Save then writes; nothing is typed into the page itself (options-made-clear item 6).
 /// </summary>
 public partial class SettingsWindow : Window
 {
@@ -19,63 +18,58 @@ public partial class SettingsWindow : Window
     {
         InitializeComponent();
         SourceInitialized += (_, _) => FitToWorkArea();
-        Loaded += (_, _) => FocusAsked();
     }
 
-    // Set the holdout folder… opens Options at that field (1.1e AC 6a).
-    private void FocusAsked()
-    {
-        if (DataContext is SettingsViewModel { FocusField: SettingsViewModel.HoldoutFolderField } settings)
-        {
-            settings.FocusField = null;
-            HoldoutFolderBox.BringIntoView();
-            HoldoutFolderBox.Focus();
-        }
-    }
-
-    private void OnChooseHoldoutFolder(object sender, RoutedEventArgs e)
-    {
-        if (DataContext is SettingsViewModel settings && Choose("Choose the holdout scenarios folder", settings.HoldoutFolder) is { } folder)
-        {
-            settings.HoldoutFolder = folder;
-        }
-    }
-
-    private void OnChooseProjectHoldout(object sender, RoutedEventArgs e)
-    {
-        if (DataContext is SettingsViewModel settings && (sender as FrameworkElement)?.DataContext is HoldoutRowViewModel row
-            && Choose($"Choose the holdout folder of {row.Project}", row.Folder) is { } folder
-            && settings.ChooseProjectHoldout(row.Project, folder) is { } why)
-        {
-            MessageBox.Show(this, why, "Holdout folder", MessageBoxButton.OK, MessageBoxImage.Warning);
-        }
-    }
-
-    private void OnKeepInPrivateRepository(object sender, RoutedEventArgs e)
-    {
-        if ((sender as FrameworkElement)?.DataContext is not HoldoutRowViewModel row)
-        {
-            return;
-        }
-
-        var ask = new TextPromptWindow("Keep these in a private repository", $"The address of a private repository for {row.Project}'s holdout scenarios", string.Empty)
-        {
-            Owner = this,
-        };
-
-        if (ask.ShowDialog() == true
-            && new Theseus.Core.Links.HoldoutLocation(row.Folder, true).AddRemote(ask.Text) is { } why)
-        {
-            MessageBox.Show(this, why, "Keep these in a private repository", MessageBoxButton.OK, MessageBoxImage.Warning);
-        }
-    }
+    private SettingsViewModel? Settings => DataContext as SettingsViewModel;
 
     private void FitToWorkArea() =>
         MaxHeight = SystemParameters.WorkArea.Height - 80;
 
+    private void OnChangeJira(object sender, RoutedEventArgs e)
+    {
+        if (Settings is { } settings
+            && Ask("Jira", "The Jira site issue keys link to, such as https://example.atlassian.net. Leave empty for none.", settings.JiraBaseUrl, allowsEmpty: true) is { } url)
+        {
+            settings.JiraBaseUrl = url;
+        }
+    }
+
+    private void OnChangeLanes(object sender, RoutedEventArgs e)
+    {
+        if (Settings is { } settings && Ask("Board stages", "The board's stages, one per line, in order.", settings.LaneList, isList: true) is { } lanes)
+        {
+            settings.LaneList = lanes;
+        }
+    }
+
+    private void OnChangeAreas(object sender, RoutedEventArgs e)
+    {
+        if (Settings is { } settings && Ask("Board areas", "The board's areas, one per line, in order. Each gets its own terminal window.", settings.AreaList, isList: true) is { } areas)
+        {
+            settings.AreaList = areas;
+        }
+    }
+
+    private void OnChangeWindowName(object sender, RoutedEventArgs e)
+    {
+        if (Settings is { } settings && Ask("Terminal window name", "The name each area's terminal window starts with.", settings.TerminalWindowName) is { } name)
+        {
+            settings.TerminalWindowName = name;
+        }
+    }
+
+    private void OnChangeHoldoutRemote(object sender, RoutedEventArgs e)
+    {
+        if (Settings is { } settings
+            && Ask("Holdout remote address", "The private holdout repository's address, such as host/owner/repo. Leave empty for none.", settings.HoldoutRemote, allowsEmpty: true) is { } remote)
+        {
+            settings.HoldoutRemote = remote;
+        }
+    }
+
     private void OnChooseProjectsFolder(object sender, RoutedEventArgs e)
     {
-        if (DataContext is SettingsViewModel settings && Choose("Choose the projects folder", settings.ProjectsFolder) is { } folder)
+        if (Settings is { } settings && ChooseFolder("Choose the projects folder", settings.ProjectsFolder) is { } folder)
         {
             settings.ProjectsFolder = folder;
         }
@@ -83,14 +77,84 @@ public partial class SettingsWindow : Window
 
     private void OnChooseWorktreesFolder(object sender, RoutedEventArgs e)
     {
-        if (DataContext is SettingsViewModel settings && Choose("Choose the worktrees folder", settings.WorktreesFolder) is { } folder)
+        if (Settings is { } settings && ChooseFolder("Choose the worktrees folder", settings.WorktreesFolder) is { } folder)
         {
             settings.WorktreesFolder = folder;
         }
     }
 
+    private void OnChoosePlanDirectory(object sender, RoutedEventArgs e)
+    {
+        if (Settings is { } settings && ChooseFolder("Choose the plan directory", settings.PlanDirectory) is { } folder)
+        {
+            settings.PlanDirectory = folder;
+        }
+    }
+
+    private void OnChooseTerminal(object sender, RoutedEventArgs e)
+    {
+        if (Settings is { } settings && ChooseProgram("Choose Windows Terminal", settings.TerminalExecutablePath) is { } program)
+        {
+            settings.TerminalExecutablePath = program;
+        }
+    }
+
+    private void OnChooseClaude(object sender, RoutedEventArgs e)
+    {
+        if (Settings is { } settings && ChooseProgram("Choose Claude Code", settings.ClaudeExecutablePath) is { } program)
+        {
+            settings.ClaudeExecutablePath = program;
+        }
+    }
+
+    private void OnEditIdentity(object sender, RoutedEventArgs e)
+    {
+        if (Settings is { } settings && Edit("Who the session is", "Opens every first run and fresh start. Keep {handoff} so sessions know where their notes go.", settings.IdentityPrompt) is { } text)
+        {
+            settings.IdentityPrompt = text;
+        }
+    }
+
+    private void OnEditStanding(object sender, RoutedEventArgs e)
+    {
+        if (Settings is { } settings && Edit("Standing prompt", "Put in front of every workstream's own opening prompt. Leave empty for none.", settings.SessionPreamble) is { } text)
+        {
+            settings.SessionPreamble = text;
+        }
+    }
+
+    private void OnEditContinue(object sender, RoutedEventArgs e)
+    {
+        if (Settings is { } settings && Edit("Continuing a workstream", "Replaces the workstream's own prompt on a fresh start once it has run before. Leave empty for the built-in one.", settings.ContinuePrompt) is { } text)
+        {
+            settings.ContinuePrompt = text;
+        }
+    }
+
+    private void OnEditStop(object sender, RoutedEventArgs e)
+    {
+        if (Settings is { } settings && Edit("Stopping a session", "Put on the clipboard when you press Stop. Leave empty for the built-in one.", settings.StopPrompt) is { } text)
+        {
+            settings.StopPrompt = text;
+        }
+    }
+
+    private string? Ask(string title, string label, string current, bool allowsEmpty = false, bool isList = false)
+    {
+        var ask = new TextPromptWindow(title, label, current) { Owner = this, AllowsEmpty = allowsEmpty, IsList = isList };
+
+        return ask.ShowDialog() == true ? ask.Text : null;
+    }
+
+    private string? Edit(string title, string explanation, string current)
+    {
+        var edit = new PromptEditWindow(title, explanation, current) { Owner = this };
+
+        return edit.ShowDialog() == true ? edit.Text : null;
+    }
+
     // Nothing is chosen for the developer: the panel only suggests (Nigel, 2026-11-20, question 1).
-    private string? Choose(string title, string current)
+    private string? ChooseFolder(string title, string current)
     {
         var dialog = new OpenFolderDialog
         {
@@ -101,6 +165,18 @@ public partial class SettingsWindow : Window
         };
 
         return dialog.ShowDialog(this) == true ? dialog.FolderName : null;
+    }
+
+    private string? ChooseProgram(string title, string current)
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = title,
+            Filter = "Programs (*.exe;*.cmd)|*.exe;*.cmd|All files (*.*)|*.*",
+            InitialDirectory = !string.IsNullOrWhiteSpace(current) && File.Exists(current) ? Path.GetDirectoryName(current) : null,
+        };
+
+        return dialog.ShowDialog(this) == true ? dialog.FileName : null;
     }
 
     private void OnLink(object sender, RequestNavigateEventArgs e)
