@@ -63,6 +63,7 @@ internal sealed class ProjectViews
     {
         ReviewProposal = id => Ran.Add($"ReviewProposal:{id}"),
         AnswerStartRequest = id => Ran.Add($"AnswerStartRequest:{id}"),
+        OpenLinks = key => Ran.Add($"OpenLinks:{key}"),
     };
 
     public ProjectViewEdits Edits => new((_, criterion, ticked) => Edited.Add($"Tick:{criterion.Line}:{ticked}"),

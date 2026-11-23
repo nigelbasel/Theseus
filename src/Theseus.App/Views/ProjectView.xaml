@@ -737,6 +737,20 @@
             </StackPanel>
         </DataTemplate>
 
+        <!-- One line of Waits for you with its button, at the top and under the objective it belongs to (item 6). -->
+        <DataTemplate x:Key="WaitLine" DataType="{x:Type vm:WaitItemViewModel}">
+            <DockPanel Margin="0,0,0,6">
+                <Button x:Name="WaitButton" DockPanel.Dock="Right" Content="{Binding Button}" Command="{Binding Command}"
+                        Style="{StaticResource CommandButton}" Padding="9,3" Margin="10,0,0,0" FontSize="13"
+                        ToolTip="{Binding ToolTip}" ToolTipService.ShowOnDisabled="True"
+                        VerticalAlignment="Top" AutomationProperties.Name="{Binding Button}"
+                        Visibility="{Binding HasButton, Converter={StaticResource Visible}}" />
+                <TextBlock x:Name="WaitText" local:LinkedText.Text="{Binding Text}" FontSize="13" TextWrapping="Wrap" VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis" ToolTip="{Binding Text}"
+                           Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+            </DockPanel>
+        </DataTemplate>
+
         <!-- A box under its objective heading: the same box, with no branch, since no connector crosses headings (AC 47). -->
         <DataTemplate x:Key="ObjectivePiece" DataType="{x:Type vm:PieceNodeViewModel}">
             <ContentPresenter Margin="0,0,0,14" Content="{Binding}" ContentTemplate="{StaticResource PieceBox}" />
@@ -796,6 +810,13 @@
                             BorderBrush="{DynamicResource AccentFillColorDefaultBrush}"
                             Visibility="{Binding IsSelected, Converter={StaticResource Visible}}" />
                 </Grid>
+                <!-- What waits for him here, shown folded or open, since the mark above shows either way (item 6). -->
+                <Border x:Name="ObjectiveWaits" Margin="27,8,0,0" Padding="10,6,10,0" CornerRadius="6" BorderThickness="1"
+                        BorderBrush="{DynamicResource StateWaitingBrush}" Background="{DynamicResource StateWaitingSoftBrush}"
+                        Visibility="{Binding HasWaits, Converter={StaticResource Visible}}">
+                    <ItemsControl ItemsSource="{Binding Waits}" ItemTemplate="{StaticResource WaitLine}" Focusable="False"
+                                  AutomationProperties.Name="Waits for you under this objective" />
+                </Border>
                 <Border x:Name="ObjectiveBranch" Margin="9,10,0,0" Padding="16,0,0,0" BorderThickness="2,0,0,0"
                         BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                         Visibility="{Binding ShowsPieces, Converter={StaticResource Visible}}">
@@ -911,22 +932,7 @@
                         <TextBlock x:Name="NothingWaits" Text="Nothing waits for you." FontSize="13" Margin="0,0,0,2"
                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                    Visibility="{Binding HasWaits, Converter={StaticResource NotVisible}}" />
-                        <ItemsControl x:Name="WaitItems" ItemsSource="{Binding Waits}" Focusable="False">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate DataType="{x:Type vm:WaitItemViewModel}">
-                                    <DockPanel Margin="0,0,0,6">
-                                        <Button x:Name="WaitButton" DockPanel.Dock="Right" Content="{Binding Button}" Command="{Binding Command}"
-                                                Style="{StaticResource CommandButton}" Padding="9,3" Margin="10,0,0,0" FontSize="13"
-                                                ToolTip="{Binding ToolTip}" ToolTipService.ShowOnDisabled="True"
-                                                VerticalAlignment="Top" AutomationProperties.Name="{Binding Button}"
-                                                Visibility="{Binding HasButton, Converter={StaticResource Visible}}" />
-                                        <TextBlock x:Name="WaitText" local:LinkedText.Text="{Binding Text}" FontSize="13" TextWrapping="Wrap" VerticalAlignment="Center"
-                                                   TextTrimming="CharacterEllipsis" ToolTip="{Binding Text}"
-                                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                    </DockPanel>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                        <ItemsControl x:Name="WaitItems" ItemsSource="{Binding Waits}" ItemTemplate="{StaticResource WaitLine}" Focusable="False" />
                     </StackPanel>
                 </Border>
                 <!-- The phase strip (G34), then the value of the process as tallies (G35). -->

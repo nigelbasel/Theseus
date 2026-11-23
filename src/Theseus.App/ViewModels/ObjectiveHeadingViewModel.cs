@@ -21,13 +21,16 @@ public sealed class ObjectiveHeadingViewModel : ObservableObject, IFoldable
     private bool _isSelected;
 
     internal ObjectiveHeadingViewModel(ObjectiveGroup group, string? phaseTitle, IReadOnlyList<PieceNodeViewModel> pieces,
-        bool isOpen, Action<IFoldable> toggle, Action<object> select, ProjectViewEdits? edits)
+        bool isOpen, Action<IFoldable> toggle, Action<object> select, ProjectViewEdits? edits, IReadOnlyList<WaitItemViewModel> projectWaits)
     {
         Objective = group.Objective;
         PhaseTitle = phaseTitle;
         Pieces = pieces;
         Summary = ProjectSummary.For(group.Pieces);
-        Rollup = Objective is { } rolled ? Theseus.Core.Projects.Rollup.Of(rolled, group.Pieces) : null;
+        var items = projectWaits.Select(wait => wait.Item).ToList();
+        var mine = Objective is { } owned ? ObjectiveWaits.For(owned.Number, group.Pieces, items) : [];
+        Waits = [.. projectWaits.Where(wait => mine.Contains(wait.Item))];
+        Rollup = Objective is { } rolled ? Theseus.Core.Projects.Rollup.Of(rolled, group.Pieces, items) : null;
         _isOpen = isOpen;
         ToggleCommand = new RelayCommand(_ => toggle(this));
         SelectCommand = new RelayCommand(_ => select(this));
@@ -48,6 +51,15 @@ public sealed class ObjectiveHeadingViewModel : ObservableObject, IFoldable
 
         MenuItems = menu;
     }
+
+    /// <summary>
+    /// The items of Waits for you that belong to this objective, with their buttons: its mark says waiting for you exactly
+    /// when there are any (project-view-usability item 6).
+    /// </summary>
+    public IReadOnlyList<WaitItemViewModel> Waits { get; }
+
+    /// <summary>Whether any item of Waits for you belongs to this objective.</summary>
+    public bool HasWaits => Waits.Count > 0;
 
     /// <summary>The objective, or null for the pieces no project file lists.</summary>
     public ProjectObjective? Objective { get; }

@@ -125,6 +125,17 @@ public sealed record PieceStatus(StageNodeState State, string Text)
             };
         }
 
+        // A verifier already running for it means its check is under way: nothing waits on the owner (item 6).
+        if (stages.Any(stage => stage.State == StageNodeState.HoldoutsNotRun)
+            && piece.PendingVerifiers.FirstOrDefault(verifier => verifier.HasSession) is { } checking)
+        {
+            return new PieceStatus(StageNodeState.HoldoutsNotRun, "Built; its independent check is under way.")
+            {
+                WhoActs = $"{checking.Title} is checking it; no action needed.",
+                Action = PieceAction.None,
+            };
+        }
+
         if (stages.Any(stage => stage.State == StageNodeState.HoldoutsNotRun))
         {
             return new PieceStatus(StageNodeState.HoldoutsNotRun, "Built, not yet checked by an independent test.")

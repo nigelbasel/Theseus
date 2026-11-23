@@ -757,7 +757,7 @@ public sealed class ProjectViewModel : ObservableObject
         IReadOnlyDictionary<PieceOfWork, PieceNodeViewModel> byPiece, ProjectViewEdits? edits) =>
         new(group, phaseTitle, [.. group.Pieces.Select(piece => byPiece[piece])],
             PieceFolds.IsOpen(_folds, group.Objective is { } objective ? PieceFolds.ObjectiveEntry(objective.Title) : PieceFolds.UnlistedEntry,
-                true), ToggleFold, Select, edits);
+                true), ToggleFold, Select, edits, Waits);
 
     private PieceActionViewModel Action(StageActionOffer offer, PieceOfWork piece, StageNode stage, SpecAtGate? spec)
     {
