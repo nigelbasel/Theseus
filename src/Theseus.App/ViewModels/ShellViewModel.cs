@@ -22,7 +22,6 @@ namespace Theseus.App.ViewModels;
 public sealed class ShellViewModel : ObservableObject
 {
     private readonly ISettingsStore _settings;
-    private string _holdoutFolder = string.Empty;
     private readonly HoldoutChecks _holdouts = new();
     private string _updaterStates = string.Empty;
     private readonly CardEventLog _cardEvents = new(Path.Combine(App.DataDirectory, "card-events.jsonl"));
@@ -1227,8 +1226,6 @@ public sealed class ShellViewModel : ObservableObject
     /// <summary>Re-reads the plans, the board and the live sessions.</summary>
     public void Refresh()
     {
-        // Read here, not on every command check: saving Settings refreshes the shell, and a check runs on every input.
-        _holdoutFolder = _settings.Read().HoldoutFolder;
         Timed("board", Board.Refresh);
 
         // A refresh replaces every card, so the new ones need telling where to report a tick. Wiring
@@ -1540,9 +1537,10 @@ public sealed class ShellViewModel : ObservableObject
     /// </summary>
     private void RefreshHoldouts(IReadOnlyList<Workstream> cards)
     {
-        _holdouts.Refresh(_holdoutFolder, _settings.Read().ProjectHoldoutFolders, HoldoutBesideRepo, cards);
+        _holdouts.Refresh(_settings.Read().ProjectHoldoutFolders, HoldoutConventionOf, cards);
 
-        if (HoldoutFolderFile.Write(HoldoutFolderFile.PathIn(), _holdouts.Entries))
+        // A recorded repository whose clone's place is unknown has no folder yet, so there is nothing to guard.
+        if (HoldoutFolderFile.Write(HoldoutFolderFile.PathIn(), [.. _holdouts.Entries.Where(entry => entry.Folder.Length > 0)]))
         {
             TheseusLog.Information("Wrote the holdout folders in force: {Folders}",
                 string.Join("; ", _holdouts.Entries.Select(entry => $"{entry.Project}: {entry.Folder} ({entry.HowFound})")));
@@ -1555,10 +1553,10 @@ public sealed class ShellViewModel : ObservableObject
     }
 
     /// <summary>
-    /// The <c>&lt;repo&gt;-holdout</c> folder beside the clone of a project's home code repo, when there is one: the repo its
-    /// Repos table marks home, else the first, found among the folders its cards work in.
+    /// What a project's holdout folder is found from: the clone of its home code repo (the first in its Repos table, found
+    /// among the folders its cards work in), and the holdout repository its project.md records.
     /// </summary>
-    private string? HoldoutBesideRepo(string project)
+    private HoldoutConvention HoldoutConventionOf(string project)
     {
         var reading = _projectReads.Current.FirstOrDefault(each => string.Equals(each.Name, project, StringComparison.OrdinalIgnoreCase));
         var members = _projectReads.History.CardsOf(project);
@@ -1569,7 +1567,7 @@ public sealed class ShellViewModel : ObservableObject
             .SelectMany(card => new[] { card.Workstream.WorkingDirectory }.Concat(card.Workstream.AddDirectories))
             .Where(folder => !folder.Contains(HomeRepo.HoldoutSuffix, StringComparison.OrdinalIgnoreCase));
 
-        return HomeRepo.HoldoutBeside(HomeRepo.Clone(HomeRepo.NameIn(reading?.Text), folders));
+        return new HoldoutConvention(HomeRepo.Clone(HomeRepo.NameIn(reading?.Text), folders), HomeRepo.RecordedHoldoutIn(reading?.Text));
     }
 
     /// <summary>Opens Options at the holdout scenarios folder (1.1e AC 6a).</summary>
