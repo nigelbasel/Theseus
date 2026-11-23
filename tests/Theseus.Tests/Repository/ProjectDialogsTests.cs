@@ -110,7 +110,7 @@ public class ProjectDialogsTests
         LaidOut(window);
 
         Assert.That(holdout.Value, Is.EqualTo(Path.GetTempPath()), "a folder that is there");
-        Assert.That(holdout.Explanation, Does.StartWith("Recorded in project.md."), "it says how it was found");
+        Assert.That(holdout.Explanation, Does.StartWith("Recorded in project.md, beside the repo."), "it says how it was found");
         Assert.That(holdout.Explanation, Does.Contain("Looked for in this order"));
         Assert.That(lead.Value, Is.EqualTo("Theseus (git-22)"), "the lead as text, changed through Change…");
         Assert.That(rules.Value, Is.EqualTo("Cannot be granted"), "no primary branch is named");
