@@ -26,7 +26,7 @@ public static class HomeRepo
         {
             var line = raw.Trim();
 
-            if (line.StartsWith("## ", StringComparison.Ordinal))
+            if (line.StartsWith('#'))
             {
                 inRepos = string.Equals(line, "## Repos", StringComparison.OrdinalIgnoreCase);
 
@@ -38,25 +38,90 @@ public static class HomeRepo
                 continue;
             }
 
-            var cell = line.Trim('|').Split('|')[0].Trim();
-            var token = cell.Split([' ', '\t', '`', '('], StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? string.Empty;
+            var cells = line.Trim('|').Split('|');
 
-            if (token.Length == 0 || token.StartsWith('-') || token.StartsWith('<') || token.Contains('*', StringComparison.Ordinal)
-                || string.Equals(token, "Repo", StringComparison.OrdinalIgnoreCase)
-                || token.StartsWith("local/", StringComparison.OrdinalIgnoreCase))
+            if (IsHoldoutRole(cells) || RepoName(cells[0]) is not { } name)
             {
                 continue;
             }
 
-            var name = token.TrimEnd('/', ':').Split('/', '\\')[^1];
-
-            if (name.Length > 0 && name.All(character => char.IsLetterOrDigit(character) || character is '.' or '-' or '_'))
-            {
-                return name;
-            }
+            return name;
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// The holdout repository a project file records, or null (options-made-clear item 4): a Repos-table row whose role
+    /// says holdout, named by its first cell unless that is a description; else a table cell elsewhere, such as a piece's
+    /// Repos, that is "the holdout repository".
+    /// </summary>
+    public static RecordedHoldout? RecordedHoldoutIn(string? projectText)
+    {
+        if (string.IsNullOrEmpty(projectText))
+        {
+            return null;
+        }
+
+        var inRepos = false;
+        RecordedHoldout? mentioned = null;
+
+        foreach (var raw in projectText.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n'))
+        {
+            var line = raw.Trim();
+
+            if (line.StartsWith('#'))
+            {
+                inRepos = string.Equals(line, "## Repos", StringComparison.OrdinalIgnoreCase);
+
+                continue;
+            }
+
+            if (!line.StartsWith('|'))
+            {
+                continue;
+            }
+
+            var cells = line.Trim('|').Split('|');
+
+            if (inRepos && IsHoldoutRole(cells))
+            {
+                var described = cells[0].Split(['`', '('])[0].Trim();
+
+                return new RecordedHoldout(described.Contains(' ', StringComparison.Ordinal) ? null : RepoName(cells[0]));
+            }
+
+            if (cells.Any(cell => string.Equals(cell.Trim(), "the holdout repository", StringComparison.OrdinalIgnoreCase)))
+            {
+                mentioned ??= new RecordedHoldout(null);
+            }
+        }
+
+        return mentioned;
+    }
+
+    // A role about holdout scenarios or a holdout repository, not one that merely mentions the holdout guard (review, 4).
+    private static bool IsHoldoutRole(string[] cells) =>
+        cells.Length > 1
+        && (cells[1].Trim().StartsWith("holdout", StringComparison.OrdinalIgnoreCase)
+            || cells[1].Contains("holdout scenario", StringComparison.OrdinalIgnoreCase)
+            || cells[1].Contains("holdout repo", StringComparison.OrdinalIgnoreCase));
+
+    // A row's first token, its last path segment; a local notes folder, a wildcard, a placeholder or the header is none.
+    private static string? RepoName(string cell)
+    {
+        var token = cell.Trim().Split([' ', '\t', '`', '('], StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? string.Empty;
+
+        if (token.Length == 0 || token.StartsWith('-') || token.StartsWith('<') || token.Contains('*', StringComparison.Ordinal)
+            || string.Equals(token, "Repo", StringComparison.OrdinalIgnoreCase)
+            || token.StartsWith("local/", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var name = token.TrimEnd('/', ':').Split('/', '\\')[^1];
+
+        return name.Length > 0 && name.All(character => char.IsLetterOrDigit(character) || character is '.' or '-' or '_') ? name : null;
     }
 
     /// <summary>

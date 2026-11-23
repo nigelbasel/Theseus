@@ -375,6 +375,44 @@ public class ChainsViewModelTests
     }
 
     [Test]
+    public void ASetAsideReport_SaysSoOnItsGreyedButton()
+    {
+        _book.Add(LinkKind.HandsOver, "token-spike", "auth-research", output: @"C:\work\REPORT.md");
+        _book.Report("token-spike", "session-1", [], @"C:\work\REPORT.md", "Half of it.", "partial");
+        _chains.Update();
+        var row = _chains.NeedsYou.Single();
+
+        Assert.That(row.NotYetLabel, Is.EqualTo("Not yet"));
+
+        row.NotYetCommand.Execute(null);
+
+        Assert.That(_chains.NeedsYou.Single().NotYetLabel, Is.EqualTo("Set aside: still unconfirmed"),
+            "git-22, 2026-11-23: a greyed Not yet said nothing of what had happened");
+    }
+
+    [Test]
+    public void Reject_AsksWhy_ThenTakesTheReportOutOfNeedsYou()
+    {
+        _book.Add(LinkKind.HandsOver, "token-spike", "auth-research", output: @"C:\work\REPORT.md");
+        _book.Report("token-spike", "session-1", [], @"C:\work\REPORT.md", "Wrong scenarios.", "partial");
+        _chains.Update();
+        var row = _chains.NeedsYou.Single();
+
+        row.AskRejectCommand.Execute(null);
+
+        Assert.That(row.IsAskingReason, Is.True);
+        Assert.That(row.IsRejecting, Is.True);
+        Assert.That(_book.Active.Single().ReportIsRejected, Is.False, "asking writes nothing");
+
+        row.Reason = "it ran another project's scenarios";
+        row.RejectCommand.Execute(null);
+
+        Assert.That(_book.Active.Single().Rejection!.Reason, Is.EqualTo("it ran another project's scenarios"));
+        Assert.That(_book.Active.Single().SatisfiedUtc, Is.Null);
+        Assert.That(_chains.NeedsYou, Is.Empty);
+    }
+
+    [Test]
     public void ReportArrived_IsToldOnceForANewReportAndNotForOnesAlreadyThere()
     {
         _book.Add(LinkKind.HandsOver, "token-spike", "auth-research", output: @"C:\work\REPORT.md");

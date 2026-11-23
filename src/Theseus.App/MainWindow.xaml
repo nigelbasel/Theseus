@@ -1823,9 +1823,14 @@
                                                             ToolTip="Accept the report, which satisfies the link"
                                                             Command="{Binding ConfirmCommand}"
                                                             Visibility="{Binding IsReported, Converter={StaticResource BoolToVisibility}}" />
-                                                    <Button Content="Not yet" FontSize="11" Padding="8,2" Margin="0,0,6,0"
-                                                            ToolTip="Leave it reported and move it below the others"
+                                                    <Button Content="{Binding NotYetLabel}" FontSize="11" Padding="8,2" Margin="0,0,6,0"
+                                                            ToolTip="Leave it reported and move it below the others; it stays unconfirmed"
+                                                            ToolTipService.ShowOnDisabled="True"
                                                             Command="{Binding NotYetCommand}"
+                                                            Visibility="{Binding IsReported, Converter={StaticResource BoolToVisibility}}" />
+                                                    <Button Content="Reject…" FontSize="11" Padding="8,2" Margin="0,0,6,0"
+                                                            ToolTip="Say why, then the report never satisfies the link and leaves this list; a new report can still be confirmed"
+                                                            Command="{Binding AskRejectCommand}"
                                                             Visibility="{Binding IsReported, Converter={StaticResource BoolToVisibility}}" />
                                                     <Button Content="Open handoff" FontSize="11" Padding="8,2" Margin="0,0,6,0"
                                                             Command="{Binding OpenHandoffCommand}"
@@ -1836,13 +1841,17 @@
                                                 </WrapPanel>
                                                 <StackPanel Margin="0,6,0,0"
                                                             Visibility="{Binding IsAskingReason, Converter={StaticResource BoolToVisibility}}">
-                                                    <TextBlock Text="Why is it satisfied? Kept with the link." FontSize="11"
+                                                    <TextBlock Text="{Binding ReasonQuestion}" FontSize="11"
                                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                                                     <TextBox Text="{Binding Reason, UpdateSourceTrigger=PropertyChanged}" FontSize="11"
                                                              Margin="0,4,0,4" />
                                                     <StackPanel Orientation="Horizontal">
                                                         <Button Content="Mark satisfied" FontSize="11" Padding="8,2" Margin="0,0,6,0"
-                                                                Command="{Binding SatisfyCommand}" />
+                                                                Command="{Binding SatisfyCommand}"
+                                                                Visibility="{Binding IsRejecting, Converter={StaticResource NotBoolToVisibility}}" />
+                                                        <Button Content="Reject" FontSize="11" Padding="8,2" Margin="0,0,6,0"
+                                                                Command="{Binding RejectCommand}"
+                                                                Visibility="{Binding IsRejecting, Converter={StaticResource BoolToVisibility}}" />
                                                         <Button Content="Cancel" FontSize="11" Padding="8,2"
                                                                 Command="{Binding CancelReasonCommand}" />
                                                     </StackPanel>
@@ -2619,6 +2628,7 @@
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <Border Grid.Column="0" Width="14" Height="14" CornerRadius="3" Margin="0,0,10,0"
                                 VerticalAlignment="Center"
@@ -2628,8 +2638,11 @@
                                    VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                    ToolTip="{Binding Drawer.Key, StringFormat=Key: {0}}"
                                    Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                        <TextBlock Grid.Column="2" Text="{Binding Drawer.ArchiveWhyNot}" VerticalAlignment="Center" Margin="8,0,0,0"
+                                   FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                   Visibility="{Binding Drawer.IsLive, Converter={StaticResource BoolToVisibility}}" />
                         <!-- Archive and Delete are rare, and Delete cannot be undone, so they wait behind a menu. -->
-                        <Button Grid.Column="2" Content="⋯" Padding="10,3" Margin="8,0,6,0"
+                        <Button Grid.Column="3" Content="⋯" Padding="10,3" Margin="8,0,6,0"
                                 ToolTip="Archive or delete this workstream"
                                 Click="OnOverflowClick">
                             <Button.ContextMenu>
@@ -2646,7 +2659,7 @@
                                 </ContextMenu>
                             </Button.ContextMenu>
                         </Button>
-                        <Button Grid.Column="3" Content="Close" Padding="12,3"
+                        <Button Grid.Column="4" Content="Close" Padding="12,3"
                                 Command="{Binding Drawer.CloseCommand}" />
                     </Grid>
 

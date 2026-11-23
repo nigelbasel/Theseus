@@ -37,17 +37,17 @@ public class HoldoutLocationTests
     [Test]
     public void WithNoFolderChosen_EachProjectHasItsOwnDefault_AndAdHocCardsOneTogether()
     {
-        var theseus = HoldoutLocation.For("", "theseus", _root);
+        var theseus = HoldoutLocation.Find("theseus", null, null, _root);
 
         Assert.That(theseus, Is.EqualTo(new HoldoutLocation(Path.Combine(_root, "Theseus", "holdouts", "theseus"), true)));
-        Assert.That(HoldoutLocation.For(null, null, _root).Folder, Is.EqualTo(Path.Combine(_root, "Theseus", "holdouts", "ad-hoc")));
+        Assert.That(HoldoutLocation.Find(null, null, null, _root).Folder, Is.EqualTo(Path.Combine(_root, "Theseus", "holdouts", "ad-hoc")));
         Assert.That(theseus.IsMissing, Is.False, "a default is made on first use, never missing");
     }
 
     [Test]
     public void AFolderTheOwnerChose_IsKept_AndIsMissingWhenItIsNotThere()
     {
-        var chosen = HoldoutLocation.For(@"  C:\no\such\holdout ", "theseus", _root);
+        var chosen = HoldoutLocation.Find("theseus", @"  C:\no\such\holdout ", null, _root);
 
         Assert.That((chosen.Folder, chosen.IsDefault, chosen.IsMissing), Is.EqualTo((@"C:\no\such\holdout", false, true)));
     }
@@ -55,7 +55,7 @@ public class HoldoutLocationTests
     [Test]
     public void Ensure_MakesTheDefault_ButNeverAChosenFolder()
     {
-        var theseus = HoldoutLocation.For("", "theseus", _root);
+        var theseus = HoldoutLocation.Find("theseus", null, null, _root);
         var chosen = new HoldoutLocation(Path.Combine(_root, "chosen"), false);
 
         theseus.Ensure();
@@ -98,32 +98,134 @@ public class HoldoutLocationTests
     }
 
     [Test]
-    public void Options_SaysWhatTheFolderForEveryProjectDoes()
+    public void TheOrder_ChosenForTheProject_ThenRecorded_ThenBesideTheRepo_ThenTheseussOwn()
     {
-        var store = new Theseus.Core.Settings.SettingsStore(Path.Combine(_root, "settings.json"));
-        var settings = new SettingsViewModel(store, () => { });
+        var home = Path.Combine(_root, "src", "Theseus");
+        var beside = Path.Combine(_root, "src", "Theseus-holdout");
+        var named = Path.Combine(_root, "src", "Scenarios");
+        Directory.CreateDirectory(home);
+        Directory.CreateDirectory(beside);
+        Directory.CreateDirectory(named);
+        var recorded = new HoldoutConvention(home, new RecordedHoldout("Scenarios"));
 
-        Assert.That(settings.HoldoutFolderInUse, Is.EqualTo("None: each project's folder is found by convention, listed below"));
-
-        settings.HoldoutFolder = @"C:\clones\holdout";
-
-        Assert.That(settings.HoldoutFolderInUse, Is.EqualTo(@"C:\clones\holdout, for every project that has no folder of its own"));
+        Assert.That(HoldoutLocation.Find("theseus", @"C:\mine", recorded, _root),
+            Is.EqualTo(new HoldoutLocation(@"C:\mine", false) { Source = HoldoutSource.Chosen }));
+        Assert.That(HoldoutLocation.Find("theseus", null, recorded, _root),
+            Is.EqualTo(new HoldoutLocation(named, false) { Source = HoldoutSource.Recorded }),
+            "the repository project.md names wins over <repo>-holdout and over Theseus's own");
+        Assert.That(HoldoutLocation.Find("theseus", null, new HoldoutConvention(home, null), _root),
+            Is.EqualTo(new HoldoutLocation(beside, false) { Source = HoldoutSource.BesideRepo }));
+        Assert.That(HoldoutLocation.Find("theseus", null, null, _root),
+            Is.EqualTo(new HoldoutLocation(Path.Combine(_root, "Theseus", "holdouts", "theseus"), true)));
+        Assert.That(HoldoutLocation.Find(null, null, recorded, _root).Folder, Is.EqualTo(Path.Combine(_root, "Theseus", "holdouts", "ad-hoc")),
+            "ad hoc cards have no repo to sit beside");
     }
 
     [Test]
-    public void TheOrder_ChosenForTheProject_ThenForAll_ThenBesideTheRepo_ThenTheseussOwn()
+    public void ARecordThatNamesNoRepository_MeansTheRepoHoldoutBesideTheHomeClone_AndSaysItWasRecorded()
     {
-        var beside = Path.Combine(_root, "Theseus-holdout");
+        var home = Path.Combine(_root, "src", "Theseus");
+        var beside = Path.Combine(_root, "src", "Theseus-holdout");
+        Directory.CreateDirectory(home);
+        var convention = new HoldoutConvention(home, new RecordedHoldout(null));
 
-        Assert.That(HoldoutLocation.Find("theseus", @"C:\mine", @"C:\all", beside, _root),
-            Is.EqualTo(new HoldoutLocation(@"C:\mine", false) { Source = HoldoutSource.Chosen }));
-        Assert.That(HoldoutLocation.Find("theseus", null, @"C:\all", beside, _root).Folder, Is.EqualTo(@"C:\all"));
-        Assert.That(HoldoutLocation.Find("theseus", null, "", beside, _root),
-            Is.EqualTo(new HoldoutLocation(beside, false) { Source = HoldoutSource.BesideRepo }));
-        Assert.That(HoldoutLocation.Find("theseus", null, "", null, _root),
-            Is.EqualTo(new HoldoutLocation(Path.Combine(_root, "Theseus", "holdouts", "theseus"), true)));
-        Assert.That(HoldoutLocation.Find(null, null, "", beside, _root).Folder, Is.EqualTo(Path.Combine(_root, "Theseus", "holdouts", "ad-hoc")),
-            "ad hoc cards have no repo to sit beside");
+        Assert.That(HoldoutLocation.Find("theseus", null, convention, _root).IsMissing, Is.True,
+            "recorded but not cloned: missing, never Theseus's own");
+
+        Directory.CreateDirectory(beside);
+        var found = HoldoutLocation.Find("theseus", null, convention, _root);
+
+        Assert.That((found.Folder, found.Source, found.IsMissing), Is.EqualTo((beside, HoldoutSource.Recorded, false)));
+        Assert.That(HoldoutFolderEntry.HowFoundOf(found.Source), Is.EqualTo("recorded in project.md, beside the repo"));
+    }
+
+    [Test]
+    public void TheseussOwnProjectFile_RecordsAHoldoutRepository_ButNamesNone()
+    {
+        const string theseus = "# Theseus\n\n## Repos\n\n| Repo | Role | Autonomy |\n|---|---|---|\n"
+                               + "| github.com/nigelbasel/Theseus | code and the method kit | L0 |\n"
+                               + "| A private holdout repository | holdout scenarios; never changed by implementing workstreams | owner only |\n";
+
+        Assert.That(HomeRepo.RecordedHoldoutIn(theseus), Is.EqualTo(new RecordedHoldout(null)));
+        Assert.That(HomeRepo.NameIn(theseus), Is.EqualTo("Theseus"));
+    }
+
+    [Test]
+    public void ARecordGivingARepository_NamesIt_AndIsNeverTheHomeRepo()
+    {
+        const string text = "## Repos\n| Repo | Role | Autonomy |\n|---|---|---|\n"
+                            + "| github.com/owner/Repo-scenarios | the holdout scenarios | owner only |\n"
+                            + "| github.com/owner/Repo | code | L0 |\n";
+
+        Assert.That(HomeRepo.RecordedHoldoutIn(text), Is.EqualTo(new RecordedHoldout("Repo-scenarios")));
+        Assert.That(HomeRepo.NameIn(text), Is.EqualTo("Repo"), "a holdout row first in the table is not the home repo");
+    }
+
+    [Test]
+    public void TheseussRecordedHoldout_IsFoundBesideTheClone_WhenItsCardsWorkInANotesFolder_ThroughAWorktree()
+    {
+        // Theseus's own project.md, its Repos table and row 66, as they read on 2026-11-23 (git-22: the row showed no folder).
+        const string theseus = "# Theseus\n\n## Repos\n\n| Repo | Role | Autonomy |\n|---|---|---|\n"
+                               + "| github.com/nigelbasel/Theseus | code and the method kit (with its starter files) | L0 |\n"
+                               + "| A private holdout repository | holdout scenarios; never changed by implementing workstreams | owner only |\n\n"
+                               + "## Phase 0: Foundations\n\n### Objective 0.2: Holdout scenarios\n\n**Pipeline:** freeform\n"
+                               + "| Workstream | Slug | Branch | Repos | What |\n|---|---|---|---|---|\n"
+                               + "| git-22 | holdout-scenarios | [not recorded] | the holdout repository | The three holdout scenarios |\n";
+        var clone = Path.Combine(_root, "src", "Theseus");
+        var gitDir = Path.Combine(clone, ".git", "worktrees", "options-made-clear");
+        Directory.CreateDirectory(gitDir);
+        File.WriteAllText(Path.Combine(gitDir, "commondir"), "../..");
+        var worktrees = Path.Combine(_root, "work");
+        var worktree = Path.Combine(worktrees, "options-made-clear", "Theseus");
+        Directory.CreateDirectory(worktree);
+        File.WriteAllText(Path.Combine(worktree, ".git"), $"gitdir: {gitDir}\n");
+        var notes = Path.Combine(_root, "notes");
+        Directory.CreateDirectory(Path.Combine(notes, ".git"));
+        var holdout = Path.Combine(_root, "src", "Theseus" + HomeRepo.HoldoutSuffix);
+        Directory.CreateDirectory(holdout);
+
+        var convention = HoldoutConvention.For(theseus, [notes], worktrees);
+        var found = HoldoutLocation.Find("theseus", null, convention, _root);
+
+        Assert.That(convention, Is.EqualTo(new HoldoutConvention(clone, new RecordedHoldout(null))), "the clone, through the worktree");
+        Assert.That((found.Folder, found.Source, found.IsMissing), Is.EqualTo((holdout, HoldoutSource.Recorded, false)));
+        Assert.That(HoldoutLocation.Find("theseus", null, HoldoutConvention.For(theseus, [notes], null), _root).Folder, Is.Empty,
+            "without the worktrees, the clone is not found: what the live board showed");
+    }
+
+    [Test]
+    public void ARoleThatMerelyMentionsTheHoldoutGuard_IsNoRecord()
+    {
+        const string text = "## Repos\n| Repo | Role | Autonomy |\n|---|---|---|\n"
+                            + "| github.com/x/Repo | code, the method kit and the holdout guard | L0 |\n";
+
+        Assert.That(HomeRepo.RecordedHoldoutIn(text), Is.Null);
+        Assert.That(HomeRepo.NameIn(text), Is.EqualTo("Repo"), "review, finding 4");
+    }
+
+    [Test]
+    public void TheGuard_StillCoversTheFolderBesideTheRepo_WhenARecordedRepositoryTakesPrecedence()
+    {
+        var home = Path.Combine(_root, "src", "Foo");
+        var beside = Path.Combine(_root, "src", "Foo" + HomeRepo.HoldoutSuffix);
+        Directory.CreateDirectory(home);
+        Directory.CreateDirectory(beside);
+        var checks = new HoldoutChecks(_root);
+        checks.Refresh(new Dictionary<string, string>(), _ => new HoldoutConvention(home, new RecordedHoldout("Foo-scenarios")), [Card("a", "foo")]);
+
+        Assert.That(checks.GuardedEntries.Select(entry => entry.Folder),
+            Is.EqualTo(new[] { Path.Combine(_root, "src", "Foo-scenarios"), beside }), "review, finding 1");
+    }
+
+    [Test]
+    public void APieceWhoseReposIsTheHoldoutRepository_IsARecord_AndAProjectWithoutEitherHasNone()
+    {
+        const string piece = "## Repos\n| Repo | Role | Autonomy |\n|---|---|---|\n| github.com/o/Repo | code | L0 |\n\n"
+                             + "### Objective 0.2\n| Workstream | Slug | Branch | Repos | What |\n|---|---|---|---|---|\n"
+                             + "| a | holdout-scenarios | x | the holdout repository | Scenarios |\n";
+
+        Assert.That(HomeRepo.RecordedHoldoutIn(piece), Is.EqualTo(new RecordedHoldout(null)));
+        Assert.That(HomeRepo.RecordedHoldoutIn("## Repos\n| Repo | Role | Autonomy |\n|---|---|---|\n| github.com/o/Repo | code | L0 |\n"), Is.Null);
     }
 
     [TestCase("holdout")]
@@ -134,7 +236,7 @@ public class HoldoutLocationTests
     [TestCase("C:holdout")]
     public void AChosenFolderTheGuardWouldIgnore_IsNotChosen(string typed)
     {
-        Assert.That(HoldoutLocation.Find("theseus", typed, typed, null, _root),
+        Assert.That(HoldoutLocation.Find("theseus", typed, null, _root),
             Is.EqualTo(new HoldoutLocation(Path.Combine(_root, "Theseus", "holdouts", "theseus"), true)),
             "re-verify C1 and C2: the guard counts it as unset, so the board must not verify against it");
     }
@@ -143,7 +245,7 @@ public class HoldoutLocationTests
     [TestCase("/mnt/c/holdout")]
     public void AChosenFolderTypedTheGitBashWay_IsTheFolderItStandsFor(string typed)
     {
-        Assert.That(HoldoutLocation.Find("theseus", typed, null, null, _root),
+        Assert.That(HoldoutLocation.Find("theseus", typed, null, _root),
             Is.EqualTo(new HoldoutLocation(@"C:\holdout", false) { Source = HoldoutSource.Chosen }),
             "the guard guards C:\\holdout for it, so the board must verify there (review of verifier-runs, M1)");
     }
@@ -218,7 +320,7 @@ public class HoldoutLocationTests
     [Test]
     public void TheseussOwnFolder_IsMadeALocalGitRepository_OnFirstUse()
     {
-        var own = HoldoutLocation.Find("theseus", null, "", null, _root);
+        var own = HoldoutLocation.Find("theseus", null, null, _root);
 
         Assert.That(own.Ensure(), Is.True);
         Assert.That(Directory.Exists(Path.Combine(own.Folder, ".git")), Is.True);
@@ -250,15 +352,18 @@ public class HoldoutLocationTests
 
         Assert.That(HoldoutFolderFile.Read(path).Select(entry => entry.Folder), Is.EquivalentTo(new[] { @"C:\holdouts\theseus", @"C:\src\Theseus-holdout" }),
             "a folder once listed stays guarded when the convention changes");
-        Assert.That(folders[0].HowFound, Is.EqualTo("found beside the repo"));
+        Assert.That(folders[0].HowFound, Is.EqualTo("beside its repo, by convention"));
     }
 
     [Test]
     public void TheChecks_ListEachProjectsFolder_FoundInOrder()
     {
         var checks = new HoldoutChecks(_root);
-        var beside = Path.Combine(_root, "Theseus-holdout");
-        checks.Refresh("", new Dictionary<string, string> { ["bym"] = @"C:\mine" }, project => project == "theseus" ? beside : null,
+        var home = Path.Combine(_root, "src", "Theseus");
+        Directory.CreateDirectory(home);
+        Directory.CreateDirectory(Path.Combine(_root, "src", "Theseus-holdout"));
+        checks.Refresh(new Dictionary<string, string> { ["bym"] = @"C:\mine" },
+            project => project == "theseus" ? new HoldoutConvention(home, null) : HoldoutConvention.None,
             [Card("a", "theseus"), Card("b", "bym"), Card("c", null), Card("d", "pd-70")]);
 
         Assert.That(checks.Entries.Select(entry => (entry.Project, entry.Source)), Is.EqualTo(new[]
@@ -268,26 +373,75 @@ public class HoldoutLocationTests
     }
 
     [Test]
-    public void Options_TheAdHocRowCannotBeChanged_AResetRowSaysWhatComes_AndADriveIsRefused()
+    public void Options_ListsEachProjectsFolderReadOnly_AndSavingChangesNoProjectsFolder()
     {
         var store = new Theseus.Core.Settings.SettingsStore(Path.Combine(_root, "settings.json"));
-        store.Write(store.Read() with { ProjectHoldoutFolders = new Dictionary<string, string> { ["bym"] = @"C:\mine" } });
-        var settings = new SettingsViewModel(store, () => { });
+        store.Write(store.Read() with
+        {
+            HoldoutFolder = @"C:\old\for-every-project",
+            ProjectHoldoutFolders = new Dictionary<string, string> { ["bym"] = @"C:\mine" },
+        });
+        var opened = new List<string>();
+        var settings = new SettingsViewModel(store, () => { }) { OpenProjectHoldouts = opened.Add, HasProjectCard = project => project != "gone" };
         settings.OpenCommand.Execute(null);
-        settings.HoldoutEntries = [new("ad-hoc", @"C:\h\ad-hoc", HoldoutSource.TheseusOwn), new("bym", @"C:\mine", HoldoutSource.Chosen)];
+        settings.HoldoutEntries = [new("ad-hoc", @"C:\h\ad-hoc", HoldoutSource.TheseusOwn), new("bym", @"C:\mine", HoldoutSource.Chosen),
+            new("theseus", _root, HoldoutSource.Recorded), new("gone", _root, HoldoutSource.BesideRepo)];
 
-        Assert.That((settings.HoldoutRows[0].CanChange, settings.HoldoutRows[0].ChangeToolTip), Is.EqualTo((false, "Cards in no project always use Theseus's own ad-hoc folder")));
-        Assert.That(settings.HoldoutRows[0].IsTheseusOwn, Is.True, "it can be kept in a private repository");
+        Assert.That(settings.HoldoutRows.Select(row => (row.Project, row.Value, row.Explanation)), Is.EqualTo(new[]
+        {
+            ("ad-hoc", @"C:\h\ad-hoc", "Cards in no project always use Theseus's own ad-hoc folder."),
+            ("bym", @"C:\mine (not there)", "You chose it, but it is not there. Change it in the project's Project properties."),
+            ("theseus", _root, "Recorded in project.md, beside the repo. Change it in the project's Project properties."),
+            ("gone", _root, "Beside its repo, by convention. Change it in the project's Project properties."),
+        }));
+        Assert.That(settings.OpenProjectPropertiesCommand.CanExecute(settings.HoldoutRows[0]), Is.False, "ad hoc cards have no project");
+        Assert.That(settings.OpenProjectPropertiesCommand.CanExecute(settings.HoldoutRows[3]), Is.False, "no card to open (review, 7)");
 
-        settings.ResetProjectHoldoutCommand.Execute(settings.HoldoutRows[1]);
-
-        Assert.That(settings.HoldoutRows[1].Line, Is.EqualTo("found by convention once saved"));
-        Assert.That(settings.ChooseProjectHoldout("bym", @"C:\"), Does.StartWith("A whole drive"));
-        Assert.That(settings.ChooseProjectHoldout("bym", "relative"), Does.StartWith("Choose a full path"));
-
+        settings.OpenProjectPropertiesCommand.Execute(settings.HoldoutRows[2]);
         settings.SaveCommand.Execute(null);
 
-        Assert.That(store.Read().ProjectHoldoutFolders, Is.Empty);
+        Assert.That(opened, Is.EqualTo(new[] { "theseus" }));
+        Assert.That(store.Read().ProjectHoldoutFolders, Is.EqualTo(new Dictionary<string, string> { ["bym"] = @"C:\mine" }),
+            "a project's folder is changed only in its Project properties");
+        Assert.That(store.Read().HoldoutFolder, Is.EqualTo(@"C:\old\for-every-project"), "kept as it was, and counted for no project");
+    }
+
+    [Test]
+    public void ProjectProperties_ChangeRefusesADriveOrARelativePath_AndResetSaysWhatComes()
+    {
+        var own = HoldoutLocation.Find("bym", null, null, _root);
+        var properties = new ProjectPropertiesViewModel("bym", "BYM", "#5E4BB0", @"C:\p\bym\project.md")
+        {
+            Holdout = new HoldoutLocation(@"C:\mine", false) { Source = HoldoutSource.Chosen },
+            HoldoutByConvention = own,
+            ChosenHoldout = @"C:\mine",
+        };
+
+        Assert.That((properties.HoldoutValue, properties.CanResetHoldout, properties.HoldoutChanged), Is.EqualTo((@"C:\mine (not there)", true, false)));
+        Assert.That(properties.HoldoutExplanation, Does.StartWith("You chose it. The folder is not there"));
+        Assert.That(properties.ChooseHoldout(@"C:\"), Does.StartWith("A whole drive"));
+        Assert.That(properties.ChooseHoldout("relative"), Does.StartWith("Choose a full path"));
+
+        properties.ResetHoldout();
+
+        Assert.That((properties.HoldoutValue, properties.HoldoutChoice, properties.HoldoutChanged), Is.EqualTo((own.Folder, (string?)null, true)));
+        Assert.That(properties.HoldoutExplanation, Does.StartWith("Found by convention once you press OK: Theseus's own, made on first use."));
+
+        Assert.That(properties.ChooseHoldout(@"C:\mine"), Is.Null);
+        Assert.That(properties.HoldoutChanged, Is.False, "chosen back to what it was");
+    }
+
+    [Test]
+    public void ProjectProperties_ARecordedRepositoryNotCloned_SaysSoOnce()
+    {
+        var properties = new ProjectPropertiesViewModel("theseus", "Theseus", "#5E4BB0", "project.md")
+        {
+            Holdout = new HoldoutLocation(Path.Combine(_root, "Theseus-holdout"), false) { Source = HoldoutSource.Recorded },
+        };
+
+        Assert.That(properties.HoldoutValue, Is.EqualTo($"{Path.Combine(_root, "Theseus-holdout")} (not there)"));
+        Assert.That(properties.HoldoutExplanation, Does.StartWith("project.md records a holdout repository, but no clone of it is there"));
+        Assert.That(properties.HoldoutExplanation, Does.Not.Contain("Recorded in project.md"), "said once, not twice");
     }
 
     private static Workstream Card(string key, string? project) =>

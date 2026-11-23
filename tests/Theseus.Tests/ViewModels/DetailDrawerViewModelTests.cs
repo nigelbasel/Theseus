@@ -39,6 +39,21 @@ public class DetailDrawerViewModelTests
     }
 
     [Test]
+    public void AGreyedArchive_SaysWhyInPlainView()
+    {
+        Card("one").Lifecycle = SessionLifecycle.Running;
+        _drawer.Show(Card("one"));
+
+        Assert.That(_drawer.ArchiveWhyNot, Is.EqualTo("Stop its session first"),
+            "git-22, 2026-11-23: the reason was only inside the ⋯ menu");
+
+        Card("one").Lifecycle = SessionLifecycle.Ended;
+        _drawer.Show(Card("one"));
+
+        Assert.That(_drawer.ArchiveWhyNot, Is.Empty);
+    }
+
+    [Test]
     public void Show_CanOpenOnAnotherTab()
     {
         _drawer.Show(Card("one"), DrawerTab.Links);

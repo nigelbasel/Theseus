@@ -406,7 +406,7 @@ public sealed class ChainsViewModel : ObservableObject
             NeedsYou.Add(new NeedsYouRowViewModel(link, state, $"{Title(link.From)} → {Title(link.To)}",
                 Detail(link, state, writer), writer?.ColorHex ?? "#808080",
                 writer is null ? null : Theseus.Core.Stopping.HandoffPath.For(writer.Workstream),
-                setAside, Confirm, Satisfy, SetAside));
+                setAside, Confirm, Satisfy, SetAside, Reject));
         }
 
         RaiseButton();
@@ -584,6 +584,25 @@ public sealed class ChainsViewModel : ObservableObject
 
     private string? Satisfy(string id, string reason) => Changed(_book.Satisfy(id, reason));
 
+    /// <summary>Rejects a link's report for the reason given (git-22, 2026-11-23); it leaves NEEDS YOU on the update.</summary>
+    public string? Reject(string id, string reason)
+    {
+        var refusal = Changed(_book.Reject(id, reason));
+
+        if (refusal is null)
+        {
+            Update();
+        }
+
+        return refusal;
+    }
+
+    /// <summary>Retires a verifier's link for Clear up verifiers…: no report on it, now or later, counts as met.</summary>
+    public string? Retire(string id, string reason) => Changed(_book.Retire(id, reason));
+
+    /// <summary>Puts a link back exactly as it was, for Undo of Clear up verifiers….</summary>
+    public string? Restore(Link before) => Changed(_book.Restore(before));
+
     private string? Confirm(string id)
     {
         var link = _book.All.FirstOrDefault(each => string.Equals(each.Id, id, StringComparison.Ordinal));
@@ -602,6 +621,7 @@ public sealed class ChainsViewModel : ObservableObject
         LinkState.Satisfied => "✓",
         LinkState.Reported => "?",
         LinkState.ReportLost => "!",
+        LinkState.Rejected => "✗",
         _ => "⧗",
     };
 

@@ -6,11 +6,15 @@ namespace Theseus.Core.Links;
 /// <param name="Source">How it was found.</param>
 public sealed record HoldoutFolderEntry(string Project, string Folder, HoldoutSource Source)
 {
-    /// <summary>How it was found, as Options says it.</summary>
-    public string HowFound => Source switch
+    /// <summary>How it was found, as Options and Project properties say it.</summary>
+    public string HowFound => HowFoundOf(Source);
+
+    /// <summary>How a folder found this way is described.</summary>
+    public static string HowFoundOf(HoldoutSource source) => source switch
     {
-        HoldoutSource.Chosen => "chosen by you",
-        HoldoutSource.BesideRepo => "found beside the repo",
-        _ => "Theseus's own",
+        HoldoutSource.Chosen => "you chose it",
+        HoldoutSource.Recorded => "recorded in project.md, beside the repo",
+        HoldoutSource.BesideRepo => "beside its repo, by convention",
+        _ => "Theseus's own, made on first use",
     };
 }

@@ -319,8 +319,10 @@ public partial class App : Application
         };
         shell.ConfirmProjectCard = (question, action) =>
             new QuestionWindow($"{action} a card of a running project?", question, action) { Owner = MainWindow }.ShowDialog() == true;
+        // Owned by the active window, so one opened from Options sits above it rather than behind it.
         shell.AskProjectProperties = properties =>
-            new ProjectPropertiesWindow(properties) { Owner = MainWindow }.ShowDialog() == true;
+            new ProjectPropertiesWindow(properties) { Owner = Windows.OfType<Window>().FirstOrDefault(window => window.IsActive) ?? MainWindow }
+                .ShowDialog() == true;
         // Owned by the window it was asked from, so a spec window is blocked behind its question (review of PR 5, 13).
         shell.ConfirmAcceptSpec = question =>
             MessageBox.Show(Windows.OfType<Window>().FirstOrDefault(window => window.IsActive) ?? MainWindow, question, "Accept spec?",
