@@ -113,7 +113,36 @@ public static class PiecesOfWork
                                    ?? (parentOf.TryGetValue(index, out var parent) ? RoundOf(parent) : latestRound);
         }
 
-        return [.. drafts.Select((draft, index) => Finish(draft, index, drafts, handOvers, parentOf, linkList, said, RoundOf(index)))];
+        var pending = PendingVerifiersBySubject(byKey, linkList);
+
+        return [.. drafts.Select((draft, index) => Finish(draft, index, drafts, handOvers, parentOf, linkList, said, RoundOf(index)))
+            .Select(piece => piece.IsCurrentPiece && pending.TryGetValue(piece.CardKey, out var verifiers)
+                ? piece with { PendingVerifiers = verifiers }
+                : piece)];
+    }
+
+    // The verifier cards that still stand for each card they check, so it gets no second (Nigel, 2026-11-23).
+    private static Dictionary<string, List<PieceCard>> PendingVerifiersBySubject(Dictionary<string, PieceCard> byKey, List<Link> links)
+    {
+        var bySubject = new Dictionary<string, List<PieceCard>>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var verifier in byKey.Values.Where(card => card is { Role: WorkstreamRole.Verifier, IsArchived: false }
+                                                            && VerifierCards.IsPending(card.Lifecycle)))
+        {
+            if (VerifierCards.SubjectOf(verifier.Key, links) is not { } subject)
+            {
+                continue;
+            }
+
+            if (!bySubject.TryGetValue(subject, out var standing))
+            {
+                bySubject[subject] = standing = [];
+            }
+
+            standing.Add(verifier);
+        }
+
+        return bySubject;
     }
 
     // A verifier's subject is the card it reports back to, as ShellViewModel.ApplyMembership finds it.

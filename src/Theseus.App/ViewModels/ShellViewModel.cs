@@ -1439,11 +1439,28 @@ public sealed class ShellViewModel : ObservableObject
     private HoldoutLocation HoldoutOf(WorkstreamCardViewModel card) => _holdouts.LocationOf(card.Workstream);
 
     /// <summary>Why Verify with holdouts cannot run for a card, or null (1.1e AC 6a, 6c), from the folders as last refreshed.</summary>
-    private string? WhyCannotVerify(WorkstreamCardViewModel card) => _holdouts.WhyCannotVerify(card.Workstream, card.Title);
+    private string? WhyCannotVerify(WorkstreamCardViewModel card) =>
+        PendingVerifiersOf(card) is [_, ..] verifiers
+            ? VerifierCards.WhyAlreadyChecked(verifiers)
+            : _holdouts.WhyCannotVerify(card.Workstream, card.Title);
+
+    /// <summary>
+    /// The verifier cards made for a card that still stand, unstarted or with a session, by title: it gets no second
+    /// (Nigel, 2026-11-23: a second press of Start the checks… made a duplicate of each).
+    /// </summary>
+    private List<string> PendingVerifiersOf(WorkstreamCardViewModel card)
+    {
+        var links = Chains?.AllLinks ?? [];
+
+        return [.. Board.Cards
+            .Where(each => each.Workstream is { Role: WorkstreamRole.Verifier, IsArchived: false } && VerifierCards.IsPending(each.Lifecycle)
+                           && string.Equals(VerifierCards.SubjectOf(each.Key, links), card.Key, StringComparison.OrdinalIgnoreCase))
+            .Select(each => each.Title)];
+    }
 
     /// <summary>The way on from a disabled view button, offered beside it as a link (1.1e AC 6a, 6c).</summary>
     private PieceActionViewModel? WayOn(WorkstreamCardViewModel card, StageAction action) =>
-        action != StageAction.VerifyWithHoldouts
+        action != StageAction.VerifyWithHoldouts || PendingVerifiersOf(card).Count > 0
             ? null
             : _holdouts.WayOn(card.Workstream) switch
             {
@@ -2291,6 +2308,7 @@ public sealed class ShellViewModel : ObservableObject
             StopLine = card.StopReason?.Line,
             PausedBy = card.Workstream.PausedBy is { } by ? Board.Card(by)?.Title ?? by : null,
             BranchRulesSince = BranchRulesSince(card.Workstream),
+            IsArchived = card.Workstream.IsArchived,
         };
 
     /// <summary>Open spec and Accept spec on the menu bar, for the open project's waiting specs (R16).</summary>
