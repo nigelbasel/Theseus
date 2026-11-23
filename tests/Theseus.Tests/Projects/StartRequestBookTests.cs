@@ -32,7 +32,8 @@ public class StartRequestBookTests
             Assert.That(firstRepeat, Is.False);
             Assert.That(secondRepeat, Is.True);
             Assert.That(second.Id, Is.EqualTo(first.Id));
-            Assert.That((second.RequesterKey, second.Instruction, second.Reason), Is.EqualTo(("other", "go on", "now it is urgent")));
+            Assert.That((second.RequesterKey, second.Instruction, second.Reason), Is.EqualTo(("lead", "go on", "now it is urgent")),
+                "the first asker keeps it, and is the one told (review of PR 2, finding 5)");
             Assert.That(book.Pending, Has.Count.EqualTo(1));
         });
     }

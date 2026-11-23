@@ -2744,15 +2744,29 @@ public sealed class ShellViewModel : ObservableObject
         // Its recipient is told (1.1e AC 27a); in a project a stopped one is started with it (sessions-run-the-project 16a).
         var confirmed = OwnerEvents.Confirmed(link.Kind, Board.Card(link.From)?.Title ?? link.From, link.Output);
 
-        if (!Tell(Board.Card(link.To), confirmed) && Board.Card(link.To) is { } parent && ReportConfirmStart.StartsParent(parent.Workstream, parent.IsLive))
+        // Only a report back starts its parent: accepting a hand-over tells the card it was for (review of PR 2, finding 3).
+        if (!Tell(Board.Card(link.To), confirmed) && link.Kind == LinkKind.ReportsBack && Board.Card(link.To) is { } parent
+            && ReportConfirmStart.StartsParent(parent.Workstream, parent.IsLive))
         {
-            if (parent.Workstream.IsPaused)
+            var before = parent.Workstream;
+
+            if (before.IsPaused)
             {
-                parent.Workstream = parent.Workstream with { IsPaused = false, PausedBy = null, PauseReason = null };
+                parent.Workstream = before with { IsPaused = false, PausedBy = null, PauseReason = null };
                 Board.Persist(parent);
             }
 
-            StartMany([parent.Workstream with { StartInstruction = confirmed }], trigger: "ReportConfirmed");
+            if (StartForSession([parent.Workstream with { StartInstruction = confirmed }], "ReportConfirmed") is { } notStarted)
+            {
+                parent.Workstream = parent.Workstream with { IsPaused = before.IsPaused, PausedBy = before.PausedBy, PauseReason = before.PauseReason };
+                Board.Persist(parent);
+                Notice = notStarted;
+            }
+            else
+            {
+                _cardEvents.Append(new CardEvent(DateTimeOffset.UtcNow, parent.Key,
+                    $"Started by your confirming {Board.Card(link.From)?.Title ?? link.From}'s report"));
+            }
         }
 
         if (Board.Card(link.From) is not { IsLive: true } card
@@ -2801,19 +2815,44 @@ public sealed class ShellViewModel : ObservableObject
 
         if (!allow)
         {
-            StartRequests.Decide(request.Id, StartRequestStatus.Refused, null);
-            Tell(Board.Card(request.RequesterKey), OwnerEvents.StartRefused(card.Title, null));
+            var note = AskText?.Invoke("Refuse the start", $"Why, for {by} (optional)", string.Empty);
+            StartRequests.Decide(request.Id, StartRequestStatus.Refused, note);
+            TellKey(request.RequesterKey, OwnerEvents.StartRefused(card.Title, note));
             Notice = $"Refused {by}'s start of {card.Title}; it stays paused.";
 
             return;
         }
 
-        card.Workstream = card.Workstream with { IsPaused = false, PausedBy = null, PauseReason = null };
+        var paused = card.Workstream;
+        card.Workstream = paused with { IsPaused = false, PausedBy = null, PauseReason = null };
         Board.Persist(card);
+
+        // Allowed only once it launched; otherwise his pause is put back and the request keeps waiting (review of PR 2, finding 2).
+        if (StartForSession([card.Workstream with { StartInstruction = request.Instruction }], "StartRequestAllowed") is { } notStarted)
+        {
+            card.Workstream = card.Workstream with { IsPaused = paused.IsPaused, PausedBy = paused.PausedBy, PauseReason = paused.PauseReason };
+            Board.Persist(card);
+            Notice = $"{notStarted} Your pause stands and the request still waits.";
+
+            return;
+        }
+
         StartRequests.Decide(request.Id, StartRequestStatus.Allowed, null);
         _cardEvents.Append(new CardEvent(DateTimeOffset.UtcNow, card.Key, $"Started by {by}, allowed by you"));
-        StartMany([card.Workstream with { StartInstruction = request.Instruction }], trigger: "StartRequestAllowed");
-        Tell(Board.Card(request.RequesterKey), OwnerEvents.StartAllowed(card.Title));
+        TellKey(request.RequesterKey, OwnerEvents.StartAllowed(card.Title));
+    }
+
+    /// <summary>Tells a card's session by its key, logged for events() even when the card is not on the board just now.</summary>
+    private void TellKey(string key, string text)
+    {
+        if (Board.Card(key) is { } card)
+        {
+            Tell(card, text);
+        }
+        else
+        {
+            Tells.Tell(key, key, false, null, text, DateTimeOffset.UtcNow);
+        }
     }
 
     /// <summary>
@@ -2822,6 +2861,13 @@ public sealed class ShellViewModel : ObservableObject
     /// </summary>
     private void LapseStartRequests()
     {
+        // While the archive is showing, the board holds only archived cards, so every other card would look gone (review
+        // of PR 2, finding 1).
+        if (Board.ShowArchived)
+        {
+            return;
+        }
+
         foreach (var request in StartRequests.Pending)
         {
             var card = Board.Card(request.CardKey);
@@ -2830,7 +2876,7 @@ public sealed class ShellViewModel : ObservableObject
 
             if (why is not null && StartRequests.Decide(request.Id, StartRequestStatus.Lapsed, why) is not null)
             {
-                Tell(requester, OwnerEvents.StartLapsed(card?.Title ?? request.CardKey, why));
+                TellKey(request.RequesterKey, OwnerEvents.StartLapsed(card?.Title ?? request.CardKey, why));
             }
         }
     }

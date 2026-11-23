@@ -48,8 +48,9 @@ public sealed class StartRequestBook
     }
 
     /// <summary>
-    /// Files a request to start a card, or updates the one already waiting for it (by whichever session asks now), and
-    /// returns it with whether it repeated one.
+    /// Files a request to start a card, or updates the reason and instruction of the one already waiting for it, and
+    /// returns it with whether it repeated one. A repeat keeps the session that asked first, which is the one told the
+    /// answer (review of PR 2, finding 5).
     /// </summary>
     public (StartRequest Request, bool IsRepeat) Ask(string cardKey, string requesterKey, string? instruction, string? reason)
     {
@@ -66,7 +67,6 @@ public sealed class StartRequestBook
             {
                 _requests[index] = _requests[index] with
                 {
-                    RequesterKey = requesterKey,
                     Instruction = instruction ?? _requests[index].Instruction,
                     Reason = reason ?? _requests[index].Reason,
                 };

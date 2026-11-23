@@ -148,7 +148,9 @@ public sealed class ProjectOverview
         string Title(string key) =>
             pieces.FirstOrDefault(piece => piece.IsCurrentPiece && Same(piece.CardKey, key))?.Title ?? titleOf?.Invoke(key) ?? key;
 
-        foreach (var request in startRequests.Where(request => request.IsPending && cards.Contains(request.CardKey)))
+        var current = pieces.Where(piece => piece.IsCurrentPiece).Select(piece => piece.CardKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var request in startRequests.Where(request => request.IsPending && current.Contains(request.CardKey)))
         {
             waits.Add(new WaitItem(WaitKind.StartRequest,
                 $"{Title(request.RequesterKey)} wants to start {Title(request.CardKey)}, which you paused"

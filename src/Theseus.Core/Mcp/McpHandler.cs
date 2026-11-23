@@ -756,9 +756,14 @@ public sealed partial class McpHandler
             var (request, repeat) = _startRequests.Ask(card.Key, session.WorkstreamKey, Text(arguments["instruction"]),
                 Text(arguments["reason"]));
 
-            return Result($"{card.Title} is paused by the user, so it is not started: your request ({request.Id}) "
-                          + (repeat ? "was already waiting and is updated. " : "waits for them in the project's Waits for you. ")
-                          + "events() tells you whether they allow it; do not ask them again in the meantime.");
+            var mine = string.Equals(request.RequesterKey, session.WorkstreamKey, StringComparison.OrdinalIgnoreCase);
+
+            return Result($"{card.Title} is paused by the user, so it is not started: "
+                          + (!repeat ? $"your request ({request.Id}) waits for them in the project's Waits for you. "
+                              : mine ? $"your request ({request.Id}) was already waiting and is updated. "
+                              : $"{TitleOf(board, request.RequesterKey)}'s request ({request.Id}) was already waiting; it is told the answer, and workstreams shows the card's state. ")
+                          + (mine || !repeat ? "events() tells you whether they allow it; " : string.Empty)
+                          + "do not ask them again in the meantime.");
         }
 
         var instruction = Text(arguments["instruction"]);

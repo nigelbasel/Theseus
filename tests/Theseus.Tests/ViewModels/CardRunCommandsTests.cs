@@ -134,6 +134,19 @@ public class CardRunCommandsTests
     }
 
     [Test]
+    public void PlayOnADoneCardInAProject_StartsIt_AskingNothing()
+    {
+        var card = _board.Card("ad-hoc")!;
+        card.Workstream = card.Workstream with { Project = "elsewhere" };
+        card.StopReason = new WhyStopped(WhyStoppedKind.Done, "✓ Done");
+        _instruction = "never asked";
+
+        Commands().StartCard(card);
+
+        Assert.That(_started, Is.EqualTo(new[] { ("ad-hoc", (string?)null, "StartCard") }), "sessions-run-the-project item 17");
+    }
+
+    [Test]
     public void PlayOnADoneCard_Cancelled_OrBlank_StartsNothing()
     {
         var card = _board.Card("ad-hoc")!;

@@ -28,9 +28,14 @@ public class StartRequestLapseTests
             Assert.That(StartRequestLapse.Why(Paused() with { Project = null }, false, Card("lead", "theseus")),
                 Is.EqualTo("it is not in your project any more"));
             Assert.That(StartRequestLapse.Why(Paused(), false, Card("lead", "another")), Is.EqualTo("it is not in your project any more"));
-            Assert.That(StartRequestLapse.Why(Paused(), false, null), Is.EqualTo("it is not in your project any more"));
+            Assert.That(StartRequestLapse.Why(Paused() with { IsBlocked = true }, false, Card("lead", "theseus")), Is.EqualTo("the owner blocked it"));
+            Assert.That(StartRequestLapse.Why(Paused(), false, null), Is.EqualTo("your card is no longer on the board"));
         });
     }
+
+    [Test]
+    public void AnAskingCardWithNoProject_KeepsItsRequest_AsAFileThatFailedToReadWouldLeaveIt() =>
+        Assert.That(StartRequestLapse.Why(Paused() with { Project = null }, false, Card("lead", null)), Is.Null);
 
     private static Workstream Paused() => Card("paused-card", "theseus") with { IsPaused = true };
 

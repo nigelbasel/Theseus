@@ -4,7 +4,8 @@ namespace Theseus.Core.Projects;
 
 /// <summary>
 /// Why a waiting start request no longer applies (sessions-run-the-project item 15): the owner started or resumed the card
-/// himself, it was archived or left the requester's project, or either card is gone.
+/// himself, it was archived, blocked or left the requester's project, or it is gone. An asking card with no project
+/// keeps its request: a project file that fails to read for a moment empties its cards' project, and that is no lapse.
 /// </summary>
 public static class StartRequestLapse
 {
@@ -16,7 +17,9 @@ public static class StartRequestLapse
         card is null ? "it is no longer on the board"
         : card.IsArchived ? "it was archived"
         : cardIsLive || card is not { IsPaused: true, PausedBy: null } ? "the owner started or resumed it"
-        : requester?.Project is not { } project || !string.Equals(project, card.Project, StringComparison.OrdinalIgnoreCase)
-            ? "it is not in your project any more"
-            : null;
+        : card.IsBlocked ? "the owner blocked it"
+        : requester is null ? "your card is no longer on the board"
+        : requester.Project is not { } project ? null
+        : !string.Equals(project, card.Project, StringComparison.OrdinalIgnoreCase) ? "it is not in your project any more"
+        : null;
 }
