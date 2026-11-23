@@ -90,6 +90,49 @@ public class ProposalWindowViewModelTests
     }
 
     [Test]
+    public void ARefusalTheBlockAlreadyGives_IsSaidOnce_AndTheBlockIsWorkedOutAgain()
+    {
+        var model = Model();
+        _block = "the file changed";
+        _approveRefusal = "It cannot be approved yet: the file changed";
+
+        model.ApproveCommand.Execute(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(model.Block, Is.EqualTo("Cannot be approved yet: the file changed"));
+            Assert.That(model.Notice, Is.Empty);
+            Assert.That(model.ApproveToolTip, Is.EqualTo(model.Block));
+            Assert.That(model.ApproveCommand.CanExecute(null), Is.False);
+        });
+    }
+
+    [Test]
+    public void TheBlock_IsReadOnOpenAndRefresh_NotOnEveryRequery()
+    {
+        var asked = 0;
+        var model = new ProposalWindowViewModel(Model().Proposal, "Auth research", null, _ =>
+        {
+            asked++;
+
+            return null;
+        }, _ => null, (_, _) => null);
+
+        model.ApproveCommand.CanExecute(null);
+        model.ApproveCommand.CanExecute(null);
+
+        Assert.That(asked, Is.EqualTo(1));
+
+        model.Refresh();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(asked, Is.EqualTo(2));
+            Assert.That(model.ApproveToolTip, Is.Null, "no empty tooltip when nothing blocks it");
+        });
+    }
+
+    [Test]
     public void AProposalThatCannotBeApproved_HasApproveDisabled_WithTheReason()
     {
         _block = "it names no objective of theseus";

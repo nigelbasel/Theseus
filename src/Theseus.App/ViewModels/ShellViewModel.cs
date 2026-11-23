@@ -1349,6 +1349,17 @@ public sealed class ShellViewModel : ObservableObject
 
     private Theseus.Core.Proposals.ProposalApproval Approve(Theseus.Core.Proposals.WorkstreamProposal proposal, bool startNow)
     {
+        // The window is not modal and a session may approve or withdraw meanwhile, so the book is asked again here, on the
+        // board's thread, rather than trusting the proposal as it was when the window opened.
+        if (Chains?.Proposals?.Find(proposal.Id) is not { IsPending: true } current)
+        {
+            return Theseus.Core.Proposals.ProposalApproval.Refused(Chains?.Proposals?.Find(proposal.Id) is { } decided
+                ? $"{proposal.Request.Title} is already {decided.Status.ToString().ToLowerInvariant()}."
+                : $"There is no proposal {proposal.Id}.");
+        }
+
+        proposal = current;
+
         if (Board.Card(proposal.RequesterKey) is not { } parent)
         {
             return Theseus.Core.Proposals.ProposalApproval.Refused($"{proposal.RequesterKey} is no longer on the board.");

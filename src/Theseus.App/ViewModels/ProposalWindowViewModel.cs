@@ -15,6 +15,7 @@ public sealed class ProposalWindowViewModel : ObservableObject
     private string _notice = string.Empty;
     private string _note = string.Empty;
     private bool _isRejecting;
+    private string _block = string.Empty;
 
     /// <summary>Creates the window's model for a pending proposal.</summary>
     /// <param name="proposal">The proposal.</param>
@@ -33,8 +34,9 @@ public sealed class ProposalWindowViewModel : ObservableObject
         _whyNotApprove = whyNotApprove;
         _approve = approve;
         _reject = reject;
+        Refresh();
 
-        ApproveCommand = new RelayCommand(_ => Approve(), _ => !_isRejecting && Block.Length == 0);
+        ApproveCommand = new RelayCommand(_ => Approve(), _ => !_isRejecting && _block.Length == 0);
         AskRejectCommand = new RelayCommand(_ => IsRejecting = true, _ => !_isRejecting);
         RejectCommand = new RelayCommand(_ => Reject(), _ => _isRejecting);
         CancelCommand = new RelayCommand(_ => Cancel());
@@ -86,8 +88,24 @@ public sealed class ProposalWindowViewModel : ObservableObject
     public string Evidence =>
         $"From session {Proposal.SessionId}, {Proposal.CreatedUtc.ToLocalTime():ddd d MMM HH:mm}. Brief {Proposal.Request.Brief}";
 
-    /// <summary>Why it cannot be approved now, or empty.</summary>
-    public string Block => _whyNotApprove(Proposal) is { } why ? $"Cannot be approved yet: {why}" : string.Empty;
+    /// <summary>Why it cannot be approved now, or empty; worked out when the window opens, comes forward or is refused.</summary>
+    public string Block
+    {
+        get => _block;
+        private set
+        {
+            if (Set(ref _block, value))
+            {
+                Raise(nameof(ApproveToolTip));
+            }
+        }
+    }
+
+    /// <summary>Approve's tooltip: why it is disabled, or none.</summary>
+    public string? ApproveToolTip => _block.Length == 0 ? null : _block;
+
+    /// <summary>Works out again why it cannot be approved, which reads the project file; not on every requery.</summary>
+    public void Refresh() => Block = _whyNotApprove(Proposal) is { } why ? $"Cannot be approved yet: {why}" : string.Empty;
 
     /// <summary>Why the last press did nothing, or empty.</summary>
     public string Notice
@@ -129,8 +147,10 @@ public sealed class ProposalWindowViewModel : ObservableObject
     {
         if (_approve(Proposal) is { } refusal)
         {
-            Notice = refusal;
-            Raise(nameof(Block));
+            Refresh();
+
+            // The block line already says why when it is the reason, so it is not said twice.
+            Notice = _block.Length == 0 ? refusal : string.Empty;
 
             return;
         }

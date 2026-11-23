@@ -24,6 +24,7 @@ public partial class ProposalWindow : Window
                 e.Handled = true;
             }
         }));
+        Activated += (_, _) => model.Refresh();
         model.Closing += (_, _) => Close();
     }
 }
