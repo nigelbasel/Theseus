@@ -1734,9 +1734,8 @@
                                    Visibility="{Binding Chains.HasNoChains, Converter={StaticResource BoolToVisibility}}" />
 
                         <!--
-                            Workstreams sessions have proposed. Review opens the composer filled in from
-                            the proposal, and only Create there makes the card; Reject takes a note the
-                            proposer reads back.
+                            Workstreams sessions have proposed. Review opens the proposal window, and only
+                            Approve there makes the card; Reject takes a note the proposer reads back.
                         -->
                         <StackPanel Visibility="{Binding Chains.Proposals.Pending.Count, Converter={StaticResource CountToVisibility}, FallbackValue=Collapsed}">
                             <TextBlock Text="PROPOSED" FontSize="11" FontWeight="SemiBold" Margin="4,0,0,6"
@@ -1761,7 +1760,7 @@
                                                 <WrapPanel Margin="0,6,0,0"
                                                            Visibility="{Binding IsRejecting, Converter={StaticResource NotBoolToVisibility}}">
                                                     <Button Content="Review…" FontSize="11" Padding="8,2" Margin="0,0,6,0"
-                                                            ToolTip="Open it in the new workstream dialog; Create there approves it"
+                                                            ToolTip="Open the proposal: Approve makes its card, Reject… turns it down"
                                                             Command="{Binding ReviewCommand}" />
                                                     <Button Content="Open brief" FontSize="11" Padding="8,2" Margin="0,0,6,0"
                                                             Command="{Binding OpenBriefCommand}" />

@@ -449,8 +449,7 @@ public partial class MainWindow : Window
 
         _composer = window;
 
-        // A session's approval opens the composer and creates the card in one dispatcher turn, so by
-        // the time this runs the window may already be closed, and showing a closed window throws
+        // By the time this runs the composer may already be closed, and showing a closed window throws
         // (it took the board down on 2026-11-10). Show it only if it is still the open composer.
         Dispatcher.BeginInvoke(() =>
         {

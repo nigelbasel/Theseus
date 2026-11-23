@@ -7,8 +7,8 @@ using Theseus.Core.Proposals;
 namespace Theseus.Tests.ViewModels;
 
 /// <summary>
-/// Approving a proposal is creating its card in the composer, filled in from what the session asked
-/// for. Closing the composer approves nothing.
+/// Approving a proposal makes its card without the composer (sessions-run-the-project item 0.2): the plan Create would
+/// write, from what the session asked for, and nothing typed in an open composer is touched.
 /// </summary>
 [TestFixture]
 public class NewWorkstreamProposalTests
@@ -16,61 +16,97 @@ public class NewWorkstreamProposalTests
     private static readonly DateTimeOffset Nine = new(2026, 10, 29, 9, 0, 0, TimeSpan.Zero);
 
     [Test]
-    public void OpenProposal_FillsTheComposerAsAFollowOnFromTheProposer()
+    public void CreateFromProposal_MakesTheFollowOnTheProposalAsksFor()
     {
-        var composer = Composer(out _, out _);
+        var composer = Composer(out var created, out var plans);
 
-        composer.OpenProposal(Parent(), Proposal());
+        var approval = composer.CreateFromProposal(Parent(), Proposal(), startNow: false);
+
+        var made = created.Single();
+        var plan = plans.TryRead(made.Key)!;
 
         Assert.Multiple(() =>
         {
-            Assert.That(composer.IsFollowOn, Is.True);
-            Assert.That(composer.IsProposal, Is.True);
-            Assert.That(composer.Title, Is.EqualTo("Cache spike"));
-            Assert.That(composer.WorkingDirectory, Is.EqualTo(Path.GetTempPath()));
-            Assert.That(composer.ReportBack, Is.True);
-            Assert.That(composer.Prompt, Does.Contain(@"Read your brief first: C:\work\proposals\cache-spike\BRIEF.md"));
-            Assert.That(composer.StartNow, Is.False, "an approved card starts only when Nigel says");
-            Assert.That(composer.ProposalWarnings, Does.Contain("Looks like Token spike."));
+            Assert.That(approval.Refusal, Is.Null);
+            Assert.That(approval.Key, Is.EqualTo(made.Key));
+            Assert.That(made.ProposalId, Is.EqualTo("pr-1"));
+            Assert.That(made.ParentKey, Is.EqualTo("auth-research"));
+            Assert.That(made.StartNow, Is.False, "an approved card starts only when someone starts it");
+            Assert.That(made.Stage, Is.EqualTo("New"));
+            Assert.That(made.Area, Is.EqualTo("Research"));
+            Assert.That(made.ReportTo, Is.EqualTo(Path.Combine(Path.GetTempPath(), "proposals", "cache-spike", "REPORT.md")));
+            Assert.That(plan.Title, Is.EqualTo("Cache spike"));
+            Assert.That(plan.Cwd, Is.EqualTo(Path.GetTempPath()));
+            Assert.That(plan.ResumeSessionId, Is.Null);
+            Assert.That(plan.Prompt, Does.Contain(@"Read your brief first: C:\work\proposals\cache-spike\BRIEF.md"));
         });
     }
 
     [Test]
-    public void Create_ApprovesTheProposalWithTheCardItMade()
-    {
-        var composer = Composer(out var created, out var plans);
-
-        composer.OpenProposal(Parent(), Proposal());
-        composer.CreateCommand.Execute(null);
-
-        var made = created.Single();
-
-        Assert.That(made.ProposalId, Is.EqualTo("pr-1"));
-        Assert.That(made.ParentKey, Is.EqualTo("auth-research"));
-        Assert.That(made.ReportTo, Is.EqualTo(Path.Combine(Path.GetTempPath(), "proposals", "cache-spike", "REPORT.md")));
-        Assert.That(plans.TryRead(made.Key)!.ResumeSessionId, Is.Null);
-        Assert.That(plans.TryRead(made.Key)!.Cwd, Is.EqualTo(Path.GetTempPath()));
-    }
-
-    [Test]
-    public void Create_UsesTheReportPathTheProposalNamed()
+    public void CreateFromProposal_UsesTheReportPathTheProposalNamed()
     {
         var composer = Composer(out var created, out _);
         var proposal = Proposal();
 
-        composer.OpenProposal(Parent(), proposal with { Request = proposal.Request with { ExpectedOutput = @"C:\work\out\VERDICT.md" } });
-        composer.CreateCommand.Execute(null);
+        composer.CreateFromProposal(Parent(), proposal with { Request = proposal.Request with { ExpectedOutput = @"C:\work\out\VERDICT.md" } }, false);
 
         Assert.That(created.Single().ReportTo, Is.EqualTo(@"C:\work\out\VERDICT.md"));
     }
 
     [Test]
-    public void AnOrdinaryNewWorkstreamAfterAProposalApprovesNothing()
+    public void CreateFromProposal_ThatDoesNotReportBackHasNoReportPath()
+    {
+        var composer = Composer(out var created, out _);
+        var proposal = Proposal();
+
+        composer.CreateFromProposal(Parent(), proposal with { Request = proposal.Request with { ReportBack = false } }, true);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(created.Single().ReportTo, Is.Null);
+            Assert.That(created.Single().StartNow, Is.True);
+        });
+    }
+
+    [Test]
+    public void CreateFromProposal_LeavesAnOpenComposerAlone()
+    {
+        var composer = Composer(out var created, out _);
+        composer.OpenCommand.Execute(null);
+        composer.Title = "Something else";
+        composer.Prompt = "Do it.";
+
+        composer.CreateFromProposal(Parent(), Proposal(), false);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(composer.IsOpen, Is.True);
+            Assert.That(composer.Title, Is.EqualTo("Something else"));
+            Assert.That(composer.Prompt, Is.EqualTo("Do it."));
+            Assert.That(created.Single().ProposalId, Is.EqualTo("pr-1"));
+        });
+    }
+
+    [Test]
+    public void CreateFromProposal_RefusesWhenTheProposersFolderIsGone()
+    {
+        var composer = Composer(out var created, out _);
+        var parent = Parent() with { WorkingDirectory = Path.Combine(Path.GetTempPath(), "no-such-folder-" + Guid.NewGuid().ToString("N")) };
+
+        var approval = composer.CreateFromProposal(parent, Proposal(), false);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(approval.Refusal, Does.Contain("is not there"));
+            Assert.That(created, Is.Empty);
+        });
+    }
+
+    [Test]
+    public void AnOrdinaryNewWorkstreamApprovesNothing()
     {
         var composer = Composer(out var created, out _);
 
-        composer.OpenProposal(Parent(), Proposal());
-        composer.CloseCommand.Execute(null);
         composer.OpenCommand.Execute(null);
         composer.Title = "Something else";
         composer.WorkingDirectory = Path.GetTempPath();
@@ -78,7 +114,6 @@ public class NewWorkstreamProposalTests
         composer.CreateCommand.Execute(null);
 
         Assert.That(created.Single().ProposalId, Is.Null);
-        Assert.That(composer.IsProposal, Is.False);
     }
 
     [Test]
@@ -93,7 +128,7 @@ public class NewWorkstreamProposalTests
 
     private static Workstream Parent() =>
         new("auth-research", "Auth research", "#208DD7", false, Path.GetTempPath(), [], "Carry on.", 0, "New", false, false,
-            false, null, [], null, Nine);
+            false, null, [], null, Nine) { Area = "Research" };
 
     private static WorkstreamProposal Proposal() =>
         new("pr-1", ProposalStatus.Pending, "auth-research", "research-session",
@@ -109,7 +144,7 @@ public class NewWorkstreamProposalTests
         created = made;
         plans = store;
 
-        return new NewWorkstreamViewModel(store, new FakeColours(), () => ["New"], () => ["Research"], made.Add);
+        return new NewWorkstreamViewModel(store, new FakeColours(), () => ["New", "Doing"], () => ["Ideas", "Research"], made.Add);
     }
 
     private sealed class FakePlans : IPlanStore

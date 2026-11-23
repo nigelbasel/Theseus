@@ -327,6 +327,7 @@ public partial class App : Application
             return window.ShowDialog() == true ? window.Text : null;
         };
         shell.ShowRecordsWindow = model => new RecordsWindow(model) { Owner = MainWindow }.Show();
+        shell.ShowProposalWindow = model => new ProposalWindow(model) { Owner = MainWindow }.Show();
         var specWindows = new Dictionary<string, SpecWindow>(StringComparer.OrdinalIgnoreCase);
         shell.ShowSpec = model =>
         {

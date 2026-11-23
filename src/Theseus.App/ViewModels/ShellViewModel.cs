@@ -1293,8 +1293,8 @@ public sealed class ShellViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Opens the composer for a session's proposal, as a follow-on to the card that proposed it. The
-    /// card exists only once Nigel presses Create there.
+    /// Opens the one proposal window (sessions-run-the-project 0.2), from the banner, the Links pane, the project view or
+    /// the proposals list: Approve makes the card, Reject… records the note and tells the proposer, Cancel decides nothing.
     /// </summary>
     public void ReviewProposal(Theseus.Core.Proposals.WorkstreamProposal proposal)
     {
@@ -1307,23 +1307,58 @@ public sealed class ShellViewModel : ObservableObject
             return;
         }
 
-        NewWorkstream.WhyCannotApprove = WhyCannotApprove;
-        NewWorkstream.OpenProposal(parent.Workstream, proposal);
+        if (!proposal.IsPending)
+        {
+            Notice = $"{proposal.Request.Title} is already {proposal.Status.ToString().ToLowerInvariant()}.";
+
+            return;
+        }
+
+        ShowProposalWindow?.Invoke(new ProposalWindowViewModel(proposal, parent.Title, ReadBrief(proposal.Request.Brief),
+            WhyNotApproveNow,
+            each => Approve(each, startNow: false).Refusal,
+            (each, note) => Chains?.Proposals?.Reject(each.Id, note) ?? "Theseus is not taking proposals."));
     }
 
+    /// <summary>Opens the proposal window for a proposal by its id (a "Waits for you" line, 0.2).</summary>
+    public void ReviewProposal(string proposalId)
+    {
+        if (Chains?.Proposals?.Find(proposalId) is { } proposal)
+        {
+            ReviewProposal(proposal);
+        }
+        else
+        {
+            Notice = $"There is no proposal {proposalId}.";
+        }
+    }
+
+    /// <summary>Shows a proposal's window; set by the app.</summary>
+    public Action<ProposalWindowViewModel>? ShowProposalWindow { get; set; }
+
     /// <summary>
-    /// Creates the card for a proposal its session approved when Nigel told it to, through the composer
-    /// as Create on the board would. Refused while the composer is open, so nothing Nigel is typing is lost.
+    /// Creates the card for a proposal its session approved when Nigel told it to, as Approve in the proposal window does
+    /// (0.3), whether or not the composer is open: nothing typed there is touched.
     /// </summary>
     public Theseus.Core.Proposals.ProposalApproval ApproveFromSession(Theseus.Core.Proposals.WorkstreamProposal proposal, bool startNow)
     {
         ArgumentNullException.ThrowIfNull(proposal);
 
-        if (NewWorkstream.IsOpen)
+        return Approve(proposal, startNow);
+    }
+
+    private Theseus.Core.Proposals.ProposalApproval Approve(Theseus.Core.Proposals.WorkstreamProposal proposal, bool startNow)
+    {
+        // The window is not modal and a session may approve or withdraw meanwhile, so the book is asked again here, on the
+        // board's thread, rather than trusting the proposal as it was when the window opened.
+        if (Chains?.Proposals?.Find(proposal.Id) is not { IsPending: true } current)
         {
-            return Theseus.Core.Proposals.ProposalApproval.Refused(
-                "The new workstream dialog is open on the board. Ask the user to close it, or to approve this proposal there.");
+            return Theseus.Core.Proposals.ProposalApproval.Refused(Chains?.Proposals?.Find(proposal.Id) is { } decided
+                ? $"{proposal.Request.Title} is already {decided.Status.ToString().ToLowerInvariant()}."
+                : $"There is no proposal {proposal.Id}.");
         }
+
+        proposal = current;
 
         if (Board.Card(proposal.RequesterKey) is not { } parent)
         {
@@ -1335,22 +1370,30 @@ public sealed class ShellViewModel : ObservableObject
             return Theseus.Core.Proposals.ProposalApproval.Refused($"It cannot be approved yet: {cannot}");
         }
 
-        NewWorkstream.OpenProposal(parent.Workstream, proposal);
-        NewWorkstream.StartNow = startNow;
+        return NewWorkstream.CreateFromProposal(parent.Workstream, proposal, startNow);
+    }
 
-        if (!NewWorkstream.CanCreate)
+    private string? WhyNotApproveNow(Theseus.Core.Proposals.WorkstreamProposal proposal) =>
+        Board.Card(proposal.RequesterKey) is not { } parent
+            ? $"{proposal.RequesterKey} is no longer on the board"
+            : !System.IO.Directory.Exists(parent.Workstream.WorkingDirectory)
+                ? $"{parent.Workstream.WorkingDirectory}, {parent.Title}'s working directory, is not there"
+                : WhyCannotApprove(proposal);
+
+    private static string? ReadBrief(string path)
+    {
+        try
         {
-            NewWorkstream.IsOpen = false;
-
-            return Theseus.Core.Proposals.ProposalApproval.Refused(
-                $"{parent.Workstream.WorkingDirectory} is not there, so the card cannot be made. Approve it on the board and choose a working directory.");
+            return System.IO.File.Exists(path) ? System.IO.File.ReadAllText(path) : null;
         }
-
-        var key = NewWorkstream.Key;
-
-        NewWorkstream.CreateCommand.Execute(null);
-
-        return Theseus.Core.Proposals.ProposalApproval.Made(key);
+        catch (System.IO.IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
+        }
     }
 
     /// <summary>
@@ -2249,6 +2292,7 @@ public sealed class ShellViewModel : ObservableObject
                 Jumped = Jumped,
                 GoBack = GoBackCommand,
                 GoForward = GoForwardCommand,
+                ReviewProposal = ReviewProposal,
                 ProposalsOf = key => [.. Chains?.Proposals?.Pending.Where(row =>
                     string.Equals(row.Proposal.RequesterKey, key, StringComparison.OrdinalIgnoreCase)) ?? []],
             },

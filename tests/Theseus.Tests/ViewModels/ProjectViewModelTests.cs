@@ -84,6 +84,21 @@ public class ProjectViewModelTests
     }
 
     [Test]
+    public void AProposalsWaitsButton_OpensTheProposalWindow_ForThatProposal()
+    {
+        var proposal = new Theseus.Core.Proposals.WorkstreamProposal("pr-7", Theseus.Core.Proposals.ProposalStatus.Pending, ACard, "s",
+            new Theseus.Core.Proposals.ProposalRequest("A follow-up", "brief.md", false, null, "done", [], null), [],
+            DateTimeOffset.UnixEpoch);
+        var wait = _views.OneWith([proposal]).Waits.Single(each => each.Item.Kind == WaitKind.Proposal);
+
+        Assert.That(wait.Button, Is.EqualTo("Review the proposal…"));
+
+        wait.Command!.Execute(null);
+
+        Assert.That(_views.Ran, Is.EqualTo(new[] { "ReviewProposal:pr-7" }), "sessions-run-the-project 0.2: not the card's links");
+    }
+
+    [Test]
     public void ABugsWaitsButton_AcceptsTheRule()
     {
         var view = _views.One("bug", new Dictionary<string, string>
