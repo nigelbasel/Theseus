@@ -31,4 +31,25 @@ public class QuestionWordsTests
             Is.EqualTo(new[] { "Asks: Push now?", "Options: Yes · Later", "Why: CI is idle" }));
         Assert.That(QuestionWords.Detail(Guessed), Does.Contain("did not ask with the question tool"));
     }
+
+    [Test]
+    public void APrompt_ReadsAsClaudeCodeSaysIt_AboutTheCard()
+    {
+        var prompt = new PermissionPrompt("s", "Claude needs your permission to use Bash", Nine);
+
+        Assert.That(QuestionWords.Card(prompt), Is.EqualTo("Needs your permission to use Bash"));
+        Assert.That(QuestionWords.Named("W7", prompt), Is.EqualTo("W7 needs your permission to use Bash"));
+        Assert.That(QuestionWords.Named("W7", new PermissionPrompt("s", "Server asks: which branch?", Nine)),
+            Is.EqualTo("W7 waits for you: Server asks: which branch?"));
+    }
+
+    [Test]
+    public void AWait_SaysThePromptFirst_ThenTheQuestion_ElseOnlyThatItWaits()
+    {
+        var prompt = new PermissionPrompt("s", "Claude needs your permission to use Bash", Nine);
+
+        Assert.That(QuestionWords.Named("W7", prompt, Asked), Is.EqualTo("W7 needs your permission to use Bash"));
+        Assert.That(QuestionWords.Named("W7", null, Asked), Is.EqualTo("W7 asks: Push now?"));
+        Assert.That(QuestionWords.Named("W7", null, null), Is.EqualTo("W7 is waiting for your input"));
+    }
 }

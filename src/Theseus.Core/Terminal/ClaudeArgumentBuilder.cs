@@ -18,6 +18,10 @@ public static class ClaudeArgumentBuilder
         {
             spec.Mode == LaunchMode.Resume ? "--resume" : "--session-id",
             spec.SessionId,
+            // Sessions Theseus launches run unattended (Nigel, 2026-11-23); a prompt that still stops one shows on the
+            // board as a wait for the owner.
+            "--permission-mode",
+            "auto",
         };
 
         if (!string.IsNullOrWhiteSpace(spec.SessionName))

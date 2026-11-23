@@ -18,7 +18,8 @@ public static class ProjectCardFace
     /// <param name="runState">Its run state, when the project is stopped (1.1e AC 8); null when it is not.</param>
     /// <param name="stoppedByOwner">The cards the owner stopped by hand (1.1e AC 10).</param>
     public static bool Fill(ProjectCardViewModel card, IReadOnlyList<PieceOfWork> pieces, IReadOnlyList<string>? runState = null,
-        IReadOnlyCollection<string>? stoppedByOwner = null, ProjectOverview? overview = null, string? lead = null)
+        IReadOnlyCollection<string>? stoppedByOwner = null, ProjectOverview? overview = null, string? lead = null,
+        IReadOnlyList<PieceCard>? others = null)
     {
         ArgumentNullException.ThrowIfNull(card);
         ArgumentNullException.ThrowIfNull(pieces);
@@ -30,7 +31,7 @@ public static class ProjectCardFace
         card.Sentence = overview?.Sentence ?? summary.Sentence;
         card.Counts = StateCountViewModel.For(summary, zeros: false);
         card.IsLive = pieces.Any(piece => piece.IsCurrentPiece && piece.Card is { HasSession: true });
-        card.StateColumn = ProjectBoardStanding.StateColumn(pieces);
+        card.StateColumn = ProjectBoardStanding.StateColumn(pieces, others);
         card.FirstCardKey = ProjectBoardStanding.FirstCardKey(pieces);
         card.RunState = runState;
         card.MemberKeys = [.. pieces.Select(piece => piece.CardKey).Distinct(StringComparer.OrdinalIgnoreCase)];

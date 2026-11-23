@@ -71,6 +71,9 @@ public sealed partial class ShellViewModel : ObservableObject
 
     /// <summary>The questions sessions have open for the owner (1.6), shared with ask_owner and the hook.</summary>
     public Theseus.Core.Questions.OwnerQuestionStore Questions { get; } = new(Theseus.Core.Questions.OwnerQuestionRoot.Default);
+
+    /// <summary>The prompts sessions are stopped at, as the hook recorded them (1.6).</summary>
+    public Theseus.Core.Questions.PermissionPromptStore Prompts { get; } = new(Theseus.Core.Questions.PermissionPromptStore.DefaultRoot);
     private readonly HashSet<string> _handoffWriteFailures = new(StringComparer.OrdinalIgnoreCase);
     private readonly ISessionTodoReader _todos;
     private readonly RunEndings _endings;
@@ -2385,11 +2388,16 @@ public sealed partial class ShellViewModel : ObservableObject
                 ? piece with { Reported = reported }
                 : piece)];
             var waitingSpecs = ProjectViewModel.SpecsWaiting(reading, pieces);
+            var working = pieces.Where(piece => piece.IsCurrentPiece && piece.Card is not null)
+                .Select(piece => piece.CardKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            IReadOnlyList<PieceCard> others = [.. cards
+                .Where(card => string.Equals(card.Workstream.Project, reading.Name, StringComparison.OrdinalIgnoreCase) && !working.Contains(card.Key))
+                .Select(PieceCardOf)];
             var checkPlan = CheckPlanOf(reading, pieces);
             var overview = ProjectOverview.For(reading.File!, pieces, links, Chains?.Proposals?.Pending.Select(row => row.Proposal) ?? [],
                 acceptances.Count(acceptance => string.Equals(acceptance.Project, reading.Name, StringComparison.OrdinalIgnoreCase)),
                 StartRequests.Pending, key => Board.Card(key)?.Title ?? key, WrongVerifiersOf(reading.Name), ClearUpNoticeOf(reading),
-                checkPlan.Underway);
+                checkPlan.Underway, others);
             TakeCheckSteps(reading, pieces, checkPlan);
             var file = reading.File!;
 
@@ -2426,7 +2434,7 @@ public sealed partial class ShellViewModel : ObservableObject
             projectCard.FocusLeadCommand = new RelayCommand(_ => FocusCardCommand.Execute(leadCard), _ => leadCard is not null && FocusCardCommand.CanExecute(leadCard));
 
             if (ProjectCardFace.Fill(projectCard, pieces, _settings.Read().ProjectRunStates.GetValueOrDefault(name),
-                    _settings.Read().CardsStoppedByOwner, overview, lead))
+                    _settings.Read().CardsStoppedByOwner, overview, lead, others))
             {
                 System.Windows.Input.CommandManager.InvalidateRequerySuggested();
             }
@@ -2662,6 +2670,7 @@ public sealed partial class ShellViewModel : ObservableObject
         {
             StopLine = card.StopReason?.Line,
             Question = card.Question,
+            Prompt = card.Prompt,
             PausedBy = card.Workstream.PausedBy is { } by ? Board.Card(by)?.Title ?? by : null,
             BranchRulesSince = BranchRulesSince(card.Workstream),
             IsArchived = card.Workstream.IsArchived,
@@ -3716,6 +3725,9 @@ public sealed partial class ShellViewModel : ObservableObject
         _branchGrants = reasons.ProjectBranchRules;
         RefreshHoldouts([.. Board.Cards.Select(card => card.Workstream)]);
         Questions.RemoveExcept(Sessions.Snapshot.Live.Select(session => session.SessionId), DateTimeOffset.UtcNow.AddMinutes(-10));
+        Prompts.RemoveExcept(Sessions.Snapshot.Live
+            .Where(session => string.Equals(session.Status, "waiting", StringComparison.OrdinalIgnoreCase))
+            .Select(session => session.SessionId), DateTimeOffset.UtcNow);
 
         foreach (var card in Board.Cards)
         {
@@ -3725,6 +3737,7 @@ public sealed partial class ShellViewModel : ObservableObject
             var state = CardLifecycle.For(card.Key, session?.Status, live, runs, now, hasOpenQuestion: question is not null);
 
             card.Question = question;
+            card.Prompt = live ? Theseus.Core.Questions.PermissionPrompt.Showing(Prompts.Read(card.Workstream.LastSessionId), session?.Status, question) : null;
             card.MotionAllowed = _motionAllowed;
             card.Lifecycle = state.Lifecycle;
             card.LifecycleSinceUtc = state.Since;

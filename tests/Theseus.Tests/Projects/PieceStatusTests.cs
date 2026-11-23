@@ -117,6 +117,19 @@ public class PieceStatusTests
     }
 
     [Test]
+    public void ASessionStoppedAtAPrompt_SaysWhatItAsks_BeforeAnyQuestion()
+    {
+        var question = new Theseus.Core.Questions.OwnerQuestion("s", "Push the branch now?", IsGuess: false, DateTimeOffset.UnixEpoch);
+        var prompt = new Theseus.Core.Questions.PermissionPrompt("s", "Claude needs your permission to use Bash", DateTimeOffset.UnixEpoch.AddMinutes(1));
+        var piece = OnePiece(_folder, "feature", Files("spec.md"),
+            Card(Git22, SessionLifecycle.NeedsAttention) with { Key = ACard, Question = question, Prompt = prompt }, accepted: true);
+
+        Assert.That(piece.Status.Text, Is.EqualTo("Waiting for you: git-22 needs your permission to use Bash"));
+        Assert.That(piece.Status.Action, Is.EqualTo(PieceAction.Answer));
+        Assert.That(piece.Status.WaitsForYou, Is.True);
+    }
+
+    [Test]
     public void ASessionProbablyAsking_SaysItIsAGuess()
     {
         var question = new Theseus.Core.Questions.OwnerQuestion("s", "Shall I push?", IsGuess: true, DateTimeOffset.UnixEpoch);

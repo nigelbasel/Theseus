@@ -48,6 +48,14 @@ try
         return 0;
     }
 
+    // Registered only for the sessions Theseus launches, on the prompts that stop one: what is asked, for the board (1.6).
+    if (input.HookEventName == "Notification")
+    {
+        HookPrompt.OnEvent(input, new PermissionPromptStore(PermissionPromptStore.DefaultRoot), DateTimeOffset.UtcNow);
+
+        return 0;
+    }
+
     // A stop request first, else something the owner's board action tells it (1.1e AC 27), each decided before it is
     // claimed: claiming first and then declining, on a subagent's turn or one a stop hook already extended, would
     // consume it and leave the session that was meant to have it none the wiser.
@@ -60,6 +68,14 @@ try
     {
         HookQuestion.OnEvent(input, new OwnerQuestionStore(OwnerQuestionRoot.Default), TranscriptTail.Read,
             DateTimeOffset.UtcNow, delivered: request is not null);
+    }
+    catch (Exception)
+    {
+    }
+
+    try
+    {
+        HookPrompt.OnEvent(input, new PermissionPromptStore(PermissionPromptStore.DefaultRoot), DateTimeOffset.UtcNow);
     }
     catch (Exception)
     {
