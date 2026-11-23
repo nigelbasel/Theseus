@@ -190,7 +190,16 @@ public class HoldoutLocationTests
         Assert.That(convention, Is.EqualTo(new HoldoutConvention(clone, new RecordedHoldout(null))), "the clone, through the worktree");
         Assert.That((found.Folder, found.Source, found.IsMissing), Is.EqualTo((holdout, HoldoutSource.Recorded, false)));
         Assert.That(HoldoutLocation.Find("theseus", null, HoldoutConvention.For(theseus, [notes], null), _root).Folder, Is.Empty,
-            "without the worktrees, the clone is not found: what the live board showed");
+            "without the worktrees or the records, the clone is not found: what the live board showed");
+
+        // The live inputs (git-22, 15:54): no worktrees folder set, the cards in a notes folder; a piece's brief names its worktree.
+        var brief = $"- Branch `nigel/options-made-clear` off `nigel/theseus`, worktree `{worktree}` (the branch rules are granted).";
+        var live = HoldoutConvention.For(theseus, [notes], string.Empty, () => [brief], out var foundBy);
+
+        Assert.That((live.HomeClone, foundBy), Is.EqualTo((clone, "records")));
+        Assert.That(HoldoutLocation.Find("theseus", null, live, _root).Folder, Is.EqualTo(holdout));
+        Assert.That(HoldoutConvention.For(theseus, [notes], string.Empty, () => [$"see {Path.Combine(worktree, "src", "Theseus.App")}."], out _).HomeClone,
+            Is.EqualTo(clone), "a path inside the worktree is cut back to the folder named after the repo");
     }
 
     [Test]
