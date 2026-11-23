@@ -1366,9 +1366,17 @@ public sealed class ShellViewModel : ObservableObject
     {
         ArgumentNullException.ThrowIfNull(proposal);
 
-        return Board.Card(proposal.RequesterKey) is { Workstream.Project: not null }
-            ? Approve(proposal, startNow, bySession: true)
-            : Theseus.Core.Proposals.ProposalApproval.Refused($"{proposal.RequesterKey} is not in a project, so its proposals wait for the user.");
+        if (Board.Card(proposal.RequesterKey) is not { Workstream.Project: { } project })
+        {
+            return Theseus.Core.Proposals.ProposalApproval.Refused($"{proposal.RequesterKey} is not in a project, so its proposals wait for the user.");
+        }
+
+        var made = Approve(proposal, startNow, bySession: true);
+
+        // The card is made before its row is written, so a row that could not be written leaves it ad hoc: say so.
+        return made.Key is { } key && !string.Equals(Board.Card(key)?.Workstream.Project, project, StringComparison.OrdinalIgnoreCase)
+            ? made with { Shortfall = string.IsNullOrWhiteSpace(Notice) ? $"its row was not written, so it is not in {project}" : Notice }
+            : made;
     }
 
     private Theseus.Core.Proposals.ProposalApproval Approve(Theseus.Core.Proposals.WorkstreamProposal proposal, bool startNow,

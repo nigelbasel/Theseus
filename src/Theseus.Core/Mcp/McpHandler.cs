@@ -312,7 +312,7 @@ public sealed partial class McpHandler
                 },
                 "title", "brief", "done_criteria", "report_back"),
             Tool("proposal_status",
-                "This workstream's proposals, everything each asks for, its warnings, and what the user decided: pending, approved (with the new card's key), rejected (with their note) or withdrawn. Read-only.",
+                "This workstream's proposals, everything each asks for, its warnings, and what became of it: pending, approved by the user (with the new card's key), created by you in a project (likewise), rejected (with their note) or withdrawn. Read-only.",
                 new JsonObject()),
             Tool("withdraw_proposal",
                 "Take back one of this workstream's pending proposals.",
@@ -338,7 +338,7 @@ public sealed partial class McpHandler
                 new JsonObject { ["link_id"] = Property("The link's id, from related.") },
                 "link_id"),
             Tool("events",
-                "What the owner did on the board that concerns this workstream since you last called this: proposals of yours approved or rejected, reports to you confirmed, your spec accepted. Read-only. Call it before asking the owner to do something on the board, rather than asking him again.",
+                "What the owner did on the board that concerns this workstream since you last called this: proposals of yours approved or rejected, reports to you confirmed, your spec accepted. Read-only. Call it when you start, since what waited more than seven days for you is kept only here, and before asking the owner to do something on the board, rather than asking him again.",
                 new JsonObject()),
             Tool("gates",
                 "This workstream's owner's gates (its spec, or a bug's rule) and whether each is accepted for the version on disk now, with when, by whom and how. Read-only. Stop at the spec and call this before you plan: plan only when it says accepted.",
@@ -416,7 +416,7 @@ public sealed partial class McpHandler
                 },
                 "items"),
             Tool("approve_proposal",
-                "Approve one of this workstream's pending proposals, which creates its card, links it and leaves it ready to start, exactly as Create does on the board. Only when the user has read the brief and tells you to approve it in this tab.",
+                "Approve one of this workstream's pending proposals, which creates its card, links it and leaves it ready to start, exactly as Approve does in the board's proposal window. A project's proposals never wait, so this is for the ordinary board. Only when the user has read the brief and tells you to approve it in this tab.",
                 new JsonObject
                 {
                     ["proposal_id"] = Property("The id propose_workstream returned."),
@@ -609,7 +609,6 @@ public sealed partial class McpHandler
         }
 
         var all = _proposals.All;
-        var descendants = WorkstreamDescendants.Of(session.WorkstreamKey, all).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         return Result(string.Join(Environment.NewLine, cards.Select(card =>
         {
@@ -620,7 +619,9 @@ public sealed partial class McpHandler
                 parts.Add(why);
             }
 
-            if (all.FirstOrDefault(each => string.Equals(each.ResultingKey, card.Key, StringComparison.OrdinalIgnoreCase)) is { } made)
+            var made = all.FirstOrDefault(each => string.Equals(each.ResultingKey, card.Key, StringComparison.OrdinalIgnoreCase));
+
+            if (made is not null)
             {
                 parts.Add(made.MadeBySession
                     ? $"created by {TitleOf(board, made.RequesterKey)}"
@@ -632,7 +633,7 @@ public sealed partial class McpHandler
                 parts.Add(card.Workstream.PausedBy is { } by ? $"paused by {TitleOf(board, by)}" : "paused by the user");
             }
 
-            if (project is not null && descendants.Contains(card.Key))
+            if (project is not null && string.Equals(made?.RequesterKey, session.WorkstreamKey, StringComparison.OrdinalIgnoreCase))
             {
                 parts.Add("yours");
             }
@@ -670,8 +671,8 @@ public sealed partial class McpHandler
     };
 
     /// <summary>
-    /// start_workstream, stop_workstream, pause_workstream and resume_workstream (1.1e AC 14 to 16): only on a descendant,
-    /// decided from Theseus's own proposal records, and only in a state the call fits; a refusal returns its reason and
+    /// start_workstream, stop_workstream, pause_workstream and resume_workstream (1.1e AC 14 to 16; sessions-run-the-project
+    /// items 8 to 11): only on a card <see cref="Controllable"/> gives, and only in a state the call fits; a refusal returns its reason and
     /// changes nothing on the board.
     /// </summary>
     private JsonObject ControlWorkstream(McpSession session, JsonObject arguments, WorkstreamCall call)
@@ -1125,19 +1126,37 @@ public sealed partial class McpHandler
 
         var proposal = outcome.Proposal!;
         var startNow = arguments["start_now"] is JsonValue value && value.TryGetValue<bool>(out var start) && start;
-        var made = _create!(proposal, startNow);
+        ProposalApproval made;
+
+        try
+        {
+            made = _create!(proposal, startNow);
+        }
+        catch (Exception failure) when (failure is IOException or UnauthorizedAccessException or InvalidOperationException or TaskCanceledException)
+        {
+            made = ProposalApproval.Refused($"Theseus could not make it: {failure.Message}");
+        }
 
         if (made.Refusal is { } notMade)
         {
-            _proposals.Withdraw(session.WorkstreamKey, session.SessionId, proposal.Id);
+            // A repeat is a proposal filed earlier, perhaps waiting for the user since before this card joined the project:
+            // it is not this call's to take back (review of PR 1, finding 3).
+            if (!outcome.IsRepeat)
+            {
+                _proposals.Withdraw(session.WorkstreamKey, session.SessionId, proposal.Id);
+            }
 
             return Result($"Nothing was made: {notMade}", isError: true);
         }
 
+        var starting = startNow ? "Its session is starting." : "It does not start until you call start_workstream.";
         var lines = new List<string>
         {
-            $"Created {request.Title} as {made.Key} under objective {request.Objective} of {project}, linked from this workstream, "
-            + $"its row in the project file. {(startNow ? "Its session is starting." : "It does not start until you call start_workstream.")}",
+            made.Shortfall is { } shortfall
+                ? $"Created {request.Title} as {made.Key}, linked from this workstream, but not in {project}: {shortfall}. "
+                  + $"It is ad hoc until the user adds it to the project. {starting}"
+                : $"Created {request.Title} as {made.Key} under objective {request.Objective} of {project}, linked from this workstream, "
+                  + $"its row in the project file. {starting}",
         };
 
         if (proposal.Warnings.Count > 0)

@@ -117,8 +117,42 @@ public class ProposalBookTests
             Assert.That(book.Find(id)!.Status, Is.EqualTo(ProposalStatus.Approved));
             Assert.That(book.Find(id)!.MadeBySession, Is.True);
             Assert.That(book.Find(id)!.ResultingKey, Is.EqualTo("cache-spike"));
-            Assert.That(WorkstreamDescendants.Of("auth-research", book.All), Is.EqualTo(new[] { "cache-spike" }));
+            Assert.That(WorkstreamDescendants.Of("auth-research", book.All), Is.Empty, "not approved by the owner, so no descendant");
         });
+    }
+
+    [Test]
+    public void ACardASessionMade_IsNoAdHocAncestorsDescendant()
+    {
+        var book = Book();
+        var approved = book.Propose("ad-hoc", "s1", Request("Approved one"), Passed).Proposal!.Id;
+        book.Approve(approved, "approved-one");
+        var made = book.Propose("approved-one", "s2", Request("Made one"), Passed, capped: false).Proposal!.Id;
+        book.Create(made, "made-one");
+
+        Assert.That(WorkstreamDescendants.Of("ad-hoc", book.All), Is.EqualTo(new[] { "approved-one" }),
+            "the owner never approved made-one (review of PR 1, finding 1)");
+    }
+
+    [Test]
+    public void MadeBySession_SurvivesARestart()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"theseus-proposals-{Guid.NewGuid():N}.json");
+
+        try
+        {
+            var book = new ProposalBook(new ProposalStateStore(path), new FixedClock(DateTimeOffset.UnixEpoch));
+            var id = book.Propose("auth-research", "s1", Request("Cache spike"), Passed, capped: false).Proposal!.Id;
+            book.Create(id, "cache-spike");
+
+            var reopened = new ProposalBook(new ProposalStateStore(path), new FixedClock(DateTimeOffset.UnixEpoch));
+
+            Assert.That(reopened.Find(id)!.MadeBySession, Is.True);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
     }
 
     [Test]

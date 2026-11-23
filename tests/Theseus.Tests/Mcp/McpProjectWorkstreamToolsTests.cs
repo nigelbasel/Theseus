@@ -25,6 +25,7 @@ public class McpProjectWorkstreamToolsTests
     private List<BoardSnapshotCard> _cards = [];
     private List<string> _created = [];
     private string? _createRefusal;
+    private string? _shortfall;
 
     [SetUp]
     public void SetUp()
@@ -35,6 +36,7 @@ public class McpProjectWorkstreamToolsTests
         _control = new RecordingControl();
         _created = [];
         _createRefusal = null;
+        _shortfall = null;
         _cards = [Card("lead", Project), Card("sibling", Project), Card("elsewhere", "another-project"), Card("adhoc", null)];
         _handler = new McpHandler(
             new WorkLog(Path.Combine(_directory, "work.jsonl")),
@@ -65,7 +67,7 @@ public class McpProjectWorkstreamToolsTests
                 _proposals.Create(proposal.Id, key);
                 _cards.Add(Card(key, Project));
 
-                return ProposalApproval.Made(key);
+                return ProposalApproval.Made(key) with { Shortfall = _shortfall };
             });
     }
 
@@ -126,6 +128,73 @@ public class McpProjectWorkstreamToolsTests
             Assert.That(Text(result), Is.EqualTo("Nothing was made: It cannot be approved yet: It names objective 9.9, which the project file does not have."));
             Assert.That(_proposals.Pending, Is.Empty);
             Assert.That(_proposals.All.Single().Status, Is.EqualTo(ProposalStatus.Withdrawn));
+        });
+    }
+
+    [Test]
+    public void ACardMadeWithoutItsRow_IsSaidToBeAdHoc_NotClaimedInTheProject()
+    {
+        _shortfall = "Created New piece, not in theseus: theseus's project.md changed since Theseus read it";
+
+        var text = Text(Propose("New piece", objective: "1.6", slug: "new-piece"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(text, Does.Contain("but not in theseus"));
+            Assert.That(text, Does.Contain("It is ad hoc until the user adds it to the project."));
+            Assert.That(text, Does.Not.Contain("its row in the project file"));
+        });
+    }
+
+    [Test]
+    public void AFailedCreate_LeavesAnEarlierWaitingProposalOfTheSameTitleAlone()
+    {
+        var brief = Path.Combine(_directory, "work", "new-piece", "BRIEF.md");
+        Directory.CreateDirectory(Path.GetDirectoryName(brief)!);
+        File.WriteAllText(brief, "Do the work.");
+        var earlier = _proposals.Propose("lead", "lead-session", new ProposalRequest("New piece", brief, false, null, "Done.", [], null),
+            new ProposalCheckResult(null, [])).Proposal!;
+        _createRefusal = "It cannot be approved yet: the file changed.";
+
+        Propose("New piece", objective: "1.6", slug: "new-piece");
+
+        Assert.That(_proposals.Find(earlier.Id)!.IsPending, Is.True, "review of PR 1, finding 3");
+    }
+
+    [Test]
+    public void ACreateThatThrows_LeavesNothingWaiting()
+    {
+        var handler = new McpHandler(
+            new WorkLog(Path.Combine(_directory, "work2.jsonl")), () => [],
+            _ => new McpSession("lead-session", "lead", "Lead"), () => Nine, TimeZoneInfo.Utc,
+            links: new LinkBook(new LinkStateStore(Path.Combine(_directory, "links2.json")), new FixedClock(Nine)),
+            board: () => new BoardSnapshot(_cards, Nine),
+            paths: new SessionPathRule(Path.Combine(_directory, "plans"), Path.Combine(_directory, "data")),
+            proposals: _proposals, control: _control,
+            create: (_, _) => throw new IOException("the plan folder is locked"));
+        var brief = Path.Combine(_directory, "work", "new-piece", "BRIEF.md");
+        Directory.CreateDirectory(Path.GetDirectoryName(brief)!);
+        File.WriteAllText(brief, "Do the work.");
+        var message = new JsonObject
+        {
+            ["jsonrpc"] = "2.0", ["id"] = 1, ["method"] = "tools/call",
+            ["params"] = new JsonObject
+            {
+                ["name"] = "propose_workstream",
+                ["arguments"] = new JsonObject
+                {
+                    ["title"] = "New piece", ["brief"] = brief, ["done_criteria"] = "Done.", ["report_back"] = false,
+                    ["objective"] = "1.6", ["slug"] = "new-piece",
+                },
+            },
+        };
+
+        var result = JsonNode.Parse(handler.Handle("lead-session", message.ToJsonString(), null).Body!)!["result"]!;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(Text(result), Is.EqualTo("Nothing was made: Theseus could not make it: the plan folder is locked"));
+            Assert.That(_proposals.Pending, Is.Empty);
         });
     }
 

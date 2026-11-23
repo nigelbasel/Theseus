@@ -141,14 +141,26 @@ public class BoardWorkstreamControlTests
     }
 
     [Test]
-    public void AProjectsRule_NeedsBothCardsInTheSameProject()
+    public void ACardOutsideTheCallersProject_IsRefusedOnTheBoard_WhateverTheCall()
     {
         var child = _board.Card("child")!;
         var parent = _board.Card("parent")!;
         parent.Workstream = parent.Workstream with { Project = "another" };
         child.Workstream = child.Workstream with { Project = "theseus", IsPaused = true, PausedBy = "other" };
+        const string refused = "child is not a card of another: another project's cards and ad hoc cards are the user's to start or stop.";
 
-        Assert.That(Control().Resume("child", null, "parent"), Is.EqualTo("child is not paused by you."));
+        Assert.Multiple(() =>
+        {
+            Assert.That(Control().Resume("child", null, "parent"), Is.EqualTo(refused));
+            Assert.That(Control().Start("child", null, "parent"), Is.EqualTo(refused));
+            Assert.That(Control().Pause("child", "parent", null), Is.EqualTo(refused));
+            Assert.That(Control().Stop("child", "parent"), Is.EqualTo(refused));
+            Assert.That(_started, Is.Empty);
+        });
+
+        child.Workstream = child.Workstream with { Project = null };
+
+        Assert.That(Control().Start("child", null, "parent"), Is.EqualTo(refused), "moved out to ad hoc (item 11)");
     }
 
     [Test]

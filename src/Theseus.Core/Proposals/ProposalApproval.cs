@@ -5,6 +5,9 @@ namespace Theseus.Core.Proposals;
 /// <param name="Refusal">Why nothing was made, or null.</param>
 public sealed record ProposalApproval(string? Key, string? Refusal)
 {
+    /// <summary>What went short when the card was made, such as its project row not being written; null when nothing did.</summary>
+    public string? Shortfall { get; init; }
+
     /// <summary>An approval that made its card.</summary>
     public static ProposalApproval Made(string key) => new(key, null);
 

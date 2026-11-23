@@ -150,8 +150,15 @@ public sealed class BoardWorkstreamControl : IWorkstreamControl
         var workstream = card.Workstream;
 
         // In a project any session's pause may be taken over or cleared (sessions-run-the-project item 9).
-        var inProject = workstream.Project is { } project
-                        && string.Equals(_board.Card(caller)?.Workstream.Project, project, StringComparison.OrdinalIgnoreCase);
+        var callersProject = _board.Card(caller)?.Workstream.Project;
+        var inProject = callersProject is not null
+                        && string.Equals(workstream.Project, callersProject, StringComparison.OrdinalIgnoreCase);
+
+        // A card that left the caller's project since the session looked is no longer its to act on (item 11).
+        if (callersProject is not null && !inProject)
+        {
+            return $"{card.Title} is not a card of {callersProject}: another project's cards and ad hoc cards are the user's to start or stop.";
+        }
 
         return call switch
         {
