@@ -16,6 +16,7 @@ public sealed class BoardViewModel : ObservableObject
     private string _status = string.Empty;
     private WorkstreamCardViewModel? _selectedCard;
     private bool _showArchived;
+    private BoardShows _shows;
     private BoardColumnsBy _columnsBy;
     private BoardRowsBy _rowsBy;
     private List<WorkstreamCardViewModel> _all = [];
@@ -34,6 +35,7 @@ public sealed class BoardViewModel : ObservableObject
         _board = board;
         _settings = settings;
         _showArchived = settings.Read().ShowArchived;
+        _shows = settings.Read().BoardShows;
         _columnsBy = settings.Read().ColumnsBy;
         _rowsBy = settings.Read().RowsBy;
         Search = new BoardSearchViewModel(OnSearchChanged);
@@ -219,7 +221,10 @@ public sealed class BoardViewModel : ObservableObject
 
         _matches = matches;
 
-        var onBoard = _all.Where(card => KeepOutOfGrid?.Invoke(card) != true).Cast<IBoardCard>().Concat(_projects).ToList();
+        var cardsOnGrid = _all.Where(card => KeepOutOfGrid?.Invoke(card) != true).Cast<IBoardCard>().ToList();
+        var hiddenKind = Kept(BoardShows.Projects) ? cardsOnGrid : Kept(BoardShows.Workstreams) ? [.. _projects] : [];
+        var onBoard = cardsOnGrid.Concat(_projects).Except(hiddenKind).ToList();
+        Search.HiddenByShows = on ? hiddenKind.Count(_matching.Contains) : 0;
         var archivedWouldMatch = on && !ShowArchived && _archived.Any(workstream => filter.Admits(new SearchableCard(
             workstream.Key, workstream.Title, workstream.Project ?? string.Empty, workstream.Area ?? string.Empty,
             workstream.JiraKeys, workstream.Tags, [], [])));
@@ -584,7 +589,7 @@ public sealed class BoardViewModel : ObservableObject
 
         foreach (var card in _all)
         {
-            if (KeepOutOfGrid?.Invoke(card) == true || HiddenBySearch(card))
+            if (KeepOutOfGrid?.Invoke(card) == true || HiddenBySearch(card) || Kept(BoardShows.Projects))
             {
                 continue;
             }
@@ -679,7 +684,7 @@ public sealed class BoardViewModel : ObservableObject
         foreach (var cell in Cells)
         {
             var wanted = _projects
-                .Where(project => !HiddenBySearch(project))
+                .Where(project => !HiddenBySearch(project) && !Kept(BoardShows.Workstreams))
                 .Where(project =>
                 {
                     var place = places.FirstOrDefault(entry => string.Equals(entry.Key, project.Name, StringComparison.OrdinalIgnoreCase)).Value;
@@ -1292,6 +1297,64 @@ public sealed class BoardViewModel : ObservableObject
 
         card.Workstream = card.Workstream with { LastSessionId = sessionId };
         Persist(card);
+    }
+
+    /// <summary>Which cards the board shows (Nigel, 2026-11-23): all, only project cards, or only workstreams. Remembered.</summary>
+    public BoardShows Shows
+    {
+        get => _shows;
+        set
+        {
+            if (Set(ref _shows, value))
+            {
+                _settings.Write(_settings.Read() with { BoardShows = value });
+                Raise(nameof(ShowsAll));
+                Raise(nameof(ShowsProjects));
+                Raise(nameof(ShowsWorkstreams));
+                Place();
+                Raise(nameof(ShowsNote));
+            }
+        }
+    }
+
+    /// <summary>What the status bar adds while one kind is hidden, such as "showing projects only"; empty showing all.</summary>
+    public string ShowsNote => _shows switch
+    {
+        BoardShows.Projects when !ShowArchived => "showing projects only",
+        BoardShows.Workstreams when !ShowArchived => "showing workstreams only",
+        _ => string.Empty,
+    };
+
+    /// <summary>Show all, as a radio button binds it.</summary>
+    public bool ShowsAll
+    {
+        get => _shows == BoardShows.All;
+        set => Choose(value, BoardShows.All);
+    }
+
+    /// <summary>Show only the project cards, as a radio button binds it.</summary>
+    public bool ShowsProjects
+    {
+        get => _shows == BoardShows.Projects;
+        set => Choose(value, BoardShows.Projects);
+    }
+
+    /// <summary>Show only the workstreams, as a radio button binds it.</summary>
+    public bool ShowsWorkstreams
+    {
+        get => _shows == BoardShows.Workstreams;
+        set => Choose(value, BoardShows.Workstreams);
+    }
+
+    // The archive shows workstreams only, so while it is on the choice hides nothing (review, finding 4).
+    private bool Kept(BoardShows shows) => _shows == shows && !ShowArchived;
+
+    private void Choose(bool chosen, BoardShows shows)
+    {
+        if (chosen)
+        {
+            Shows = shows;
+        }
     }
 
     /// <summary>
