@@ -20,6 +20,18 @@ public static class OwnerEvents
             ? $"The owner accepted {fromTitle}'s hand-over to you on the board{(document is null ? "." : $": {document}")}"
             : $"The owner confirmed {fromTitle}'s report to you on the board{(document is null ? "." : $": {document}")}";
 
+    /// <summary>A start request of its allowed: the card was started (sessions-run-the-project item 14).</summary>
+    public static string StartAllowed(string cardTitle) =>
+        $"The owner allowed your request to start {cardTitle}, which they had paused: it has been started.";
+
+    /// <summary>A start request of its refused, with the owner's note.</summary>
+    public static string StartRefused(string cardTitle, string? note) =>
+        $"The owner refused your request to start {cardTitle}: it stays paused{(string.IsNullOrWhiteSpace(note) ? "." : $": {note.Trim()}")}";
+
+    /// <summary>A start request of its that no longer applies (item 15).</summary>
+    public static string StartLapsed(string cardTitle, string why) =>
+        $"Your request to start {cardTitle} no longer applies: {why}.";
+
     /// <summary>events()'s answer: each event with its time, oldest first, or that there is nothing new.</summary>
     public static string Describe(IReadOnlyList<OwnerEvent> events, TimeZoneInfo zone)
     {

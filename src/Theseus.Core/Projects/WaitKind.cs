@@ -27,6 +27,9 @@ public enum WaitKind
     /// <summary>Approve or reject a proposal.</summary>
     Proposal,
 
+    /// <summary>Allow or refuse a session's start of a card he paused (sessions-run-the-project item 13).</summary>
+    StartRequest,
+
     /// <summary>Something outside Theseus: no button.</summary>
     Outside,
 }

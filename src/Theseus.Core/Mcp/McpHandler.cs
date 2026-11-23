@@ -6,6 +6,7 @@ using Theseus.Core.Attention;
 using Theseus.Core.Domain;
 using Theseus.Core.Links;
 using Theseus.Core.Locks;
+using Theseus.Core.Projects;
 using Theseus.Core.Proposals;
 
 namespace Theseus.Core.Mcp;
@@ -71,7 +72,7 @@ public sealed partial class McpHandler
         + "resume_workstream, with their state and why each is stopped: in a project, every card of the project but "
         + "your own; on the ordinary board, your descendants (cards made from proposals you raised). Give an "
         + "instruction for a start when there is more work. Another project's cards and ad hoc cards are the user's. "
-        + "A card the user paused stays paused: ask the user before starting it. "
+        + "In a project, starting a card the user paused waits for their Allow, and events() tells you their answer. "
         + "In a project, call now_at(stage, doing) on entering each stage of your piece of work, with what you are doing in "
         + "under 80 characters; a stage your pipeline lets you skip is reported as now_at(stage, \"skipped: <reason>\"). "
         + "Theseus writes project.md's structured lines: record a round with record_round, tick a criterion with "
@@ -91,6 +92,7 @@ public sealed partial class McpHandler
     private readonly Func<string> _briefFolderName;
     private readonly Func<WorkstreamProposal, bool, ProposalApproval>? _approve;
     private readonly Func<WorkstreamProposal, bool, ProposalApproval>? _create;
+    private readonly StartRequestBook? _startRequests;
     private readonly WorkItemBook? _workItems;
     private readonly IWorkstreamControl? _control;
     private readonly ISpecGates? _gates;
@@ -119,6 +121,10 @@ public sealed partial class McpHandler
     /// Makes the card for a proposal from a project's session, without approval (sessions-run-the-project item 1), and
     /// whether to start it; null when sessions in projects only propose.
     /// </param>
+    /// <param name="startRequests">
+    /// Where a project's session's start of a card the owner paused waits for his Allow (sessions-run-the-project item 12),
+    /// or null, when such a start is refused.
+    /// </param>
     public McpHandler(
         WorkLog work,
         Func<IReadOnlyList<AttentionInterval>> attention,
@@ -137,8 +143,10 @@ public sealed partial class McpHandler
         ISpecGates? gates = null,
         Func<string, string>? events = null,
         ProjectTools? projectTools = null,
-        Func<WorkstreamProposal, bool, ProposalApproval>? create = null)
+        Func<WorkstreamProposal, bool, ProposalApproval>? create = null,
+        StartRequestBook? startRequests = null)
     {
+        _startRequests = startRequests;
         _create = create;
         _projectTools = projectTools;
         _events = events;
@@ -356,11 +364,12 @@ public sealed partial class McpHandler
                 "The cards you may start, stop, pause and resume, each with its state, why it is stopped, who made it and who paused it: in a project, every card of the project but your own; on the ordinary board, your descendants (cards made from proposals your card raised, and theirs in turn). Read-only.",
                 new JsonObject()),
             Tool("start_workstream",
-                "Start a card workstreams lists, resuming its conversation. An instruction, if given, is its opening prompt for this start only, such as \"more work: ...\". Refused if it is running, archived or blocked.",
+                "Start a card workstreams lists, resuming its conversation. An instruction, if given, is its opening prompt for this start only, such as \"more work: ...\". Refused if it is running, archived or blocked. In a project, a card the user paused is not started: your start waits for the user's Allow, and events() tells you their answer.",
                 new JsonObject
                 {
                     ["card"] = Property("The card's key or title, from workstreams."),
                     ["instruction"] = Property("Optional: what this start is for, given to it once."),
+                    ["reason"] = Property("Optional: why you want it started, shown to the user when the card is one they paused."),
                 },
                 "card"),
             Tool("stop_workstream",
@@ -376,11 +385,12 @@ public sealed partial class McpHandler
                 },
                 "card"),
             Tool("resume_workstream",
-                "Clear a session's pause on a card workstreams lists (in a project, any session's; otherwise yours) and start it, with an instruction for this start if given.",
+                "Clear a session's pause on a card workstreams lists (in a project, any session's; otherwise yours) and start it, with an instruction for this start if given. In a project, the user's own pause is not cleared: the resume waits for their Allow, and events() tells you their answer.",
                 new JsonObject
                 {
                     ["card"] = Property("The card's key or title, from workstreams."),
                     ["instruction"] = Property("Optional: what this start is for, given to it once."),
+                    ["reason"] = Property("Optional: why you want it started, shown to the user when the card is one they paused."),
                 },
                 "card"),
             Tool("record_work_item",
@@ -718,6 +728,18 @@ public sealed partial class McpHandler
         }
 
         var inProject = project is not null;
+
+        // The owner's pause is his: in a project a session's start of it becomes his to allow (items 12, 16).
+        if (inProject && _startRequests is not null && call is WorkstreamCall.Start or WorkstreamCall.Resume
+            && card.Workstream is { IsPaused: true, PausedBy: null, IsArchived: false, IsBlocked: false } && !card.IsLive)
+        {
+            var (request, repeat) = _startRequests.Ask(card.Key, session.WorkstreamKey, Text(arguments["instruction"]),
+                Text(arguments["reason"]));
+
+            return Result($"{card.Title} is paused by the user, so it is not started: your request ({request.Id}) "
+                          + (repeat ? "was already waiting and is updated. " : "waits for them in the project's Waits for you. ")
+                          + "events() tells you whether they allow it; do not ask them again in the meantime.");
+        }
 
         var instruction = Text(arguments["instruction"]);
         var refusal = call switch

@@ -66,6 +66,9 @@ public sealed record ProjectViewActions(
     /// <summary>Opens the proposal window for a proposal by its id (sessions-run-the-project 0.2); null in tests.</summary>
     public Action<string>? ReviewProposal { get; init; }
 
+    /// <summary>Asks the owner to allow or refuse a start request by its id (sessions-run-the-project 13); null in tests.</summary>
+    public Action<string>? AnswerStartRequest { get; init; }
+
     /// <summary>The pending proposals a card raised, as the board's Chains panel shows them (1.1e item 30); null in tests.</summary>
     public Func<string, IReadOnlyList<ProposalRowViewModel>>? ProposalsOf { get; init; }
 }

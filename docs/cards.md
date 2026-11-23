@@ -71,7 +71,8 @@ again until you start it yourself. Cards of a stopped project, and cards in no p
 
 A card with no session says why it is stopped when there is more to say than "ended": **✓ Done** when its report back
 was confirmed on the board ("Done: reported back 21 Nov") or it is in the last stage, with its face muted and its ▷
-becoming **Restart for more work**, which asks what the more work is and starts it with that as its instruction;
+becoming **Restart for more work**, which asks what the more work is and starts it with that as its instruction (in a
+project, where sessions restart done cards, it is a plain **Restart**, asking nothing);
 **⏸ Project stopped: resumes with <project>**, where its ▷ starts the project; or **Stopped by you**. A done card stays
 where you put it. Properties shows the same line.
 

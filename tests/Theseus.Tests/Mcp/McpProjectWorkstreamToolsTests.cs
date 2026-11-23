@@ -4,6 +4,7 @@ using Theseus.Core.Attention;
 using Theseus.Core.Domain;
 using Theseus.Core.Links;
 using Theseus.Core.Mcp;
+using Theseus.Core.Projects;
 using Theseus.Core.Proposals;
 
 namespace Theseus.Tests.Mcp;
@@ -20,6 +21,7 @@ public class McpProjectWorkstreamToolsTests
     private static readonly DateTimeOffset Nine = new(2026, 11, 23, 9, 0, 0, TimeSpan.Zero);
     private string _directory = string.Empty;
     private ProposalBook _proposals = null!;
+    private StartRequestBook _requests = null!;
     private McpHandler _handler = null!;
     private RecordingControl _control = null!;
     private List<BoardSnapshotCard> _cards = [];
@@ -34,6 +36,7 @@ public class McpProjectWorkstreamToolsTests
         Directory.CreateDirectory(_directory);
         _proposals = new ProposalBook(new ProposalStateStore(Path.Combine(_directory, "proposals.json")), new FixedClock(Nine));
         _control = new RecordingControl();
+        _requests = new StartRequestBook(new StartRequestStore(Path.Combine(_directory, "start-requests.json")), new FixedClock(Nine));
         _created = [];
         _createRefusal = null;
         _shortfall = null;
@@ -55,6 +58,7 @@ public class McpProjectWorkstreamToolsTests
             proposals: _proposals,
             approve: (_, _) => ProposalApproval.Made("approved"),
             control: _control,
+            startRequests: _requests,
             create: (proposal, startNow) =>
             {
                 if (_createRefusal is { } refusal)
@@ -307,10 +311,72 @@ public class McpProjectWorkstreamToolsTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(Text(Call("resume_workstream", new JsonObject { ["card"] = "sibling" }, "lead-session")), Is.EqualTo("Sibling is paused by the user."));
+            Assert.That(Text(Call("resume_workstream", new JsonObject { ["card"] = "sibling" }, "lead-session")),
+                Does.StartWith("Sibling is paused by the user, so it is not started"), "a request, not a resume (PR 2)");
             Assert.That(Text(Call("pause_workstream", new JsonObject { ["card"] = "sibling" }, "lead-session")), Is.EqualTo("Sibling is paused by the user."));
             Assert.That(_control.Calls, Is.EqualTo(new[] { "Pause sibling mine now by lead", "Resume sibling by lead" }));
         });
+    }
+
+    [TestCase("start_workstream")]
+    [TestCase("resume_workstream")]
+    public void StartingACardTheUserPaused_FilesARequest_AndStartsNothing(string tool)
+    {
+        _cards[1] = Card("sibling", Project) with { Workstream = Card("sibling", Project).Workstream with { IsPaused = true } };
+
+        var result = Call(tool, new JsonObject { ["card"] = "sibling", ["instruction"] = "go on", ["reason"] = "its spec is accepted" },
+            "lead-session");
+        var request = _requests.Pending.Single();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(IsError(result), Is.False);
+            Assert.That(Text(result), Does.StartWith($"Sibling is paused by the user, so it is not started: your request ({request.Id}) waits for them"));
+            Assert.That((request.CardKey, request.RequesterKey, request.Instruction, request.Reason),
+                Is.EqualTo(("sibling", "lead", "go on", "its spec is accepted")));
+            Assert.That(_control.Calls, Is.Empty);
+        });
+    }
+
+    [Test]
+    public void AskingAgain_UpdatesTheWaitingRequest()
+    {
+        _cards[1] = Card("sibling", Project) with { Workstream = Card("sibling", Project).Workstream with { IsPaused = true } };
+        Call("start_workstream", new JsonObject { ["card"] = "sibling" }, "lead-session");
+
+        var again = Text(Call("start_workstream", new JsonObject { ["card"] = "sibling", ["reason"] = "still waiting" }, "lead-session"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(again, Does.Contain("was already waiting and is updated"));
+            Assert.That(_requests.Pending.Single().Reason, Is.EqualTo("still waiting"));
+        });
+    }
+
+    [Test]
+    public void TheUsersPause_IsNeverTakenOver_NorARunningOrBlockedCardRequested()
+    {
+        var paused = Card("sibling", Project).Workstream with { IsPaused = true };
+        _cards[1] = Card("sibling", Project) with { Workstream = paused };
+
+        Assert.That(Text(Call("pause_workstream", new JsonObject { ["card"] = "sibling" }, "lead-session")), Is.EqualTo("Sibling is paused by the user."));
+
+        _cards[1] = Card("sibling", Project) with { Workstream = paused with { IsBlocked = true } };
+
+        Assert.That(Text(Call("start_workstream", new JsonObject { ["card"] = "sibling" }, "lead-session")), Does.Contain("is blocked"));
+        Assert.That(_requests.Pending, Is.Empty);
+    }
+
+    [Test]
+    public void AnAdHocSession_IsStillRefused_TheUsersPausedCard()
+    {
+        _cards[3] = Card("adhoc", null);
+        _proposals.Approve(_proposals.Propose("adhoc", "adhoc-session", new ProposalRequest("Kid", "b.md", false, null, "d", [], null),
+            new ProposalCheckResult(null, [])).Proposal!.Id, "kid");
+        _cards.Add(Card("kid", null) with { Workstream = Card("kid", null).Workstream with { IsPaused = true } });
+
+        Assert.That(Text(Call("start_workstream", new JsonObject { ["card"] = "kid" }, "adhoc-session")), Is.EqualTo("Kid is paused by the user."));
+        Assert.That(_requests.Pending, Is.Empty);
     }
 
     [Test]
@@ -327,6 +393,7 @@ public class McpProjectWorkstreamToolsTests
             Assert.That(McpHandler.Instructions, Does.Contain("In a project, propose_workstream creates the card at once"));
             Assert.That(McpHandler.Instructions, Does.Contain("in a project, every card of the project but your own"));
             Assert.That(McpHandler.Instructions, Does.Contain("Call events() when you start"));
+            Assert.That(McpHandler.Instructions, Does.Contain("starting a card the user paused waits for their Allow"));
             Assert.That(McpHandler.Instructions, Does.Not.Contain("Any other card is the user's"));
         });
     }

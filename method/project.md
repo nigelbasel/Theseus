@@ -120,11 +120,18 @@ session's tab is not the gate: the session reports it with `accept_spec(slug, ve
 Theseus asks him to confirm on the board; only then is it recorded, as said in that card's tab and confirmed on the
 board. Whichever way he accepts, Theseus tells the session: a stopped card is started with "Your spec (version <v>) was
 accepted: carry on to the plan", and a running one is told with its next turn. Every other board action that concerns
-a session (its proposal approved or rejected, a report to it confirmed) is told the same way, and `events()` lists them,
-so a session never asks the owner to do what he has already done.
+a session (a report to it confirmed, its request to start a card he paused allowed or refused) is told the same way, and
+`events()` lists them, so a session never asks the owner to do what he has already done. A session calls `events()`
+when it starts. Confirming a report to a stopped card of a project starts it, unless he paused, blocked or archived it.
 
-**Theseus writes the structured lines; sessions write the prose.** When the owner approves a proposal from a card in a
-project, Theseus adds the new card's row under the objective the proposal names, with the branch and repos it names
+**Sessions run the project's cards; the owner reviews objectives.** In a project a session creates the cards the work
+needs with `propose_workstream`, naming an objective already in the file and a records folder; the card is made at once,
+starts only with `start_now`, and needs no approval. Any session starts, stops, pauses and resumes any card of the
+project but its own, with `start_workstream` and the rest; never another project's or an ad hoc card. A card the owner
+paused waits for his Allow: the start is filed as a request, and `events()` tells the answer.
+
+**Theseus writes the structured lines; sessions write the prose.** When a session in a project creates a card,
+Theseus adds the new card's row under the objective it names, with the branch and repos it names
 (none named: branch `none`, repos `read-only`, never invented). It writes a verifier card's row too. A proposal from a
 project's card must name its objective. Every other line Theseus reads is written through its tools, never by hand,
 so a session cannot leave the file unreadable:

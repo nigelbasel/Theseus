@@ -90,6 +90,21 @@ public class WhyStoppedTests
     }
 
     [Test]
+    public void ADoneCardInAProject_IsAPlainRestart_AskingNothing()
+    {
+        var done = Card();
+        done.Workstream = done.Workstream with { Project = "theseus" };
+        done.StopReason = Reason(done, links: [ConfirmedReport("a-card")]);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(done.IsDone, Is.True);
+            Assert.That(done.PrimaryAction, Is.Not.EqualTo("Restart for more work"), "sessions-run-the-project item 17");
+            Assert.That(done.PlayTooltip, Does.Not.Contain("asks what the more work is"));
+        });
+    }
+
+    [Test]
     public void StoppingACardOfARunningProject_AsksFirst_InTheSpecsWords()
     {
         var project = new ProjectCardViewModel("p", "Theseus bootstrap") { IsLive = true, MemberKeys = ["a-card"] };

@@ -268,7 +268,8 @@ public partial class App : Application
                 events: shell.EventsFor,
                 projectTools: new Theseus.Core.Mcp.ProjectTools(shell.MemberOf, shell.ProjectReadingOf, stageReports,
                     () => DateTimeOffset.UtcNow, write: (project, edit) => Dispatcher.Invoke(() => shell.WriteProjectFile(project, edit))),
-                create: (proposal, startNow) => Dispatcher.Invoke(() => shell.CreateForSession(proposal, startNow))),
+                create: (proposal, startNow) => Dispatcher.Invoke(() => shell.CreateForSession(proposal, startNow)),
+                startRequests: shell.StartRequests),
             Theseus.Core.Mcp.TheseusMcp.DefaultPort,
             new LockHttpApi(locks, () => DateTimeOffset.UtcNow));
 
@@ -315,6 +316,15 @@ public partial class App : Application
         shell.ConfirmAcceptSpec = question =>
             MessageBox.Show(Windows.OfType<Window>().FirstOrDefault(window => window.IsActive) ?? MainWindow, question, "Accept spec?",
                 MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes;
+        shell.AskStartRequest = question =>
+            MessageBox.Show(Windows.OfType<Window>().FirstOrDefault(window => window.IsActive) ?? MainWindow, question, "Start a card you paused?",
+                MessageBoxButton.YesNoCancel, MessageBoxImage.Question, MessageBoxResult.Cancel) switch
+            {
+                MessageBoxResult.Yes => true,
+                MessageBoxResult.No => false,
+                _ => null,
+            };
+        shell.StartRequests.Changed += (_, _) => Dispatcher.BeginInvoke(shell.Refresh);
         shell.AskNewProject = (name, title) =>
         {
             var window = new NewProjectWindow(name, title) { Owner = MainWindow };

@@ -950,6 +950,8 @@ public sealed class ProjectViewModel : ObservableObject
             WaitKind.AddToObjective when item.CardKey is { } card && _actions.AddToProject is { } add => new RelayCommand(_ => add(project, card)),
             WaitKind.Proposal when item.ProposalId is { } proposal && _actions.ReviewProposal is { } review =>
                 new RelayCommand(_ => review(proposal)),
+            WaitKind.StartRequest when item.StartRequestId is { } request && _actions.AnswerStartRequest is { } answer =>
+                new RelayCommand(_ => answer(request)),
             WaitKind.ConfirmReport or WaitKind.Proposal when item.CardKey is { } card && _actions.OpenLinks is { } open =>
                 new RelayCommand(_ => open(card)),
             _ => null,

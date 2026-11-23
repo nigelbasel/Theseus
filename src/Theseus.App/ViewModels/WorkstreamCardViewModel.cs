@@ -707,7 +707,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
     /// <summary>The play button's tooltip: what it does, and what resuming would cost.</summary>
     public string PlayTooltip => StopReason?.Kind switch
     {
-        Theseus.Core.Projects.WhyStoppedKind.Done when !IsLive => "Restart for more work: asks what the more work is",
+        Theseus.Core.Projects.WhyStoppedKind.Done when !IsLive && Workstream.Project is null => "Restart for more work: asks what the more work is",
         Theseus.Core.Projects.WhyStoppedKind.ProjectStopped when !IsLive => "Start its project as it was when stopped",
         _ => string.IsNullOrWhiteSpace(RestartCost)
             ? $"{PrimaryAction} this workstream's session"
@@ -870,7 +870,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
     /// <summary>The single button the card offers on hover.</summary>
     public string PrimaryAction => IsLive ? "Focus" : StopReason?.Kind switch
     {
-        Theseus.Core.Projects.WhyStoppedKind.Done => "Restart for more work",
+        Theseus.Core.Projects.WhyStoppedKind.Done when Workstream.Project is null => "Restart for more work",
         Theseus.Core.Projects.WhyStoppedKind.ProjectStopped => "Start its project",
         _ => DefaultAction,
     };
