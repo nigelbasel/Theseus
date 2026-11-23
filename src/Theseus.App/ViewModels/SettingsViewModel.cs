@@ -21,7 +21,6 @@ public sealed class SettingsViewModel : ObservableObject
     private string _terminalExecutablePath = string.Empty;
     private string _claudeExecutablePath = string.Empty;
     private string _jiraBaseUrl = string.Empty;
-    private string _holdoutFolder = string.Empty;
     private string _holdoutRemote = string.Empty;
     private string _projectsFolder = string.Empty;
     private string _worktreesFolder = string.Empty;
@@ -43,15 +42,17 @@ public sealed class SettingsViewModel : ObservableObject
         _saved = saved;
 
         OpenCommand = new RelayCommand(_ => Open());
-        ResetProjectHoldoutCommand = new RelayCommand(parameter =>
+        OpenProjectPropertiesCommand = new RelayCommand(parameter =>
             {
-                if (parameter is HoldoutRowViewModel row && _projectHoldouts.Remove(row.Project))
+                if (parameter is HoldoutRowViewModel row)
                 {
-                    _resetHere.Add(row.Project);
-                    Raise(nameof(HoldoutRows));
+                    OpenProjectHoldouts?.Invoke(row.Project);
                 }
             },
-            parameter => parameter is HoldoutRowViewModel { IsChosenHere: true });
+            parameter => parameter is HoldoutRowViewModel { IsAdHoc: false } && OpenProjectHoldouts is not null);
+        ResetTerminalCommand = new RelayCommand(_ => TerminalExecutablePath = string.Empty, _ => !string.IsNullOrWhiteSpace(TerminalExecutablePath));
+        ResetClaudeCommand = new RelayCommand(_ => ClaudeExecutablePath = string.Empty, _ => !string.IsNullOrWhiteSpace(ClaudeExecutablePath));
+        ResetHoldoutRemoteCommand = new RelayCommand(_ => HoldoutRemote = string.Empty, _ => !string.IsNullOrWhiteSpace(HoldoutRemote));
         ShowProjectFolderCommand = new RelayCommand(parameter =>
         {
             if (parameter is string name)
@@ -118,6 +119,7 @@ public sealed class SettingsViewModel : ObservableObject
             if (Set(ref _planDirectory, value))
             {
                 Raise(nameof(PlanDirectoryState));
+                Raise(nameof(PlanDirectoryValue));
             }
         }
     }
@@ -127,12 +129,37 @@ public sealed class SettingsViewModel : ObservableObject
         ? $"{Directory.GetFiles(_planDirectory, "*.json").Length} plan files"
         : "does not exist";
 
+    /// <summary>The plan directory as Options shows it.</summary>
+    public string PlanDirectoryValue => $"{_planDirectory} ({PlanDirectoryState})";
+
     /// <summary>The named terminal window tabs are launched into.</summary>
     public string TerminalWindowName
     {
         get => _terminalWindowName;
-        set => Set(ref _terminalWindowName, value);
+        set
+        {
+            if (Set(ref _terminalWindowName, value))
+            {
+                Raise(nameof(AreaListState));
+            }
+        }
     }
+
+    /// <summary>Reset beside Windows Terminal: found automatically again.</summary>
+    public RelayCommand ResetTerminalCommand { get; }
+
+    /// <summary>Reset beside Claude Code: found automatically again.</summary>
+    public RelayCommand ResetClaudeCommand { get; }
+
+    /// <summary>Windows Terminal as Options shows it: the one chosen, or what is found.</summary>
+    public string TerminalValue => string.IsNullOrWhiteSpace(_terminalExecutablePath)
+        ? $"Found automatically: {TerminalState}"
+        : $"{_terminalExecutablePath.Trim()} (you chose it)";
+
+    /// <summary>Claude Code as Options shows it: the one chosen, or what is found.</summary>
+    public string ClaudeValue => string.IsNullOrWhiteSpace(_claudeExecutablePath)
+        ? $"Found automatically: {ClaudeState}"
+        : $"{_claudeExecutablePath.Trim()} (you chose it)";
 
 
     /// <summary>A terminal chosen by hand. Blank resolves from whatever is running.</summary>
@@ -144,6 +171,7 @@ public sealed class SettingsViewModel : ObservableObject
             if (Set(ref _terminalExecutablePath, value))
             {
                 Raise(nameof(TerminalState));
+                Raise(nameof(TerminalValue));
             }
         }
     }
@@ -178,6 +206,7 @@ public sealed class SettingsViewModel : ObservableObject
             if (Set(ref _claudeExecutablePath, value))
             {
                 Raise(nameof(ClaudeState));
+                Raise(nameof(ClaudeValue));
             }
         }
     }
@@ -187,47 +216,11 @@ public sealed class SettingsViewModel : ObservableObject
         new ClaudeLocator(_claudeExecutablePath).Locate() ?? "not found";
 
     /// <summary>
-    /// The holdout scenarios' folder the owner chose, read by the holdout guard and used by Verify with holdouts…; empty for
-    /// the default, a folder per project under <see cref="Theseus.Core.Links.HoldoutLocation.DefaultRoot"/> (1.1e AC 6c).
-    /// </summary>
-    public string HoldoutFolder
-    {
-        get => _holdoutFolder;
-        set
-        {
-            if (Set(ref _holdoutFolder, value))
-            {
-                Raise(nameof(HoldoutFolderInUse));
-            }
-        }
-    }
-
-    /// <summary>What the single folder does (1.1e AC 6e): empty, each project's is found by convention below.</summary>
-    public string HoldoutFolderInUse => string.IsNullOrWhiteSpace(_holdoutFolder)
-        ? "None: each project's folder is found by convention, listed below"
-        : $"{_holdoutFolder.Trim()}, for every project that has no folder of its own";
-
-    /// <summary>
-    /// Each project's holdout folder and how it was found (1.1e AC 6e), from the board's last look, with this dialog's own
-    /// choices over it until saved.
+    /// Each project's holdout folder and how it was found, read-only (options-made-clear item 1): each is changed in its
+    /// project's Project properties, so nothing here reaches a project you did not name.
     /// </summary>
     public IReadOnlyList<HoldoutRowViewModel> HoldoutRows =>
-        [.. _holdoutEntries.Select(entry => _projectHoldouts.TryGetValue(entry.Project, out var chosen)
-            ? new HoldoutRowViewModel(entry.Project, chosen, "chosen by you", true)
-            : _resetHere.Contains(entry.Project)
-                ? new HoldoutRowViewModel(entry.Project, "found by convention once saved", string.Empty, false)
-                : new HoldoutRowViewModel(entry.Project, entry.Folder, entry.HowFound, false) { IsTheseusOwn = entry.Source == Theseus.Core.Links.HoldoutSource.TheseusOwn })];
-
-    /// <summary>
-    /// Why a folder cannot be a project's holdout, or null (review of PR 7, finding 9): the guard protects neither a whole
-    /// drive nor a relative path.
-    /// </summary>
-    public static string? WhyNotHoldout(string folder) =>
-        string.IsNullOrWhiteSpace(folder) || !System.IO.Path.IsPathFullyQualified(folder)
-            ? "Choose a full path, such as C:\\src\\Repo-holdout."
-            : string.Equals(System.IO.Path.GetPathRoot(folder)?.TrimEnd('\\', '/'), folder.TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase)
-                ? "A whole drive cannot be a holdout folder: the guard would protect nothing."
-                : null;
+        [.. _holdoutEntries.Select(entry => new HoldoutRowViewModel(entry.Project, entry.Folder, entry.Source))];
 
     /// <summary>The folders in force, set by the board each time it looks.</summary>
     public IReadOnlyList<Theseus.Core.Links.HoldoutFolderEntry> HoldoutEntries
@@ -240,28 +233,13 @@ public sealed class SettingsViewModel : ObservableObject
         }
     }
 
-    /// <summary>Chooses a project's holdout folder, saved with the rest (1.1e AC 6e).</summary>
-    public string? ChooseProjectHoldout(string project, string folder)
-    {
-        if (WhyNotHoldout(folder) is { } why)
-        {
-            return why;
-        }
-
-        _projectHoldouts[project] = folder;
-        _resetHere.Remove(project);
-        Raise(nameof(HoldoutRows));
-
-        return null;
-    }
-
-    private readonly HashSet<string> _resetHere = new(StringComparer.OrdinalIgnoreCase);
-
-    /// <summary>Reset: the project's folder is found by convention again, once saved.</summary>
-    public RelayCommand ResetProjectHoldoutCommand { get; }
-
     private IReadOnlyList<Theseus.Core.Links.HoldoutFolderEntry> _holdoutEntries = [];
-    private readonly Dictionary<string, string> _projectHoldouts = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Opens a project's Project properties at its Holdouts tab, by project folder name. Set by the shell.</summary>
+    public Action<string>? OpenProjectHoldouts { get; set; }
+
+    /// <summary>Project properties… beside a project's holdout row.</summary>
+    public RelayCommand OpenProjectPropertiesCommand { get; }
 
     /// <summary>The folders said not to be projects (1.1e AC 20), each to be shown again; saved with the rest.</summary>
     public System.Collections.ObjectModel.ObservableCollection<string> HiddenProjectFolders { get; } = [];
@@ -269,25 +247,40 @@ public sealed class SettingsViewModel : ObservableObject
     /// <summary>Show again: a folder said not to be a project is shown as a project card again, once saved.</summary>
     public RelayCommand ShowProjectFolderCommand { get; }
 
-    /// <summary>What <see cref="FocusField"/> names for the holdout folder.</summary>
-    public const string HoldoutFolderField = "HoldoutFolder";
-
-    /// <summary>The field Options opens at, such as the holdout folder from Set the holdout folder… (1.1e AC 6a); null for none.</summary>
-    public string? FocusField { get; set; }
-
     /// <summary>The holdout's remote address, which the guard also keeps from implementing sessions.</summary>
     public string HoldoutRemote
     {
         get => _holdoutRemote;
-        set => Set(ref _holdoutRemote, value);
+        set
+        {
+            if (Set(ref _holdoutRemote, value))
+            {
+                Raise(nameof(HoldoutRemoteValue));
+            }
+        }
     }
+
+    /// <summary>The holdout remote address as Options shows it.</summary>
+    public string HoldoutRemoteValue => string.IsNullOrWhiteSpace(_holdoutRemote) ? "None" : _holdoutRemote.Trim();
+
+    /// <summary>Reset beside the holdout remote address: none.</summary>
+    public RelayCommand ResetHoldoutRemoteCommand { get; }
 
     /// <summary>The folder of project homes, as typed (1.1b AC 1).</summary>
     public string ProjectsFolder
     {
         get => _projectsFolder;
-        set => Set(ref _projectsFolder, value);
+        set
+        {
+            if (Set(ref _projectsFolder, value))
+            {
+                Raise(nameof(ProjectsFolderValue));
+            }
+        }
     }
+
+    /// <summary>The projects folder as Options shows it.</summary>
+    public string ProjectsFolderValue => string.IsNullOrWhiteSpace(_projectsFolder) ? "None: no projects are shown" : _projectsFolder.Trim();
 
     /// <summary>
     /// Whether Settings opened with no projects folder saved, so it explains the model and offers the two folders
@@ -303,15 +296,33 @@ public sealed class SettingsViewModel : ObservableObject
     public string WorktreesFolder
     {
         get => _worktreesFolder;
-        set => Set(ref _worktreesFolder, value);
+        set
+        {
+            if (Set(ref _worktreesFolder, value))
+            {
+                Raise(nameof(WorktreesFolderValue));
+            }
+        }
     }
+
+    /// <summary>The worktrees folder as Options shows it.</summary>
+    public string WorktreesFolderValue => string.IsNullOrWhiteSpace(_worktreesFolder) ? "None chosen" : _worktreesFolder.Trim();
 
     /// <summary>Whether Check for updates also offers the pre-releases built from a project's primary branch.</summary>
     public bool IncludePreReleases
     {
         get => _includePreReleases;
-        set => Set(ref _includePreReleases, value);
+        set
+        {
+            if (Set(ref _includePreReleases, value))
+            {
+                Raise(nameof(UpdatesValue));
+            }
+        }
     }
+
+    /// <summary>What Check for updates offers, as Options shows it.</summary>
+    public string UpdatesValue => _includePreReleases ? "Releases and pre-releases" : "Releases from main only";
 
     /// <summary>The Jira instance issue keys link to. Empty leaves the keys as plain labels.</summary>
     public string JiraBaseUrl
@@ -322,6 +333,8 @@ public sealed class SettingsViewModel : ObservableObject
             if (Set(ref _jiraBaseUrl, value))
             {
                 Raise(nameof(JiraState));
+                Raise(nameof(JiraValue));
+                Raise(nameof(JiraExplanation));
             }
         }
     }
@@ -329,6 +342,14 @@ public sealed class SettingsViewModel : ObservableObject
     /// <summary>What a key would link to with the current setting.</summary>
     public string JiraState =>
         JiraSite.IssueUrl(_jiraBaseUrl, "ABC-123") ?? "keys will not be links";
+
+    /// <summary>The Jira address as Options shows it.</summary>
+    public string JiraValue => string.IsNullOrWhiteSpace(_jiraBaseUrl) ? "None" : _jiraBaseUrl.Trim();
+
+    /// <summary>What the Jira address does now.</summary>
+    public string JiraExplanation => JiraSite.IssueUrl(_jiraBaseUrl, "ABC-123") is { } link
+        ? $"Issue keys on cards link here: ABC-123 opens {link}."
+        : "Issue keys on cards are plain labels. Set an address to make them links.";
 
     /// <summary>Standing instructions put in front of every workstream own opening prompt.</summary>
     public string SessionPreamble
@@ -339,6 +360,7 @@ public sealed class SettingsViewModel : ObservableObject
             if (Set(ref _sessionPreamble, value))
             {
                 Raise(nameof(SessionPreambleState));
+                Raise(nameof(StandingValue));
             }
         }
     }
@@ -357,6 +379,7 @@ public sealed class SettingsViewModel : ObservableObject
             if (Set(ref _continuePrompt, value))
             {
                 Raise(nameof(ContinuePromptState));
+                Raise(nameof(ContinueValue));
             }
         }
     }
@@ -370,7 +393,13 @@ public sealed class SettingsViewModel : ObservableObject
     public string StopPrompt
     {
         get => _stopPrompt;
-        set => Set(ref _stopPrompt, value);
+        set
+        {
+            if (Set(ref _stopPrompt, value))
+            {
+                Raise(nameof(StopValue));
+            }
+        }
     }
 
     /// <summary>
@@ -385,6 +414,7 @@ public sealed class SettingsViewModel : ObservableObject
             if (Set(ref _identityPrompt, value))
             {
                 Raise(nameof(IdentityPromptState));
+                Raise(nameof(IdentityValue));
             }
         }
     }
@@ -432,6 +462,7 @@ public sealed class SettingsViewModel : ObservableObject
             if (Set(ref _laneList, value))
             {
                 Raise(nameof(LaneListState));
+                Raise(nameof(LanesValue));
             }
         }
     }
@@ -461,6 +492,7 @@ public sealed class SettingsViewModel : ObservableObject
             if (Set(ref _areaList, value))
             {
                 Raise(nameof(AreaListState));
+                Raise(nameof(AreasValue));
             }
         }
     }
@@ -482,6 +514,46 @@ public sealed class SettingsViewModel : ObservableObject
         }
     }
 
+    /// <summary>The board's stages as Options shows them, in order.</summary>
+    public string LanesValue => string.Join(" · ", Lanes);
+
+    /// <summary>The board's areas as Options shows them, in order.</summary>
+    public string AreasValue => string.Join(" · ", Areas);
+
+    /// <summary>What Start and Restart do for a workstream that has run before, as Options shows it.</summary>
+    public string StartModeValue => _defaultStartMode == StartMode.Fresh ? "Start fresh from its handoff" : "Resume its last conversation";
+
+    /// <summary>What the start mode in force costs and keeps; the ▾ beside Start offers the other either way.</summary>
+    public string StartModeExplanation => (_defaultStartMode == StartMode.Fresh
+            ? "A new conversation, told to read the handoff: small and cheap, but it knows only what the handoff says."
+            : "Keeps everything the session knew, but reloads the conversation, often hundreds of thousands of tokens, on every reply.")
+        + " The ▾ beside a card's Start offers the other.";
+
+    /// <summary>The identity prompt as Options shows it.</summary>
+    public string IdentityValue => _identityPrompt == WorkstreamIdentity.DefaultTemplate ? "The built-in wording" : PromptValue(_identityPrompt, string.Empty);
+
+    /// <summary>The standing prompt as Options shows it.</summary>
+    public string StandingValue => PromptValue(_sessionPreamble, "None: sessions open with the workstream's own prompt alone");
+
+    /// <summary>The continuation prompt as Options shows it.</summary>
+    public string ContinueValue => PromptValue(_continuePrompt, "The built-in continuation");
+
+    /// <summary>The stop prompt as Options shows it.</summary>
+    public string StopValue => PromptValue(_stopPrompt, "The built-in wording");
+
+    private static string PromptValue(string text, string whenEmpty)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return whenEmpty;
+        }
+
+        var lines = text.Trim().Split('\n');
+        var first = lines[0].Trim();
+
+        return $"Your own wording, {lines.Length} {(lines.Length == 1 ? "line" : "lines")}: \"{(first.Length > 60 ? first[..60] + "…" : first)}\"";
+    }
+
     private IReadOnlyList<string> Lanes =>
         BoardLanes.Sanitise(_laneList.Split('\n', StringSplitOptions.RemoveEmptyEntries));
 
@@ -493,6 +565,8 @@ public sealed class SettingsViewModel : ObservableObject
         _defaultStartMode = mode;
         Raise(nameof(ResumeByDefault));
         Raise(nameof(FreshByDefault));
+        Raise(nameof(StartModeValue));
+        Raise(nameof(StartModeExplanation));
     }
 
     private void Open()
@@ -520,16 +594,6 @@ public sealed class SettingsViewModel : ObservableObject
         TerminalExecutablePath = settings.TerminalExecutablePath;
         ClaudeExecutablePath = settings.ClaudeExecutablePath;
         JiraBaseUrl = settings.JiraBaseUrl;
-        HoldoutFolder = settings.HoldoutFolder;
-        _projectHoldouts.Clear();
-        _resetHere.Clear();
-
-        foreach (var (project, folder) in settings.ProjectHoldoutFolders)
-        {
-            _projectHoldouts[project] = folder;
-        }
-
-        Raise(nameof(HoldoutRows));
         HiddenProjectFolders.Clear();
 
         foreach (var folder in settings.HiddenProjectFolders)
@@ -561,8 +625,6 @@ public sealed class SettingsViewModel : ObservableObject
             TerminalExecutablePath = TerminalExecutablePath,
             ClaudeExecutablePath = ClaudeExecutablePath,
             JiraBaseUrl = JiraBaseUrl,
-            HoldoutFolder = HoldoutFolder.Trim(),
-            ProjectHoldoutFolders = new Dictionary<string, string>(_projectHoldouts, StringComparer.OrdinalIgnoreCase),
             HiddenProjectFolders = [.. HiddenProjectFolders],
             HoldoutRemote = HoldoutRemote.Trim(),
             ProjectsFolder = ProjectsFolderPath.Normalize(ProjectsFolder),

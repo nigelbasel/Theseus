@@ -60,6 +60,10 @@ public sealed class HoldoutChecks
         return _byProject.TryGetValue(card.Project ?? string.Empty, out var known) ? known.Location : Locate(card.Project);
     }
 
+    /// <summary>A project's holdout folder, by its folder name, as last refreshed.</summary>
+    public HoldoutLocation LocationOfProject(string project) =>
+        _byProject.TryGetValue(project, out var known) ? known.Location : Locate(project);
+
     /// <summary>Why Verify with holdouts cannot run for this card, or null when it can.</summary>
     public string? WhyCannotVerify(Workstream card, string title)
     {

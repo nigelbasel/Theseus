@@ -317,26 +317,60 @@ public class HoldoutLocationTests
     }
 
     [Test]
-    public void Options_TheAdHocRowCannotBeChanged_AResetRowSaysWhatComes_AndADriveIsRefused()
+    public void Options_ListsEachProjectsFolderReadOnly_AndSavingChangesNoProjectsFolder()
     {
         var store = new Theseus.Core.Settings.SettingsStore(Path.Combine(_root, "settings.json"));
-        store.Write(store.Read() with { ProjectHoldoutFolders = new Dictionary<string, string> { ["bym"] = @"C:\mine" } });
-        var settings = new SettingsViewModel(store, () => { });
+        store.Write(store.Read() with
+        {
+            HoldoutFolder = @"C:\old\for-every-project",
+            ProjectHoldoutFolders = new Dictionary<string, string> { ["bym"] = @"C:\mine" },
+        });
+        var opened = new List<string>();
+        var settings = new SettingsViewModel(store, () => { }) { OpenProjectHoldouts = opened.Add };
         settings.OpenCommand.Execute(null);
-        settings.HoldoutEntries = [new("ad-hoc", @"C:\h\ad-hoc", HoldoutSource.TheseusOwn), new("bym", @"C:\mine", HoldoutSource.Chosen)];
+        settings.HoldoutEntries = [new("ad-hoc", @"C:\h\ad-hoc", HoldoutSource.TheseusOwn), new("bym", @"C:\mine", HoldoutSource.Chosen),
+            new("theseus", @"C:\src\Theseus-holdout", HoldoutSource.Recorded)];
 
-        Assert.That((settings.HoldoutRows[0].CanChange, settings.HoldoutRows[0].ChangeToolTip), Is.EqualTo((false, "Cards in no project always use Theseus's own ad-hoc folder")));
-        Assert.That(settings.HoldoutRows[0].IsTheseusOwn, Is.True, "it can be kept in a private repository");
+        Assert.That(settings.HoldoutRows.Select(row => (row.Project, row.Value, row.Explanation)), Is.EqualTo(new[]
+        {
+            ("ad-hoc", @"C:\h\ad-hoc", "Cards in no project always use Theseus's own ad-hoc folder."),
+            ("bym", @"C:\mine", "You chose it. Change it in the project's Project properties."),
+            ("theseus", @"C:\src\Theseus-holdout", "Recorded in project.md. Change it in the project's Project properties."),
+        }));
+        Assert.That(settings.OpenProjectPropertiesCommand.CanExecute(settings.HoldoutRows[0]), Is.False, "ad hoc cards have no project");
 
-        settings.ResetProjectHoldoutCommand.Execute(settings.HoldoutRows[1]);
-
-        Assert.That(settings.HoldoutRows[1].Line, Is.EqualTo("found by convention once saved"));
-        Assert.That(settings.ChooseProjectHoldout("bym", @"C:\"), Does.StartWith("A whole drive"));
-        Assert.That(settings.ChooseProjectHoldout("bym", "relative"), Does.StartWith("Choose a full path"));
-
+        settings.OpenProjectPropertiesCommand.Execute(settings.HoldoutRows[2]);
         settings.SaveCommand.Execute(null);
 
-        Assert.That(store.Read().ProjectHoldoutFolders, Is.Empty);
+        Assert.That(opened, Is.EqualTo(new[] { "theseus" }));
+        Assert.That(store.Read().ProjectHoldoutFolders, Is.EqualTo(new Dictionary<string, string> { ["bym"] = @"C:\mine" }),
+            "a project's folder is changed only in its Project properties");
+        Assert.That(store.Read().HoldoutFolder, Is.EqualTo(@"C:\old\for-every-project"), "kept as it was, and counted for no project");
+    }
+
+    [Test]
+    public void ProjectProperties_ChangeRefusesADriveOrARelativePath_AndResetSaysWhatComes()
+    {
+        var own = HoldoutLocation.Find("bym", null, null, _root);
+        var properties = new ProjectPropertiesViewModel("bym", "BYM", "#5E4BB0", @"C:\p\bym\project.md")
+        {
+            Holdout = new HoldoutLocation(@"C:\mine", false) { Source = HoldoutSource.Chosen },
+            HoldoutByConvention = own,
+            ChosenHoldout = @"C:\mine",
+        };
+
+        Assert.That((properties.HoldoutValue, properties.CanResetHoldout, properties.HoldoutChanged), Is.EqualTo((@"C:\mine", true, false)));
+        Assert.That(properties.HoldoutExplanation, Does.StartWith("You chose it. The folder is not there"));
+        Assert.That(properties.ChooseHoldout(@"C:\"), Does.StartWith("A whole drive"));
+        Assert.That(properties.ChooseHoldout("relative"), Does.StartWith("Choose a full path"));
+
+        properties.ResetHoldout();
+
+        Assert.That((properties.HoldoutValue, properties.HoldoutChoice, properties.HoldoutChanged), Is.EqualTo((own.Folder, (string?)null, true)));
+        Assert.That(properties.HoldoutExplanation, Does.StartWith("Found by convention once you press OK: Theseus's own, made on first use."));
+
+        Assert.That(properties.ChooseHoldout(@"C:\mine"), Is.Null);
+        Assert.That(properties.HoldoutChanged, Is.False, "chosen back to what it was");
     }
 
     private static Workstream Card(string key, string? project) =>

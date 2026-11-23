@@ -96,7 +96,19 @@ public sealed class ProjectPropertiesViewModel : ObservableObject
     /// Whether its cards may branch off the primary branch, push and merge back without asking (1.1e AC 12b): the owner's
     /// grant, kept in Theseus's settings, never in project.md.
     /// </summary>
-    public bool GrantsBranchRules { get; set; }
+    public bool GrantsBranchRules
+    {
+        get => _grantsBranchRules;
+        set
+        {
+            if (Set(ref _grantsBranchRules, value))
+            {
+                Raise(nameof(BranchRulesValue));
+            }
+        }
+    }
+
+    private bool _grantsBranchRules;
 
     /// <summary>Why its project.md does not read, or null (1.1e AC 18): shown here, not on the card's face.</summary>
     public string? Problem { get; init; }
@@ -131,7 +143,134 @@ public sealed class ProjectPropertiesViewModel : ObservableObject
     public IReadOnlyList<KeyValuePair<string, string>> Leads { get; init; } = [];
 
     /// <summary>The lead card's key.</summary>
-    public string? Lead { get; set; }
+    public string? Lead
+    {
+        get => _lead;
+        set
+        {
+            if (Set(ref _lead, value))
+            {
+                Raise(nameof(LeadValue));
+            }
+        }
+    }
+
+    private string? _lead;
+
+    /// <summary>The lead as the Lead and branches tab shows it.</summary>
+    public string LeadValue => Leads.FirstOrDefault(each => string.Equals(each.Key, _lead, StringComparison.OrdinalIgnoreCase)) is { Key: not null } chosen
+        ? chosen.Value
+        : Leads.Count == 0 ? "None: the project has no workstreams yet" : "None chosen";
+
+    /// <summary>The branch rules as the Lead and branches tab shows them.</summary>
+    public string BranchRulesValue => GrantsBranchRules
+        ? $"Granted for {(CanGrantBranchRules ? PrimaryBranch!.Trim() : GrantedPrimary)}"
+        : CanGrantBranchRules ? "Not granted: workstreams ask before branching or pushing" : "Cannot be granted";
+
+    /// <summary>The tab the window opens at: <see cref="HoldoutsTab"/> from Set the holdout folder…, else the first.</summary>
+    public string? OpenAt { get; init; }
+
+    /// <summary>What <see cref="OpenAt"/> names for the Holdouts tab.</summary>
+    public const string HoldoutsTab = "Holdouts";
+
+    /// <summary>
+    /// The project's holdout folder in force when the dialog opened, and how it was found; null when the dialog was opened
+    /// without one, as in tests of the other tabs.
+    /// </summary>
+    public Theseus.Core.Links.HoldoutLocation? Holdout { get; init; }
+
+    /// <summary>The folder found by convention, which Reset goes back to.</summary>
+    public Theseus.Core.Links.HoldoutLocation? HoldoutByConvention { get; init; }
+
+    /// <summary>The folder the owner chose for this project when the dialog opened, or null.</summary>
+    public string? ChosenHoldout { get; init; }
+
+    private string? _holdoutChoice;
+    private bool _holdoutChoiceMade;
+
+    /// <summary>Whether Change… or Reset changed the holdout folder, which OK then writes.</summary>
+    public bool HoldoutChanged => _holdoutChoiceMade && !string.Equals(_holdoutChoice, ChosenHoldout, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>The folder to choose for the project at OK, or null to find it by convention.</summary>
+    public string? HoldoutChoice => _holdoutChoiceMade ? _holdoutChoice : ChosenHoldout;
+
+    /// <summary>The holdout folder as the Holdouts tab shows it.</summary>
+    public string HoldoutValue => _holdoutChoiceMade
+        ? _holdoutChoice ?? Folder(HoldoutByConvention)
+        : Folder(Holdout);
+
+    /// <summary>How the folder shown was found, and where else Theseus looks.</summary>
+    public string HoldoutExplanation
+    {
+        get
+        {
+            var how = !_holdoutChoiceMade
+                ? Holdout is null ? null : Sentence(Theseus.Core.Links.HoldoutFolderEntry.HowFoundOf(Holdout.Source))
+                : _holdoutChoice is null
+                    ? $"Found by convention once you press OK: {Theseus.Core.Links.HoldoutFolderEntry.HowFoundOf(HoldoutByConvention?.Source ?? Theseus.Core.Links.HoldoutSource.TheseusOwn)}."
+                    : "You chose it, once you press OK.";
+            var missing = !_holdoutChoiceMade && Holdout is { IsMissing: true }
+                ? Holdout.Source == Theseus.Core.Links.HoldoutSource.Recorded
+                    ? "project.md records a holdout repository, but no clone was found: clone it beside the home repo, or choose a folder."
+                    : "The folder is not there: choose it again, or Reset."
+                : null;
+            const string order = "Looked for in this order: the folder you choose here; the holdout repository project.md records; "
+                                 + "<repo>-holdout beside the home repo's clone; Theseus's own.";
+
+            return string.Join(" ", new[] { how, missing, order }.Where(part => part is not null));
+        }
+    }
+
+    /// <summary>Whether Reset applies: a folder is chosen, or about to be.</summary>
+    public bool CanResetHoldout => HoldoutChoice is not null;
+
+    /// <summary>Whether the folder in force is Theseus's own, which can be kept in a private repository.</summary>
+    public bool HoldoutIsTheseusOwn => !_holdoutChoiceMade && Holdout is { IsDefault: true };
+
+    /// <summary>Change…: chooses the project's holdout folder, written at OK. Why it cannot be, or null.</summary>
+    public string? ChooseHoldout(string folder)
+    {
+        if (WhyNotHoldout(folder) is { } why)
+        {
+            return why;
+        }
+
+        SetHoldoutChoice(folder);
+
+        return null;
+    }
+
+    /// <summary>Reset: the folder is found by convention again, at OK.</summary>
+    public void ResetHoldout() => SetHoldoutChoice(null);
+
+    /// <summary>
+    /// Why a folder cannot be a project's holdout, or null (review of PR 7, finding 9): the guard protects neither a whole
+    /// drive nor a relative path.
+    /// </summary>
+    public static string? WhyNotHoldout(string folder) =>
+        string.IsNullOrWhiteSpace(folder) || !System.IO.Path.IsPathFullyQualified(folder)
+            ? "Choose a full path, such as C:\\src\\Repo-holdout."
+            : string.Equals(System.IO.Path.GetPathRoot(folder)?.TrimEnd('\\', '/'), folder.TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase)
+                ? "A whole drive cannot be a holdout folder: the guard would protect nothing."
+                : null;
+
+    private void SetHoldoutChoice(string? folder)
+    {
+        _holdoutChoice = folder;
+        _holdoutChoiceMade = true;
+        Raise(nameof(HoldoutValue));
+        Raise(nameof(HoldoutExplanation));
+        Raise(nameof(CanResetHoldout));
+        Raise(nameof(HoldoutIsTheseusOwn));
+    }
+
+    private static string Sentence(string text) => $"{char.ToUpperInvariant(text[0])}{text[1..]}.";
+
+    private static string Folder(Theseus.Core.Links.HoldoutLocation? location) =>
+        location is null ? "Not known" : location.Folder.Length == 0 ? "Not found" : location.Folder;
+
+    /// <summary>The project.md path as the General tab shows it.</summary>
+    public string ProjectFileExplanation => "Read only: the file is where the project's folder is. Move the folder to move it.";
 
     /// <summary>OK: writes a changed title and says whether the dialog may close; a refusal stays, shown under the title.</summary>
     public bool Apply()
