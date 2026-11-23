@@ -125,7 +125,7 @@ public sealed class PieceNodeViewModel : ObservableObject, IFoldable
     /// <summary>Its card's Focus, on the title bar while its session runs: its tab in one click (item 8); null otherwise.</summary>
     public PieceActionViewModel? FocusAction =>
         Piece.IsCurrentPiece && Piece.Card is { HasSession: true }
-            ? Actions.FirstOrDefault(action => action.Label.Contains("Focus", StringComparison.Ordinal) && action.IsEnabled)
+            ? Actions.FirstOrDefault(action => action.Label.StartsWith("⧉ Focus", StringComparison.Ordinal) && action.IsEnabled)
             : null;
 
     /// <summary>Every box beneath it, at any depth.</summary>

@@ -123,6 +123,7 @@ public class ObjectivesLensTests
             Assert.That(heading.CriteriaText, Is.EqualTo($"{heading.Objective!.TickedCount} of {heading.Objective.Criteria.Count} criteria met"));
             Assert.That(heading.Criteria.Select(criterion => criterion.Text), Is.EqualTo(heading.Objective.Criteria.Select(criterion => criterion.Text)));
             Assert.That(heading.ShowsCriteria, Is.True, "listed under the open heading, not only in Properties");
+            Assert.That(heading.Criteria.Select(criterion => criterion.AccessibleName), Has.All.StartWith("Met: ").Or.StartWith("Not met: "));
         });
     }
 

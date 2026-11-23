@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 
 namespace Theseus.App.ViewModels;
 
@@ -22,20 +23,52 @@ public sealed record ChainNodeViewModel(
     bool IsReady,
     string WaitsOn,
     string ReportsBack,
-    RelayCommand Show)
+    RelayCommand Show) : INotifyPropertyChanged
 {
+    private string _session = string.Empty;
+    private RelayCommand? _focus;
+
+    /// <inheritdoc />
+    public event PropertyChangedEventHandler? PropertyChanged;
+
     /// <summary>The cards it hands over to.</summary>
     public ObservableCollection<ChainNodeViewModel> Children { get; } = [];
 
-    /// <summary>"● running", "○ idle" or "◆ waiting" while it has a session; empty otherwise (item 8).</summary>
-    public string Session { get; init; } = string.Empty;
+    /// <summary>
+    /// "● running", "○ idle" or "◆ waiting" while it has a session; empty otherwise (item 8). Changed in place, so a
+    /// session's every turn does not rebuild the tree and lose its selection and folds.
+    /// </summary>
+    public string Session
+    {
+        get => _session;
+        set
+        {
+            if (_session != value)
+            {
+                _session = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Session)));
+            }
+        }
+    }
 
-    /// <summary>⌖ Focus: brings its tab forward in one click, while it has a session; null otherwise (item 8).</summary>
-    public RelayCommand? Focus { get; init; }
+    /// <summary>⌖ Focus: brings its tab forward in one click, while it has a session to focus; null otherwise (item 8).</summary>
+    public RelayCommand? Focus
+    {
+        get => _focus;
+        set
+        {
+            if (!ReferenceEquals(_focus, value))
+            {
+                _focus = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Focus)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(HasFocus)));
+            }
+        }
+    }
 
     /// <summary>Whether ⌖ Focus shows on the row.</summary>
-    public bool HasFocus => Focus is not null;
+    public bool HasFocus => _focus is not null;
 
-    /// <summary>Its key, shown when another card has the same title so the two can be told apart; empty otherwise.</summary>
+    /// <summary>Its key, shown when another row has the same title so the two can be told apart; empty otherwise.</summary>
     public string Copy { get; init; } = string.Empty;
 }

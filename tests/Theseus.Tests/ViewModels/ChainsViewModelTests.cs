@@ -452,6 +452,39 @@ public class ChainsViewModelTests
         });
     }
 
+    [Test]
+    public void ASessionsTurn_UpdatesItsRowInPlace_WithoutRebuildingTheTree()
+    {
+        // Review of item 8: a rebuild on every turn lost the tree's selection and folds.
+        _chains.FocusCard = _ => { };
+        _cards[0].Lifecycle = SessionLifecycle.Running;
+        _book.Add(LinkKind.HandsOver, "auth-research", "token-spike");
+        _chains.Update();
+        var row = _chains.Roots.Single();
+
+        _cards[0].Lifecycle = SessionLifecycle.Idle;
+        _chains.Update();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(_chains.Roots.Single(), Is.SameAs(row));
+            Assert.That(row.Session, Is.EqualTo("○ idle"));
+            Assert.That(row.HasFocus, Is.True);
+        });
+    }
+
+    [Test]
+    public void ALaunchingCard_ShowsItsMark_ButNoFocusYet()
+    {
+        _chains.FocusCard = _ => { };
+        _cards[0].Lifecycle = SessionLifecycle.Launching;
+        _book.Add(LinkKind.HandsOver, "auth-research", "token-spike");
+
+        _chains.Update();
+
+        Assert.That((_chains.Roots.Single().Session, _chains.Roots.Single().HasFocus), Is.EqualTo(("● running", false)));
+    }
+
     private static WorkstreamCardViewModel Card(string key, string title) =>
         new(new Workstream(key, title, "#208DD7", false, @"C:\work", [], "Carry on.", 0, "New", false, false,
             false, null, [], null, Nine));

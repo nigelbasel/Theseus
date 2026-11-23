@@ -23,6 +23,9 @@ public sealed record CriterionViewModel(string Text, bool IsTicked, ICommand? To
     /// <summary>Whether it says on whom it waits.</summary>
     public bool HasWaiting => Waiting.Length > 0;
 
+    /// <summary>What a screen reader says for its tick: whether it is met, and the criterion.</summary>
+    public string AccessibleName => $"{(IsTicked ? "Met" : "Not met")}: {Text}";
+
     /// <summary>What its button does.</summary>
     public string ToolTip => IsTicked ? "Untick this criterion in project.md" : "Tick this criterion in project.md";
 
