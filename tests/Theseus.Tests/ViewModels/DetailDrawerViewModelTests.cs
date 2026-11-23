@@ -56,6 +56,25 @@ public class DetailDrawerViewModelTests
     }
 
     [Test]
+    public void StartsWords_FollowTheCard_WhenItsSessionEndsWithoutARefresh()
+    {
+        // Review of the drawer's Start: its words came only from a board refresh, so an ended session still read "Start".
+        var card = Card("one");
+        card.Lifecycle = SessionLifecycle.Running;
+        _drawer.Show(card);
+        var raised = new List<string?>();
+        _drawer.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+
+        card.Lifecycle = SessionLifecycle.Ended;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(_drawer.StartLabel, Is.EqualTo(card.PrimaryAction));
+            Assert.That(raised, Does.Contain(nameof(DetailDrawerViewModel.StartLabel)));
+        });
+    }
+
+    [Test]
     public void AGreyedArchive_SaysWhyInPlainView()
     {
         Card("one").Lifecycle = SessionLifecycle.Running;

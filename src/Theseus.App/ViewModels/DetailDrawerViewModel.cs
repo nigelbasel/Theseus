@@ -450,6 +450,16 @@ public sealed class DetailDrawerViewModel : ObservableObject
     /// <summary>Whether the who-starts line shows above the buttons.</summary>
     public bool HasStartedBy => !string.IsNullOrEmpty(StartedBy);
 
+    // A session can end with no board refresh (the launcher reports it), so Start's words follow the card itself too.
+    private void OnCardChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(WorkstreamCardViewModel.PrimaryAction) or nameof(WorkstreamCardViewModel.Lifecycle)
+            or nameof(WorkstreamCardViewModel.IsLive))
+        {
+            RefreshStart();
+        }
+    }
+
     /// <summary>Works out Start's words and the who-starts line again, as the board refreshes.</summary>
     public void RefreshStart()
     {
@@ -495,7 +505,14 @@ public sealed class DetailDrawerViewModel : ObservableObject
     private void Load(WorkstreamCardViewModel card, DrawerTab tab)
     {
         _loading = true;
+
+        if (_card is not null)
+        {
+            _card.PropertyChanged -= OnCardChanged;
+        }
+
         _card = card;
+        _card.PropertyChanged += OnCardChanged;
         Raise(nameof(Card));
         RefreshStart();
         var workstream = card.Workstream;

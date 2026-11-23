@@ -1262,7 +1262,6 @@ public sealed partial class ShellViewModel : ObservableObject
     public void Refresh()
     {
         Timed("board", Board.Refresh);
-        Drawer.RefreshStart();
 
         // A refresh replaces every card, so the new ones need telling where to report a tick. Wiring
         // this only when the grid changes left the selection count frozen at whatever it said before
@@ -1282,6 +1281,9 @@ public sealed partial class ShellViewModel : ObservableObject
         _stopRequests.Sweep(DateTimeOffset.UtcNow, _closed.IsFinished);
         Tells.Waiting.Sweep(DateTimeOffset.UtcNow, _ => true);
         LapseStartRequests();
+
+        // Last, once lifecycles and the projects' running state are set, which its words read.
+        Drawer.RefreshStart();
     }
 
     // Start-up has taken anything from 4 seconds to over 2 minutes on the same machine, with nothing
