@@ -1,7 +1,7 @@
 namespace Theseus.App.ViewModels;
 
 /// <summary>
-/// A box's "Show the card": opens the card's details over the project view, at Overview, where Start, Stop and Focus
+/// A box's "Properties" (walkthrough row 32: "Show the card" opened the card's properties, so it is named for that): opens the card's details over the project view, at Overview, where Start, Stop and Focus
 /// are. It was "Show on the board", which closed the view and selected a card the board does not draw, since a project's
 /// cards are not on the board (project-view-usability item 3, Nigel 2026-11-23). The drawer is the simpler of the two
 /// ways the brief offered: it needs no board filter, and the owner stays where he was.
@@ -16,7 +16,7 @@ public static class ShowTheCard
         ArgumentNullException.ThrowIfNull(card);
         ArgumentNullException.ThrowIfNull(open);
 
-        return new PieceActionViewModel("Show the card", () => open(card),
+        return new PieceActionViewModel("Properties", () => open(card),
             toolTip: $"Open {card.Title}'s details here, at Overview");
     }
 }

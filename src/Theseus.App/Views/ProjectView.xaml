@@ -508,14 +508,29 @@
                                     </ContentControl.Style>
                                 </ContentControl>
 
-                                <!-- Open: every action (H39). -->
+                                <!-- Open: every action (H39), as icons like the board's toolbar, the words in each tooltip, one
+                                     height in the row (walkthrough rows 24, 32; checklist G38, G40, G86, G90, G92). -->
                                 <ItemsControl x:Name="Actions" ItemsSource="{Binding Actions}" Margin="0,8,0,0" Focusable="False"
+                                              ItemTemplate="{DynamicResource BoxAction}"
                                               Visibility="{Binding IsOpen, Converter={StaticResource Visible}}">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
                                             <WrapPanel />
                                         </ItemsPanelTemplate>
                                     </ItemsControl.ItemsPanel>
+                                </ItemsControl>
+                                <!-- Why a disabled action cannot run, in plain view under the row (2026-11-23). -->
+                                <ItemsControl x:Name="ActionNotes" ItemsSource="{Binding Actions}" Focusable="False"
+                                              Visibility="{Binding IsOpen, Converter={StaticResource Visible}}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock FontSize="12.5" TextWrapping="Wrap" Margin="0,0,0,4"
+                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                       Visibility="{Binding Note, Converter={StaticResource NotEmpty}}">
+                                                <Run Text="{Binding Label, Mode=OneWay}" FontWeight="SemiBold" /><Run Text=": " /><Run Text="{Binding Note, Mode=OneWay}" />
+                                            </TextBlock>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
                                 </ItemsControl>
                             </StackPanel>
                         </Border>
@@ -627,6 +642,29 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </StackPanel>
+        </DataTemplate>
+
+        <!-- A box's action: an icon button when its action has a glyph, else the text button below; never a link among
+             buttons (walkthrough row 24). Every one is 32 high. -->
+        <DataTemplate x:Key="BoxAction" DataType="{x:Type vm:PieceActionViewModel}">
+            <Button x:Name="Action" Command="{Binding Command}" Height="32" MinWidth="32" Padding="8,0"
+                    Margin="0,0,4,4" ToolTip="{Binding IconToolTip}" ToolTipService.ShowOnDisabled="True"
+                    AutomationProperties.Name="{Binding Label}" AutomationProperties.HelpText="{Binding ToolTip}">
+                <Button.Style>
+                    <Style TargetType="Button" BasedOn="{StaticResource ToolIcon}">
+                        <Setter Property="Content" Value="{Binding Glyph}" />
+                        <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets" />
+                        <Setter Property="FontSize" Value="16" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding Glyph}" Value="{x:Null}">
+                                <Setter Property="Content" Value="{Binding Label}" />
+                                <Setter Property="FontFamily" Value="{DynamicResource ContentControlThemeFontFamily}" />
+                                <Setter Property="FontSize" Value="13" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
+            </Button>
         </DataTemplate>
 
         <!-- An action button: the shared command button, a way on drawn as a link (1.1e AC 6a, 6b), and a disabled

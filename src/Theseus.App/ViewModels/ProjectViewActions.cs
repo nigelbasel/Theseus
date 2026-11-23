@@ -62,7 +62,7 @@ public sealed record ProjectViewActions(
 
     /// <summary>
     /// A piece's card's own board actions, for its box and Properties: Archive, Remove from project or Unlink from its
-    /// parent, Show the card (Nigel, 2026-11-22; item 3, 2026-11-23); null in tests.
+    /// parent, Properties (Nigel, 2026-11-22; item 3 and walkthrough row 32, 2026-11-23); null in tests.
     /// </summary>
     public Func<PieceOfWork, IReadOnlyList<PieceActionViewModel>>? CardActions { get; init; }
 

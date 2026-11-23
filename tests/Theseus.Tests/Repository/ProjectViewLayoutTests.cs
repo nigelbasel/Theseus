@@ -192,6 +192,31 @@ public class ProjectViewLayoutTests
     }
 
     [Test]
+    public void AnOpenBoxsActions_AreIcons_OneHeight_EachNamedAndExplainedInItsTooltip()
+    {
+        // Walkthrough rows 24 and 32: long words in a row of buttons cluttered the box; the board's icons were wanted, with
+        // the explanation in the tooltip (checklist G38, G40, G86, G92).
+        var view = _views.Theseus();
+        view.ExpandAllCommand.Execute(null);
+        var buttons = Descendants<Button>(Named<ItemsControl>(BoxOf(LaidOut(view), "projects-and-method-ui"), "Actions")).ToList();
+
+        Assert.Multiple(() =>
+        {
+            foreach (var button in buttons)
+            {
+                var action = (PieceActionViewModel)button.DataContext;
+
+                Assert.That(button.Content, Is.EqualTo(action.Glyph).And.Not.Null, action.Label);
+                Assert.That(button.FontFamily.Source, Does.StartWith("Segoe Fluent Icons"), action.Label);
+                Assert.That((string)button.ToolTip, Does.StartWith(ActionGlyph.Name(action.Label)), action.Label);
+                Assert.That(System.Windows.Automation.AutomationProperties.GetName(button), Is.EqualTo(action.Label));
+            }
+
+            Assert.That(buttons.Select(button => button.ActualHeight).Distinct(), Is.EqualTo(new[] { 32.0 }), "one height in the row");
+        });
+    }
+
+    [Test]
     public void ParallelWork_SitsBetweenAForkBarAndAJoinBar_EachLabelled_AndASingleHandOverHasNoBars()
     {
         var control = LaidOut(_views.BuildYourMarket());
