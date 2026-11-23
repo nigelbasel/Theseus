@@ -28,7 +28,8 @@
             <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
         </Style>
 
-        <Style x:Key="Action" TargetType="Button">
+        <!-- Based on the theme's own button, or dark mode draws a light button. -->
+        <Style x:Key="Action" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="Padding" Value="10,2" />
             <Setter Property="MinWidth" Value="76" />
         </Style>

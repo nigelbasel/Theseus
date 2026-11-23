@@ -359,7 +359,7 @@ public class HoldoutLocationTests
             ChosenHoldout = @"C:\mine",
         };
 
-        Assert.That((properties.HoldoutValue, properties.CanResetHoldout, properties.HoldoutChanged), Is.EqualTo((@"C:\mine", true, false)));
+        Assert.That((properties.HoldoutValue, properties.CanResetHoldout, properties.HoldoutChanged), Is.EqualTo((@"C:\mine (not there)", true, false)));
         Assert.That(properties.HoldoutExplanation, Does.StartWith("You chose it. The folder is not there"));
         Assert.That(properties.ChooseHoldout(@"C:\"), Does.StartWith("A whole drive"));
         Assert.That(properties.ChooseHoldout("relative"), Does.StartWith("Choose a full path"));
@@ -371,6 +371,19 @@ public class HoldoutLocationTests
 
         Assert.That(properties.ChooseHoldout(@"C:\mine"), Is.Null);
         Assert.That(properties.HoldoutChanged, Is.False, "chosen back to what it was");
+    }
+
+    [Test]
+    public void ProjectProperties_ARecordedRepositoryNotCloned_SaysSoOnce()
+    {
+        var properties = new ProjectPropertiesViewModel("theseus", "Theseus", "#5E4BB0", "project.md")
+        {
+            Holdout = new HoldoutLocation(Path.Combine(_root, "Theseus-holdout"), false) { Source = HoldoutSource.Recorded },
+        };
+
+        Assert.That(properties.HoldoutValue, Is.EqualTo($"{Path.Combine(_root, "Theseus-holdout")} (not there)"));
+        Assert.That(properties.HoldoutExplanation, Does.StartWith("project.md records a holdout repository, but no clone of it is there"));
+        Assert.That(properties.HoldoutExplanation, Does.Not.Contain("Recorded in project.md"), "said once, not twice");
     }
 
     private static Workstream Card(string key, string? project) =>

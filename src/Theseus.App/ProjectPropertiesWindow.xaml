@@ -139,7 +139,7 @@
 
                     <!-- Granted by the owner here, never by the file, which sessions write (1.1e AC 12b). -->
                     <controls:SettingRow x:Name="BranchRulesRow" Label="Branch rules" Value="{Binding BranchRulesValue}"
-                                         Explanation="{Binding BranchRulesLabel}">
+                                         Explanation="{Binding BranchRulesExplanation}">
                         <CheckBox x:Name="BranchRulesBox" IsChecked="{Binding GrantsBranchRules, Mode=TwoWay}"
                                   IsEnabled="{Binding CanChangeBranchRules, Mode=OneWay}" ToolTipService.ShowOnDisabled="True"
                                   ToolTip="{Binding BranchRulesToolTip}" AutomationProperties.Name="{Binding BranchRulesLabel}"

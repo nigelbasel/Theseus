@@ -162,6 +162,9 @@ public sealed class ProjectPropertiesViewModel : ObservableObject
         ? chosen.Value
         : Leads.Count == 0 ? "None: the project has no workstreams yet" : "None chosen";
 
+    /// <summary>What the branch rules mean, as a sentence under them.</summary>
+    public string BranchRulesExplanation => $"{BranchRulesLabel}.";
+
     /// <summary>The branch rules as the Lead and branches tab shows them.</summary>
     public string BranchRulesValue => GrantsBranchRules
         ? $"Granted for {(CanGrantBranchRules ? PrimaryBranch!.Trim() : GrantedPrimary)}"
@@ -197,7 +200,7 @@ public sealed class ProjectPropertiesViewModel : ObservableObject
     /// <summary>The holdout folder as the Holdouts tab shows it.</summary>
     public string HoldoutValue => _holdoutChoiceMade
         ? _holdoutChoice ?? Folder(HoldoutByConvention)
-        : Folder(Holdout);
+        : Holdout is { IsMissing: true, Folder.Length: > 0 } missing ? $"{missing.Folder} (not there)" : Folder(Holdout);
 
     /// <summary>How the folder shown was found, and where else Theseus looks.</summary>
     public string HoldoutExplanation
@@ -205,13 +208,15 @@ public sealed class ProjectPropertiesViewModel : ObservableObject
         get
         {
             var how = !_holdoutChoiceMade
-                ? Holdout is null ? null : Sentence(Theseus.Core.Links.HoldoutFolderEntry.HowFoundOf(Holdout.Source))
+                ? Holdout is null or { IsMissing: true, Source: Theseus.Core.Links.HoldoutSource.Recorded }
+                    ? null
+                    : Sentence(Theseus.Core.Links.HoldoutFolderEntry.HowFoundOf(Holdout.Source))
                 : _holdoutChoice is null
                     ? $"Found by convention once you press OK: {Theseus.Core.Links.HoldoutFolderEntry.HowFoundOf(HoldoutByConvention?.Source ?? Theseus.Core.Links.HoldoutSource.TheseusOwn)}."
                     : "You chose it, once you press OK.";
             var missing = !_holdoutChoiceMade && Holdout is { IsMissing: true }
                 ? Holdout.Source == Theseus.Core.Links.HoldoutSource.Recorded
-                    ? "project.md records a holdout repository, but no clone was found: clone it beside the home repo, or choose a folder."
+                    ? "project.md records a holdout repository, but no clone of it is there: clone it beside the home repo, or choose a folder."
                     : "The folder is not there: choose it again, or Reset."
                 : null;
             const string order = "Looked for in this order: the folder you choose here; the holdout repository project.md records; "

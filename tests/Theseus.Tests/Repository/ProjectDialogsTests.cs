@@ -96,7 +96,7 @@ public class ProjectDialogsTests
             OpenAt = ProjectPropertiesViewModel.HoldoutsTab,
             Leads = [new("git-22", "Theseus (git-22)")],
             Lead = "git-22",
-            Holdout = new Theseus.Core.Links.HoldoutLocation(@"C:\src\Theseus-holdout", false) { Source = Theseus.Core.Links.HoldoutSource.Recorded },
+            Holdout = new Theseus.Core.Links.HoldoutLocation(Path.GetTempPath(), false) { Source = Theseus.Core.Links.HoldoutSource.Recorded },
         };
         var window = new ProjectPropertiesWindow(properties);
         var tabs = (TabControl)window.FindName("Tabs");
@@ -109,7 +109,7 @@ public class ProjectDialogsTests
         var rules = (Theseus.App.Controls.SettingRow)window.FindName("BranchRulesRow");
         LaidOut(window);
 
-        Assert.That(holdout.Value, Is.EqualTo(@"C:\src\Theseus-holdout"));
+        Assert.That(holdout.Value, Is.EqualTo(Path.GetTempPath()), "a folder that is there");
         Assert.That(holdout.Explanation, Does.StartWith("Recorded in project.md."), "it says how it was found");
         Assert.That(holdout.Explanation, Does.Contain("Looked for in this order"));
         Assert.That(lead.Value, Is.EqualTo("Theseus (git-22)"), "the lead as text, changed through Change…");
