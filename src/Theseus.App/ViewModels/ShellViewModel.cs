@@ -1585,7 +1585,8 @@ public sealed partial class ShellViewModel : ObservableObject
 
     /// <summary>
     /// What a project's holdout folder is found from: the clone of its home code repo (the first in its Repos table, found
-    /// among the folders its cards work in, then among the worktrees), and the holdout repository its project.md records.
+    /// among the folders its cards work in, the worktrees folder, then the paths its records name), and the holdout
+    /// repository its project.md records. A clone once found is kept, so the records are read again only if it goes.
     /// </summary>
     private HoldoutConvention HoldoutConventionOf(string project)
     {
@@ -1597,7 +1598,63 @@ public sealed partial class ShellViewModel : ObservableObject
                            && (members.Contains(card.Key) || string.Equals(card.Workstream.Project, project, StringComparison.OrdinalIgnoreCase)))
             .SelectMany(card => new[] { card.Workstream.WorkingDirectory }.Concat(card.Workstream.AddDirectories));
 
-        return HoldoutConvention.For(reading?.Text, folders, _settings.Read().WorktreesFolder);
+        if (_homeClones.TryGetValue(project, out var known) && Directory.Exists(known)
+            && string.Equals(Path.GetFileName(known), HomeRepo.NameIn(reading?.Text), StringComparison.OrdinalIgnoreCase))
+        {
+            return new HoldoutConvention(known, HomeRepo.RecordedHoldoutIn(reading?.Text));
+        }
+
+        var worktrees = _settings.Read().WorktreesFolder;
+        var convention = HoldoutConvention.For(reading?.Text, folders, worktrees, () => RecordTexts(reading?.Folder), out var foundBy);
+        var line = convention.HomeClone ?? "none";
+
+        if (!_homeCloneLines.TryGetValue(project, out var said) || said != line)
+        {
+            _homeCloneLines[project] = line;
+            TheseusLog.Information("Holdout convention for {Project}: home clone {Clone} found via {FoundBy} (worktrees folder '{Worktrees}', recorded {Recorded})",
+                project, convention.HomeClone ?? "none", foundBy, worktrees, convention.Recorded is null ? "none" : convention.Recorded.Name ?? "<repo>-holdout");
+        }
+
+        if (convention.HomeClone is { } clone)
+        {
+            _homeClones[project] = clone;
+        }
+
+        return convention;
+    }
+
+    private readonly Dictionary<string, string> _homeClones = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string> _homeCloneLines = new(StringComparer.OrdinalIgnoreCase);
+
+    // The project's records beside project.md: the Markdown files in each piece's folder under work.
+    private static IEnumerable<string> RecordTexts(string? projectFolder)
+    {
+        var work = projectFolder is null ? null : Path.Combine(projectFolder, "work");
+
+        if (work is null || !Directory.Exists(work))
+        {
+            yield break;
+        }
+
+        foreach (var file in Directory.EnumerateDirectories(work).SelectMany(piece => Directory.EnumerateFiles(piece, "*.md")))
+        {
+            string text;
+
+            try
+            {
+                text = File.ReadAllText(file);
+            }
+            catch (IOException)
+            {
+                continue;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                continue;
+            }
+
+            yield return text;
+        }
     }
 
     /// <summary>Opens a project's Project properties at its Holdouts tab (options-made-clear item 1), by folder name.</summary>
