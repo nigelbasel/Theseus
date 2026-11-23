@@ -259,9 +259,14 @@ public sealed class ProjectViewModel : ObservableObject
         }
     }
 
-    // Opens what hides a box: its round and the run of finished pieces it sits in.
+    // Opens what hides a box: its round, the run of finished pieces it sits in, and the branches above it.
     private void Reveal(PieceNodeViewModel node)
     {
+        foreach (var above in AllNodes.Where(each => each.Branch is { IsOpen: false } && each.Descendants.Contains(node)))
+        {
+            ToggleFold(above.Branch!);
+        }
+
         if (Rounds.FirstOrDefault(round => round.Boxes.Contains(node)) is { IsOpen: false } round)
         {
             ToggleFold(round);
@@ -585,11 +590,18 @@ public sealed class ProjectViewModel : ObservableObject
 
         _selection = item is PieceNodeViewModel or StageNodeViewModel or PhaseHeadingViewModel or ObjectiveHeadingViewModel ? item : null;
 
-        // A selected box is never hidden in a folded run of finished pieces (D22).
-        if ((item as PieceNodeViewModel ?? (item as StageNodeViewModel)?.Piece) is { } box
-            && FinishedRuns.FirstOrDefault(run => !run.IsOpen && run.Boxes.Contains(box)) is { } folded)
+        // A selected box is never hidden in a folded run of finished pieces (D22), nor in a folded branch (item 1).
+        if ((item as PieceNodeViewModel ?? (item as StageNodeViewModel)?.Piece) is { } box)
         {
-            ToggleFold(folded);
+            if (FinishedRuns.FirstOrDefault(run => !run.IsOpen && run.Boxes.Contains(box)) is { } folded)
+            {
+                ToggleFold(folded);
+            }
+
+            foreach (var above in AllNodes.Where(each => each.Branch is { IsOpen: false } && each.Descendants.Contains(box)))
+            {
+                ToggleFold(above.Branch!);
+            }
         }
 
         switch (_selection)
@@ -729,6 +741,10 @@ public sealed class ProjectViewModel : ObservableObject
 
         return new PieceNodeViewModel(node, children, stages, boxActions, PieceFolds.IsOpen(_folds, piece.Name), Toggle, Select)
         {
+            Branch = children.Count == 0
+                ? null
+                : new ChildrenFold(piece.Name, [.. children.Select(child => child.Title)],
+                    PieceFolds.IsOpen(_folds, ChildrenFold.Entry(piece.Name), true), ToggleFold),
             LinkLines = LinkLines(node, links, tree, parents),
             Evidence = EvidenceOf(reading.Artefacts.GetValueOrDefault(piece.Name)),
             Objective = piece.ObjectiveNumber is { } number
@@ -839,7 +855,10 @@ public sealed class ProjectViewModel : ObservableObject
     }
 
     private IEnumerable<IFoldable> Headings =>
-        Phases.Cast<IFoldable>().Concat(AllObjectives).Concat(Rounds).Concat(FinishedRuns);
+        Phases.Cast<IFoldable>().Concat(AllObjectives).Concat(Rounds).Concat(FinishedRuns).Concat(Branches);
+
+    // The folds of the boxes indented beneath a box (item 1), counted with the headings, which open at first like them.
+    private IEnumerable<ChildrenFold> Branches => AllNodes.Select(node => node.Branch).OfType<ChildrenFold>();
 
     // A round's top level: a run of two or more finished roots with no children folds to one line (1.1f D22, D12).
     private RoundViewModel RoundFor(PieceRound round, ProjectRound? next, bool isLatest, ProjectFile file,
@@ -1081,6 +1100,12 @@ public sealed class ProjectViewModel : ObservableObject
         {
             round.IsOpen = round.IsLatest || round.Boxes.Any(box => NeedsAttention.Contains(box.State));
         }
+
+        foreach (var node in AllNodes.Where(node => node.Branch is not null))
+        {
+            node.Branch!.IsOpen = node.Descendants.Any(child => NeedsAttention.Contains(child.State));
+        }
+
 
         if (!IsGroupedByObjectives)
         {

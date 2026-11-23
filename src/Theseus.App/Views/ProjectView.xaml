@@ -333,6 +333,16 @@
                                         AutomationProperties.Name="{Binding KindLabel}">
                                     <TextBlock Text="{Binding KindLabel}" FontSize="11" FontWeight="Bold" Foreground="White" />
                                 </Border>
+                                <!-- One click to its tab, folded or open, while its session runs (item 8). -->
+                                <!-- Out of the Tab order, so Tab still reaches the title after the chevron; an open box's Focus is in its actions. -->
+                                <Button x:Name="BoxFocus" DockPanel.Dock="Right" Content="⌖ Focus" Command="{Binding FocusAction.Command}" IsTabStop="False"
+                                        Visibility="{Binding HasSessionMark, Converter={StaticResource Visible}}"
+                                        ToolTip="Bring its terminal tab forward" AutomationProperties.Name="{Binding Title, StringFormat=Focus {0}}"
+                                        Padding="6,0" Margin="6,0,0,0" FontSize="11.5" VerticalAlignment="Center" Cursor="Hand"
+                                        Background="#38000000" Foreground="White" BorderThickness="0" />
+                                <TextBlock x:Name="BoxSession" DockPanel.Dock="Right" Text="{Binding SessionMark}" FontSize="11.5"
+                                           Margin="6,0,0,0" VerticalAlignment="Center" Foreground="White"
+                                           Visibility="{Binding HasSessionMark, Converter={StaticResource Visible}}" />
                                 <Border x:Name="PieceHeader" Background="Transparent" Focusable="True" Cursor="Hand"
                                         AutomationProperties.Name="{Binding Title}">
                                     <Border.InputBindings>
@@ -508,6 +518,16 @@
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="1">
+                        <!-- The boxes beneath fold together (item 1): the chevron, and while folded one line naming them. -->
+                        <DockPanel x:Name="BranchFold" Margin="0,0,0,4">
+                            <Button x:Name="BranchChevron" DockPanel.Dock="Left" Style="{StaticResource HeadingChevron}"
+                                    Content="{Binding Branch.Chevron}" Command="{Binding Branch.ToggleCommand}"
+                                    ToolTip="{Binding Branch.ToolTip}" AutomationProperties.Name="{Binding Branch.ToolTip}" />
+                            <TextBlock x:Name="BranchSummary" Text="{Binding Branch.Summary}" FontSize="12" TextWrapping="Wrap"
+                                       VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                       Visibility="{Binding Branch.IsFolded, Converter={StaticResource Visible}}" />
+                        </DockPanel>
+                        <StackPanel x:Name="BranchBody" Visibility="{Binding Branch.IsOpen, Converter={StaticResource Visible}}">
                         <TextBlock x:Name="HandedOn" Text="↳ handed on" FontSize="12" Margin="0,0,0,6"
                                    Foreground="{DynamicResource StateHandedOnBrush}"
                                    Visibility="{Binding IsSingleHandOver, Converter={StaticResource Visible}}" />
@@ -539,6 +559,7 @@
                             <TextBlock x:Name="JoinLabel" Text="{Binding JoinText}" FontSize="12" Margin="10,0,0,0" TextWrapping="Wrap"
                                        VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                         </DockPanel>
+                        </StackPanel>
                     </StackPanel>
                 </Grid>
                 <!-- A proposal it raised, waiting for you: a dashed node under it (1.1e item 30). -->
@@ -737,6 +758,23 @@
             </StackPanel>
         </DataTemplate>
 
+        <!-- One criterion, ticked or not as project.md has it, and on whom it waits: in Properties and under its objective. -->
+        <DataTemplate x:Key="CriterionLine" DataType="{x:Type vm:CriterionViewModel}">
+            <DockPanel Margin="0,0,0,4">
+                <Button x:Name="Tick" DockPanel.Dock="Left" VerticalAlignment="Top" Margin="0,0,6,0" Padding="2,0"
+                        MinWidth="0" MinHeight="0" Background="Transparent" BorderThickness="0" FontSize="14"
+                        Content="{Binding TickGlyph}" Command="{Binding ToggleCommand}" ToolTip="{Binding ToolTip}"
+                        AutomationProperties.Name="{Binding AccessibleName}" AutomationProperties.HelpText="{Binding ToolTip}" />
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Text}" FontSize="13" TextWrapping="Wrap"
+                               Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                    <TextBlock Text="{Binding Waiting}" FontSize="12" TextWrapping="Wrap" Margin="0,1,0,0"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                               Visibility="{Binding HasWaiting, Converter={StaticResource Visible}}" />
+                </StackPanel>
+            </DockPanel>
+        </DataTemplate>
+
         <!-- One line of Waits for you with its button, at the top and under the objective it belongs to (item 6). -->
         <DataTemplate x:Key="WaitLine" DataType="{x:Type vm:WaitItemViewModel}">
             <DockPanel Margin="0,0,0,6">
@@ -810,6 +848,10 @@
                             BorderBrush="{DynamicResource AccentFillColorDefaultBrush}"
                             Visibility="{Binding IsSelected, Converter={StaticResource Visible}}" />
                 </Grid>
+                <!-- What "n of m criteria met" counts, listed while the heading is open (Nigel, 2026-11-23). -->
+                <ItemsControl x:Name="ObjectiveCriteriaList" ItemsSource="{Binding Criteria}" ItemTemplate="{StaticResource CriterionLine}"
+                              Margin="27,8,0,0" Focusable="False" AutomationProperties.Name="Criteria of this objective"
+                              Visibility="{Binding ShowsCriteria, Converter={StaticResource Visible}}" />
                 <!-- What waits for him here, shown folded or open, since the mark above shows either way (item 6). -->
                 <Border x:Name="ObjectiveWaits" Margin="27,8,0,0" Padding="10,6,10,0" CornerRadius="6" BorderThickness="1"
                         BorderBrush="{DynamicResource StateWaitingBrush}" Background="{DynamicResource StateWaitingSoftBrush}"
@@ -1182,19 +1224,7 @@
                                         Visibility="{Binding HasObjective, Converter={StaticResource Visible}}">
                                 <TextBlock Text="{Binding ObjectiveHeading}" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,6"
                                            Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                <ItemsControl x:Name="Criteria" ItemsSource="{Binding Criteria}" Focusable="False">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate DataType="{x:Type vm:CriterionViewModel}">
-                                            <DockPanel Margin="0,0,0,4">
-                                                <Button x:Name="Tick" DockPanel.Dock="Left" VerticalAlignment="Top" Margin="0,0,6,0" Padding="2,0"
-                                                        MinWidth="0" MinHeight="0" Background="Transparent" BorderThickness="0" FontSize="14"
-                                                        Content="{Binding TickGlyph}" Command="{Binding ToggleCommand}" ToolTip="{Binding ToolTip}" />
-                                                <TextBlock Text="{Binding Text}" FontSize="13" TextWrapping="Wrap" VerticalAlignment="Center"
-                                                           Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                        </DockPanel>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
+                                <ItemsControl x:Name="Criteria" ItemsSource="{Binding Criteria}" ItemTemplate="{StaticResource CriterionLine}" Focusable="False" />
                             <Button x:Name="EditObjective" Content="Edit objective…" Command="{Binding EditObjectiveCommand}" HorizontalAlignment="Left"
                                     Padding="9,3" Margin="0,4,0,0" FontSize="13" ToolTip="{x:Static vm:ObjectiveHeadingViewModel.EditObjectiveToolTip}"
                                     Visibility="{Binding CanEditObjective, Converter={StaticResource Visible}}" />

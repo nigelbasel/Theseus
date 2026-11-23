@@ -118,6 +118,7 @@ public partial class App : Application
         shell.Chains = chains;
         shell.Snapshots = snapshots;
         chains.ReportArrived = shell.Warn;
+        chains.FocusCard = key => shell.FocusCardCommand.Execute(shell.Board.Card(key));
         chains.ReportConfirmed = shell.ReportConfirmed;
 
         var workItems = new WorkItemBook(Path.Combine(DataDirectory, "work-items.json"));
