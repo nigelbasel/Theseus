@@ -739,7 +739,10 @@ public sealed class ProjectViewModel : ObservableObject
             AddToProject = addToProject,
             Proposals = piece.IsCurrentPiece ? _actions.ProposalsOf?.Invoke(piece.CardKey) ?? [] : [],
             ServesCommand = piece.ObjectiveNumber is { } served ? new RelayCommand(_ => GoToObjective(served)) : null,
-            StartedBy = boxActions.Any(action => action.Label == WhoStarts.StartAnywayLabel) ? _actions.WhoStarts?.Invoke(piece.CardKey) : null,
+            // Only where starting it is the box's next step: a built piece waiting for its check keeps its own answer.
+            StartedBy = piece.Status.Action == PieceAction.Start && boxActions.Any(action => action.Label == WhoStarts.StartAnywayLabel)
+                ? _actions.WhoStarts?.Invoke(piece.CardKey)
+                : null,
         };
     }
 

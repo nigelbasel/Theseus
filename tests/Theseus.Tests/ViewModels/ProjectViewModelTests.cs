@@ -323,8 +323,8 @@ public class ProjectViewModelTests
     {
         // Nigel, 2026-11-23: a plain ▶ Start then asked "part of <project>, which decides what runs. Start it anyway?".
         const string who = "Theseus starts it: Theseus is running and decides what runs. Not running because its turn has not come yet.";
-        var view = _views.Theseus(SessionLifecycle.NotStarted, actions: _views.Actions with { WhoStarts = _ => who });
-        var box = Box(view, "projects-and-method-ui");
+        var view = _views.One("freeform", actions: _views.Actions with { WhoStarts = _ => who });
+        var box = view.AllNodes.Single();
         var start = box.Actions.Single(action => action.Label == "Start anyway…");
 
         start.Command.Execute(null);
@@ -335,8 +335,19 @@ public class ProjectViewModelTests
             Assert.That(box.WhoActs, Is.EqualTo(who));
             Assert.That(box.PrimaryAction?.Label, Is.Not.EqualTo("Start anyway…"), "the override is never the box's one button");
             Assert.That(start.ToolTip, Does.StartWith(who));
-            Assert.That(_views.Ran, Is.EqualTo(new[] { "Start:git-22" }), "the same Start, which asks the same question first");
+            Assert.That(_views.Ran, Is.EqualTo(new[] { $"Start:{box.Piece.CardKey}" }), "the same Start, which asks the same question first");
         });
+    }
+
+    [Test]
+    public void InARunningProject_ABoxWaitingOnYouKeepsItsOwnAnswer()
+    {
+        // Found on the live data: a build waiting for its check read "its turn has not come yet".
+        var view = _views.Theseus(SessionLifecycle.NotStarted, actions: _views.Actions with { WhoStarts = _ => "Lead starts it." });
+        var box = Box(view, "projects-and-method-ui");
+
+        Assert.That(box.Actions.Select(action => action.Label), Does.Contain("Start anyway…"));
+        Assert.That(box.WhoActs, Is.EqualTo(box.Piece.Status.WhoActs));
     }
 
     [Test]

@@ -97,13 +97,13 @@ internal sealed class ProjectViews
 
     /// <summary>The one-piece project of <see cref="ProjectViewFixtures.WriteOne"/>, its card in this state.</summary>
     public ProjectViewModel One(string pipeline, IReadOnlyDictionary<string, string>? records = null,
-        SessionLifecycle lifecycle = SessionLifecycle.NotStarted, ProjectViewModel? previous = null)
+        SessionLifecycle lifecycle = SessionLifecycle.NotStarted, ProjectViewModel? previous = null, ProjectViewActions? actions = null)
     {
         var reading = WriteOne(_folder, pipeline, records);
         IReadOnlyList<PieceCard> cards = [Card(ACard, lifecycle)];
         var pieces = PiecesOfWork.Build(reading, _ => null, cards, []);
 
-        return ProjectViewModel.Build(reading, pieces, LinksOn([], cards), Tabs(OneProject), Settings, Actions, null, Edits, previous);
+        return ProjectViewModel.Build(reading, pieces, LinksOn([], cards), Tabs(OneProject), Settings, actions ?? Actions, null, Edits, previous);
     }
 
     /// <summary>A view of any readable project, its pieces built against these cards and links.</summary>
