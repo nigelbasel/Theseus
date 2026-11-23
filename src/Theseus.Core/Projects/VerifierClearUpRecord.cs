@@ -21,4 +21,11 @@ public sealed record VerifierClearUpRecord(
 
     /// <summary>The project's round when it was pressed; Undo lasts until the next round starts.</summary>
     public int Round { get; init; }
+
+    /// <summary>
+    /// This, dated now if it was kept before clear-ups carried a time, so the upgrade does not lapse it at once; a dated one
+    /// is returned as it is.
+    /// </summary>
+    public VerifierClearUpRecord Dated(DateTimeOffset now, int round) =>
+        AtUtc == default ? this with { AtUtc = now.ToUniversalTime(), Round = round } : this;
 }

@@ -104,6 +104,12 @@ public sealed partial class ShellViewModel
             return null;
         }
 
+        if (record.Dated(Now(), RoundOf(reading)) is var dated && dated != record)
+        {
+            record = dated;
+            _settings.Write(_settings.Read() with { VerifierClearUp = record });
+        }
+
         var notice = ClearUpNotice.For(record, Now(), RoundOf(reading));
 
         if (notice is null && VerifierClearUp.From(record).IsDone)

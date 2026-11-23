@@ -26,6 +26,20 @@ public class ClearUpNoticeTests
     }
 
     [Test]
+    public void AClearUpKeptBeforeItWasDated_IsDatedNow_SoItsUndoIsNotLostOnTheUpgrade()
+    {
+        var undated = Record() with { AtUtc = default, Round = 0 };
+        var now = At.AddHours(3);
+
+        var dated = undated.Dated(now, round: 2);
+
+        Assert.That((dated.AtUtc, dated.Round), Is.EqualTo((now.ToUniversalTime(), 2)),
+            "Nigel's 19:24 clear-up was kept by a build that wrote no time, and would otherwise lapse at once");
+        var kept = Record();
+        Assert.That(kept.Dated(now, round: 3), Is.SameAs(kept), "a dated one is left as it is");
+    }
+
+    [Test]
     public void ItLapsesAfterADay()
     {
         Assert.That(ClearUpNotice.For(Record(), At.AddHours(24), currentRound: 2), Is.Null);
