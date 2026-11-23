@@ -34,7 +34,7 @@ public class WhoStartsTests
         Assert.Multiple(() =>
         {
             Assert.That(WhoStarts.Line(null, "Lead", heldByOwner: false, []), Is.Null, "a stopped project or an ad hoc card");
-            Assert.That(WhoStarts.Line("P", "Lead", heldByOwner: true, []), Is.Null, "done, paused, blocked or stopped by him");
+            Assert.That(WhoStarts.Line("P", "Lead", heldByOwner: true, []), Is.Null, "paused, blocked or stopped by him");
         });
     }
 }

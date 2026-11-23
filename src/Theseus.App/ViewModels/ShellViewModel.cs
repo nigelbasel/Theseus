@@ -2366,7 +2366,8 @@ public sealed class ShellViewModel : ObservableObject
         }
 
         var lead = project.LeadKey is { } leadKey && Board.Card(leadKey) is { IsLive: true } live ? live.Title : null;
-        var heldByOwner = card.IsBlocked || card.StopReason?.Kind is WhyStoppedKind.Done or WhyStoppedKind.PausedBy or WhyStoppedKind.StoppedByYou;
+        // A done card is not held: a project's sessions restart done cards (1.1e item 17).
+        var heldByOwner = card.IsBlocked || card.IsPaused || card.StopReason?.Kind is WhyStoppedKind.PausedBy or WhyStoppedKind.StoppedByYou;
         IReadOnlyList<string> waitsOn = Chains?.Waiting([card.Workstream]).Count > 0
             ? [.. Chains.AllLinks.Where(link => link.IsActive && link.Kind == LinkKind.HandsOver
                                                 && string.Equals(link.To, key, StringComparison.OrdinalIgnoreCase) && link.SatisfiedUtc is null)

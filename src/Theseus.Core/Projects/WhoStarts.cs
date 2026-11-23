@@ -11,12 +11,12 @@ public static class WhoStarts
     public const string StartAnywayLabel = "Start anyway…";
 
     /// <summary>
-    /// The who-acts line, or null where the project does not start it: in no running project, or held by the owner (done,
-    /// paused, blocked or stopped by him), when the box keeps its own answer.
+    /// The who-acts line, or null where the project does not start it: in no running project, or held by the owner (paused,
+    /// blocked or stopped by him), when the box keeps its own answer.
     /// </summary>
     /// <param name="project">The running project's title, or null when the card is in no running project.</param>
     /// <param name="liveLead">The lead card's title while it has a session, or null.</param>
-    /// <param name="heldByOwner">Whether it is done, paused, blocked or stopped by the owner, which the project does not undo.</param>
+    /// <param name="heldByOwner">Whether it is paused, blocked or stopped by the owner, which the project does not undo.</param>
     /// <param name="waitsOn">The cards whose hand-over it still waits for, by title; empty when none.</param>
     public static string? Line(string? project, string? liveLead, bool heldByOwner, IReadOnlyList<string> waitsOn)
     {

@@ -22,7 +22,7 @@ public class ShowTheCardTests
         Assert.Multiple(() =>
         {
             Assert.That(action.Label, Is.EqualTo("Show the card"));
-            Assert.That(action.ToolTip, Does.Contain(card.Title).And.Contain("Start, Stop and Focus"));
+            Assert.That(action.ToolTip, Does.Contain(card.Title).And.Contain("Overview"));
             Assert.That(opened, Is.EqualTo(new[] { card.Key }));
         });
     }

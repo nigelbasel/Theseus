@@ -17,6 +17,6 @@ public static class ShowTheCard
         ArgumentNullException.ThrowIfNull(open);
 
         return new PieceActionViewModel("Show the card", () => open(card),
-            toolTip: $"Open {card.Title}'s details here, at Overview, with its Start, Stop and Focus");
+            toolTip: $"Open {card.Title}'s details here, at Overview");
     }
 }

@@ -236,9 +236,33 @@ public class BoardSearchTests
         Assert.Multiple(() =>
         {
             Assert.That(fixture.Board.Matches, Does.Contain(project));
-            Assert.That(project.MatchesInsideText, Is.EqualTo("1 match inside"));
+            Assert.That(project.MatchesInsideText, Is.EqualTo("1 in BuildYourMarket MCP"));
             Assert.That(project.MatchingKeys, Is.EqualTo(new[] { "bym-w7" }), "what opening it carries into the project view");
             Assert.That(project.IsSearchDimmed, Is.False);
+        });
+    }
+
+    [Test]
+    public void AProjectCard_MatchesThroughAVerifierOfItsCards()
+    {
+        // "Verify: Theseus" found 0 of 69 (Nigel, 2026-11-23): a verifier is kept off the grid with its project's cards, but
+        // is not among the cards the project's pieces name, so neither it nor its project was found.
+        var fixture = Board().With("verify-w7", area: "Dev").Retitle("verify-w7", "Verify: BYM MCP W7");
+        fixture.Board.Refresh();
+        var verifier = CardOf(fixture, "verify-w7");
+        verifier.Workstream = verifier.Workstream with { Project = "bym-mcp" };
+        fixture.Board.KeepOutOfGrid = card => card.Key is "bym-w7" or "bym-w6" or "verify-w7";
+        var project = new ProjectCardViewModel("bym-mcp", "BuildYourMarket MCP") { MemberKeys = ["bym-w7", "bym-w6"] };
+        fixture.Board.ShowProjects([project]);
+
+        fixture.Board.Search.Text = "Verify: BYM";
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(fixture.Board.Matches, Does.Contain(project));
+            Assert.That(project.MatchingKeys, Is.EqualTo(new[] { "verify-w7" }));
+            Assert.That(project.MatchesInsideText, Is.EqualTo("1 in BuildYourMarket MCP"));
+            Assert.That(fixture.Board.Search.StatusText, Does.StartWith("1 of"));
         });
     }
 
