@@ -206,6 +206,25 @@ public class ProjectViewLayoutTests
     }
 
     [Test]
+    public void TheSelectorBar_HasOnlyTheShownViewAsATabStop_AndTheArrowsSelect()
+    {
+        // Checklist G124: Tab lands on the selected tab and leaves the bar; the arrows select (P2 review, should-fix 2).
+        var view = _views.Theseus();
+        var control = LaidOut(view);
+        var flow = Named<RadioButton>(control, "GroupByFlow");
+        var objectives = Named<RadioButton>(control, "GroupByObjectives");
+        var shown = view.IsGroupedByFlow ? flow : objectives;
+        var other = view.IsGroupedByFlow ? objectives : flow;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That((shown.IsTabStop, other.IsTabStop), Is.EqualTo((true, false)));
+            Assert.That(Theseus.App.Controls.SelectorBar.GetSelectsOnFocus(other), Is.True);
+            Assert.That(shown.ActualHeight, Is.GreaterThanOrEqualTo(32), "a 32 hit area (baseline W38)");
+        });
+    }
+
+    [Test]
     public void ThePhaseStrip_IsOneLine_HoweverManyPhases()
     {
         // Walkthrough row 17: the strip wrapped onto a second line at Phase 6.
@@ -233,7 +252,7 @@ public class ProjectViewLayoutTests
 
                 Assert.That(button.Content, Is.EqualTo(action.Glyph).And.Not.Null, action.Label);
                 Assert.That((string)button.ToolTip, Does.StartWith(ActionGlyph.Name(action.Label)), action.Label);
-                Assert.That(System.Windows.Automation.AutomationProperties.GetName(button), Is.EqualTo(action.Label));
+                Assert.That(System.Windows.Automation.AutomationProperties.GetName(button), Is.EqualTo(ActionGlyph.Name(action.Label)), "read without the marks");
             }
 
             Assert.That(buttons.Select(button => button.ActualHeight).Distinct(), Is.EqualTo(new[] { 32.0 }), "one height in the row");

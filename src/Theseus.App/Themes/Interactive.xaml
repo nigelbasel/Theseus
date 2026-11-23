@@ -6,10 +6,10 @@
         DynamicResource, so light and dark both follow.
     -->
 
-    <!-- The keyboard-focus ring every clickable control shows when reached with Tab. -->
     <!-- The Fluent theme's icon font key, defined here too so icons still draw with the theme off (baseline W24). -->
     <FontFamily x:Key="SymbolThemeFontFamily">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
 
+    <!-- The keyboard-focus ring every clickable control shows when reached with Tab. -->
     <Style x:Key="FocusRing">
         <Setter Property="Control.Template">
             <Setter.Value>
@@ -350,9 +350,11 @@
 
     <!--
         A selector bar item: a few views of the same thing are tabs over it, not toggle buttons or links (checklist G125;
-        baseline W15). Text, an accent underline under the one selected, a wash on hover. Give a group's items one GroupName.
+        baseline W15). Text, an accent underline under the one selected, a wash on hover. Give a group's items one GroupName,
+        and controls:SelectorBar.SelectsOnFocus so the arrow keys select (set where used: this file is loaded loose in tests).
     -->
     <Style x:Key="SelectorBarItem" TargetType="RadioButton">
+        <Setter Property="IsTabStop" Value="False" />
         <Setter Property="Padding" Value="12,8" />
         <Setter Property="FontSize" Value="14" />
         <Setter Property="Cursor" Value="Hand" />
@@ -373,6 +375,7 @@
                             <Setter TargetName="Wash" Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
                         </Trigger>
                         <Trigger Property="IsChecked" Value="True">
+                            <Setter Property="IsTabStop" Value="True" />
                             <Setter TargetName="Underline" Property="Visibility" Value="Visible" />
                             <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
                             <Setter Property="FontWeight" Value="SemiBold" />

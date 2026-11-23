@@ -30,7 +30,7 @@ public class ProjectViewGroupingMarkupTests
 
         Assert.That(buttons.Select(button => ((string?)button.Attribute("Content"), (string?)button.Attribute("IsChecked"))), Is.EqualTo(new[]
         {
-            ("_Rounds and work", "{Binding IsGroupedByFlow, Mode=TwoWay}"), ("_Objectives only", "{Binding IsGroupedByObjectives, Mode=TwoWay}"),
+            ("Rounds and work", "{Binding IsGroupedByFlow, Mode=TwoWay}"), ("Objectives only", "{Binding IsGroupedByObjectives, Mode=TwoWay}"),
         }));
         // Walkthrough row 44: two views of the same data are tabs over the page (checklist G124, G125), not a toolbar's toggles.
         Assert.That(Named(view, "Toolbar").Descendants().Any(element => (string?)element.Attribute(Xaml + "Name") == "GroupBy"), Is.False);

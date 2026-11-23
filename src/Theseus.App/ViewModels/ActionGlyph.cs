@@ -3,7 +3,9 @@ namespace Theseus.App.ViewModels;
 /// <summary>
 /// The Segoe Fluent Icons glyph of a box's action, by its label, so a box draws its actions as icons as the board's
 /// toolbar does, with the words in the tooltip (walkthrough rows 24, 32; checklist G86 to G90: the same command has the
-/// same glyph everywhere, and a standard glyph keeps its meaning). Null for a label with no clear icon, drawn as text.
+/// same glyph everywhere, and a standard glyph keeps its meaning; baseline W25: E8E5 is Open project's, E71B the Chains
+/// panel's). Archive and Restore share the board's E7B8. Null for a label with no clear icon, such as Unlink from, drawn
+/// as text.
 /// </summary>
 public static class ActionGlyph
 {
@@ -16,12 +18,10 @@ public static class ActionGlyph
         ("Independent check", "\uE9D5"),
         ("Accept spec", "\uE8FB"),
         ("Open spec", "\uE8A5"),
-        ("Open records", "\uE8E5"),
-        ("Open ", "\uE8E5"),
+        ("Open records", "\uE7C3"),
         ("Archive", "\uE7B8"),
-        ("Restore", "\uE777"),
+        ("Restore", "\uE7B8"),
         ("Remove from project", "\uE738"),
-        ("Unlink from", "\uE71B"),
         ("Properties", "\uE946"),
         ("Add to project", "\uE710"),
         ("Set the holdout folder", "\uE8B7"),

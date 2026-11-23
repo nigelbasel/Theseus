@@ -52,6 +52,9 @@ public sealed class PieceActionViewModel
     /// </summary>
     public string? Note { get; init; }
 
+    /// <summary>Its name as UI Automation reads it: the label without the marks a text button carried.</summary>
+    public string SpokenLabel => ActionGlyph.Name(Label);
+
     /// <summary>Its icon, when it has one (<see cref="ActionGlyph"/>): a box then draws it as an icon button.</summary>
     public string? Glyph => ActionGlyph.Of(Label);
 

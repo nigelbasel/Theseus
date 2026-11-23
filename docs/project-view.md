@@ -89,12 +89,12 @@ typed; the bar only types Markdown for you.
 
 ## Group by
 
-The two tabs over the page, **Rounds and work | Objectives only** (Alt+R, Alt+O), or **View > Group project by**, choose
+The two tabs over the page, **Rounds and work | Objectives only** (the arrow keys move between them), or **View > Group project by**, choose
 how the boxes are laid out.
 Each project keeps its own choice, across restarts.
 
-- **Flow** shows the pieces of work as they hand work on, time running down the page, with the links below.
-- **Objectives** shows every phase of the project's file as a heading, in file order, with its exit gate and how many
+- **Rounds and work** shows the pieces of work as they hand work on, time running down the page, with the links below.
+- **Objectives only** shows every phase of the project's file as a heading, in file order, with its exit gate and how many
   of its objectives are done. Under each phase, every objective is a heading: its number and title, how many of its
   criteria are ticked (such as 0/6), and the counts of its pieces of work; one that nothing works on yet says
   **nothing yet**. Under each objective are its pieces of work, as the same boxes, with the same stages, buttons and

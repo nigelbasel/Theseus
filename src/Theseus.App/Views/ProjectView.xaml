@@ -191,6 +191,7 @@
         <!-- The project's two views as a selector bar's items (walkthrough row 44; checklist G125; baseline W15). -->
         <Style x:Key="GroupByButton" TargetType="RadioButton" BasedOn="{StaticResource SelectorBarItem}">
             <Setter Property="GroupName" Value="GroupBy" />
+            <Setter Property="controls:SelectorBar.SelectsOnFocus" Value="True" />
         </Style>
 
         <!-- A heading's chevron, as a box's (AC 46). -->
@@ -649,15 +650,23 @@
         <DataTemplate x:Key="BoxAction" DataType="{x:Type vm:PieceActionViewModel}">
             <Button x:Name="Action" Command="{Binding Command}" Height="32" MinWidth="32" Padding="8,0"
                     Margin="0,0,4,4" ToolTip="{Binding IconToolTip}" ToolTipService.ShowOnDisabled="True"
-                    AutomationProperties.Name="{Binding Label}" AutomationProperties.HelpText="{Binding ToolTip}">
+                    AutomationProperties.Name="{Binding SpokenLabel}" AutomationProperties.HelpText="{Binding ToolTip}">
                 <Button.Style>
                     <Style TargetType="Button" BasedOn="{StaticResource ToolIcon}">
                         <Setter Property="Content" Value="{Binding Glyph}" />
                         <Setter Property="FontFamily" Value="{DynamicResource SymbolThemeFontFamily}" />
                         <Setter Property="FontSize" Value="16" />
                         <Style.Triggers>
+                            <!-- A label as a TextBlock: a title's underscore stays text, never an access key in a repeated template (W26). -->
                             <DataTrigger Binding="{Binding Glyph}" Value="{x:Null}">
                                 <Setter Property="Content" Value="{Binding Label}" />
+                                <Setter Property="ContentTemplate">
+                                    <Setter.Value>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                        </DataTemplate>
+                                    </Setter.Value>
+                                </Setter>
                                 <Setter Property="FontFamily" Value="{DynamicResource ContentControlThemeFontFamily}" />
                                 <Setter Property="FontSize" Value="13" />
                             </DataTrigger>
@@ -886,7 +895,7 @@
                                                Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                                     <Button x:Name="ObjectiveCriteria" Content="{Binding CriteriaToggleText}" Command="{Binding ToggleCommand}"
                                             Style="{StaticResource ChipButton}" FontSize="12" Margin="0,0,10,4" VerticalAlignment="Center"
-                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" ToolTip="{Binding CriteriaToolTip}"
+                                            ToolTip="{Binding ChevronToolTip}" AutomationProperties.HelpText="{Binding CriteriaToolTip}"
                                             AutomationProperties.Name="{Binding CriteriaText}"
                                             Visibility="{Binding CriteriaToggleText, Converter={StaticResource NotEmpty}}" />
                                     <ItemsControl x:Name="ObjectiveCounts" ItemsSource="{Binding Counts}" Focusable="False">
@@ -1058,7 +1067,8 @@
                 <!-- The phase strip (G34), one line however many phases: it scrolls across rather than wrapping onto a second
                      (walkthrough row 17), each cell's words in full in its tooltip. Then the value of the process as tallies (G35). -->
                 <ScrollViewer x:Name="PhaseStripScroller" Margin="0,10,0,0" HorizontalScrollBarVisibility="Auto"
-                              VerticalScrollBarVisibility="Disabled" Focusable="False">
+                              VerticalScrollBarVisibility="Disabled" Focusable="True" FocusVisualStyle="{StaticResource FocusRing}"
+                              AutomationProperties.Name="Phases: the arrow keys scroll across">
                     <ItemsControl x:Name="PhaseStrip" ItemsSource="{Binding PhaseStrip}" Focusable="False">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
@@ -1100,15 +1110,16 @@
             </StackPanel>
         </Border>
 
-        <!-- The two views of the project, as a selector bar over the page: one Tab stop, arrow keys between them (G124, G125). -->
+        <!-- The two views of the project, as a selector bar over the page: one Tab stop, arrow keys select (G124, G125). No
+             access keys: WPF fires one on a bare letter when focus is on a button, which would switch the view (P2 review). -->
         <Border DockPanel.Dock="Top" Padding="12,4,12,0" BorderThickness="0,0,0,1"
                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
             <StackPanel x:Name="GroupBy" Orientation="Horizontal" KeyboardNavigation.TabNavigation="Once"
                         KeyboardNavigation.DirectionalNavigation="Cycle" AutomationProperties.Name="Views of the project">
-                <RadioButton x:Name="GroupByFlow" Content="_Rounds and work" Style="{StaticResource GroupByButton}" Margin="0,0,4,0"
+                <RadioButton x:Name="GroupByFlow" Content="Rounds and work" Style="{StaticResource GroupByButton}" Margin="0,0,4,0"
                              IsChecked="{Binding IsGroupedByFlow, Mode=TwoWay}" AutomationProperties.Name="Rounds and work"
                              ToolTip="Rounds and work: pieces of work as they hand work on, time running down the page" />
-                <RadioButton x:Name="GroupByObjectives" Content="_Objectives only" Style="{StaticResource GroupByButton}"
+                <RadioButton x:Name="GroupByObjectives" Content="Objectives only" Style="{StaticResource GroupByButton}"
                              IsChecked="{Binding IsGroupedByObjectives, Mode=TwoWay}" AutomationProperties.Name="Objectives only"
                              ToolTip="Objectives only: pieces of work under the phases and objectives of project.md" />
             </StackPanel>
