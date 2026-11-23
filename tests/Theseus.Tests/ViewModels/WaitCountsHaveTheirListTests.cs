@@ -128,4 +128,15 @@ public class WaitCountsHaveTheirListTests
     {
         AssertEveryMarkHasItsList(_views.BuildYourMarket());
     }
+
+    [Test]
+    public void ASearchThatFoundOnlyAVerifier_HighlightsTheBoxItChecks()
+    {
+        // Project-view-usability item 4, review: "Verify: Theseus" lit the project and then highlighted nothing in it.
+        var view = WithVerifier("bym-mcp-identity", SessionLifecycle.NotStarted);
+        var box = view.AllNodes.Single(node => node.Name == "bym-mcp-identity");
+        var filter = new Theseus.Core.Finding.CardFilter(Theseus.Core.Finding.SearchQuery.Parse("Verify"), [], Theseus.Core.Finding.TagMatch.Any);
+
+        Assert.That(SearchCarry.Matches(box, key => key == Verifier, filter), Is.True);
+    }
 }

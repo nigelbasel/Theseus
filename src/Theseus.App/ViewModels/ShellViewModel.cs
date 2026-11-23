@@ -506,8 +506,8 @@ public sealed class ShellViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Carries the board's search into a project view (item 7): its boxes whose card the search matches, or whose title
-    /// it matches, are highlighted the way a followed objective's are. Null or no search clears it.
+    /// Carries the board's search into a project view (item 7): the boxes <see cref="SearchCarry"/> matches are highlighted
+    /// the way a followed objective's are. Null or no search clears it.
     /// </summary>
     private void CarrySearch(ProjectViewModel? view)
     {
@@ -525,9 +525,7 @@ public sealed class ShellViewModel : ObservableObject
             return;
         }
 
-        view.ShowSearch(node => node.Piece.Card is { } piece && Board.Card(piece.Key) is { } card
-            ? Board.IsMatch(card)
-            : filter.Admits(new Theseus.Core.Finding.SearchableCard(node.Name, node.Title, string.Empty, string.Empty, [], [], [], [])));
+        view.ShowSearch(node => SearchCarry.Matches(node, key => Board.Card(key) is { } card ? Board.IsMatch(card) : null, filter));
     }
 
     /// <summary>Ticks what is not ticked and unticks what is.</summary>
