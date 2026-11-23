@@ -314,6 +314,9 @@ public partial class App : Application
         shell.ConfirmAcceptSpec = question =>
             MessageBox.Show(Windows.OfType<Window>().FirstOrDefault(window => window.IsActive) ?? MainWindow, question, "Accept spec?",
                 MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes;
+        shell.ExplainRefusal = text =>
+            MessageBox.Show(Windows.OfType<Window>().FirstOrDefault(window => window.IsActive) ?? MainWindow, text, "That cannot be done yet",
+                MessageBoxButton.OK, MessageBoxImage.Information);
         shell.AskNewProject = (name, title) =>
         {
             var window = new NewProjectWindow(name, title) { Owner = MainWindow };

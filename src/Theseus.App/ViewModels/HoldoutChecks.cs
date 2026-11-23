@@ -96,8 +96,14 @@ public sealed class HoldoutChecks
         return hasScenarios ? null : "No holdout scenarios for this project yet";
     }
 
-    /// <summary>The card menu's Verify item.</summary>
-    public string VerifyMenuText(Workstream card, string title) => "_Verify with holdouts…";
+    /// <summary>
+    /// The card menu's Verify item: the reason it cannot run is in its text, not only its tooltip (Nigel, 2026-11-23).
+    /// </summary>
+    public string VerifyMenuText(Workstream card, string title) =>
+        WhyCannotVerify(card, title) is { } why ? $"{VerifyMenuLabel} — {why}" : VerifyMenuLabel;
+
+    /// <summary>The Verify menu item's own label, with its access key.</summary>
+    public const string VerifyMenuLabel = "_Verify with holdouts…";
 
     /// <summary>The way on from a disabled Verify: set a missing chosen folder, or write the first scenarios.</summary>
     public HoldoutWayOn WayOn(Workstream card)

@@ -263,7 +263,7 @@
 
         <!-- A box's menu item: Properties is the default, in bold (AC 29). -->
         <Style x:Key="StageMenuItem" TargetType="MenuItem">
-            <Setter Property="Header" Value="{Binding Label}" />
+            <Setter Property="Header" Value="{Binding MenuText}" />
             <Setter Property="Command" Value="{Binding Command}" />
             <Setter Property="ToolTip" Value="{Binding ToolTip}" />
             <Setter Property="ToolTipService.ShowOnDisabled" Value="True" />
@@ -584,9 +584,11 @@
             </StackPanel>
         </DataTemplate>
 
-        <!-- An action button: the shared command button, a way on drawn as a link (1.1e AC 6a, 6b). -->
+        <!-- An action button: the shared command button, a way on drawn as a link (1.1e AC 6a, 6b), and a disabled
+             button's note beside it, so its reason is in plain view (2026-11-23). -->
         <DataTemplate DataType="{x:Type vm:PieceActionViewModel}">
-            <Button x:Name="Action" Command="{Binding Command}" ToolTip="{Binding ToolTip}" AutomationProperties.Name="{Binding Label}"
+            <StackPanel>
+            <Button x:Name="Action" HorizontalAlignment="Left" Command="{Binding Command}" ToolTip="{Binding ToolTip}" AutomationProperties.Name="{Binding Label}"
                     ToolTipService.ShowOnDisabled="True" Padding="9,3" Margin="0,0,6,6" FontSize="13">
                 <Button.Style>
                     <Style TargetType="Button" BasedOn="{StaticResource CommandButton}">
@@ -603,6 +605,10 @@
                 </Button.Style>
                 <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
             </Button>
+            <TextBlock x:Name="ActionNote" Text="{Binding Note}" FontSize="12.5" Margin="0,-3,10,6"
+                       TextWrapping="Wrap" MaxWidth="360" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                       Visibility="{Binding Note, Converter={StaticResource NotEmpty}}" />
+            </StackPanel>
         </DataTemplate>
 
         <!-- A round (1.1f C10 to C13): the change banner before it, its heading, then what it set out to meet and its work. -->
@@ -911,6 +917,7 @@
                                     <DockPanel Margin="0,0,0,6">
                                         <Button x:Name="WaitButton" DockPanel.Dock="Right" Content="{Binding Button}" Command="{Binding Command}"
                                                 Style="{StaticResource CommandButton}" Padding="9,3" Margin="10,0,0,0" FontSize="13"
+                                                ToolTip="{Binding ToolTip}" ToolTipService.ShowOnDisabled="True"
                                                 VerticalAlignment="Top" AutomationProperties.Name="{Binding Button}"
                                                 Visibility="{Binding HasButton, Converter={StaticResource Visible}}" />
                                         <TextBlock x:Name="WaitText" local:LinkedText.Text="{Binding Text}" FontSize="13" TextWrapping="Wrap" VerticalAlignment="Center"
@@ -1153,8 +1160,13 @@
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate DataType="{x:Type vm:PieceActionViewModel}">
-                                        <Button Content="{Binding Label}" Command="{Binding Command}" ToolTip="{Binding ToolTip}"
-                                                ToolTipService.ShowOnDisabled="True" Padding="9,3" Margin="0,0,6,6" FontSize="13" />
+                                        <StackPanel>
+                                            <Button HorizontalAlignment="Left" Content="{Binding Label}" Command="{Binding Command}" ToolTip="{Binding ToolTip}"
+                                                    ToolTipService.ShowOnDisabled="True" Padding="9,3" Margin="0,0,6,6" FontSize="13" />
+                                            <TextBlock Text="{Binding Note}" FontSize="12.5" Margin="0,-3,10,6"
+                                                       TextWrapping="Wrap" MaxWidth="300" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                       Visibility="{Binding Note, Converter={StaticResource NotEmpty}}" />
+                                        </StackPanel>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>

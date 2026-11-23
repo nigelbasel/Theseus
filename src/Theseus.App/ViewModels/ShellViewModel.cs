@@ -610,8 +610,16 @@ public sealed class ShellViewModel : ObservableObject
     public string PropertiesToolTip => ProjectSelection.ToolTip(Board, "The selected card's properties");
 
     /// <summary>Verify with holdouts' tooltip, on the Workstream menu: what it does, or why not for a project.</summary>
-    public string VerifySelectedToolTip => ProjectSelection.ToolTip(Board,
+    public string VerifySelectedToolTip => Chosen() is [var only] && WhyCannotVerify(only) is { } why ? why : ProjectSelection.ToolTip(Board,
         "Create a verifier card for the one ticked card: it runs the holdout scenarios its spec names, and reports only a verdict back. Needs one card ticked and the holdout scenarios folder set in Tools > Options; not offered for a verifier card or an archived one");
+
+    /// <summary>
+    /// Verify with holdouts' text on the Workstream menu: with one card ticked that cannot be checked, the reason follows
+    /// the label (Nigel, 2026-11-23).
+    /// </summary>
+    public string VerifySelectedMenuText => Chosen() is [var only]
+        ? _holdouts.VerifyMenuText(only.Workstream, only.Title)
+        : HoldoutChecks.VerifyMenuLabel;
 
     /// <summary>Ticks every card with a session running, so the end of the day is Select live, then Stop.</summary>
     public RelayCommand SelectLiveCommand { get; }
@@ -1407,6 +1415,22 @@ public sealed class ShellViewModel : ObservableObject
 
     private bool CanVerify(WorkstreamCardViewModel card) => WhyCannotVerify(card) is null;
 
+    /// <summary>Says in a dialog why something pressed cannot be done, or in the status bar when no dialog is set. Set by the app.</summary>
+    public Action<string>? ExplainRefusal { get; set; }
+
+    // A refusal only in the status line read as "nothing happens" (Nigel, 2026-11-23).
+    private void Refuse(string text)
+    {
+        if (ExplainRefusal is { } explain)
+        {
+            explain(text);
+        }
+        else
+        {
+            Notice = text;
+        }
+    }
+
     /// <summary>The card menu's Verify tooltip when it can run.</summary>
     private const string VerifyToolTipWhenItCan =
         "Create a verifier card that runs the holdout scenarios against this card's change and reports only a verdict";
@@ -1532,7 +1556,7 @@ public sealed class ShellViewModel : ObservableObject
     {
         if (WhyCannotVerify(card) is { } reason)
         {
-            Notice = $"{reason}.";
+            Refuse($"{reason}.");
 
             return;
         }
@@ -2005,6 +2029,7 @@ public sealed class ShellViewModel : ObservableObject
         foreach (var card in cards)
         {
             card.VerifyToolTip = WhyCannotVerify(card) ?? VerifyToolTipWhenItCan;
+            card.VerifyMenuText = _holdouts.VerifyMenuText(card.Workstream, card.Title);
             card.BranchRulesSince = BranchRulesSince(card.Workstream);
         }
 
@@ -2240,7 +2265,7 @@ public sealed class ShellViewModel : ObservableObject
         IReadOnlyList<ProjectTabViewModel> tabs, ProjectOverview overview, string? lead) =>
         ProjectViewModel.Build(reading, pieces, Chains?.Status ?? new LinkStatus([], []), tabs, _settings,
             _projectActions ??= ProjectViewCommands.For(Board.Card, FocusCardCommand, StartCardCommand, StopCardCommand, OpenSpec,
-                AcceptSpec, OpenFile, text => Notice = text, (card, project) => AddToProject(card, project), WhyNot, WayOn) with
+                AcceptSpec, OpenFile, text => Notice = text, (card, project) => AddToProject(card, project), WhyNot, WayOn, Refuse) with
             {
                 ShowRecords = ShowRecordsWindow is { } show ? (piece, stage) => show(new RecordsViewModel(piece, stage, OpenFile)) : null,
                 OpenLinks = key => ShowCardLinksCommand.Execute(Board.Card(key)),
@@ -2821,6 +2846,7 @@ public sealed class ShellViewModel : ObservableObject
         Raise(nameof(SelectionSummary));
         Raise(nameof(PropertiesToolTip));
         Raise(nameof(VerifySelectedToolTip));
+        Raise(nameof(VerifySelectedMenuText));
         System.Windows.Input.CommandManager.InvalidateRequerySuggested();
     }
 
@@ -3196,6 +3222,7 @@ public sealed class ShellViewModel : ObservableObject
             card.StopReason = CardStopReasons.For(card, reasons.ProjectRunStates, ProjectTitle, reasons.CardsStoppedByOwner,
                 Chains?.AllLinks ?? [], key => Board.Card(key)?.Title ?? key);
             card.VerifyToolTip = WhyCannotVerify(card) ?? VerifyToolTipWhenItCan;
+            card.VerifyMenuText = _holdouts.VerifyMenuText(card.Workstream, card.Title);
             card.LastRunCrashed = !live && (state.Lifecycle == SessionLifecycle.Ghost
                                             || runs.Where(run => string.Equals(run.WorkstreamKey, card.Key, StringComparison.OrdinalIgnoreCase))
                                                 .MaxBy(run => run.StartedUtc)?.ExitReason == SessionExitReason.CrashedOrKilled);

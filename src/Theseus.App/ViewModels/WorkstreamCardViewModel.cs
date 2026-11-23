@@ -10,6 +10,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
     private SessionLifecycle _lifecycle = SessionLifecycle.NotStarted;
     private Theseus.Core.Projects.WhyStopped? _stopReason;
     private string _verifyToolTip = string.Empty;
+    private string _verifyMenuText = HoldoutChecks.VerifyMenuLabel;
     private DateTimeOffset? _branchRulesSince;
     private DateTimeOffset? _lastExitedUtc;
     private DateTimeOffset? _lastStartedUtc;
@@ -774,6 +775,16 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
     {
         get => _verifyToolTip;
         set => Set(ref _verifyToolTip, value);
+    }
+
+    /// <summary>
+    /// Verify with holdouts…'s text on the card's menu: while it is off, the reason follows the label, since a disabled
+    /// menu item's tooltip alone is not plain view (Nigel, 2026-11-23).
+    /// </summary>
+    public string VerifyMenuText
+    {
+        get => _verifyMenuText;
+        set => Set(ref _verifyMenuText, value);
     }
 
     /// <summary>When its project was granted branch rules, while they apply, or null (1.1e AC 12b).</summary>

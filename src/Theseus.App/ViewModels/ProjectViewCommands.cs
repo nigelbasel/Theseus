@@ -36,7 +36,7 @@ public static class ProjectViewCommands
         {
             if (cardOf(key) is not { } card)
             {
-                notice($"{key} is not on the board.");
+                (explain ?? notice)($"{key} is not on the board.");
 
                 return;
             }
@@ -49,12 +49,13 @@ public static class ProjectViewCommands
             }
             else
             {
-                // The view is drawn from the last refresh; if the card changed since, say why it cannot run now (1.1e AC 6a).
-                notice(whyNot?.Invoke(card, action) is { } why ? $"{why}." : $"That cannot be done for {card.Title} just now.");
+                // The view is drawn from the last refresh; if the card changed since, say why it cannot run now (1.1e AC 6a),
+                // in a dialog: the status line alone read as "nothing happens" (Nigel, 2026-11-23).
+                (explain ?? notice)(whyNot?.Invoke(card, action) is { } why ? $"{why}." : $"That cannot be done for {card.Title} just now.");
             }
         }
 
-        return new ProjectViewActions(openSpec, acceptSpec,
+        var actions = new ProjectViewActions(openSpec, acceptSpec,
             key => OnCard(key, StageAction.VerifyWithHoldouts, card => card.VerifyWithHoldoutsCommand, passCard: false),
             key => OnCard(key, StageAction.Focus, _ => focus, passCard: true),
             key => OnCard(key, StageAction.Start, _ => start, passCard: true),
@@ -71,10 +72,12 @@ public static class ProjectViewCommands
                     }
                     else
                     {
-                        notice($"{key} is not on the board.");
+                        (explain ?? notice)($"{key} is not on the board.");
                     }
                 },
             whyNot is null ? null : (key, action) => cardOf(key) is { } card ? whyNot(card, action) : $"{key} is not on the board",
             wayOn is null ? null : (key, action) => cardOf(key) is { } card ? wayOn(card, action) : null);
+
+        return actions with { Explain = explain };
     }
 }

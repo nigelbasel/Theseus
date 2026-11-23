@@ -512,7 +512,9 @@ public sealed class ProjectViewModel : ObservableObject
                 .SelectMany(node => node.Children.Select(child => new ConnectorLink(node, child, ConnectorKind.HandsOver))),
             .. tree.ThenWorkedOn.Select(link => new ConnectorLink(byPiece[link.From], byPiece[link.To], ConnectorKind.ThenWorkedOn)),
         ];
-        view.Waits = [.. view.Overview.Waits.Select(item => new WaitItemViewModel(item, view.WaitCommand(item, reading.Name)))];
+        view.Waits = [.. view.Overview.Waits.Select(item => item.Kind == WaitKind.StartChecks
+            ? view.ChecksWait(item)
+            : new WaitItemViewModel(item, view.WaitCommand(item, reading.Name)))];
         view.Counts = [.. StateCountViewModel.For(view.Summary, zeros: true).Select(chip => chip with
         {
             Command = new RelayCommand(_ => view.ToggleFilter(chip.State,
@@ -780,7 +782,13 @@ public sealed class ProjectViewModel : ObservableObject
             ? _actions.WhyNot?.Invoke(key, offer.Action)
             : null;
 
-        return new PieceActionViewModel(offer.Label, what.Run, offer.IsEnabled && why is null, offer.DisabledReason ?? why ?? what.ToolTip);
+        var isEnabled = offer.IsEnabled && why is null;
+        var reason = offer.DisabledReason ?? why;
+
+        return new PieceActionViewModel(offer.Label, what.Run, isEnabled, reason ?? what.ToolTip)
+        {
+            Note = !isEnabled && offer.Action == StageAction.VerifyWithHoldouts ? reason : null,
+        };
     }
 
     private static void Run(SpecAtGate? spec, Action<SpecAtGate> action)
@@ -907,22 +915,76 @@ public sealed class ProjectViewModel : ObservableObject
         Raise(nameof(IsFiltered));
     }
 
-    // "Start the checks…" names the builds it will check, leaves out one still busy, and asks first (G36).
+    private const string EveryBuildBusy = "Every build waiting for its check is still busy: start the checks after they stop";
+
+    private List<PieceOfWork> PiecesOf(WaitItem item) =>
+        [.. item.Pieces.Select(name => AllNodes.First(each => each.Name == name).Piece)];
+
+    private string? WhyNoCheck(PieceOfWork piece) => _actions.WhyNot?.Invoke(piece.CardKey, StageAction.VerifyWithHoldouts);
+
+    // When no check can run, the line says why and offers the way on, not a button that refuses into the status line
+    // (Nigel, 2026-11-23); with no way on, the button is disabled with the reason as its tooltip.
+    private WaitItemViewModel ChecksWait(WaitItem item)
+    {
+        var builds = PiecesOf(item);
+        var count = builds.Count == 1 ? "1 build needs" : $"{builds.Count} builds need";
+        var from = Rounds.Count > 1 && builds.Count > 0 ? $" from round {builds[0].Round}" : string.Empty;
+        var reasons = builds.Select(WhyNoCheck).ToList();
+
+        if (builds.Count > 0 && reasons.All(reason => reason is not null))
+        {
+            var why = string.Join("; ", reasons.Distinct(StringComparer.Ordinal));
+            var text = $"{count} their independent check{from}, but it cannot run: {why}.";
+            var wayOn = builds.Select(piece => _actions.WayOn?.Invoke(piece.CardKey, StageAction.VerifyWithHoldouts))
+                .FirstOrDefault(way => way is not null);
+
+            return wayOn is not null
+                ? new WaitItemViewModel(item, wayOn.Command, text, wayOn.Label, wayOn.ToolTip)
+                : new WaitItemViewModel(item, new RelayCommand(_ => { }, _ => false), text, toolTip: why);
+        }
+
+        if (builds.All(piece => piece.Card is { IsWorking: true }))
+        {
+            return new WaitItemViewModel(item, new RelayCommand(_ => { }, _ => false),
+                $"{count} their independent check{from}, but every one is still busy: start the checks after they stop.",
+                toolTip: EveryBuildBusy);
+        }
+
+        return new WaitItemViewModel(item, new RelayCommand(_ => StartChecks(item)),
+            toolTip: "Create a verifier card for each build: it runs the holdout scenarios and reports only a verdict");
+    }
+
+    // A refusal found only at the press is said in a dialog: the status line alone read as "nothing happens" (Nigel, 2026-11-23).
+    private void Explain(string text) => (_actions.Explain ?? _actions.Notice)?.Invoke(text);
+
+    // "Start the checks…" names the builds it will check, leaves out one still busy or one that cannot be checked, says
+    // which and why, and asks first (G36).
     private void StartChecks(WaitItem item)
     {
-        var builds = item.Pieces.Select(name => AllNodes.First(each => each.Name == name).Piece)
-            .Where(piece => piece.Card is not { IsWorking: true })
-            .ToList();
+        var idle = PiecesOf(item).Where(piece => piece.Card is not { IsWorking: true }).ToList();
+
+        if (idle.Count == 0)
+        {
+            Explain($"{EveryBuildBusy}.");
+
+            return;
+        }
+
+        var refused = idle.Select(piece => (Piece: piece, Why: WhyNoCheck(piece))).Where(entry => entry.Why is not null).ToList();
+        var builds = idle.Where(piece => refused.All(entry => entry.Piece != piece)).ToList();
 
         if (builds.Count == 0)
         {
-            _actions.Notice?.Invoke("Every build waiting for its check is still busy: start the checks after they stop.");
+            Explain($"No build can be checked: {string.Join("; ", refused.Select(entry => entry.Why).Distinct(StringComparer.Ordinal))}.");
 
             return;
         }
 
         var question = $"Start the independent check of {builds.Count} {(builds.Count == 1 ? "build" : "builds")}? Each gets a verifier card:\n"
-                       + string.Join("\n", builds.Select(piece => $"  • {piece.Title}"));
+                       + string.Join("\n", builds.Select(piece => $"  • {piece.Title}"))
+                       + (refused.Count == 0
+                           ? string.Empty
+                           : "\nNot checked:\n" + string.Join("\n", refused.Select(entry => $"  • {entry.Piece.Title}: {entry.Why}")));
 
         if (_actions.Ask?.Invoke(question) == false)
         {
