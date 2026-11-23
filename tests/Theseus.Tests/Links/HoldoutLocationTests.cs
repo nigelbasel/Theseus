@@ -136,7 +136,7 @@ public class HoldoutLocationTests
         var found = HoldoutLocation.Find("theseus", null, convention, _root);
 
         Assert.That((found.Folder, found.Source, found.IsMissing), Is.EqualTo((beside, HoldoutSource.Recorded, false)));
-        Assert.That(HoldoutFolderEntry.HowFoundOf(found.Source), Is.EqualTo("recorded in project.md"));
+        Assert.That(HoldoutFolderEntry.HowFoundOf(found.Source), Is.EqualTo("recorded in project.md, beside the repo"));
     }
 
     [Test]
@@ -159,6 +159,38 @@ public class HoldoutLocationTests
 
         Assert.That(HomeRepo.RecordedHoldoutIn(text), Is.EqualTo(new RecordedHoldout("Repo-scenarios")));
         Assert.That(HomeRepo.NameIn(text), Is.EqualTo("Repo"), "a holdout row first in the table is not the home repo");
+    }
+
+    [Test]
+    public void TheseussRecordedHoldout_IsFoundBesideTheClone_WhenItsCardsWorkInANotesFolder_ThroughAWorktree()
+    {
+        // Theseus's own project.md, its Repos table and row 66, as they read on 2026-11-23 (git-22: the row showed no folder).
+        const string theseus = "# Theseus\n\n## Repos\n\n| Repo | Role | Autonomy |\n|---|---|---|\n"
+                               + "| github.com/nigelbasel/Theseus | code and the method kit (with its starter files) | L0 |\n"
+                               + "| A private holdout repository | holdout scenarios; never changed by implementing workstreams | owner only |\n\n"
+                               + "## Phase 0: Foundations\n\n### Objective 0.2: Holdout scenarios\n\n**Pipeline:** freeform\n"
+                               + "| Workstream | Slug | Branch | Repos | What |\n|---|---|---|---|---|\n"
+                               + "| git-22 | holdout-scenarios | [not recorded] | the holdout repository | The three holdout scenarios |\n";
+        var clone = Path.Combine(_root, "src", "Theseus");
+        var gitDir = Path.Combine(clone, ".git", "worktrees", "options-made-clear");
+        Directory.CreateDirectory(gitDir);
+        File.WriteAllText(Path.Combine(gitDir, "commondir"), "../..");
+        var worktrees = Path.Combine(_root, "work");
+        var worktree = Path.Combine(worktrees, "options-made-clear", "Theseus");
+        Directory.CreateDirectory(worktree);
+        File.WriteAllText(Path.Combine(worktree, ".git"), $"gitdir: {gitDir}\n");
+        var notes = Path.Combine(_root, "notes");
+        Directory.CreateDirectory(Path.Combine(notes, ".git"));
+        var holdout = Path.Combine(_root, "src", "Theseus" + HomeRepo.HoldoutSuffix);
+        Directory.CreateDirectory(holdout);
+
+        var convention = HoldoutConvention.For(theseus, [notes], worktrees);
+        var found = HoldoutLocation.Find("theseus", null, convention, _root);
+
+        Assert.That(convention, Is.EqualTo(new HoldoutConvention(clone, new RecordedHoldout(null))), "the clone, through the worktree");
+        Assert.That((found.Folder, found.Source, found.IsMissing), Is.EqualTo((holdout, HoldoutSource.Recorded, false)));
+        Assert.That(HoldoutLocation.Find("theseus", null, HoldoutConvention.For(theseus, [notes], null), _root).Folder, Is.Empty,
+            "without the worktrees, the clone is not found: what the live board showed");
     }
 
     [Test]
@@ -359,7 +391,7 @@ public class HoldoutLocationTests
         {
             ("ad-hoc", @"C:\h\ad-hoc", "Cards in no project always use Theseus's own ad-hoc folder."),
             ("bym", @"C:\mine (not there)", "You chose it, but it is not there. Change it in the project's Project properties."),
-            ("theseus", _root, "Recorded in project.md. Change it in the project's Project properties."),
+            ("theseus", _root, "Recorded in project.md, beside the repo. Change it in the project's Project properties."),
             ("gone", _root, "Beside its repo, by convention. Change it in the project's Project properties."),
         }));
         Assert.That(settings.OpenProjectPropertiesCommand.CanExecute(settings.HoldoutRows[0]), Is.False, "ad hoc cards have no project");
