@@ -5,7 +5,8 @@ using Theseus.Core.Persistence;
 namespace Theseus.App.ViewModels;
 
 /// <summary>
-/// What a project's session does to its descendants' cards, carried out on the board (1.1e AC 14 to 16): a start that
+/// What a session does to the cards it may act on (its descendants, or in a project every card of it: sessions-run-the-
+/// project item 8), carried out on the board (1.1e AC 14 to 16): a start that
 /// resumes its conversation with the instruction for that start only, counted only once it has launched; a stop by the
 /// stop request alone; a pause marked with the calling card and why. The state is checked again here, on the board's
 /// thread, since the board may have changed since the session looked (review of PR 3, finding 3). Every call that is
@@ -148,6 +149,10 @@ public sealed class BoardWorkstreamControl : IWorkstreamControl
 
         var workstream = card.Workstream;
 
+        // In a project any session's pause may be taken over or cleared (sessions-run-the-project item 9).
+        var inProject = workstream.Project is { } project
+                        && string.Equals(_board.Card(caller)?.Workstream.Project, project, StringComparison.OrdinalIgnoreCase);
+
         return call switch
         {
             _ when workstream.IsArchived => $"{card.Title} is archived.",
@@ -156,8 +161,9 @@ public sealed class BoardWorkstreamControl : IWorkstreamControl
             WorkstreamCall.Start or WorkstreamCall.Resume or WorkstreamCall.Pause when workstream is { IsPaused: true, PausedBy: null }
                 => $"{card.Title} is paused by the user.",
             WorkstreamCall.Start when workstream.PausedBy is { } by => $"{card.Title} is paused by {TitleOf(by)}.",
-            WorkstreamCall.Pause when workstream.PausedBy is { } by && !Same(by, caller) => $"{card.Title} is paused by {TitleOf(by)}.",
-            WorkstreamCall.Resume when !Same(workstream.PausedBy, caller) => $"{card.Title} is not paused by you.",
+            WorkstreamCall.Pause when !inProject && workstream.PausedBy is { } by && !Same(by, caller) => $"{card.Title} is paused by {TitleOf(by)}.",
+            WorkstreamCall.Resume when inProject && workstream.PausedBy is null => $"{card.Title} is not paused.",
+            WorkstreamCall.Resume when !inProject && !Same(workstream.PausedBy, caller) => $"{card.Title} is not paused by you.",
             WorkstreamCall.Stop when !card.IsLive => $"{card.Title} has no session to stop.",
             _ => null,
         };

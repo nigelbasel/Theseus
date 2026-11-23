@@ -26,6 +26,12 @@ public sealed record WorkstreamProposal(
     string? DecisionNote = null,
     string? ResultingKey = null)
 {
+    /// <summary>
+    /// Whether its card was made by its own session in a project, without the owner's approval (sessions-run-the-project
+    /// item 1), rather than approved by him.
+    /// </summary>
+    public bool MadeBySession { get; init; }
+
     /// <summary>Whether it still waits for Nigel.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public bool IsPending => Status == ProposalStatus.Pending;

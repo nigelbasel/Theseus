@@ -118,6 +118,40 @@ public class BoardWorkstreamControlTests
     }
 
     [Test]
+    public void InAProject_AnotherSessionsPause_IsTakenOverOrCleared_ButNeverTheOwners()
+    {
+        var child = _board.Card("child")!;
+        var parent = _board.Card("parent")!;
+        parent.Workstream = parent.Workstream with { Project = "theseus" };
+        child.Workstream = child.Workstream with { Project = "theseus", IsPaused = true, PausedBy = "other" };
+
+        Assert.That(Control().Pause("child", "parent", "mine now"), Is.Null, "sessions-run-the-project item 9");
+        Assert.That(_board.Card("child")!.Workstream.PausedBy, Is.EqualTo("parent"));
+
+        child.Workstream = child.Workstream with { IsPaused = true, PausedBy = "other" };
+
+        Assert.That(Control().Resume("child", null, "parent"), Is.Null);
+        Assert.That(_board.Card("child")!.Workstream.IsPaused, Is.False);
+        Assert.That(Control().Resume("child", null, "parent"), Is.EqualTo("child is not paused."));
+
+        child.Workstream = child.Workstream with { IsPaused = true, PausedBy = null };
+
+        Assert.That(Control().Resume("child", null, "parent"), Is.EqualTo("child is paused by the user."));
+        Assert.That(Control().Pause("child", "parent", null), Is.EqualTo("child is paused by the user."));
+    }
+
+    [Test]
+    public void AProjectsRule_NeedsBothCardsInTheSameProject()
+    {
+        var child = _board.Card("child")!;
+        var parent = _board.Card("parent")!;
+        parent.Workstream = parent.Workstream with { Project = "another" };
+        child.Workstream = child.Workstream with { Project = "theseus", IsPaused = true, PausedBy = "other" };
+
+        Assert.That(Control().Resume("child", null, "parent"), Is.EqualTo("child is not paused by you."));
+    }
+
+    [Test]
     public void TheBoardChecksTheStateAgain_BlockedRunningOrArchived()
     {
         var child = _board.Card("child")!;

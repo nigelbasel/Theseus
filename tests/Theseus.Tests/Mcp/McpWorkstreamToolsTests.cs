@@ -261,7 +261,7 @@ public class McpWorkstreamToolsTests
         _cards[2] = Card("grandchild") with { Workstream = Card("grandchild").Workstream with { Title = "Twin" } };
 
         Assert.That(Text(Call("start_workstream", new JsonObject { ["card"] = "Twin" }, "parent-session")),
-            Is.EqualTo("More than one of your descendants is called Twin: name one by its key (child, grandchild)."));
+            Is.EqualTo("More than one card you may act on is called Twin: name one by its key (child, grandchild)."));
         Assert.That(IsError(Call("start_workstream", new JsonObject { ["card"] = "grandchild" }, "parent-session")), Is.False, "by its key");
     }
 

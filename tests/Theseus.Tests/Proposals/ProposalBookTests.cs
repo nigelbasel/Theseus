@@ -105,6 +105,40 @@ public class ProposalBookTests
     }
 
     [Test]
+    public void Create_RecordsTheCardItsSessionMade_WithoutTheOwner()
+    {
+        var book = Book();
+        var id = book.Propose("auth-research", "s1", Request("Cache spike"), Passed, capped: false).Proposal!.Id;
+
+        book.Create(id, "cache-spike");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(book.Find(id)!.Status, Is.EqualTo(ProposalStatus.Approved));
+            Assert.That(book.Find(id)!.MadeBySession, Is.True);
+            Assert.That(book.Find(id)!.ResultingKey, Is.EqualTo("cache-spike"));
+            Assert.That(WorkstreamDescendants.Of("auth-research", book.All), Is.EqualTo(new[] { "cache-spike" }));
+        });
+    }
+
+    [Test]
+    public void AnUncappedProposal_IsFiled_PastTheCap()
+    {
+        var book = Book();
+
+        for (var each = 0; each < ProposalBook.MaximumPending; each++)
+        {
+            book.Propose("auth-research", "s1", Request($"Spike {each}"), Passed);
+        }
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(book.Propose("auth-research", "s1", Request("One more"), Passed).Refusal, Does.Contain("already waiting"));
+            Assert.That(book.Propose("auth-research", "s1", Request("One more"), Passed, capped: false).Refusal, Is.Null);
+        });
+    }
+
+    [Test]
     public void Reject_KeepsNigelsNoteForTheProposer()
     {
         var book = Book();

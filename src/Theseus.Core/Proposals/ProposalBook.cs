@@ -75,8 +75,12 @@ public sealed class ProposalBook
         }
     }
 
-    /// <summary>Files a proposal that has passed <see cref="ProposalCheck"/>, or updates the pending one it repeats.</summary>
-    public ProposalOutcome Propose(string requesterKey, string sessionId, ProposalRequest request, ProposalCheckResult check)
+    /// <summary>
+    /// Files a proposal that has passed <see cref="ProposalCheck"/>, or updates the pending one it repeats. A project's
+    /// session files uncapped (sessions-run-the-project item 1): its proposal becomes a card at once, so none waits.
+    /// </summary>
+    public ProposalOutcome Propose(string requesterKey, string sessionId, ProposalRequest request, ProposalCheckResult check,
+        bool capped = true)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(check);
@@ -85,7 +89,7 @@ public sealed class ProposalBook
 
         lock (_gate)
         {
-            outcome = TryPropose(requesterKey, sessionId, request, check);
+            outcome = TryPropose(requesterKey, sessionId, request, check, capped);
         }
 
         if (outcome.Refusal is { } refusal)
@@ -116,11 +120,16 @@ public sealed class ProposalBook
     public ProposalOutcome Approve(string id, string resultingKey) =>
         Decide(id, "approved", _ => null, ProposalStatus.Approved, null, resultingKey);
 
+    /// <summary>Marks a proposal approved by its own session in a project, once the card it made exists (item 1).</summary>
+    public ProposalOutcome Create(string id, string resultingKey) =>
+        Decide(id, "created by its session", _ => null, ProposalStatus.Approved, null, resultingKey, madeBySession: true);
+
     /// <summary>Turns a proposal down, with Nigel's note if he gave one: on the board, or from its session when he says so there.</summary>
     public ProposalOutcome Reject(string id, string? note) =>
         Decide(id, "rejected", _ => null, ProposalStatus.Rejected, string.IsNullOrWhiteSpace(note) ? null : note.Trim(), null);
 
-    private ProposalOutcome TryPropose(string requesterKey, string sessionId, ProposalRequest request, ProposalCheckResult check)
+    private ProposalOutcome TryPropose(string requesterKey, string sessionId, ProposalRequest request, ProposalCheckResult check,
+        bool capped)
     {
         if (check.Refusal is { } refusal)
         {
@@ -140,7 +149,7 @@ public sealed class ProposalBook
             return new ProposalOutcome(updated, null, IsRepeat: true);
         }
 
-        if (pending.Count >= MaximumPending)
+        if (capped && pending.Count >= MaximumPending)
         {
             return ProposalOutcome.Refused($"{MaximumPending} proposals from this workstream are already waiting for the user. "
                                            + "Withdraw one, or wait for the user to decide.");
@@ -156,7 +165,7 @@ public sealed class ProposalBook
     }
 
     private ProposalOutcome Decide(string id, string what, Func<WorkstreamProposal, string?> refusal, ProposalStatus status,
-        string? note, string? resultingKey)
+        string? note, string? resultingKey, bool madeBySession = false)
     {
         ProposalOutcome outcome;
 
@@ -184,6 +193,7 @@ public sealed class ProposalBook
                     DecidedUtc = _clock.UtcNow,
                     DecisionNote = note,
                     ResultingKey = resultingKey,
+                    MadeBySession = madeBySession,
                 };
                 Save();
                 outcome = new ProposalOutcome(_proposals[index], null);

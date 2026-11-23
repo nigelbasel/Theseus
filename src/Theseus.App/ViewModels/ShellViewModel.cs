@@ -293,7 +293,7 @@ public sealed class ShellViewModel : ObservableObject
                 if (created.ProposalId is { } proposal)
                 {
                     approved = Chains?.Proposals?.Find(proposal);
-                    Chains?.Proposals?.Approved(proposal, created.Key);
+                    Chains?.Proposals?.Approved(proposal, created.Key, created.BySession);
                 }
 
                 if (Board.Card(created.Key) is not { } card)
@@ -305,7 +305,18 @@ public sealed class ShellViewModel : ObservableObject
 
                 var joined = approved is null ? null : JoinProposersProject(card, approved);
 
-                if (approved is not null)
+                if (approved is not null && created.BySession)
+                {
+                    // Made by its own session, not by the owner, so nothing is told: the session has the answer already.
+                    var by = Board.Card(approved.RequesterKey)?.Title ?? approved.RequesterKey;
+                    var what = approved.Warnings.Count == 0
+                        ? $"Created by {by}"
+                        : $"Created by {by}; warnings: {string.Join(" ", approved.Warnings)}";
+                    _cardEvents.Append(new CardEvent(DateTimeOffset.UtcNow, card.Key, what));
+                    Theseus.Core.Diagnostics.TheseusLog.Information("{Card}: {What}", card.Key, what);
+                    joined = joined is null ? $"{by} created {card.Title}." : $"{by} created {card.Title}. {joined}";
+                }
+                else if (approved is not null)
                 {
                     Tell(Board.Card(approved.RequesterKey), OwnerEvents.Approved(approved.Request.Title, card.Title, card.Key));
                 }
@@ -1347,7 +1358,21 @@ public sealed class ShellViewModel : ObservableObject
         return Approve(proposal, startNow);
     }
 
-    private Theseus.Core.Proposals.ProposalApproval Approve(Theseus.Core.Proposals.WorkstreamProposal proposal, bool startNow)
+    /// <summary>
+    /// Makes the card a project's session proposed, without the owner's approval (sessions-run-the-project item 1): the
+    /// same checks and card as an approval, kept in its history as created by that session, and nobody told.
+    /// </summary>
+    public Theseus.Core.Proposals.ProposalApproval CreateForSession(Theseus.Core.Proposals.WorkstreamProposal proposal, bool startNow)
+    {
+        ArgumentNullException.ThrowIfNull(proposal);
+
+        return Board.Card(proposal.RequesterKey) is { Workstream.Project: not null }
+            ? Approve(proposal, startNow, bySession: true)
+            : Theseus.Core.Proposals.ProposalApproval.Refused($"{proposal.RequesterKey} is not in a project, so its proposals wait for the user.");
+    }
+
+    private Theseus.Core.Proposals.ProposalApproval Approve(Theseus.Core.Proposals.WorkstreamProposal proposal, bool startNow,
+        bool bySession = false)
     {
         // The window is not modal and a session may approve or withdraw meanwhile, so the book is asked again here, on the
         // board's thread, rather than trusting the proposal as it was when the window opened.
@@ -1370,7 +1395,7 @@ public sealed class ShellViewModel : ObservableObject
             return Theseus.Core.Proposals.ProposalApproval.Refused($"It cannot be approved yet: {cannot}");
         }
 
-        return NewWorkstream.CreateFromProposal(parent.Workstream, proposal, startNow);
+        return NewWorkstream.CreateFromProposal(parent.Workstream, proposal, startNow, bySession);
     }
 
     private string? WhyNotApproveNow(Theseus.Core.Proposals.WorkstreamProposal proposal) =>

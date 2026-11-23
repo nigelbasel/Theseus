@@ -77,10 +77,18 @@ public sealed class ProposalsViewModel : ObservableObject
     /// <summary>Told when the owner rejects a proposal on the board, so its proposer is told (1.1e AC 27a).</summary>
     public Action<WorkstreamProposal, string?>? Rejected { get; set; }
 
-    /// <summary>Marks a proposal approved once its card is made.</summary>
-    public void Approved(string proposalId, string key)
+    /// <summary>Marks a proposal approved once its card is made: by the owner, or by its own session in a project.</summary>
+    public void Approved(string proposalId, string key, bool bySession = false)
     {
-        _book.Approve(proposalId, key);
+        if (bySession)
+        {
+            _book.Create(proposalId, key);
+        }
+        else
+        {
+            _book.Approve(proposalId, key);
+        }
+
         Update();
     }
 
