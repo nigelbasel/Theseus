@@ -128,6 +128,17 @@ public sealed class PieceNodeViewModel : ObservableObject, IFoldable
             ? Actions.FirstOrDefault(action => action.Label.StartsWith("⧉ Focus", StringComparison.Ordinal) && action.IsEnabled)
             : null;
 
+    /// <summary>"Reported again after you confirmed: read it", when its session reported after the confirmation; null otherwise.</summary>
+    public string? ReportedAgain => Piece.LaterReport is { } report
+        ? $"Reported again after you confirmed{(report.Verdict is { } verdict ? $" (verdict {verdict})" : string.Empty)}: read it"
+        : null;
+
+    /// <summary>Whether that line shows.</summary>
+    public bool HasReportedAgain => ReportedAgain is not null;
+
+    /// <summary>Opens the later report; null with none. Set by the view.</summary>
+    public System.Windows.Input.ICommand? OpenLaterReport { get; init; }
+
     /// <summary>Every box beneath it, at any depth.</summary>
     public IEnumerable<PieceNodeViewModel> Descendants => Children.SelectMany(child => child.Descendants.Prepend(child));
 

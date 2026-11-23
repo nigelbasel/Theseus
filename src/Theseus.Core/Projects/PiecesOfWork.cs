@@ -242,6 +242,9 @@ public static class PiecesOfWork
             : links.LastOrDefault(link => link.Kind == LinkKind.ReportsBack && Same(link.From, draft.CardKey) && Same(link.To, parent.CardKey));
         var reported = draft.IsCurrent && backLink is not null && !backLink.ReportIsRejected && (backLink.LatestReport is not null || backLink.SatisfiedUtc is not null);
         var confirmed = draft.IsCurrent && backLink?.SatisfiedUtc is not null;
+        var later = draft.IsCurrent && backLink is { SatisfiedUtc: { } satisfiedAt, LatestReport: { } latest } && latest.AtUtc > satisfiedAt
+            ? latest
+            : null;
         var nowAt = draft.IsCurrent && draft.Card is { IsWorking: true } ? said.NowAtOf(draft.CardKey) : null;
         var isObjectiveDone = draft.Objective?.IsDone == true;
         var stages = draft.Stages;
@@ -280,6 +283,7 @@ public static class PiecesOfWork
             HandedOnTo = [.. children.Select(child => child.Title)],
             HasReportedBack = reported,
             IsReportConfirmed = confirmed,
+            LaterReport = later,
             NowAt = nowAt,
             AwaitsSpecAcceptance = draft.AwaitsSpecAcceptance,
             Acceptance = draft.Acceptance,

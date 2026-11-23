@@ -125,6 +125,31 @@ public class WaitCountsHaveTheirListTests
     }
 
     [Test]
+    public void ALaterReportOnASatisfiedLink_ShowsOnItsBox_WithOpenReport_ButIsNotCounted()
+    {
+        // Nigel, 2026-11-23: "Show it on the box, not counted": it may be a correction he would otherwise never see.
+        var view = WithReport(satisfied: true);
+        var box = view.AllNodes.Single(node => node.Name == Preconditions);
+
+        box.OpenLaterReport!.Execute(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(box.ReportedAgain, Does.StartWith("Reported again after you confirmed"));
+            Assert.That(_views.Ran, Is.EqualTo(new[] { "Open:report.md" }));
+            Assert.That(view.Waits.Select(wait => wait.Item.Kind), Has.None.EqualTo(WaitKind.ConfirmReport));
+        });
+    }
+
+    [Test]
+    public void AConfirmedReportWithNothingLater_SaysNothingMore()
+    {
+        var box = _views.BuildYourMarket().AllNodes.Single(node => node.Name == Preconditions);
+
+        Assert.That(box.ReportedAgain, Is.Null);
+    }
+
+    [Test]
     public void TheFixture_AsItStands_HasEveryMarkWithItsList()
     {
         AssertEveryMarkHasItsList(_views.BuildYourMarket());

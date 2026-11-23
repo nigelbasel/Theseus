@@ -78,6 +78,12 @@ public sealed record PieceOfWork(
     /// <summary>Whether that report was confirmed by the owner on the board.</summary>
     public bool IsReportConfirmed { get; init; }
 
+    /// <summary>
+    /// A report its session filed after the owner confirmed an earlier one, or null: shown on its box with Open report,
+    /// and counted nowhere, since the link is already satisfied (Nigel, 2026-11-23: "Show it on the box, not counted").
+    /// </summary>
+    public Theseus.Core.Links.LinkReport? LaterReport { get; init; }
+
     /// <summary>What its card's session said it is doing, while it is working on this piece; null when it has not said.</summary>
     public SessionStageReport? NowAt { get; init; }
 
