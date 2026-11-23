@@ -192,6 +192,20 @@ public class ProjectViewLayoutTests
     }
 
     [Test]
+    public void AnOpenRunOfFinishedPieces_ShowsItsBoxes_NotAlsoTheLineOfTheirNames()
+    {
+        // Walkthrough row 38: open, the run showed its boxes and the paragraph of their names below them.
+        var view = _views.Theseus();
+        var run = view.Rounds.Single().Items.OfType<FinishedRunViewModel>().First();
+        run.ToggleCommand.Execute(null);
+        var control = LaidOut(view);
+        var titles = AllNamed<TextBlock>(control, "RunTitles").Where(text => text.DataContext == run).ToList();
+
+        Assert.That(titles, Is.Not.Empty);
+        Assert.That(titles.Select(text => text.IsVisible || (text.Visibility == Visibility.Visible && text.ActualHeight > 0)), Has.All.False);
+    }
+
+    [Test]
     public void ThePhaseStrip_IsOneLine_HoweverManyPhases()
     {
         // Walkthrough row 17: the strip wrapped onto a second line at Phase 6.

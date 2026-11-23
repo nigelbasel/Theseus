@@ -1023,6 +1023,18 @@ public sealed class ProjectViewModel : ObservableObject
             fold.IsOpen = open;
         }
 
+        // Each box's children and each run of finished boxes too: Collapse all left them as they were, so there was no
+        // way to close every branch at once (walkthrough row 39). The "*" entry below already covers them on the next build.
+        foreach (var branch in AllNodes.Select(node => node.Branch).OfType<ChildrenFold>())
+        {
+            branch.IsOpen = open;
+        }
+
+        foreach (var run in Rounds.SelectMany(round => round.Items.OfType<FinishedRunViewModel>()))
+        {
+            run.IsOpen = open;
+        }
+
         // A round keeps its own fold, so the next open matches what is on screen (review of PR 3, finding 6).
         RememberFolds([.. PieceFolds.All(open), .. _folds.Where(entry => entry.StartsWith("round:", StringComparison.Ordinal))]);
     }

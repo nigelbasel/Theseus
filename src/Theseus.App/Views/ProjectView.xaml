@@ -1154,10 +1154,10 @@
                 -->
                 <Button x:Name="CollapseAll" Content="&#xE73F;" Command="{Binding CollapseAllCommand}" Style="{StaticResource ToolbarIcon}"
                         Height="32" Margin="0,0,4,6"
-                        AutomationProperties.Name="Collapse all" ToolTip="Collapse all: fold every piece of work, and every heading" />
+                        AutomationProperties.Name="Collapse all" ToolTip="Collapse all: fold every piece of work, its children and every heading" />
                 <Button x:Name="ExpandAll" Content="&#xE740;" Command="{Binding ExpandAllCommand}" Style="{StaticResource ToolbarIcon}"
                         Height="32" Margin="0,0,4,6"
-                        AutomationProperties.Name="Expand all" ToolTip="Expand all: open every piece of work into its stages, and every heading" />
+                        AutomationProperties.Name="Expand all" ToolTip="Expand all: open every piece of work into its stages, with its children, and every heading" />
                 <Button x:Name="OpenWhatNeedsAttention" Content="&#xE7C1;" Command="{Binding OpenWhatNeedsAttentionCommand}"
                         Style="{StaticResource ToolbarIcon}" Height="32" Margin="0,0,12,6"
                         AutomationProperties.Name="Open what needs attention"
