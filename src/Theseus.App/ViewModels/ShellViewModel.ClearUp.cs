@@ -7,22 +7,22 @@ using Theseus.Core.Projects;
 namespace Theseus.App.ViewModels;
 
 /// <summary>
-/// Clear up verifiers… (git-22, 2026-11-23): one press stops, rejects and archives the verifier cards that should not be
-/// kept, which by hand was open, Stop, wait, ⋯ › Archive for every card; and Undo, while nothing else has been cleared up.
+/// Clear up verifiers… (git-22, 2026-11-23): one press stops, retires and archives the verifier cards that should not be
+/// kept, which by hand was open, Stop, wait, ⋯ › Archive for every card; and Undo. Its record is kept in Theseus's
+/// settings, so a stop that lands after a restart is still followed by its archive, and Undo is not lost.
 /// </summary>
 public sealed partial class ShellViewModel
 {
-    private VerifierClearUp? _clearUp;
-    private string? _clearUpProject;
-    private IReadOnlyList<string> _clearUpRejected = [];
+    private VerifierClearUp? ClearUp => _settings.Read().VerifierClearUp is { } record ? VerifierClearUp.From(record) : null;
 
-    /// <summary>The verifier cards of a project's builds that should not be kept.</summary>
+    /// <summary>The verifier cards of a project's builds that should not be kept, leaving out those a clear-up already takes away.</summary>
     private IReadOnlyList<WrongVerifier> WrongVerifiersOf(string project)
     {
         var links = Chains?.AllLinks ?? [];
+        var pending = ClearUp;
         var records = new List<VerifierRecord>();
 
-        foreach (var card in Board.Cards.Where(card => card.Workstream.Role == WorkstreamRole.Verifier))
+        foreach (var card in Board.Cards.Where(card => card.Workstream.Role == WorkstreamRole.Verifier && pending?.Covers(card.Key) != true))
         {
             if (links.Where(link => link.IsActive && link.Kind == LinkKind.ReportsBack
                                     && string.Equals(link.From, card.Key, StringComparison.OrdinalIgnoreCase))
@@ -37,7 +37,7 @@ public sealed partial class ShellViewModel
                 card.Workstream.IsArchived, report.CreatedUtc, report.Output, report.SatisfiedBy == LinkBook.ConfirmedReport));
         }
 
-        return WrongVerifiers.Among(records, key => Board.Card(key) is { } subject ? HoldoutOf(subject).Folder : null, HoldoutOwner);
+        return WrongVerifiers.Among(records, HoldoutOwner);
     }
 
     /// <summary>
@@ -68,25 +68,25 @@ public sealed partial class ShellViewModel
         && string.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(left)), Path.TrimEndingDirectorySeparator(Path.GetFullPath(right)),
             StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>How many cards the last clear-up of a project took away, while it can be undone.</summary>
+    /// <summary>How many cards a project's kept clear-up takes away, while it can be undone; none, no Undo line.</summary>
     private int ClearedVerifiersOf(string project) =>
-        _clearUp is not null && string.Equals(_clearUpProject, project, StringComparison.OrdinalIgnoreCase) ? _clearUp.Archived.Count : 0;
+        ClearUp is { } clearUp && string.Equals(clearUp.Project, project, StringComparison.OrdinalIgnoreCase) ? clearUp.Record.Cards.Count : 0;
 
-    /// <summary>Shows the exact list, then on the owner's yes rejects their reports, stops the running ones, and archives each.</summary>
+    /// <summary>Shows the exact list, then on the owner's yes retires their links, stops the running ones, and archives each.</summary>
     private void ClearUpVerifiers(string project)
     {
-        var wrong = WrongVerifiersOf(project);
+        var listed = WrongVerifiersOf(project);
 
-        if (wrong.Count == 0)
+        if (listed.Count == 0)
         {
             Notice = "No verifier card needs clearing up.";
 
             return;
         }
 
-        var question = $"Clear up {wrong.Count} verifier {(wrong.Count == 1 ? "card" : "cards")}? Each running one is stopped first; "
-                       + "then each is archived and its report rejected, so it never counts as met.\n"
-                       + string.Join("\n", wrong.Select(verifier =>
+        var question = $"Clear up {listed.Count} verifier {(listed.Count == 1 ? "card" : "cards")}? Each running one is stopped first; "
+                       + "then each is archived and every report it filed is rejected, a confirmed one too, so nothing it said counts as met.\n"
+                       + string.Join("\n", listed.Select(verifier =>
                            $"  • {verifier.Title} ({(verifier.IsRunning ? "running" : "not running")}): {verifier.Why}"))
                        + "\nThe newest correct verifier of each build is kept. You can undo this.";
 
@@ -95,45 +95,55 @@ public sealed partial class ShellViewModel
             return;
         }
 
-        var clearUp = VerifierClearUp.Plan(wrong, Chains?.AllLinks ?? []);
+        // Worked out again after the question, so a card that started while it was open is stopped too (review of item 5, S8);
+        // only the cards he saw are taken.
+        var seen = listed.Select(verifier => verifier.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var wrong = WrongVerifiersOf(project).Where(verifier => seen.Contains(verifier.Key)).ToList();
+        var earlier = ClearUp is { } kept && string.Equals(kept.Project, project, StringComparison.OrdinalIgnoreCase) ? kept.Record : null;
+        var clearUp = VerifierClearUp.Plan(project, wrong, Chains?.AllLinks ?? []);
         var why = wrong.ToDictionary(verifier => verifier.Key, verifier => verifier.Why, StringComparer.OrdinalIgnoreCase);
-        var rejected = new List<string>();
 
-        foreach (var link in (Chains?.AllLinks ?? []).Where(link => clearUp.ReportsToReject.Contains(link.Id)))
+        foreach (var link in clearUp.Before)
         {
-            if (Chains?.Reject(link.Id, $"Cleared up: {why.GetValueOrDefault(link.From, "a verifier that should not be kept")}") is null)
-            {
-                rejected.Add(link.Id);
-            }
+            Chains?.Retire(link.Id, $"Cleared up: {why.GetValueOrDefault(link.From, "a verifier that should not be kept")}");
         }
 
-        _clearUp = clearUp;
-        _clearUpProject = project;
-        _clearUpRejected = rejected;
+        // A second press of the same project's line adds to the first, so the first's Undo is kept (review of item 5, M3).
+        var record = earlier is null
+            ? clearUp.Record
+            : new VerifierClearUpRecord(project, [.. earlier.Cards, .. clearUp.Record.Cards], earlier.Archived, [.. earlier.Before, .. clearUp.Before]);
+        _settings.Write(_settings.Read() with { VerifierClearUp = record });
 
         var running = clearUp.ToStop.Select(Board.Card).OfType<WorkstreamCardViewModel>().ToList();
 
         if (running.Count > 0)
         {
-            BeginStop(StepsFor(running));
+            BeginStop(StepsFor(running), keepQueued: true);
         }
 
-        TheseusLog.Information("Clearing up {Count} verifier card(s) of {Project}: {Keys}; stopping {Running}; rejected {Rejected}",
-            wrong.Count, project, string.Join(", ", wrong.Select(verifier => verifier.Key)), string.Join(", ", clearUp.ToStop), rejected.Count);
+        TheseusLog.Information("Clearing up {Count} verifier card(s) of {Project}: {Keys}; stopping {Running}; retired {Links} link(s)",
+            wrong.Count, project, string.Join(", ", wrong.Select(verifier => verifier.Key)), string.Join(", ", clearUp.ToStop), clearUp.Before.Count);
 
         ArchiveClearedUp();
         Refresh();
     }
 
-    /// <summary>Archives each card of the clear-up whose session has gone; asked again on every refresh until all are.</summary>
+    /// <summary>Archives each card of the kept clear-up whose session has gone; asked again on every refresh until all are.</summary>
     private void ArchiveClearedUp()
     {
-        if (_clearUp is not { IsDone: false } clearUp)
+        if (ClearUp is not { IsDone: false } clearUp)
         {
             return;
         }
 
-        foreach (var key in clearUp.Due(key => Board.Card(key)?.IsLive ?? false))
+        var due = clearUp.Due(key => Board.Card(key)?.IsLive ?? false);
+
+        if (due.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var key in due)
         {
             if (Board.Card(key) is { IsArchived: false } card)
             {
@@ -142,16 +152,18 @@ public sealed partial class ShellViewModel
             }
         }
 
+        _settings.Write(_settings.Read() with { VerifierClearUp = clearUp.Record });
+
         if (clearUp.IsDone)
         {
             Notice = $"Cleared up {clearUp.Archived.Count} verifier {(clearUp.Archived.Count == 1 ? "card" : "cards")}.";
         }
     }
 
-    /// <summary>Undo: restores the cards the last clear-up archived and takes back the rejections it made.</summary>
+    /// <summary>Undo: restores the cards the clear-up archived and puts their report-back links back exactly as they were.</summary>
     private void UndoClearUp(string project)
     {
-        if (_clearUp is not { } clearUp || !string.Equals(_clearUpProject, project, StringComparison.OrdinalIgnoreCase))
+        if (ClearUp is not { } clearUp || !string.Equals(clearUp.Project, project, StringComparison.OrdinalIgnoreCase))
         {
             return;
         }
@@ -161,16 +173,14 @@ public sealed partial class ShellViewModel
             Board.SetArchived(card, false);
         }
 
-        foreach (var id in _clearUpRejected)
+        foreach (var link in clearUp.Before)
         {
-            Chains?.Unreject(id);
+            Chains?.Restore(link);
         }
 
-        TheseusLog.Information("Undid the clear-up of {Count} verifier card(s) of {Project}", clearUp.Archived.Count, project);
-        Notice = $"Restored {clearUp.Archived.Count} verifier {(clearUp.Archived.Count == 1 ? "card" : "cards")}; their reports wait for you again.";
-        _clearUp = null;
-        _clearUpProject = null;
-        _clearUpRejected = [];
+        _settings.Write(_settings.Read() with { VerifierClearUp = null });
+        TheseusLog.Information("Undid the clear-up of {Count} verifier card(s) of {Project}", clearUp.Record.Cards.Count, project);
+        Notice = $"Restored {clearUp.Archived.Count} verifier {(clearUp.Archived.Count == 1 ? "card" : "cards")}; their links are as they were.";
         Refresh();
     }
 }

@@ -86,6 +86,7 @@ public sealed class RelatedLinkViewModel : ObservableObject
         LinkState.ReportLost => "! report lost",
         LinkState.Satisfied => $"✓ {Link.SatisfiedBy}",
         LinkState.CardMissing => "card missing",
+        LinkState.Rejected => $"✗ report rejected: {Link.Rejection?.Reason}",
         _ => string.Empty,
     };
 
@@ -93,7 +94,7 @@ public sealed class RelatedLinkViewModel : ObservableObject
     public string? Document => Link.Output;
 
     /// <summary>Whether the document is still waiting, so it can be accepted by hand.</summary>
-    public bool CanSatisfy => State is LinkState.Waiting or LinkState.Reported or LinkState.NoReportYet or LinkState.ReportLost;
+    public bool CanSatisfy => State is LinkState.Waiting or LinkState.Reported or LinkState.NoReportYet or LinkState.ReportLost or LinkState.Rejected;
 
     /// <summary>Whether the writer has reported and the report waits for Confirm.</summary>
     public bool CanConfirm => State == LinkState.Reported;

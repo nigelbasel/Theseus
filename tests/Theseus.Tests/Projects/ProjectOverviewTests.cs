@@ -82,6 +82,16 @@ public class ProjectOverviewTests
     }
 
     [Test]
+    public void TheUndoLine_IsNotCountedAsAThingThatWaits()
+    {
+        var file = WriteBym(_folder).File!;
+        var without = ProjectOverview.For(file, BymPieces(_folder), BymLinks(), [], 5).Sentence;
+        var with = ProjectOverview.For(file, BymPieces(_folder), BymLinks(), [], 5, clearedVerifiers: 3).Sentence;
+
+        Assert.That(with, Is.EqualTo(without), "review of item 5, S7: the project read \"One thing waits for you\" until a restart");
+    }
+
+    [Test]
     public void ARejectedReport_NoLongerWaitsForYou()
     {
         var links = BymLinks().Select(link => link.Kind == LinkKind.ReportsBack && link.From == "w2"

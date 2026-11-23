@@ -102,15 +102,55 @@ public class LinkBookRejectTests
     }
 
     [Test]
-    public void Unreject_PutsTheReportBack()
+    public void ASecondRejection_DoesNotReplaceTheFirstReason()
     {
         var link = Reported();
-        _book.Reject(link.Id, "wrong scenarios");
+        _book.Reject(link.Id, "the owner's own reason");
 
-        Assert.That(_book.Unreject(link.Id).Refusal, Is.Null);
-        Assert.That(_book.Active.Single(each => each.Kind == LinkKind.ReportsBack).ReportIsRejected, Is.False);
-        Assert.That(_book.Confirm(link.Id).Refusal, Is.Null);
+        Assert.That(_book.Reject(link.Id, "Cleared up").Refusal, Does.Contain("rejected already"), "review of item 5, S4");
+        Assert.That(ReportsBack().Rejection!.Reason, Is.EqualTo("the owner's own reason"));
     }
+
+    [Test]
+    public void ARetiredLink_RejectsAReportFiledAfterwards()
+    {
+        _book.Add(LinkKind.HandsOver, "close-step", "verify-close-step");
+        var link = _book.Add(LinkKind.ReportsBack, "verify-close-step", "close-step", output: Output).Link!;
+        _book.Retire(link.Id, "Cleared up: a copy");
+        _clock.Advance(TimeSpan.FromMinutes(5));
+
+        _book.Report("verify-close-step", "session-2", [link.Id], Output, "filed while it wrapped up after the stop", "done");
+
+        Assert.That(ReportsBack().ReportIsRejected, Is.True, "review of item 5, M1: a stopped verifier's late report waited for confirmation");
+        Assert.That(_book.Confirm(link.Id).Refusal, Does.Contain("rejected"));
+    }
+
+    [Test]
+    public void RetiringAConfirmedLink_TakesTheConfirmationBack()
+    {
+        var link = Reported();
+        _book.Confirm(link.Id);
+
+        _book.Retire(link.Id, "Cleared up: it ran another project's scenarios");
+
+        Assert.That(ReportsBack().SatisfiedUtc, Is.Null, "review of item 5, M2: a wrong verifier's confirmed verdict still counted as met");
+        Assert.That(ReportsBack().ReportIsRejected, Is.True);
+    }
+
+    [Test]
+    public void Restore_PutsALinkBackExactlyAsItWas()
+    {
+        var link = Reported();
+        _book.Reject(link.Id, "the owner's own reason");
+        var before = ReportsBack();
+        _book.Retire(link.Id, "Cleared up");
+
+        Assert.That(_book.Restore(before).Refusal, Is.Null);
+        Assert.That(Open().Active.Single(each => each.Kind == LinkKind.ReportsBack), Is.EqualTo(before),
+            "review of item 5, S4: Undo erased the owner's own rejection");
+    }
+
+    private Link ReportsBack() => _book.Active.Single(each => each.Kind == LinkKind.ReportsBack);
 
     private Link Reported()
     {

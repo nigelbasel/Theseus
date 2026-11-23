@@ -66,15 +66,19 @@ public sealed class ProjectOverview
                 []));
         }
 
+        // The Undo line offers a way back, not a thing waiting: it is left out of the sentence's count (review of item 5, S7).
+        var sentence = SentenceOf(file, pieces, waits);
+
         if (clearedVerifiers > 0)
         {
             waits.Insert(0, new WaitItem(WaitKind.UndoClearVerifiers,
                 $"{Capital(Count(clearedVerifiers, "verifier card"))} {(clearedVerifiers == 1 ? "was" : "were")} cleared up: stopped, archived, their reports rejected.",
                 []));
         }
+
         var roundLines = file.Rounds.ToDictionary(round => round.Number, round => RoundLine(pieces.Where(piece => piece.Round == round.Number).ToList()));
 
-        return new ProjectOverview(SentenceOf(file, pieces, waits), roundLines, [.. file.Phases.Select(phase => Cell(phase, pieces))],
+        return new ProjectOverview(sentence, roundLines, [.. file.Phases.Select(phase => Cell(phase, pieces))],
             TalliesOf(file, pieces, accepted), waits);
     }
 

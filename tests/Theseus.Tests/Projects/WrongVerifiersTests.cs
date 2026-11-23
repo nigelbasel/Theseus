@@ -5,7 +5,7 @@ namespace Theseus.Tests.Projects;
 /// <summary>
 /// Which verifier cards Clear up verifiers… takes away (git-22, 2026-11-23: the -2 and -3 copies, and BYM's verifiers
 /// that ran Theseus's scenarios because one holdout folder covered every project): a duplicate for the same build, or one
-/// that ran another project's holdout. The newest correct verifier of each build stays.
+/// that ran a holdout another project owns. The newest correct verifier of each build stays.
 /// </summary>
 [TestFixture]
 public class WrongVerifiersTests
@@ -22,30 +22,37 @@ public class WrongVerifiersTests
             Verifier("verify-1-1e", "theseus-1-1e", TheseusHoldout, Nine),
             Verifier("verify-1-1e-2", "theseus-1-1e", TheseusHoldout, Nine.AddMinutes(1)),
             Verifier("verify-1-1e-3", "theseus-1-1e", TheseusHoldout, Nine.AddMinutes(2), running: true),
-        ], HoldoutOf);
+        ], OwnerOf);
 
         Assert.That(wrong.Select(each => each.Key), Is.EqualTo(new[] { "verify-1-1e", "verify-1-1e-2" }));
         Assert.That(wrong[0].Why, Is.EqualTo("a copy: Verify: verify-1-1e-3 checks the same build"));
     }
 
     [Test]
-    public void AVerifierThatRanAnotherProjectsHoldout_Goes_EvenWhenItIsTheOnlyOne()
+    public void AVerifierThatRanAHoldoutOwnedByAnotherProject_Goes_EvenWhenItIsTheOnlyOne()
     {
-        var wrong = WrongVerifiers.Among([Verifier("verify-w1", "bym-w1", TheseusHoldout, Nine, running: true)], HoldoutOf);
+        var wrong = WrongVerifiers.Among([Verifier("verify-w1", "bym-w1", TheseusHoldout, Nine, running: true)], OwnerOf);
 
         Assert.That(wrong.Single().Key, Is.EqualTo("verify-w1"));
         Assert.That(wrong.Single().IsRunning, Is.True);
-        Assert.That(wrong.Single().Why, Is.EqualTo($"it ran another project's scenarios, in {TheseusHoldout}"));
+        Assert.That(wrong.Single().Why, Is.EqualTo($"it ran another project's scenarios, in {TheseusHoldout}"),
+            "live read, 2026-11-23: with one folder set for every project, BYM's verifiers of Theseus's scenarios read as right");
     }
 
     [Test]
-    public void AVerifierThatRanAHoldoutOwnedByAnotherProject_Goes_EvenWhenOneFolderIsSetForEveryProject()
+    public void AConfirmedVerifierOfAnotherProjectsHoldout_StillGoes()
     {
-        var wrong = WrongVerifiers.Among([Verifier("verify-w1", "bym-w1", TheseusHoldout, Nine)], _ => TheseusHoldout,
-            folder => string.Equals(folder, TheseusHoldout, StringComparison.OrdinalIgnoreCase) ? "theseus" : null);
+        var wrong = WrongVerifiers.Among([Verifier("verify-w1", "bym-w1", TheseusHoldout, Nine, confirmed: true)], OwnerOf);
 
-        Assert.That(wrong.Single().Why, Is.EqualTo($"it ran another project's scenarios, in {TheseusHoldout}"),
-            "live read, 2026-11-23: with one folder set for every project, BYM's verifiers of Theseus's scenarios read as right");
+        Assert.That(wrong.Single().Key, Is.EqualTo("verify-w1"), "review of item 5, M2: its confirmation is taken back with it");
+    }
+
+    [Test]
+    public void AVerifierOfAProjectsOwnEarlierHoldout_IsNotAnotherProjects()
+    {
+        var wrong = WrongVerifiers.Among([Verifier("verify-old", "theseus-1-3", @"C:\old\Theseus-holdout", Nine, confirmed: true)], OwnerOf);
+
+        Assert.That(wrong, Is.Empty, "review of item 5, S6: a moved holdout made every earlier verifier read as another project's");
     }
 
     [Test]
@@ -55,7 +62,7 @@ public class WrongVerifiersTests
         [
             Verifier("verify-w1", "bym-w1", TheseusHoldout, Nine.AddMinutes(5)),
             Verifier("verify-w1-right", "bym-w1", BymHoldout, Nine),
-        ], HoldoutOf);
+        ], OwnerOf);
 
         Assert.That(wrong.Select(each => each.Key), Is.EqualTo(new[] { "verify-w1" }),
             "a wrong one is never the one kept, however new");
@@ -68,7 +75,7 @@ public class WrongVerifiersTests
         [
             Verifier("verify-old", "theseus-1-3", TheseusHoldout, Nine, confirmed: true),
             Verifier("verify-new", "theseus-1-3", TheseusHoldout, Nine.AddMinutes(1)),
-        ], HoldoutOf);
+        ], OwnerOf);
 
         Assert.That(wrong, Is.Empty, "its verdict is the record of that build's check");
     }
@@ -80,15 +87,15 @@ public class WrongVerifiersTests
         [
             Verifier("verify-a", "theseus-1-3", TheseusHoldout, Nine.AddMinutes(1), archived: true),
             Verifier("verify-b", "theseus-1-3", TheseusHoldout, Nine),
-        ], HoldoutOf);
+        ], OwnerOf);
 
         Assert.That(wrong, Is.Empty);
     }
 
     [Test]
-    public void ABuildWhoseHoldoutIsNotKnown_IsJudgedOnCopiesAlone()
+    public void AHoldoutNoProjectOwns_IsJudgedOnCopiesAlone()
     {
-        var wrong = WrongVerifiers.Among([Verifier("verify-x", "ad-hoc-card", TheseusHoldout, Nine)], HoldoutOf);
+        var wrong = WrongVerifiers.Among([Verifier("verify-x", "bym-w9", @"C:\shared\scenarios", Nine)], OwnerOf);
 
         Assert.That(wrong, Is.Empty);
     }
@@ -102,9 +109,9 @@ public class WrongVerifiersTests
         Assert.That(VerifierRecord.HoldoutOfReport(null), Is.Null);
     }
 
-    private static string? HoldoutOf(string subject) =>
-        subject.StartsWith("theseus", StringComparison.Ordinal) ? TheseusHoldout
-        : subject.StartsWith("bym", StringComparison.Ordinal) ? BymHoldout + @"\"
+    private static string? OwnerOf(string folder) =>
+        string.Equals(folder, TheseusHoldout, StringComparison.OrdinalIgnoreCase) ? "theseus"
+        : string.Equals(folder, BymHoldout, StringComparison.OrdinalIgnoreCase) ? "bym"
         : null;
 
     private static VerifierRecord Verifier(string key, string subject, string holdout, DateTimeOffset created,

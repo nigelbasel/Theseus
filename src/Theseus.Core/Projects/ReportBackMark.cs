@@ -18,6 +18,7 @@ public sealed record ReportBackMark(string ParentPiece, LinkState State)
     {
         LinkState.Reported or LinkState.Satisfied => $"↩ reported back to {ParentPiece}",
         LinkState.ReportLost => $"↩ report to {ParentPiece} lost",
+        LinkState.Rejected => $"↩ report to {ParentPiece} rejected",
         _ => $"↩ reports back to {ParentPiece}",
     };
 }

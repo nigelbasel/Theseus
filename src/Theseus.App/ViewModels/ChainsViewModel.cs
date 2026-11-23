@@ -569,8 +569,11 @@ public sealed class ChainsViewModel : ObservableObject
         return refusal;
     }
 
-    /// <summary>Takes back a rejection, for Undo of Clear up verifiers….</summary>
-    public string? Unreject(string id) => Changed(_book.Unreject(id));
+    /// <summary>Retires a verifier's link for Clear up verifiers…: no report on it, now or later, counts as met.</summary>
+    public string? Retire(string id, string reason) => Changed(_book.Retire(id, reason));
+
+    /// <summary>Puts a link back exactly as it was, for Undo of Clear up verifiers….</summary>
+    public string? Restore(Link before) => Changed(_book.Restore(before));
 
     private string? Confirm(string id)
     {
@@ -590,6 +593,7 @@ public sealed class ChainsViewModel : ObservableObject
         LinkState.Satisfied => "✓",
         LinkState.Reported => "?",
         LinkState.ReportLost => "!",
+        LinkState.Rejected => "✗",
         _ => "⧗",
     };
 

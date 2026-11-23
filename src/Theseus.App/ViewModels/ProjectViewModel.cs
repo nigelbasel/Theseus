@@ -1251,6 +1251,7 @@ public sealed class ProjectViewModel : ObservableObject
         LinkState.NoReportYet => ": ran since, no report yet",
         LinkState.ReportLost => ": report lost",
         LinkState.CardMissing => ": card missing",
+        LinkState.Rejected => ": report rejected",
         _ => ": not accepted yet",
     };
 

@@ -240,7 +240,7 @@ public static class PiecesOfWork
         var backLink = parent is null
             ? null
             : links.LastOrDefault(link => link.Kind == LinkKind.ReportsBack && Same(link.From, draft.CardKey) && Same(link.To, parent.CardKey));
-        var reported = draft.IsCurrent && backLink is not null && (backLink.LatestReport is not null || backLink.SatisfiedUtc is not null);
+        var reported = draft.IsCurrent && backLink is not null && !backLink.ReportIsRejected && (backLink.LatestReport is not null || backLink.SatisfiedUtc is not null);
         var confirmed = draft.IsCurrent && backLink?.SatisfiedUtc is not null;
         var nowAt = draft.IsCurrent && draft.Card is { IsWorking: true } ? said.NowAtOf(draft.CardKey) : null;
         var isObjectiveDone = draft.Objective?.IsDone == true;

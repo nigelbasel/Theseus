@@ -3073,9 +3073,13 @@ public sealed partial class ShellViewModel : ObservableObject
 
     private static readonly TimeSpan SlowStep = TimeSpan.FromSeconds(1);
 
-    private void BeginStop(IReadOnlyList<StopStep> steps)
+    private void BeginStop(IReadOnlyList<StopStep> steps, bool keepQueued = false)
     {
-        _stopQueue.Clear();
+        // A stop asked for alongside another action, as Clear up verifiers… asks, leaves that action's queued steps alone.
+        if (!keepQueued)
+        {
+            _stopQueue.Clear();
+        }
 
         if (steps.Count == 0)
         {

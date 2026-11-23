@@ -100,6 +100,7 @@ public static class LinkLine
             LinkState.Reported => $": reported{Verdict(link)}, not confirmed yet",
             LinkState.NoReportYet => ": ran since, no report yet",
             LinkState.ReportLost => ": report lost",
+            LinkState.Rejected => ": report rejected",
             _ => ": not accepted yet",
         };
 
