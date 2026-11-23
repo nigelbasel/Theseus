@@ -42,12 +42,13 @@ public class CheckRefusalMarkupTests
     }
 
     [Test]
-    public void ABoxsButton_DrawsItsNoteBesideIt()
+    public void ABoxsButton_HasItsNoteInPlainView_UnderTheRow()
     {
-        var template = Load("Views", "ProjectView.xaml").Descendants(Presentation + "DataTemplate")
-            .First(each => (string?)each.Attribute("DataType") == "{x:Type vm:PieceActionViewModel}");
+        // The actions are icons (walkthrough rows 24, 32), so a disabled one's reason is listed under the row, not beside it.
+        var notes = Load("Views", "ProjectView.xaml").Descendants(Presentation + "ItemsControl")
+            .First(each => (string?)each.Attribute(XName.Get("Name", "http://schemas.microsoft.com/winfx/2006/xaml")) == "ActionNotes");
 
-        Assert.That(template.Descendants(Presentation + "TextBlock").Any(text => (string?)text.Attribute("Text") == "{Binding Note}"),
+        Assert.That(notes.Descendants(Presentation + "Run").Any(run => (string?)run.Attribute("Text") == "{Binding Note, Mode=OneWay}"),
             Is.True);
     }
 

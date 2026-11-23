@@ -186,4 +186,22 @@ public class ClarityViewTests
 
         Assert.That((run.IsOpen, run.Text), Is.EqualTo((true, $"▼ {run.Boxes.Count} finished")));
     }
+
+    [Test]
+    public void CollapseAll_ClosesEveryBranchAndRun_AndExpandAllOpensThem()
+    {
+        // Walkthrough row 39: there was no way to close all children at once.
+        var view = Theseus();
+        var branches = view.AllNodes.Select(node => node.Branch).OfType<ChildrenFold>().ToList();
+        var runs = view.Rounds.SelectMany(round => round.Items.OfType<FinishedRunViewModel>()).ToList();
+
+        view.CollapseAllCommand.Execute(null);
+
+        Assert.That(branches.Select(branch => branch.IsOpen).Concat(runs.Select(run => run.IsOpen)), Has.All.False);
+        Assert.That(branches.Count + runs.Count, Is.GreaterThan(0));
+
+        view.ExpandAllCommand.Execute(null);
+
+        Assert.That(branches.Select(branch => branch.IsOpen).Concat(runs.Select(run => run.IsOpen)), Has.All.True);
+    }
 }

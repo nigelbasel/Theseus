@@ -188,19 +188,20 @@
         </Style>
 
         <!-- Group by's two toggle buttons, one pressed (AC 45): radio buttons drawn as toggle buttons. -->
-        <Style x:Key="GroupByButton" TargetType="RadioButton" BasedOn="{StaticResource {x:Type ToggleButton}}">
+        <!-- The project's two views as a selector bar's items (walkthrough row 44; checklist G125; baseline W15). -->
+        <Style x:Key="GroupByButton" TargetType="RadioButton" BasedOn="{StaticResource SelectorBarItem}">
             <Setter Property="GroupName" Value="GroupBy" />
-            <Setter Property="Padding" Value="9,3" />
-            <Setter Property="FontSize" Value="13" />
+            <Setter Property="controls:SelectorBar.SelectsOnFocus" Value="True" />
         </Style>
 
         <!-- A heading's chevron, as a box's (AC 46). -->
+        <!-- 20 high, in a 28-wide target: at 14 the arrow was "very small on the tree" (walkthrough row 21; checklist W22, G112). -->
         <Style x:Key="HeadingChevron" TargetType="Button">
-            <Setter Property="Padding" Value="2,0" />
-            <Setter Property="Margin" Value="0,0,8,0" />
-            <Setter Property="MinWidth" Value="0" />
-            <Setter Property="MinHeight" Value="0" />
-            <Setter Property="FontSize" Value="14" />
+            <Setter Property="Padding" Value="4,0" />
+            <Setter Property="Margin" Value="0,0,4,0" />
+            <Setter Property="MinWidth" Value="28" />
+            <Setter Property="MinHeight" Value="28" />
+            <Setter Property="FontSize" Value="20" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="VerticalAlignment" Value="Top" />
@@ -508,14 +509,29 @@
                                     </ContentControl.Style>
                                 </ContentControl>
 
-                                <!-- Open: every action (H39). -->
+                                <!-- Open: every action (H39), as icons like the board's toolbar, the words in each tooltip, one
+                                     height in the row (walkthrough rows 24, 32; checklist G38, G40, G86, G90, G92; baseline W24, W56). -->
                                 <ItemsControl x:Name="Actions" ItemsSource="{Binding Actions}" Margin="0,8,0,0" Focusable="False"
+                                              ItemTemplate="{DynamicResource BoxAction}"
                                               Visibility="{Binding IsOpen, Converter={StaticResource Visible}}">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
                                             <WrapPanel />
                                         </ItemsPanelTemplate>
                                     </ItemsControl.ItemsPanel>
+                                </ItemsControl>
+                                <!-- Why a disabled action cannot run, in plain view under the row (2026-11-23). -->
+                                <ItemsControl x:Name="ActionNotes" ItemsSource="{Binding Actions}" Focusable="False"
+                                              Visibility="{Binding IsOpen, Converter={StaticResource Visible}}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock FontSize="12.5" TextWrapping="Wrap" Margin="0,0,0,4"
+                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                       Visibility="{Binding Note, Converter={StaticResource NotEmpty}}">
+                                                <Run Text="{Binding Label, Mode=OneWay}" FontWeight="SemiBold" /><Run Text=": " /><Run Text="{Binding Note, Mode=OneWay}" />
+                                            </TextBlock>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
                                 </ItemsControl>
                             </StackPanel>
                         </Border>
@@ -627,6 +643,37 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </StackPanel>
+        </DataTemplate>
+
+        <!-- A box's action: an icon button when its action has a glyph, else the text button below; never a link among
+             buttons (walkthrough row 24). Every one is 32 high. -->
+        <DataTemplate x:Key="BoxAction" DataType="{x:Type vm:PieceActionViewModel}">
+            <Button x:Name="Action" Command="{Binding Command}" Height="32" MinWidth="32" Padding="8,0"
+                    Margin="0,0,4,4" ToolTip="{Binding IconToolTip}" ToolTipService.ShowOnDisabled="True"
+                    AutomationProperties.Name="{Binding SpokenLabel}" AutomationProperties.HelpText="{Binding ToolTip}">
+                <Button.Style>
+                    <Style TargetType="Button" BasedOn="{StaticResource ToolIcon}">
+                        <Setter Property="Content" Value="{Binding Glyph}" />
+                        <Setter Property="FontFamily" Value="{DynamicResource SymbolThemeFontFamily}" />
+                        <Setter Property="FontSize" Value="16" />
+                        <Style.Triggers>
+                            <!-- A label as a TextBlock: a title's underscore stays text, never an access key in a repeated template (W26). -->
+                            <DataTrigger Binding="{Binding Glyph}" Value="{x:Null}">
+                                <Setter Property="Content" Value="{Binding Label}" />
+                                <Setter Property="ContentTemplate">
+                                    <Setter.Value>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                        </DataTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter Property="FontFamily" Value="{DynamicResource ContentControlThemeFontFamily}" />
+                                <Setter Property="FontSize" Value="13" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
+            </Button>
         </DataTemplate>
 
         <!-- An action button: the shared command button, a way on drawn as a link (1.1e AC 6a, 6b), and a disabled
@@ -846,9 +893,11 @@
                                     <TextBlock x:Name="ObjectiveRollup" Text="{Binding RollupText}" ToolTip="{Binding Rollup.ToolTip}"
                                                FontSize="12.5" FontWeight="SemiBold" Margin="0,0,10,0" TextWrapping="Wrap" VerticalAlignment="Center"
                                                Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                    <TextBlock x:Name="ObjectiveCriteria" Text="{Binding CriteriaText}" ToolTip="{Binding CriteriaToolTip}"
-                                               FontFamily="{StaticResource Mono}" FontSize="12" Margin="0,0,10,4" VerticalAlignment="Center"
-                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                    <Button x:Name="ObjectiveCriteria" Content="{Binding CriteriaToggleText}" Command="{Binding ToggleCommand}"
+                                            Style="{StaticResource ChipButton}" FontSize="12" Margin="0,0,10,4" VerticalAlignment="Center"
+                                            ToolTip="{Binding ChevronToolTip}" AutomationProperties.HelpText="{Binding CriteriaToolTip}"
+                                            AutomationProperties.Name="{Binding CriteriaText}"
+                                            Visibility="{Binding CriteriaToggleText, Converter={StaticResource NotEmpty}}" />
                                     <ItemsControl x:Name="ObjectiveCounts" ItemsSource="{Binding Counts}" Focusable="False">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
@@ -1015,26 +1064,36 @@
                         <ItemsControl x:Name="WaitItems" ItemsSource="{Binding Waits}" ItemTemplate="{StaticResource WaitLine}" Focusable="False" />
                     </StackPanel>
                 </Border>
-                <!-- The phase strip (G34), then the value of the process as tallies (G35). -->
-                <ItemsControl x:Name="PhaseStrip" ItemsSource="{Binding PhaseStrip}" Margin="0,10,0,0" Focusable="False">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <WrapPanel />
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border x:Name="PhaseCell" BorderThickness="1" CornerRadius="5" Padding="8,4" Margin="0,0,6,6" MaxWidth="260"
-                                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" ToolTip="{Binding Phase.ExitGate}">
-                                <StackPanel>
-                                    <TextBlock Text="{Binding Title}" FontSize="12.5" FontWeight="SemiBold" TextWrapping="Wrap"
-                                               Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                    <TextBlock Text="{Binding Line}" FontSize="12" TextWrapping="Wrap" Style="{StaticResource StateForeground}" />
-                                </StackPanel>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                <!-- The phase strip (G34), one line however many phases: it scrolls across rather than wrapping onto a second
+                     (walkthrough row 17), each cell's words in full in its tooltip. Then the value of the process as tallies (G35). -->
+                <ScrollViewer x:Name="PhaseStripScroller" Margin="0,10,0,0" HorizontalScrollBarVisibility="Auto"
+                              VerticalScrollBarVisibility="Disabled" Focusable="True" FocusVisualStyle="{StaticResource FocusRing}"
+                              AutomationProperties.Name="Phases: the arrow keys scroll across">
+                    <ItemsControl x:Name="PhaseStrip" ItemsSource="{Binding PhaseStrip}" Focusable="False">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border x:Name="PhaseCell" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,4,4" Width="168"
+                                        BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
+                                    <Border.ToolTip>
+                                        <TextBlock MaxWidth="420" TextWrapping="Wrap">
+                                            <Run Text="{Binding Title, Mode=OneWay}" FontWeight="SemiBold" /><LineBreak /><Run Text="{Binding Line, Mode=OneWay}" /><LineBreak /><Run Text="{Binding Phase.ExitGate, Mode=OneWay}" />
+                                        </TextBlock>
+                                    </Border.ToolTip>
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Title}" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
+                                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                        <TextBlock Text="{Binding Line}" FontSize="12" TextTrimming="CharacterEllipsis" Style="{StaticResource StateForeground}" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
                 <ItemsControl x:Name="Tallies" ItemsSource="{Binding Tallies}" Margin="0,2,0,0" Focusable="False">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
@@ -1051,33 +1110,36 @@
             </StackPanel>
         </Border>
 
-        <!-- Group by, the toolbar, then the legend, all wrapping, so a narrow window cuts nothing off (AC 21, 22, 45, 54). -->
+        <!-- The two views of the project, as a selector bar over the page: one Tab stop, arrow keys select (G124, G125). No
+             access keys: WPF fires one on a bare letter when focus is on a button, which would switch the view (P2 review). -->
+        <Border DockPanel.Dock="Top" Padding="12,4,12,0" BorderThickness="0,0,0,1"
+                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
+            <StackPanel x:Name="GroupBy" Orientation="Horizontal" KeyboardNavigation.TabNavigation="Once"
+                        KeyboardNavigation.DirectionalNavigation="Cycle" AutomationProperties.Name="Views of the project">
+                <RadioButton x:Name="GroupByFlow" Content="Rounds and work" Style="{StaticResource GroupByButton}" Margin="0,0,4,0"
+                             IsChecked="{Binding IsGroupedByFlow, Mode=TwoWay}" AutomationProperties.Name="Rounds and work"
+                             ToolTip="Rounds and work: pieces of work as they hand work on, time running down the page" />
+                <RadioButton x:Name="GroupByObjectives" Content="Objectives only" Style="{StaticResource GroupByButton}"
+                             IsChecked="{Binding IsGroupedByObjectives, Mode=TwoWay}" AutomationProperties.Name="Objectives only"
+                             ToolTip="Objectives only: pieces of work under the phases and objectives of project.md" />
+            </StackPanel>
+        </Border>
+        <!-- The page's toolbar, then the legend, wrapping, so a narrow window cuts nothing off (AC 21, 22, 45, 54). -->
         <Border DockPanel.Dock="Top" Padding="14,8,14,2" BorderThickness="0,0,0,1"
                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
             <WrapPanel x:Name="Toolbar">
-                <StackPanel x:Name="GroupBy" Orientation="Horizontal" Margin="0,0,12,6" VerticalAlignment="Center">
-                    <TextBlock Text="Group by:" FontSize="13" Margin="0,0,6,0" VerticalAlignment="Center"
-                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                    <RadioButton x:Name="GroupByFlow" Content="Rounds and work" Style="{StaticResource GroupByButton}" Margin="0,0,2,0"
-                                 IsChecked="{Binding IsGroupedByFlow, Mode=TwoWay}"
-                                 ToolTip="Pieces of work as they hand work on, time running down the page" />
-                    <RadioButton x:Name="GroupByObjectives" Content="Objectives only" Style="{StaticResource GroupByButton}"
-                                 IsChecked="{Binding IsGroupedByObjectives, Mode=TwoWay}"
-                                 ToolTip="Pieces of work under the phases and objectives of project.md" />
-                </StackPanel>
                 <!--
-                    One size with Group by (Nigel, 2026-11-23: "large buttons much larger than everything else in that row"):
-                    small icons exactly as tall as the radio buttons, each named for UI Automation as its words were, and
-                    saying what it does on hover.
+                    One size in the row (Nigel, 2026-11-23: "large buttons much larger than everything else in that row"):
+                    small icons 32 high, each named for UI Automation as its words were, and saying what it does on hover.
                 -->
                 <Button x:Name="CollapseAll" Content="&#xE73F;" Command="{Binding CollapseAllCommand}" Style="{StaticResource ToolbarIcon}"
-                        Height="{Binding ActualHeight, ElementName=GroupByFlow}" Margin="0,0,4,6"
-                        AutomationProperties.Name="Collapse all" ToolTip="Collapse all: fold every piece of work, and every heading" />
+                        Height="32" Margin="0,0,4,6"
+                        AutomationProperties.Name="Collapse all" ToolTip="Collapse all: fold every piece of work, its children and every heading" />
                 <Button x:Name="ExpandAll" Content="&#xE740;" Command="{Binding ExpandAllCommand}" Style="{StaticResource ToolbarIcon}"
-                        Height="{Binding ActualHeight, ElementName=GroupByFlow}" Margin="0,0,4,6"
-                        AutomationProperties.Name="Expand all" ToolTip="Expand all: open every piece of work into its stages, and every heading" />
+                        Height="32" Margin="0,0,4,6"
+                        AutomationProperties.Name="Expand all" ToolTip="Expand all: open every piece of work into its stages, with its children, and every heading" />
                 <Button x:Name="OpenWhatNeedsAttention" Content="&#xE7C1;" Command="{Binding OpenWhatNeedsAttentionCommand}"
-                        Style="{StaticResource ToolbarIcon}" Height="{Binding ActualHeight, ElementName=GroupByFlow}" Margin="0,0,12,6"
+                        Style="{StaticResource ToolbarIcon}" Height="32" Margin="0,0,12,6"
                         AutomationProperties.Name="Open what needs attention"
                         ToolTip="Open what needs attention: what is busy, waiting on you, stuck or waiting for its holdout check, and the headings on the way to it; fold the rest" />
                 <WrapPanel x:Name="Legend" Margin="0,0,0,6" VerticalAlignment="Center">

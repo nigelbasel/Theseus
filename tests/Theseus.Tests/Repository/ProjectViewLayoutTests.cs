@@ -192,6 +192,74 @@ public class ProjectViewLayoutTests
     }
 
     [Test]
+    public void AnOpenRunOfFinishedPieces_ShowsItsBoxes_NotAlsoTheLineOfTheirNames()
+    {
+        // Walkthrough row 38: open, the run showed its boxes and the paragraph of their names below them.
+        var view = _views.Theseus();
+        var run = view.Rounds.Single().Items.OfType<FinishedRunViewModel>().First();
+        run.ToggleCommand.Execute(null);
+        var control = LaidOut(view);
+        var titles = AllNamed<TextBlock>(control, "RunTitles").Where(text => text.DataContext == run).ToList();
+
+        Assert.That(titles, Is.Not.Empty);
+        Assert.That(titles.Select(text => text.IsVisible || (text.Visibility == Visibility.Visible && text.ActualHeight > 0)), Has.All.False);
+    }
+
+    [Test]
+    public void TheSelectorBar_HasOnlyTheShownViewAsATabStop_AndTheArrowsSelect()
+    {
+        // Checklist G124: Tab lands on the selected tab and leaves the bar; the arrows select (P2 review, should-fix 2).
+        var view = _views.Theseus();
+        var control = LaidOut(view);
+        var flow = Named<RadioButton>(control, "GroupByFlow");
+        var objectives = Named<RadioButton>(control, "GroupByObjectives");
+        var shown = view.IsGroupedByFlow ? flow : objectives;
+        var other = view.IsGroupedByFlow ? objectives : flow;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That((shown.IsTabStop, other.IsTabStop), Is.EqualTo((true, false)));
+            Assert.That(Theseus.App.Controls.SelectorBar.GetSelectsOnFocus(other), Is.True);
+            Assert.That(shown.ActualHeight, Is.GreaterThanOrEqualTo(32), "a 32 hit area (baseline W38)");
+        });
+    }
+
+    [Test]
+    public void ThePhaseStrip_IsOneLine_HoweverManyPhases()
+    {
+        // Walkthrough row 17: the strip wrapped onto a second line at Phase 6.
+        var control = LaidOut(_views.BuildYourMarket());
+        var cells = AllNamed<Border>(control, "PhaseCell").ToList();
+
+        Assert.That(cells, Has.Count.GreaterThan(1));
+        Assert.That(cells.Select(cell => Math.Round(cell.TranslatePoint(new Point(0, 0), control).Y)).Distinct().Count(), Is.EqualTo(1));
+    }
+
+    [Test]
+    public void AnOpenBoxsActions_AreIcons_OneHeight_EachNamedAndExplainedInItsTooltip()
+    {
+        // Walkthrough rows 24 and 32: long words in a row of buttons cluttered the box; the board's icons were wanted, with
+        // the explanation in the tooltip (checklist G38, G40, G86, G92).
+        var view = _views.Theseus();
+        view.ExpandAllCommand.Execute(null);
+        var buttons = Descendants<Button>(Named<ItemsControl>(BoxOf(LaidOut(view), "projects-and-method-ui"), "Actions")).ToList();
+
+        Assert.Multiple(() =>
+        {
+            foreach (var button in buttons)
+            {
+                var action = (PieceActionViewModel)button.DataContext;
+
+                Assert.That(button.Content, Is.EqualTo(action.Glyph).And.Not.Null, action.Label);
+                Assert.That((string)button.ToolTip, Does.StartWith(ActionGlyph.Name(action.Label)), action.Label);
+                Assert.That(System.Windows.Automation.AutomationProperties.GetName(button), Is.EqualTo(ActionGlyph.Name(action.Label)), "read without the marks");
+            }
+
+            Assert.That(buttons.Select(button => button.ActualHeight).Distinct(), Is.EqualTo(new[] { 32.0 }), "one height in the row");
+        });
+    }
+
+    [Test]
     public void ParallelWork_SitsBetweenAForkBarAndAJoinBar_EachLabelled_AndASingleHandOverHasNoBars()
     {
         var control = LaidOut(_views.BuildYourMarket());
@@ -319,12 +387,11 @@ public class ProjectViewLayoutTests
     }
 
     [Test]
-    public void TheGroupByRow_IsOneSize_ItsThreeFoldButtonsSmallIcons_AsTallAsTheRadioButtons()
+    public void TheToolbar_IsOneSize_ItsThreeFoldButtonsSmallIcons32High()
     {
         // Nigel, 2026-11-23: Collapse all, Expand all and Open what needs attention were "large buttons much larger than
         // everything else in that row". Their names, keys and tooltips stay; only their size and face change.
         var control = LaidOut(_views.Theseus());
-        var radio = Named<RadioButton>(control, "GroupByFlow");
 
         foreach (var (name, spoken) in new[] { ("CollapseAll", "Collapse all"), ("ExpandAll", "Expand all"), ("OpenWhatNeedsAttention", "Open what needs attention") })
         {
@@ -332,7 +399,7 @@ public class ProjectViewLayoutTests
 
             Assert.Multiple(() =>
             {
-                Assert.That(button.ActualHeight, Is.EqualTo(radio.ActualHeight).Within(0.5), name);
+                Assert.That(button.ActualHeight, Is.EqualTo(32).Within(0.5), name);
                 Assert.That(button.ActualWidth, Is.LessThanOrEqualTo(button.ActualHeight + 20), $"{name} is a small icon, not a word");
                 Assert.That(AutomationProperties.GetName(button), Is.EqualTo(spoken), "UI Automation reads the same name as before");
                 Assert.That(button.ToolTip as string, Does.StartWith(spoken), "its hover says what it does");

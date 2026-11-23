@@ -89,7 +89,9 @@ public class ProjectViewGroupingLayoutTests
         Assert.That(AllNamed<TextBlock>(readApi, "CrossMark").Select(text => (text.Text, Shown(text, control))),
             Is.EqualTo(new[] { ($"← handed on from Specify the BuildYourMarket MCP server", true) }));
         Assert.That(Shown(AllNamed<TextBlock>(readApi, "ReportBack").Single(), control), Is.True);
-        Assert.That(AllNamed<TextBlock>(objectives, "ObjectiveCriteria").First().Text, Is.EqualTo("0 of 1 criteria met"));
+        var criteria = AllNamed<Button>(objectives, "ObjectiveCriteria").First();
+        Assert.That((criteria.Content as string)?[2..], Is.EqualTo("0 of 1 criteria met"));
+        Assert.That(criteria.Content as string, Does.StartWith("▸").Or.StartWith("▾"), "its chevron says the criteria are listed by opening it (walkthrough row 20)");
         Assert.That(AllNamed<ItemsControl>(objectives, "ObjectiveCounts").First().Items.Cast<StateCountViewModel>().Single().Text,
             Is.EqualTo("✓ 1 answered"), "W0 reported back and you confirmed it (1.1f E29)");
     }
@@ -184,12 +186,15 @@ public class ProjectViewGroupingLayoutTests
             (open ? view.ExpandAllCommand : view.CollapseAllCommand).Execute(null);
             var control = LaidOut(view, Narrow);
             var flow = (ScrollViewer)control.FindName("Flow");
+            // The phase strip scrolls across by design: one line however many phases (walkthrough row 17).
+            var strip = (ScrollViewer)control.FindName("PhaseStripScroller");
             var where = $"{view.Name}, {(byObjectives ? "objectives" : "flow")}, {(open ? "open" : "folded")}";
 
             Assert.That(flow.ExtentWidth, Is.LessThanOrEqualTo(flow.ViewportWidth + 0.5), $"{where}: no sideways scroll");
 
             foreach (var element in Descendants<FrameworkElement>(control)
-                         .Where(element => element is Button or TextBlock or Border { Name: "Box" } && Shown(element, control) && element.ActualWidth > 0))
+                         .Where(element => element is Button or TextBlock or Border { Name: "Box" } && Shown(element, control) && element.ActualWidth > 0
+                                           && !strip.IsAncestorOf(element)))
             {
                 var inFlow = flow.IsAncestorOf(element);
                 var right = element.TranslatePoint(new Point(element.ActualWidth, 0), inFlow ? flow : control).X;

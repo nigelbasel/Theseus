@@ -6,6 +6,9 @@
         DynamicResource, so light and dark both follow.
     -->
 
+    <!-- The Fluent theme's icon font key, defined here too so icons still draw with the theme off (baseline W24). -->
+    <FontFamily x:Key="SymbolThemeFontFamily">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
+
     <!-- The keyboard-focus ring every clickable control shows when reached with Tab. -->
     <Style x:Key="FocusRing">
         <Setter Property="Control.Template">
@@ -343,5 +346,43 @@
                 <Setter Property="TextElement.Foreground" Value="{DynamicResource TextFillColorDisabledBrush}" />
             </Trigger>
         </Style.Triggers>
+    </Style>
+
+    <!--
+        A selector bar item: a few views of the same thing are tabs over it, not toggle buttons or links (checklist G125;
+        baseline W15). Text, an accent underline under the one selected, a wash on hover. Give a group's items one GroupName,
+        and controls:SelectorBar.SelectsOnFocus so the arrow keys select (set where used: this file is loaded loose in tests).
+    -->
+    <Style x:Key="SelectorBarItem" TargetType="RadioButton">
+        <Setter Property="IsTabStop" Value="False" />
+        <Setter Property="Padding" Value="12,8" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+        <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Grid Background="Transparent">
+                        <Border x:Name="Wash" CornerRadius="4" Margin="0,0,0,4" Background="Transparent" />
+                        <ContentPresenter Margin="{TemplateBinding Padding}" RecognizesAccessKey="True"
+                                          TextElement.Foreground="{TemplateBinding Foreground}" />
+                        <Rectangle x:Name="Underline" Height="3" RadiusX="1.5" RadiusY="1.5" Margin="12,0" VerticalAlignment="Bottom"
+                                   Fill="{DynamicResource AccentFillColorDefaultBrush}" Visibility="Hidden" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Wash" Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter Property="IsTabStop" Value="True" />
+                            <Setter TargetName="Underline" Property="Visibility" Value="Visible" />
+                            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                            <Setter Property="FontWeight" Value="SemiBold" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 </ResourceDictionary>

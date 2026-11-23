@@ -52,6 +52,19 @@ public sealed class PieceActionViewModel
     /// </summary>
     public string? Note { get; init; }
 
+    /// <summary>Its name as UI Automation reads it: the label without the marks a text button carried.</summary>
+    public string SpokenLabel => ActionGlyph.Name(Label);
+
+    /// <summary>Its icon, when it has one (<see cref="ActionGlyph"/>): a box then draws it as an icon button.</summary>
+    public string? Glyph => ActionGlyph.Of(Label);
+
+    /// <summary>
+    /// An icon button's tooltip: its name, then what it does or why it cannot (checklist G40, G92). The words a text button
+    /// shows beside itself are here, since an icon shows none.
+    /// </summary>
+    public string IconToolTip => string.Join(Environment.NewLine,
+        new[] { ActionGlyph.Name(Label), Note ?? ToolTip }.Where(text => !string.IsNullOrWhiteSpace(text)).Distinct());
+
     /// <summary>Its text in a menu: the label, with the note after it when it has one, since a menu item shows no text beside it.</summary>
     public string MenuText => Note is null ? Label : $"{Label} — {Note}";
 }
