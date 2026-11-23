@@ -48,6 +48,9 @@
                 <DataTrigger Binding="{Binding State}" Value="{x:Static projects:StageNodeState.Done}">
                     <Setter Property="Foreground" Value="{DynamicResource StateDoneBrush}" />
                 </DataTrigger>
+                <DataTrigger Binding="{Binding State}" Value="{x:Static projects:StageNodeState.DoneNoRecord}">
+                    <Setter Property="Foreground" Value="{DynamicResource StateDoneBrush}" />
+                </DataTrigger>
                 <DataTrigger Binding="{Binding State}" Value="{x:Static projects:StageNodeState.WaitingOnYou}">
                     <Setter Property="Foreground" Value="{DynamicResource StateWaitingBrush}" />
                 </DataTrigger>
@@ -141,6 +144,12 @@
                     <Setter Property="Fill" Value="{DynamicResource StateDoneSoftBrush}" />
                     <Setter Property="Stroke" Value="{DynamicResource StateDoneBrush}" />
                     <Setter Property="StrokeDashArray" Value="{x:Null}" />
+                </DataTrigger>
+                <!-- Done with no record: the done colour, dashed and unfilled, so it never reads as "to do" (walkthrough row 29). -->
+                <DataTrigger Binding="{Binding State}" Value="{x:Static projects:StageNodeState.DoneNoRecord}">
+                    <Setter Property="Fill" Value="Transparent" />
+                    <Setter Property="Stroke" Value="{DynamicResource StateDoneBrush}" />
+                    <Setter Property="StrokeDashArray" Value="3 2" />
                 </DataTrigger>
                 <DataTrigger Binding="{Binding State}" Value="{x:Static projects:StageNodeState.WaitingOnYou}">
                     <Setter Property="Fill" Value="{DynamicResource StateWaitingSoftBrush}" />
@@ -882,7 +891,7 @@
             </StackPanel>
         </DataTemplate>
 
-        <!-- A phase heading (AC 46, 49): "Phase n: name", its exit gate and objectives done, then its objectives, folding. -->
+        <!-- A phase heading (AC 46, 49): "Phase n: name", its exit gate and objectives met, then its objectives, folding. -->
         <DataTemplate DataType="{x:Type vm:PhaseHeadingViewModel}">
             <StackPanel Margin="0,0,0,16">
                 <Grid>

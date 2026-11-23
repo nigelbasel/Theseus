@@ -3,7 +3,7 @@ using Theseus.Core.Projects;
 namespace Theseus.App.ViewModels;
 
 /// <summary>
-/// What the project view's buttons run (1.1d AC 27): the shell's existing Open spec, Accept spec, Verify with holdouts,
+/// What the project view's buttons run (1.1d AC 27): the shell's existing Open spec, Accept spec, Independent check,
 /// Focus, Start and Stop, each for one card by its key, and opening a records folder or file.
 /// </summary>
 /// <param name="OpenSpec">Opens a spec in its window.</param>
@@ -66,15 +66,6 @@ public sealed record ProjectViewActions(
     /// </summary>
     public Func<PieceOfWork, IReadOnlyList<PieceActionViewModel>>? CardActions { get; init; }
 
-    /// <summary>
-    /// Says in a dialog why a button cannot act after all, when that is found only at the press (Nigel, 2026-11-23); null
-    /// in tests, where the status bar is told instead.
-    /// </summary>
-    public Action<string>? Explain { get; init; }
-
-    /// <summary>Asks the owner a yes-or-no question first, as "Start the checks…" does; null in tests, where it is yes.</summary>
-    public Func<string, bool>? Ask { get; init; }
-
     /// <summary>Told each jump within the view (a link followed), with what is now selected, for Back and Forward (1.1f I46).</summary>
     public Action<string?>? Jumped { get; init; }
 
@@ -89,12 +80,6 @@ public sealed record ProjectViewActions(
 
     /// <summary>Asks the owner to allow or refuse a start request by its id (sessions-run-the-project 13); null in tests.</summary>
     public Action<string>? AnswerStartRequest { get; init; }
-
-    /// <summary>Shows a checklist confirmation, returning the keys ticked, or null when cancelled; null asks with Ask instead (tests).</summary>
-    public Func<ChecklistViewModel, IReadOnlyList<string>?>? AskChecklist { get; init; }
-
-    /// <summary>Verify with holdouts… for several builds at once, as Start the checks… asks; null runs it for each in turn.</summary>
-    public Action<IReadOnlyList<string>>? VerifyMany { get; init; }
 
     /// <summary>Starts a verifier card Theseus made, as Start again does; null starts it as a card's Start.</summary>
     public Action<string>? StartVerifier { get; init; }

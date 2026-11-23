@@ -45,18 +45,18 @@ public class ProjectOverviewTests
             "the round's checks, run by Theseus, and lines saying what is under way ask nothing of him");
     }
 
-    private static IReadOnlyList<WaitItem> Asking(ProjectOverview overview) =>
-        [.. overview.Waits.Where(wait => wait.Kind is not (WaitKind.StartChecks or WaitKind.Underway))];
+    private static IReadOnlyList<WaitItem> Asking(ProjectOverview overview) => overview.Asking;
 
     [Test]
-    public void ARoundsIndependentChecks_AreOneLine_NamingTheBusyOne()
+    public void NoLineAsksYouToStartTheChecks_TheseusStartsThemItself()
     {
-        var checks = Bym().Waits.Single(wait => wait.Kind == WaitKind.StartChecks);
+        // git-22, 2026-11-23: Theseus starts checks itself; Nigel only confirms or rejects their reports. The line that
+        // asked him to press Start the checks… made the sentence say "nothing waits" beside "Waits for you (1)" (walkthrough
+        // row 14).
+        var overview = Bym();
 
-        Assert.That(checks.Pieces, Has.Count.EqualTo(5));
-        Assert.That(checks.Text, Does.StartWith("Five builds from round 1 need their independent check, which Theseus runs: Start the checks… runs it now."));
-        Assert.That(checks.Text, Does.EndWith("One of them, MCP host and staff plugin, is still busy: Theseus checks it after it stops."));
-        Assert.That(checks.Button, Is.EqualTo("Start the checks…"));
+        Assert.That(overview.Waits.Select(wait => wait.Text), Has.None.Contains("Start the checks"));
+        Assert.That(overview.Waits.Select(wait => wait.Button), Has.None.EqualTo("Start the checks…"));
     }
 
     [Test]

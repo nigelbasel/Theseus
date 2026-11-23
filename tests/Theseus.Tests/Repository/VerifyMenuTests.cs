@@ -3,7 +3,7 @@ using System.Xml.Linq;
 
 namespace Theseus.Tests.Repository;
 
-/// <summary>Verify with holdouts… is in the card's menu and the Workstream menu (verifier-card AC 9; rubric R16).</summary>
+/// <summary>Independent check… is in the card's menu and the Workstream menu (verifier-card AC 9; rubric R16).</summary>
 [TestFixture]
 public class VerifyMenuTests
 {

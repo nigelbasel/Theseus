@@ -526,8 +526,8 @@ public sealed class ProjectViewModel : ObservableObject
                 .SelectMany(node => node.Children.Select(child => new ConnectorLink(node, child, ConnectorKind.HandsOver))),
             .. tree.ThenWorkedOn.Select(link => new ConnectorLink(byPiece[link.From], byPiece[link.To], ConnectorKind.ThenWorkedOn)),
         ];
-        view.Waits = [.. view.Overview.Waits.Select(item => item.Kind == WaitKind.StartChecks
-            ? view.ChecksWait(item)
+        view.Waits = [.. view.Overview.Waits.Select(item => item.Kind == WaitKind.CheckCannotRun
+            ? view.CannotRunLine(item)
             : new WaitItemViewModel(item, view.WaitCommand(item, reading.Name)))];
         view.Counts = [.. StateCountViewModel.For(view.Summary, zeros: true).Select(chip => chip with
         {
@@ -558,20 +558,6 @@ public sealed class ProjectViewModel : ObservableObject
         }
 
         return view;
-    }
-
-    /// <summary>
-    /// The specs of a project's pieces that wait at their gate, for a project card's waiting count (project-view AC 12)
-    /// without building the whole view.
-    /// </summary>
-    public static IReadOnlyList<SpecAtGate> SpecsWaiting(ProjectFileReading reading, IReadOnlyList<PieceOfWork> pieces)
-    {
-        ArgumentNullException.ThrowIfNull(reading);
-        ArgumentNullException.ThrowIfNull(pieces);
-
-        var specs = SpecsOf(reading, reading.Name, pieces);
-
-        return [.. pieces.Select(piece => specs.GetValueOrDefault(piece.Name)).OfType<SpecAtGate>()];
     }
 
     /// <summary>
@@ -993,118 +979,13 @@ public sealed class ProjectViewModel : ObservableObject
         Raise(nameof(IsFiltered));
     }
 
-    private const string EveryBuildBusy = "Every build waiting for its check is still busy: start the checks after they stop";
-
-    private List<PieceOfWork> PiecesOf(WaitItem item) =>
-        [.. item.Pieces.Select(name => AllNodes.First(each => each.Name == name).Piece)];
-
-    private string? WhyNoCheck(PieceOfWork piece) => _actions.WhyNot?.Invoke(piece.CardKey, StageAction.VerifyWithHoldouts);
-
-    // When no check can run, the line says why and offers the way on, not a button that refuses into the status line
-    // (Nigel, 2026-11-23); with no way on, the button is disabled with the reason as its tooltip.
-    private WaitItemViewModel ChecksWait(WaitItem item)
-    {
-        var builds = PiecesOf(item);
-        var count = builds.Count == 1 ? "1 build needs its" : $"{builds.Count} builds need their";
-        var from = Rounds.Count > 1 && builds.Count > 0 ? $" from round {builds[0].Round}" : string.Empty;
-        var reasons = builds.Select(WhyNoCheck).ToList();
-
-        if (builds.Count > 0 && reasons.All(reason => reason is not null))
-        {
-            var why = string.Join("; ", reasons.Distinct(StringComparer.Ordinal));
-            var text = $"{count} independent check{from}, but it cannot run: {why}.";
-            var wayOn = builds.Select(piece => _actions.WayOn?.Invoke(piece.CardKey, StageAction.VerifyWithHoldouts))
-                .FirstOrDefault(way => way is not null);
-
-            return wayOn is not null
-                ? new WaitItemViewModel(item, wayOn.Command, text, wayOn.Label, wayOn.ToolTip)
-                : new WaitItemViewModel(item, new RelayCommand(_ => { }, _ => false), text, toolTip: why);
-        }
-
-        if (builds.All(piece => piece.Card is { IsWorking: true }))
-        {
-            return new WaitItemViewModel(item, new RelayCommand(_ => { }, _ => false),
-                $"{count} independent check{from}, but every one is still busy: Theseus checks them after they stop.",
-                toolTip: EveryBuildBusy);
-        }
-
-        return new WaitItemViewModel(item, new RelayCommand(_ => StartChecks(item)),
-            toolTip: "Create a verifier card for each build: it runs the holdout scenarios and reports only a verdict");
-    }
-
-    // A refusal found only at the press is said in a dialog: the status line alone read as "nothing happens" (Nigel, 2026-11-23).
-    private void Explain(string text) => (_actions.Explain ?? _actions.Notice)?.Invoke(text);
-
-    // "Start the checks…" names the builds it will check, leaves out one still busy or one that cannot be checked, says
-    // which and why, and asks first (G36).
-    private void StartChecks(WaitItem item)
-    {
-        var idle = PiecesOf(item).Where(piece => piece.Card is not { IsWorking: true }).ToList();
-
-        if (idle.Count == 0)
-        {
-            Explain($"{EveryBuildBusy}.");
-
-            return;
-        }
-
-        var refused = idle.Select(piece => (Piece: piece, Why: WhyNoCheck(piece))).Where(entry => entry.Why is not null).ToList();
-        var builds = idle.Where(piece => refused.All(entry => entry.Piece != piece)).ToList();
-
-        if (builds.Count == 0)
-        {
-            Explain($"No build can be checked: {string.Join("; ", refused.Select(entry => entry.Why).Distinct(StringComparer.Ordinal))}.");
-
-            return;
-        }
-
-        var all = builds.Select(piece => piece.CardKey).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-        List<string> keys;
-
-        // A checklist, one row per build, each ticked to begin with, not a message box titled for a spec (Nigel, 2026-11-23).
-        if (_actions.AskChecklist is { } ask)
-        {
-            var list = Checklists.StartChecks(
-                [.. builds.DistinctBy(piece => piece.CardKey, StringComparer.OrdinalIgnoreCase).Select(piece => (piece.CardKey, piece.Title))],
-                [.. refused.Select(entry => (entry.Piece.Title, entry.Why!))]);
-
-            if (ask(new ChecklistViewModel(list)) is not { Count: > 0 } ticked)
-            {
-                return;
-            }
-
-            keys = [.. all.Where(key => ticked.Contains(key, StringComparer.OrdinalIgnoreCase))];
-        }
-        else
-        {
-            var question = $"Start the independent check of {builds.Count} {(builds.Count == 1 ? "build" : "builds")}? Each gets a verifier card:\n"
-                           + string.Join("\n", builds.Select(piece => $"  • {piece.Title}"))
-                           + (refused.Count == 0
-                               ? string.Empty
-                               : "\nNot checked:\n" + string.Join("\n", refused.Select(entry => $"  • {entry.Piece.Title}: {entry.Why}")));
-
-            if (_actions.Ask?.Invoke(question) == false)
-            {
-                return;
-            }
-
-            keys = all;
-        }
-
-        if (_actions.VerifyMany is { } many)
-        {
-            many(keys);
-
-            return;
-        }
-
-        foreach (var key in keys)
-        {
-            _actions.VerifyWithHoldouts(key);
-        }
-    }
-
     // Each kind of wait runs what its piece's own button runs, so the two never disagree (G37).
+    // A check that cannot run offers its way on as its button, or none when there is nothing the owner can press.
+    private WaitItemViewModel CannotRunLine(WaitItem item) =>
+        item.CardKey is { } card && _actions.WayOn?.Invoke(card, StageAction.VerifyWithHoldouts) is { } wayOn
+            ? new WaitItemViewModel(item, wayOn.Command, button: wayOn.Label, toolTip: wayOn.ToolTip)
+            : new WaitItemViewModel(item, null);
+
     private System.Windows.Input.ICommand? WaitCommand(WaitItem item, string project)
     {
         var node = item.Pieces.Count == 0 ? null : AllNodes.FirstOrDefault(each => each.Name == item.Pieces[0]);
@@ -1115,7 +996,6 @@ public sealed class ProjectViewModel : ObservableObject
             WaitKind.AcceptSpec when node?.PrimaryAction is { } action => action.Command,
             WaitKind.Answer when item.CardKey is { } card => new RelayCommand(_ => _actions.Focus(card)),
             WaitKind.Unblock when item.CardKey is { } card && node?.PrimaryAction is { } action => action.Command,
-            WaitKind.StartChecks => new RelayCommand(_ => StartChecks(item)),
             WaitKind.StartVerifier when item.CardKey is { } verifier => new RelayCommand(_ => StartVerifier(verifier)),
             WaitKind.ClearVerifiers when _actions.ClearVerifiers is { } clear => new RelayCommand(_ => clear(project)),
             WaitKind.AddToObjective when item.CardKey is { } card && _actions.AddToProject is { } add => new RelayCommand(_ => add(project, card)),

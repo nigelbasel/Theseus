@@ -47,7 +47,7 @@ workstream that works it, its kind (feature, bug or freeform), its objective, an
 - **Folded** (▸, the first time you open a project), a box shows a strip of its stages, each with the first three
   letters of its name. Hover over one for its state.
 - **Open** (▾), a box shows its stages as a chain, then what you can do: **Open spec** and **Accept spec…** while a
-  spec waits on you, **Verify with holdouts…**, **⧉ Focus** the workstream's terminal, **▶ Start** or **■ Stop**, and
+  spec waits on you, **Independent check…**, **⧉ Focus** the workstream's terminal, **▶ Start** or **■ Stop**, and
   **Open records**. Start, Stop, Focus and Verify act on the workstream's current piece of work only.
 
 Right-click a stage, or press Shift+F10 or the Menu key on it, for **Properties** and that stage's own actions.

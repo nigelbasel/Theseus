@@ -4,7 +4,7 @@ using Theseus.Core.Domain;
 namespace Theseus.Core.Links;
 
 /// <summary>
-/// The card Verify with holdouts… creates for a card whose change is ready to verify: it runs in the checked card's
+/// The card Independent check… creates for a card whose change is ready to verify: it runs in the checked card's
 /// folder, reaches the holdout clone and the checked card's other repos as extra directories, and reports to a dated
 /// file in the holdout's results folder, where the scenarios' details stay private (verifier-card AC 10 and 11;
 /// decisions D3 and D4, Nigel 2026-11-19; directories swapped in fix pass 2).
@@ -32,7 +32,7 @@ public sealed record VerifierCard(
     /// <summary>The folder in the holdout clone that a verifier may write to.</summary>
     public const string ResultsFolder = "results";
 
-    /// <summary>The card Verify with holdouts… placed, made this verifier: its role, and its handoff in the results.</summary>
+    /// <summary>The card Independent check… placed, made this verifier: its role, and its handoff in the results.</summary>
     /// <param name="created">The card as placed on the board.</param>
     public Workstream Apply(Workstream created)
     {

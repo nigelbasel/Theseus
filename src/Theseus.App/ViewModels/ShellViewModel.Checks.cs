@@ -102,7 +102,7 @@ public sealed partial class ShellViewModel
                                             && piece.PendingVerifiers.Count == 0 && !IsChecked(piece.CardKey)
                                             && Board.Card(piece.CardKey) is { } card && !_holdouts.IsNamed(card.Workstream))
             .Select(piece => piece.CardKey).ToList();
-        var writerTry = $"writer:{reading.Name}:{string.Join(",", unnamed.Order(StringComparer.OrdinalIgnoreCase))}";
+        var writerTry = WriterTry(reading.Name, unnamed);
         var writeBeside = plan.MakeWriter && !_checksTried.Contains(writerTry) ? unnamed.FirstOrDefault() : null;
         var startWriter = plan.StartWriter is { } idle && !_checksTried.Contains(writerTry) ? idle : null;
 
@@ -152,6 +152,54 @@ public sealed partial class ShellViewModel
             }
         });
     }
+
+    private static string WriterTry(string project, IEnumerable<string> unnamed) =>
+        $"writer:{project}:{string.Join(",", unnamed.Order(StringComparer.OrdinalIgnoreCase))}";
+
+    /// <summary>
+    /// The waiting builds whose check Theseus will not start, one line for each reason: no holdout folder, no scenario
+    /// naming them once the writer has had its go, and the like. Without them a build stuck there said nothing at all
+    /// (review of P1, blocker 1). A build still being worked on, held by the owner, or about to be helped by a scenario
+    /// writer Theseus is making or starting, is left out.
+    /// </summary>
+    private List<WaitItem> ChecksThatCannotRun(ProjectFileReading reading, IReadOnlyList<PieceOfWork> pieces, CheckPlan plan)
+    {
+        var stuck = pieces
+            .Where(piece => piece is { IsCurrentPiece: true, Card: not null, CheckReported: null }
+                            && piece.Status.State == StageNodeState.HoldoutsNotRun && piece.PendingVerifiers.Count == 0
+                            && !IsChecked(piece.CardKey))
+            .Select(piece => (Piece: piece, Card: Board.Card(piece.CardKey)))
+            .Where(pair => pair.Card is { IsLive: false } card && !IsHeld(card))
+            .Select(pair => (pair.Piece, Card: pair.Card!, Why: WhyCannotVerify(pair.Card!)))
+            .Where(each => each.Why is not null)
+            .ToList();
+
+        if (stuck.Count == 0 || WritersOf(reading.Name).Any(card => card.IsLive || _launcher.InFlight.IsInFlight(card.Key)))
+        {
+            return [];
+        }
+
+        var unnamed = stuck.Where(each => !_holdouts.IsNamed(each.Card.Workstream)).Select(each => each.Card.Key);
+
+        if ((plan.MakeWriter || plan.StartWriter is not null) && !_checksTried.Contains(WriterTry(reading.Name, unnamed)))
+        {
+            return [];
+        }
+
+        return
+        [
+            .. stuck.GroupBy(each => each.Why!, StringComparer.Ordinal).Select(group => new WaitItem(WaitKind.CheckCannotRun,
+                group.Count() == 1
+                    ? $"{group.First().Piece.Title}: its independent check cannot run. {Sentence(group.Key)}"
+                    : $"{group.Count()} builds cannot have their independent check, {string.Join(", ", group.Select(each => each.Piece.Title))}. {Sentence(group.Key)}",
+                [.. group.Select(each => each.Piece.Name)])
+            {
+                CardKey = group.First().Card.Key,
+            }),
+        ];
+    }
+
+    private static string Sentence(string text) => text.EndsWith('.') ? text : text + ".";
 
     // A build's check is tried once for the session that built it: reworked in a new session, it is checked again.
     private static string Tried(WorkstreamCardViewModel build) => $"verify:{build.Key}:{build.Workstream.LastSessionId}";

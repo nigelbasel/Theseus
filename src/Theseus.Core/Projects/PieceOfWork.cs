@@ -75,6 +75,12 @@ public sealed record PieceOfWork(
     /// </summary>
     public IReadOnlyList<PieceCard> PendingVerifiers { get; init; } = [];
 
+    /// <summary>
+    /// The verifier whose report on it waits for the owner to confirm or reject, or null. Once it reports it no longer
+    /// stands, and the box read "has not run yet" with Theseus to act (review of P1, blocker 2).
+    /// </summary>
+    public PieceCard? CheckReported { get; init; }
+
     /// <summary>Whether that report was confirmed by the owner on the board.</summary>
     public bool IsReportConfirmed { get; init; }
 

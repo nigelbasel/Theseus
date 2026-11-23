@@ -2335,7 +2335,7 @@
                     <TextBlock FontSize="11" Margin="12,0,0,0" VerticalAlignment="Center"
                                Foreground="{DynamicResource TextFillColorTertiaryBrush}">
                         <Run Text="{Binding Board.Status, Mode=OneWay}" />
-                        <Run Text="{Binding Board.ShowsNote, Mode=OneWay, StringFormat='  ·  {0}', TargetNullValue=''}" />
+                        <Run Text="{Binding Board.ShowsNoteInStatus, Mode=OneWay}" />
                         <Run Text="  ·  " />
                         <Run Text="{Binding SelectionSummary, Mode=OneWay}" />
                     </TextBlock>

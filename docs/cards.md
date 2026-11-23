@@ -52,7 +52,7 @@ sits in the column of its most urgent running card (Needs you, then Working, the
 and in Done when all its work is done; with rows by folder or chain, in the row of its first card. With neither axis
 placed by hand nothing can be dragged, and the status bar says to choose **View > Columns by > Stage** or **View > Rows
 by > Area**. Commands for one workstream,
-such as **Properties** and **Verify with holdouts…**, are off while only projects are selected and say why; any command
+such as **Properties** and **Independent check…**, are off while only projects are selected and say why; any command
 on a selection that holds a project and cards acts on the cards, and the status bar says the project was skipped.
 
 ▷ and □ on a project card, **Start** and **Stop** on its menu, and **Start selected** and **Stop selected** with the

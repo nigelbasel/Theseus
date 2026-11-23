@@ -36,6 +36,12 @@ public sealed class ProjectOverview
     /// <summary>The value of the process, as tallies (G35).</summary>
     public IReadOnlyList<string> Tallies { get; }
 
+    /// <summary>
+    /// What asks something of the owner: Waits for you without the lines saying what is under way. The summary sentence and
+    /// the project card's badge both count this, so they never disagree (walkthrough rows 6, 14).
+    /// </summary>
+    public IReadOnlyList<WaitItem> Asking => [.. Waits.Where(wait => wait.Kind != WaitKind.Underway)];
+
     /// <summary>Everything that waits for the owner, grouped as G36 groups it (G36, G37a).</summary>
     public IReadOnlyList<WaitItem> Waits { get; }
 
@@ -54,10 +60,11 @@ public sealed class ProjectOverview
     /// <param name="wrongVerifiers">The project's verifier cards that should not be kept; any makes one line to clear them up.</param>
     /// <param name="clearUpNotice">The line its last clear-up leaves while it can be undone, or null: a notice, not a wait.</param>
     /// <param name="underway">What Theseus is doing itself for its checks, said with nothing to press (git-22, 2026-11-23).</param>
+    /// <param name="otherWaits">Lines the shell works out that the file and pieces cannot say, such as a check Theseus cannot start and why.</param>
     public static ProjectOverview For(ProjectFile file, IReadOnlyList<PieceOfWork> pieces, IEnumerable<Link> links,
         IEnumerable<WorkstreamProposal> proposals, int accepted, IEnumerable<StartRequest>? startRequests = null,
         Func<string, string>? titleOf = null, IReadOnlyList<WrongVerifier>? wrongVerifiers = null, string? clearUpNotice = null,
-        IReadOnlyList<string>? underway = null, IEnumerable<PieceCard>? others = null)
+        IReadOnlyList<string>? underway = null, IEnumerable<PieceCard>? others = null, IReadOnlyList<WaitItem>? otherWaits = null)
     {
         ArgumentNullException.ThrowIfNull(file);
         ArgumentNullException.ThrowIfNull(pieces);
@@ -65,6 +72,7 @@ public sealed class ProjectOverview
         ArgumentNullException.ThrowIfNull(proposals);
 
         var waits = WaitsOf(file, pieces, [.. links], proposals, startRequests ?? [], titleOf, others ?? []);
+        waits.AddRange(otherWaits ?? []);
 
         if (wrongVerifiers is { Count: > 0 } wrong)
         {
@@ -74,8 +82,8 @@ public sealed class ProjectOverview
         }
 
         // The Undo line offers a way back, not a thing waiting, and what is under way asks nothing: both are left out of the
-        // sentence's count (review of item 5, S7).
-        var sentence = SentenceOf(file, pieces, [.. waits.Where(wait => wait.Kind != WaitKind.StartChecks)]);
+        // sentence's count (review of item 5, S7), being added after it.
+        var sentence = SentenceOf(file, pieces, waits);
 
         waits.InsertRange(0, (underway ?? []).Select(line => new WaitItem(WaitKind.Underway, line, [])));
 
@@ -149,24 +157,8 @@ public sealed class ProjectOverview
             }
         }
 
-        // One line for a round's independent checks, with the list in the dialog (G36). A build whose verifier card stands
-        // is left out, so a second press makes no duplicate (Nigel, 2026-11-23).
-        foreach (var round in pieces.Where(piece => piece.Status is { State: StageNodeState.HoldoutsNotRun, ActsOnCard: null }).GroupBy(piece => piece.Round))
-        {
-            var builds = round.Where(piece => piece.PendingVerifiers.Count == 0).ToList();
-
-            if (builds.Count == 0)
-            {
-                continue;
-            }
-
-            var busy = builds.FirstOrDefault(piece => piece.Card is { IsWorking: true } && piece.IsCurrentPiece);
-            var from = file.Rounds.Count > 1 ? $" from round {round.Key}" : string.Empty;
-            var text = $"{Capital(Count(builds.Count, "build"))}{from} {(builds.Count == 1 ? "needs" : "need")} "
-                       + "their independent check, which Theseus runs: Start the checks… runs it now."
-                       + (busy is null ? string.Empty : $" One of them, {busy.Title}, is still busy: Theseus checks it after it stops.");
-            waits.Add(new WaitItem(WaitKind.StartChecks, text, [.. builds.Select(piece => piece.Name)]));
-        }
+        // No line asks the owner to start a round's independent checks: Theseus starts each itself once a scenario names
+        // the build, and only a start that failed waits for him, as a verifier's Start again above (git-22, 2026-11-23).
 
         foreach (var objective in file.Objectives)
         {
@@ -189,6 +181,16 @@ public sealed class ProjectOverview
             waits.Add(new WaitItem(WaitKind.ConfirmReport,
                 $"{from?.Title ?? link.From} reported back: read it and confirm it on the board, which lets its objective's criteria be ticked.",
                 from is null ? [] : [from.Name]) { CardKey = link.From });
+        }
+
+        // A verifier is never a piece, so its report is found from the build it checks.
+        foreach (var piece in pieces.Where(piece => piece.CheckReported is not null))
+        {
+            waits.Add(new WaitItem(WaitKind.ConfirmReport,
+                $"{piece.CheckReported!.Title} reported on {piece.Title}: read it and confirm or reject it on the board.", [piece.Name])
+            {
+                CardKey = piece.CheckReported.Key,
+            });
         }
 
         foreach (var proposal in proposals.Where(proposal => proposal.IsPending && cards.Contains(proposal.RequesterKey)))

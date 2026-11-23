@@ -140,7 +140,7 @@ public sealed class PieceTree
                 parent = handing;
             }
 
-            marks.TryAdd(link.From, new ReportBackMark(pieces[parent].Name, state));
+            marks.TryAdd(link.From, new ReportBackMark(pieces[parent].Title, state));
         }
 
         return marks;

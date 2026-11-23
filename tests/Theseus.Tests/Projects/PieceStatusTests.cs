@@ -30,7 +30,7 @@ public class PieceStatusTests
         Assert.That(StatusOf(TheseusPieces(_folder), piece).Text, Is.EqualTo(text));
     }
 
-    [TestCase("bym-mcp-identity", "Built, not yet checked by an independent test.")]
+    [TestCase("bym-mcp-identity", "Built; its independent check has not run yet.")]
     [TestCase(RedirectAnchoring, "Not started; it is not listed in project.md.")]
     [TestCase("bym-mcp-preconditions", "Reported back; you confirmed it.")]
     [TestCase(ServerSpec, "Done: handed on to 7 pieces of work.")]
@@ -229,8 +229,8 @@ public class PieceStatusTests
     {
         var status = StatusOf(BuildYourMarketPieces(_folder), "bym-mcp-identity");
 
-        Assert.That(status.WhoActs, Is.EqualTo("Theseus checks it: it makes its verifier once a scenario names it."));
-        Assert.That(status.Action, Is.EqualTo(PieceAction.StartCheck), "Start the checks… stays, to run it now");
+        Assert.That(status.WhoActs, Is.EqualTo("Theseus checks it once a scenario names it; if it cannot, Waits for you says why."));
+        Assert.That(status.Action, Is.EqualTo(PieceAction.None), "Theseus starts the check; a folded box offers nothing to press (git-22, 2026-11-23)");
         Assert.That(status.WaitsForYou, Is.False, "git-22, 2026-11-23: nothing Theseus makes waits on the owner's press");
         Assert.That(status.Meaning, Does.Contain("hidden from the builder (holdout scenarios)"));
     }

@@ -18,9 +18,6 @@ public enum PieceAction
     /// <summary>Answer the question its session asked, in its terminal.</summary>
     Answer,
 
-    /// <summary>Start the independent check: a verifier card under it.</summary>
-    StartCheck,
-
     /// <summary>Open the evidence that failed.</summary>
     OpenEvidence,
 

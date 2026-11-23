@@ -42,7 +42,7 @@ public class ButtonReasonTests
                 ? new PieceActionViewModel("Write scenarios…", () => ran++) { IsLink = true }
                 : null,
         });
-        var verify = actions.Single(action => action.Label == "Verify with holdouts…");
+        var verify = actions.Single(action => action.Label == "Independent check…");
         var wayOn = actions[actions.ToList().IndexOf(verify) + 1];
 
         Assert.That((verify.IsEnabled, verify.ToolTip, verify.Command.CanExecute(null)), Is.EqualTo((false, (string?)Reason, false)));
@@ -58,7 +58,7 @@ public class ButtonReasonTests
     {
         var actions = ActionsOf(_views.Actions with { WhyNot = (_, _) => null, WayOn = (_, _) => null });
 
-        Assert.That(actions.Single(action => action.Label == "Verify with holdouts…").IsEnabled, Is.True);
+        Assert.That(actions.Single(action => action.Label == "Independent check…").IsEnabled, Is.True);
         Assert.That(actions.Any(action => action.IsLink), Is.False);
     }
 

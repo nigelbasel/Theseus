@@ -28,13 +28,13 @@ public sealed record WaitItem(WaitKind Kind, string Text, IReadOnlyList<string> 
         WaitKind.ConfirmAcceptance => "Confirm…",
         WaitKind.Answer => "Answer it",
         WaitKind.Unblock => "Focus",
-        WaitKind.StartChecks => "Start the checks…",
         WaitKind.StartVerifier => "Start again",
         WaitKind.AddToObjective => "Add to project…",
         WaitKind.ConfirmReport => "Confirm the report…",
         WaitKind.Proposal => "Review the proposal…",
         WaitKind.StartRequest => "Allow or refuse…",
         WaitKind.ClearVerifiers => "Clear up verifiers…",
+        WaitKind.CheckCannotRun => "Independent check…",
         _ => null,
     };
 }

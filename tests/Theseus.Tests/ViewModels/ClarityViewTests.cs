@@ -82,7 +82,7 @@ public class ClarityViewTests
             "1.7 GUI parity, table-backed reads", "1.8 GUI parity, search-backed reads",
             "1.9 Search, table and blob read access (option A, D12)", "1.10 Specify the GUI-parity tools",
         }));
-        Assert.That(chips[3].CriteriaText, Is.EqualTo("1 of 2"));
+        Assert.That(chips[3].CriteriaText, Is.EqualTo("1 of 2 criteria met"));
         Assert.That(chips[3].FilledWidth, Is.EqualTo(30));
     }
 
@@ -166,7 +166,7 @@ public class ClarityViewTests
         Assert.That(Box(view, "bym-mcp-gui-search-reads").PrimaryAction?.Label, Does.StartWith("⧉ Focus"), "its session asks: answer it there");
         Assert.That(Box(view, Spec2).Status.State, Is.Not.EqualTo(StageNodeState.Stuck), "a spec kept outside its records is not Stuck");
         Assert.That(Box(view, Spec2).Gate!.ToolTip, Does.StartWith("Not passed here: no spec.md in its records"));
-        Assert.That(Box(view, "bym-mcp-identity").PrimaryAction?.Label, Does.StartWith("Verify"));
+        Assert.That(Box(view, "bym-mcp-identity").PrimaryAction, Is.Null, "Theseus starts its check: nothing for him to press (git-22, 2026-11-23)");
         Assert.That(Box(view, "bym-mcp-preconditions").HasPrimaryAction, Is.False, "answered: nothing for you");
     }
 

@@ -5,7 +5,7 @@ namespace Theseus.Core.Projects;
 /// <summary>
 /// The independent check run without the owner's press (git-22, 2026-11-23: nothing Theseus makes waits on him): a verifier
 /// for each waiting build a scenario names, once its own session has stopped; one scenario writer for the builds none
-/// names, while none stands; and words for what is under way. Start the checks… stays, as a run again by hand.
+/// names, while none stands; and words for what is under way. A build none of these reaches is said in Waits for you, with the way on.
 /// </summary>
 public static class CheckSteps
 {

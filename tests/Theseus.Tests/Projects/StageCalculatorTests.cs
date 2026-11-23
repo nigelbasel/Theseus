@@ -36,6 +36,38 @@ public class StageCalculatorTests
         Assert.That(Feature(Artefacts(file)).Reached, Is.EqualTo(new[] { stage }));
     }
 
+    [TestCase("review-pr1.md", PipelineStage.Review)]
+    [TestCase("plan-2.md", PipelineStage.Plan)]
+    [TestCase("lessons-pr2.md", PipelineStage.Compound)]
+    public void AStage_IsReached_ByANumberedOrSuffixedRecordOfItsName(string file, PipelineStage stage)
+    {
+        // Walkthrough row 28: two reviews kept as review-pr1.md and review-pr2.md showed Review as "not started".
+        Assert.That(Feature(Artefacts(file)).Reached, Is.EqualTo(new[] { stage }));
+    }
+
+    [TestCase("plan-old.md")]
+    [TestCase("research-notes.md")]
+    [TestCase("spec-2.md")]
+    [TestCase("spec-notes.md")]
+    [TestCase("evidence-draft.md")]
+    [TestCase("evidence-2.md")]
+    public void AWordSuffix_OrANumberedSpecOrEvidence_IsNotARecord(string file)
+    {
+        // Review of P1, should-fix 3: spec-notes.md put up an Accept spec gate for a spec.md that was not there.
+        Assert.That(Feature(Artefacts(file)).Reached, Is.Empty);
+    }
+
+    [Test]
+    public void TheRecordOpened_IsTheExactName_ElseTheFirstOfItsNumberedOnes_ElseNone()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(StageCalculator.RecordFileIn(PipelineKind.Feature, PipelineStage.Review, new HashSet<string> { "review.md", "review-pr1.md" }), Is.EqualTo("review.md"));
+            Assert.That(StageCalculator.RecordFileIn(PipelineKind.Feature, PipelineStage.Review, new HashSet<string> { "review-pr2.md", "review-pr10.md", "review-pr1.md" }), Is.EqualTo("review-pr10.md"), "the latest, by number");
+            Assert.That(StageCalculator.RecordFileIn(PipelineKind.Feature, PipelineStage.Review, new HashSet<string> { "reviewer-notes.md" }), Is.Null, "a different word is not a review");
+        });
+    }
+
     [Test]
     public void ABugsStages_SitUnderTheFeatureColumns_FromReproductionAndFixSections()
     {

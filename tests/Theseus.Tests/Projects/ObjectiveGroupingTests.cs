@@ -79,11 +79,11 @@ public class ObjectiveGroupingTests
 
         foreach (var child in new[] { "bym-mcp-preconditions", "bym-mcp-config", "bym-mcp-read-api", "bym-mcp-host", "bym-mcp-infra", ClientFixes })
         {
-            Assert.That(MarksOf(child), Is.EqualTo(new[] { $"← handed on from {ServerSpec}" }), child);
+            Assert.That(MarksOf(child), Is.EqualTo(new[] { $"← handed on from Specify the BuildYourMarket MCP server" }), child);
         }
 
-        Assert.That(MarksOf("bym-mcp-identity"), Is.EqualTo(new[] { $"← handed on from {ServerSpec}", $"→ handed on to {RedirectAnchoring}" }));
-        Assert.That(MarksOf(RedirectAnchoring), Is.EqualTo(new[] { "← handed on from bym-mcp-identity" }));
+        Assert.That(MarksOf("bym-mcp-identity"), Is.EqualTo(new[] { $"← handed on from Specify the BuildYourMarket MCP server", $"→ handed on to {RedirectAnchoring}" }));
+        Assert.That(MarksOf(RedirectAnchoring), Is.EqualTo(new[] { "← handed on from Identity and Config" }));
     }
 
     [Test]

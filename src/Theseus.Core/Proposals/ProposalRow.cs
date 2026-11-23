@@ -89,6 +89,16 @@ public static class ProposalRow
         return new ProjectWorkstreamRow(verifierKey, name, NoBranch, ReadOnlyRepos, 0);
     }
 
+    /// <summary>Whether a row is one <see cref="ForVerifier"/> wrote: its slug verify-…, branch none and repos read-only.</summary>
+    public static bool IsVerifierRow(ProjectWorkstreamRow row)
+    {
+        ArgumentNullException.ThrowIfNull(row);
+
+        return row.Slug.StartsWith("verify-", StringComparison.OrdinalIgnoreCase)
+               && string.Equals(row.Branch, NoBranch, StringComparison.OrdinalIgnoreCase)
+               && string.Equals(row.Repos, ReadOnlyRepos, StringComparison.OrdinalIgnoreCase);
+    }
+
     // By its number ("1.2"), or by its title.
     private static ProjectObjective? ObjectiveOf(ProjectFile file, string named)
     {

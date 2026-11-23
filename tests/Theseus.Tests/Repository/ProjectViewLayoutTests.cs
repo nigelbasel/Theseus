@@ -186,7 +186,7 @@ public class ProjectViewLayoutTests
         Assert.That(arrows.Select(arrow => arrow.Text), Is.EqualTo(Enumerable.Repeat("▶", 6)));
         Assert.That(Descendants<Button>(Named<ItemsControl>(box, "Actions")).Select(button => ((PieceActionViewModel)button.DataContext).Label), Is.EqualTo(new[]
         {
-            "Open spec", "Accept spec…", "Verify with holdouts…", "⧉ Focus git-22", "■ Stop", "Open records",
+            "Open spec", "Accept spec…", "Independent check…", "⧉ Focus git-22", "■ Stop", "Open records",
         }));
         Assert.That(Named<ItemsControl>(box, "Strip").Visibility, Is.EqualTo(Visibility.Collapsed));
     }

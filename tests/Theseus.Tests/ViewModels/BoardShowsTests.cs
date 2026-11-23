@@ -106,4 +106,17 @@ public class BoardShowsTests
 
         Assert.That(fixture.Board.ShowsNote, Is.Empty, "the archive holds workstreams only, so Projects would show nothing at all");
     }
+
+    [Test]
+    public void TheStatusBar_AddsNoSeparator_WhileAllShow()
+    {
+        // Walkthrough row 0: "93 workstreams · · none selected".
+        var (fixture, _) = Board();
+
+        Assert.That(fixture.Board.ShowsNoteInStatus, Is.Empty);
+
+        fixture.Board.ShowsProjects = true;
+
+        Assert.That(fixture.Board.ShowsNoteInStatus, Is.EqualTo("  ·  showing projects only"));
+    }
 }

@@ -4,7 +4,7 @@ using Theseus.Core.Projects;
 namespace Theseus.App.ViewModels;
 
 /// <summary>
-/// The project view's buttons wired to the shell's own commands (1.1d AC 27): Verify with holdouts runs the card's
+/// The project view's buttons wired to the shell's own commands (1.1d AC 27): Independent check runs the card's
 /// <see cref="WorkstreamCardViewModel.VerifyWithHoldoutsCommand"/>; Focus, Start and Stop run the shell's card commands
 /// with the card, exactly as the card's own buttons do, and only when those commands can run.
 /// </summary>
@@ -78,6 +78,6 @@ public static class ProjectViewCommands
             whyNot is null ? null : (key, action) => cardOf(key) is { } card ? whyNot(card, action) : $"{key} is not on the board",
             wayOn is null ? null : (key, action) => cardOf(key) is { } card ? wayOn(card, action) : null);
 
-        return actions with { Explain = explain };
+        return actions;
     }
 }

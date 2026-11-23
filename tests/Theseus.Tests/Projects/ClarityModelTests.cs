@@ -153,7 +153,7 @@ public class ClarityModelTests
     {
         var w1 = BymTree(_folder).All.Single(node => node.Piece.Name == "bym-mcp-identity");
 
-        Assert.That(w1.ReportBack!.ParentPiece, Is.EqualTo(Spec1));
+        Assert.That(w1.ReportBack!.ParentPiece, Is.EqualTo("Specify the BuildYourMarket MCP server"), "its title, not its folder (walkthrough row 30)");
     }
 
     [Test]

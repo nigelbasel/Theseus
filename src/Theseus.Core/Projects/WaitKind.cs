@@ -15,9 +15,6 @@ public enum WaitKind
     /// <summary>Look at a card marked blocked.</summary>
     Unblock,
 
-    /// <summary>Start the independent checks of a round's builds.</summary>
-    StartChecks,
-
     /// <summary>Add a linked card to an objective in project.md.</summary>
     AddToObjective,
 
@@ -35,6 +32,12 @@ public enum WaitKind
 
     /// <summary>Clear up verifier cards that should not be kept: copies of a build's check, or checks of another project's holdout.</summary>
     ClearVerifiers,
+
+    /// <summary>
+    /// Builds whose independent check Theseus cannot start, with why; the view offers the way on, such as Set the holdout
+    /// folder… or Write scenarios… (review of P1, blocker 1).
+    /// </summary>
+    CheckCannotRun,
 
     /// <summary>What Theseus is doing itself, such as writing scenarios or checking builds: said, with nothing to press.</summary>
     Underway,

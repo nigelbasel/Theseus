@@ -58,10 +58,10 @@ public sealed class PhaseHeadingViewModel : ObservableObject, IFoldable
     /// <summary>Whether it has an exit gate line.</summary>
     public bool HasExitGate => ExitGate.Length > 0;
 
-    /// <summary>"1 of 2 objectives done", or "no objectives yet".</summary>
+    /// <summary>"1 of 2 objectives met", or "no objectives yet" (walkthrough row 19: "met", as the objectives say).</summary>
     public string DoneText => Group.Objectives.Count == 0
         ? "no objectives yet"
-        : $"{Group.ObjectivesDone} of {Group.Objectives.Count} objectives done";
+        : $"{Group.ObjectivesDone} of {Group.Objectives.Count} objectives met";
 
     /// <summary>Whether every objective of it is done.</summary>
     public bool IsDone => Group.IsDone;

@@ -4,7 +4,7 @@ using System.Xml.Linq;
 namespace Theseus.Tests.Repository;
 
 /// <summary>
-/// Where Start the checks… and Verify with holdouts are drawn, a refusal is in plain view (Nigel, 2026-11-23): the
+/// Where Start the checks… and Independent check are drawn, a refusal is in plain view (Nigel, 2026-11-23): the
 /// menus' own text names the reason, a box's disabled button has its reason beside it, and the Waits button keeps its
 /// tooltip while disabled.
 /// </summary>

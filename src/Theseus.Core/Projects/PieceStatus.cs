@@ -162,15 +162,27 @@ public sealed record PieceStatus(StageNodeState State, string Text)
             };
         }
 
+        if (stages.Any(stage => stage.State == StageNodeState.HoldoutsNotRun) && piece.CheckReported is { } reporter)
+        {
+            // The one thing a check asks of the owner (git-22, 2026-11-23); Waits for you carries its Confirm the report… line.
+            return new PieceStatus(StageNodeState.HoldoutsNotRun, $"Built; {reporter.Title} has reported.")
+            {
+                WhoActs = "You: read the report and confirm or reject it on the board.",
+                WaitsForYou = true,
+                Action = PieceAction.None,
+            };
+        }
+
         if (stages.Any(stage => stage.State == StageNodeState.HoldoutsNotRun))
         {
-            // Theseus runs the check itself (git-22, 2026-11-23), so it waits for nobody; Start the checks… runs it now.
-            return new PieceStatus(StageNodeState.HoldoutsNotRun, "Built, not yet checked by an independent test.")
+            // Theseus runs the check itself (git-22, 2026-11-23), so it waits for nobody.
+            return new PieceStatus(StageNodeState.HoldoutsNotRun, "Built; its independent check has not run yet.")
             {
                 WhoActs = isWorking
                     ? "Theseus checks it once its session stops."
-                    : "Theseus checks it: it makes its verifier once a scenario names it.",
-                Action = PieceAction.StartCheck,
+                    : "Theseus checks it once a scenario names it; if it cannot, Waits for you says why.",
+                // Theseus starts the check, so a folded box offers no button for it (git-22, 2026-11-23).
+                Action = PieceAction.None,
             };
         }
 
