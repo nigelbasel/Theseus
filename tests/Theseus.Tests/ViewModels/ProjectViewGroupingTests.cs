@@ -136,7 +136,7 @@ public class ProjectViewGroupingTests
 
         Assert.That(view.Phases.Select(phase => (phase.Title, phase.DoneText)), Is.EqualTo(new[]
         {
-            ("Phase 0: Seed the method", "0 of 3 objectives done"), ("Phase 1: Evidence", "0 of 2 objectives done"),
+            ("Phase 0: Seed the method", "0 of 3 objectives met"), ("Phase 1: Evidence", "0 of 2 objectives met"),
         }));
         Assert.That(view.AllObjectives.Select(objective => objective.Title), Is.EqualTo(new[]
         {
@@ -156,7 +156,7 @@ public class ProjectViewGroupingTests
 
         Assert.That(view.Phases.Select(phase => (phase.Title, phase.DoneText, phase.IsOpen)), Is.EqualTo(new[]
         {
-            ("Phase 0: Specify", "1 of 1 objectives done", false), ("Phase 1: Build read-only, internal", "0 of 6 objectives done", true),
+            ("Phase 0: Specify", "1 of 1 objectives met", false), ("Phase 1: Build read-only, internal", "0 of 6 objectives met", true),
             ("Phase 2: Customer release", "no objectives yet", true),
         }));
         Assert.That(Phase(view, 0).ExitGate, Is.EqualTo("Exit gate: Nigel approves the spec."));
@@ -332,7 +332,7 @@ public class ProjectViewGroupingTests
         phase.SelectCommand.Execute(null);
 
         Assert.That(_views.Edited, Is.EqualTo(new[] { "Add:1" }));
-        Assert.That((view.Properties.Heading, view.Properties.StatusText), Is.EqualTo(("Phase 1: Evidence", "0 of 2 objectives done")));
+        Assert.That((view.Properties.Heading, view.Properties.StatusText), Is.EqualTo(("Phase 1: Evidence", "0 of 2 objectives met")));
         Assert.That(view.Properties.Rows.Select(row => (row.Label, row.Value)), Is.EqualTo(new[]
         {
             ("Exit gate", "none written"), ("Objectives", "1.0 A verifier card; 1.1 Checks shown on cards"),

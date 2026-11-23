@@ -891,7 +891,7 @@
             </StackPanel>
         </DataTemplate>
 
-        <!-- A phase heading (AC 46, 49): "Phase n: name", its exit gate and objectives done, then its objectives, folding. -->
+        <!-- A phase heading (AC 46, 49): "Phase n: name", its exit gate and objectives met, then its objectives, folding. -->
         <DataTemplate DataType="{x:Type vm:PhaseHeadingViewModel}">
             <StackPanel Margin="0,0,0,16">
                 <Grid>

@@ -2415,7 +2415,7 @@ public sealed partial class ShellViewModel : ObservableObject
             projectCard.AddObjectiveCommand ??= new RelayCommand(_ =>
                 AddObjective(name, Readable(name)?.File?.CurrentPhase?.Number ?? Readable(name)?.File?.Phases.LastOrDefault()?.Number ?? 0));
             projectCard.PhaseText = file.CurrentPhase is { } phase ? $"Phase {phase.Number}: {phase.Name}" : "Every objective done";
-            projectCard.ObjectivesText = $"{file.ObjectivesDone} of {file.Objectives.Count} objectives done";
+            projectCard.ObjectivesText = $"{file.ObjectivesDone} of {file.Objectives.Count} objectives met";
             WireProjectCard(projectCard, reading, colours);
             var lead = ProjectLead.KeyOf(file, _settings.Read().ProjectLeads);
             var leadCard = lead is null ? null : Board.Card(lead);

@@ -82,7 +82,7 @@ public class ClarityViewTests
             "1.7 GUI parity, table-backed reads", "1.8 GUI parity, search-backed reads",
             "1.9 Search, table and blob read access (option A, D12)", "1.10 Specify the GUI-parity tools",
         }));
-        Assert.That(chips[3].CriteriaText, Is.EqualTo("1 of 2"));
+        Assert.That(chips[3].CriteriaText, Is.EqualTo("1 of 2 criteria met"));
         Assert.That(chips[3].FilledWidth, Is.EqualTo(30));
     }
 

@@ -1313,6 +1313,7 @@ public sealed class BoardViewModel : ObservableObject
                 Raise(nameof(ShowsWorkstreams));
                 Place();
                 Raise(nameof(ShowsNote));
+                Raise(nameof(ShowsNoteInStatus));
             }
         }
     }
@@ -1324,6 +1325,9 @@ public sealed class BoardViewModel : ObservableObject
         BoardShows.Workstreams when !ShowArchived => "showing workstreams only",
         _ => string.Empty,
     };
+
+    /// <summary>The note as the status bar shows it, after a separator; empty, with no separator, while all show (walkthrough row 0).</summary>
+    public string ShowsNoteInStatus => ShowsNote.Length == 0 ? string.Empty : $"  ·  {ShowsNote}";
 
     /// <summary>Show all, as a radio button binds it.</summary>
     public bool ShowsAll

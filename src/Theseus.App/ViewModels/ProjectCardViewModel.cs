@@ -219,7 +219,7 @@ public sealed class ProjectCardViewModel : ObservableObject, IBoardCard
         set => Set(ref _phaseText, value);
     }
 
-    /// <summary>"n of m objectives done" (departure 3), or what to do with a dimmed card.</summary>
+    /// <summary>"n of m objectives met" (departure 3), or what to do with a dimmed card.</summary>
     public string ObjectivesText
     {
         get => _objectivesText;

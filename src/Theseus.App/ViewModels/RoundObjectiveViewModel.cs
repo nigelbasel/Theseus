@@ -31,7 +31,7 @@ public sealed class RoundObjectiveViewModel : ObservableObject
     public string Text => $"{Objective.Number} {Objective.Title}";
 
     /// <summary>"1 of 5".</summary>
-    public string CriteriaText => $"{Objective.TickedCount} of {Objective.Criteria.Count}";
+    public string CriteriaText => $"{Objective.TickedCount} of {Objective.Criteria.Count} criteria met";
 
     /// <summary>The bar's filled part, 0 to 1.</summary>
     public double Fraction => Objective.Criteria.Count == 0 ? 0 : (double)Objective.TickedCount / Objective.Criteria.Count;
@@ -40,7 +40,7 @@ public sealed class RoundObjectiveViewModel : ObservableObject
     public double FilledWidth => 60 * Fraction;
 
     /// <summary>Its hover.</summary>
-    public string ToolTip => $"Objective {Objective.Number}: {Objective.Title}. {CriteriaText} criteria ticked.";
+    public string ToolTip => $"Objective {Objective.Number}: {Objective.Title}. {CriteriaText}.";
 
     /// <summary>Goes to the objective (I44).</summary>
     public ICommand? OpenCommand { get; }
