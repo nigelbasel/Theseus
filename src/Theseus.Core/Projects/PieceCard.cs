@@ -28,6 +28,12 @@ public sealed record PieceCard(
     /// <summary>Why its last start failed, when Theseus knows, or null: said beside Start again.</summary>
     public string? StartFailure { get; init; }
 
+    /// <summary>
+    /// For a verifier: whether it cannot run under today's rules (made before Checks lines, or its build named by no
+    /// scenario). It neither stands nor asks for a start; Clear up verifiers… takes it.
+    /// </summary>
+    public bool IsObsolete { get; init; }
+
     /// <summary>Whether a launch of it is in flight: its tab is open, perhaps asking whether to trust its folder.</summary>
     public bool IsStarting { get; init; }
 

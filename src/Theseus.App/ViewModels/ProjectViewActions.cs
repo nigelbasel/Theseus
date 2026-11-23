@@ -96,6 +96,9 @@ public sealed record ProjectViewActions(
     /// <summary>Undo of the last Clear up verifiers… of a project.</summary>
     public Action<string>? UndoClearVerifiers { get; init; }
 
+    /// <summary>✕ Dismiss on a clear-up's notice: it can no longer be undone.</summary>
+    public Action<string>? DismissClearUp { get; init; }
+
     /// <summary>The pending proposals a card raised, as the board's Chains panel shows them (1.1e item 30); null in tests.</summary>
     public Func<string, IReadOnlyList<ProposalRowViewModel>>? ProposalsOf { get; init; }
 }

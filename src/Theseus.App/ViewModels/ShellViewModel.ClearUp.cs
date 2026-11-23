@@ -49,7 +49,11 @@ public sealed partial class ShellViewModel
             }
 
             records.Add(new VerifierRecord(card.Key, card.Title, subject.Key, subject.Workstream.Project, card.IsLive,
-                card.Workstream.IsArchived, report.CreatedUtc, report.Output, report.SatisfiedBy == LinkBook.ConfirmedReport));
+                card.Workstream.IsArchived, report.CreatedUtc, report.Output, report.SatisfiedBy == LinkBook.ConfirmedReport)
+            {
+                BriefNamesChecks = card.Workstream.Prompt.Contains(VerifierBrief.ChecksMarker, StringComparison.Ordinal),
+                SubjectNamed = _holdouts.IsNamed(subject.Workstream),
+            });
         }
 
         return WrongVerifiers.Among(records, HoldoutOwner);
@@ -84,9 +88,46 @@ public sealed partial class ShellViewModel
         && string.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(left)), Path.TrimEndingDirectorySeparator(Path.GetFullPath(right)),
             StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>How many cards a project's kept clear-up takes away, while it can be undone; none, no Undo line.</summary>
-    private int ClearedVerifiersOf(string project) =>
-        ClearUp is { } clearUp && string.Equals(clearUp.Project, project, StringComparison.OrdinalIgnoreCase) ? clearUp.Record.Cards.Count : 0;
+    /// <summary>Now, for the clear-up's Undo; a test sets it.</summary>
+    internal Func<DateTimeOffset> Now { get; set; } = () => DateTimeOffset.Now;
+
+    private static int RoundOf(ProjectFileReading? reading) => reading?.File?.Rounds.Max(round => round.Number) ?? 0;
+
+    /// <summary>
+    /// The notice a project's kept clear-up leaves while it can be undone, or null. Once it lapses (a day, or the next round)
+    /// its record is dropped, so it cannot be undone any more; one still archiving is kept until it has finished.
+    /// </summary>
+    private string? ClearUpNoticeOf(ProjectFileReading reading)
+    {
+        if (_settings.Read().VerifierClearUp is not { } record || !string.Equals(record.Project, reading.Name, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var notice = ClearUpNotice.For(record, Now(), RoundOf(reading));
+
+        if (notice is null && VerifierClearUp.From(record).IsDone)
+        {
+            _settings.Write(_settings.Read() with { VerifierClearUp = null });
+            TheseusLog.Information("The clear-up of {Project} lapsed; it can no longer be undone", reading.Name);
+        }
+
+        return notice;
+    }
+
+    /// <summary>✕ Dismiss on the clear-up's notice: drops its record, so it can no longer be undone.</summary>
+    private void DismissClearUp(string project)
+    {
+        if (_settings.Read().VerifierClearUp is not { } record || !string.Equals(record.Project, project, StringComparison.OrdinalIgnoreCase)
+            || !VerifierClearUp.From(record).IsDone)
+        {
+            return;
+        }
+
+        _settings.Write(_settings.Read() with { VerifierClearUp = null });
+        TheseusLog.Information("The clear-up of {Project} was dismissed", project);
+        Refresh();
+    }
 
     /// <summary>Shows the exact list, then on the owner's yes retires their links, stops the running ones, and archives each.</summary>
     private void ClearUpVerifiers(string project)
@@ -115,7 +156,7 @@ public sealed partial class ShellViewModel
         var seen = ticked.ToHashSet(StringComparer.OrdinalIgnoreCase);
         var wrong = WrongVerifiersOf(project).Where(verifier => seen.Contains(verifier.Key)).ToList();
         var earlier = ClearUp is { } kept && string.Equals(kept.Project, project, StringComparison.OrdinalIgnoreCase) ? kept.Record : null;
-        var clearUp = VerifierClearUp.Plan(project, wrong, Chains?.AllLinks ?? []);
+        var clearUp = VerifierClearUp.Plan(project, wrong, Chains?.AllLinks ?? [], Now().ToUniversalTime(), RoundOf(ProjectReadingOf(project)));
         var why = wrong.ToDictionary(verifier => verifier.Key, verifier => verifier.Why, StringComparer.OrdinalIgnoreCase);
 
         foreach (var link in clearUp.Before)
@@ -126,7 +167,11 @@ public sealed partial class ShellViewModel
         // A second press of the same project's line adds to the first, so the first's Undo is kept (review of item 5, M3).
         var record = earlier is null
             ? clearUp.Record
-            : new VerifierClearUpRecord(project, [.. earlier.Cards, .. clearUp.Record.Cards], earlier.Archived, [.. earlier.Before, .. clearUp.Before]);
+            : new VerifierClearUpRecord(project, [.. earlier.Cards, .. clearUp.Record.Cards], earlier.Archived, [.. earlier.Before, .. clearUp.Before])
+            {
+                AtUtc = clearUp.AtUtc,
+                Round = clearUp.Round,
+            };
         _settings.Write(_settings.Read() with { VerifierClearUp = record });
 
         var running = clearUp.ToStop.Select(Board.Card).OfType<WorkstreamCardViewModel>().ToList();

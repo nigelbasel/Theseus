@@ -7,6 +7,9 @@ namespace Theseus.Core.Links;
 /// </summary>
 public static class VerifierBrief
 {
+    /// <summary>What every brief since Checks lines says, which tells an older verifier's brief from today's.</summary>
+    public const string ChecksMarker = "whose \"Checks:\" line names";
+
     /// <summary>The brief for a verifier of the named card, reporting to the given document.</summary>
     /// <param name="checkedTitle">The checked card's title.</param>
     /// <param name="checkedName">The name scenarios check it by in their Checks lines: its slug, or its key.</param>

@@ -970,6 +970,20 @@
                 </WrapPanel>
                 <TextBlock x:Name="Sentence" local:LinkedText.Text="{Binding Sentence}" FontSize="15" TextWrapping="Wrap" Margin="0,10,0,0"
                            Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                <!-- A clear-up's notice: it asks nothing of him, so it is not under Waits for you, and lapses with its Undo (Nigel, 2026-11-23). -->
+                <DockPanel x:Name="ClearUpNoticeLine" Margin="0,8,0,0"
+                           Visibility="{Binding ClearUpNotice, Converter={StaticResource NotEmpty}}">
+                    <TextBlock DockPanel.Dock="Left" Text="&#xE946;" FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="0,0,6,0"
+                               VerticalAlignment="Center" Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+                    <Button x:Name="DismissClearUp" DockPanel.Dock="Right" Content="✕ Dismiss" Command="{Binding DismissClearUpCommand}"
+                            Style="{StaticResource CommandButton}" Padding="8,1" FontSize="12.5" Margin="6,0,0,0"
+                            AutomationProperties.Name="Dismiss the clear-up notice; it can no longer be undone" />
+                    <Button x:Name="UndoClearUp" DockPanel.Dock="Right" Content="Undo" Command="{Binding UndoClearUpCommand}"
+                            Style="{StaticResource CommandButton}" Padding="8,1" FontSize="12.5" Margin="8,0,0,0"
+                            AutomationProperties.Name="Undo the clear-up" />
+                    <TextBlock x:Name="ClearUpNoticeText" Text="{Binding ClearUpNotice}" FontSize="13" TextWrapping="Wrap" VerticalAlignment="Center"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                </DockPanel>
                 <!-- What waits for you, the most prominent block, in place even when empty (1.1f G36, G37a). -->
                 <Border x:Name="WaitingBand" Margin="0,10,0,0" Padding="12,8,12,6" CornerRadius="6" BorderThickness="1"
                         BorderBrush="{DynamicResource StateWaitingBrush}" Background="{DynamicResource StateWaitingSoftBrush}">

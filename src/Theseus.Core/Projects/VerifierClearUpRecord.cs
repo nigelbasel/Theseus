@@ -14,4 +14,11 @@ public sealed record VerifierClearUpRecord(
     string Project,
     IReadOnlyList<string> Cards,
     IReadOnlyList<string> Archived,
-    IReadOnlyList<Link> Before);
+    IReadOnlyList<Link> Before)
+{
+    /// <summary>When it was pressed; Undo lasts a day from then.</summary>
+    public DateTimeOffset AtUtc { get; init; }
+
+    /// <summary>The project's round when it was pressed; Undo lasts until the next round starts.</summary>
+    public int Round { get; init; }
+}

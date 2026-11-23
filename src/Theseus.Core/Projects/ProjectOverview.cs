@@ -38,6 +38,9 @@ public sealed class ProjectOverview
     /// <summary>Everything that waits for the owner, grouped as G36 groups it (G36, G37a).</summary>
     public IReadOnlyList<WaitItem> Waits { get; }
 
+    /// <summary>The line its last clear-up leaves under the heading, with Undo and Dismiss, or null.</summary>
+    public string? ClearUpNotice { get; init; }
+
     /// <summary>Works out the overview of a project.</summary>
     /// <param name="file">The project file.</param>
     /// <param name="pieces">Its pieces, as <see cref="PiecesOfWork.Build"/> gave them.</param>
@@ -47,11 +50,11 @@ public sealed class ProjectOverview
     /// <param name="startRequests">Sessions' requests to start cards he paused; the pending ones for this project's cards wait for him.</param>
     /// <param name="titleOf">A card's title from its key, for a card that works no current piece; null shows the key.</param>
     /// <param name="wrongVerifiers">The project's verifier cards that should not be kept; any makes one line to clear them up.</param>
-    /// <param name="clearedVerifiers">How many its last clear-up took away, while that can be undone; none, no line.</param>
+    /// <param name="clearUpNotice">The line its last clear-up leaves while it can be undone, or null: a notice, not a wait.</param>
     /// <param name="underway">What Theseus is doing itself for its checks, said with nothing to press (git-22, 2026-11-23).</param>
     public static ProjectOverview For(ProjectFile file, IReadOnlyList<PieceOfWork> pieces, IEnumerable<Link> links,
         IEnumerable<WorkstreamProposal> proposals, int accepted, IEnumerable<StartRequest>? startRequests = null,
-        Func<string, string>? titleOf = null, IReadOnlyList<WrongVerifier>? wrongVerifiers = null, int clearedVerifiers = 0,
+        Func<string, string>? titleOf = null, IReadOnlyList<WrongVerifier>? wrongVerifiers = null, string? clearUpNotice = null,
         IReadOnlyList<string>? underway = null)
     {
         ArgumentNullException.ThrowIfNull(file);
@@ -74,17 +77,10 @@ public sealed class ProjectOverview
 
         waits.InsertRange(0, (underway ?? []).Select(line => new WaitItem(WaitKind.Underway, line, [])));
 
-        if (clearedVerifiers > 0)
-        {
-            waits.Insert(0, new WaitItem(WaitKind.UndoClearVerifiers,
-                $"{Capital(Count(clearedVerifiers, "verifier card"))} {(clearedVerifiers == 1 ? "was" : "were")} cleared up: stopped, archived, their reports rejected.",
-                []));
-        }
-
         var roundLines = file.Rounds.ToDictionary(round => round.Number, round => RoundLine(pieces.Where(piece => piece.Round == round.Number).ToList()));
 
         return new ProjectOverview(sentence, roundLines, [.. file.Phases.Select(phase => Cell(phase, pieces))],
-            TalliesOf(file, pieces, accepted), waits);
+            TalliesOf(file, pieces, accepted), waits) { ClearUpNotice = clearUpNotice };
     }
 
     private static List<WaitItem> WaitsOf(ProjectFile file, IReadOnlyList<PieceOfWork> pieces, List<Link> links,

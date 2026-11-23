@@ -26,11 +26,19 @@ public static class WrongVerifiers
                      .GroupBy(verifier => verifier.Subject, StringComparer.OrdinalIgnoreCase))
         {
             var elsewhere = build.Where(verifier => RanAnotherProjects(verifier, ownerOf)).OrderBy(verifier => verifier.CreatedUtc).ToList();
-            var right = build.Except(elsewhere).OrderBy(verifier => verifier.CreatedUtc).ToList();
+            // One that cannot run under today's rules, and whose report was not confirmed, would only ask for Start again
+            // (git-22, 2026-11-23).
+            var stranded = build.Except(elsewhere).Where(verifier => !verifier.ReportConfirmed && (!verifier.BriefNamesChecks || !verifier.SubjectNamed))
+                .OrderBy(verifier => verifier.CreatedUtc).ToList();
+            var right = build.Except(elsewhere).Except(stranded).OrderBy(verifier => verifier.CreatedUtc).ToList();
             var kept = right.LastOrDefault();
 
             wrong.AddRange(elsewhere.Select(verifier => new WrongVerifier(verifier.Key, verifier.Title, verifier.Subject,
                 verifier.IsRunning, $"it ran another project's scenarios, in {VerifierRecord.HoldoutOfReport(verifier.ReportPath)}")));
+            wrong.AddRange(stranded.Select(verifier => new WrongVerifier(verifier.Key, verifier.Title, verifier.Subject, verifier.IsRunning,
+                !verifier.BriefNamesChecks
+                    ? "it was made before scenarios named their work, so it has nothing it may run"
+                    : "no scenario names its build, so it has nothing it may run")));
             wrong.AddRange(right.Where(verifier => verifier != kept && !verifier.ReportConfirmed).Select(verifier => new WrongVerifier(
                 verifier.Key, verifier.Title, verifier.Subject, verifier.IsRunning, $"a copy: {kept!.Title} checks the same build")));
         }

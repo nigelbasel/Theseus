@@ -79,6 +79,15 @@ public sealed class ProjectViewModel : ObservableObject
     /// <summary>The summary's sentence.</summary>
     public string Sentence => Overview.Sentence;
 
+    /// <summary>The quiet line the last clear-up leaves under the heading while it can be undone, or null (Nigel, 2026-11-23).</summary>
+    public string? ClearUpNotice => Overview.ClearUpNotice;
+
+    /// <summary>Undo on the clear-up's notice.</summary>
+    public ICommand? UndoClearUpCommand => _actions.UndoClearVerifiers is { } undo ? new RelayCommand(_ => undo(Name)) : null;
+
+    /// <summary>✕ Dismiss on the clear-up's notice.</summary>
+    public ICommand? DismissClearUpCommand => _actions.DismissClearUp is { } dismiss ? new RelayCommand(_ => dismiss(Name)) : null;
+
     /// <summary>The summary, phase strip, tallies and "Waits for you" (1.1f G33 to G37b).</summary>
     public ProjectOverview Overview { get; private set; } = null!;
 
@@ -1092,7 +1101,6 @@ public sealed class ProjectViewModel : ObservableObject
             WaitKind.StartChecks => new RelayCommand(_ => StartChecks(item)),
             WaitKind.StartVerifier when item.CardKey is { } verifier => new RelayCommand(_ => StartVerifier(verifier)),
             WaitKind.ClearVerifiers when _actions.ClearVerifiers is { } clear => new RelayCommand(_ => clear(project)),
-            WaitKind.UndoClearVerifiers when _actions.UndoClearVerifiers is { } undo => new RelayCommand(_ => undo(project)),
             WaitKind.AddToObjective when item.CardKey is { } card && _actions.AddToProject is { } add => new RelayCommand(_ => add(project, card)),
             WaitKind.Proposal when item.ProposalId is { } proposal && _actions.ReviewProposal is { } review =>
                 new RelayCommand(_ => review(proposal)),

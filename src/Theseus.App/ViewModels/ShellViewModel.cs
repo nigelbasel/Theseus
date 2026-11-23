@@ -1530,6 +1530,7 @@ public sealed partial class ShellViewModel : ObservableObject
                     HasRun = HasRun(card),
                     StartFailure = _verifierStartFailures.GetValueOrDefault(card.Key),
                     IsStarting = _launcher.InFlight.IsInFlight(card.Key),
+                    IsObsolete = IsObsolete(card),
                 }),
             Chains?.AllLinks ?? []);
     }
@@ -1720,7 +1721,7 @@ public sealed partial class ShellViewModel : ObservableObject
         var reading = project is null ? null : Readable(project);
 
         return ScenarioWriterCard.For(reading?.File?.Title ?? fallbackTitle, folder, reading?.Folder,
-            reading?.File is { } file ? [.. file.Workstreams.Select(row => row.Slug).Where(slug => !string.IsNullOrWhiteSpace(slug)).Distinct()] : null);
+            reading?.File is { } file ? ScenarioWriterCard.BuildSlugs(file.Workstreams, key => Board.Card(key)?.Workstream.Role) : null);
     }
 
     /// <summary>
@@ -2382,7 +2383,7 @@ public sealed partial class ShellViewModel : ObservableObject
             var checkPlan = CheckPlanOf(reading, pieces);
             var overview = ProjectOverview.For(reading.File!, pieces, links, Chains?.Proposals?.Pending.Select(row => row.Proposal) ?? [],
                 acceptances.Count(acceptance => string.Equals(acceptance.Project, reading.Name, StringComparison.OrdinalIgnoreCase)),
-                StartRequests.Pending, key => Board.Card(key)?.Title ?? key, WrongVerifiersOf(reading.Name), ClearedVerifiersOf(reading.Name),
+                StartRequests.Pending, key => Board.Card(key)?.Title ?? key, WrongVerifiersOf(reading.Name), ClearUpNoticeOf(reading),
                 checkPlan.Underway);
             TakeCheckSteps(reading, pieces, checkPlan);
             var file = reading.File!;
@@ -2609,6 +2610,7 @@ public sealed partial class ShellViewModel : ObservableObject
                 // With no dialog set, every row counts as ticked, as Clear up does, so the two never disagree (review, S2).
                 AskChecklist = model => AskChecklist is { } ask ? ask(model) : model.Ticked,
                 UndoClearVerifiers = UndoClearUp,
+                DismissClearUp = DismissClearUp,
                 WhoStarts = WhoStartsCard,
                 ProposalsOf = key => [.. Chains?.Proposals?.Pending.Where(row =>
                     string.Equals(row.Proposal.RequesterKey, key, StringComparison.OrdinalIgnoreCase)) ?? []],
@@ -2654,6 +2656,7 @@ public sealed partial class ShellViewModel : ObservableObject
             HasRun = HasRun(card),
             StartFailure = _verifierStartFailures.GetValueOrDefault(card.Key),
             IsStarting = _launcher.InFlight.IsInFlight(card.Key),
+            IsObsolete = IsObsolete(card),
         };
 
     /// <summary>Open spec and Accept spec on the menu bar, for the open project's waiting specs (R16).</summary>

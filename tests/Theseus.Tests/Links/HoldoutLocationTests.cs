@@ -111,6 +111,24 @@ public class HoldoutLocationTests
     }
 
     [Test]
+    public void TheWritersSlugs_AreTheProjectsBuildsOnly()
+    {
+        IReadOnlyList<Theseus.Core.Projects.ProjectWorkstreamRow> rows =
+        [
+            new("card-search-and-tags", "card-search-and-tags", "nigel/x", "Theseus", 1),
+            new("verify-card-search-and-tags", "verify-card-search-and-tags", "-", "-", 2),
+            new("write-holdout-scenarios-for-theseus", "write-holdout-scenarios-for-theseus", "-", "-", 3),
+            new("not-on-the-board", "not-on-the-board", "-", "-", 4),
+        ];
+        WorkstreamRole? RoleOf(string key) => key.StartsWith("verify-", StringComparison.Ordinal) ? WorkstreamRole.Verifier
+            : key.StartsWith("write-", StringComparison.Ordinal) ? WorkstreamRole.ScenarioWriter
+            : key == "not-on-the-board" ? null : WorkstreamRole.None;
+
+        Assert.That(ScenarioWriterCard.BuildSlugs(rows, RoleOf), Is.EqualTo(new[] { "card-search-and-tags", "not-on-the-board" }),
+            "git-22, 2026-11-23: the writer's brief listed verifier cards among the project's work");
+    }
+
+    [Test]
     public void TheWorkAHoldoutsScenariosCheck_IsReadFromTheirChecksLines_NeverFromResults()
     {
         var holdout = Path.Combine(_root, "holdout");

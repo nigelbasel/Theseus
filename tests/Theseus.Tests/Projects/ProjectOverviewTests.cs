@@ -44,7 +44,7 @@ public class ProjectOverviewTests
     }
 
     private static IReadOnlyList<WaitItem> Asking(ProjectOverview overview) =>
-        [.. overview.Waits.Where(wait => wait.Kind is not (WaitKind.StartChecks or WaitKind.Underway or WaitKind.UndoClearVerifiers))];
+        [.. overview.Waits.Where(wait => wait.Kind is not (WaitKind.StartChecks or WaitKind.Underway))];
 
     [Test]
     public void ARoundsIndependentChecks_AreOneLine_NamingTheBusyOne()
@@ -76,13 +76,14 @@ public class ProjectOverviewTests
     }
 
     [Test]
-    public void AClearUp_CanBeUndone_FromTheWaitsLine()
+    public void AClearUp_IsANoticeUnderTheHeading_NotAWait()
     {
-        var wait = ProjectOverview.For(WriteBym(_folder).File!, BymPieces(_folder), BymLinks(), [], 5, clearedVerifiers: 3)
-            .Waits.Single(item => item.Kind == WaitKind.UndoClearVerifiers);
+        const string notice = "Three cards were cleared up: stopped, archived, their reports rejected. Undo until 19:24 tomorrow.";
+        var overview = ProjectOverview.For(WriteBym(_folder).File!, BymPieces(_folder), BymLinks(), [], 5, clearUpNotice: notice);
 
-        Assert.That(wait.Text, Is.EqualTo("Three verifier cards were cleared up: stopped, archived, their reports rejected."));
-        Assert.That(wait.Button, Is.EqualTo("Undo"));
+        Assert.That(overview.ClearUpNotice, Is.EqualTo(notice));
+        Assert.That(overview.Waits.Select(wait => wait.Text), Has.None.EqualTo(notice),
+            "Nigel, 2026-11-23: it sat under Waits for you, though nothing waits on him");
     }
 
     [Test]
@@ -103,7 +104,7 @@ public class ProjectOverviewTests
     {
         var file = WriteBym(_folder).File!;
         var without = ProjectOverview.For(file, BymPieces(_folder), BymLinks(), [], 5).Sentence;
-        var with = ProjectOverview.For(file, BymPieces(_folder), BymLinks(), [], 5, clearedVerifiers: 3).Sentence;
+        var with = ProjectOverview.For(file, BymPieces(_folder), BymLinks(), [], 5, clearUpNotice: "Three cards were cleared up.").Sentence;
 
         Assert.That(with, Is.EqualTo(without), "review of item 5, S7: the project read \"One thing waits for you\" until a restart");
     }

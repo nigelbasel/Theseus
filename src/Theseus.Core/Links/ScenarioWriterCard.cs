@@ -16,6 +16,24 @@ public sealed record ScenarioWriterCard(string Title, string WorkingDirectory, I
     /// <summary>The role every scenario-writing card has.</summary>
     public const WorkstreamRole Role = WorkstreamRole.ScenarioWriter;
 
+    /// <summary>
+    /// The slugs a writer's Checks lines may name: the project's builds, never the verifier and writer cards whose rows the
+    /// project file also lists (git-22, 2026-11-23). A row whose card is not on the board is taken as a build.
+    /// </summary>
+    /// <param name="rows">The project file's workstream rows.</param>
+    /// <param name="roleOf">A card's role by its key, or null when it is not on the board.</param>
+    public static IReadOnlyList<string> BuildSlugs(IEnumerable<Projects.ProjectWorkstreamRow> rows, Func<string, WorkstreamRole?> roleOf)
+    {
+        ArgumentNullException.ThrowIfNull(rows);
+        ArgumentNullException.ThrowIfNull(roleOf);
+
+        return
+        [
+            .. rows.Where(row => !string.IsNullOrWhiteSpace(row.Slug) && roleOf(row.Workstream) is null or WorkstreamRole.None)
+                .Select(row => row.Slug).Distinct(StringComparer.OrdinalIgnoreCase),
+        ];
+    }
+
     /// <summary>The scenario writer for a project.</summary>
     /// <param name="projectTitle">The project's title.</param>
     /// <param name="holdout">Its holdout folder.</param>

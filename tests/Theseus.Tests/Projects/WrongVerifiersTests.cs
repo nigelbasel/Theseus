@@ -40,6 +40,27 @@ public class WrongVerifiersTests
     }
 
     [Test]
+    public void AVerifierMadeBeforeChecksLines_Goes_UnlessItsReportWasConfirmed()
+    {
+        var wrong = WrongVerifiers.Among(
+        [
+            Verifier("verify-old", "theseus-1-3", TheseusHoldout, Nine) with { BriefNamesChecks = false },
+            Verifier("verify-kept", "theseus-1-1e", TheseusHoldout, Nine, confirmed: true) with { BriefNamesChecks = false },
+        ], OwnerOf);
+
+        Assert.That(wrong.Single().Key, Is.EqualTo("verify-old"), "git-22, 2026-11-23: it asked for Start again and could never run");
+        Assert.That(wrong.Single().Why, Is.EqualTo("it was made before scenarios named their work, so it has nothing it may run"));
+    }
+
+    [Test]
+    public void AVerifierOfABuildNoScenarioNames_Goes()
+    {
+        var wrong = WrongVerifiers.Among([Verifier("verify-x", "theseus-1-3", TheseusHoldout, Nine) with { SubjectNamed = false }], OwnerOf);
+
+        Assert.That(wrong.Single().Why, Is.EqualTo("no scenario names its build, so it has nothing it may run"));
+    }
+
+    [Test]
     public void AConfirmedVerifierOfAnotherProjectsHoldout_StillGoes()
     {
         var wrong = WrongVerifiers.Among([Verifier("verify-w1", "bym-w1", TheseusHoldout, Nine, confirmed: true)], OwnerOf);

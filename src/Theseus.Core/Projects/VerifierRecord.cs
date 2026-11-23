@@ -23,6 +23,12 @@ public sealed record VerifierRecord(
     string? ReportPath,
     bool ReportConfirmed)
 {
+    /// <summary>Whether its brief runs the scenarios a Checks line names; one made before that rule runs them by the spec.</summary>
+    public bool BriefNamesChecks { get; init; } = true;
+
+    /// <summary>Whether a scenario's Checks line names the build it checks, so it has something it may run.</summary>
+    public bool SubjectNamed { get; init; } = true;
+
     /// <summary>
     /// The holdout a verifier ran against: the folder above the results folder its report is in, as Verify with holdouts…
     /// names it; null for a path of any other shape.

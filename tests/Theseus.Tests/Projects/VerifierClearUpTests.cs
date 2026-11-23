@@ -44,10 +44,13 @@ public class VerifierClearUpTests
     [Test]
     public void ItsRecord_CarriesOnAfterARestart()
     {
-        var clearUp = VerifierClearUp.Plan("bym", Wrong(), Links());
+        var at = new DateTimeOffset(2026, 11, 23, 17, 24, 0, TimeSpan.Zero);
+        var clearUp = VerifierClearUp.Plan("bym", Wrong(), Links(), at, round: 2);
         clearUp.Due(key => key == "verify-w1");
 
         var resumed = VerifierClearUp.From(clearUp.Record);
+
+        Assert.That((resumed.Record.AtUtc, resumed.Record.Round), Is.EqualTo((at, 2)), "its Undo lapses a day after the press");
 
         Assert.That(resumed.Project, Is.EqualTo("bym"));
         Assert.That(resumed.Archived, Is.EqualTo(new[] { "verify-w2-2" }));

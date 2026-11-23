@@ -21,7 +21,7 @@ public static class VerifierCards
     {
         ArgumentNullException.ThrowIfNull(card);
 
-        return card is { Role: WorkstreamRole.Verifier, IsArchived: false } && reportBack?.LatestReport is null;
+        return card is { Role: WorkstreamRole.Verifier, IsArchived: false, IsObsolete: false } && reportBack?.LatestReport is null;
     }
 
     /// <summary>The standing verifiers by the card each checks: the one its latest active report-back link goes to.</summary>

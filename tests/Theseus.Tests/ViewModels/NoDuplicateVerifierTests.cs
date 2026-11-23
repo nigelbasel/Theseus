@@ -128,6 +128,22 @@ public class NoDuplicateVerifierTests
     }
 
     [Test]
+    public void AVerifierThatCannotRunUnderTodaysRules_NeverAsksForAStart_AndDoesNotStand()
+    {
+        IReadOnlyList<PieceCard> cards =
+        [
+            .. BuildYourMarketBoard(),
+            Card(Verifier, SessionLifecycle.NotStarted, role: WorkstreamRole.Verifier) with { IsObsolete = true },
+        ];
+        IReadOnlyList<Link> links = [.. BuildYourMarketLinks(), NewLink(LinkKind.ReportsBack, Verifier, _buildCard)];
+        var view = _views.BuildYourMarket(cards: cards, links: links);
+
+        Assert.That(Of(view, WaitKind.StartVerifier), Is.Empty,
+            "git-22, 2026-11-23: a verifier made before Checks lines showed Start again and was counted as waiting for him");
+        Assert.That(Of(view, WaitKind.StartChecks).Single().Item.Pieces, Does.Contain(_build), "it is Clear up's, and a new one can be made");
+    }
+
+    [Test]
     public void EveryBuildWithAStandingVerifier_LeavesNoStartTheChecksButton()
     {
         IReadOnlyList<PieceCard> cards =

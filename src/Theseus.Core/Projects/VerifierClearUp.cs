@@ -13,9 +13,11 @@ public sealed class VerifierClearUp
     private readonly IReadOnlyList<string> _cards;
 
     private VerifierClearUp(string project, IReadOnlyList<string> cards, IReadOnlyList<string> toStop, IReadOnlyList<Link> before,
-        IEnumerable<string> archived)
+        IEnumerable<string> archived, DateTimeOffset atUtc, int round)
     {
         Project = project;
+        AtUtc = atUtc;
+        Round = round;
         _cards = cards;
         ToStop = toStop;
         Before = before;
@@ -24,6 +26,12 @@ public sealed class VerifierClearUp
 
     /// <summary>The project it clears up.</summary>
     public string Project { get; }
+
+    /// <summary>When it was pressed.</summary>
+    public DateTimeOffset AtUtc { get; }
+
+    /// <summary>The project's round when it was pressed.</summary>
+    public int Round { get; }
 
     /// <summary>The cards whose sessions are stopped first.</summary>
     public IReadOnlyList<string> ToStop { get; }
@@ -38,10 +46,16 @@ public sealed class VerifierClearUp
     public bool IsDone => _archived.Count == _cards.Count;
 
     /// <summary>What Theseus's settings keep of it.</summary>
-    public VerifierClearUpRecord Record => new(Project, _cards, [.. _archived], Before);
+    public VerifierClearUpRecord Record => new(Project, _cards, [.. _archived], Before) { AtUtc = AtUtc, Round = Round };
 
     /// <summary>The clear-up of these cards, given every link.</summary>
-    public static VerifierClearUp Plan(string project, IReadOnlyList<WrongVerifier> wrong, IEnumerable<Link> links)
+    /// <param name="project">The project.</param>
+    /// <param name="wrong">The cards to take away.</param>
+    /// <param name="links">Every link.</param>
+    /// <param name="atUtc">When it is pressed.</param>
+    /// <param name="round">The project's round now.</param>
+    public static VerifierClearUp Plan(string project, IReadOnlyList<WrongVerifier> wrong, IEnumerable<Link> links,
+        DateTimeOffset atUtc = default, int round = 0)
     {
         ArgumentNullException.ThrowIfNull(wrong);
         ArgumentNullException.ThrowIfNull(links);
@@ -50,7 +64,7 @@ public sealed class VerifierClearUp
 
         return new VerifierClearUp(project, [.. wrong.Select(verifier => verifier.Key)],
             [.. wrong.Where(verifier => verifier.IsRunning).Select(verifier => verifier.Key)],
-            [.. links.Where(link => link.IsActive && link.Kind == LinkKind.ReportsBack && keys.Contains(link.From))], []);
+            [.. links.Where(link => link.IsActive && link.Kind == LinkKind.ReportsBack && keys.Contains(link.From))], [], atUtc, round);
     }
 
     /// <summary>A clear-up carried on from its record, after a restart.</summary>
@@ -58,7 +72,7 @@ public sealed class VerifierClearUp
     {
         ArgumentNullException.ThrowIfNull(record);
 
-        return new VerifierClearUp(record.Project, record.Cards, [], record.Before, record.Archived);
+        return new VerifierClearUp(record.Project, record.Cards, [], record.Before, record.Archived, record.AtUtc, record.Round);
     }
 
     /// <summary>Whether a card is one it takes away, so a second press does not list it again.</summary>

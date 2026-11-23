@@ -71,6 +71,21 @@ public sealed partial class ShellViewModel
         || card.Workstream.PausedBy is not null
         || _settings.Read().CardsStoppedByOwner.Contains(card.Key, StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Whether a verifier cannot run under today's rules: its brief predates Checks lines, or no scenario names its build.
+    /// It neither stands nor asks for a start; Clear up verifiers… takes it (git-22, 2026-11-23).
+    /// </summary>
+    private bool IsObsolete(WorkstreamCardViewModel card) =>
+        card.Workstream.Role == WorkstreamRole.Verifier
+        && (!card.Workstream.Prompt.Contains(VerifierBrief.ChecksMarker, StringComparison.Ordinal)
+            || (SubjectOf(card.Key) is { } subject && Board.Card(subject) is { } build && !_holdouts.IsNamed(build.Workstream)));
+
+    // The card a verifier checks: its latest active report-back link's other end.
+    private string? SubjectOf(string verifier) =>
+        (Chains?.AllLinks ?? []).Where(link => link.IsActive && link.Kind == LinkKind.ReportsBack
+                                                 && string.Equals(link.From, verifier, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(link => link.CreatedUtc).LastOrDefault()?.To;
+
     private bool ProjectIsStopped(string project) => _settings.Read().ProjectRunStates.ContainsKey(project);
 
     /// <summary>Queues a project's steps for after the board has been drawn, never while it is being built.</summary>
