@@ -39,6 +39,23 @@ public class DetailDrawerViewModelTests
     }
 
     [Test]
+    public void InARunningProject_TheDrawerSaysWhoStartsTheCard_AndItsStartReadsStartAnyway()
+    {
+        // Nigel, 2026-11-23: "Yes, same as the box" for the drawer's own Start.
+        _drawer.WhoStarts = key => key == "one" ? new ProjectRunStart("Lead starts it, when the project's plan reaches it.") : null;
+
+        _drawer.Show(Card("one"));
+        var running = (_drawer.StartLabel, _drawer.StartedBy);
+        _drawer.Show(Card("two"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(running, Is.EqualTo(("Start anyway…", "Lead starts it, when the project's plan reaches it.")));
+            Assert.That((_drawer.StartLabel, _drawer.HasStartedBy), Is.EqualTo(("Start", false)), "elsewhere the card's own Start");
+        });
+    }
+
+    [Test]
     public void AGreyedArchive_SaysWhyInPlainView()
     {
         Card("one").Lifecycle = SessionLifecycle.Running;

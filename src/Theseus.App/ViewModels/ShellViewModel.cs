@@ -255,6 +255,7 @@ public sealed partial class ShellViewModel : ObservableObject
                 Notice = $"Deleted {title}.";
             });
         Drawer.EventsOf = _cardEvents.For;
+        Drawer.WhoStarts = WhoStartsCard;
 
         Settings = new SettingsViewModel(settings, Refresh)
         {
@@ -1261,6 +1262,7 @@ public sealed partial class ShellViewModel : ObservableObject
     public void Refresh()
     {
         Timed("board", Board.Refresh);
+        Drawer.RefreshStart();
 
         // A refresh replaces every card, so the new ones need telling where to report a tick. Wiring
         // this only when the grid changes left the selection count frozen at whatever it said before

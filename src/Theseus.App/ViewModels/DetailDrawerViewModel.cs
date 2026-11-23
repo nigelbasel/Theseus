@@ -433,6 +433,31 @@ public sealed class DetailDrawerViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Whether a card's project is running, and who starts it and when, by key: the box's answer (item 5), given to the
+    /// drawer too (Nigel, 2026-11-23: "Yes, same as the box"). Set by the shell; null keeps the plain Start.
+    /// </summary>
+    public Func<string, ProjectRunStart?>? WhoStarts { get; set; }
+
+    /// <summary>The Start button's words: Start anyway… for a card its running project starts, else the card's own.</summary>
+    public string StartLabel => _card is null
+        ? string.Empty
+        : WhoStarts?.Invoke(_card.Key) is not null ? Theseus.Core.Projects.WhoStarts.StartAnywayLabel : _card.PrimaryAction;
+
+    /// <summary>Who starts it and when, while its project is running and starting it is the project's; null otherwise.</summary>
+    public string? StartedBy => _card is null ? null : WhoStarts?.Invoke(_card.Key)?.Line;
+
+    /// <summary>Whether the who-starts line shows above the buttons.</summary>
+    public bool HasStartedBy => !string.IsNullOrEmpty(StartedBy);
+
+    /// <summary>Works out Start's words and the who-starts line again, as the board refreshes.</summary>
+    public void RefreshStart()
+    {
+        Raise(nameof(StartLabel));
+        Raise(nameof(StartedBy));
+        Raise(nameof(HasStartedBy));
+    }
+
     /// <summary>Shows a workstream, loading its plan and its run history, on the tab asked for.</summary>
     public void Show(WorkstreamCardViewModel card, DrawerTab tab = DrawerTab.Overview)
     {
@@ -472,6 +497,7 @@ public sealed class DetailDrawerViewModel : ObservableObject
         _loading = true;
         _card = card;
         Raise(nameof(Card));
+        RefreshStart();
         var workstream = card.Workstream;
 
         Title = workstream.Title;
