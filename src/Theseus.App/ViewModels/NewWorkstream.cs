@@ -8,5 +8,6 @@ namespace Theseus.App.ViewModels;
 /// <param name="ParentKey">The workstream it was spawned from, when it was made as a follow-on.</param>
 /// <param name="ReportTo">Where it writes the report its parent waits on, when it reports back.</param>
 /// <param name="ProposalId">The proposal this card approves, when it was made from one.</param>
+/// <param name="BySession">Whether its proposing session made it, in a project, rather than the owner approving it.</param>
 public sealed record NewWorkstream(string Key, string Stage, string Area, bool StartNow,
-    string? ParentKey = null, string? ReportTo = null, string? ProposalId = null);
+    string? ParentKey = null, string? ReportTo = null, string? ProposalId = null, bool BySession = false);

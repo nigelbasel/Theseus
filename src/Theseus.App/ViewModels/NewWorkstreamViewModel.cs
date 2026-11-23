@@ -220,7 +220,7 @@ public sealed class NewWorkstreamViewModel : ObservableObject
     /// the proposer's row. Returns the card's key, or why it could not be made; what is being typed in an open composer
     /// is left alone.
     /// </summary>
-    public ProposalApproval CreateFromProposal(Workstream parent, WorkstreamProposal proposal, bool startNow)
+    public ProposalApproval CreateFromProposal(Workstream parent, WorkstreamProposal proposal, bool startNow, bool bySession = false)
     {
         ArgumentNullException.ThrowIfNull(parent);
         ArgumentNullException.ThrowIfNull(proposal);
@@ -242,7 +242,7 @@ public sealed class NewWorkstreamViewModel : ObservableObject
             DateTimeOffset.Now.ToString("s"), ProposalPrompt.For(proposal.Request));
 
         _plans.Write(key, plan);
-        _created(new NewWorkstream(key, stages.FirstOrDefault() ?? string.Empty, area, startNow, parent.Key, reportTo, proposal.Id));
+        _created(new NewWorkstream(key, stages.FirstOrDefault() ?? string.Empty, area, startNow, parent.Key, reportTo, proposal.Id, bySession));
 
         return ProposalApproval.Made(key);
     }

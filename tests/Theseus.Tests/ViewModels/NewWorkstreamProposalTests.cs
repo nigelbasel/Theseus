@@ -103,6 +103,16 @@ public class NewWorkstreamProposalTests
     }
 
     [Test]
+    public void CreateFromProposal_BySession_SaysSoOnTheNewCard()
+    {
+        var composer = Composer(out var created, out _);
+
+        composer.CreateFromProposal(Parent(), Proposal(), false, bySession: true);
+
+        Assert.That(created.Single().BySession, Is.True);
+    }
+
+    [Test]
     public void AnOrdinaryNewWorkstreamApprovesNothing()
     {
         var composer = Composer(out var created, out _);

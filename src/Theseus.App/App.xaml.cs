@@ -268,6 +268,7 @@ public partial class App : Application
                 events: shell.EventsFor,
                 projectTools: new Theseus.Core.Mcp.ProjectTools(shell.MemberOf, shell.ProjectReadingOf, stageReports,
                     () => DateTimeOffset.UtcNow, write: (project, edit) => Dispatcher.Invoke(() => shell.WriteProjectFile(project, edit))),
+                create: (proposal, startNow) => Dispatcher.Invoke(() => shell.CreateForSession(proposal, startNow)),
                 askOwner: new Theseus.Core.Mcp.AskOwnerTool(shell.Questions, () => DateTimeOffset.UtcNow,
                     () => Dispatcher.BeginInvoke(shell.Refresh))),
             Theseus.Core.Mcp.TheseusMcp.DefaultPort,
