@@ -100,7 +100,7 @@
                         <Border x:Name="Glow" CornerRadius="4" Opacity="0"
                                 Background="{DynamicResource AccentFillColorDefaultBrush}" />
 
-                        <ContentPresenter x:Name="Label" Margin="{TemplateBinding Padding}"
+                        <ContentPresenter x:Name="Label" Margin="{TemplateBinding Padding}" RecognizesAccessKey="True"
                                           TextElement.Foreground="{TemplateBinding Foreground}"
                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Grid>
