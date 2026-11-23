@@ -258,6 +258,7 @@ public sealed partial class ShellViewModel : ObservableObject
                 Notice = $"Deleted {title}.";
             });
         Drawer.EventsOf = _cardEvents.For;
+        Drawer.WhoStarts = WhoStartsCard;
 
         Settings = new SettingsViewModel(settings, Refresh)
         {
@@ -1283,6 +1284,9 @@ public sealed partial class ShellViewModel : ObservableObject
         _stopRequests.Sweep(DateTimeOffset.UtcNow, _closed.IsFinished);
         Tells.Waiting.Sweep(DateTimeOffset.UtcNow, _ => true);
         LapseStartRequests();
+
+        // Last, once lifecycles and the projects' running state are set, which its words read.
+        Drawer.RefreshStart();
     }
 
     // Start-up has taken anything from 4 seconds to over 2 minutes on the same machine, with nothing
