@@ -1585,7 +1585,7 @@ public sealed partial class ShellViewModel : ObservableObject
 
     /// <summary>
     /// What a project's holdout folder is found from: the clone of its home code repo (the first in its Repos table, found
-    /// among the folders its cards work in), and the holdout repository its project.md records.
+    /// among the folders its cards work in, then among the worktrees), and the holdout repository its project.md records.
     /// </summary>
     private HoldoutConvention HoldoutConventionOf(string project)
     {
@@ -1595,10 +1595,9 @@ public sealed partial class ShellViewModel : ObservableObject
         var folders = Board.Cards
             .Where(card => card.Workstream.Role == WorkstreamRole.None
                            && (members.Contains(card.Key) || string.Equals(card.Workstream.Project, project, StringComparison.OrdinalIgnoreCase)))
-            .SelectMany(card => new[] { card.Workstream.WorkingDirectory }.Concat(card.Workstream.AddDirectories))
-            .Where(folder => !folder.Contains(HomeRepo.HoldoutSuffix, StringComparison.OrdinalIgnoreCase));
+            .SelectMany(card => new[] { card.Workstream.WorkingDirectory }.Concat(card.Workstream.AddDirectories));
 
-        return new HoldoutConvention(HomeRepo.Clone(HomeRepo.NameIn(reading?.Text), folders), HomeRepo.RecordedHoldoutIn(reading?.Text));
+        return HoldoutConvention.For(reading?.Text, folders, _settings.Read().WorktreesFolder);
     }
 
     /// <summary>Opens a project's Project properties at its Holdouts tab (options-made-clear item 1), by folder name.</summary>

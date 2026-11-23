@@ -13,7 +13,7 @@ public sealed record HoldoutFolderEntry(string Project, string Folder, HoldoutSo
     public static string HowFoundOf(HoldoutSource source) => source switch
     {
         HoldoutSource.Chosen => "you chose it",
-        HoldoutSource.Recorded => "recorded in project.md",
+        HoldoutSource.Recorded => "recorded in project.md, beside the repo",
         HoldoutSource.BesideRepo => "beside its repo, by convention",
         _ => "Theseus's own, made on first use",
     };
