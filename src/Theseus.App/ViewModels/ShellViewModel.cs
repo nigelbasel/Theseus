@@ -263,7 +263,10 @@ public sealed partial class ShellViewModel : ObservableObject
             FolderTrust = new FolderTrustViewModel(
                 new Theseus.Core.Trust.ClaudeFolderTrust(Theseus.Core.Trust.ClaudeFolderTrust.UserConfigPath(),
                     Path.Combine(App.DataDirectory, "folder-trust-undo.json")),
-                () => Board.Cards.Where(card => !card.IsArchived).SelectMany(card => SessionFolders(card.Workstream))),
+                () => Board.Cards.Where(card => !card.IsArchived).SelectMany(card => SessionFolders(card.Workstream)))
+            {
+                Said = text => Notice = text,
+            },
         };
         Settings.OpenProjectHoldouts = OpenProjectHoldouts;
         Settings.HasProjectCard = project => Board.ProjectCards.Any(each => string.Equals(each.Name, project, StringComparison.OrdinalIgnoreCase));

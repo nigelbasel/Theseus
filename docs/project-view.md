@@ -52,7 +52,8 @@ workstream that works it, its kind (feature, bug or freeform), its objective, an
 
 Right-click a stage, or press Shift+F10 or the Menu key on it, for **Properties** and that stage's own actions.
 
-**Collapse all** folds every box, **Expand all** opens them all, and **Open what needs attention** opens what is busy,
+Three small icons right of **Group by**, each named in its tooltip: **Collapse all** folds every box, **Expand all**
+opens them all, and **Open what needs attention** opens what is busy,
 waiting on you, stuck or waiting for its holdout check, and folds the rest. Grouped by objectives, they fold and open
 the headings too, and Open what needs attention opens the headings on the way to what needs you. Each project keeps
 its boxes and headings as you leave them, across restarts. Nothing opens or folds by itself: a folded box that starts
