@@ -68,6 +68,13 @@ try
     {
         HookQuestion.OnEvent(input, new OwnerQuestionStore(OwnerQuestionRoot.Default), TranscriptTail.Read,
             DateTimeOffset.UtcNow, delivered: request is not null);
+    }
+    catch (Exception)
+    {
+    }
+
+    try
+    {
         HookPrompt.OnEvent(input, new PermissionPromptStore(PermissionPromptStore.DefaultRoot), DateTimeOffset.UtcNow);
     }
     catch (Exception)

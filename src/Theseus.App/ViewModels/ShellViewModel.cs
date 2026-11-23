@@ -3737,7 +3737,7 @@ public sealed partial class ShellViewModel : ObservableObject
             var state = CardLifecycle.For(card.Key, session?.Status, live, runs, now, hasOpenQuestion: question is not null);
 
             card.Question = question;
-            card.Prompt = state.Lifecycle == SessionLifecycle.NeedsAttention ? Prompts.Read(card.Workstream.LastSessionId) : null;
+            card.Prompt = live ? Theseus.Core.Questions.PermissionPrompt.Showing(Prompts.Read(card.Workstream.LastSessionId), session?.Status, question) : null;
             card.MotionAllowed = _motionAllowed;
             card.Lifecycle = state.Lifecycle;
             card.LifecycleSinceUtc = state.Since;
