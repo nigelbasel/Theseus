@@ -267,7 +267,8 @@ public partial class App : Application
                 // read (review of PR 6, finding 2).
                 events: shell.EventsFor,
                 projectTools: new Theseus.Core.Mcp.ProjectTools(shell.MemberOf, shell.ProjectReadingOf, stageReports,
-                    () => DateTimeOffset.UtcNow, write: (project, edit) => Dispatcher.Invoke(() => shell.WriteProjectFile(project, edit)))),
+                    () => DateTimeOffset.UtcNow, write: (project, edit) => Dispatcher.Invoke(() => shell.WriteProjectFile(project, edit))),
+                create: (proposal, startNow) => Dispatcher.Invoke(() => shell.CreateForSession(proposal, startNow))),
             Theseus.Core.Mcp.TheseusMcp.DefaultPort,
             new LockHttpApi(locks, () => DateTimeOffset.UtcNow));
 
@@ -330,6 +331,7 @@ public partial class App : Application
             return window.ShowDialog() == true ? window.Text : null;
         };
         shell.ShowRecordsWindow = model => new RecordsWindow(model) { Owner = MainWindow }.Show();
+        shell.ShowProposalWindow = model => new ProposalWindow(model) { Owner = MainWindow }.Show();
         var specWindows = new Dictionary<string, SpecWindow>(StringComparer.OrdinalIgnoreCase);
         shell.ShowSpec = model =>
         {

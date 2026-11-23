@@ -69,6 +69,9 @@ public sealed record ProjectViewActions(
     /// <summary>Forward ▶, from the shell's history; null in tests.</summary>
     public System.Windows.Input.ICommand? GoForward { get; init; }
 
+    /// <summary>Opens the proposal window for a proposal by its id (sessions-run-the-project 0.2); null in tests.</summary>
+    public Action<string>? ReviewProposal { get; init; }
+
     /// <summary>The pending proposals a card raised, as the board's Chains panel shows them (1.1e item 30); null in tests.</summary>
     public Func<string, IReadOnlyList<ProposalRowViewModel>>? ProposalsOf { get; init; }
 }

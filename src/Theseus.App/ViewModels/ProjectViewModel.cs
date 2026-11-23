@@ -1025,6 +1025,8 @@ public sealed class ProjectViewModel : ObservableObject
             WaitKind.StartChecks => new RelayCommand(_ => StartChecks(item)),
             WaitKind.StartVerifier when item.CardKey is { } verifier => new RelayCommand(_ => _actions.Start(verifier)),
             WaitKind.AddToObjective when item.CardKey is { } card && _actions.AddToProject is { } add => new RelayCommand(_ => add(project, card)),
+            WaitKind.Proposal when item.ProposalId is { } proposal && _actions.ReviewProposal is { } review =>
+                new RelayCommand(_ => review(proposal)),
             WaitKind.ConfirmReport or WaitKind.Proposal when item.CardKey is { } card && _actions.OpenLinks is { } open =>
                 new RelayCommand(_ => open(card)),
             _ => null,

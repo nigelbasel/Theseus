@@ -66,15 +66,6 @@
                                    Visibility="{Binding NewWorkstream.ReportBack, Converter={StaticResource BoolToVisibility}}" />
                         <TextBlock Style="{StaticResource FieldHint}" TextWrapping="Wrap"
                                    Text="This creates a card only. No Jira item, branch, worktree, push or PR." />
-                        <TextBlock Text="{Binding NewWorkstream.ProposalText}" Style="{StaticResource FieldHint}" TextWrapping="Wrap"
-                                   Visibility="{Binding NewWorkstream.IsProposal, Converter={StaticResource BoolToVisibility}}" />
-                        <TextBlock Text="{Binding NewWorkstream.ProposalWarnings}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"
-                                   Foreground="#D68910"
-                                   Visibility="{Binding NewWorkstream.ProposalWarnings, Converter={StaticResource NotEmptyToVisibility}}" />
-                        <!-- A proposal from a project's card that cannot be approved yet, and why (1.1e AC 31). -->
-                        <TextBlock x:Name="ProposalBlock" Text="{Binding NewWorkstream.ProposalBlock}" FontSize="12" TextWrapping="Wrap"
-                                   Margin="0,6,0,0" FontWeight="SemiBold" Foreground="{DynamicResource SystemFillColorCriticalBrush}"
-                                   Visibility="{Binding NewWorkstream.ProposalBlock, Converter={StaticResource NotEmptyToVisibility}}" />
                     </StackPanel>
 
                     <TextBlock Text="Title" Style="{StaticResource FieldLabel}" />

@@ -59,7 +59,10 @@ internal sealed class ProjectViews
         key => Ran.Add($"Stop:{key}"),
         path => Ran.Add($"Open:{path}"),
         Notices.Add,
-        (project, key) => Ran.Add($"AddToProject:{project}:{key}"));
+        (project, key) => Ran.Add($"AddToProject:{project}:{key}"))
+    {
+        ReviewProposal = id => Ran.Add($"ReviewProposal:{id}"),
+    };
 
     public ProjectViewEdits Edits => new((_, criterion, ticked) => Edited.Add($"Tick:{criterion.Line}:{ticked}"),
         objective => Edited.Add($"Edit:{objective.Number}"),
@@ -109,6 +112,18 @@ internal sealed class ProjectViews
 
         return ProjectViewModel.Build(reading, pieces, LinksOn(links ?? [], cards), Tabs(reading.Name), Settings, Actions, null,
             Edits, previous);
+    }
+
+    /// <summary>The one-piece project with these proposals waiting, the overview worked out as the board does.</summary>
+    public ProjectViewModel OneWith(IReadOnlyList<Theseus.Core.Proposals.WorkstreamProposal> proposals)
+    {
+        var reading = WriteOne(_folder, "feature", null);
+        IReadOnlyList<PieceCard> cards = [Card(ACard, SessionLifecycle.Idle)];
+        var pieces = PiecesOfWork.Build(reading, _ => null, cards, []);
+        var overview = ProjectOverview.For(reading.File!, pieces, [], proposals, 0);
+
+        return ProjectViewModel.Build(reading, pieces, LinksOn([], cards), Tabs(OneProject), Settings, Actions, null, Edits, null,
+            overview);
     }
 
     /// <summary>One tab per project in the folder that reads, this one open.</summary>

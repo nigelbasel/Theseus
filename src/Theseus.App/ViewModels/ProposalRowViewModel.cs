@@ -5,9 +5,8 @@ using Theseus.Core.Proposals;
 namespace Theseus.App.ViewModels;
 
 /// <summary>
-/// One workstream a session has proposed, under Proposed in the Chains tab. Review opens the new
-/// workstream composer filled in from the proposal, and creating the card there is the approval;
-/// closing the composer leaves it pending. Reject asks for an optional note, which the proposer reads
+/// One workstream a session has proposed, under Proposed in the Chains tab. Review opens the proposal
+/// window, whose Approve makes the card; Cancel there leaves it pending. Reject asks for an optional note, which the proposer reads
 /// back through <c>proposal_status</c>.
 /// </summary>
 public sealed class ProposalRowViewModel : ObservableObject
@@ -21,7 +20,7 @@ public sealed class ProposalRowViewModel : ObservableObject
     /// <param name="proposal">The proposal.</param>
     /// <param name="requesterTitle">The proposing card's title, or its key when it is not on the board.</param>
     /// <param name="colorHex">The proposing card's colour, as the row's left border.</param>
-    /// <param name="review">Opens the composer for this proposal.</param>
+    /// <param name="review">Opens the proposal window for this proposal.</param>
     /// <param name="reject">Rejects it with a note, returning why not if it was refused.</param>
     /// <param name="showBrief">Shows the brief in Theseus's Markdown view; null opens it with the system's handler.</param>
     public ProposalRowViewModel(WorkstreamProposal proposal, string requesterTitle, string colorHex,
@@ -72,7 +71,7 @@ public sealed class ProposalRowViewModel : ObservableObject
     public string Evidence =>
         $"Agent-originated: session {Proposal.SessionId}, {Proposal.CreatedUtc.ToLocalTime():ddd HH:mm}. Brief {Proposal.Request.Brief}";
 
-    /// <summary>Opens the composer filled in from the proposal.</summary>
+    /// <summary>Opens the proposal window.</summary>
     public RelayCommand ReviewCommand { get; }
 
     /// <summary>Opens the brief.</summary>

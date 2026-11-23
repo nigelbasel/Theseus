@@ -29,7 +29,6 @@ public sealed class NewWorkstreamViewModel : ObservableObject
     private bool _isOpen;
     private Workstream? _parent;
     private bool _reportBack;
-    private WorkstreamProposal? _proposal;
 
     /// <summary>Creates the composer.</summary>
     /// <param name="plans">Where the new plan file is written.</param>
@@ -111,47 +110,10 @@ public sealed class NewWorkstreamViewModel : ObservableObject
         set => Set(ref _reportBack, value);
     }
 
-    /// <summary>Where the follow-on writes its report: where its proposal said, or under its parent's working directory.</summary>
+    /// <summary>Where the follow-on writes its report: under its parent's working directory.</summary>
     public string ReportPath => _parent is null
         ? string.Empty
-        : _proposal?.Request.ExpectedOutput ?? BriefFolder.ReportPath(_parent.WorkingDirectory, _briefFolderName(), Key);
-
-    /// <summary>Whether this composer is approving a session's proposal.</summary>
-    public bool IsProposal => _proposal is not null;
-
-    /// <summary>What the dialog says about the proposal it is approving.</summary>
-    public string ProposalText => _proposal is null
-        ? string.Empty
-        : $"Proposed by {ParentTitle}, from session {_proposal.SessionId}. Creating the card approves it; closing this leaves it waiting. "
-          + "This creates a card only: no Jira item, branch, worktree, push or pull request.";
-
-    /// <summary>The proposal's warnings, one per line.</summary>
-    public string ProposalWarnings => _proposal is null
-        ? string.Empty
-        : string.Join("\n", _proposal.Warnings.Select(warning => $"\u26A0 {warning}"));
-
-    /// <summary>
-    /// Shows the composer filled in from a session's proposal, as a follow-on to the card that proposed
-    /// it. Nigel may change anything; creating the card is the approval.
-    /// </summary>
-    public void OpenProposal(Workstream parent, WorkstreamProposal proposal)
-    {
-        ArgumentNullException.ThrowIfNull(proposal);
-
-        OpenFollowOn(parent);
-        _proposal = proposal;
-        Title = proposal.Request.Title;
-        ReportBack = proposal.Request.ReportBack;
-        Prompt = ProposalPrompt.For(proposal.Request);
-        StartNow = false;
-
-        Raise(nameof(IsProposal));
-        Raise(nameof(ProposalText));
-        Raise(nameof(ProposalWarnings));
-        Raise(nameof(ProposalBlock));
-        Raise(nameof(CanCreate));
-        Raise(nameof(ReportPath));
-    }
+        : BriefFolder.ReportPath(_parent.WorkingDirectory, _briefFolderName(), Key);
 
     /// <summary>
     /// Shows the composer for a follow-on to <paramref name="parent"/>: same working directory, so it
@@ -250,25 +212,44 @@ public sealed class NewWorkstreamViewModel : ObservableObject
     public bool CanCreate =>
         !string.IsNullOrWhiteSpace(_title)
         && !string.IsNullOrWhiteSpace(_prompt)
-        && WorkingDirectoryExists
-        && ProposalBlock.Length == 0;
+        && WorkingDirectoryExists;
 
-    /// <summary>Why a proposal cannot be approved yet, set by the board (1.1e AC 31).</summary>
-    public Func<WorkstreamProposal, string?>? WhyCannotApprove { get; set; }
+    /// <summary>
+    /// Makes the card for an approved proposal without showing the composer (sessions-run-the-project item 0.2): the plan
+    /// and the follow-on Create would make, titled, prompted and reporting as the proposal says, in the first column and
+    /// the proposer's row. Returns the card's key, or why it could not be made; what is being typed in an open composer
+    /// is left alone.
+    /// </summary>
+    public ProposalApproval CreateFromProposal(Workstream parent, WorkstreamProposal proposal, bool startNow, bool bySession = false)
+    {
+        ArgumentNullException.ThrowIfNull(parent);
+        ArgumentNullException.ThrowIfNull(proposal);
 
-    /// <summary>Why this proposal cannot be approved yet, shown above Create; empty when it can.</summary>
-    public string ProposalBlock => _proposal is not null && WhyCannotApprove?.Invoke(_proposal) is { } why
-        ? $"Cannot be approved yet: {why}"
-        : string.Empty;
+        if (!Directory.Exists(parent.WorkingDirectory))
+        {
+            return ProposalApproval.Refused($"{parent.WorkingDirectory}, {parent.Title}'s working directory, is not there, so the card cannot be made.");
+        }
+
+        var key = WorkstreamKey.Unique(proposal.Request.Title, [.. _plans.Keys(), .. _takenKeys()]);
+        var stages = _stages();
+        var areas = _areas();
+        var area = parent.Area is { } own && areas.Contains(own) ? own : areas.FirstOrDefault() ?? string.Empty;
+        var reportTo = proposal.Request.ReportBack
+            ? proposal.Request.ExpectedOutput ?? BriefFolder.ReportPath(parent.WorkingDirectory, _briefFolderName(), key)
+            : null;
+        var plan = new SessionPlan(_plans.Keys().Count + 1, proposal.Request.Title.Trim(),
+            _colours.Allocate(new ColourAllocationState(ColoursInUse(), [])), parent.WorkingDirectory, [], null,
+            DateTimeOffset.Now.ToString("s"), ProposalPrompt.For(proposal.Request));
+
+        _plans.Write(key, plan);
+        _created(new NewWorkstream(key, stages.FirstOrDefault() ?? string.Empty, area, startNow, parent.Key, reportTo, proposal.Id, bySession));
+
+        return ProposalApproval.Made(key);
+    }
 
     private void Open()
     {
         _parent = null;
-        _proposal = null;
-        Raise(nameof(IsProposal));
-        Raise(nameof(ProposalText));
-        Raise(nameof(ProposalWarnings));
-        Raise(nameof(ProposalBlock));
         Raise(nameof(CanCreate));
         Raise(nameof(IsFollowOn));
         Raise(nameof(ParentTitle));
@@ -322,7 +303,7 @@ public sealed class NewWorkstreamViewModel : ObservableObject
         _plans.Write(key, plan);
 
         IsOpen = false;
-        _created(new NewWorkstream(key, Stage, Area, StartNow, _parent?.Key, reportTo, _proposal?.Id));
+        _created(new NewWorkstream(key, Stage, Area, StartNow, _parent?.Key, reportTo, null));
     }
 
     private IReadOnlyList<string> ColoursInUse() =>
