@@ -43,9 +43,9 @@ public class WaitCountsHaveTheirListTests
         return _views.BuildYourMarket(cards: cards, links: links);
     }
 
-    private ProjectViewModel WithReport(bool satisfied)
+    private ProjectViewModel WithReport(bool satisfied, int day = 5, ProjectViewActions? actions = null)
     {
-        var report = new LinkReport(DateTimeOffset.UnixEpoch.AddDays(5), "session", "report.md", "Done again.", null);
+        var report = new LinkReport(DateTimeOffset.UnixEpoch.AddDays(day), "session", "report.md", "Done again.", null);
         IReadOnlyList<Link> links =
         [
             .. BuildYourMarketLinks().Select(link => link.Kind == LinkKind.ReportsBack && link.From == CardOf(Preconditions)
@@ -53,7 +53,7 @@ public class WaitCountsHaveTheirListTests
                 : link),
         ];
 
-        return _views.BuildYourMarket(links: links);
+        return _views.BuildYourMarket(links: links, actions: actions);
     }
 
     private static ObjectiveHeadingViewModel ObjectiveOf(ProjectViewModel view, string piece) =>
@@ -122,6 +122,59 @@ public class WaitCountsHaveTheirListTests
         Assert.That(view.Waits.Select(wait => wait.Item.Kind), Has.None.EqualTo(WaitKind.ConfirmReport));
         Assert.That(ObjectiveOf(view, Preconditions).Waits, Is.Empty);
         AssertEveryMarkHasItsList(view);
+    }
+
+    [Test]
+    public void ALaterReportOnASatisfiedLink_ShowsOnItsBox_WithOpenReport_ButIsNotCounted()
+    {
+        // Nigel, 2026-11-23: "Show it on the box, not counted": it may be a correction he would otherwise never see.
+        var view = WithReport(satisfied: true);
+        var box = view.AllNodes.Single(node => node.Name == Preconditions);
+
+        box.OpenLaterReport!.Execute(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(box.ReportedAgain, Does.StartWith("Reported again after you confirmed"));
+            Assert.That(_views.Ran, Is.EqualTo(new[] { "Open:report.md" }));
+            Assert.That(view.Waits.Select(wait => wait.Item.Kind), Has.None.EqualTo(WaitKind.ConfirmReport));
+        });
+    }
+
+    [Test]
+    public void AReportFiledBeforeTheConfirmation_SaysNothingMore()
+    {
+        // The fixture confirms on day 2; a report of day 1 is the one he confirmed, not a later one.
+        var box = WithReport(satisfied: true, day: 1).AllNodes.Single(node => node.Name == Preconditions);
+
+        Assert.That(box.ReportedAgain, Is.Null);
+    }
+
+    [Test]
+    public void OpeningTheLaterReport_ClearsTheLine()
+    {
+        // Nigel, 2026-11-23: "Opening the report clears it"; it comes back only for a report filed after that.
+        var opened = new List<(string Link, DateTimeOffset At, string Document)>();
+        var actions = _views.Actions with { OpenReport = (link, at, document) => opened.Add((link, at, document)) };
+        var box = WithReport(satisfied: true, actions: actions).AllNodes.Single(node => node.Name == Preconditions);
+
+        box.OpenLaterReport!.Execute(null);
+        var after = WithReport(satisfied: true, actions: actions with { ReportOpened = (_, _) => true })
+            .AllNodes.Single(node => node.Name == Preconditions);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(opened.Single().Document, Is.EqualTo("report.md"), "the link's own document");
+            Assert.That(after.ReportedAgain, Is.Null);
+        });
+    }
+
+    [Test]
+    public void AConfirmedReportWithNothingLater_SaysNothingMore()
+    {
+        var box = _views.BuildYourMarket().AllNodes.Single(node => node.Name == Preconditions);
+
+        Assert.That(box.ReportedAgain, Is.Null);
     }
 
     [Test]
