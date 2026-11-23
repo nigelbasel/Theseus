@@ -74,9 +74,10 @@ In a project, Theseus runs the checks itself. When a build waits for its indepen
 its own session has stopped, Theseus makes its verifier and starts it. When some waiting build is named by no scenario
 and the project has no scenario writer, Theseus makes one and starts it. Meanwhile the Waits line says what is under way,
 such as "Writing scenarios for 7 builds…" or "Checking 3 builds…", with nothing to press. A project you stopped starts
-nothing until you start it. You never start a check yourself: if Theseus could not start one, its line in **Waits for you** says why, with **Start again**.
+nothing until you start it. You need not start a check: if Theseus could not start one, its line in **Waits for you**
+says why, with **Start again**. What waits for you is the report each check files, to confirm or reject.
 
-1. To check one card yourself, choose **Independent check…** from the card's menu, or tick the card and use
+1. To check one card by hand all the same, choose **Independent check…** from the card's menu, or tick the card and use
    **Workstream ▸ Independent check…**.
 2. A new card, **Verify: <card title>**, appears beside it, linked both ways. It runs in the checked card's folder, so
    it can build and run the change, with the holdout folder in reach for reading the scenarios. Theseus starts it at
