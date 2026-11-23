@@ -168,6 +168,12 @@ independent check pass the second. A bug's rule is written only when the fix nee
 saying. A stage before the furthest recorded one that is neither recorded nor skipped
 shows as "done, no record".
 
+**Asking the owner.** A session that needs the owner's answer before it can go on asks with the question tool and
+calls `ask_owner(question, options, why)` with the same question, so it shows on its card, in Waits for you and in
+Needs you until he answers; once the question tool has his answer, it calls `ask_owner(answered: true)`. It never
+asks only in prose: prose may explain the question, but a turn that ends with a question written only as text looks
+finished on the board, and is shown only as a guess, "Probably asking you something".
+
 ## The evidence result block
 
 `work/<slug>/evidence.md` carries the verify stage's result as a fenced block tagged `theseus-evidence`, holding

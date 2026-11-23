@@ -174,6 +174,20 @@ public class CardLifecycleTests
     }
 
     [Test]
+    public void AnIdleSessionWithAQuestionOpen_WaitsForTheOwner()
+    {
+        Assert.That(CardLifecycle.For("tailhawk", "idle", isLive: true, [], Now, hasOpenQuestion: true).Lifecycle,
+            Is.EqualTo(SessionLifecycle.NeedsAttention), "a question asked in prose leaves the session idle, like finished work");
+    }
+
+    [Test]
+    public void ABusySessionWithAQuestionOpen_IsStillBusy()
+    {
+        Assert.That(CardLifecycle.For("tailhawk", "busy", isLive: true, [], Now, hasOpenQuestion: true).Lifecycle,
+            Is.EqualTo(SessionLifecycle.Running));
+    }
+
+    [Test]
     public void NotStartedLine_SaysWhenItLastExited()
     {
         Assert.That(CardLifecycle.NotStartedLine(Now.AddHours(-3), Now.AddDays(-4), Now),

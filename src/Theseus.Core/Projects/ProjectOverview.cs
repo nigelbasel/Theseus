@@ -92,7 +92,11 @@ public sealed class ProjectOverview
                 _ => WaitKind.Unblock,
             };
 
-            waits.Add(new WaitItem(kind, $"{piece.Title}: {status.WhoActs}", [piece.Name]) { CardKey = piece.CardKey });
+            var text = status.Question is { } question
+                ? Questions.QuestionWords.Named(piece.Title, question)
+                : $"{piece.Title}: {status.WhoActs}";
+
+            waits.Add(new WaitItem(kind, text, [piece.Name]) { CardKey = piece.CardKey });
         }
 
         // One line for a round's independent checks, with the list in the dialog (G36).

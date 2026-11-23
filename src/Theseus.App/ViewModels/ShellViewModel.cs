@@ -65,6 +65,9 @@ public sealed class ShellViewModel : ObservableObject
     private readonly List<StopStep> _stopQueue = [];
     private readonly IStopRequestStore _stopRequests = new StopRequestStore(StopRequestRoot.Default);
     private readonly IRunLog _runs;
+
+    /// <summary>The questions sessions have open for the owner (1.6), shared with ask_owner and the hook.</summary>
+    public Theseus.Core.Questions.OwnerQuestionStore Questions { get; } = new(Theseus.Core.Questions.OwnerQuestionRoot.Default);
     private readonly HashSet<string> _handoffWriteFailures = new(StringComparer.OrdinalIgnoreCase);
     private readonly ISessionTodoReader _todos;
     private readonly RunEndings _endings;
@@ -2348,6 +2351,7 @@ public sealed class ShellViewModel : ObservableObject
             StartSelection.IsEligible(card.Workstream, Sessions.Snapshot))
         {
             StopLine = card.StopReason?.Line,
+            Question = card.Question,
             PausedBy = card.Workstream.PausedBy is { } by ? Board.Card(by)?.Title ?? by : null,
             BranchRulesSince = BranchRulesSince(card.Workstream),
         };
@@ -3345,13 +3349,16 @@ public sealed class ShellViewModel : ObservableObject
         var reasons = _settings.Read();
         _branchGrants = reasons.ProjectBranchRules;
         RefreshHoldouts([.. Board.Cards.Select(card => card.Workstream)]);
+        Questions.RemoveExcept(Sessions.Snapshot.Live.Select(session => session.SessionId), DateTimeOffset.UtcNow.AddMinutes(-10));
 
         foreach (var card in Board.Cards)
         {
             var session = Sessions.Find(card.Workstream.LastSessionId);
             var live = session is not null;
-            var state = CardLifecycle.For(card.Key, session?.Status, live, runs, now);
+            var question = live ? Questions.Read(card.Workstream.LastSessionId) : null;
+            var state = CardLifecycle.For(card.Key, session?.Status, live, runs, now, hasOpenQuestion: question is not null);
 
+            card.Question = question;
             card.MotionAllowed = _motionAllowed;
             card.Lifecycle = state.Lifecycle;
             card.LifecycleSinceUtc = state.Since;
