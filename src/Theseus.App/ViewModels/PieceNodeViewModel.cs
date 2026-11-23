@@ -129,12 +129,15 @@ public sealed class PieceNodeViewModel : ObservableObject, IFoldable
             : null;
 
     /// <summary>"Reported again after you confirmed: read it", when its session reported after the confirmation; null otherwise.</summary>
-    public string? ReportedAgain => Piece.LaterReport is { } report
+    public string? ReportedAgain => LaterReport is { } report
         ? $"Reported again after you confirmed{(report.Verdict is { } verdict ? $" (verdict {verdict})" : string.Empty)}: read it"
         : null;
 
     /// <summary>Whether that line shows.</summary>
     public bool HasReportedAgain => ReportedAgain is not null;
+
+    /// <summary>The later report while the owner has not opened it; null once he has (Nigel, 2026-11-23). Set by the view.</summary>
+    public Theseus.Core.Links.LinkReport? LaterReport { get; init; }
 
     /// <summary>Opens the later report; null with none. Set by the view.</summary>
     public System.Windows.Input.ICommand? OpenLaterReport { get; init; }

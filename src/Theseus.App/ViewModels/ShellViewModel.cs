@@ -28,6 +28,7 @@ public sealed partial class ShellViewModel : ObservableObject
     private readonly Dictionary<string, string> _verifierStartFailures = new(StringComparer.OrdinalIgnoreCase);
     private string _updaterStates = string.Empty;
     private readonly CardEventLog _cardEvents = new(Path.Combine(App.DataDirectory, "card-events.jsonl"));
+    private readonly ReportsOpened _reportsOpened = new(Path.Combine(App.DataDirectory, "reports-opened.json"));
     private IReadOnlyDictionary<string, ProjectBranchGrant> _branchGrants = new Dictionary<string, ProjectBranchGrant>();
     private readonly BackgroundProjectReads _projectReads;
     private readonly ProjectFolderWatcher _projectWatcher;
@@ -2614,6 +2615,13 @@ public sealed partial class ShellViewModel : ObservableObject
                 AskChecklist = model => AskChecklist is { } ask ? ask(model) : model.Ticked,
                 UndoClearVerifiers = UndoClearUp,
                 WhoStarts = WhoStartsCard,
+                ReportOpened = _reportsOpened.HasOpened,
+                OpenReport = (link, at, document) =>
+                {
+                    OpenFile(document);
+                    _reportsOpened.Open(link, at);
+                    Refresh();
+                },
                 ProposalsOf = key => [.. Chains?.Proposals?.Pending.Where(row =>
                     string.Equals(row.Proposal.RequesterKey, key, StringComparison.OrdinalIgnoreCase)) ?? []],
             },

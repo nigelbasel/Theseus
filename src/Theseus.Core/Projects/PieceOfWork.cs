@@ -84,6 +84,9 @@ public sealed record PieceOfWork(
     /// </summary>
     public Theseus.Core.Links.LinkReport? LaterReport { get; init; }
 
+    /// <summary>The link the later report came on, by id, so opening it can be remembered; null with none.</summary>
+    public string? LaterReportLink { get; init; }
+
     /// <summary>What its card's session said it is doing, while it is working on this piece; null when it has not said.</summary>
     public SessionStageReport? NowAt { get; init; }
 

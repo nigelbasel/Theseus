@@ -242,8 +242,9 @@ public static class PiecesOfWork
             : links.LastOrDefault(link => link.Kind == LinkKind.ReportsBack && Same(link.From, draft.CardKey) && Same(link.To, parent.CardKey));
         var reported = draft.IsCurrent && backLink is not null && !backLink.ReportIsRejected && (backLink.LatestReport is not null || backLink.SatisfiedUtc is not null);
         var confirmed = draft.IsCurrent && backLink?.SatisfiedUtc is not null;
+        // The document is the link's own, set by the owner, not the one the session named (review of the later report).
         var later = draft.IsCurrent && backLink is { SatisfiedUtc: { } satisfiedAt, LatestReport: { } latest } && latest.AtUtc > satisfiedAt
-            ? latest
+            ? latest with { Document = backLink.Output ?? latest.Document }
             : null;
         var nowAt = draft.IsCurrent && draft.Card is { IsWorking: true } ? said.NowAtOf(draft.CardKey) : null;
         var isObjectiveDone = draft.Objective?.IsDone == true;
@@ -284,6 +285,7 @@ public static class PiecesOfWork
             HasReportedBack = reported,
             IsReportConfirmed = confirmed,
             LaterReport = later,
+            LaterReportLink = later is null ? null : backLink!.Id,
             NowAt = nowAt,
             AwaitsSpecAcceptance = draft.AwaitsSpecAcceptance,
             Acceptance = draft.Acceptance,
