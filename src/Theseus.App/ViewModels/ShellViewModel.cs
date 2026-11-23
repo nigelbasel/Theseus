@@ -506,8 +506,8 @@ public sealed class ShellViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Carries the board's search into a project view (item 7): its boxes whose card the search matches, or whose title
-    /// it matches, are highlighted the way a followed objective's are. Null or no search clears it.
+    /// Carries the board's search into a project view (item 7): the boxes <see cref="SearchCarry"/> matches are highlighted
+    /// the way a followed objective's are. Null or no search clears it.
     /// </summary>
     private void CarrySearch(ProjectViewModel? view)
     {
@@ -525,9 +525,7 @@ public sealed class ShellViewModel : ObservableObject
             return;
         }
 
-        view.ShowSearch(node => node.Piece.Card is { } piece && Board.Card(piece.Key) is { } card
-            ? Board.IsMatch(card)
-            : filter.Admits(new Theseus.Core.Finding.SearchableCard(node.Name, node.Title, string.Empty, string.Empty, [], [], [], [])));
+        view.ShowSearch(node => SearchCarry.Matches(node, key => Board.Card(key) is { } card ? Board.IsMatch(card) : null, filter));
     }
 
     /// <summary>Ticks what is not ticked and unticks what is.</summary>
@@ -2345,6 +2343,7 @@ public sealed class ShellViewModel : ObservableObject
                 GoForward = GoForwardCommand,
                 ReviewProposal = ReviewProposal,
                 AnswerStartRequest = AnswerStartRequest,
+                WhoStarts = WhoStartsCard,
                 ProposalsOf = key => [.. Chains?.Proposals?.Pending.Where(row =>
                     string.Equals(row.Proposal.RequesterKey, key, StringComparison.OrdinalIgnoreCase)) ?? []],
             },
@@ -2353,6 +2352,28 @@ public sealed class ShellViewModel : ObservableObject
             ProjectView,
             overview,
             lead);
+
+    // F31's who-acts line for a card of a running project, from the same test the Start question uses (item 5).
+    private ProjectRunStart? WhoStartsCard(string key)
+    {
+        if (Board.Card(key) is not { } card
+            || card.Workstream.Role == WorkstreamRole.Verifier
+            || ProjectCardGuard.RunningProjectOf(card, Board.ProjectCards) is not { } project)
+        {
+            return null;
+        }
+
+        var lead = project.LeadKey is { } leadKey && Board.Card(leadKey) is { IsLive: true } live ? live.Title : null;
+        // A done card is not held: a project's sessions restart done cards (1.1e item 17).
+        var heldByOwner = card.IsBlocked || card.IsPaused || card.StopReason?.Kind is WhyStoppedKind.PausedBy or WhyStoppedKind.StoppedByYou;
+        IReadOnlyList<string> waitsOn = Chains?.Waiting([card.Workstream]).Count > 0
+            ? [.. Chains.AllLinks.Where(link => link.IsActive && link.Kind == LinkKind.HandsOver
+                                                && string.Equals(link.To, key, StringComparison.OrdinalIgnoreCase) && link.SatisfiedUtc is null)
+                .Select(link => Board.Card(link.From)?.Title ?? link.From).Distinct()]
+            : [];
+
+        return new ProjectRunStart(Theseus.Core.Projects.WhoStarts.Line(project.Title, lead, heldByOwner, waitsOn));
+    }
 
     /// <summary>What the project view knows of a board card (1.1d AC 1): its session, marks, role and whether Start would start it.</summary>
     private PieceCard PieceCardOf(WorkstreamCardViewModel card) =>
@@ -4068,12 +4089,7 @@ public sealed class ShellViewModel : ObservableObject
             }, toolTip: $"Remove the hand-over that shows {card.Title} under {parent}"));
         }
 
-        actions.Add(new PieceActionViewModel("Show on the board", () =>
-        {
-            CloseProject();
-            card.IsCollapsed = false;
-            Board.ClickSelect(card, toggle: false, extend: false);
-        }, toolTip: $"Close the view and select {card.Title} on the board"));
+        actions.Add(ShowTheCard.For(card, shown => ShowCard(shown, DrawerTab.Overview)));
 
         return actions;
     }

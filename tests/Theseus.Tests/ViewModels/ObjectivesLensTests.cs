@@ -79,7 +79,7 @@ public class ObjectivesLensTests
         var next = ProjectViewFixtures.OnePiece(_folder, "feature", ProjectViewFixtures.Files("spec.md"), accepted: true);
 
         Assert.That(next.Status.Text, Does.StartWith("Next:"));
-        Assert.That(Rollup.Of(file.Objectives[0], [next]).State, Is.EqualTo(RollupState.InProgress), "review of PR 5, finding 2");
+        Assert.That(Rollup.Of(file.Objectives[0], [next], []).State, Is.EqualTo(RollupState.InProgress), "review of PR 5, finding 2");
     }
 
     [Test]
@@ -97,6 +97,18 @@ public class ObjectivesLensTests
             + "- [x] One.\n- [ ] Two.\n      Waiting: owner: install the guard\n\n**Pipeline:** freeform\n"
             + "| Workstream | Slug | Branch | Repos |\n|---|---|---|---|\n")).File!;
 
-        Assert.That(Rollup.Of(file.Objectives[0], []).State, Is.EqualTo(RollupState.WaitingForYou));
+        Assert.That(Rollup.Of(file.Objectives[0], [], []).State, Is.EqualTo(RollupState.WaitingForYou));
+    }
+
+    [Test]
+    public void AMetObjective_WithSomethingStillWaiting_SaysWaitingForYou()
+    {
+        // Review of item 6, finding 1: "✓ Met" above an orange list of things to do said two opposite things.
+        var file = ProjectFileReader.Read("p", TestProjectsFolder.ProjectText("P", body: "## Phase 0: S\n\n### Objective 0.1: O\n"
+            + "- [x] One.\n\n**Pipeline:** freeform\n| Workstream | Slug | Branch | Repos |\n|---|---|---|---|\n")).File!;
+        var piece = ProjectViewFixtures.OnePiece(_folder, "feature", ProjectViewFixtures.Files("spec.md"), accepted: true);
+        WaitItem confirm = new(WaitKind.ConfirmReport, "It reported back.", [piece.Name]);
+
+        Assert.That(Rollup.Of(file.Objectives[0], [piece], [confirm]).State, Is.EqualTo(RollupState.WaitingForYou));
     }
 }

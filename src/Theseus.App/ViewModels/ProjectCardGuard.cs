@@ -7,6 +7,16 @@ namespace Theseus.App.ViewModels;
 /// </summary>
 public static class ProjectCardGuard
 {
+    /// <summary>The running project this card belongs to, or null: one with a session open and no run state.</summary>
+    public static ProjectCardViewModel? RunningProjectOf(WorkstreamCardViewModel card, IReadOnlyList<ProjectCardViewModel> projects)
+    {
+        ArgumentNullException.ThrowIfNull(card);
+        ArgumentNullException.ThrowIfNull(projects);
+
+        return projects.FirstOrDefault(project => project is { IsLive: true, IsStopped: false }
+                                                  && project.MemberKeys.Contains(card.Key, StringComparer.OrdinalIgnoreCase));
+    }
+
     /// <summary>The question for these cards, or null when none of them is in a running project.</summary>
     /// <param name="cards">The cards about to be stopped or started.</param>
     /// <param name="projects">The project cards on the board.</param>
@@ -16,10 +26,8 @@ public static class ProjectCardGuard
         ArgumentNullException.ThrowIfNull(cards);
         ArgumentNullException.ThrowIfNull(projects);
 
-        var running = projects.Where(project => project is { IsLive: true, IsStopped: false }).ToList();
         var caught = cards
-            .Select(card => (Card: card, Project: running.FirstOrDefault(project =>
-                project.MemberKeys.Contains(card.Key, StringComparer.OrdinalIgnoreCase))))
+            .Select(card => (Card: card, Project: RunningProjectOf(card, projects)))
             .Where(each => each.Project is not null)
             .ToList();
 

@@ -739,6 +739,10 @@ public sealed class ProjectViewModel : ObservableObject
             AddToProject = addToProject,
             Proposals = piece.IsCurrentPiece ? _actions.ProposalsOf?.Invoke(piece.CardKey) ?? [] : [],
             ServesCommand = piece.ObjectiveNumber is { } served ? new RelayCommand(_ => GoToObjective(served)) : null,
+            // Only where starting it is the box's next step: a built piece waiting for its check keeps its own answer.
+            StartedBy = piece.Status.Action == PieceAction.Start && boxActions.Any(action => action.Label == WhoStarts.StartAnywayLabel)
+                ? _actions.WhoStarts?.Invoke(piece.CardKey)?.Line
+                : null,
         };
     }
 
@@ -757,7 +761,7 @@ public sealed class ProjectViewModel : ObservableObject
         IReadOnlyDictionary<PieceOfWork, PieceNodeViewModel> byPiece, ProjectViewEdits? edits) =>
         new(group, phaseTitle, [.. group.Pieces.Select(piece => byPiece[piece])],
             PieceFolds.IsOpen(_folds, group.Objective is { } objective ? PieceFolds.ObjectiveEntry(objective.Title) : PieceFolds.UnlistedEntry,
-                true), ToggleFold, Select, edits);
+                true), ToggleFold, Select, edits, Waits);
 
     private PieceActionViewModel Action(StageActionOffer offer, PieceOfWork piece, StageNode stage, SpecAtGate? spec)
     {
@@ -787,6 +791,16 @@ public sealed class ProjectViewModel : ObservableObject
 
         var isEnabled = offer.IsEnabled && why is null;
         var reason = offer.DisabledReason ?? why;
+
+        // In a running project the project decides what runs: Start is the owner's override, asked about as before (item 5).
+        if (offer.Action == StageAction.Start && _actions.WhoStarts?.Invoke(key) is { } run)
+        {
+            return new PieceActionViewModel(WhoStarts.StartAnywayLabel, what.Run, isEnabled,
+                reason ?? $"{run.Line ?? "Its project is running and decides what runs."} Start it yourself instead: you are asked first.")
+            {
+                IsLink = true,
+            };
+        }
 
         return new PieceActionViewModel(offer.Label, what.Run, isEnabled, reason ?? what.ToolTip)
         {
