@@ -1,10 +1,10 @@
-using System.Windows.Automation;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Input;
 using System.Windows.Shapes;
+using System.Windows.Automation;
 using Path = System.Windows.Shapes.Path;
 using Theseus.App.ViewModels;
 using Theseus.App.Views;
@@ -333,10 +333,10 @@ public class ProjectViewLayoutTests
             Assert.Multiple(() =>
             {
                 Assert.That(button.ActualHeight, Is.EqualTo(radio.ActualHeight).Within(0.5), name);
-                Assert.That(button.FontFamily.Source, Is.EqualTo("Segoe MDL2 Assets"), $"{name} is a small icon");
+                Assert.That(button.ActualWidth, Is.LessThanOrEqualTo(button.ActualHeight + 20), $"{name} is a small icon, not a word");
                 Assert.That(AutomationProperties.GetName(button), Is.EqualTo(spoken), "UI Automation reads the same name as before");
                 Assert.That(button.ToolTip as string, Does.StartWith(spoken), "its hover says what it does");
-                Assert.That(button.IsTabStop && button.Focusable, Is.True, "still reached with the keyboard");
+                Assert.That(KeyboardNavigation.GetIsTabStop(button) && button.Focusable && button.IsEnabled, Is.True, "still reached with the keyboard");
             });
         }
     }
