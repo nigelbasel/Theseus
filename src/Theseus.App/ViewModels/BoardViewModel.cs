@@ -221,7 +221,10 @@ public sealed class BoardViewModel : ObservableObject
 
         _matches = matches;
 
-        var onBoard = _all.Where(card => KeepOutOfGrid?.Invoke(card) != true).Cast<IBoardCard>().Concat(_projects).ToList();
+        var cardsOnGrid = _all.Where(card => KeepOutOfGrid?.Invoke(card) != true).Cast<IBoardCard>().ToList();
+        var hiddenKind = Kept(BoardShows.Projects) ? cardsOnGrid : Kept(BoardShows.Workstreams) ? [.. _projects] : [];
+        var onBoard = cardsOnGrid.Concat(_projects).Except(hiddenKind).ToList();
+        Search.HiddenByShows = on ? hiddenKind.Count(_matching.Contains) : 0;
         var archivedWouldMatch = on && !ShowArchived && _archived.Any(workstream => filter.Admits(new SearchableCard(
             workstream.Key, workstream.Title, workstream.Project ?? string.Empty, workstream.Area ?? string.Empty,
             workstream.JiraKeys, workstream.Tags, [], [])));
@@ -586,7 +589,7 @@ public sealed class BoardViewModel : ObservableObject
 
         foreach (var card in _all)
         {
-            if (KeepOutOfGrid?.Invoke(card) == true || HiddenBySearch(card) || _shows == BoardShows.Projects)
+            if (KeepOutOfGrid?.Invoke(card) == true || HiddenBySearch(card) || Kept(BoardShows.Projects))
             {
                 continue;
             }
@@ -681,7 +684,7 @@ public sealed class BoardViewModel : ObservableObject
         foreach (var cell in Cells)
         {
             var wanted = _projects
-                .Where(project => !HiddenBySearch(project) && _shows != BoardShows.Workstreams)
+                .Where(project => !HiddenBySearch(project) && !Kept(BoardShows.Workstreams))
                 .Where(project =>
                 {
                     var place = places.FirstOrDefault(entry => string.Equals(entry.Key, project.Name, StringComparison.OrdinalIgnoreCase)).Value;
@@ -1296,11 +1299,6 @@ public sealed class BoardViewModel : ObservableObject
         Persist(card);
     }
 
-    /// <summary>
-    /// Whether the board is showing what has been put away instead of what is being worked on. The
-    /// two are shown apart rather than together: an archived workstream is one somebody decided to
-    /// stop looking at, and a board that keeps showing it greyed out has not done what was asked.
-    /// </summary>
     /// <summary>Which cards the board shows (Nigel, 2026-11-23): all, only project cards, or only workstreams. Remembered.</summary>
     public BoardShows Shows
     {
@@ -1314,9 +1312,18 @@ public sealed class BoardViewModel : ObservableObject
                 Raise(nameof(ShowsProjects));
                 Raise(nameof(ShowsWorkstreams));
                 Place();
+                Raise(nameof(ShowsNote));
             }
         }
     }
+
+    /// <summary>What the status bar adds while one kind is hidden, such as "showing projects only"; empty showing all.</summary>
+    public string ShowsNote => _shows switch
+    {
+        BoardShows.Projects when !ShowArchived => "showing projects only",
+        BoardShows.Workstreams when !ShowArchived => "showing workstreams only",
+        _ => string.Empty,
+    };
 
     /// <summary>Show all, as a radio button binds it.</summary>
     public bool ShowsAll
@@ -1339,6 +1346,9 @@ public sealed class BoardViewModel : ObservableObject
         set => Choose(value, BoardShows.Workstreams);
     }
 
+    // The archive shows workstreams only, so while it is on the choice hides nothing (review, finding 4).
+    private bool Kept(BoardShows shows) => _shows == shows && !ShowArchived;
+
     private void Choose(bool chosen, BoardShows shows)
     {
         if (chosen)
@@ -1347,6 +1357,11 @@ public sealed class BoardViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Whether the board is showing what has been put away instead of what is being worked on. The
+    /// two are shown apart rather than together: an archived workstream is one somebody decided to
+    /// stop looking at, and a board that keeps showing it greyed out has not done what was asked.
+    /// </summary>
     public bool ShowArchived
     {
         get => _showArchived;

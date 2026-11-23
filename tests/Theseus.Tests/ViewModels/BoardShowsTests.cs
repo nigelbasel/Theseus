@@ -73,4 +73,37 @@ public class BoardShowsTests
 
         Assert.That(fixture.Settings.BoardShows, Is.EqualTo(BoardShows.Projects));
     }
+
+    [Test]
+    public void ASearch_CountsOnlyWhatTheChoiceShows_AndSaysHowManyItHides()
+    {
+        // Review: with Projects chosen, "3 of 40 cards match" counted cards the board was not showing.
+        var (fixture, _) = Board();
+        fixture.Board.ShowsProjects = true;
+
+        fixture.Board.Search.Text = "ad-hoc";
+
+        Assert.That(fixture.Board.Search.StatusText, Does.StartWith("No card matches").And.Contain("1 more hidden by Show"));
+    }
+
+    [Test]
+    public void AHiddenKind_IsSaidInTheStatusBar()
+    {
+        var (fixture, _) = Board();
+
+        fixture.Board.ShowsWorkstreams = true;
+
+        Assert.That(fixture.Board.ShowsNote, Is.EqualTo("showing workstreams only"));
+    }
+
+    [Test]
+    public void WhileTheArchiveShows_TheChoiceHidesNothing()
+    {
+        var (fixture, _) = Board();
+        fixture.Board.ShowsProjects = true;
+
+        fixture.Board.ShowArchived = true;
+
+        Assert.That(fixture.Board.ShowsNote, Is.Empty, "the archive holds workstreams only, so Projects would show nothing at all");
+    }
 }
