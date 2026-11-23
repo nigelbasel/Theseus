@@ -297,7 +297,6 @@ public sealed class PieceNodeViewModel : ObservableObject, IFoldable
         PieceAction.Start => Actions.FirstOrDefault(action => action.Label.Contains("Start", StringComparison.Ordinal)
                                                               && action.Label != WhoStarts.StartAnywayLabel),
         PieceAction.Accept => Actions.FirstOrDefault(action => action.Label.StartsWith("Accept", StringComparison.Ordinal)),
-        PieceAction.StartCheck => Actions.FirstOrDefault(action => action.Label.StartsWith("Verify", StringComparison.Ordinal)),
         PieceAction.OpenRecords => Actions.FirstOrDefault(action => action.Label == "Open records"),
         PieceAction.OpenEvidence => Actions.FirstOrDefault(action => action.Label.StartsWith("Open records", StringComparison.Ordinal)),
         PieceAction.AddToObjective => AddToProject,

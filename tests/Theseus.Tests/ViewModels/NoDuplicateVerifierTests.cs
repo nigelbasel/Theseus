@@ -32,8 +32,7 @@ public class NoDuplicateVerifierTests
     {
         _folder = TestProjectsFolder.Create();
         _views = new ProjectViews(_folder);
-        var checks = _views.BuildYourMarket().Waits.Single(wait => wait.Item.Kind == WaitKind.StartChecks);
-        _build = checks.Item.Pieces[0];
+        _build = _views.BuildYourMarket().AllNodes.First(node => node.Piece.Status.State == StageNodeState.HoldoutsNotRun).Name;
         _buildCard = BuildYourMarketCards.Single(entry => entry.Piece == _build).Card;
     }
 
@@ -64,13 +63,17 @@ public class NoDuplicateVerifierTests
     private static IReadOnlyList<WaitItemViewModel> Of(ProjectViewModel view, WaitKind kind) =>
         [.. view.Waits.Where(wait => wait.Item.Kind == kind)];
 
-    [Test]
-    public void AStandingVerifier_TakesItsBuildOutOfStartTheChecks()
-    {
-        var checks = Of(WithVerifier(SessionLifecycle.NotStarted, starting: true), WaitKind.StartChecks).Single();
+    // Whether a verifier still stands for the build, so no second one is made: what "Start the checks…" left out until
+    // Theseus started checks itself and the line went (git-22, 2026-11-23).
+    private bool Stands(ProjectViewModel view) => view.AllNodes.Single(node => node.Name == _build).Piece.PendingVerifiers.Count > 0;
 
-        Assert.That(checks.Item.Pieces, Has.None.EqualTo(_build));
-        Assert.That(checks.Item.Pieces, Has.Count.EqualTo(4));
+    [Test]
+    public void AStandingVerifier_StandsForItsBuild_AndNothingAsksYouToStartChecks()
+    {
+        var view = WithVerifier(SessionLifecycle.NotStarted, starting: true);
+
+        Assert.That(Stands(view), Is.True);
+        Assert.That(view.Waits.Select(wait => wait.Button), Has.None.EqualTo("Start the checks…"), "Theseus starts checks itself (git-22, 2026-11-23)");
     }
 
     [Test]
@@ -78,8 +81,7 @@ public class NoDuplicateVerifierTests
     {
         var view = WithVerifier(SessionLifecycle.Ended, hasRun: true, starting: true);
 
-        Assert.That(Of(view, WaitKind.StartChecks).Single().Item.Pieces, Has.None.EqualTo(_build),
-            "review of the auto-start, must fix 1: its run read as ended, and a second press made a -2 copy");
+        Assert.That(Stands(view), Is.True, "review of the auto-start, must fix 1: its run read as ended, and a second press made a -2 copy");
         Assert.That(Of(view, WaitKind.StartVerifier), Is.Empty, "it is starting: nothing for you to do");
     }
 
@@ -99,7 +101,7 @@ public class NoDuplicateVerifierTests
         var view = WithVerifier(SessionLifecycle.Running, hasRun: true);
 
         Assert.That(Of(view, WaitKind.StartVerifier), Is.Empty);
-        Assert.That(Of(view, WaitKind.StartChecks).Single().Item.Pieces, Has.None.EqualTo(_build));
+        Assert.That(Stands(view), Is.True);
     }
 
     [Test]
@@ -140,11 +142,11 @@ public class NoDuplicateVerifierTests
 
         Assert.That(Of(view, WaitKind.StartVerifier), Is.Empty,
             "git-22, 2026-11-23: a verifier made before Checks lines showed Start again and was counted as waiting for him");
-        Assert.That(Of(view, WaitKind.StartChecks).Single().Item.Pieces, Does.Contain(_build), "it is Clear up's, and a new one can be made");
+        Assert.That(Stands(view), Is.False, "it is Clear up's, and a new one can be made");
     }
 
     [Test]
-    public void EveryBuildWithAStandingVerifier_LeavesNoStartTheChecksButton()
+    public void EveryBuildWithARunningVerifier_AsksNothingOfYou()
     {
         IReadOnlyList<PieceCard> cards =
         [
@@ -158,17 +160,15 @@ public class NoDuplicateVerifierTests
         ];
         var view = _views.BuildYourMarket(cards: cards, links: links);
 
-        Assert.That(Of(view, WaitKind.StartChecks), Is.Empty);
+        Assert.That(view.Waits.Select(wait => wait.Button), Has.None.EqualTo("Start the checks…"));
         Assert.That(Of(view, WaitKind.StartVerifier), Is.Empty, "each is running");
     }
 
     [Test]
     public void AReportedOrArchivedVerifier_LetsTheBuildBeCheckedAgain()
     {
-        Assert.That(Of(WithVerifier(SessionLifecycle.Ended, hasRun: true, reported: true), WaitKind.StartChecks).Single().Item.Pieces,
-            Does.Contain(_build));
-        Assert.That(Of(WithVerifier(SessionLifecycle.NotStarted, archived: true), WaitKind.StartChecks).Single().Item.Pieces,
-            Does.Contain(_build));
+        Assert.That(Stands(WithVerifier(SessionLifecycle.Ended, hasRun: true, reported: true)), Is.False);
+        Assert.That(Stands(WithVerifier(SessionLifecycle.NotStarted, archived: true)), Is.False);
     }
 
     [Test]

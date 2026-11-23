@@ -155,12 +155,13 @@ public sealed record PieceStatus(StageNodeState State, string Text)
         if (stages.Any(stage => stage.State == StageNodeState.HoldoutsNotRun))
         {
             // Theseus runs the check itself (git-22, 2026-11-23), so it waits for nobody; Start the checks… runs it now.
-            return new PieceStatus(StageNodeState.HoldoutsNotRun, "Built, not yet checked by an independent test.")
+            return new PieceStatus(StageNodeState.HoldoutsNotRun, "Built; its independent check has not run yet.")
             {
                 WhoActs = isWorking
                     ? "Theseus checks it once its session stops."
                     : "Theseus checks it: it makes its verifier once a scenario names it.",
-                Action = PieceAction.StartCheck,
+                // Theseus starts the check, so a folded box offers no button for it (git-22, 2026-11-23).
+                Action = PieceAction.None,
             };
         }
 

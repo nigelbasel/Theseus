@@ -583,12 +583,12 @@ public sealed partial class ShellViewModel : ObservableObject
     /// <summary>Properties' tooltip: what it opens, or why not for a project.</summary>
     public string PropertiesToolTip => ProjectSelection.ToolTip(Board, "The selected card's properties");
 
-    /// <summary>Verify with holdouts' tooltip, on the Workstream menu: what it does, or why not for a project.</summary>
+    /// <summary>Independent check' tooltip, on the Workstream menu: what it does, or why not for a project.</summary>
     public string VerifySelectedToolTip => Chosen() is [var only] && WhyCannotVerify(only) is { } why ? why : ProjectSelection.ToolTip(Board,
         "Create a verifier card for the one ticked card: it runs the holdout scenarios its spec names, and reports only a verdict back. Needs one card ticked and the holdout scenarios folder set in Tools > Options; not offered for a verifier card or an archived one");
 
     /// <summary>
-    /// Verify with holdouts' text on the Workstream menu: with one card ticked that cannot be checked, the reason follows
+    /// Independent check' text on the Workstream menu: with one card ticked that cannot be checked, the reason follows
     /// the label (Nigel, 2026-11-23).
     /// </summary>
     public string VerifySelectedMenuText => HoldoutChecks.MenuText(Chosen() is [var only] ? WhyCannotVerify(only) : null);
@@ -1509,7 +1509,7 @@ public sealed partial class ShellViewModel : ObservableObject
     /// <summary>A card's holdout folder: the one chosen in Options, else its project's default (1.1e AC 6c).</summary>
     private HoldoutLocation HoldoutOf(WorkstreamCardViewModel card) => _holdouts.LocationOf(card.Workstream);
 
-    /// <summary>Why Verify with holdouts cannot run for a card, or null (1.1e AC 6a, 6c), from the folders as last refreshed.</summary>
+    /// <summary>Why Independent check cannot run for a card, or null (1.1e AC 6a, 6c), from the folders as last refreshed.</summary>
     private string? WhyCannotVerify(WorkstreamCardViewModel card) =>
         card.Workstream is { IsArchived: false, Role: WorkstreamRole.None } && PendingVerifiersOf(card) is [_, ..] verifiers
             ? _standingVerifiers.GetValueOrDefault(card.Key, []).FirstOrDefault(VerifierCards.NeedsAStart) is { } idle
@@ -1775,7 +1775,7 @@ public sealed partial class ShellViewModel : ObservableObject
         return updated;
     }
 
-    /// <summary>Verify with holdouts…: makes this card's verifier and starts it (Nigel, 2026-11-23).</summary>
+    /// <summary>Independent check…: makes this card's verifier and starts it (Nigel, 2026-11-23).</summary>
     private void VerifyWithHoldouts(WorkstreamCardViewModel card)
     {
         if (MakeVerifier(card) is { } made)
@@ -1888,10 +1888,9 @@ public sealed partial class ShellViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Verify with holdouts… for several builds, as Start the checks… asks: each verifier is made, then all are started
+    /// Independent check… for several builds, as Start the checks… asks: each verifier is made, then all are started
     /// together, so their notices do not overwrite one another.
     /// </summary>
-    private void VerifyManyWithHoldouts(IReadOnlyList<string> keys) => VerifyManyWithHoldouts(keys, quietly: false);
 
     private void VerifyManyWithHoldouts(IReadOnlyList<string> keys, bool quietly)
     {
@@ -2611,9 +2610,6 @@ public sealed partial class ShellViewModel : ObservableObject
                         StartVerifier(verifier);
                     }
                 },
-                VerifyMany = VerifyManyWithHoldouts,
-                // With no dialog set, every row counts as ticked, as Clear up does, so the two never disagree (review, S2).
-                AskChecklist = model => AskChecklist is { } ask ? ask(model) : model.Ticked,
                 UndoClearVerifiers = UndoClearUp,
                 DismissClearUp = DismissClearUp,
                 WhoStarts = WhoStartsCard,

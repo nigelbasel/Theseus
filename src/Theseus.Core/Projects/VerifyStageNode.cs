@@ -1,7 +1,7 @@
 namespace Theseus.Core.Projects;
 
 /// <summary>
-/// Verify. While its holdouts are not run it offers Verify with holdouts, which acts on a card and checks its current
+/// Verify. While its holdouts are not run it offers Independent check, which acts on a card and checks its current
 /// piece (code fact 4): on an older piece it is offered disabled, saying why. It names the verifier cards checking it,
 /// since verifiers are never pieces of their own (AC 13).
 /// </summary>
@@ -25,7 +25,7 @@ public sealed class VerifyStageNode : StageNode
             yield break;
         }
 
-        const string label = "Verify with holdouts…";
+        const string label = "Independent check…";
 
         if (Context.IsCurrentPiece)
         {
@@ -34,12 +34,12 @@ public sealed class VerifyStageNode : StageNode
         else if (Context.CurrentPiece is { } current)
         {
             yield return new StageActionOffer(StageAction.VerifyWithHoldouts, label, false,
-                $"{Context.Workstream} has moved on to {current}; Verify with holdouts checks a card's current work");
+                $"{Context.Workstream} has moved on to {current}; Independent check checks a card's current work");
         }
         else
         {
             yield return new StageActionOffer(StageAction.VerifyWithHoldouts, label, false,
-                $"{Context.Workstream} is not on the board; Verify with holdouts checks a card's current work");
+                $"{Context.Workstream} is not on the board; Independent check checks a card's current work");
         }
     }
 }

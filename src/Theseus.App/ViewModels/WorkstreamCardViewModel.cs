@@ -789,7 +789,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
     public RelayCommand? VerifyWithHoldoutsCommand { get; set; }
 
     /// <summary>
-    /// Verify with holdouts…'s tooltip on the card's menu: what it does, or, while it is off, why (1.1e AC 6a), as the
+    /// Independent check…'s tooltip on the card's menu: what it does, or, while it is off, why (1.1e AC 6a), as the
     /// shell last found it.
     /// </summary>
     public string VerifyToolTip
@@ -799,7 +799,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
     }
 
     /// <summary>
-    /// Verify with holdouts…'s text on the card's menu: while it is off, the reason follows the label, since a disabled
+    /// Independent check…'s text on the card's menu: while it is off, the reason follows the label, since a disabled
     /// menu item's tooltip alone is not plain view (Nigel, 2026-11-23).
     /// </summary>
     public string VerifyMenuText

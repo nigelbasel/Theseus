@@ -36,7 +36,7 @@ public sealed record VerifierRecord(
     public bool ReportRead { get; init; }
 
     /// <summary>
-    /// The holdout a verifier ran against: the folder above the results folder its report is in, as Verify with holdouts…
+    /// The holdout a verifier ran against: the folder above the results folder its report is in, as Independent check…
     /// names it; null for a path of any other shape.
     /// </summary>
     public static string? HoldoutOfReport(string? reportPath)

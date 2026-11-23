@@ -40,16 +40,4 @@ public class ChecklistsTests
         Assert.That(list.Foot([]), Is.EqualTo("Nothing ticked"));
     }
 
-    [Test]
-    public void StartTheChecks_HasARowPerBuild_AndSaysWhichCannotBeChecked()
-    {
-        var list = Checklists.StartChecks([("bym-w1", "BYM W1"), ("bym-w2", "BYM W2")], [("BYM W5", "it is still busy")]);
-
-        Assert.That(list.Title, Is.EqualTo("Start the checks"));
-        Assert.That(list.ConfirmLabel, Is.EqualTo("Start the checks"));
-        Assert.That(list.Rows.Select(row => row.Label), Is.EqualTo(new[] { "BYM W1", "BYM W2" }));
-        Assert.That(list.Intro, Does.Contain("Not checked: BYM W5, it is still busy."));
-        Assert.That(list.Foot(["bym-w1", "bym-w2"]), Is.EqualTo("Make and start 2 verifiers"));
-        Assert.That(list.Foot(["bym-w1"]), Is.EqualTo("Make and start 1 verifier"));
-    }
 }

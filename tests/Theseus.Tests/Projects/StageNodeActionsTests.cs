@@ -4,7 +4,7 @@ using static Theseus.Tests.Projects.ProjectViewFixtures;
 
 namespace Theseus.Tests.Projects;
 
-/// <summary>What each kind of stage offers (1.1d AC 2), and Verify with holdouts on an older piece (code fact 4).</summary>
+/// <summary>What each kind of stage offers (1.1d AC 2), and Independent check on an older piece (code fact 4).</summary>
 [TestFixture]
 public class StageNodeActionsTests
 {
@@ -85,7 +85,7 @@ public class StageNodeActionsTests
     {
         var verify = Named(TheseusPieces(_folder), "projects-and-method-ui").Stages[4];
 
-        Assert.That(verify.Actions[0], Is.EqualTo(new StageActionOffer(StageAction.VerifyWithHoldouts, "Verify with holdouts…")));
+        Assert.That(verify.Actions[0], Is.EqualTo(new StageActionOffer(StageAction.VerifyWithHoldouts, "Independent check…")));
     }
 
     [Test]
@@ -93,8 +93,8 @@ public class StageNodeActionsTests
     {
         var verify = Named(TheseusPieces(_folder), "project-view").Stages[4];
 
-        Assert.That(verify.Actions[0], Is.EqualTo(new StageActionOffer(StageAction.VerifyWithHoldouts, "Verify with holdouts…", false,
-            "git-22 has moved on to projects-and-method-ui; Verify with holdouts checks a card's current work")));
+        Assert.That(verify.Actions[0], Is.EqualTo(new StageActionOffer(StageAction.VerifyWithHoldouts, "Independent check…", false,
+            "git-22 has moved on to projects-and-method-ui; Independent check checks a card's current work")));
     }
 
     [Test]

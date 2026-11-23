@@ -20,7 +20,7 @@ public sealed record StateCountViewModel(StageNodeState State, int Count, string
     private static readonly (StageNodeState State, string Words)[] Order =
     [
         (StageNodeState.Done, "done"), (StageNodeState.Busy, "busy"), (StageNodeState.WaitingOnYou, "waiting on you"),
-        (StageNodeState.HoldoutsNotRun, "holdouts not run"), (StageNodeState.Stuck, "stuck"), (StageNodeState.ToDo, "to do"),
+        (StageNodeState.HoldoutsNotRun, "not yet checked"), (StageNodeState.Stuck, "stuck"), (StageNodeState.ToDo, "to do"),
     ];
 
     // The states 1.1f added (E26 to E29) are counted only when there are some, so the six chips stay as AC 19 has them.

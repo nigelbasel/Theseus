@@ -161,7 +161,7 @@ public class ProjectViewGroupingTests
         }));
         Assert.That(Phase(view, 0).ExitGate, Is.EqualTo("Exit gate: Nigel approves the spec."));
         Assert.That(Objective(view, "0.1").CriteriaText, Is.EqualTo("1 of 1 criteria met"));
-        Assert.That(Objective(view, "1.2").Counts.Select(chip => chip.Text), Is.EqualTo(new[] { "◐ 2 holdouts not run" }));
+        Assert.That(Objective(view, "1.2").Counts.Select(chip => chip.Text), Is.EqualTo(new[] { "◐ 2 not yet checked" }));
         Assert.That(new[] { "1.5", "1.6" }.Select(number => Objective(view, number).IsEmpty), Has.All.True, "they say nothing yet");
 
         var unlisted = view.Unlisted.Single();

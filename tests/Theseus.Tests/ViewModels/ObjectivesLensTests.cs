@@ -46,7 +46,7 @@ public class ObjectivesLensTests
         RollupState StateOf(string number) => view.AllObjectives.Single(heading => heading.Objective?.Number == number).Rollup!.State;
 
         Assert.That(StateOf("0.1"), Is.EqualTo(RollupState.Met));
-        Assert.That(StateOf("1.2"), Is.EqualTo(RollupState.WaitingForYou), "its builds wait for their independent check, which only he starts");
+        Assert.That(StateOf("1.2"), Is.EqualTo(RollupState.InProgress), "its builds wait for their independent check, which Theseus starts (git-22, 2026-11-23)");
         Assert.That(StateOf("1.7"), Is.EqualTo(RollupState.WaitingForYou), "W6 builds ahead of its spec: waiting for you wins over in progress");
         Assert.That(StateOf("1.5"), Is.EqualTo(RollupState.NotStarted));
         Assert.That(StateOf("1.10"), Is.EqualTo(RollupState.PartlyMet));
@@ -58,7 +58,7 @@ public class ObjectivesLensTests
         var heading = Bym(new MemorySettingsStore()).AllObjectives.Single(each => each.Objective?.Number == "1.4");
 
         Assert.That(heading.RollupText, Does.Contain("BYM MCP W4 - MCP host and staff plugin"), "W4's session is busy");
-        Assert.That(heading.Rollup!.ToolTip, Does.StartWith("Waiting for you:").And.Contain("You act"));
+        Assert.That(heading.Rollup!.ToolTip, Does.StartWith("In progress:"), "its builds' checks are Theseus's to start, not his");
     }
 
     [Test]

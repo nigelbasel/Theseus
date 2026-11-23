@@ -55,7 +55,7 @@ a quote inside a name) can still do what the file tools are refused.
 
 ## Writing the scenarios
 
-While a project has no scenarios yet, **Verify with holdouts…** is shown disabled, saying "No holdout scenarios for this
+While a project has no scenarios yet, **Independent check…** is shown disabled, saying "No holdout scenarios for this
 project yet", and **Write scenarios…** beside it creates a card, **Write holdout scenarios for <project>**, that works in
 the project's holdout folder and is the one kind of session allowed to write there. It writes scenarios, never code.
 Theseus starts it at once, and each time it starts it is aimed at the project's holdout folder of that day, so a folder
@@ -64,7 +64,7 @@ that setting.
 
 Each scenario names the work it checks in a line of its own, such as `Checks: verifier-runs, close-step`, giving each
 piece of work by its slug (or a card in no project by its key). Theseus reads those lines, and makes a verifier only for
-a build some scenario names: otherwise **Verify with holdouts…** says "No holdout scenario names <slug>", and offers
+a build some scenario names: otherwise **Independent check…** says "No holdout scenario names <slug>", and offers
 **Write scenarios…**, whose writer is given the project's slugs and adds the line to scenarios already there. So one
 folder's scenarios never judge work they were not written for.
 
@@ -74,10 +74,10 @@ In a project, Theseus runs the checks itself. When a build waits for its indepen
 its own session has stopped, Theseus makes its verifier and starts it. When some waiting build is named by no scenario
 and the project has no scenario writer, Theseus makes one and starts it. Meanwhile the Waits line says what is under way,
 such as "Writing scenarios for 7 builds…" or "Checking 3 builds…", with nothing to press. A project you stopped starts
-nothing until you start it. **Start the checks…** stays, to run the checks again by hand.
+nothing until you start it. You never start a check yourself: if Theseus could not start one, its line in **Waits for you** says why, with **Start again**.
 
-1. To check one card yourself, choose **Verify with holdouts…** from the card's menu, or tick the card and use
-   **Workstream ▸ Verify with holdouts…**.
+1. To check one card yourself, choose **Independent check…** from the card's menu, or tick the card and use
+   **Workstream ▸ Independent check…**.
 2. A new card, **Verify: <card title>**, appears beside it, linked both ways. It runs in the checked card's folder, so
    it can build and run the change, with the holdout folder in reach for reading the scenarios. Theseus starts it at
    once. A verifier that is neither running nor starting and has not reported, after a failed start or a restart of

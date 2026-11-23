@@ -15,8 +15,6 @@ public enum WaitKind
     /// <summary>Look at a card marked blocked.</summary>
     Unblock,
 
-    /// <summary>Start the independent checks of a round's builds.</summary>
-    StartChecks,
 
     /// <summary>Add a linked card to an objective in project.md.</summary>
     AddToObjective,

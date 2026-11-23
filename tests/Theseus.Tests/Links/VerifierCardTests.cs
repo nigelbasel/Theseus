@@ -4,7 +4,7 @@ using Theseus.Core.Links;
 namespace Theseus.Tests.Links;
 
 /// <summary>
-/// The card Verify with holdouts… creates: where it runs, what it can reach, where it reports, and its fixed brief, in
+/// The card Independent check… creates: where it runs, what it can reach, where it reports, and its fixed brief, in
 /// the spec's words (verifier-card AC 10 and 11; P17).
 /// </summary>
 [TestFixture]

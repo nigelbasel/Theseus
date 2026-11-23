@@ -34,22 +34,6 @@ public static class Checklists
             });
     }
 
-    /// <summary>Start the checks…: one row per build to be checked, and the builds left out, with why, above them.</summary>
-    /// <param name="builds">The builds, by card key and title.</param>
-    /// <param name="refused">The builds that cannot be checked now, by title, with why.</param>
-    public static Checklist StartChecks(IReadOnlyList<(string Key, string Title)> builds, IReadOnlyList<(string Title, string Why)> refused)
-    {
-        ArgumentNullException.ThrowIfNull(builds);
-        ArgumentNullException.ThrowIfNull(refused);
-
-        var intro = "Each build ticked gets a verifier card, which starts at once, runs the holdout scenarios that name it, and reports only a verdict."
-                    + (refused.Count == 0 ? string.Empty : " Not checked: " + string.Join("; ", refused.Select(each => $"{each.Title}, {each.Why}")) + ".");
-
-        return new Checklist("Start the checks", intro, "Start the checks",
-            [.. builds.Select(build => new ChecklistRow(build.Key, build.Title, "Built, not yet checked by an independent test"))],
-            ticked => ticked.Count == 0 ? "Nothing ticked" : $"Make and start {ticked.Count} {(ticked.Count == 1 ? "verifier" : "verifiers")}");
-    }
-
     private static string Sentence(string text) =>
         text.Length == 0 ? text : char.ToUpperInvariant(text[0]) + text[1..].TrimEnd('.') + ".";
 }

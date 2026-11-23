@@ -5,7 +5,7 @@ using Theseus.Core.Links;
 namespace Theseus.App.ViewModels;
 
 /// <summary>
-/// Whether Verify with holdouts can run for a card, why not, and the way on (1.1e AC 6a, 6c), from each project's holdout
+/// Whether Independent check can run for a card, why not, and the way on (1.1e AC 6a, 6c), from each project's holdout
 /// folder as last read. The folders are looked at once per refresh, not on every command query, since a chosen folder may
 /// be slow to reach (review of PR 2b, finding 3); the shell asks this and nothing else.
 /// </summary>
@@ -80,7 +80,7 @@ public sealed class HoldoutChecks
     public HoldoutLocation LocationOfProject(string project) =>
         _byProject.TryGetValue(project, out var known) ? known.Location : Locate(project);
 
-    /// <summary>Why Verify with holdouts cannot run for this card, or null when it can.</summary>
+    /// <summary>Why Independent check cannot run for this card, or null when it can.</summary>
     public string? WhyCannotVerify(Workstream card, string title)
     {
         ArgumentNullException.ThrowIfNull(card);
@@ -168,7 +168,7 @@ public sealed class HoldoutChecks
     public static string MenuText(string? why) => why is null ? VerifyMenuLabel : $"{VerifyMenuLabel} — {why}";
 
     /// <summary>The Verify menu item's own label, with its access key.</summary>
-    public const string VerifyMenuLabel = "_Verify with holdouts…";
+    public const string VerifyMenuLabel = "_Independent check…";
 
     /// <summary>The way on from a disabled Verify: set a missing chosen folder, or write the first scenarios.</summary>
     public HoldoutWayOn WayOn(Workstream card)

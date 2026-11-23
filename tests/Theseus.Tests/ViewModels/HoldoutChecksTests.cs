@@ -6,7 +6,7 @@ using Theseus.Tests.Projects;
 namespace Theseus.Tests.ViewModels;
 
 /// <summary>
-/// The shell's own rules for Verify with holdouts (1.1e AC 6a, 6c; review of PR 2b, findings 3, 5 and 8): the reason it
+/// The shell's own rules for Independent check (1.1e AC 6a, 6c; review of PR 2b, findings 3, 5 and 8): the reason it
 /// cannot run, and the way on, from the holdout folders as last refreshed, never read again on a command query.
 /// </summary>
 [TestFixture]

@@ -41,7 +41,7 @@ public class ProjectViewModelTests
         Assert.That(view.Sentence, Is.EqualTo("Nothing is moving. Three things wait for you."), "1.1f G33, replacing 1.1d AC 8");
         Assert.That(view.Counts.Select(chip => chip.Text), Is.EqualTo(new[]
         {
-            "✓ 7 done", "● 0 busy", "◆ 3 waiting on you", "◐ 0 holdouts not run", "⚠ 0 stuck", "– 2 to do",
+            "✓ 7 done", "● 0 busy", "◆ 3 waiting on you", "◐ 0 not yet checked", "⚠ 0 stuck", "– 2 to do",
         }));
         Assert.That(view.Counts.Select(chip => chip.Count), Is.EqualTo(view.Counts.Select(chip => view.Summary.CountOf(chip.State))),
             "the counts are the model's, not worked out again (AC 10)");
@@ -125,25 +125,6 @@ public class ProjectViewModelTests
         view.Waits.Single().Command!.Execute(null);
 
         Assert.That(_views.Ran, Is.EqualTo(new[] { "AcceptSpec:a-piece" }));
-    }
-
-    [Test]
-    public void StartTheChecks_AsksFirst_ListingThem_AndStartsNothingOnNo()
-    {
-        var asked = new List<string>();
-        var answer = false;
-        var view = _views.BuildYourMarket(actions: _views.Actions with { Ask = question => { asked.Add(question); return answer; } });
-        var checks = view.Waits.Single(wait => wait.Item.Kind == WaitKind.StartChecks);
-
-        checks.Command!.Execute(null);
-
-        Assert.That(asked.Single(), Does.StartWith("Start the independent check of 5 builds? Each gets a verifier card:"));
-        Assert.That(_views.Ran, Is.Empty, "no means no verifier card");
-
-        answer = true;
-        checks.Command.Execute(null);
-
-        Assert.That(_views.Ran.Count(ran => ran.StartsWith("Verify:", StringComparison.Ordinal)), Is.EqualTo(5));
     }
 
     [Test]
@@ -302,7 +283,7 @@ public class ProjectViewModelTests
         Assert.That((box.IsOpen, box.BoxWidth, box.Chevron, box.ChevronToolTip), Is.EqualTo((true, 640.0, "▾", "Fold this piece of work")));
         Assert.That(box.Actions.Select(action => action.Label), Is.EqualTo(new[]
         {
-            "Open spec", "Accept spec…", "Verify with holdouts…", "⧉ Focus git-22", "■ Stop", "Open records",
+            "Open spec", "Accept spec…", "Independent check…", "⧉ Focus git-22", "■ Stop", "Open records",
         }));
         Assert.That(box.Actions.Single(action => action.Label.StartsWith('⧉')).ToolTip, Is.EqualTo("Bring its terminal forward"));
     }
@@ -330,7 +311,7 @@ public class ProjectViewModelTests
 
         Assert.That(box.Actions.Select(action => action.Label), Is.EqualTo(new[]
         {
-            "Open spec", "Accept spec…", "Verify with holdouts…", "▶ Start", "Open records",
+            "Open spec", "Accept spec…", "Independent check…", "▶ Start", "Open records",
         }));
     }
 
@@ -414,11 +395,11 @@ public class ProjectViewModelTests
     [Test]
     public void VerifyWithHoldouts_OnAPieceItsCardHasLeft_IsDisabledSayingWhy()
     {
-        var verify = Box(_views.Theseus(), "project-view").Actions.Single(action => action.Label == "Verify with holdouts…");
+        var verify = Box(_views.Theseus(), "project-view").Actions.Single(action => action.Label == "Independent check…");
 
         Assert.That(verify.IsEnabled, Is.False);
         Assert.That(verify.ToolTip, Is.EqualTo(
-            "git-22 has moved on to projects-and-method-ui; Verify with holdouts checks a card's current work"));
+            "git-22 has moved on to projects-and-method-ui; Independent check checks a card's current work"));
     }
 
     [Test]
