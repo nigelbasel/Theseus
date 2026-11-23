@@ -135,8 +135,32 @@ public static class StageCalculator
         {
             (PipelineKind.Bug, PipelineStage.Spec) => BugArtefacts.HasRule(artefacts.FixText),
             (PipelineKind.Bug, PipelineStage.Implement) => BugArtefacts.HasFix(artefacts.FixText),
-            _ => artefacts.Files.Contains(RecordFileOf(pipeline, stage)),
+            _ => RecordFileIn(pipeline, stage, artefacts.Files) is not null,
         };
+
+    /// <summary>
+    /// The file that records a stage in this folder: <see cref="RecordFileOf"/>, or a numbered or suffixed one of the same
+    /// name, such as review-pr1.md for review.md, the first in name order; null when there is none. Two reviews kept as
+    /// review-pr1.md and review-pr2.md showed Review as "not started" (walkthrough row 28).
+    /// </summary>
+    public static string? RecordFileIn(PipelineKind pipeline, PipelineStage stage, IReadOnlySet<string> files)
+    {
+        ArgumentNullException.ThrowIfNull(files);
+        var name = RecordFileOf(pipeline, stage);
+
+        if (files.Contains(name))
+        {
+            return name;
+        }
+
+        var stem = Path.GetFileNameWithoutExtension(name);
+
+        return files
+            .Where(file => file.StartsWith(stem + "-", StringComparison.OrdinalIgnoreCase)
+                           && file.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault();
+    }
 
     private static StageGate Gate(PipelineKind pipeline, PipelineStage stage, IReadOnlyList<PipelineStage> reached,
         WorkstreamArtefacts artefacts, EvidenceBlock? evidence, SpecAcceptance? acceptance)

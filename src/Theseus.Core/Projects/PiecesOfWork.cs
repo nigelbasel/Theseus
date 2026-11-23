@@ -375,7 +375,8 @@ public static class PiecesOfWork
 
             if (isBeforeKit)
             {
-                drafts.Add(Draft(pipeline, pipelineStage, byRecord, null, isWritten));
+                drafts.Add(Draft(pipeline, pipelineStage, byRecord, null, isWritten,
+                    StageCalculator.RecordFileIn(pipeline, pipelineStage, artefacts.Files)));
 
                 continue;
             }
@@ -384,7 +385,8 @@ public static class PiecesOfWork
             {
                 PipelineStage.Spec => SpecDraft(pipeline, stage.GateAfter(PipelineStage.Spec), isWritten),
                 PipelineStage.Verify => VerifyDraft(pipeline, stage.GateAfter(PipelineStage.Verify), artefacts, isWritten),
-                _ => Draft(pipeline, pipelineStage, byRecord, null, isWritten),
+                _ => Draft(pipeline, pipelineStage, byRecord, null, isWritten,
+                    StageCalculator.RecordFileIn(pipeline, pipelineStage, artefacts.Files)),
             });
         }
 
@@ -439,7 +441,7 @@ public static class PiecesOfWork
             null, false);
 
     private static StageDraft Draft(PipelineKind pipeline, PipelineStage stage, StageNodeState state, string? reason,
-        bool isWritten)
+        bool isWritten, string? recordFile = null)
     {
         var kind = stage switch
         {
@@ -449,7 +451,7 @@ public static class PiecesOfWork
             _ => DraftKind.Record,
         };
 
-        return new StageDraft(kind, stage, Name(pipeline, stage), state, reason, StageCalculator.RecordFileOf(pipeline, stage),
+        return new StageDraft(kind, stage, Name(pipeline, stage), state, reason, recordFile ?? StageCalculator.RecordFileOf(pipeline, stage),
             isWritten);
     }
 

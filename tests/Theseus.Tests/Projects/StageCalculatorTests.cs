@@ -36,6 +36,26 @@ public class StageCalculatorTests
         Assert.That(Feature(Artefacts(file)).Reached, Is.EqualTo(new[] { stage }));
     }
 
+    [TestCase("review-pr1.md", PipelineStage.Review)]
+    [TestCase("plan-2.md", PipelineStage.Plan)]
+    [TestCase("lessons-pr2.md", PipelineStage.Compound)]
+    public void AStage_IsReached_ByANumberedOrSuffixedRecordOfItsName(string file, PipelineStage stage)
+    {
+        // Walkthrough row 28: two reviews kept as review-pr1.md and review-pr2.md showed Review as "not started".
+        Assert.That(Feature(Artefacts(file)).Reached, Is.EqualTo(new[] { stage }));
+    }
+
+    [Test]
+    public void TheRecordOpened_IsTheExactName_ElseTheFirstOfItsNumberedOnes_ElseNone()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(StageCalculator.RecordFileIn(PipelineKind.Feature, PipelineStage.Review, new HashSet<string> { "review.md", "review-pr1.md" }), Is.EqualTo("review.md"));
+            Assert.That(StageCalculator.RecordFileIn(PipelineKind.Feature, PipelineStage.Review, new HashSet<string> { "review-pr2.md", "review-pr1.md" }), Is.EqualTo("review-pr1.md"));
+            Assert.That(StageCalculator.RecordFileIn(PipelineKind.Feature, PipelineStage.Review, new HashSet<string> { "reviewer-notes.md" }), Is.Null, "a different word is not a review");
+        });
+    }
+
     [Test]
     public void ABugsStages_SitUnderTheFeatureColumns_FromReproductionAndFixSections()
     {
