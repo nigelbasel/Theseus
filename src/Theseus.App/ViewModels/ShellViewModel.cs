@@ -265,6 +265,7 @@ public sealed partial class ShellViewModel : ObservableObject
                     Path.Combine(App.DataDirectory, "folder-trust-undo.json")),
                 () => Board.Cards.Where(card => !card.IsArchived).SelectMany(card => SessionFolders(card.Workstream))),
         };
+        Settings.FolderTrust.Said = text => Notice = text;
         Settings.OpenProjectHoldouts = OpenProjectHoldouts;
         Settings.HasProjectCard = project => Board.ProjectCards.Any(each => string.Equals(each.Name, project, StringComparison.OrdinalIgnoreCase));
         Drawer.TagsInUse = Board.Tags.InUse;
