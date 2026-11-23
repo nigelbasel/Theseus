@@ -3320,7 +3320,6 @@ public sealed class ShellViewModel : ObservableObject
         var reasons = _settings.Read();
         _branchGrants = reasons.ProjectBranchRules;
         RefreshHoldouts([.. Board.Cards.Select(card => card.Workstream)]);
-        RefreshStandingVerifiers();
 
         foreach (var card in Board.Cards)
         {
@@ -3336,7 +3335,6 @@ public sealed class ShellViewModel : ObservableObject
             card.IsInLastStage = lastStage is not null && string.Equals(card.Column, lastStage, StringComparison.OrdinalIgnoreCase);
             card.StopReason = CardStopReasons.For(card, reasons.ProjectRunStates, ProjectTitle, reasons.CardsStoppedByOwner,
                 Chains?.AllLinks ?? [], key => Board.Card(key)?.Title ?? key);
-            SetVerifyTexts(card);
             card.LastRunCrashed = !live && (state.Lifecycle == SessionLifecycle.Ghost
                                             || runs.Where(run => string.Equals(run.WorkstreamKey, card.Key, StringComparison.OrdinalIgnoreCase))
                                                 .MaxBy(run => run.StartedUtc)?.ExitReason == SessionExitReason.CrashedOrKilled);
@@ -3392,6 +3390,14 @@ public sealed class ShellViewModel : ObservableObject
             card.ConvertToProjectCommand ??= new RelayCommand(_ => ConvertToProject(card),
                 _ => _hasProjectsFolder && card.Workstream.Project is null && card.Workstream.Role == WorkstreamRole.None);
             card.RenameHandoffCommand ??= new RelayCommand(_ => RenameHandoff(card), _ => card.HandoffRenameTo.Length > 0);
+        }
+
+        // After the lifecycles above, so a verifier that has just ended no longer stands (review of 72ec6d7).
+        RefreshStandingVerifiers();
+
+        foreach (var card in Board.Cards)
+        {
+            SetVerifyTexts(card);
         }
 
         // Every card with a transcript, live or not: which model a stopped session was on is worth
