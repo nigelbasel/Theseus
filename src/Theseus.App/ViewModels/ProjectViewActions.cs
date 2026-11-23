@@ -81,6 +81,9 @@ public sealed record ProjectViewActions(
     /// <summary>Asks the owner to allow or refuse a start request by its id (sessions-run-the-project 13); null in tests.</summary>
     public Action<string>? AnswerStartRequest { get; init; }
 
+    /// <summary>Shows a checklist confirmation, returning the keys ticked, or null when cancelled; null asks with Ask instead.</summary>
+    public Func<ChecklistViewModel, IReadOnlyList<string>?>? AskChecklist { get; init; }
+
     /// <summary>Verify with holdouts… for several builds at once, as Start the checks… asks; null runs it for each in turn.</summary>
     public Action<IReadOnlyList<string>>? VerifyMany { get; init; }
 

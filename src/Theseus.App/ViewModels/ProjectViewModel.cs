@@ -1032,18 +1032,38 @@ public sealed class ProjectViewModel : ObservableObject
             return;
         }
 
-        var question = $"Start the independent check of {builds.Count} {(builds.Count == 1 ? "build" : "builds")}? Each gets a verifier card:\n"
-                       + string.Join("\n", builds.Select(piece => $"  • {piece.Title}"))
-                       + (refused.Count == 0
-                           ? string.Empty
-                           : "\nNot checked:\n" + string.Join("\n", refused.Select(entry => $"  • {entry.Piece.Title}: {entry.Why}")));
+        var all = builds.Select(piece => piece.CardKey).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        List<string> keys;
 
-        if (_actions.Ask?.Invoke(question) == false)
+        // A checklist, one row per build, each ticked to begin with, not a message box titled for a spec (Nigel, 2026-11-23).
+        if (_actions.AskChecklist is { } ask)
         {
-            return;
-        }
+            var list = Checklists.StartChecks(
+                [.. builds.DistinctBy(piece => piece.CardKey, StringComparer.OrdinalIgnoreCase).Select(piece => (piece.CardKey, piece.Title))],
+                [.. refused.Select(entry => (entry.Piece.Title, entry.Why!))]);
 
-        var keys = builds.Select(piece => piece.CardKey).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (ask(new ChecklistViewModel(list)) is not { Count: > 0 } ticked)
+            {
+                return;
+            }
+
+            keys = [.. all.Where(key => ticked.Contains(key, StringComparer.OrdinalIgnoreCase))];
+        }
+        else
+        {
+            var question = $"Start the independent check of {builds.Count} {(builds.Count == 1 ? "build" : "builds")}? Each gets a verifier card:\n"
+                           + string.Join("\n", builds.Select(piece => $"  • {piece.Title}"))
+                           + (refused.Count == 0
+                               ? string.Empty
+                               : "\nNot checked:\n" + string.Join("\n", refused.Select(entry => $"  • {entry.Piece.Title}: {entry.Why}")));
+
+            if (_actions.Ask?.Invoke(question) == false)
+            {
+                return;
+            }
+
+            keys = all;
+        }
 
         if (_actions.VerifyMany is { } many)
         {

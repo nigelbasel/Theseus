@@ -2606,6 +2606,7 @@ public sealed partial class ShellViewModel : ObservableObject
                     }
                 },
                 VerifyMany = VerifyManyWithHoldouts,
+                AskChecklist = model => AskChecklist?.Invoke(model),
                 UndoClearVerifiers = UndoClearUp,
                 WhoStarts = WhoStartsCard,
                 ProposalsOf = key => [.. Chains?.Proposals?.Pending.Where(row =>

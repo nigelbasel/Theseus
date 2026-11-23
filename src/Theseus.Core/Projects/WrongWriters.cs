@@ -22,7 +22,7 @@ public static class WrongWriters
                 .Where(entry => !string.IsNullOrWhiteSpace(entry.Folder) && !string.IsNullOrWhiteSpace(entry.Writer.Folder)
                                 && !Same(entry.Writer.Folder, entry.Folder))
                 .Select(entry => new WrongVerifier(entry.Writer.Key, entry.Writer.Title, entry.Writer.Project ?? string.Empty,
-                    entry.Writer.IsRunning, $"it writes scenarios in {entry.Writer.Folder}, not this project's holdout {entry.Folder}")),
+                    entry.Writer.IsRunning, $"it writes scenarios in {entry.Writer.Folder}, not this project's holdout {entry.Folder}", IsWriter: true)),
         ];
     }
 

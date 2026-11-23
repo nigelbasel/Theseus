@@ -28,6 +28,9 @@ public sealed partial class ShellViewModel
     /// </summary>
     public bool RunsChecksItself { get; set; }
 
+    /// <summary>Shows a checklist confirmation, returning the keys ticked, or null when cancelled. Set by the app.</summary>
+    public Func<ChecklistViewModel, IReadOnlyList<string>?>? AskChecklist { get; set; }
+
     /// <summary>Each project's steps as last worked out, by project, whether or not they were taken: read by tools.</summary>
     public IReadOnlyDictionary<string, CheckPlan> CheckPlans => _checkPlans;
 

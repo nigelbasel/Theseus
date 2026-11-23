@@ -100,20 +100,19 @@ public sealed partial class ShellViewModel
             return;
         }
 
-        var question = $"Clear up {listed.Count} {(listed.Count == 1 ? "card" : "cards")}? Each running one is stopped first; "
-                       + "then each is archived and every report it filed is rejected, a confirmed one too, so nothing it said counts as met.\n"
-                       + string.Join("\n", listed.Select(verifier =>
-                           $"  • {verifier.Title} ({(verifier.IsRunning ? "running" : "not running")}): {verifier.Why}"))
-                       + "\nThe newest correct verifier of each build is kept. You can undo this.";
+        // A checklist, one row per card, each ticked to begin with (Nigel, 2026-11-23: "a very dense message box").
+        var ticked = AskChecklist is { } ask
+            ? ask(new ChecklistViewModel(Checklists.ClearUp(listed, key => Board.Card(key)?.Title ?? key)))
+            : [.. listed.Select(verifier => verifier.Key)];
 
-        if (ConfirmAcceptSpec?.Invoke(question) == false)
+        if (ticked is not { Count: > 0 })
         {
             return;
         }
 
         // Worked out again after the question, so a card that started while it was open is stopped too (review of item 5, S8);
-        // only the cards he saw are taken.
-        var seen = listed.Select(verifier => verifier.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        // only the cards he ticked are taken.
+        var seen = ticked.ToHashSet(StringComparer.OrdinalIgnoreCase);
         var wrong = WrongVerifiersOf(project).Where(verifier => seen.Contains(verifier.Key)).ToList();
         var earlier = ClearUp is { } kept && string.Equals(kept.Project, project, StringComparison.OrdinalIgnoreCase) ? kept.Record : null;
         var clearUp = VerifierClearUp.Plan(project, wrong, Chains?.AllLinks ?? []);
