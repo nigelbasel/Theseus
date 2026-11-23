@@ -308,6 +308,22 @@ public class ProjectViewModelTests
     }
 
     [Test]
+    public void ABoxWhoseSessionRuns_ShowsItsMarkAndFocus_OnItsTitleBar()
+    {
+        var running = Box(_views.Theseus(SessionLifecycle.Running), "projects-and-method-ui");
+        var stopped = Box(_views.Theseus(SessionLifecycle.NotStarted), "projects-and-method-ui");
+        running.FocusAction!.Command.Execute(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(running.SessionMark, Is.EqualTo("● running"));
+            Assert.That(_views.Ran, Is.EqualTo(new[] { "Focus:git-22" }), "one click to its tab, folded or open");
+            Assert.That(stopped.HasSessionMark, Is.False);
+            Assert.That(stopped.FocusAction, Is.Null);
+        });
+    }
+
+    [Test]
     public void ACardWithNoSession_OffersStart_NotFocusOrStop()
     {
         var box = Box(_views.Theseus(SessionLifecycle.NotStarted), "projects-and-method-ui");
@@ -316,6 +332,56 @@ public class ProjectViewModelTests
         {
             "Open spec", "Accept spec…", "Verify with holdouts…", "▶ Start", "Open records",
         }));
+    }
+
+    [Test]
+    public void InARunningProject_TheBoxSaysWhoStartsIt_AndOffersStartAnywaySecond()
+    {
+        // Nigel, 2026-11-23: a plain ▶ Start then asked "part of <project>, which decides what runs. Start it anyway?".
+        const string who = "Theseus starts it, when the project's plan reaches it: Theseus is running and decides what runs.";
+        var view = _views.One("freeform", actions: _views.Actions with { WhoStarts = _ => new ProjectRunStart(who) });
+        var box = view.AllNodes.Single();
+        var start = box.Actions.Single(action => action.Label == "Start anyway…");
+
+        start.Command.Execute(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(box.Actions.Select(action => action.Label), Has.None.EqualTo("▶ Start"));
+            Assert.That(box.WhoActs, Is.EqualTo(who));
+            Assert.That(box.PrimaryAction, Is.Null, "folded, the box says who starts it and offers no button: the override is never its one button");
+            Assert.That(start.ToolTip, Does.StartWith(who));
+            Assert.That(_views.Ran, Is.EqualTo(new[] { $"Start:{box.Piece.CardKey}" }), "the same Start, which asks the same question first");
+        });
+    }
+
+    [Test]
+    public void InARunningProject_ABoxWaitingOnYouKeepsItsOwnAnswer()
+    {
+        // Found on the live data: a build waiting for its check read "its turn has not come yet".
+        var view = _views.Theseus(SessionLifecycle.NotStarted, actions: _views.Actions with { WhoStarts = _ => new ProjectRunStart("Lead starts it.") });
+        var box = Box(view, "projects-and-method-ui");
+
+        Assert.That(box.Actions.Select(action => action.Label), Does.Contain("Start anyway…"));
+        Assert.That(box.WhoActs, Is.EqualTo(box.Piece.Status.WhoActs));
+    }
+
+    [Test]
+    public void InARunningProject_ACardTheOwnerHolds_StillHasStartAnyway_AndKeepsItsOwnAnswer()
+    {
+        var box = _views.One("freeform", actions: _views.Actions with { WhoStarts = _ => new ProjectRunStart(null) }).AllNodes.Single();
+
+        Assert.That(box.Actions.Select(action => action.Label), Does.Contain("Start anyway…"));
+        Assert.That(box.WhoActs, Is.EqualTo(box.Piece.Status.WhoActs));
+    }
+
+    [Test]
+    public void WhereTheOwnerStartsIt_TheBoxKeepsAPlainStart()
+    {
+        var box = Box(_views.Theseus(SessionLifecycle.NotStarted, actions: _views.Actions with { WhoStarts = _ => null }), "projects-and-method-ui");
+
+        Assert.That(box.Actions.Select(action => action.Label), Does.Contain("▶ Start"));
+        Assert.That(box.StartedBy, Is.Null);
     }
 
     [Test]

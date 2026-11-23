@@ -143,7 +143,7 @@ public class ProjectViewGroupingTests
             "0.1 Method kit v0", "0.2 Holdout scenarios", "0.3 Five changes through the method by hand", "1.0 A verifier card",
             "1.1 Checks shown on cards",
         }));
-        Assert.That(view.AllObjectives.Select(objective => objective.CriteriaText), Has.All.EqualTo("0/1"));
+        Assert.That(view.AllObjectives.Select(objective => objective.CriteriaText), Has.All.EqualTo("0 of 1 criteria met"));
         Assert.That(Objective(view, "0.1").Counts.Select(chip => chip.Text), Is.EqualTo(new[] { "✓ 1 done" }));
         Assert.That(Objective(view, "1.1").Counts.Select(chip => chip.Text), Is.EqualTo(new[] { "◆ 3 waiting on you" }), "zeros left out");
         Assert.That(view.Unlisted, Is.Empty);
@@ -160,7 +160,7 @@ public class ProjectViewGroupingTests
             ("Phase 2: Customer release", "no objectives yet", true),
         }));
         Assert.That(Phase(view, 0).ExitGate, Is.EqualTo("Exit gate: Nigel approves the spec."));
-        Assert.That(Objective(view, "0.1").CriteriaText, Is.EqualTo("1/1"));
+        Assert.That(Objective(view, "0.1").CriteriaText, Is.EqualTo("1 of 1 criteria met"));
         Assert.That(Objective(view, "1.2").Counts.Select(chip => chip.Text), Is.EqualTo(new[] { "◐ 2 holdouts not run" }));
         Assert.That(new[] { "1.5", "1.6" }.Select(number => Objective(view, number).IsEmpty), Has.All.True, "they say nothing yet");
 
@@ -178,7 +178,7 @@ public class ProjectViewGroupingTests
         var view = Objectives(GroupedView());
         var empty = Objective(view, "1.1");
 
-        Assert.That((empty.IsEmpty, empty.CriteriaText, empty.ShowsPieces), Is.EqualTo((true, "1/2", false)));
+        Assert.That((empty.IsEmpty, empty.CriteriaText, empty.ShowsPieces), Is.EqualTo((true, "1 of 2 criteria met", false)));
         Assert.That(Phase(view, 0).ExitGate, Is.EqualTo("Exit gate: The first objective is met."));
         Assert.That((Phase(view, 0).IsDone, Phase(view, 0).IsOpen), Is.EqualTo((true, false)), "a done phase starts folded");
         Assert.That(Phase(view, 1).IsOpen, Is.True);

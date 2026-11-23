@@ -125,7 +125,7 @@ public sealed class ProjectCardViewModel : ObservableObject, IBoardCard
     }
 
     /// <summary>"1 match inside", under its title while a search matches its cards (item 7); empty otherwise.</summary>
-    public string MatchesInsideText => _matchesInside == 0 ? string.Empty : $"{_matchesInside} match{(_matchesInside == 1 ? string.Empty : "es")} inside";
+    public string MatchesInsideText => _matchesInside == 0 ? string.Empty : $"{_matchesInside} in {Title}";
 
     /// <summary>The keys of its cards the search matches, which opening it carries into the project view (item 7).</summary>
     public IReadOnlyList<string> MatchingKeys { get; private set; } = [];

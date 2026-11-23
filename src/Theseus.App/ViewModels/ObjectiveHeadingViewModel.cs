@@ -21,13 +21,15 @@ public sealed class ObjectiveHeadingViewModel : ObservableObject, IFoldable
     private bool _isSelected;
 
     internal ObjectiveHeadingViewModel(ObjectiveGroup group, string? phaseTitle, IReadOnlyList<PieceNodeViewModel> pieces,
-        bool isOpen, Action<IFoldable> toggle, Action<object> select, ProjectViewEdits? edits)
+        bool isOpen, Action<IFoldable> toggle, Action<object> select, ProjectViewEdits? edits, IReadOnlyList<WaitItemViewModel> projectWaits)
     {
         Objective = group.Objective;
         PhaseTitle = phaseTitle;
         Pieces = pieces;
         Summary = ProjectSummary.For(group.Pieces);
-        Rollup = Objective is { } rolled ? Theseus.Core.Projects.Rollup.Of(rolled, group.Pieces) : null;
+        var belongs = ObjectiveWaits.Belongs(Objective?.Number, group.Pieces);
+        Waits = [.. projectWaits.Where(wait => belongs(wait.Item))];
+        Rollup = Objective is { } rolled ? Theseus.Core.Projects.Rollup.Of(rolled, group.Pieces, [.. projectWaits.Select(wait => wait.Item)]) : null;
         _isOpen = isOpen;
         ToggleCommand = new RelayCommand(_ => toggle(this));
         SelectCommand = new RelayCommand(_ => select(this));
@@ -49,6 +51,15 @@ public sealed class ObjectiveHeadingViewModel : ObservableObject, IFoldable
         MenuItems = menu;
     }
 
+    /// <summary>
+    /// The items of Waits for you that belong to this objective, with their buttons: its mark says waiting for you exactly
+    /// when there are any (project-view-usability item 6).
+    /// </summary>
+    public IReadOnlyList<WaitItemViewModel> Waits { get; }
+
+    /// <summary>Whether any item of Waits for you belongs to this objective.</summary>
+    public bool HasWaits => Waits.Count > 0;
+
     /// <summary>The objective, or null for the pieces no project file lists.</summary>
     public ProjectObjective? Objective { get; }
 
@@ -61,8 +72,14 @@ public sealed class ObjectiveHeadingViewModel : ObservableObject, IFoldable
     /// <summary>"Phase 1: Evidence", the phase it is under, or null.</summary>
     public string? PhaseTitle { get; }
 
-    /// <summary>"0/6": ticked of criteria; empty with no objective.</summary>
-    public string CriteriaText => Objective is { } objective ? $"{objective.TickedCount}/{objective.Criteria.Count}" : string.Empty;
+    /// <summary>
+    /// "6 of 8 criteria met": what the count counts, said, since "6/8" beside a waiting mark read as six of eight things
+    /// waiting (Nigel, 2026-11-23); empty with no objective.
+    /// </summary>
+    public string CriteriaText => Objective is { } objective ? $"{objective.TickedCount} of {objective.Criteria.Count} criteria met" : string.Empty;
+
+    /// <summary>Whether its criteria are listed under it: while it is open and has any (item 6).</summary>
+    public bool ShowsCriteria => _isOpen && Criteria.Count > 0;
 
     /// <summary>"0 of 6 criteria ticked", or what the heading of unlisted pieces holds.</summary>
     public string CriteriaToolTip => Objective is { } objective
@@ -116,6 +133,7 @@ public sealed class ObjectiveHeadingViewModel : ObservableObject, IFoldable
                 Raise(nameof(Chevron));
                 Raise(nameof(ChevronToolTip));
                 Raise(nameof(ShowsPieces));
+                Raise(nameof(ShowsCriteria));
             }
         }
     }

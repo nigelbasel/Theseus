@@ -50,7 +50,8 @@ public sealed partial class ShellViewModel
         var projects = Board.Cards.Select(card => card.Workstream.Project).OfType<string>().Distinct(StringComparer.OrdinalIgnoreCase).ToList();
 
         // By name as well as by clone: a project's cards often start in a notes folder and list no clone to find (live read).
-        if (projects.FirstOrDefault(project => SameFolder(HoldoutBesideRepo(project), folder)
+        if (projects.FirstOrDefault(project => HoldoutConventionOf(project) is var convention
+                && (SameFolder(convention.BesideRepo, folder) || SameFolder(convention.RecordedFolder, folder))
                 || (HomeRepo.NameIn(_projectReads.Current.FirstOrDefault(each => string.Equals(each.Name, project, StringComparison.OrdinalIgnoreCase))?.Text)
                     is { } repo && string.Equals(Path.GetFileName(Path.TrimEndingDirectorySeparator(folder)), repo + HomeRepo.HoldoutSuffix,
                         StringComparison.OrdinalIgnoreCase))) is { } beside)

@@ -19,6 +19,7 @@ public sealed class ChainsViewModel : ObservableObject
     private readonly Action<string> _showCard;
     private LinkStatus _status = new([], []);
     private string _treeShape = string.Empty;
+    private Dictionary<string, ChainNodeViewModel> _shown = new(StringComparer.OrdinalIgnoreCase);
     private string _needsShape = string.Empty;
     private readonly Dictionary<string, DateTimeOffset> _setAside = new(StringComparer.Ordinal);
     private readonly Dictionary<string, DateTimeOffset> _seenReports = new(StringComparer.Ordinal);
@@ -323,17 +324,33 @@ public sealed class ChainsViewModel : ObservableObject
             card.Links = LinkLine.For(card.Key, _status);
         }
 
-        var nodes = cards
-            .Where(card => _status.For(card.Key).Count > 0)
-            .ToDictionary(card => card.Key, card => Node(card), StringComparer.OrdinalIgnoreCase);
+        var rows = cards.Where(card => _status.For(card.Key).Count > 0).ToList();
+        var shared = rows.GroupBy(card => card.Title, StringComparer.CurrentCultureIgnoreCase)
+            .Where(group => group.Count() > 1)
+            .Select(group => group.Key)
+            .ToHashSet(StringComparer.CurrentCultureIgnoreCase);
+        var nodes = rows.ToDictionary(card => card.Key, card => Node(card, shared.Contains(card.Title)), StringComparer.OrdinalIgnoreCase);
 
+        // The session's mark and Focus are left out: they change on every turn, and are updated on the rows in place.
         var shape = string.Join("|", nodes.Values.Select(node =>
-            $"{node.Key}:{node.Title}:{node.State}:{node.WaitsOn}:{node.ReportsBack}:{Parent(node.Key)}"));
+            $"{node.Key}:{node.Title}:{node.State}:{node.WaitsOn}:{node.ReportsBack}:{Parent(node.Key)}:{node.Copy}"));
 
         if (shape != _treeShape)
         {
             _treeShape = shape;
             Rebuild(nodes);
+            _shown = nodes;
+        }
+        else
+        {
+            foreach (var (key, fresh) in nodes)
+            {
+                if (_shown.TryGetValue(key, out var shown))
+                {
+                    shown.Session = fresh.Session;
+                    shown.Focus = fresh.HasFocus == shown.HasFocus ? shown.Focus : fresh.Focus;
+                }
+            }
         }
 
         UpdateNeedsYou(cards);
@@ -446,7 +463,10 @@ public sealed class ChainsViewModel : ObservableObject
         }
     }
 
-    private ChainNodeViewModel Node(WorkstreamCardViewModel card)
+    /// <summary>Brings a card's tab forward, by key: the row's ⌖ Focus (item 8). Set by the app; null shows no Focus.</summary>
+    public Action<string>? FocusCard { get; set; }
+
+    private ChainNodeViewModel Node(WorkstreamCardViewModel card, bool titleShared)
     {
         var readiness = _status.ReadinessOf(card.Key);
         var inputs = _status.Inputs(card.Key);
@@ -468,7 +488,15 @@ public sealed class ChainsViewModel : ObservableObject
                 ? string.Empty
                 : "waits on: " + string.Join(", ", inputs.Select(link => $"{Title(link.From)} {Mark(_status.StateOf(link))}")),
             reportsTo is null ? string.Empty : $"↩ reports back to {Title(reportsTo.To)} {Mark(_status.StateOf(reportsTo))}",
-            new RelayCommand(_ => _showCard(card.Key)));
+            new RelayCommand(_ => _showCard(card.Key)))
+        {
+            Session = SessionMark.Of(card.Lifecycle),
+            // Launching has no session to bring forward yet: its mark shows, and its Focus once it is running.
+            Focus = FocusCard is { } focus && SessionMark.HasSession(card.Lifecycle) && card.Lifecycle != SessionLifecycle.Launching
+                ? new RelayCommand(_ => focus(card.Key))
+                : null,
+            Copy = titleShared ? card.Key : string.Empty,
+        };
     }
 
     private void Rebuild(Dictionary<string, ChainNodeViewModel> nodes)

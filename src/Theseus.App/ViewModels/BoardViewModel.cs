@@ -135,7 +135,7 @@ public sealed class BoardViewModel : ObservableObject
 
         foreach (var project in _projects)
         {
-            if (filter.Admits(SearchableOf(project)) || project.MemberKeys.Any(key => Card(key) is { } member && matching.Contains(member)))
+            if (filter.Admits(SearchableOf(project)) || KeysIn(project).Any(key => Card(key) is { } member && matching.Contains(member)))
             {
                 matching.Add(project);
             }
@@ -143,6 +143,16 @@ public sealed class BoardViewModel : ObservableObject
 
         _matching = matching;
     }
+
+    /// <summary>
+    /// The cards a project holds for the search: those its pieces name, and any card the project claims, such as a verifier
+    /// of one of them, which leaves the grid with them (project-view-usability item 4: "Verify: Theseus" found 0 of 69).
+    /// </summary>
+    private IEnumerable<string> KeysIn(ProjectCardViewModel project) =>
+        project.MemberKeys.Concat(_all
+                .Where(card => string.Equals(card.Workstream.Project, project.Name, StringComparison.OrdinalIgnoreCase))
+                .Select(card => card.Key))
+            .Distinct(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Hides what the search does not match while Hide the rest is on (item 3).</summary>
     private bool HiddenBySearch(IBoardCard item) => Search.IsOn && Search.HideRest && !_matching.Contains(item);
@@ -167,7 +177,7 @@ public sealed class BoardViewModel : ObservableObject
         foreach (var project in _projects)
         {
             var inside = on
-                ? project.MemberKeys.Where(key => Card(key) is { } member && _matching.Contains(member)).ToList()
+                ? KeysIn(project).Where(key => Card(key) is { } member && _matching.Contains(member)).ToList()
                 : [];
             var projectMatched = on && _matching.Contains(project);
             project.ShowSearch(on && !projectMatched, projectMatched ? CardSearch.Highlights(project.Title, words) : [], inside);

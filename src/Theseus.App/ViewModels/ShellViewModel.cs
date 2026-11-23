@@ -22,7 +22,6 @@ namespace Theseus.App.ViewModels;
 public sealed partial class ShellViewModel : ObservableObject
 {
     private readonly ISettingsStore _settings;
-    private string _holdoutFolder = string.Empty;
     private readonly HoldoutChecks _holdouts = new();
     private string _updaterStates = string.Empty;
     private readonly CardEventLog _cardEvents = new(Path.Combine(App.DataDirectory, "card-events.jsonl"));
@@ -266,6 +265,8 @@ public sealed partial class ShellViewModel : ObservableObject
                     Path.Combine(App.DataDirectory, "folder-trust-undo.json")),
                 () => Board.Cards.Where(card => !card.IsArchived).SelectMany(card => SessionFolders(card.Workstream))),
         };
+        Settings.OpenProjectHoldouts = OpenProjectHoldouts;
+        Settings.HasProjectCard = project => Board.ProjectCards.Any(each => string.Equals(each.Name, project, StringComparison.OrdinalIgnoreCase));
         Drawer.TagsInUse = Board.Tags.InUse;
         Board.Tags.AskNewTag = () => AskText?.Invoke("New tag", "A tag: letters, digits and hyphens, such as security or waiting-on-dpo", string.Empty);
         Board.Tags.Say = message => Notice = message;
@@ -506,8 +507,8 @@ public sealed partial class ShellViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Carries the board's search into a project view (item 7): its boxes whose card the search matches, or whose title
-    /// it matches, are highlighted the way a followed objective's are. Null or no search clears it.
+    /// Carries the board's search into a project view (item 7): the boxes <see cref="SearchCarry"/> matches are highlighted
+    /// the way a followed objective's are. Null or no search clears it.
     /// </summary>
     private void CarrySearch(ProjectViewModel? view)
     {
@@ -525,9 +526,7 @@ public sealed partial class ShellViewModel : ObservableObject
             return;
         }
 
-        view.ShowSearch(node => node.Piece.Card is { } piece && Board.Card(piece.Key) is { } card
-            ? Board.IsMatch(card)
-            : filter.Admits(new Theseus.Core.Finding.SearchableCard(node.Name, node.Title, string.Empty, string.Empty, [], [], [], [])));
+        view.ShowSearch(node => SearchCarry.Matches(node, key => Board.Card(key) is { } card ? Board.IsMatch(card) : null, filter));
     }
 
     /// <summary>Ticks what is not ticked and unticks what is.</summary>
@@ -802,9 +801,14 @@ public sealed partial class ShellViewModel : ObservableObject
         }
     }
 
-    /// <summary>Project properties…: changes only the project's colour, kept by name (1.1d AC 40).</summary>
-    private void ShowProjectProperties(ProjectCardViewModel card)
+    /// <summary>
+    /// Project properties…: the project's title, colour, tags, lead, branch rules and holdout folder (1.1d AC 40;
+    /// options-made-clear item 1), opened at the tab named, or the first.
+    /// </summary>
+    private void ShowProjectProperties(ProjectCardViewModel card, string? openAt = null)
     {
+        var chosenHoldouts = _settings.Read().ProjectHoldoutFolders;
+        var chosenHoldout = chosenHoldouts.FirstOrDefault(pair => string.Equals(pair.Key, card.Name, StringComparison.OrdinalIgnoreCase)).Value;
         var others = Board.ProjectCards
             .Where(other => !string.Equals(other.Name, card.Name, StringComparison.OrdinalIgnoreCase))
             .GroupBy(other => other.Title, StringComparer.CurrentCultureIgnoreCase)
@@ -828,6 +832,10 @@ public sealed partial class ShellViewModel : ObservableObject
             PrimaryBranch = primary,
             GrantsBranchRules = granted,
             GrantedPrimary = grant?.Primary,
+            OpenAt = openAt,
+            Holdout = _holdouts.LocationOfProject(card.Name),
+            HoldoutByConvention = HoldoutLocation.Find(card.Name, null, HoldoutConventionOf(card.Name)),
+            ChosenHoldout = chosenHoldout,
             // The title is written at OK, and a refusal is shown in the dialog (1.1e AC 12a).
             WriteTitle = title => EditProject(card.Name, text => ProjectFileEditor.SetTitle(text, card.Title, title),
                 $"{card.Title} is now called {title}.")
@@ -838,6 +846,26 @@ public sealed partial class ShellViewModel : ObservableObject
         if (AskProjectProperties?.Invoke(properties) != true)
         {
             return;
+        }
+
+        if (properties.HoldoutChanged)
+        {
+            var current = _settings.Read();
+            var holdouts = new Dictionary<string, string>(current.ProjectHoldoutFolders, StringComparer.OrdinalIgnoreCase);
+            holdouts.Remove(card.Name);
+
+            if (properties.HoldoutChoice is { } folder)
+            {
+                holdouts[card.Name] = folder;
+            }
+
+            _settings.Write(current with { ProjectHoldoutFolders = holdouts });
+            RefreshHoldouts([.. Board.Cards.Select(each => each.Workstream)]);
+            Notice = properties.HoldoutChoice is { } chosenFolder
+                ? $"{card.Title}'s holdout folder is now {chosenFolder}."
+                : _holdouts.LocationOfProject(card.Name) is { Folder.Length: > 0 } found
+                    ? $"{card.Title}'s holdout folder is found by convention again: {found.Folder}."
+                    : $"{card.Title}'s holdout folder is found by convention again, but its recorded repository is not found.";
         }
 
         tags.AddPending();
@@ -1229,8 +1257,6 @@ public sealed partial class ShellViewModel : ObservableObject
     /// <summary>Re-reads the plans, the board and the live sessions.</summary>
     public void Refresh()
     {
-        // Read here, not on every command check: saving Settings refreshes the shell, and a check runs on every input.
-        _holdoutFolder = _settings.Read().HoldoutFolder;
         Timed("board", Board.Refresh);
 
         // A refresh replaces every card, so the new ones need telling where to report a tick. Wiring
@@ -1513,8 +1539,9 @@ public sealed partial class ShellViewModel : ObservableObject
             ? null
             : _holdouts.WayOn(card.Workstream) switch
             {
-                HoldoutWayOn.SetFolder => new PieceActionViewModel("Set the holdout folder…", OpenHoldoutSetting,
-                    toolTip: "Open Options at the holdout scenarios folder") { IsLink = true },
+                HoldoutWayOn.SetFolder => new PieceActionViewModel("Set the holdout folder…",
+                    () => OpenProjectHoldouts(card.Workstream.Project ?? string.Empty),
+                    toolTip: "Open the project's Project properties at its holdout folder") { IsLink = true },
                 HoldoutWayOn.WriteScenarios => new PieceActionViewModel("Write scenarios…", () => WriteScenarios(card),
                     toolTip: $"Create a card that writes the holdout scenarios in {HoldoutOf(card).Folder}; it starts when you start it")
                 {
@@ -1542,9 +1569,9 @@ public sealed partial class ShellViewModel : ObservableObject
     /// </summary>
     private void RefreshHoldouts(IReadOnlyList<Workstream> cards)
     {
-        _holdouts.Refresh(_holdoutFolder, _settings.Read().ProjectHoldoutFolders, HoldoutBesideRepo, cards);
+        _holdouts.Refresh(_settings.Read().ProjectHoldoutFolders, HoldoutConventionOf, cards);
 
-        if (HoldoutFolderFile.Write(HoldoutFolderFile.PathIn(), _holdouts.Entries))
+        if (HoldoutFolderFile.Write(HoldoutFolderFile.PathIn(), _holdouts.GuardedEntries))
         {
             TheseusLog.Information("Wrote the holdout folders in force: {Folders}",
                 string.Join("; ", _holdouts.Entries.Select(entry => $"{entry.Project}: {entry.Folder} ({entry.HowFound})")));
@@ -1557,10 +1584,10 @@ public sealed partial class ShellViewModel : ObservableObject
     }
 
     /// <summary>
-    /// The <c>&lt;repo&gt;-holdout</c> folder beside the clone of a project's home code repo, when there is one: the repo its
-    /// Repos table marks home, else the first, found among the folders its cards work in.
+    /// What a project's holdout folder is found from: the clone of its home code repo (the first in its Repos table, found
+    /// among the folders its cards work in), and the holdout repository its project.md records.
     /// </summary>
-    private string? HoldoutBesideRepo(string project)
+    private HoldoutConvention HoldoutConventionOf(string project)
     {
         var reading = _projectReads.Current.FirstOrDefault(each => string.Equals(each.Name, project, StringComparison.OrdinalIgnoreCase));
         var members = _projectReads.History.CardsOf(project);
@@ -1571,14 +1598,16 @@ public sealed partial class ShellViewModel : ObservableObject
             .SelectMany(card => new[] { card.Workstream.WorkingDirectory }.Concat(card.Workstream.AddDirectories))
             .Where(folder => !folder.Contains(HomeRepo.HoldoutSuffix, StringComparison.OrdinalIgnoreCase));
 
-        return HomeRepo.HoldoutBeside(HomeRepo.Clone(HomeRepo.NameIn(reading?.Text), folders));
+        return new HoldoutConvention(HomeRepo.Clone(HomeRepo.NameIn(reading?.Text), folders), HomeRepo.RecordedHoldoutIn(reading?.Text));
     }
 
-    /// <summary>Opens Options at the holdout scenarios folder (1.1e AC 6a).</summary>
-    private void OpenHoldoutSetting()
+    /// <summary>Opens a project's Project properties at its Holdouts tab (options-made-clear item 1), by folder name.</summary>
+    private void OpenProjectHoldouts(string project)
     {
-        Settings.FocusField = SettingsViewModel.HoldoutFolderField;
-        Settings.OpenCommand.Execute(null);
+        if (Board.ProjectCards.FirstOrDefault(each => string.Equals(each.Name, project, StringComparison.OrdinalIgnoreCase)) is { } card)
+        {
+            ShowProjectProperties(card, ProjectPropertiesViewModel.HoldoutsTab);
+        }
     }
 
     /// <summary>
@@ -2347,6 +2376,7 @@ public sealed partial class ShellViewModel : ObservableObject
                 AnswerStartRequest = AnswerStartRequest,
                 ClearVerifiers = ClearUpVerifiers,
                 UndoClearVerifiers = UndoClearUp,
+                WhoStarts = WhoStartsCard,
                 ProposalsOf = key => [.. Chains?.Proposals?.Pending.Where(row =>
                     string.Equals(row.Proposal.RequesterKey, key, StringComparison.OrdinalIgnoreCase)) ?? []],
             },
@@ -2355,6 +2385,28 @@ public sealed partial class ShellViewModel : ObservableObject
             ProjectView,
             overview,
             lead);
+
+    // F31's who-acts line for a card of a running project, from the same test the Start question uses (item 5).
+    private ProjectRunStart? WhoStartsCard(string key)
+    {
+        if (Board.Card(key) is not { } card
+            || card.Workstream.Role == WorkstreamRole.Verifier
+            || ProjectCardGuard.RunningProjectOf(card, Board.ProjectCards) is not { } project)
+        {
+            return null;
+        }
+
+        var lead = project.LeadKey is { } leadKey && Board.Card(leadKey) is { IsLive: true } live ? live.Title : null;
+        // A done card is not held: a project's sessions restart done cards (1.1e item 17).
+        var heldByOwner = card.IsBlocked || card.IsPaused || card.StopReason?.Kind is WhyStoppedKind.PausedBy or WhyStoppedKind.StoppedByYou;
+        IReadOnlyList<string> waitsOn = Chains?.Waiting([card.Workstream]).Count > 0
+            ? [.. Chains.AllLinks.Where(link => link.IsActive && link.Kind == LinkKind.HandsOver
+                                                && string.Equals(link.To, key, StringComparison.OrdinalIgnoreCase) && link.SatisfiedUtc is null)
+                .Select(link => Board.Card(link.From)?.Title ?? link.From).Distinct()]
+            : [];
+
+        return new ProjectRunStart(Theseus.Core.Projects.WhoStarts.Line(project.Title, lead, heldByOwner, waitsOn));
+    }
 
     /// <summary>What the project view knows of a board card (1.1d AC 1): its session, marks, role and whether Start would start it.</summary>
     private PieceCard PieceCardOf(WorkstreamCardViewModel card) =>
@@ -4075,12 +4127,7 @@ public sealed partial class ShellViewModel : ObservableObject
             }, toolTip: $"Remove the hand-over that shows {card.Title} under {parent}"));
         }
 
-        actions.Add(new PieceActionViewModel("Show on the board", () =>
-        {
-            CloseProject();
-            card.IsCollapsed = false;
-            Board.ClickSelect(card, toggle: false, extend: false);
-        }, toolTip: $"Close the view and select {card.Title} on the board"));
+        actions.Add(ShowTheCard.For(card, shown => ShowCard(shown, DrawerTab.Overview)));
 
         return actions;
     }

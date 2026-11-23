@@ -1982,6 +1982,26 @@
                                             BorderBrush="{Binding ColorHex, Converter={StaticResource HexToBrush}}">
                                         <StackPanel>
                                             <DockPanel>
+                                                <!-- One click to its tab (item 8): four before, through the drawer's Overview. -->
+                                                <Button DockPanel.Dock="Right" Content="⌖ Focus" FontSize="11" Padding="6,0" Margin="6,0,0,0"
+                                                        Command="{Binding Focus}"
+                                                        ToolTip="Bring its terminal tab forward"
+                                                        AutomationProperties.HelpText="Bring its terminal tab forward"
+                                                        AutomationProperties.Name="{Binding Title, StringFormat=Focus {0}}">
+                                                    <Button.Style>
+                                                        <Style TargetType="Button">
+                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding HasFocus}" Value="True">
+                                                                    <Setter Property="Visibility" Value="Visible" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Button.Style>
+                                                </Button>
+                                                <TextBlock DockPanel.Dock="Right" Text="{Binding Session}" FontSize="11" Margin="8,0,0,0"
+                                                           VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                           Visibility="{Binding Session, Converter={StaticResource NotEmptyToVisibility}}" />
                                                 <TextBlock DockPanel.Dock="Right" Text="{Binding State}" FontSize="11" Margin="8,0,0,0">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
@@ -2008,6 +2028,10 @@
                                                     <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
                                                 </Button>
                                             </DockPanel>
+                                            <TextBlock Text="{Binding Copy}" FontSize="11" FontFamily="Consolas"
+                                                       ToolTip="Another card has the same title: this is its key"
+                                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                                       Visibility="{Binding Copy, Converter={StaticResource NotEmptyToVisibility}}" />
                                             <TextBlock Text="{Binding WaitsOn}" FontSize="11" TextWrapping="Wrap"
                                                        Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                                        Visibility="{Binding WaitsOn, Converter={StaticResource NotEmptyToVisibility}}" />

@@ -109,6 +109,28 @@ public sealed class PieceNodeViewModel : ObservableObject, IFoldable
     /// <summary>Whether it has a branch under it.</summary>
     public bool HasChildren => Children.Count > 0;
 
+    /// <summary>The fold of its branch, when it has one (project-view-usability item 1); null with none.</summary>
+    public ChildrenFold? Branch { get; init; }
+
+    /// <summary>
+    /// "● running", "○ idle" or "◆ waiting" while its card's session works this piece; empty otherwise (item 8).
+    /// </summary>
+    public string SessionMark => Piece.IsCurrentPiece && Piece.Card is { } card && FocusAction is not null
+        ? Theseus.Core.Domain.SessionMark.Of(card.Lifecycle)
+        : string.Empty;
+
+    /// <summary>Whether the mark and ⌖ Focus show on its title bar.</summary>
+    public bool HasSessionMark => SessionMark.Length > 0;
+
+    /// <summary>Its card's Focus, on the title bar while its session runs: its tab in one click (item 8); null otherwise.</summary>
+    public PieceActionViewModel? FocusAction =>
+        Piece.IsCurrentPiece && Piece.Card is { HasSession: true }
+            ? Actions.FirstOrDefault(action => action.Label.StartsWith("⧉ Focus", StringComparison.Ordinal) && action.IsEnabled)
+            : null;
+
+    /// <summary>Every box beneath it, at any depth.</summary>
+    public IEnumerable<PieceNodeViewModel> Descendants => Children.SelectMany(child => child.Descendants.Prepend(child));
+
     /// <summary>Whether it hands work to more than one piece at once.</summary>
     public bool IsParallel => Node.IsParallel;
 
@@ -215,10 +237,16 @@ public sealed class PieceNodeViewModel : ObservableObject, IFoldable
     public string Title => Piece.Title;
 
     /// <summary>Who acts next, and when, in the same words as its "Waits for you" item (F31, G37).</summary>
-    public string WhoActs => Status.WhoActs;
+    public string WhoActs => StartedBy ?? Status.WhoActs;
+
+    /// <summary>
+    /// Who starts it while its project is running, and why it is not running yet; null where the owner starts it
+    /// (project-view-usability item 5).
+    /// </summary>
+    public string? StartedBy { get; init; }
 
     /// <summary>The state's three answers, for the state line's hover.</summary>
-    public string StatusToolTip => $"{Status.Word}: {Status.Meaning}\nWho acts next: {Status.WhoActs}";
+    public string StatusToolTip => $"{Status.Word}: {Status.Meaning}\nWho acts next: {WhoActs}";
 
     /// <summary>"serves Objective 1.2", or "not in project.md" (H38).</summary>
     public string ServesText => Piece.ObjectiveNumber is { } number ? $"serves Objective {number}" : "not in project.md";
@@ -252,7 +280,8 @@ public sealed class PieceNodeViewModel : ObservableObject, IFoldable
     public PieceActionViewModel? PrimaryAction => Status.Action switch
     {
         PieceAction.Focus or PieceAction.Answer => Actions.FirstOrDefault(action => action.Label.Contains("Focus", StringComparison.Ordinal)),
-        PieceAction.Start => Actions.FirstOrDefault(action => action.Label.Contains("Start", StringComparison.Ordinal)),
+        PieceAction.Start => Actions.FirstOrDefault(action => action.Label.Contains("Start", StringComparison.Ordinal)
+                                                              && action.Label != WhoStarts.StartAnywayLabel),
         PieceAction.Accept => Actions.FirstOrDefault(action => action.Label.StartsWith("Accept", StringComparison.Ordinal)),
         PieceAction.StartCheck => Actions.FirstOrDefault(action => action.Label.StartsWith("Verify", StringComparison.Ordinal)),
         PieceAction.OpenRecords => Actions.FirstOrDefault(action => action.Label == "Open records"),
