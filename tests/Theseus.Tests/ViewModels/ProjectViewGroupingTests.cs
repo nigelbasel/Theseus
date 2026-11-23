@@ -202,11 +202,11 @@ public class ProjectViewGroupingTests
         var view = _views.BuildYourMarket();
         string[] Marks(string piece) => [.. view.AllNodes.Single(node => node.Name == piece).CrossMarks];
 
-        Assert.That(Marks("bym-mcp-read-api"), Is.EqualTo(new[] { $"← handed on from {ServerSpec}" }));
+        Assert.That(Marks("bym-mcp-read-api"), Is.EqualTo(new[] { $"← handed on from Specify the BuildYourMarket MCP server" }));
         Assert.That(Marks(ServerSpec).Single(), Does.StartWith("→ handed on to bym-mcp-preconditions, bym-mcp-identity"));
-        Assert.That(Marks(RedirectAnchoring), Is.EqualTo(new[] { "← handed on from bym-mcp-identity" }));
+        Assert.That(Marks(RedirectAnchoring), Is.EqualTo(new[] { "← handed on from Identity and Config" }));
         Assert.That(view.AllNodes.Single(node => node.Name == "bym-mcp-read-api").ReportBackText,
-            Is.EqualTo($"↩ reported back to {ServerSpec}"), "report-back marks are as in the Flow");
+            Is.EqualTo($"↩ reported back to Specify the BuildYourMarket MCP server"), "report-back marks are as in the Flow");
     }
 
     [Test]

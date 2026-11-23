@@ -152,9 +152,9 @@ public class PieceTreeTests
         var children = tree.Roots.Single().Children;
 
         Assert.That(children.Take(6).Select(child => child.ReportBack?.Text),
-            Has.All.EqualTo($"↩ reported back to {ServerSpec}"));
+            Has.All.EqualTo($"↩ reported back to Specify the BuildYourMarket MCP server"));
         Assert.That(children[6].Piece.Name, Is.EqualTo(ClientFixes));
-        Assert.That(children[6].ReportBack?.Text, Is.EqualTo($"↩ reports back to {ServerSpec}"));
+        Assert.That(children[6].ReportBack?.Text, Is.EqualTo($"↩ reports back to Specify the BuildYourMarket MCP server"));
         Assert.That(tree.Roots.Single().ReportBack, Is.Null);
         Assert.That(Node(tree, RedirectAnchoring).ReportBack, Is.Null);
     }
@@ -185,7 +185,7 @@ public class PieceTreeTests
 
         var tree = PieceTree.Build(BuildYourMarketPieces(_folder, cards, links), new LinkStatus(links, linkCards));
 
-        Assert.That(Node(tree, ClientFixes).ReportBack, Is.EqualTo(new ReportBackMark(ServerSpec, LinkState.ReportLost)));
+        Assert.That(Node(tree, ClientFixes).ReportBack, Is.EqualTo(new ReportBackMark("Specify the BuildYourMarket MCP server", LinkState.ReportLost)));
     }
 
     [Test]

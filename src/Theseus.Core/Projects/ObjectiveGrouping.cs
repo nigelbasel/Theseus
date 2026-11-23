@@ -49,7 +49,7 @@ public static class ObjectiveGrouping
         {
             foreach (var child in node.Children)
             {
-                marks[child.Piece].Add($"← handed on from {node.Piece.Name}");
+                marks[child.Piece].Add($"← handed on from {node.Piece.Title}");
             }
 
             if (node.Children.Count > 0)

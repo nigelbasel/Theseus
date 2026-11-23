@@ -87,7 +87,7 @@ public class ProjectViewGroupingLayoutTests
         var readApi = BoxOf(objectives, "bym-mcp-read-api");
 
         Assert.That(AllNamed<TextBlock>(readApi, "CrossMark").Select(text => (text.Text, Shown(text, control))),
-            Is.EqualTo(new[] { ($"← handed on from {ServerSpec}", true) }));
+            Is.EqualTo(new[] { ($"← handed on from Specify the BuildYourMarket MCP server", true) }));
         Assert.That(Shown(AllNamed<TextBlock>(readApi, "ReportBack").Single(), control), Is.True);
         Assert.That(AllNamed<TextBlock>(objectives, "ObjectiveCriteria").First().Text, Is.EqualTo("0 of 1 criteria met"));
         Assert.That(AllNamed<ItemsControl>(objectives, "ObjectiveCounts").First().Items.Cast<StateCountViewModel>().Single().Text,

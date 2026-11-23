@@ -6,7 +6,7 @@ namespace Theseus.Core.Projects;
 /// A report back is a mark on the child's box, not a line (1.1d AC 14; Nigel accepted the mockup, 2026-11-20): it names
 /// the parent's piece, and says whether the report is in, still to come, or lost.
 /// </summary>
-/// <param name="ParentPiece">The piece of the card reported back to.</param>
+/// <param name="ParentPiece">The piece reported back to, by its title, not its folder name, which read as something else (walkthrough row 30).</param>
 /// <param name="State">Where the report-back link stands (<see cref="LinkStatus.StateOf"/>).</param>
 public sealed record ReportBackMark(string ParentPiece, LinkState State)
 {

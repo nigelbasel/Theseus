@@ -259,8 +259,8 @@ public class ProjectViewModelTests
         var fixes = Box(view, ClientFixes);
 
         Assert.That((identity.ReportBackText, identity.ReportBackToolTip), Is.EqualTo(
-            ("↩ reported back to buildyourmarket-mcp-server-spec", "Reported back to buildyourmarket-mcp-server-spec")));
-        Assert.That(fixes.ReportBackText, Is.EqualTo("↩ reports back to buildyourmarket-mcp-server-spec"));
+            ("↩ reported back to Specify the BuildYourMarket MCP server", "Reported back to Specify the BuildYourMarket MCP server")));
+        Assert.That(fixes.ReportBackText, Is.EqualTo("↩ reports back to Specify the BuildYourMarket MCP server"));
         Assert.That(Box(view, ServerSpec).HasReportBack, Is.False);
     }
 

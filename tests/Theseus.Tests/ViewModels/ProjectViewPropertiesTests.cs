@@ -155,11 +155,11 @@ public class ProjectViewPropertiesTests
         {
             "buildyourmarket-mcp-server-spec hands work to this",
             "hands work to identityserver-redirect-uri-anchoring-e1",
-            "reports back to buildyourmarket-mcp-server-spec: accepted",
+            "reports back to Specify the BuildYourMarket MCP server: accepted",
         }));
         Assert.That(Selected(view, Box(view, ClientFixes)).Links, Is.EqualTo(new[]
         {
-            "buildyourmarket-mcp-server-spec hands work to this", "reports back to buildyourmarket-mcp-server-spec",
+            "buildyourmarket-mcp-server-spec hands work to this", "reports back to Specify the BuildYourMarket MCP server",
         }), "a link that names no document has no state to add");
     }
 
