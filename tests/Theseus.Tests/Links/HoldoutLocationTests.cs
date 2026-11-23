@@ -162,6 +162,30 @@ public class HoldoutLocationTests
     }
 
     [Test]
+    public void ARoleThatMerelyMentionsTheHoldoutGuard_IsNoRecord()
+    {
+        const string text = "## Repos\n| Repo | Role | Autonomy |\n|---|---|---|\n"
+                            + "| github.com/x/Repo | code, the method kit and the holdout guard | L0 |\n";
+
+        Assert.That(HomeRepo.RecordedHoldoutIn(text), Is.Null);
+        Assert.That(HomeRepo.NameIn(text), Is.EqualTo("Repo"), "review, finding 4");
+    }
+
+    [Test]
+    public void TheGuard_StillCoversTheFolderBesideTheRepo_WhenARecordedRepositoryTakesPrecedence()
+    {
+        var home = Path.Combine(_root, "src", "Foo");
+        var beside = Path.Combine(_root, "src", "Foo" + HomeRepo.HoldoutSuffix);
+        Directory.CreateDirectory(home);
+        Directory.CreateDirectory(beside);
+        var checks = new HoldoutChecks(_root);
+        checks.Refresh(new Dictionary<string, string>(), _ => new HoldoutConvention(home, new RecordedHoldout("Foo-scenarios")), [Card("a", "foo")]);
+
+        Assert.That(checks.GuardedEntries.Select(entry => entry.Folder),
+            Is.EqualTo(new[] { Path.Combine(_root, "src", "Foo-scenarios"), beside }), "review, finding 1");
+    }
+
+    [Test]
     public void APieceWhoseReposIsTheHoldoutRepository_IsARecord_AndAProjectWithoutEitherHasNone()
     {
         const string piece = "## Repos\n| Repo | Role | Autonomy |\n|---|---|---|\n| github.com/o/Repo | code | L0 |\n\n"
@@ -326,18 +350,20 @@ public class HoldoutLocationTests
             ProjectHoldoutFolders = new Dictionary<string, string> { ["bym"] = @"C:\mine" },
         });
         var opened = new List<string>();
-        var settings = new SettingsViewModel(store, () => { }) { OpenProjectHoldouts = opened.Add };
+        var settings = new SettingsViewModel(store, () => { }) { OpenProjectHoldouts = opened.Add, HasProjectCard = project => project != "gone" };
         settings.OpenCommand.Execute(null);
         settings.HoldoutEntries = [new("ad-hoc", @"C:\h\ad-hoc", HoldoutSource.TheseusOwn), new("bym", @"C:\mine", HoldoutSource.Chosen),
-            new("theseus", @"C:\src\Theseus-holdout", HoldoutSource.Recorded)];
+            new("theseus", _root, HoldoutSource.Recorded), new("gone", _root, HoldoutSource.BesideRepo)];
 
         Assert.That(settings.HoldoutRows.Select(row => (row.Project, row.Value, row.Explanation)), Is.EqualTo(new[]
         {
             ("ad-hoc", @"C:\h\ad-hoc", "Cards in no project always use Theseus's own ad-hoc folder."),
-            ("bym", @"C:\mine", "You chose it. Change it in the project's Project properties."),
-            ("theseus", @"C:\src\Theseus-holdout", "Recorded in project.md. Change it in the project's Project properties."),
+            ("bym", @"C:\mine (not there)", "You chose it, but it is not there. Change it in the project's Project properties."),
+            ("theseus", _root, "Recorded in project.md. Change it in the project's Project properties."),
+            ("gone", _root, "Beside its repo, by convention. Change it in the project's Project properties."),
         }));
         Assert.That(settings.OpenProjectPropertiesCommand.CanExecute(settings.HoldoutRows[0]), Is.False, "ad hoc cards have no project");
+        Assert.That(settings.OpenProjectPropertiesCommand.CanExecute(settings.HoldoutRows[3]), Is.False, "no card to open (review, 7)");
 
         settings.OpenProjectPropertiesCommand.Execute(settings.HoldoutRows[2]);
         settings.SaveCommand.Execute(null);

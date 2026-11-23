@@ -132,7 +132,7 @@ public class ProjectDialogsTests
                 Tags = null,
             };
             settings.OpenCommand.Execute(null);
-            settings.HoldoutEntries = [new("theseus", @"C:\src\Theseus-holdout", Theseus.Core.Links.HoldoutSource.Recorded)];
+            settings.HoldoutEntries = [new("theseus", folder, Theseus.Core.Links.HoldoutSource.Recorded)];
             var window = new SettingsWindow { DataContext = settings };
             var tabs = (TabControl)window.FindName("Tabs");
 
@@ -157,7 +157,7 @@ public class ProjectDialogsTests
             Assert.That(rows.Count, Is.GreaterThanOrEqualTo(17));
             Assert.That(rows.Where(row => string.IsNullOrWhiteSpace(row.Label) || string.IsNullOrWhiteSpace(row.Value) || string.IsNullOrWhiteSpace(row.Explanation))
                 .Select(row => row.Label), Is.Empty, "every setting says its value and what it does now");
-            Assert.That(rows.Single(row => row.Label == "theseus").Value, Is.EqualTo(@"C:\src\Theseus-holdout"));
+            Assert.That(rows.Single(row => row.Label == "theseus").Value, Is.EqualTo(folder));
         }
         finally
         {

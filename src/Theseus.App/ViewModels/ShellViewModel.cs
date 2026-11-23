@@ -266,6 +266,7 @@ public sealed class ShellViewModel : ObservableObject
                 () => Board.Cards.Where(card => !card.IsArchived).SelectMany(card => SessionFolders(card.Workstream))),
         };
         Settings.OpenProjectHoldouts = OpenProjectHoldouts;
+        Settings.HasProjectCard = project => Board.ProjectCards.Any(each => string.Equals(each.Name, project, StringComparison.OrdinalIgnoreCase));
         Drawer.TagsInUse = Board.Tags.InUse;
         Board.Tags.AskNewTag = () => AskText?.Invoke("New tag", "A tag: letters, digits and hyphens, such as security or waiting-on-dpo", string.Empty);
         Board.Tags.Say = message => Notice = message;
@@ -862,7 +863,9 @@ public sealed class ShellViewModel : ObservableObject
             RefreshHoldouts([.. Board.Cards.Select(each => each.Workstream)]);
             Notice = properties.HoldoutChoice is { } chosenFolder
                 ? $"{card.Title}'s holdout folder is now {chosenFolder}."
-                : $"{card.Title}'s holdout folder is found by convention again: {_holdouts.LocationOfProject(card.Name).Folder}.";
+                : _holdouts.LocationOfProject(card.Name) is { Folder.Length: > 0 } found
+                    ? $"{card.Title}'s holdout folder is found by convention again: {found.Folder}."
+                    : $"{card.Title}'s holdout folder is found by convention again, but its recorded repository is not found.";
         }
 
         tags.AddPending();
@@ -1568,8 +1571,7 @@ public sealed class ShellViewModel : ObservableObject
     {
         _holdouts.Refresh(_settings.Read().ProjectHoldoutFolders, HoldoutConventionOf, cards);
 
-        // A recorded repository whose clone's place is unknown has no folder yet, so there is nothing to guard.
-        if (HoldoutFolderFile.Write(HoldoutFolderFile.PathIn(), [.. _holdouts.Entries.Where(entry => entry.Folder.Length > 0)]))
+        if (HoldoutFolderFile.Write(HoldoutFolderFile.PathIn(), _holdouts.GuardedEntries))
         {
             TheseusLog.Information("Wrote the holdout folders in force: {Folders}",
                 string.Join("; ", _holdouts.Entries.Select(entry => $"{entry.Project}: {entry.Folder} ({entry.HowFound})")));

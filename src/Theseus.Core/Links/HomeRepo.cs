@@ -100,8 +100,12 @@ public static class HomeRepo
         return mentioned;
     }
 
+    // A role about holdout scenarios or a holdout repository, not one that merely mentions the holdout guard (review, 4).
     private static bool IsHoldoutRole(string[] cells) =>
-        cells.Length > 1 && cells[1].Contains("holdout", StringComparison.OrdinalIgnoreCase);
+        cells.Length > 1
+        && (cells[1].Trim().StartsWith("holdout", StringComparison.OrdinalIgnoreCase)
+            || cells[1].Contains("holdout scenario", StringComparison.OrdinalIgnoreCase)
+            || cells[1].Contains("holdout repo", StringComparison.OrdinalIgnoreCase));
 
     // A row's first token, its last path segment; a local notes folder, a wildcard, a placeholder or the header is none.
     private static string? RepoName(string cell)

@@ -133,6 +133,19 @@ public sealed class HoldoutChecks
             .Select(pair => new HoldoutFolderEntry(pair.Key.Length == 0 ? HoldoutLocation.AdHocFolder : pair.Key, pair.Value.Location.Folder,
                 pair.Value.Location.Source))];
 
+    /// <summary>
+    /// The folders the holdout guard is to cover: each in force that has a place, and also a <c>&lt;repo&gt;-holdout</c> folder
+    /// beside the home repo when another folder took precedence, since scenarios may still be in it (review, finding 1).
+    /// </summary>
+    public IReadOnlyList<HoldoutFolderEntry> GuardedEntries =>
+        [.. Entries.Where(entry => entry.Folder.Length > 0),
+            .. _byProject.Keys.Where(project => project.Length > 0)
+                .Select(project => (project, beside: _convention(project).BesideRepo))
+                .Where(each => each.beside is not null
+                               && !string.Equals(each.beside, _byProject[each.project].Location.Folder, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(each => each.project, StringComparer.OrdinalIgnoreCase)
+                .Select(each => new HoldoutFolderEntry(each.project, each.beside!, HoldoutSource.BesideRepo))];
+
     private HoldoutLocation Locate(string? project) =>
         string.IsNullOrEmpty(project)
             ? HoldoutLocation.Find(null, null, null, _localAppData)

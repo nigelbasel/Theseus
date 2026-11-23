@@ -49,7 +49,8 @@ public sealed class SettingsViewModel : ObservableObject
                     OpenProjectHoldouts?.Invoke(row.Project);
                 }
             },
-            parameter => parameter is HoldoutRowViewModel { IsAdHoc: false } && OpenProjectHoldouts is not null);
+            parameter => parameter is HoldoutRowViewModel { IsAdHoc: false } row && OpenProjectHoldouts is not null
+                         && (HasProjectCard?.Invoke(row.Project) ?? true));
         ResetTerminalCommand = new RelayCommand(_ => TerminalExecutablePath = string.Empty, _ => !string.IsNullOrWhiteSpace(TerminalExecutablePath));
         ResetClaudeCommand = new RelayCommand(_ => ClaudeExecutablePath = string.Empty, _ => !string.IsNullOrWhiteSpace(ClaudeExecutablePath));
         ResetHoldoutRemoteCommand = new RelayCommand(_ => HoldoutRemote = string.Empty, _ => !string.IsNullOrWhiteSpace(HoldoutRemote));
@@ -220,7 +221,11 @@ public sealed class SettingsViewModel : ObservableObject
     /// project's Project properties, so nothing here reaches a project you did not name.
     /// </summary>
     public IReadOnlyList<HoldoutRowViewModel> HoldoutRows =>
-        [.. _holdoutEntries.Select(entry => new HoldoutRowViewModel(entry.Project, entry.Folder, entry.Source))];
+        [.. _holdoutEntries.Select(entry => new HoldoutRowViewModel(entry.Project, entry.Folder, entry.Source)
+        {
+            IsMissing = entry.Source is Theseus.Core.Links.HoldoutSource.Chosen or Theseus.Core.Links.HoldoutSource.Recorded
+                        && (entry.Folder.Length == 0 || !Directory.Exists(entry.Folder)),
+        })];
 
     /// <summary>The folders in force, set by the board each time it looks.</summary>
     public IReadOnlyList<Theseus.Core.Links.HoldoutFolderEntry> HoldoutEntries
@@ -237,6 +242,9 @@ public sealed class SettingsViewModel : ObservableObject
 
     /// <summary>Opens a project's Project properties at its Holdouts tab, by project folder name. Set by the shell.</summary>
     public Action<string>? OpenProjectHoldouts { get; set; }
+
+    /// <summary>Whether a project, by folder name, has a card whose Project properties can open; set by the shell.</summary>
+    public Func<string, bool>? HasProjectCard { get; set; }
 
     /// <summary>Project properties… beside a project's holdout row.</summary>
     public RelayCommand OpenProjectPropertiesCommand { get; }
