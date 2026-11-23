@@ -82,6 +82,19 @@ public class ProjectOverviewTests
     }
 
     [Test]
+    public void WhatIsUnderWay_IsSaid_AsksNothing_AndIsNotCountedAsAWait()
+    {
+        var file = WriteBym(_folder).File!;
+        var without = ProjectOverview.For(file, BymPieces(_folder), BymLinks(), [], 5).Sentence;
+        var overview = ProjectOverview.For(file, BymPieces(_folder), BymLinks(), [], 5, underway: ["Writing scenarios for five builds…"]);
+        var line = overview.Waits.Single(item => item.Kind == WaitKind.Underway);
+
+        Assert.That(line.Text, Is.EqualTo("Writing scenarios for five builds…"));
+        Assert.That(line.Button, Is.Null, "git-22, 2026-11-23: it names no action for the owner");
+        Assert.That(overview.Sentence, Is.EqualTo(without));
+    }
+
+    [Test]
     public void TheUndoLine_IsNotCountedAsAThingThatWaits()
     {
         var file = WriteBym(_folder).File!;

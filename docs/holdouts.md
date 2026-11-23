@@ -70,8 +70,14 @@ folder's scenarios never judge work they were not written for.
 
 ## Verifying a change
 
-1. When a card's change is ready to verify, choose **Verify with holdouts…** from the card's menu, or tick the card
-   and use **Workstream ▸ Verify with holdouts…**.
+In a project, Theseus runs the checks itself. When a build waits for its independent check and a scenario names it, and
+its own session has stopped, Theseus makes its verifier and starts it. When some waiting build is named by no scenario
+and the project has no scenario writer, Theseus makes one and starts it. Meanwhile the Waits line says what is under way,
+such as "Writing scenarios for 7 builds…" or "Checking 3 builds…", with nothing to press. A project you stopped starts
+nothing until you start it. **Start the checks…** stays, to run the checks again by hand.
+
+1. To check one card yourself, choose **Verify with holdouts…** from the card's menu, or tick the card and use
+   **Workstream ▸ Verify with holdouts…**.
 2. A new card, **Verify: <card title>**, appears beside it, linked both ways. It runs in the checked card's folder, so
    it can build and run the change, with the holdout folder in reach for reading the scenarios. Theseus starts it at
    once. A verifier that is neither running nor starting and has not reported, after a failed start or a restart of

@@ -2368,9 +2368,12 @@ public sealed partial class ShellViewModel : ObservableObject
                 ? piece with { Reported = reported }
                 : piece)];
             var waitingSpecs = ProjectViewModel.SpecsWaiting(reading, pieces);
+            var checkPlan = CheckPlanOf(reading, pieces);
             var overview = ProjectOverview.For(reading.File!, pieces, links, Chains?.Proposals?.Pending.Select(row => row.Proposal) ?? [],
                 acceptances.Count(acceptance => string.Equals(acceptance.Project, reading.Name, StringComparison.OrdinalIgnoreCase)),
-                StartRequests.Pending, key => Board.Card(key)?.Title ?? key, WrongVerifiersOf(reading.Name), ClearedVerifiersOf(reading.Name));
+                StartRequests.Pending, key => Board.Card(key)?.Title ?? key, WrongVerifiersOf(reading.Name), ClearedVerifiersOf(reading.Name),
+                checkPlan.Underway);
+            TakeCheckSteps(reading, pieces, checkPlan);
             var file = reading.File!;
 
             foreach (var piece in pieces.Where(piece => piece.IsCurrentPiece && piece.Card is not null))

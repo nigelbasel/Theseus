@@ -48,9 +48,11 @@ public sealed class ProjectOverview
     /// <param name="titleOf">A card's title from its key, for a card that works no current piece; null shows the key.</param>
     /// <param name="wrongVerifiers">The project's verifier cards that should not be kept; any makes one line to clear them up.</param>
     /// <param name="clearedVerifiers">How many its last clear-up took away, while that can be undone; none, no line.</param>
+    /// <param name="underway">What Theseus is doing itself for its checks, said with nothing to press (git-22, 2026-11-23).</param>
     public static ProjectOverview For(ProjectFile file, IReadOnlyList<PieceOfWork> pieces, IEnumerable<Link> links,
         IEnumerable<WorkstreamProposal> proposals, int accepted, IEnumerable<StartRequest>? startRequests = null,
-        Func<string, string>? titleOf = null, IReadOnlyList<WrongVerifier>? wrongVerifiers = null, int clearedVerifiers = 0)
+        Func<string, string>? titleOf = null, IReadOnlyList<WrongVerifier>? wrongVerifiers = null, int clearedVerifiers = 0,
+        IReadOnlyList<string>? underway = null)
     {
         ArgumentNullException.ThrowIfNull(file);
         ArgumentNullException.ThrowIfNull(pieces);
@@ -66,8 +68,11 @@ public sealed class ProjectOverview
                 []));
         }
 
-        // The Undo line offers a way back, not a thing waiting: it is left out of the sentence's count (review of item 5, S7).
+        // The Undo line offers a way back, not a thing waiting, and what is under way asks nothing: both are left out of the
+        // sentence's count (review of item 5, S7).
         var sentence = SentenceOf(file, pieces, waits);
+
+        waits.InsertRange(0, (underway ?? []).Select(line => new WaitItem(WaitKind.Underway, line, [])));
 
         if (clearedVerifiers > 0)
         {

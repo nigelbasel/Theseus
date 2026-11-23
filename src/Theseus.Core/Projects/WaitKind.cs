@@ -36,6 +36,9 @@ public enum WaitKind
     /// <summary>Clear up verifier cards that should not be kept: copies of a build's check, or checks of another project's holdout.</summary>
     ClearVerifiers,
 
+    /// <summary>What Theseus is doing itself, such as writing scenarios or checking builds: said, with nothing to press.</summary>
+    Underway,
+
     /// <summary>Undo the last clear-up of verifier cards.</summary>
     UndoClearVerifiers,
 

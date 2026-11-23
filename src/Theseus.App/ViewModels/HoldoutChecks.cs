@@ -108,7 +108,8 @@ public sealed class HoldoutChecks
     // A build is named by its piece's slug, or by its card's key for a card with no slug.
     private static string NameOf(Workstream card) => card.Slug ?? card.Key;
 
-    private bool IsNamed(Workstream card) =>
+    /// <summary>Whether a scenario's Checks line names this card's work, from the folders as last refreshed.</summary>
+    public bool IsNamed(Workstream card) =>
         _checkedWork.TryGetValue(card.Project ?? string.Empty, out var named)
         && new[] { card.Slug, card.Key }.OfType<string>().Any(named.Contains);
 
