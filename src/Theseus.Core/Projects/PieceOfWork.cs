@@ -69,6 +69,12 @@ public sealed record PieceOfWork(
     /// <summary>Whether its card has reported back on the hand-over that gave it this work.</summary>
     public bool HasReportedBack { get; init; }
 
+    /// <summary>
+    /// The verifier cards made to check it that still stand, unstarted or with a session: it gets no second (Nigel,
+    /// 2026-11-23). Empty for a piece that is not its card's current one.
+    /// </summary>
+    public IReadOnlyList<PieceCard> PendingVerifiers { get; init; } = [];
+
     /// <summary>Whether that report was confirmed by the owner on the board.</summary>
     public bool IsReportConfirmed { get; init; }
 

@@ -45,4 +45,13 @@ public sealed class PieceActionViewModel
     /// AC 6a).
     /// </summary>
     public bool IsLink { get; init; }
+
+    /// <summary>
+    /// Why it cannot run, drawn beside the disabled button, not only as its tooltip: Verify with holdouts' reason
+    /// (Nigel, 2026-11-23: a refusal seen nowhere but the status line read as "nothing happens"). Null otherwise.
+    /// </summary>
+    public string? Note { get; init; }
+
+    /// <summary>Its text in a menu: the label, with the note after it when it has one, since a menu item shows no text beside it.</summary>
+    public string MenuText => Note is null ? Label : $"{Label} — {Note}";
 }

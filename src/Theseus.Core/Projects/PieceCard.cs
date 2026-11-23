@@ -34,6 +34,15 @@ public sealed record PieceCard(
     /// <summary>When the owner granted its project branch rules, for its mark (1.1e AC 12b); null when not granted.</summary>
     public DateTimeOffset? BranchRulesSince { get; init; }
 
+    /// <summary>Whether it is archived: an archived verifier no longer stands for its build.</summary>
+    public bool IsArchived { get; init; }
+
+    /// <summary>
+    /// Whether it has ever run: Lifecycle's NotStarted means only "no run today", so a verifier that ran yesterday is
+    /// told from one never started by this (review, finding 1).
+    /// </summary>
+    public bool HasRun { get; init; }
+
     /// <summary>Whether it has a session open now, so Focus and Stop apply and Start does not.</summary>
     public bool HasSession => Lifecycle is SessionLifecycle.Launching or SessionLifecycle.Running
         or SessionLifecycle.Idle or SessionLifecycle.NeedsAttention;

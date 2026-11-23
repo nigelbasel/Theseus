@@ -301,7 +301,7 @@
             <MenuItem Header="{Binding HandoffRenameMenuText}" Command="{Binding RenameHandoffCommand}"
                       ToolTip="Rename this card's handover file to match its title. Only while its session is not running"
                       Visibility="{Binding HandoffRenameTo, Converter={StaticResource NotEmptyToVisibility}}" />
-            <MenuItem Header="_Verify with holdouts…"
+            <MenuItem Header="{Binding VerifyMenuText}"
                       Command="{Binding VerifyWithHoldoutsCommand}" ToolTipService.ShowOnDisabled="True"
                       ToolTip="{Binding VerifyToolTip}" />
             <Separator />
@@ -1429,7 +1429,7 @@
                 <MenuItem Header="_Clear paused and blocked" Command="{Binding ClearSelectedMarksCommand}"
                           ToolTip="Take both marks off the ticked cards" />
                 <Separator />
-                <MenuItem Header="_Verify with holdouts…" Command="{Binding VerifySelectedWithHoldoutsCommand}"
+                <MenuItem Header="{Binding VerifySelectedMenuText}" Command="{Binding VerifySelectedWithHoldoutsCommand}"
                           ToolTipService.ShowOnDisabled="True" ToolTip="{Binding VerifySelectedToolTip}" />
                 <MenuItem Header="Ope_n spec" ItemsSource="{Binding OpenSpecChoices}"
                           ItemContainerStyle="{StaticResource ProjectChoiceItem}"

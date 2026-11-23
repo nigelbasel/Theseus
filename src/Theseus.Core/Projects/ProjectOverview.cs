@@ -99,10 +99,28 @@ public sealed class ProjectOverview
             waits.Add(new WaitItem(kind, text, [piece.Name]) { CardKey = piece.CardKey });
         }
 
-        // One line for a round's independent checks, with the list in the dialog (G36).
+        // A verifier card made and not started waits for the owner alone, whatever its subject's state: a verifier has no
+        // box of its own, so this line and its subject's Verify stage are where it is started (Nigel, 2026-11-23).
+        foreach (var piece in pieces)
+        {
+            foreach (var verifier in piece.PendingVerifiers.Where(verifier => !verifier.HasSession))
+            {
+                waits.Add(new WaitItem(WaitKind.StartVerifier,
+                    $"{verifier.Title} is created to check {piece.Title}; only you start it.", [piece.Name]) { CardKey = verifier.Key });
+            }
+        }
+
+        // One line for a round's independent checks, with the list in the dialog (G36). A build whose verifier card stands
+        // is left out, so a second press makes no duplicate (Nigel, 2026-11-23).
         foreach (var round in pieces.Where(piece => piece.Status.State == StageNodeState.HoldoutsNotRun).GroupBy(piece => piece.Round))
         {
-            var builds = round.ToList();
+            var builds = round.Where(piece => piece.PendingVerifiers.Count == 0).ToList();
+
+            if (builds.Count == 0)
+            {
+                continue;
+            }
+
             var busy = builds.FirstOrDefault(piece => piece.Card is { IsWorking: true } && piece.IsCurrentPiece);
             var from = file.Rounds.Count > 1 ? $" from round {round.Key}" : string.Empty;
             var text = $"{Capital(Count(builds.Count, "build"))}{from} {(builds.Count == 1 ? "needs" : "need")} "

@@ -113,7 +113,12 @@ public static class PiecesOfWork
                                    ?? (parentOf.TryGetValue(index, out var parent) ? RoundOf(parent) : latestRound);
         }
 
-        return [.. drafts.Select((draft, index) => Finish(draft, index, drafts, handOvers, parentOf, linkList, said, RoundOf(index)))];
+        var pending = VerifierCards.BySubject(byKey.Values, linkList);
+
+        return [.. drafts.Select((draft, index) => Finish(draft, index, drafts, handOvers, parentOf, linkList, said, RoundOf(index)))
+            .Select(piece => piece.IsCurrentPiece && pending.TryGetValue(piece.CardKey, out var verifiers)
+                ? piece with { PendingVerifiers = verifiers }
+                : piece)];
     }
 
     // A verifier's subject is the card it reports back to, as ShellViewModel.ApplyMembership finds it.

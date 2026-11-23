@@ -29,6 +29,7 @@ public sealed record WaitItem(WaitKind Kind, string Text, IReadOnlyList<string> 
         WaitKind.Answer => "Answer it",
         WaitKind.Unblock => "Focus",
         WaitKind.StartChecks => "Start the checks…",
+        WaitKind.StartVerifier => "▶ Start",
         WaitKind.AddToObjective => "Add to project…",
         WaitKind.ConfirmReport => "Confirm the report…",
         WaitKind.Proposal => "Review the proposal…",
