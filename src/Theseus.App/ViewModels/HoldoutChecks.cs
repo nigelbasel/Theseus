@@ -16,6 +16,9 @@ public sealed class HoldoutChecks
     // The work each project's scenarios name in their Checks lines (A2), read with the folders at each refresh.
     private readonly Dictionary<string, IReadOnlySet<string>> _checkedWork = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _beingWritten = new(StringComparer.OrdinalIgnoreCase);
+
+    // Projects whose folder could not be read this refresh: whether a build is named there is unknown, not "no".
+    private readonly HashSet<string> _unread = new(StringComparer.OrdinalIgnoreCase);
     private readonly string? _localAppData;
     private IReadOnlyDictionary<string, string> _chosenByProject = new Dictionary<string, string>();
     private Func<string, HoldoutConvention> _convention = _ => HoldoutConvention.None;
@@ -43,12 +46,20 @@ public sealed class HoldoutChecks
         _byProject.Clear();
         _checkedWork.Clear();
         _beingWritten.Clear();
+        _unread.Clear();
 
         foreach (var project in all.Select(card => card.Project ?? string.Empty).Distinct(StringComparer.OrdinalIgnoreCase))
         {
             var location = Locate(project);
             _byProject[project] = (location, location.HasScenarios);
-            _checkedWork[project] = _byProject[project].HasScenarios ? Checked(location) : new HashSet<string>();
+            var named = location.IsMissing ? null : _byProject[project].HasScenarios ? Checked(location) : new HashSet<string>();
+
+            if (named is null)
+            {
+                _unread.Add(project);
+            }
+
+            _checkedWork[project] = named ?? new HashSet<string>();
         }
 
         foreach (var writer in all.Where(card => card is { Role: WorkstreamRole.ScenarioWriter, IsArchived: false }))
@@ -108,6 +119,17 @@ public sealed class HoldoutChecks
     // A build is named by its piece's slug, or by its card's key for a card with no slug.
     private static string NameOf(Workstream card) => card.Slug ?? card.Key;
 
+    /// <summary>
+    /// Whether a scenario's Checks line names this card's work, or null when its project's folder could not be read, so a
+    /// verifier is not judged stranded on a folder that is only out of reach (review of the follow-ups, M2).
+    /// </summary>
+    public bool? Names(Workstream card)
+    {
+        ArgumentNullException.ThrowIfNull(card);
+
+        return _unread.Contains(card.Project ?? string.Empty) || !_checkedWork.ContainsKey(card.Project ?? string.Empty) ? null : IsNamed(card);
+    }
+
     /// <summary>Whether a scenario's Checks line names this card's work, from the folders as last refreshed.</summary>
     public bool IsNamed(Workstream card) =>
         _checkedWork.TryGetValue(card.Project ?? string.Empty, out var named)
@@ -117,7 +139,7 @@ public sealed class HoldoutChecks
     // to the session registry, and reading every scenario each time held up the board (review of the auto-start).
     private readonly Dictionary<string, (string Stamp, IReadOnlySet<string> Named)> _namesRead = new(StringComparer.OrdinalIgnoreCase);
 
-    private IReadOnlySet<string> Checked(HoldoutLocation location)
+    private IReadOnlySet<string>? Checked(HoldoutLocation location)
     {
         try
         {
@@ -135,7 +157,7 @@ public sealed class HoldoutChecks
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            return new HashSet<string>();
+            return null;
         }
     }
 

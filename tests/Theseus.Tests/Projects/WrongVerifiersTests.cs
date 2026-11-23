@@ -53,6 +53,22 @@ public class WrongVerifiersTests
     }
 
     [Test]
+    public void AVerifierWhoseReportHasArrived_IsNotStranded_ItWaitsForHisConfirmation()
+    {
+        var wrong = WrongVerifiers.Among([Verifier("verify-x", "theseus-1-3", TheseusHoldout, Nine) with { BriefNamesChecks = false, HasReport = true }], OwnerOf);
+
+        Assert.That(wrong, Is.Empty, "review of the follow-ups, S2: Clear up rejected a report waiting under Confirm the report…");
+    }
+
+    [Test]
+    public void ARunningVerifierOfABuildNoScenarioNames_IsLeftToRun()
+    {
+        var wrong = WrongVerifiers.Among([Verifier("verify-x", "theseus-1-3", TheseusHoldout, Nine, running: true) with { SubjectNamed = false }], OwnerOf);
+
+        Assert.That(wrong, Is.Empty, "a Checks line read mid-rewrite must not stop a running check");
+    }
+
+    [Test]
     public void AVerifierOfABuildNoScenarioNames_Goes()
     {
         var wrong = WrongVerifiers.Among([Verifier("verify-x", "theseus-1-3", TheseusHoldout, Nine) with { SubjectNamed = false }], OwnerOf);

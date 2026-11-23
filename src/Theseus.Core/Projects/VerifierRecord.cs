@@ -29,6 +29,9 @@ public sealed record VerifierRecord(
     /// <summary>Whether a scenario's Checks line names the build it checks, so it has something it may run.</summary>
     public bool SubjectNamed { get; init; } = true;
 
+    /// <summary>Whether a report has arrived from it, confirmed or not.</summary>
+    public bool HasReport { get; init; }
+
     /// <summary>
     /// The holdout a verifier ran against: the folder above the results folder its report is in, as Verify with holdouts…
     /// names it; null for a path of any other shape.

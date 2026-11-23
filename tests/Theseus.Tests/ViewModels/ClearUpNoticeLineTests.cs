@@ -35,6 +35,13 @@ public class ClearUpNoticeLineTests
     }
 
     [Test]
+    public void TheNoticeGoing_ChangesTheViewsSignature_SoTheViewIsRedrawn()
+    {
+        Assert.That(_views.BuildYourMarket(clearUpNotice: Notice).Signature, Is.Not.EqualTo(_views.BuildYourMarket().Signature),
+            "review of the follow-ups, M1: after Dismiss the line stayed, its buttons doing nothing");
+    }
+
+    [Test]
     public void UndoAndDismiss_ActOnThisProject()
     {
         var undone = new List<string>();

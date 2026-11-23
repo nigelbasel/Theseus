@@ -111,6 +111,14 @@ public class HoldoutLocationTests
     }
 
     [Test]
+    public void EveryVerifierBrief_CarriesTheMarkThatTellsItFromAnOlderOne()
+    {
+        Assert.That(VerifierBrief.For("T", "t", @"C:\r\t.md"), Does.Contain(VerifierBrief.ChecksMarker));
+        Assert.That(VerifierBrief.For("T", "t", @"C:\r\t.md", @"C:\records"), Does.Contain(VerifierBrief.ChecksMarker),
+            "review of the follow-ups, S4: rewording either would make every new verifier obsolete");
+    }
+
+    [Test]
     public void TheWritersSlugs_AreTheProjectsBuildsOnly()
     {
         IReadOnlyList<Theseus.Core.Projects.ProjectWorkstreamRow> rows =

@@ -75,10 +75,11 @@ public sealed partial class ShellViewModel
     /// Whether a verifier cannot run under today's rules: its brief predates Checks lines, or no scenario names its build.
     /// It neither stands nor asks for a start; Clear up verifiers… takes it (git-22, 2026-11-23).
     /// </summary>
+    // A running one is never obsolete: it still stands, so no second verifier is made beside it (review of the follow-ups, S1).
     private bool IsObsolete(WorkstreamCardViewModel card) =>
-        card.Workstream.Role == WorkstreamRole.Verifier
+        card.Workstream.Role == WorkstreamRole.Verifier && !card.IsLive
         && (!card.Workstream.Prompt.Contains(VerifierBrief.ChecksMarker, StringComparison.Ordinal)
-            || (SubjectOf(card.Key) is { } subject && Board.Card(subject) is { } build && !_holdouts.IsNamed(build.Workstream)));
+            || (SubjectOf(card.Key) is { } subject && Board.Card(subject) is { } build && _holdouts.Names(build.Workstream) == false));
 
     // The card a verifier checks: its latest active report-back link's other end.
     private string? SubjectOf(string verifier) =>

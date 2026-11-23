@@ -26,9 +26,11 @@ public static class WrongVerifiers
                      .GroupBy(verifier => verifier.Subject, StringComparer.OrdinalIgnoreCase))
         {
             var elsewhere = build.Where(verifier => RanAnotherProjects(verifier, ownerOf)).OrderBy(verifier => verifier.CreatedUtc).ToList();
-            // One that cannot run under today's rules, and whose report was not confirmed, would only ask for Start again
-            // (git-22, 2026-11-23).
-            var stranded = build.Except(elsewhere).Where(verifier => !verifier.ReportConfirmed && (!verifier.BriefNamesChecks || !verifier.SubjectNamed))
+            // One that cannot run under today's rules and has reported nothing would only ask for Start again (git-22,
+            // 2026-11-23); one running is left to run when only its build's name is missing, which a rewrite can cause.
+            var stranded = build.Except(elsewhere)
+                .Where(verifier => !verifier.ReportConfirmed && !verifier.HasReport
+                                   && (!verifier.BriefNamesChecks || (!verifier.SubjectNamed && !verifier.IsRunning)))
                 .OrderBy(verifier => verifier.CreatedUtc).ToList();
             var right = build.Except(elsewhere).Except(stranded).OrderBy(verifier => verifier.CreatedUtc).ToList();
             var kept = right.LastOrDefault();

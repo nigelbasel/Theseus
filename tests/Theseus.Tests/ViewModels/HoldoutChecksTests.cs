@@ -165,4 +165,27 @@ public class HoldoutChecksTests
         Assert.That(checks.WayOn(Card()), Is.EqualTo(HoldoutWayOn.None));
         Assert.That(checks.WhyCannotVerify(Card(), "A card"), Is.EqualTo("No holdout scenarios for this project yet"));
     }
+
+    [Test]
+    public void AFolderThatCannotBeRead_LeavesWhetherABuildIsNamedUnknown_NotUnnamed()
+    {
+        var checks = new HoldoutChecks(_root);
+        checks.Refresh(Chosen(Path.Combine(_root, "gone")), _ => HoldoutConvention.None, [Card()]);
+
+        Assert.That(checks.Names(Card()), Is.Null,
+            "review of the follow-ups, M2: a missing folder made every verifier of the project look stranded");
+    }
+
+    [Test]
+    public void AFolderWithScenariosNamingOtherWork_SaysTheBuildIsNotNamed()
+    {
+        var scenario = Scenario("p");
+        Directory.CreateDirectory(Path.GetDirectoryName(scenario)!);
+        File.WriteAllText(scenario, "# Stop\n\nChecks: other-work\n");
+        var checks = new HoldoutChecks(_root);
+        checks.Refresh(Chosen(), _ => HoldoutConvention.None, [Card()]);
+
+        Assert.That(checks.Names(Card()), Is.False);
+        Assert.That(checks.Names(Card("other-work")), Is.True);
+    }
 }

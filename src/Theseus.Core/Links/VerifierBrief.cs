@@ -25,8 +25,8 @@ public static class VerifierBrief
             string.Empty,
             // The scenarios Theseus matched to make this verifier, so the two never disagree (review of the auto-start).
             recordsFolder is null
-                ? $"The scenarios to run are those in the holdout whose \"Checks:\" line names {checkedName}; the checked change's spec is in its project home, under work/<slug>/."
-                : $"The scenarios to run are those in the holdout whose \"Checks:\" line names {checkedName}; the checked change's spec is in {recordsFolder}.",
+                ? $"The scenarios to run are those in the holdout {ChecksMarker} {checkedName}; the checked change's spec is in its project home, under work/<slug>/."
+                : $"The scenarios to run are those in the holdout {ChecksMarker} {checkedName}; the checked change's spec is in {recordsFolder}.",
             "Read the scenarios with the file tools; run builds and tests from the checked card's folder, never from inside the holdout.",
             "Run each named scenario.",
             "Ask the owner in this tab for any step only a person can do, quoting the scenario's step.",

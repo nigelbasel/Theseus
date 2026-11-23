@@ -52,7 +52,8 @@ public sealed partial class ShellViewModel
                 card.Workstream.IsArchived, report.CreatedUtc, report.Output, report.SatisfiedBy == LinkBook.ConfirmedReport)
             {
                 BriefNamesChecks = card.Workstream.Prompt.Contains(VerifierBrief.ChecksMarker, StringComparison.Ordinal),
-                SubjectNamed = _holdouts.IsNamed(subject.Workstream),
+                SubjectNamed = _holdouts.Names(subject.Workstream) != false,
+                HasReport = report.LatestReport is not null,
             });
         }
 
@@ -110,9 +111,16 @@ public sealed partial class ShellViewModel
             _settings.Write(_settings.Read() with { VerifierClearUp = record });
         }
 
+        var done = VerifierClearUp.From(record).IsDone;
         var notice = ClearUpNotice.For(record, Now(), RoundOf(reading));
 
-        if (notice is null && VerifierClearUp.From(record).IsDone)
+        // Said only once every card is archived: until then "archived" is not yet true, and Dismiss would refuse (S3).
+        if (notice is not null && !done)
+        {
+            return null;
+        }
+
+        if (notice is null && done)
         {
             _settings.Write(_settings.Read() with { VerifierClearUp = null });
             TheseusLog.Information("The clear-up of {Project} lapsed; it can no longer be undone", reading.Name);
