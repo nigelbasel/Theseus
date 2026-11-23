@@ -269,6 +269,30 @@
                     </StackPanel>
                 </Expander>
 
+                <!-- Claude Code's trust of the folders sessions start in, set from here and never by a session (project-view-usability item 7). -->
+                <Expander x:Name="FolderTrustSection" Style="{StaticResource Section}" DataContext="{Binding FolderTrust}">
+                    <Expander.Header>
+                        <TextBlock Text="Folder trust" Style="{StaticResource SectionHeading}" />
+                    </Expander.Header>
+                    <StackPanel Margin="0,4,0,8">
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" Content="U_ndo" Padding="10,2" Margin="6,0,0,0" Command="{Binding UndoCommand}"
+                                    AutomationProperties.Name="Undo folder trust"
+                                    ToolTipService.ShowOnDisabled="True"
+                                    ToolTip="Take back the trust records Theseus set; offered only after Theseus has set some" />
+                            <Button DockPanel.Dock="Right" Content="_Trust these folders…" Padding="10,2" Command="{Binding TrustCommand}"
+                                    ToolTipService.ShowOnDisabled="True"
+                                    ToolTip="Shows the exact change to Claude Code's configuration first, and makes it only if you agree" />
+                            <TextBlock x:Name="FolderTrustLine" Text="{Binding Line}" VerticalAlignment="Center" TextWrapping="Wrap" />
+                        </DockPanel>
+                        <TextBlock x:Name="FolderTrustFolders" Text="{Binding Folders}" Style="{StaticResource FieldHint}"
+                                   Visibility="{Binding HasNeeds, Converter={StaticResource BoolToVisibility}}" />
+                        <TextBlock Style="{StaticResource FieldHint}"
+                                   Text="Claude Code asks to trust each folder a session starts in or adds, and its answer for an added folder lasts one session. Trusting a repository covers every worktree of it." />
+                        <TextBlock Text="{Binding Result}" Style="{StaticResource FieldHint}" />
+                    </StackPanel>
+                </Expander>
+
                 <!-- Tags (card-search-and-tags items 11, 13): each with its count and colour; renamed or deleted on every card, at once. -->
                 <Expander x:Name="TagsSection" Style="{StaticResource Section}" IsExpanded="False" DataContext="{Binding Tags}">
                     <Expander.Header>

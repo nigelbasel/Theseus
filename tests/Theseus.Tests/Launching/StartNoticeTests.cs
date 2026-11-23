@@ -40,4 +40,26 @@ public class StartNoticeTests
         Assert.That(notice, Does.StartWith("Started Tailhawk. "));
         Assert.That(notice, Does.Contain("Theseus did not start"));
     }
+
+    [Test]
+    public void TrustLine_SaysNothingWhenClaudeCodeWillAskAboutNoFolder()
+    {
+        Assert.That(StartNotice.TrustLine([]), Is.Null);
+    }
+
+    [Test]
+    public void TrustLine_NamesTheFolderAndWhereToTrustItOnce()
+    {
+        Assert.That(StartNotice.TrustLine(["C:/repo"]), Does.Contain("C:/repo").And.Contain("Options › Folder trust"));
+    }
+
+    [Test]
+    public void OldTabLine_SaysTheOlderTabIsThereWithoutAskingFirst()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(StartNotice.OldTabLine([]), Is.Null);
+            Assert.That(StartNotice.OldTabLine(["Search"]), Does.StartWith("Search also has an older tab open"));
+        });
+    }
 }

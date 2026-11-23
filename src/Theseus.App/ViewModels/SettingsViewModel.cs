@@ -500,6 +500,7 @@ public sealed class SettingsViewModel : ObservableObject
         Load(_store.Read());
         Tags?.Load();
         Guard?.Load();
+        FolderTrust?.Load();
         IsOpen = true;
     }
 
@@ -508,6 +509,9 @@ public sealed class SettingsViewModel : ObservableObject
 
     /// <summary>Options, Holdouts: the installed holdout guard and its Install button; acts at once. Set by the shell.</summary>
     public HoldoutGuardViewModel? Guard { get; set; }
+
+    /// <summary>Options, Folder trust: Claude Code's trust of the folders sessions start in; acts at once. Set by the shell.</summary>
+    public FolderTrustViewModel? FolderTrust { get; set; }
 
     private void Load(TheseusSettings settings)
     {
