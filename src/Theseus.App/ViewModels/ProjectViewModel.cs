@@ -689,9 +689,10 @@ public sealed class ProjectViewModel : ObservableObject
         IReadOnlyList<string> crossMarks)
     {
         var piece = node.Piece;
+        var starts = VerifierStarts(piece);
         var stages = piece.Stages
             .Select((stage, index) => new StageNodeViewModel(stage, index, Select,
-                [.. stage.Actions.Select(offer => Action(offer, piece, stage, spec))]))
+                [.. stage.Actions.Select(offer => Action(offer, piece, stage, spec)), .. stage.Stage == PipelineStage.Verify ? starts : []]))
             .ToList();
 
         // Each kind of action once, in AC 27's order; a stage's own record is opened from its menu or Properties.
@@ -711,6 +712,8 @@ public sealed class ProjectViewModel : ObservableObject
                 boxActions.Insert(index + 1, wayOn);
             }
         }
+
+        boxActions.AddRange(starts);
 
         var addToProject = !piece.IsListed && _actions.AddToProject is { } add
             ? new PieceActionViewModel(AddToProjectLabel, () => add(reading.Name, piece.CardKey),
@@ -790,6 +793,17 @@ public sealed class ProjectViewModel : ObservableObject
             Note = !isEnabled && offer.Action == StageAction.VerifyWithHoldouts ? reason : null,
         };
     }
+
+    // A verifier card has no box of its own (AC 13), so one made and not started is started from its subject's box and
+    // Verify stage, with the card's own Start; only the owner starts a verifier (Nigel, 2026-11-23).
+    private List<PieceActionViewModel> VerifierStarts(PieceOfWork piece) =>
+    [
+        .. piece.PendingVerifiers.Where(verifier => !verifier.HasSession).Select(verifier => new PieceActionViewModel(
+            $"▶ Start {verifier.Title}", () => _actions.Start(verifier.Key), verifier.CanStart,
+            verifier.CanStart
+                ? $"Start {verifier.Title}: it runs the holdout scenarios against {piece.Workstream} and reports only a verdict"
+                : $"{verifier.Title} cannot be started from the board now")),
+    ];
 
     private static void Run(SpecAtGate? spec, Action<SpecAtGate> action)
     {

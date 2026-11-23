@@ -98,7 +98,7 @@ public class NoDuplicateVerifierTests
         var view = _views.BuildYourMarket(cards: cards, links: links);
 
         Assert.That(Of(view, WaitKind.StartChecks), Is.Empty);
-        Assert.That(Of(view, WaitKind.StartVerifier), Has.Count.EqualTo(5));
+        Assert.That(Of(view, WaitKind.StartVerifier), Has.Count.EqualTo(BuildYourMarketCards.Length), "one per verifier, whatever its subject's state");
     }
 
     [Test]
