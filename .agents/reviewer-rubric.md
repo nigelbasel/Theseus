@@ -72,10 +72,11 @@ the owner says.
 *Breaks if* launching the board can end or alter a session with no confirmation.
 Source: `src/Theseus.App/ViewModels/ShellViewModel.cs`, `src/Theseus.App/MainWindow.xaml` (Nigel, 2026-09-02).
 
-**R10. Do not be silent about state the user can see; ask rather than duplicate.**
-Starting a card that already has a tab with nothing running in it asks, rather than opening a second tab.
+**R10. Do not be silent about state the user can see.**
+Starting a card that already has a tab with nothing running in it opens the new tab and says so on the board
+(`StartNotice.OldTabLine`); it no longer asks first, which made every Start two presses (Nigel, 2026-11-23).
 *Breaks if* a Start can open a second tab for a card without saying so.
-Source: `src/Theseus.Core/Launching/AbandonedTabs.cs`, `src/Theseus.App/ViewModels/ShellViewModel.cs` (Nigel, 2026-09-07).
+Source: `src/Theseus.Core/Launching/AbandonedTabs.cs`, `src/Theseus.App/ViewModels/ShellViewModel.cs` (Nigel, 2026-09-07, 2026-11-23).
 
 **R11. Do not start a session that has nothing to read.**
 Cards still waiting on an input are held back and asked about, for one card or a selection.

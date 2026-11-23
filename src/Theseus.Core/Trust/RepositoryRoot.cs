@@ -61,6 +61,12 @@ public static class RepositoryRoot
 
             var commonDir = Path.GetFullPath(File.ReadAllText(commonFile).Trim(), gitDir);
 
+            // A worktree of a bare repository has no main working tree to key it by: it is its own.
+            if (!string.Equals(Path.GetFileName(Path.TrimEndingDirectorySeparator(commonDir)), ".git", StringComparison.OrdinalIgnoreCase))
+            {
+                return tree;
+            }
+
             return Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(commonDir)) ?? tree;
         }
         catch (IOException)

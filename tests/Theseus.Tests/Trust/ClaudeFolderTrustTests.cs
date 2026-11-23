@@ -158,6 +158,50 @@ public class ClaudeFolderTrustTests
     }
 
     [Test]
+    public void Needs_SpellsADriveInUpperCaseAsClaudeCodeDoes()
+    {
+        var main = Repository("src", "repo");
+        Config(Projects((Spelled(main), true)));
+        var lower = char.ToLowerInvariant(main[0]) + main[1..];
+
+        Assert.That(Trust().Needs([lower]), Is.Empty, "a card may spell its folder with a lower-case drive");
+    }
+
+    [Test]
+    public void Trust_LeavesARecordTheOwnerTrustedSinceTheListWasRead()
+    {
+        var main = Repository("src", "repo");
+        Config(Projects((Spelled(main), true)));
+        var trust = Trust();
+
+        trust.Trust([new FolderTrustNeed(main, Spelled(main))]);
+        trust.Undo();
+
+        Assert.That(Read()["projects"]![Spelled(main)]!["hasTrustDialogAccepted"]!.GetValue<bool>(), Is.True,
+            "his own Yes is never Theseus's to take back");
+    }
+
+    [Test]
+    public void Undo_TakesBackWhatTwoTrustsSet()
+    {
+        var first = Repository("src", "one");
+        var second = Repository("src", "two");
+        Config(new JsonObject());
+        var trust = Trust();
+        trust.Trust(trust.Needs([first]));
+        trust.Trust(trust.Needs([second]));
+
+        trust.Undo();
+        var projects = (JsonObject)Read()["projects"]!;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(projects.ContainsKey(Spelled(first)), Is.False);
+            Assert.That(projects.ContainsKey(Spelled(second)), Is.False);
+        });
+    }
+
+    [Test]
     public void Trust_ChangesNothingWhenTheFileCannotBeRead()
     {
         var main = Repository("src", "repo");

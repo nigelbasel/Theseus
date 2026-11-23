@@ -4183,6 +4183,7 @@ public sealed class ShellViewModel : ObservableObject
         var withOldTabs = Abandoned(workstreams);
 
         var started = new List<string>();
+        var startedKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var startedFolders = new List<string>();
         var refusals = new List<string>();
 
@@ -4249,11 +4250,12 @@ public sealed class ShellViewModel : ObservableObject
             Remember(workstream, sessionId);
             RunCommands.Started(workstream.Key);
             started.Add(workstream.Title);
+            startedKeys.Add(workstream.Key);
             startedFolders.AddRange(SessionFolders(workstream));
         }
 
         var untrusted = Settings.FolderTrust?.NeedsFor(startedFolders).Select(need => need.Key).ToList() ?? [];
-        var oldTabs = withOldTabs.Where(workstream => started.Contains(workstream.Title)).Select(workstream => workstream.Title).ToList();
+        var oldTabs = withOldTabs.Where(workstream => startedKeys.Contains(workstream.Key)).Select(workstream => workstream.Title).ToList();
         Notice = string.Join(" ", new[]
         {
             StartNotice.For(started, refusals), StartNotice.OldTabLine(oldTabs), StartNotice.TrustLine(untrusted),

@@ -15,7 +15,7 @@ namespace Theseus.Core.Launching;
 /// A title is all there is to go on. Windows Terminal names a tab after the session, and a tab whose
 /// session has gone keeps that name, so a match means "something here is called that". It is not
 /// proof: the tab may hold a shell the user renamed, and an elevated terminal cannot be read at all,
-/// so this finds what it can and the answer is the user's.
+/// so this finds what it can, and a Start says what it found rather than asking first (Nigel, 2026-11-23).
 /// </summary>
 public static class AbandonedTabs
 {

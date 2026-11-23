@@ -22,6 +22,7 @@ public sealed class ClaudeFolderTrust
     };
 
     private readonly string _undoPath;
+    private ((DateTime, long) Stamp, JsonObject? Projects)? _cached;
 
     /// <summary>Creates the trust store over a Claude Code configuration file and the file Theseus keeps its undo in.</summary>
     /// <param name="configPath">Claude Code's configuration file.</param>
@@ -67,7 +68,7 @@ public sealed class ClaudeFolderTrust
         var trusted = projects
             .Where(entry => entry.Value is JsonObject entryObject && entryObject["hasTrustDialogAccepted"]?.GetValueKind() == JsonValueKind.True)
             .Select(entry => Spelled(entry.Key))
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            .ToHashSet(StringComparer.Ordinal);
         var needs = new List<FolderTrustNeed>();
 
         foreach (var folder in folders.Where(folder => !string.IsNullOrWhiteSpace(folder)).Distinct(StringComparer.OrdinalIgnoreCase))
@@ -80,7 +81,7 @@ public sealed class ClaudeFolderTrust
             var key = KeyOf(folder);
 
             if (trusted.Contains(key) || LookedUp(folder).Any(trusted.Contains)
-                || needs.Any(need => string.Equals(need.Key, key, StringComparison.OrdinalIgnoreCase)))
+                || needs.Any(need => string.Equals(need.Key, key, StringComparison.Ordinal)))
             {
                 continue;
             }
@@ -103,14 +104,14 @@ public sealed class ClaudeFolderTrust
         {
             text.AppendLine($"  projects[\"{need.Key}\"].hasTrustDialogAccepted = true");
 
-            if (!string.Equals(Spelled(need.Folder), need.Key, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(Spelled(need.Folder), need.Key, StringComparison.Ordinal))
             {
                 text.AppendLine($"      for {need.Folder}, a worktree of that repository, and its other worktrees");
             }
         }
 
         text.AppendLine();
-        text.AppendLine("Claude Code then treats each as if you had answered Yes to its trust question once. Nothing else in the file changes. Undo in Options takes these back.");
+        text.AppendLine("Claude Code then treats each as if you had answered Yes to its trust question once. Nothing else in the file changes meaning. Undo in Options takes these back.");
 
         return text.ToString();
     }
@@ -137,10 +138,18 @@ public sealed class ClaudeFolderTrust
         root["projects"] = projects;
         var undo = ReadUndo();
 
+        var set = 0;
+
         foreach (var need in needs)
         {
             if (projects[need.Key] is JsonObject entry)
             {
+                // Answered Yes in a tab since the list was read: his own answer, which Undo must never take back.
+                if (entry["hasTrustDialogAccepted"]?.GetValueKind() == JsonValueKind.True)
+                {
+                    continue;
+                }
+
                 entry["hasTrustDialogAccepted"] = true;
                 undo.Add(new JsonObject { ["key"] = need.Key, ["created"] = false });
             }
@@ -149,11 +158,13 @@ public sealed class ClaudeFolderTrust
                 projects[need.Key] = NewEntry();
                 undo.Add(new JsonObject { ["key"] = need.Key, ["created"] = true });
             }
+
+            set++;
         }
 
+        // The undo record goes first: one for a change that then fails to land is harmless, a change without one is not.
         try
         {
-            Replace(ConfigPath, root.ToJsonString(Written));
             Replace(_undoPath, undo.ToJsonString(Written));
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
@@ -161,14 +172,27 @@ public sealed class ClaudeFolderTrust
             return new FolderTrustOutcome(false, $"Nothing was changed: {exception.Message}");
         }
 
+        try
+        {
+            Replace(ConfigPath, root.ToJsonString(Written));
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return new FolderTrustOutcome(false, $"Claude Code's configuration was not changed: {exception.Message}");
+        }
+
         var left = Needs(needs.Select(need => need.Folder));
 
         return left.Count == 0
-            ? new FolderTrustOutcome(true, needs.Count == 1 ? "Trusted 1 folder in Claude Code." : $"Trusted {needs.Count} folders in Claude Code.")
+            ? new FolderTrustOutcome(true, set == 1 ? "Trusted 1 folder in Claude Code." : $"Trusted {set} folders in Claude Code.")
             : new FolderTrustOutcome(false, $"Written, but {left.Count} still read as untrusted: {string.Join(", ", left.Select(need => need.Key))}.");
     }
 
-    /// <summary>Takes back what <see cref="Trust"/> set: removes the records it created and clears the flag on the rest.</summary>
+    /// <summary>
+    /// Takes back what <see cref="Trust"/> set: removes the records it created while no session has written into them,
+    /// and clears the flag on the rest. A Yes the owner gave in a tab after Theseus set the flag cannot be told apart from
+    /// it, and is taken back too.
+    /// </summary>
     public FolderTrustOutcome Undo()
     {
         if (!CanUndo)
@@ -208,20 +232,34 @@ public sealed class ClaudeFolderTrust
         try
         {
             Replace(ConfigPath, root.ToJsonString(Written));
-            File.Delete(_undoPath);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             return new FolderTrustOutcome(false, $"Nothing was changed: {exception.Message}");
         }
 
+        try
+        {
+            File.Delete(_undoPath);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return new FolderTrustOutcome(false, $"Taken back, but the undo record could not be removed: {exception.Message}");
+        }
+
         return new FolderTrustOutcome(true, undo.Count == 1 ? "Took back the 1 folder Theseus trusted." : $"Took back the {undo.Count} folders Theseus trusted.");
     }
 
-    // Claude Code's spelling of a key: forward slashes, no trailing one except on a drive's root.
+    // Claude Code's spelling of a key: forward slashes, an upper-case drive letter, no trailing slash except on a drive's
+    // root. Its lookup is an exact property read, so keys are compared exactly.
     private static string Spelled(string path)
     {
         var forward = path.Replace('\\', '/');
+
+        if (forward.Length >= 2 && forward[1] == ':')
+        {
+            forward = char.ToUpperInvariant(forward[0]) + forward[1..];
+        }
 
         return forward.Length > 3 ? forward.TrimEnd('/') : forward;
     }
@@ -261,7 +299,22 @@ public sealed class ClaudeFolderTrust
     private static bool UnusedSince(JsonObject entry) =>
         JsonNode.DeepEquals(entry, NewEntry());
 
-    private JsonObject? ReadProjects() => ReadRoot() is { } root ? root["projects"] as JsonObject ?? [] : null;
+    // Read on every Start, so the parsed file is kept until it changes on disk.
+    private JsonObject? ReadProjects()
+    {
+        var info = new FileInfo(ConfigPath);
+        var stamp = info.Exists ? (info.LastWriteTimeUtc, info.Length) : default;
+
+        if (_cached is { } cached && cached.Stamp == stamp)
+        {
+            return cached.Projects;
+        }
+
+        var projects = ReadRoot() is { } root ? root["projects"] as JsonObject ?? [] : null;
+        _cached = (stamp, projects);
+
+        return projects;
+    }
 
     private JsonObject? ReadRoot()
     {
@@ -290,7 +343,15 @@ public sealed class ClaudeFolderTrust
     private static void Replace(string path, string text)
     {
         var staged = path + ".theseus";
-        File.WriteAllText(staged, text, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-        File.Move(staged, path, overwrite: true);
+
+        try
+        {
+            File.WriteAllText(staged, text, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            File.Move(staged, path, overwrite: true);
+        }
+        finally
+        {
+            File.Delete(staged);
+        }
     }
 }
