@@ -333,6 +333,15 @@
                                         AutomationProperties.Name="{Binding KindLabel}">
                                     <TextBlock Text="{Binding KindLabel}" FontSize="11" FontWeight="Bold" Foreground="White" />
                                 </Border>
+                                <!-- One click to its tab, folded or open, while its session runs (item 8). -->
+                                <Button x:Name="BoxFocus" DockPanel.Dock="Right" Content="⌖ Focus" Command="{Binding FocusAction.Command}"
+                                        Visibility="{Binding HasSessionMark, Converter={StaticResource Visible}}"
+                                        ToolTip="Bring its terminal tab forward" AutomationProperties.Name="{Binding Title, StringFormat=Focus {0}}"
+                                        Padding="6,0" Margin="6,0,0,0" FontSize="11.5" VerticalAlignment="Center" Cursor="Hand"
+                                        Background="#38000000" Foreground="White" BorderThickness="0" />
+                                <TextBlock x:Name="BoxSession" DockPanel.Dock="Right" Text="{Binding SessionMark}" FontSize="11.5"
+                                           Margin="6,0,0,0" VerticalAlignment="Center" Foreground="White"
+                                           Visibility="{Binding HasSessionMark, Converter={StaticResource Visible}}" />
                                 <Border x:Name="PieceHeader" Background="Transparent" Focusable="True" Cursor="Hand"
                                         AutomationProperties.Name="{Binding Title}">
                                     <Border.InputBindings>

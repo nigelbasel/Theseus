@@ -411,6 +411,51 @@ public class ChainsViewModelTests
 
     private WorkstreamCardViewModel Find(string key) => _cards.Single(card => card.Key == key);
 
+    [Test]
+    public void ARowWithASession_HasFocusAndItsMark_OneClickToItsTab()
+    {
+        // Nigel, 2026-11-23: the tree, the details, Overview, then Focus: four clicks to reach a card's tab.
+        var focused = new List<string>();
+        _chains.FocusCard = focused.Add;
+        _cards[0].Lifecycle = SessionLifecycle.NeedsAttention;
+        _book.Add(LinkKind.HandsOver, "auth-research", "token-spike");
+
+        _chains.Update();
+        var running = _chains.Roots.Single();
+        var stopped = running.Children.Single();
+        running.Focus!.Execute(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(running.Session, Is.EqualTo("◆ waiting"));
+            Assert.That(focused, Is.EqualTo(new[] { "auth-research" }));
+            Assert.That(stopped.HasFocus, Is.False);
+            Assert.That(stopped.Session, Is.Empty);
+        });
+    }
+
+    [Test]
+    public void TwoRowsWithTheSameTitle_ShowTheirKeys()
+    {
+        _cards = [Card("verify-search", "Verify: Search"), Card("verify-search-2", "Verify: Search"), Card("search")];
+        _book.Add(LinkKind.HandsOver, "search", "verify-search");
+        _book.Add(LinkKind.HandsOver, "search", "verify-search-2");
+
+        _chains.Update();
+        var rows = _chains.Roots.SelectMany(root => root.Children.Prepend(root)).ToList();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(rows.Single(row => row.Key == "verify-search").Copy, Is.EqualTo("verify-search"));
+            Assert.That(rows.Single(row => row.Key == "verify-search-2").Copy, Is.EqualTo("verify-search-2"));
+            Assert.That(rows.Single(row => row.Key == "search").Copy, Is.Empty);
+        });
+    }
+
+    private static WorkstreamCardViewModel Card(string key, string title) =>
+        new(new Workstream(key, title, "#208DD7", false, @"C:\work", [], "Carry on.", 0, "New", false, false,
+            false, null, [], null, Nine));
+
     private static WorkstreamCardViewModel Card(string key) =>
         new(new Workstream(key, key, "#208DD7", false, @"C:\work", [], "Carry on.", 0, "New", false, false,
             false, null, [], null, Nine));

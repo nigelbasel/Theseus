@@ -26,4 +26,16 @@ public sealed record ChainNodeViewModel(
 {
     /// <summary>The cards it hands over to.</summary>
     public ObservableCollection<ChainNodeViewModel> Children { get; } = [];
+
+    /// <summary>"● running", "○ idle" or "◆ waiting" while it has a session; empty otherwise (item 8).</summary>
+    public string Session { get; init; } = string.Empty;
+
+    /// <summary>⌖ Focus: brings its tab forward in one click, while it has a session; null otherwise (item 8).</summary>
+    public RelayCommand? Focus { get; init; }
+
+    /// <summary>Whether ⌖ Focus shows on the row.</summary>
+    public bool HasFocus => Focus is not null;
+
+    /// <summary>Its key, shown when another card has the same title so the two can be told apart; empty otherwise.</summary>
+    public string Copy { get; init; } = string.Empty;
 }

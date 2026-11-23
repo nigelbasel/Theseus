@@ -112,6 +112,22 @@ public sealed class PieceNodeViewModel : ObservableObject, IFoldable
     /// <summary>The fold of its branch, when it has one (project-view-usability item 1); null with none.</summary>
     public ChildrenFold? Branch { get; init; }
 
+    /// <summary>
+    /// "● running", "○ idle" or "◆ waiting" while its card's session works this piece; empty otherwise (item 8).
+    /// </summary>
+    public string SessionMark => Piece.IsCurrentPiece && Piece.Card is { } card && FocusAction is not null
+        ? Theseus.Core.Domain.SessionMark.Of(card.Lifecycle)
+        : string.Empty;
+
+    /// <summary>Whether the mark and ⌖ Focus show on its title bar.</summary>
+    public bool HasSessionMark => SessionMark.Length > 0;
+
+    /// <summary>Its card's Focus, on the title bar while its session runs: its tab in one click (item 8); null otherwise.</summary>
+    public PieceActionViewModel? FocusAction =>
+        Piece.IsCurrentPiece && Piece.Card is { HasSession: true }
+            ? Actions.FirstOrDefault(action => action.Label.Contains("Focus", StringComparison.Ordinal) && action.IsEnabled)
+            : null;
+
     /// <summary>Every box beneath it, at any depth.</summary>
     public IEnumerable<PieceNodeViewModel> Descendants => Children.SelectMany(child => child.Descendants.Prepend(child));
 
