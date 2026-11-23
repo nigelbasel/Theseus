@@ -77,11 +77,11 @@ internal sealed class ProjectViews
             Edits, previous);
     }
 
-    /// <summary>BuildYourMarket MCP with its fifteen links, and no session unless cards are given.</summary>
+    /// <summary>BuildYourMarket MCP with its fifteen links and no session, unless cards or links are given.</summary>
     public ProjectViewModel BuildYourMarket(ProjectViewModel? previous = null, ProjectViewActions? actions = null,
-        IReadOnlyList<PieceCard>? cards = null)
+        IReadOnlyList<PieceCard>? cards = null, IReadOnlyList<Link>? links = null)
     {
-        var links = BuildYourMarketLinks();
+        links ??= BuildYourMarketLinks();
         cards ??= BuildYourMarketBoard();
         var pieces = BuildYourMarketPieces(_folder, cards, links);
         var reading = Read(_folder, ProjectViewFixtures.BuildYourMarket);

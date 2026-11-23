@@ -27,6 +27,9 @@ public enum WaitKind
     /// <summary>Approve or reject a proposal.</summary>
     Proposal,
 
+    /// <summary>Start a verifier card made for a build and not yet started; only the owner starts one.</summary>
+    StartVerifier,
+
     /// <summary>Something outside Theseus: no button.</summary>
     Outside,
 }
