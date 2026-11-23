@@ -319,6 +319,36 @@ public class ProjectViewModelTests
     }
 
     [Test]
+    public void InARunningProject_TheBoxSaysWhoStartsIt_AndOffersStartAnywaySecond()
+    {
+        // Nigel, 2026-11-23: a plain ▶ Start then asked "part of <project>, which decides what runs. Start it anyway?".
+        const string who = "Theseus starts it: Theseus is running and decides what runs. Not running because its turn has not come yet.";
+        var view = _views.Theseus(SessionLifecycle.NotStarted, actions: _views.Actions with { WhoStarts = _ => who });
+        var box = Box(view, "projects-and-method-ui");
+        var start = box.Actions.Single(action => action.Label == "Start anyway…");
+
+        start.Command.Execute(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(box.Actions.Select(action => action.Label), Has.None.EqualTo("▶ Start"));
+            Assert.That(box.WhoActs, Is.EqualTo(who));
+            Assert.That(box.PrimaryAction?.Label, Is.Not.EqualTo("Start anyway…"), "the override is never the box's one button");
+            Assert.That(start.ToolTip, Does.StartWith(who));
+            Assert.That(_views.Ran, Is.EqualTo(new[] { "Start:git-22" }), "the same Start, which asks the same question first");
+        });
+    }
+
+    [Test]
+    public void WhereTheOwnerStartsIt_TheBoxKeepsAPlainStart()
+    {
+        var box = Box(_views.Theseus(SessionLifecycle.NotStarted, actions: _views.Actions with { WhoStarts = _ => null }), "projects-and-method-ui");
+
+        Assert.That(box.Actions.Select(action => action.Label), Does.Contain("▶ Start"));
+        Assert.That(box.StartedBy, Is.Null);
+    }
+
+    [Test]
     public void TheActions_RunTheShellsCommands_ForTheirCard()
     {
         var view = _views.Theseus(SessionLifecycle.NotStarted);

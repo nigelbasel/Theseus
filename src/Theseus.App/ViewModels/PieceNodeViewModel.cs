@@ -215,10 +215,16 @@ public sealed class PieceNodeViewModel : ObservableObject, IFoldable
     public string Title => Piece.Title;
 
     /// <summary>Who acts next, and when, in the same words as its "Waits for you" item (F31, G37).</summary>
-    public string WhoActs => Status.WhoActs;
+    public string WhoActs => StartedBy ?? Status.WhoActs;
+
+    /// <summary>
+    /// Who starts it while its project is running, and why it is not running yet; null where the owner starts it
+    /// (project-view-usability item 5).
+    /// </summary>
+    public string? StartedBy { get; init; }
 
     /// <summary>The state's three answers, for the state line's hover.</summary>
-    public string StatusToolTip => $"{Status.Word}: {Status.Meaning}\nWho acts next: {Status.WhoActs}";
+    public string StatusToolTip => $"{Status.Word}: {Status.Meaning}\nWho acts next: {WhoActs}";
 
     /// <summary>"serves Objective 1.2", or "not in project.md" (H38).</summary>
     public string ServesText => Piece.ObjectiveNumber is { } number ? $"serves Objective {number}" : "not in project.md";
@@ -252,7 +258,8 @@ public sealed class PieceNodeViewModel : ObservableObject, IFoldable
     public PieceActionViewModel? PrimaryAction => Status.Action switch
     {
         PieceAction.Focus or PieceAction.Answer => Actions.FirstOrDefault(action => action.Label.Contains("Focus", StringComparison.Ordinal)),
-        PieceAction.Start => Actions.FirstOrDefault(action => action.Label.Contains("Start", StringComparison.Ordinal)),
+        PieceAction.Start => Actions.FirstOrDefault(action => action.Label.Contains("Start", StringComparison.Ordinal)
+                                                              && action.Label != WhoStarts.StartAnywayLabel),
         PieceAction.Accept => Actions.FirstOrDefault(action => action.Label.StartsWith("Accept", StringComparison.Ordinal)),
         PieceAction.StartCheck => Actions.FirstOrDefault(action => action.Label.StartsWith("Verify", StringComparison.Ordinal)),
         PieceAction.OpenRecords => Actions.FirstOrDefault(action => action.Label == "Open records"),

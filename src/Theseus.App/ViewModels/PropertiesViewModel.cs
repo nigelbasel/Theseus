@@ -92,7 +92,7 @@ public sealed class PropertiesViewModel
             [
                 new("Where", node.StatusText),
                 new("What it means", status.Meaning),
-                new("Who acts next", status.WhoActs),
+                new("Who acts next", node.WhoActs),
                 new("Kind", $"{node.KindLabel}: {PieceKinds.Means(piece.Kind)}"),
                 new("Card", $"{piece.Workstream} ({SessionWords(piece.Card)})"),
                 .. piece.Card?.StopLine is { } stopped ? new PropertyRowViewModel[] { new("Stopped", stopped) } : [],

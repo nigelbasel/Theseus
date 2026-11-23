@@ -739,6 +739,7 @@ public sealed class ProjectViewModel : ObservableObject
             AddToProject = addToProject,
             Proposals = piece.IsCurrentPiece ? _actions.ProposalsOf?.Invoke(piece.CardKey) ?? [] : [],
             ServesCommand = piece.ObjectiveNumber is { } served ? new RelayCommand(_ => GoToObjective(served)) : null,
+            StartedBy = boxActions.Any(action => action.Label == WhoStarts.StartAnywayLabel) ? _actions.WhoStarts?.Invoke(piece.CardKey) : null,
         };
     }
 
@@ -787,6 +788,13 @@ public sealed class ProjectViewModel : ObservableObject
 
         var isEnabled = offer.IsEnabled && why is null;
         var reason = offer.DisabledReason ?? why;
+
+        // In a running project the project decides what runs: Start is the owner's override, asked about as before (item 5).
+        if (offer.Action == StageAction.Start && _actions.WhoStarts?.Invoke(key) is { } who)
+        {
+            return new PieceActionViewModel(WhoStarts.StartAnywayLabel, what.Run, isEnabled,
+                reason ?? $"{who} Start it yourself instead: you are asked first.");
+        }
 
         return new PieceActionViewModel(offer.Label, what.Run, isEnabled, reason ?? what.ToolTip)
         {

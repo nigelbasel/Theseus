@@ -37,6 +37,12 @@ public sealed record ProjectViewActions(
     Func<string, StageAction, PieceActionViewModel?>? WayOn = null)
 {
     /// <summary>
+    /// Who starts a card while its project is running, and why it is not running yet, by card key; null where the owner is
+    /// the one to start it (project-view-usability item 5). Its box then says so, and its Start becomes Start anyway….
+    /// </summary>
+    public Func<string, string?>? WhoStarts { get; init; }
+
+    /// <summary>
     /// Opens a piece's Records window, a stage's document chosen when one is named (Nigel, 2026-11-22);
     /// when null, Open records opens the folder as before.
     /// </summary>

@@ -2345,6 +2345,7 @@ public sealed class ShellViewModel : ObservableObject
                 GoForward = GoForwardCommand,
                 ReviewProposal = ReviewProposal,
                 AnswerStartRequest = AnswerStartRequest,
+                WhoStarts = WhoStartsCard,
                 ProposalsOf = key => [.. Chains?.Proposals?.Pending.Where(row =>
                     string.Equals(row.Proposal.RequesterKey, key, StringComparison.OrdinalIgnoreCase)) ?? []],
             },
@@ -2353,6 +2354,22 @@ public sealed class ShellViewModel : ObservableObject
             ProjectView,
             overview,
             lead);
+
+    // F31's who-acts line for a card of a running project, from the same test the Start question uses (item 5).
+    private string? WhoStartsCard(string key)
+    {
+        if (Board.Card(key) is not { } card
+            || ProjectCardGuard.RunningProjectOf(card, Board.ProjectCards) is not { } project)
+        {
+            return null;
+        }
+
+        var isLead = string.Equals(project.LeadKey, key, StringComparison.OrdinalIgnoreCase);
+        var lead = project.LeadKey is { } leadKey ? Board.Card(leadKey)?.Title ?? leadKey : null;
+
+        return Theseus.Core.Projects.WhoStarts.Line(project.Title, lead, isLead || card.Workstream.Role == WorkstreamRole.Verifier,
+            Chains?.Waiting([card.Workstream]).Count > 0);
+    }
 
     /// <summary>What the project view knows of a board card (1.1d AC 1): its session, marks, role and whether Start would start it.</summary>
     private PieceCard PieceCardOf(WorkstreamCardViewModel card) =>
