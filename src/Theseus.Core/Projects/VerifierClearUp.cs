@@ -11,9 +11,10 @@ public sealed class VerifierClearUp
 {
     private readonly List<string> _archived;
     private readonly IReadOnlyList<string> _cards;
+    private readonly List<ClearedRow> _rows;
 
     private VerifierClearUp(string project, IReadOnlyList<string> cards, IReadOnlyList<string> toStop, IReadOnlyList<Link> before,
-        IEnumerable<string> archived, DateTimeOffset atUtc, int round)
+        IEnumerable<string> archived, DateTimeOffset atUtc, int round, IEnumerable<ClearedRow> rows)
     {
         Project = project;
         AtUtc = atUtc;
@@ -22,6 +23,7 @@ public sealed class VerifierClearUp
         ToStop = toStop;
         Before = before;
         _archived = [.. archived];
+        _rows = [.. rows];
     }
 
     /// <summary>The project it clears up.</summary>
@@ -46,7 +48,13 @@ public sealed class VerifierClearUp
     public bool IsDone => _archived.Count == _cards.Count;
 
     /// <summary>What Theseus's settings keep of it.</summary>
-    public VerifierClearUpRecord Record => new(Project, _cards, [.. _archived], Before) { AtUtc = AtUtc, Round = Round };
+    public VerifierClearUpRecord Record => new(Project, _cards, [.. _archived], Before) { AtUtc = AtUtc, Round = Round, Rows = [.. _rows] };
+
+    /// <summary>The rows it took out of project.md so far, in the order taken: what Undo puts back.</summary>
+    public IReadOnlyList<ClearedRow> Rows => _rows;
+
+    /// <summary>Notes rows it took out of project.md.</summary>
+    public void TookRows(IEnumerable<ClearedRow> rows) => _rows.AddRange(rows);
 
     /// <summary>The clear-up of these cards, given every link.</summary>
     /// <param name="project">The project.</param>
@@ -64,7 +72,7 @@ public sealed class VerifierClearUp
 
         return new VerifierClearUp(project, [.. wrong.Select(verifier => verifier.Key)],
             [.. wrong.Where(verifier => verifier.IsRunning).Select(verifier => verifier.Key)],
-            [.. links.Where(link => link.IsActive && link.Kind == LinkKind.ReportsBack && keys.Contains(link.From))], [], atUtc, round);
+            [.. links.Where(link => link.IsActive && link.Kind == LinkKind.ReportsBack && keys.Contains(link.From))], [], atUtc, round, []);
     }
 
     /// <summary>A clear-up carried on from its record, after a restart.</summary>
@@ -72,7 +80,7 @@ public sealed class VerifierClearUp
     {
         ArgumentNullException.ThrowIfNull(record);
 
-        return new VerifierClearUp(record.Project, record.Cards, [], record.Before, record.Archived, record.AtUtc, record.Round);
+        return new VerifierClearUp(record.Project, record.Cards, [], record.Before, record.Archived, record.AtUtc, record.Round, record.Rows ?? []);
     }
 
     /// <summary>Whether a card is one it takes away, so a second press does not list it again.</summary>

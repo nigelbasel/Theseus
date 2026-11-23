@@ -63,6 +63,79 @@ public static class ProjectFileEditor
         return Close(lines, file.Name);
     }
 
+    /// <summary>
+    /// Takes out every row naming one of these cards, as Clear up verifiers… does, and returns what Undo needs to put each
+    /// back; a card with no row is passed over, so a second try after a refused write takes only what is left.
+    /// </summary>
+    public static (string Text, IReadOnlyList<ClearedRow> Rows) TakeRows(string text, IReadOnlyCollection<string> cards)
+    {
+        ArgumentNullException.ThrowIfNull(cards);
+
+        var file = Open(text, out var lines);
+        var taken = new List<ClearedRow>();
+
+        foreach (var objective in file.Objectives)
+        {
+            for (var index = 0; index < objective.Workstreams.Count; index++)
+            {
+                var row = objective.Workstreams[index];
+
+                if (cards.Contains(row.Workstream, StringComparer.OrdinalIgnoreCase))
+                {
+                    taken.Add(new ClearedRow(row.Workstream, objective.Number, row.Slug, lines[row.Line - 1].Text,
+                        index == 0 ? null : objective.Workstreams[index - 1].Slug));
+                }
+            }
+        }
+
+        if (taken.Count == 0)
+        {
+            return (text, taken);
+        }
+
+        foreach (var index in file.Workstreams.Where(row => cards.Contains(row.Workstream, StringComparer.OrdinalIgnoreCase))
+                     .Select(row => row.Line - 1).OrderDescending())
+        {
+            lines.RemoveAt(index);
+        }
+
+        return (Close(lines, file.Name), taken);
+    }
+
+    /// <summary>
+    /// Puts rows Clear up took back, in the order taken: each under the row that was above it, or at the end of its table
+    /// when that row has gone. A row whose slug the file has again is left as it is.
+    /// </summary>
+    public static string PutBackRows(string text, IReadOnlyList<ClearedRow> rows)
+    {
+        ArgumentNullException.ThrowIfNull(rows);
+
+        foreach (var row in rows)
+        {
+            var file = Open(text, out var lines);
+
+            if (file.ObjectiveOf(row.Slug) is not null)
+            {
+                continue;
+            }
+
+            var objective = Objective(file, row.Objective);
+            var header = FindInObjective(lines, objective.Line, IsTableHeader)
+                         ?? throw new ProjectEditRefusedException($"objective {row.Objective} has no workstreams table");
+            var last = objective.Workstreams.Count > 0 ? objective.Workstreams[^1].Line - 1 : header + 1;
+            var after = row.After is null
+                ? header + 1
+                : objective.Workstreams.FirstOrDefault(each => string.Equals(each.Slug, row.After, StringComparison.OrdinalIgnoreCase)) is { } above
+                    ? above.Line - 1
+                    : last;
+
+            lines.Insert(after + 1, NewLine(lines, after, row.Text));
+            text = Close(lines, file.Name);
+        }
+
+        return text;
+    }
+
     /// <summary>Ticks or unticks a criterion, by its line.</summary>
     public static string SetCriterion(string text, int line, bool ticked)
     {
