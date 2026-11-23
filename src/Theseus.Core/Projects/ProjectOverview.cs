@@ -35,6 +35,12 @@ public sealed class ProjectOverview
     /// <summary>The value of the process, as tallies (G35).</summary>
     public IReadOnlyList<string> Tallies { get; }
 
+    /// <summary>
+    /// What asks something of the owner: Waits for you without the lines saying what is under way. The summary sentence and
+    /// the project card's badge both count this, so they never disagree (walkthrough rows 6, 14).
+    /// </summary>
+    public IReadOnlyList<WaitItem> Asking => [.. Waits.Where(wait => wait.Kind != WaitKind.Underway)];
+
     /// <summary>Everything that waits for the owner, grouped as G36 groups it (G36, G37a).</summary>
     public IReadOnlyList<WaitItem> Waits { get; }
 

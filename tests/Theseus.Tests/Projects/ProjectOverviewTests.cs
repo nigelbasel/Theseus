@@ -43,8 +43,7 @@ public class ProjectOverviewTests
             "the round's checks, run by Theseus, and lines saying what is under way ask nothing of him");
     }
 
-    private static IReadOnlyList<WaitItem> Asking(ProjectOverview overview) =>
-        [.. overview.Waits.Where(wait => wait.Kind is not WaitKind.Underway)];
+    private static IReadOnlyList<WaitItem> Asking(ProjectOverview overview) => overview.Asking;
 
     [Test]
     public void NoLineAsksYouToStartTheChecks_TheseusStartsThemItself()

@@ -2432,9 +2432,8 @@ public sealed partial class ShellViewModel : ObservableObject
 
             Runner.Wire(projectCard, () => _launcher.CanLaunch);
 
-            var waiting = ProjectWaiting.For(
-                [.. cards.Where(card => string.Equals(card.Workstream.Project, name, StringComparison.OrdinalIgnoreCase))],
-                reports, proposals, waitingSpecs);
+            // The badge counts what the summary sentence counts: one source (walkthrough row 6).
+            IReadOnlyList<string> waiting = [.. overview.Asking.Select(wait => wait.Text)];
 
             if (!waiting.SequenceEqual(projectCard.Waiting))
             {
