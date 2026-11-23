@@ -28,6 +28,7 @@ public sealed partial class ShellViewModel : ObservableObject
     private readonly Dictionary<string, string> _verifierStartFailures = new(StringComparer.OrdinalIgnoreCase);
     private string _updaterStates = string.Empty;
     private readonly CardEventLog _cardEvents = new(Path.Combine(App.DataDirectory, "card-events.jsonl"));
+    private readonly ReportsOpened _reportsOpened = new(Path.Combine(App.DataDirectory, "reports-opened.json"));
     private IReadOnlyDictionary<string, ProjectBranchGrant> _branchGrants = new Dictionary<string, ProjectBranchGrant>();
     private readonly BackgroundProjectReads _projectReads;
     private readonly ProjectFolderWatcher _projectWatcher;
@@ -258,6 +259,7 @@ public sealed partial class ShellViewModel : ObservableObject
                 Notice = $"Deleted {title}.";
             });
         Drawer.EventsOf = _cardEvents.For;
+        Drawer.WhoStarts = WhoStartsCard;
 
         Settings = new SettingsViewModel(settings, Refresh)
         {
@@ -1283,6 +1285,9 @@ public sealed partial class ShellViewModel : ObservableObject
         _stopRequests.Sweep(DateTimeOffset.UtcNow, _closed.IsFinished);
         Tells.Waiting.Sweep(DateTimeOffset.UtcNow, _ => true);
         LapseStartRequests();
+
+        // Last, once lifecycles and the projects' running state are set, which its words read.
+        Drawer.RefreshStart();
     }
 
     // Start-up has taken anything from 4 seconds to over 2 minutes on the same machine, with nothing
@@ -2612,6 +2617,13 @@ public sealed partial class ShellViewModel : ObservableObject
                 UndoClearVerifiers = UndoClearUp,
                 DismissClearUp = DismissClearUp,
                 WhoStarts = WhoStartsCard,
+                ReportOpened = _reportsOpened.HasOpened,
+                OpenReport = (link, at, document) =>
+                {
+                    OpenFile(document);
+                    _reportsOpened.Open(link, at);
+                    Refresh();
+                },
                 ProposalsOf = key => [.. Chains?.Proposals?.Pending.Where(row =>
                     string.Equals(row.Proposal.RequesterKey, key, StringComparison.OrdinalIgnoreCase)) ?? []],
             },

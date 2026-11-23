@@ -370,6 +370,15 @@
                                            Style="{StaticResource StateForeground}" FontSize="13" FontWeight="Medium" TextWrapping="Wrap" />
                                 <TextBlock x:Name="WhoActs" Text="{Binding WhoActs}" FontSize="12.5" TextWrapping="Wrap" Margin="0,2,0,0"
                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                <!-- A report filed after he confirmed an earlier one: seen here, never counted (Nigel, 2026-11-23). -->
+                                <DockPanel x:Name="ReportedAgain" Margin="0,4,0,0" Visibility="{Binding HasReportedAgain, Converter={StaticResource Visible}}">
+                                    <Button x:Name="OpenLaterReport" DockPanel.Dock="Right" Content="Open report" Command="{Binding OpenLaterReport}"
+                                            IsTabStop="{Binding HasReportedAgain}"
+                                            FontSize="11.5" Padding="6,0" Margin="6,0,0,0" VerticalAlignment="Center"
+                                            ToolTip="Open the report it filed after you confirmed the earlier one" />
+                                    <TextBlock Text="{Binding ReportedAgain}" FontSize="12.5" TextWrapping="Wrap" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource LinkBrush}" />
+                                </DockPanel>
 
                                 <!-- Folded: one chip per stage and the gate diamond after Spec (1.1f D21; 1.1d AC 26). -->
                                 <ItemsControl x:Name="Strip" ItemsSource="{Binding StripItems}" Margin="0,7,-3,0" Focusable="False"

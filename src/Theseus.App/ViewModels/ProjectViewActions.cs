@@ -43,6 +43,15 @@ public sealed record ProjectViewActions(
     public Func<string, ProjectRunStart?>? WhoStarts { get; init; }
 
     /// <summary>
+    /// Whether the owner has opened a later report, by link id and the report's time; null treats none as opened.
+    /// Opening it clears its box's line (Nigel, 2026-11-23).
+    /// </summary>
+    public Func<string, DateTimeOffset, bool>? ReportOpened { get; init; }
+
+    /// <summary>Opens a later report and remembers it, by link id, report time and document; null opens the file only.</summary>
+    public Action<string, DateTimeOffset, string>? OpenReport { get; init; }
+
+    /// <summary>
     /// Opens a piece's Records window, a stage's document chosen when one is named (Nigel, 2026-11-22);
     /// when null, Open records opens the folder as before.
     /// </summary>

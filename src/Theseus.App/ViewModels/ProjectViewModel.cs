@@ -764,6 +764,23 @@ public sealed class ProjectViewModel : ObservableObject
             AddToProject = addToProject,
             Proposals = piece.IsCurrentPiece ? _actions.ProposalsOf?.Invoke(piece.CardKey) ?? [] : [],
             ServesCommand = piece.ObjectiveNumber is { } served ? new RelayCommand(_ => GoToObjective(served)) : null,
+            LaterReport = piece.LaterReport is { } later && piece.LaterReportLink is { } link && _actions.ReportOpened?.Invoke(link, later.AtUtc) != true
+                ? later
+                : null,
+            OpenLaterReport = piece.LaterReport is { } shown && piece.LaterReportLink is { } on
+                ? new RelayCommand(_ =>
+                    {
+                        if (_actions.OpenReport is { } open)
+                        {
+                            open(on, shown.AtUtc, shown.Document);
+                        }
+                        else
+                        {
+                            _actions.OpenPath(shown.Document);
+                        }
+                    },
+                    _ => System.IO.File.Exists(shown.Document))
+                : null,
             // Only where starting it is the box's next step: a built piece waiting for its check keeps its own answer.
             StartedBy = piece.Status.Action == PieceAction.Start && boxActions.Any(action => action.Label == WhoStarts.StartAnywayLabel)
                 ? _actions.WhoStarts?.Invoke(piece.CardKey)?.Line
@@ -1343,7 +1360,7 @@ public sealed class ProjectViewModel : ObservableObject
         IEnumerable<string> Lines(PieceNodeViewModel node, int depth) =>
             node.Children.SelectMany(child => Lines(child, depth + 1)).Prepend(string.Join("/",
                 depth.ToString(CultureInfo.InvariantCulture), node.Name, node.Workstream, node.ColourHex, node.KindWord,
-                node.ObjectiveLabel, node.StatusText, node.WhoActs, node.Title, node.KindLabel, node.Gate?.ToolTip,
+                node.ObjectiveLabel, node.StatusText, node.WhoActs, node.ReportedAgain, node.Title, node.KindLabel, node.Gate?.ToolTip,
                 node.Piece.Round, node.ReportBackText, node.IsReportLost, node.Piece.RecordsFolder,
                 node.Evidence, node.Spec?.ContentHash, string.Join(";", node.CrossMarks), node.Piece.Card?.StopLine, node.BranchRulesToolTip,
                 node.Objective is { } objective

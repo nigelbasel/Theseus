@@ -1384,6 +1384,12 @@
                 <Separator />
                 <MenuItem Header="_Archive" IsCheckable="True" IsChecked="{Binding Board.ShowArchived, Mode=TwoWay}"
                           ToolTip="Show what has been put away instead of what is being worked on" />
+                <MenuItem Header="Show a_ll cards" IsCheckable="True" IsChecked="{Binding Board.ShowsAll, Mode=TwoWay}"
+                          ToolTip="Show project cards and workstreams" />
+                <MenuItem Header="Show only _projects" IsCheckable="True" IsChecked="{Binding Board.ShowsProjects, Mode=TwoWay}"
+                          ToolTip="Show only the project cards" />
+                <MenuItem Header="Show only wor_kstreams" IsCheckable="True" IsChecked="{Binding Board.ShowsWorkstreams, Mode=TwoWay}"
+                          ToolTip="Show only the workstreams that are in no project" />
                 <MenuItem Header="Open pro_ject" ItemsSource="{Binding OpenProjectChoices}"
                           ItemContainerStyle="{StaticResource ProjectChoiceItem}"
                           Visibility="{Binding HasOpenProjectChoices, Converter={StaticResource BoolToVisibility}}"
@@ -1545,6 +1551,23 @@
                               AutomationProperties.Name="Hide the rest" />
                 <Button x:Name="ClearSearch" Style="{StaticResource CommandButton}" Content="Clear" Margin="6,0,0,0" Padding="10,3"
                         Command="{Binding ClearCommand}" ToolTip="{Binding ClearToolTip}" ToolTipService.ShowOnDisabled="True" />
+            </StackPanel>
+            <!-- What the board shows: all, only project cards, or only workstreams (Nigel, 2026-11-23). Remembered. -->
+            <StackPanel x:Name="BoardShowsChoice" DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center"
+                        KeyboardNavigation.TabNavigation="Once" KeyboardNavigation.DirectionalNavigation="Cycle"
+                        Margin="0,0,12,0" DataContext="{Binding Board}"
+                        Visibility="{Binding DataContext.IsBoardShown, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}">
+                <TextBlock Text="Show" VerticalAlignment="Center" FontSize="12" Margin="0,0,6,0"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                <RadioButton x:Name="ShowAllCards" Content="All" GroupName="BoardShows" Style="{StaticResource ToolIconToggle}" Padding="8,4"
+                             IsChecked="{Binding ShowsAll, Mode=TwoWay}" ToolTip="Show project cards and workstreams"
+                             AutomationProperties.Name="Show all cards" />
+                <RadioButton x:Name="ShowProjectCards" Content="Projects" GroupName="BoardShows" Style="{StaticResource ToolIconToggle}" Padding="8,4"
+                             Margin="2,0,0,0" IsChecked="{Binding ShowsProjects, Mode=TwoWay}" ToolTip="Show only the project cards"
+                             AutomationProperties.Name="Show only projects" />
+                <RadioButton x:Name="ShowWorkstreamCards" Content="Workstreams" GroupName="BoardShows" Style="{StaticResource ToolIconToggle}" Padding="8,4"
+                             Margin="2,0,0,0" IsChecked="{Binding ShowsWorkstreams, Mode=TwoWay}"
+                             ToolTip="Show only the workstreams that are in no project" AutomationProperties.Name="Show only workstreams" />
             </StackPanel>
         <ToolBarTray IsLocked="True" Background="Transparent"
                      Visibility="{Binding IsToolbarVisible, Converter={StaticResource BoolToVisibility}}">
@@ -2312,6 +2335,7 @@
                     <TextBlock FontSize="11" Margin="12,0,0,0" VerticalAlignment="Center"
                                Foreground="{DynamicResource TextFillColorTertiaryBrush}">
                         <Run Text="{Binding Board.Status, Mode=OneWay}" />
+                        <Run Text="{Binding Board.ShowsNote, Mode=OneWay, StringFormat='  ·  {0}', TargetNullValue=''}" />
                         <Run Text="  ·  " />
                         <Run Text="{Binding SelectionSummary, Mode=OneWay}" />
                     </TextBlock>
@@ -2699,8 +2723,12 @@
                                                Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                                Visibility="{Binding Drawer.Card.Model, Converter={StaticResource NotEmptyToVisibility}}" />
 
+                                    <!-- Who starts it, as its box says, in a running project (item 5, for the drawer: Nigel 2026-11-23). -->
+                                    <TextBlock x:Name="DrawerStartedBy" Text="{Binding Drawer.StartedBy}" FontSize="12" TextWrapping="Wrap" Margin="0,8,0,0"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                               Visibility="{Binding Drawer.HasStartedBy, Converter={StaticResource BoolToVisibility}}" />
                                     <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                                        <Button Content="{Binding Drawer.Card.PrimaryAction}" Padding="12,3" Margin="0,0,6,0"
+                                        <Button Content="{Binding Drawer.StartLabel}" Padding="12,3" Margin="0,0,6,0"
                                                 ToolTip="{Binding Drawer.Card.RestartCost}"
                                                 Visibility="{Binding Drawer.Card.IsLive, Converter={StaticResource NotBoolToVisibility}}"
                                                 Command="{Binding StartCardCommand}"
