@@ -32,7 +32,7 @@ covers every worktree of it. **Undo** takes back only what Theseus set.
 | "That launch ticket is unknown or has already been used" | The tab reached a different copy of Theseus, or the ticket expired (it lasts two minutes). Usually two copies of Theseus were running. Close both and start again. |
 | The tab opens in the wrong terminal | Theseus prefers a Windows Terminal that is already running, and the stable build over Preview. Set the path in **Tools > Options**. |
 | Start does nothing | Claude Code or Windows Terminal could not be found (the status bar says which), or the card is already following a live session. Set the paths in **Tools > Options**. |
-| Claude Code asks you to trust a folder in the tab | The folder has no trust record yet. Answer it there, or trust it once for every start in **Tools > Options > Folder trust**. |
+| Claude Code asks you to trust a folder in the tab | The folder has no trust record yet. The card says it needs you to trust the folder, and **Focus** brings the tab forward. Answer it there, or trust it once for every start in **Tools > Options > Folder trust**. |
 | A question about paused or blocked work | The card is marked. See [the board](board.md#paused-and-blocked). |
 
 ## Stopping a session

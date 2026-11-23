@@ -62,6 +62,11 @@ public sealed partial class ShellViewModel : ObservableObject
     private Theseus.Core.Terminal.ProjectWindowTarget _projectWindow = new(null, "Open a project first");
     private string _projectSummary = string.Empty;
     private readonly LaunchCoordinator _launcher;
+
+    // Sessions launched and not yet seen in the registry, with when: only these can be at Claude Code's folder trust
+    // question. Trust given to an added folder is never recorded, so the records alone would keep a running session
+    // that the registry misses (after /clear, say) at that question for good.
+    private readonly Dictionary<string, DateTimeOffset> _notYetRegistered = new(StringComparer.OrdinalIgnoreCase);
     private readonly IPlanStore _plans;
     private readonly ITabColourAllocator _colours;
     private readonly PullRequestResolver _pullRequests;
@@ -1029,7 +1034,7 @@ public sealed partial class ShellViewModel : ObservableObject
             var reading = readings.FirstOrDefault(each => string.Equals(each.Name, name, StringComparison.OrdinalIgnoreCase));
             var updater = reading is null ? null : UpdaterOf(reading);
 
-            if (reading is not null && updater is { IsLive: true }
+            if (reading is not null && updater is { IsLive: true } && Sessions.Find(updater.Workstream.LastSessionId) is not null
                 && ProjectUpdate.IsDone(startedOn, reading, updater.Lifecycle is SessionLifecycle.Idle or SessionLifecycle.NeedsAttention))
             {
                 TheseusLog.Information("Asking {Updater} to stop: the project file of {Project} has changed and its turn has ended", updater.Key, name);
@@ -3738,6 +3743,19 @@ public sealed partial class ShellViewModel : ObservableObject
 
             card.Question = question;
             card.Prompt = live ? Theseus.Core.Questions.PermissionPrompt.Showing(Prompts.Read(card.Workstream.LastSessionId), session?.Status, question) : null;
+
+            if (live && card.Workstream.LastSessionId is { } registered)
+            {
+                _notYetRegistered.Remove(registered);
+            }
+            else if (card.Workstream.LastSessionId is { } launching && _notYetRegistered.TryGetValue(launching, out var launchedUtc)
+                     && Theseus.Core.Questions.TrustPrompt.For(launching, isRegistered: false, _launcher.InFlight.IsInFlight(card.Key),
+                         Settings.FolderTrust?.NeedsFor(SessionFolders(card.Workstream)).Select(need => need.Key).ToList() ?? [],
+                         launchedUtc) is { } trust)
+            {
+                card.Prompt = trust;
+                state = state with { Lifecycle = SessionLifecycle.NeedsAttention, Since = launchedUtc };
+            }
             card.MotionAllowed = _motionAllowed;
             card.Lifecycle = state.Lifecycle;
             card.LifecycleSinceUtc = state.Since;
@@ -4565,6 +4583,7 @@ public sealed partial class ShellViewModel : ObservableObject
             }
 
             Remember(workstream, sessionId);
+            _notYetRegistered[sessionId] = DateTimeOffset.UtcNow;
             _verifierStartFailures.Remove(workstream.Key);
             RunCommands.Started(workstream.Key);
             started.Add(workstream.Title);
@@ -4728,13 +4747,26 @@ public sealed partial class ShellViewModel : ObservableObject
     }
 
     private bool CanFocusCard(object? parameter) =>
-        parameter is WorkstreamCardViewModel card && Sessions.Find(card.Workstream.LastSessionId) is not null;
+        parameter is WorkstreamCardViewModel card
+        && (Sessions.Find(card.Workstream.LastSessionId) is not null
+            || (card.Workstream.LastSessionId is { } launching && _notYetRegistered.ContainsKey(launching) && _launcher.InFlight.IsInFlight(card.Key)));
 
     private void FocusCard(object? parameter)
     {
-        if (parameter is not WorkstreamCardViewModel card
-            || Sessions.Find(card.Workstream.LastSessionId) is not { } session)
+        if (parameter is not WorkstreamCardViewModel card)
         {
+            return;
+        }
+
+        // A tab at Claude Code's folder trust question has no session in the registry yet; Theseus titled the tab itself.
+        if (Sessions.Find(card.Workstream.LastSessionId) is not { } session)
+        {
+            if (card.Workstream.LastSessionId is { } launching && _notYetRegistered.ContainsKey(launching)
+                && _launcher.InFlight.IsInFlight(card.Key))
+            {
+                Notice = Describe(TerminalFocus.FocusSession(0, card.Title), card.Title);
+            }
+
             return;
         }
 
