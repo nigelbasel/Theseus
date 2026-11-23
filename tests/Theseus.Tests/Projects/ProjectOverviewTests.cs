@@ -54,6 +54,49 @@ public class ProjectOverviewTests
     }
 
     [Test]
+    public void WrongVerifiers_WaitForYouOnOneLine_ThatClearsThemUp()
+    {
+        IReadOnlyList<WrongVerifier> wrong =
+        [
+            new("verify-w1", "Verify: W1", "w1", true, "it ran another project's scenarios, in C:\\h"),
+            new("verify-w2-2", "Verify: W2 (2)", "w2", false, "a copy: Verify: W2 checks the same build"),
+        ];
+
+        var wait = ProjectOverview.For(WriteBym(_folder).File!, BymPieces(_folder), BymLinks(), [], 5, wrongVerifiers: wrong)
+            .Waits.Single(item => item.Kind == WaitKind.ClearVerifiers);
+
+        Assert.That(wait.Text, Is.EqualTo(
+            "Two verifier cards should not be kept: a copy of a build's check, or a check run against another project's scenarios."));
+        Assert.That(wait.Button, Is.EqualTo("Clear up verifiers…"));
+        Assert.That(Bym().Waits.Where(item => item.Kind == WaitKind.ClearVerifiers), Is.Empty, "none wrong, no line");
+    }
+
+    [Test]
+    public void AClearUp_CanBeUndone_FromTheWaitsLine()
+    {
+        var wait = ProjectOverview.For(WriteBym(_folder).File!, BymPieces(_folder), BymLinks(), [], 5, clearedVerifiers: 3)
+            .Waits.Single(item => item.Kind == WaitKind.UndoClearVerifiers);
+
+        Assert.That(wait.Text, Is.EqualTo("Three verifier cards were cleared up: stopped, archived, their reports rejected."));
+        Assert.That(wait.Button, Is.EqualTo("Undo"));
+    }
+
+    [Test]
+    public void ARejectedReport_NoLongerWaitsForYou()
+    {
+        var links = BymLinks().Select(link => link.Kind == LinkKind.ReportsBack && link.From == "w2"
+            ? link with
+            {
+                LatestReport = new LinkReport(DateTimeOffset.UnixEpoch, "s", "report.md", "done", null),
+                Rejection = new LinkRejection(DateTimeOffset.UnixEpoch, "wrong scenarios", DateTimeOffset.UnixEpoch),
+            }
+            : link).ToList();
+
+        Assert.That(Bym(links, []).Waits.Where(wait => wait.Kind == WaitKind.ConfirmReport), Is.Empty,
+            "git-22, 2026-11-23: rejected reports stayed in NEEDS YOU");
+    }
+
+    [Test]
     public void APiecesWaitItem_RepeatsTheWordsOfItsBoxsWhoActsLine()
     {
         var pieces = BymPieces(_folder);

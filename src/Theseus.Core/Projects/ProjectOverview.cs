@@ -46,9 +46,11 @@ public sealed class ProjectOverview
     /// <param name="accepted">How many of its specs he has accepted.</param>
     /// <param name="startRequests">Sessions' requests to start cards he paused; the pending ones for this project's cards wait for him.</param>
     /// <param name="titleOf">A card's title from its key, for a card that works no current piece; null shows the key.</param>
+    /// <param name="wrongVerifiers">The project's verifier cards that should not be kept; any makes one line to clear them up.</param>
+    /// <param name="clearedVerifiers">How many its last clear-up took away, while that can be undone; none, no line.</param>
     public static ProjectOverview For(ProjectFile file, IReadOnlyList<PieceOfWork> pieces, IEnumerable<Link> links,
         IEnumerable<WorkstreamProposal> proposals, int accepted, IEnumerable<StartRequest>? startRequests = null,
-        Func<string, string>? titleOf = null)
+        Func<string, string>? titleOf = null, IReadOnlyList<WrongVerifier>? wrongVerifiers = null, int clearedVerifiers = 0)
     {
         ArgumentNullException.ThrowIfNull(file);
         ArgumentNullException.ThrowIfNull(pieces);
@@ -56,6 +58,20 @@ public sealed class ProjectOverview
         ArgumentNullException.ThrowIfNull(proposals);
 
         var waits = WaitsOf(file, pieces, [.. links], proposals, startRequests ?? [], titleOf);
+
+        if (wrongVerifiers is { Count: > 0 } wrong)
+        {
+            waits.Insert(0, new WaitItem(WaitKind.ClearVerifiers,
+                $"{Capital(Count(wrong.Count, "verifier card"))} should not be kept: a copy of a build's check, or a check run against another project's scenarios.",
+                []));
+        }
+
+        if (clearedVerifiers > 0)
+        {
+            waits.Insert(0, new WaitItem(WaitKind.UndoClearVerifiers,
+                $"{Capital(Count(clearedVerifiers, "verifier card"))} {(clearedVerifiers == 1 ? "was" : "were")} cleared up: stopped, archived, their reports rejected.",
+                []));
+        }
         var roundLines = file.Rounds.ToDictionary(round => round.Number, round => RoundLine(pieces.Where(piece => piece.Round == round.Number).ToList()));
 
         return new ProjectOverview(SentenceOf(file, pieces, waits), roundLines, [.. file.Phases.Select(phase => Cell(phase, pieces))],
@@ -144,7 +160,7 @@ public sealed class ProjectOverview
         var cards = pieces.Select(piece => piece.CardKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         foreach (var link in links.Where(link => link.IsActive && link.Kind == LinkKind.ReportsBack && link.LatestReport is not null
-                                                 && link.SatisfiedUtc is null && cards.Contains(link.From)))
+                                                 && link.SatisfiedUtc is null && !link.ReportIsRejected && cards.Contains(link.From)))
         {
             var from = pieces.FirstOrDefault(piece => piece.IsCurrentPiece && Same(piece.CardKey, link.From));
             waits.Add(new WaitItem(WaitKind.ConfirmReport,

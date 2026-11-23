@@ -185,6 +185,9 @@ public sealed class DetailDrawerViewModel : ObservableObject
     /// <summary>Whether a session is running, which is what stops either from being possible.</summary>
     public bool IsLive => _card?.IsLive ?? false;
 
+    /// <summary>Beside the ⋯ button, why Archive is greyed, so it is not found only inside the menu (git-22, 2026-11-23).</summary>
+    public string ArchiveWhyNot => IsLive ? "Stop its session first" : string.Empty;
+
     /// <summary>Why neither can be done, or empty when both can.</summary>
     public string RemovalRefusal => WorkstreamRemoval.RefusalToArchive(IsLive) ?? string.Empty;
 
@@ -492,6 +495,7 @@ public sealed class DetailDrawerViewModel : ObservableObject
         Raise(nameof(ArchiveLabel));
         Raise(nameof(IsLive));
         Raise(nameof(RemovalRefusal));
+        Raise(nameof(ArchiveWhyNot));
         Raise(nameof(DeleteConsequence));
 
         Runs.Clear();

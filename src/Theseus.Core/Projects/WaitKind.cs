@@ -33,6 +33,12 @@ public enum WaitKind
     /// <summary>Allow or refuse a session's start of a card he paused (sessions-run-the-project item 13).</summary>
     StartRequest,
 
+    /// <summary>Clear up verifier cards that should not be kept: copies of a build's check, or checks of another project's holdout.</summary>
+    ClearVerifiers,
+
+    /// <summary>Undo the last clear-up of verifier cards.</summary>
+    UndoClearVerifiers,
+
     /// <summary>Something outside Theseus: no button.</summary>
     Outside,
 }

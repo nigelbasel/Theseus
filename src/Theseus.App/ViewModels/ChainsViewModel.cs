@@ -389,7 +389,7 @@ public sealed class ChainsViewModel : ObservableObject
             NeedsYou.Add(new NeedsYouRowViewModel(link, state, $"{Title(link.From)} → {Title(link.To)}",
                 Detail(link, state, writer), writer?.ColorHex ?? "#808080",
                 writer is null ? null : Theseus.Core.Stopping.HandoffPath.For(writer.Workstream),
-                setAside, Confirm, Satisfy, SetAside));
+                setAside, Confirm, Satisfy, SetAside, Reject));
         }
 
         RaiseButton();
@@ -555,6 +555,22 @@ public sealed class ChainsViewModel : ObservableObject
     }
 
     private string? Satisfy(string id, string reason) => Changed(_book.Satisfy(id, reason));
+
+    /// <summary>Rejects a link's report for the reason given (git-22, 2026-11-23); it leaves NEEDS YOU on the update.</summary>
+    public string? Reject(string id, string reason)
+    {
+        var refusal = Changed(_book.Reject(id, reason));
+
+        if (refusal is null)
+        {
+            Update();
+        }
+
+        return refusal;
+    }
+
+    /// <summary>Takes back a rejection, for Undo of Clear up verifiers….</summary>
+    public string? Unreject(string id) => Changed(_book.Unreject(id));
 
     private string? Confirm(string id)
     {

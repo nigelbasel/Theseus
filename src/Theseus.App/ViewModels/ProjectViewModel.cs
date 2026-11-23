@@ -1024,6 +1024,8 @@ public sealed class ProjectViewModel : ObservableObject
             WaitKind.Unblock when item.CardKey is { } card && node?.PrimaryAction is { } action => action.Command,
             WaitKind.StartChecks => new RelayCommand(_ => StartChecks(item)),
             WaitKind.StartVerifier when item.CardKey is { } verifier => new RelayCommand(_ => _actions.Start(verifier)),
+            WaitKind.ClearVerifiers when _actions.ClearVerifiers is { } clear => new RelayCommand(_ => clear(project)),
+            WaitKind.UndoClearVerifiers when _actions.UndoClearVerifiers is { } undo => new RelayCommand(_ => undo(project)),
             WaitKind.AddToObjective when item.CardKey is { } card && _actions.AddToProject is { } add => new RelayCommand(_ => add(project, card)),
             WaitKind.Proposal when item.ProposalId is { } proposal && _actions.ReviewProposal is { } review =>
                 new RelayCommand(_ => review(proposal)),

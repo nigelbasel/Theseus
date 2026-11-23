@@ -19,7 +19,7 @@ using Theseus.Core.Usage;
 namespace Theseus.App.ViewModels;
 
 /// <summary>The window's own state: what it shows, what it can start, and how it is painted.</summary>
-public sealed class ShellViewModel : ObservableObject
+public sealed partial class ShellViewModel : ObservableObject
 {
     private readonly ISettingsStore _settings;
     private string _holdoutFolder = string.Empty;
@@ -2132,7 +2132,7 @@ public sealed class ShellViewModel : ObservableObject
             var waitingSpecs = ProjectViewModel.SpecsWaiting(reading, pieces);
             var overview = ProjectOverview.For(reading.File!, pieces, links, Chains?.Proposals?.Pending.Select(row => row.Proposal) ?? [],
                 acceptances.Count(acceptance => string.Equals(acceptance.Project, reading.Name, StringComparison.OrdinalIgnoreCase)),
-                StartRequests.Pending, key => Board.Card(key)?.Title ?? key);
+                StartRequests.Pending, key => Board.Card(key)?.Title ?? key, WrongVerifiersOf(reading.Name), ClearedVerifiersOf(reading.Name));
             var file = reading.File!;
 
             foreach (var piece in pieces.Where(piece => piece.IsCurrentPiece && piece.Card is not null))
@@ -2345,6 +2345,8 @@ public sealed class ShellViewModel : ObservableObject
                 GoForward = GoForwardCommand,
                 ReviewProposal = ReviewProposal,
                 AnswerStartRequest = AnswerStartRequest,
+                ClearVerifiers = ClearUpVerifiers,
+                UndoClearVerifiers = UndoClearUp,
                 ProposalsOf = key => [.. Chains?.Proposals?.Pending.Where(row =>
                     string.Equals(row.Proposal.RequesterKey, key, StringComparison.OrdinalIgnoreCase)) ?? []],
             },
@@ -3483,6 +3485,7 @@ public sealed class ShellViewModel : ObservableObject
         }
 
         // After the lifecycles above, so a verifier that has just ended no longer stands (review of 72ec6d7).
+        ArchiveClearedUp();
         RefreshStandingVerifiers();
 
         foreach (var card in Board.Cards)

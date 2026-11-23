@@ -161,8 +161,44 @@ public sealed class LinkBook
                 return LinkChange.Refused("That link is already satisfied.");
             }
 
+            if (link.ReportIsRejected)
+            {
+                return LinkChange.Refused("That report was rejected, so it cannot be confirmed; a new report can be.");
+            }
+
             return LinkChange.Made(link with { SatisfiedUtc = _clock.UtcNow, SatisfiedBy = ConfirmedReport });
         }));
+
+    /// <summary>
+    /// Rejects the report on a link, for the reason Nigel gives: it never satisfies the link, cannot be confirmed, and leaves
+    /// NEEDS YOU. Only Nigel does this, from the board.
+    /// </summary>
+    public LinkChange Reject(string id, string reason) =>
+        Logged(id, "rejected", $": {reason}", Change(id, link =>
+        {
+            if (link.LatestReport is not { } report)
+            {
+                return LinkChange.Refused("There is no report on that link to reject.");
+            }
+
+            if (link.SatisfiedUtc is not null)
+            {
+                return LinkChange.Refused("That link is already satisfied.");
+            }
+
+            if (string.IsNullOrWhiteSpace(reason))
+            {
+                return LinkChange.Refused("Say why it is rejected; the reason is kept with the link.");
+            }
+
+            return LinkChange.Made(link with { Rejection = new LinkRejection(_clock.UtcNow, reason.Trim(), report.AtUtc) });
+        }));
+
+    /// <summary>Takes back a rejection, as Undo of Clear up verifiers… does: the report waits for confirmation again.</summary>
+    public LinkChange Unreject(string id) =>
+        Logged(id, "unrejected", string.Empty, Change(id, link => link.Rejection is null
+            ? LinkChange.Refused("That link's report is not rejected.")
+            : LinkChange.Made(link with { Rejection = null })));
 
     /// <summary>
     /// Records a report on one or more links: a hand-over from the parent, or a report back from the
