@@ -165,10 +165,15 @@
             </Style.Triggers>
         </Style>
 
-        <Style x:Key="ToolbarButton" TargetType="Button">
-            <Setter Property="Padding" Value="9,3" />
-            <Setter Property="Margin" Value="0,0,6,0" />
-            <Setter Property="FontSize" Value="13" />
+        <!-- The fold buttons beside Group by, as small icons of its height (item 9). -->
+        <Style x:Key="ToolbarIcon" TargetType="Button">
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Padding" Value="8,0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="ToolTipService.ShowOnDisabled" Value="True" />
         </Style>
 
@@ -1027,13 +1032,21 @@
                                  IsChecked="{Binding IsGroupedByObjectives, Mode=TwoWay}"
                                  ToolTip="Pieces of work under the phases and objectives of project.md" />
                 </StackPanel>
-                <Button x:Name="CollapseAll" Content="Collapse all" Command="{Binding CollapseAllCommand}" Style="{StaticResource ToolbarButton}"
-                        Margin="0,0,6,6" ToolTip="Fold every piece of work, and every heading" />
-                <Button x:Name="ExpandAll" Content="Expand all" Command="{Binding ExpandAllCommand}" Style="{StaticResource ToolbarButton}"
-                        Margin="0,0,6,6" ToolTip="Open every piece of work into its stages, and every heading" />
-                <Button x:Name="OpenWhatNeedsAttention" Content="Open what needs attention" Command="{Binding OpenWhatNeedsAttentionCommand}"
-                        Style="{StaticResource ToolbarButton}" Margin="0,0,12,6"
-                        ToolTip="Open what is busy, waiting on you, stuck or waiting for its holdout check, and the headings on the way to it; fold the rest" />
+                <!--
+                    One size with Group by (Nigel, 2026-11-23: "large buttons much larger than everything else in that row"):
+                    small icons exactly as tall as the radio buttons, each named for UI Automation as its words were, and
+                    saying what it does on hover.
+                -->
+                <Button x:Name="CollapseAll" Content="&#xE70E;" Command="{Binding CollapseAllCommand}" Style="{StaticResource ToolbarIcon}"
+                        Height="{Binding ActualHeight, ElementName=GroupByFlow}" Margin="0,0,4,6"
+                        AutomationProperties.Name="Collapse all" ToolTip="Collapse all: fold every piece of work, and every heading" />
+                <Button x:Name="ExpandAll" Content="&#xE70D;" Command="{Binding ExpandAllCommand}" Style="{StaticResource ToolbarIcon}"
+                        Height="{Binding ActualHeight, ElementName=GroupByFlow}" Margin="0,0,4,6"
+                        AutomationProperties.Name="Expand all" ToolTip="Expand all: open every piece of work into its stages, and every heading" />
+                <Button x:Name="OpenWhatNeedsAttention" Content="&#xE7BA;" Command="{Binding OpenWhatNeedsAttentionCommand}"
+                        Style="{StaticResource ToolbarIcon}" Height="{Binding ActualHeight, ElementName=GroupByFlow}" Margin="0,0,12,6"
+                        AutomationProperties.Name="Open what needs attention"
+                        ToolTip="Open what needs attention: what is busy, waiting on you, stuck or waiting for its holdout check, and the headings on the way to it; fold the rest" />
                 <WrapPanel x:Name="Legend" Margin="0,0,0,6" VerticalAlignment="Center">
                     <!-- The legend row is the state chips, and a click filters by them (1.1e item 26, moved here by 1.1f D15). -->
                     <ItemsControl x:Name="Counts" ItemsSource="{Binding Counts}" Focusable="False">
