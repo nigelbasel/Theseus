@@ -48,9 +48,11 @@ public sealed class ProjectOverview
     /// <param name="titleOf">A card's title from its key, for a card that works no current piece; null shows the key.</param>
     /// <param name="wrongVerifiers">The project's verifier cards that should not be kept; any makes one line to clear them up.</param>
     /// <param name="clearedVerifiers">How many its last clear-up took away, while that can be undone; none, no line.</param>
+    /// <param name="underway">What Theseus is doing itself for its checks, said with nothing to press (git-22, 2026-11-23).</param>
     public static ProjectOverview For(ProjectFile file, IReadOnlyList<PieceOfWork> pieces, IEnumerable<Link> links,
         IEnumerable<WorkstreamProposal> proposals, int accepted, IEnumerable<StartRequest>? startRequests = null,
-        Func<string, string>? titleOf = null, IReadOnlyList<WrongVerifier>? wrongVerifiers = null, int clearedVerifiers = 0)
+        Func<string, string>? titleOf = null, IReadOnlyList<WrongVerifier>? wrongVerifiers = null, int clearedVerifiers = 0,
+        IReadOnlyList<string>? underway = null)
     {
         ArgumentNullException.ThrowIfNull(file);
         ArgumentNullException.ThrowIfNull(pieces);
@@ -62,12 +64,15 @@ public sealed class ProjectOverview
         if (wrongVerifiers is { Count: > 0 } wrong)
         {
             waits.Insert(0, new WaitItem(WaitKind.ClearVerifiers,
-                $"{Capital(Count(wrong.Count, "verifier card"))} should not be kept: a copy of a build's check, or a check run against another project's scenarios.",
+                $"{Capital(Count(wrong.Count, "card"))} Theseus made should not be kept: a copy of a build's check, a check of another project's scenarios, or a scenario writer aimed at the wrong folder.",
                 []));
         }
 
-        // The Undo line offers a way back, not a thing waiting: it is left out of the sentence's count (review of item 5, S7).
-        var sentence = SentenceOf(file, pieces, waits);
+        // The Undo line offers a way back, not a thing waiting, and what is under way asks nothing: both are left out of the
+        // sentence's count (review of item 5, S7).
+        var sentence = SentenceOf(file, pieces, [.. waits.Where(wait => wait.Kind != WaitKind.StartChecks)]);
+
+        waits.InsertRange(0, (underway ?? []).Select(line => new WaitItem(WaitKind.Underway, line, [])));
 
         if (clearedVerifiers > 0)
         {
@@ -119,14 +124,14 @@ public sealed class ProjectOverview
             waits.Add(new WaitItem(kind, text, [piece.Name]) { CardKey = status.ActsOnCard ?? piece.CardKey });
         }
 
-        // A verifier card made and not started waits for the owner alone, whatever its subject's state: a verifier has no
-        // box of its own, so this line and its subject's Verify stage are where it is started (Nigel, 2026-11-23).
+        // Theseus starts a verifier itself as it makes one (Nigel, 2026-11-23), so one waits for the owner only when it is
+        // neither running nor starting nor reported, whatever its subject's state: this line and its subject's Verify stage
+        // say so, with Start again.
         foreach (var piece in pieces)
         {
-            foreach (var verifier in piece.PendingVerifiers.Where(verifier => !verifier.HasSession))
+            foreach (var verifier in piece.PendingVerifiers.Where(VerifierCards.NeedsAStart))
             {
-                waits.Add(new WaitItem(WaitKind.StartVerifier,
-                    $"{verifier.Title} is created to check {piece.Title}; only you start it.", [piece.Name]) { CardKey = verifier.Key });
+                waits.Add(new WaitItem(WaitKind.StartVerifier, VerifierCards.NotRunning(verifier), [piece.Name]) { CardKey = verifier.Key });
             }
         }
 
@@ -144,8 +149,8 @@ public sealed class ProjectOverview
             var busy = builds.FirstOrDefault(piece => piece.Card is { IsWorking: true } && piece.IsCurrentPiece);
             var from = file.Rounds.Count > 1 ? $" from round {round.Key}" : string.Empty;
             var text = $"{Capital(Count(builds.Count, "build"))}{from} {(builds.Count == 1 ? "needs" : "need")} "
-                       + "their independent check, which only you start."
-                       + (busy is null ? string.Empty : $" One of them, {busy.Title}, is still busy: check it after it stops.");
+                       + "their independent check, which Theseus runs: Start the checks… runs it now."
+                       + (busy is null ? string.Empty : $" One of them, {busy.Title}, is still busy: Theseus checks it after it stops.");
             waits.Add(new WaitItem(WaitKind.StartChecks, text, [.. builds.Select(piece => piece.Name)]));
         }
 

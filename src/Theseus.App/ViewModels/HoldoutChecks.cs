@@ -12,6 +12,9 @@ namespace Theseus.App.ViewModels;
 public sealed class HoldoutChecks
 {
     private readonly Dictionary<string, (HoldoutLocation Location, bool HasScenarios)> _byProject = new(StringComparer.OrdinalIgnoreCase);
+
+    // The work each project's scenarios name in their Checks lines (A2), read with the folders at each refresh.
+    private readonly Dictionary<string, IReadOnlySet<string>> _checkedWork = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _beingWritten = new(StringComparer.OrdinalIgnoreCase);
     private readonly string? _localAppData;
     private IReadOnlyDictionary<string, string> _chosenByProject = new Dictionary<string, string>();
@@ -38,12 +41,14 @@ public sealed class HoldoutChecks
         _chosenByProject = new Dictionary<string, string>(chosenByProject, StringComparer.OrdinalIgnoreCase);
         _convention = convention;
         _byProject.Clear();
+        _checkedWork.Clear();
         _beingWritten.Clear();
 
         foreach (var project in all.Select(card => card.Project ?? string.Empty).Distinct(StringComparer.OrdinalIgnoreCase))
         {
             var location = Locate(project);
             _byProject[project] = (location, location.HasScenarios);
+            _checkedWork[project] = _byProject[project].HasScenarios ? Checked(location) : new HashSet<string>();
         }
 
         foreach (var writer in all.Where(card => card is { Role: WorkstreamRole.ScenarioWriter, IsArchived: false }))
@@ -90,7 +95,48 @@ public sealed class HoldoutChecks
                     : $"project.md records a holdout repository, but no clone was found at {location.Folder}: clone it there, or choose a folder in Project properties";
         }
 
-        return hasScenarios ? null : "No holdout scenarios for this project yet";
+        if (!hasScenarios)
+        {
+            return "No holdout scenarios for this project yet";
+        }
+
+        return IsNamed(card)
+            ? null
+            : $"No holdout scenario names {NameOf(card)}: a scenario says which work it checks in a line such as \"Checks: {NameOf(card)}\"";
+    }
+
+    // A build is named by its piece's slug, or by its card's key for a card with no slug.
+    private static string NameOf(Workstream card) => card.Slug ?? card.Key;
+
+    /// <summary>Whether a scenario's Checks line names this card's work, from the folders as last refreshed.</summary>
+    public bool IsNamed(Workstream card) =>
+        _checkedWork.TryGetValue(card.Project ?? string.Empty, out var named)
+        && new[] { card.Slug, card.Key }.OfType<string>().Any(named.Contains);
+
+    // The names read last time from each folder, kept while its scenarios are unchanged: a refresh comes on every change
+    // to the session registry, and reading every scenario each time held up the board (review of the auto-start).
+    private readonly Dictionary<string, (string Stamp, IReadOnlySet<string> Named)> _namesRead = new(StringComparer.OrdinalIgnoreCase);
+
+    private IReadOnlySet<string> Checked(HoldoutLocation location)
+    {
+        try
+        {
+            var stamp = location.ScenariosStamp();
+
+            if (_namesRead.TryGetValue(location.Folder, out var read) && read.Stamp == stamp)
+            {
+                return read.Named;
+            }
+
+            var named = location.CheckedWork();
+            _namesRead[location.Folder] = (stamp, named);
+
+            return named;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return new HashSet<string>();
+        }
     }
 
     /// <summary>
@@ -119,7 +165,7 @@ public sealed class HoldoutChecks
             return HoldoutWayOn.SetFolder;
         }
 
-        return hasScenarios || _beingWritten.Contains(Path.TrimEndingDirectorySeparator(location.Folder))
+        return (hasScenarios && IsNamed(card)) || _beingWritten.Contains(Path.TrimEndingDirectorySeparator(location.Folder))
             ? HoldoutWayOn.None
             : HoldoutWayOn.WriteScenarios;
     }

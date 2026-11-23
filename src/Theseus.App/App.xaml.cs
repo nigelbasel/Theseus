@@ -141,7 +141,12 @@ public partial class App : Application
 
         chains.Proposals = proposed;
         proposals.Changed += (_, _) => Dispatcher.BeginInvoke(proposed.Update);
-        sink.StartLost = shell.Warn;
+        sink.StartLost = shell.StartLost;
+        shell.RunsChecksItself = true;
+        shell.AskChecklist = model =>
+            new ChecklistWindow(model) { Owner = Windows.OfType<Window>().FirstOrDefault(window => window.IsActive) ?? MainWindow }
+                .ShowDialog() == true ? model.Ticked : null;
+        sink.InFlight = _launcher.InFlight;
         links.Changed += (_, _) =>
         {
             if (!Dispatcher.CheckAccess())

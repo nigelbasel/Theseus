@@ -95,6 +95,33 @@ public class HoldoutLocationTests
         Assert.That((writer.Title, writer.WorkingDirectory, writer.AddDirectories),
             Is.EqualTo(("Write holdout scenarios for Theseus", @"<root>\holdouts\theseus", new[] { @"<projects>\theseus" })));
         Assert.That(writer.Prompt, Does.Contain("you write scenarios, never code"));
+        Assert.That(writer.Prompt, Does.Contain("a line \"Checks: <slug>, <slug>\" naming each piece of work it checks"),
+            "a scenario that names no work makes no verifier (Nigel, 2026-11-23, A2)");
+    }
+
+    [Test]
+    public void AScenarioWriter_AddsChecksLinesToScenariosAlreadyThere_GivenTheProjectsSlugs()
+    {
+        var writer = ScenarioWriterCard.For("Theseus", @"<root>\Theseus-holdout", @"<projects>\theseus", ["close-step", "verifier-runs"]);
+
+        Assert.That(writer.Prompt, Does.Contain(
+            "A scenario already there without a Checks line gets one: add it, naming the work it checks, and change nothing else in it."),
+            "git-22, 2026-11-23, item 7c: the stage 0 scenarios name no work");
+        Assert.That(writer.Prompt, Does.Contain("The project's work, by slug: close-step, verifier-runs."));
+    }
+
+    [Test]
+    public void TheWorkAHoldoutsScenariosCheck_IsReadFromTheirChecksLines_NeverFromResults()
+    {
+        var holdout = Path.Combine(_root, "holdout");
+        Directory.CreateDirectory(Path.Combine(holdout, "scenarios"));
+        Directory.CreateDirectory(Path.Combine(holdout, VerifierCard.ResultsFolder));
+        File.WriteAllText(Path.Combine(holdout, "scenarios", "stop.md"), "# Stop\nChecks: close-step, resumed-stop\n");
+        File.WriteAllText(Path.Combine(holdout, "lock.md"), "Checks: guard-mentions");
+        File.WriteAllText(Path.Combine(holdout, VerifierCard.ResultsFolder, "report.md"), "Checks: a-report-is-no-scenario");
+
+        Assert.That(new HoldoutLocation(holdout, false).CheckedWork(),
+            Is.EquivalentTo(new[] { "close-step", "resumed-stop", "guard-mentions" }));
     }
 
     [Test]

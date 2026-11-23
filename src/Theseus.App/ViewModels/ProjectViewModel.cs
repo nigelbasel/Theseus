@@ -824,16 +824,21 @@ public sealed class ProjectViewModel : ObservableObject
         };
     }
 
-    // A verifier card has no box of its own (AC 13), so one made and not started is started from its subject's box and
-    // Verify stage, with the card's own Start; only the owner starts a verifier (Nigel, 2026-11-23).
+    // A verifier card has no box of its own (AC 13). Theseus starts one as it makes it (Nigel, 2026-11-23), so its subject's
+    // box and Verify stage offer it only when that start failed, with the card's own Start.
     private List<PieceActionViewModel> VerifierStarts(PieceOfWork piece) =>
     [
-        .. piece.PendingVerifiers.Where(verifier => !verifier.HasSession).Select(verifier => new PieceActionViewModel(
-            $"▶ Start {verifier.Title}", () => _actions.Start(verifier.Key), verifier.CanStart,
-            verifier.CanStart
-                ? $"Start {verifier.Title}: it runs the holdout scenarios against {piece.Workstream} and reports only a verdict"
-                : $"{verifier.Title} cannot be started from the board now")),
+        .. piece.PendingVerifiers.Where(VerifierCards.NeedsAStart).Select(verifier =>
+            new PieceActionViewModel(
+                $"Start {verifier.Title} again", () => StartVerifier(verifier.Key), verifier.CanStart,
+                verifier.CanStart
+                    ? $"{VerifierCards.NotRunning(verifier)} Start it again: it runs the holdout scenarios against {piece.Workstream}"
+                    : $"{verifier.Title} cannot be started from the board now")),
     ];
+
+    // A verifier is started by the shell's own start for one, not the card's Start, which in a stopped project starts the
+    // whole project (review of the auto-start).
+    private void StartVerifier(string key) => (_actions.StartVerifier ?? _actions.Start)(key);
 
     private static void Run(SpecAtGate? spec, Action<SpecAtGate> action)
     {
@@ -993,7 +998,7 @@ public sealed class ProjectViewModel : ObservableObject
         if (builds.All(piece => piece.Card is { IsWorking: true }))
         {
             return new WaitItemViewModel(item, new RelayCommand(_ => { }, _ => false),
-                $"{count} independent check{from}, but every one is still busy: start the checks after they stop.",
+                $"{count} independent check{from}, but every one is still busy: Theseus checks them after they stop.",
                 toolTip: EveryBuildBusy);
         }
 
@@ -1027,18 +1032,47 @@ public sealed class ProjectViewModel : ObservableObject
             return;
         }
 
-        var question = $"Start the independent check of {builds.Count} {(builds.Count == 1 ? "build" : "builds")}? Each gets a verifier card:\n"
-                       + string.Join("\n", builds.Select(piece => $"  • {piece.Title}"))
-                       + (refused.Count == 0
-                           ? string.Empty
-                           : "\nNot checked:\n" + string.Join("\n", refused.Select(entry => $"  • {entry.Piece.Title}: {entry.Why}")));
+        var all = builds.Select(piece => piece.CardKey).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        List<string> keys;
 
-        if (_actions.Ask?.Invoke(question) == false)
+        // A checklist, one row per build, each ticked to begin with, not a message box titled for a spec (Nigel, 2026-11-23).
+        if (_actions.AskChecklist is { } ask)
         {
+            var list = Checklists.StartChecks(
+                [.. builds.DistinctBy(piece => piece.CardKey, StringComparer.OrdinalIgnoreCase).Select(piece => (piece.CardKey, piece.Title))],
+                [.. refused.Select(entry => (entry.Piece.Title, entry.Why!))]);
+
+            if (ask(new ChecklistViewModel(list)) is not { Count: > 0 } ticked)
+            {
+                return;
+            }
+
+            keys = [.. all.Where(key => ticked.Contains(key, StringComparer.OrdinalIgnoreCase))];
+        }
+        else
+        {
+            var question = $"Start the independent check of {builds.Count} {(builds.Count == 1 ? "build" : "builds")}? Each gets a verifier card:\n"
+                           + string.Join("\n", builds.Select(piece => $"  • {piece.Title}"))
+                           + (refused.Count == 0
+                               ? string.Empty
+                               : "\nNot checked:\n" + string.Join("\n", refused.Select(entry => $"  • {entry.Piece.Title}: {entry.Why}")));
+
+            if (_actions.Ask?.Invoke(question) == false)
+            {
+                return;
+            }
+
+            keys = all;
+        }
+
+        if (_actions.VerifyMany is { } many)
+        {
+            many(keys);
+
             return;
         }
 
-        foreach (var key in builds.Select(piece => piece.CardKey).Distinct(StringComparer.OrdinalIgnoreCase))
+        foreach (var key in keys)
         {
             _actions.VerifyWithHoldouts(key);
         }
@@ -1056,7 +1090,7 @@ public sealed class ProjectViewModel : ObservableObject
             WaitKind.Answer when item.CardKey is { } card => new RelayCommand(_ => _actions.Focus(card)),
             WaitKind.Unblock when item.CardKey is { } card && node?.PrimaryAction is { } action => action.Command,
             WaitKind.StartChecks => new RelayCommand(_ => StartChecks(item)),
-            WaitKind.StartVerifier when item.CardKey is { } verifier => new RelayCommand(_ => _actions.Start(verifier)),
+            WaitKind.StartVerifier when item.CardKey is { } verifier => new RelayCommand(_ => StartVerifier(verifier)),
             WaitKind.ClearVerifiers when _actions.ClearVerifiers is { } clear => new RelayCommand(_ => clear(project)),
             WaitKind.UndoClearVerifiers when _actions.UndoClearVerifiers is { } undo => new RelayCommand(_ => undo(project)),
             WaitKind.AddToObjective when item.CardKey is { } card && _actions.AddToProject is { } add => new RelayCommand(_ => add(project, card)),
