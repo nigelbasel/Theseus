@@ -96,6 +96,9 @@ public sealed class HoldoutChecks
         return hasScenarios ? null : "No holdout scenarios for this project yet";
     }
 
+    /// <summary>The card menu's Verify item.</summary>
+    public string VerifyMenuText(Workstream card, string title) => "_Verify with holdouts…";
+
     /// <summary>The way on from a disabled Verify: set a missing chosen folder, or write the first scenarios.</summary>
     public HoldoutWayOn WayOn(Workstream card)
     {

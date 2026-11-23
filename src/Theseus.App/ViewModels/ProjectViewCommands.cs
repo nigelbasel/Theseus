@@ -22,11 +22,12 @@ public static class ProjectViewCommands
     /// <param name="addToProject">The shell's Add to project…, for a card and the project to choose first (1.1e AC 6).</param>
     /// <param name="whyNot">Why a button cannot run for a card now, or null (1.1e AC 6a).</param>
     /// <param name="wayOn">The way on from a disabled button, or null (1.1e AC 6a).</param>
+    /// <param name="explain">Says in a dialog why a button pressed cannot act after all, or null for the status bar.</param>
     public static ProjectViewActions For(Func<string, WorkstreamCardViewModel?> cardOf, ICommand focus, ICommand start, ICommand stop,
         Action<SpecAtGate> openSpec, Action<SpecAtGate> acceptSpec, Action<string> openPath, Action<string> notice,
         Action<WorkstreamCardViewModel, string>? addToProject = null,
         Func<WorkstreamCardViewModel, StageAction, string?>? whyNot = null,
-        Func<WorkstreamCardViewModel, StageAction, PieceActionViewModel?>? wayOn = null)
+        Func<WorkstreamCardViewModel, StageAction, PieceActionViewModel?>? wayOn = null, Action<string>? explain = null)
     {
         ArgumentNullException.ThrowIfNull(cardOf);
         ArgumentNullException.ThrowIfNull(notice);

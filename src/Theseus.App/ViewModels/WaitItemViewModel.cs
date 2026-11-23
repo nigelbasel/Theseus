@@ -24,6 +24,9 @@ public sealed class WaitItemViewModel
     /// <summary>Whether it has a button.</summary>
     public bool HasButton => Command is not null;
 
+    /// <summary>What the button does, or why it cannot.</summary>
+    public string? ToolTip => null;
+
     /// <summary>What the button does.</summary>
     public ICommand? Command { get; }
 }

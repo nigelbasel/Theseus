@@ -45,4 +45,10 @@ public sealed class PieceActionViewModel
     /// AC 6a).
     /// </summary>
     public bool IsLink { get; init; }
+
+    /// <summary>Why it cannot run, drawn beside the disabled button, or null.</summary>
+    public string? Note => null;
+
+    /// <summary>Its text in a menu.</summary>
+    public string MenuText => Label;
 }

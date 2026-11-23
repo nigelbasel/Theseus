@@ -51,6 +51,12 @@ public sealed record ProjectViewActions(
     /// </summary>
     public Func<PieceOfWork, IReadOnlyList<PieceActionViewModel>>? CardActions { get; init; }
 
+    /// <summary>
+    /// Says in a dialog why a button cannot act after all, when that is found only at the press (Nigel, 2026-11-23); null
+    /// in tests, where the status bar is told instead.
+    /// </summary>
+    public Action<string>? Explain { get; init; }
+
     /// <summary>Asks the owner a yes-or-no question first, as "Start the checks…" does; null in tests, where it is yes.</summary>
     public Func<string, bool>? Ask { get; init; }
 
