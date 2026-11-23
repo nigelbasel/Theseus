@@ -31,7 +31,8 @@ public static class WrongVerifiers
             // of today's whose build is only unnamed goes when it has neither reported nor a session, which a rewrite can cause.
             var stranded = build.Except(elsewhere)
                 .Where(verifier => !verifier.ReportConfirmed
-                                   && (!verifier.BriefNamesChecks || (!verifier.SubjectNamed && !verifier.IsRunning && !verifier.HasReport)))
+                                   && ((!verifier.BriefNamesChecks && (!verifier.HasReport || verifier.ReportRead))
+                                       || (!verifier.SubjectNamed && !verifier.IsRunning && !verifier.HasReport)))
                 .OrderBy(verifier => verifier.CreatedUtc).ToList();
             var right = build.Except(elsewhere).Except(stranded).OrderBy(verifier => verifier.CreatedUtc).ToList();
             var kept = right.LastOrDefault();

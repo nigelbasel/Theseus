@@ -32,6 +32,9 @@ public sealed record VerifierRecord(
     /// <summary>Whether a report has arrived from it, confirmed or not.</summary>
     public bool HasReport { get; init; }
 
+    /// <summary>Whether he has dealt with its report (its link is satisfied, by hand or confirmed), so it no longer waits under Confirm the report….</summary>
+    public bool ReportRead { get; init; }
+
     /// <summary>
     /// The holdout a verifier ran against: the folder above the results folder its report is in, as Verify with holdouts…
     /// names it; null for a path of any other shape.

@@ -54,6 +54,7 @@ public sealed partial class ShellViewModel
                 BriefNamesChecks = card.Workstream.Prompt.Contains(VerifierBrief.ChecksMarker, StringComparison.Ordinal),
                 SubjectNamed = _holdouts.Names(subject.Workstream) != false,
                 HasReport = report.LatestReport is not null,
+                ReportRead = report.LatestReport is not null && report.SatisfiedBy is not null,
             });
         }
 
