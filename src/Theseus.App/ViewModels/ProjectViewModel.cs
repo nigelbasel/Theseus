@@ -998,7 +998,7 @@ public sealed class ProjectViewModel : ObservableObject
         if (builds.All(piece => piece.Card is { IsWorking: true }))
         {
             return new WaitItemViewModel(item, new RelayCommand(_ => { }, _ => false),
-                $"{count} independent check{from}, but every one is still busy: start the checks after they stop.",
+                $"{count} independent check{from}, but every one is still busy: Theseus checks them after they stop.",
                 toolTip: EveryBuildBusy);
         }
 

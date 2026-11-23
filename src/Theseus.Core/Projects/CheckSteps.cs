@@ -19,15 +19,18 @@ public static class CheckSteps
     /// <param name="writerRunning">Whether that writer's session is running or starting.</param>
     /// <param name="canWrite">Whether the project's holdout folder can be written: one chosen but missing is the owner's to set.</param>
     /// <param name="idleWriter">A standing writer that is neither running nor starting, or null: started rather than left waiting.</param>
+    /// <param name="isChecked">Whether a build's verifier has reported: it stays waiting until its own records say so, and is
+    /// not checked again, however often Theseus restarts.</param>
+    /// <param name="isHeld">Whether the owner held a build: paused, blocked or stopped by him. It gets no verifier.</param>
     public static CheckPlan For(IReadOnlyList<PieceOfWork> pieces, Func<PieceOfWork, bool> isNamed, bool writerStands, bool writerRunning,
-        bool canWrite, string? idleWriter = null)
+        bool canWrite, string? idleWriter = null, Func<PieceOfWork, bool>? isChecked = null, Func<PieceOfWork, bool>? isHeld = null)
     {
         ArgumentNullException.ThrowIfNull(pieces);
         ArgumentNullException.ThrowIfNull(isNamed);
 
         var waiting = pieces.Where(piece => piece is { IsCurrentPiece: true, Card: not null }
                                             && piece.Status.State == StageNodeState.HoldoutsNotRun).ToList();
-        var notChecked = waiting.Where(piece => piece.PendingVerifiers.Count == 0).ToList();
+        var notChecked = waiting.Where(piece => piece.PendingVerifiers.Count == 0 && isChecked?.Invoke(piece) != true).ToList();
         var unnamed = notChecked.Count(piece => !isNamed(piece));
         var checking = waiting.Count(piece => piece.PendingVerifiers.Any(verifier => verifier.HasSession || verifier.IsStarting));
 
@@ -44,7 +47,8 @@ public static class CheckSteps
         }
 
         return new CheckPlan(
-            [.. notChecked.Where(piece => isNamed(piece) && piece.Card is { IsWorking: false }).Select(piece => piece.CardKey)
+            [.. notChecked.Where(piece => isNamed(piece) && piece.Card is { IsWorking: false } && isHeld?.Invoke(piece) != true)
+                .Select(piece => piece.CardKey)
                 .Distinct(StringComparer.OrdinalIgnoreCase)],
             unnamed > 0 && !writerStands && canWrite,
             underway,

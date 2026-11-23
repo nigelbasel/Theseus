@@ -212,13 +212,13 @@ public class PieceStatusTests
     }
 
     [Test]
-    public void BuiltNotChecked_WaitsForYouToStartTheCheck()
+    public void BuiltNotChecked_IsCheckedByTheseus_AndWaitsForNobody()
     {
         var status = StatusOf(BuildYourMarketPieces(_folder), "bym-mcp-identity");
 
-        Assert.That(status.WhoActs, Is.EqualTo("Waiting for you: nothing happens until you start the check."));
-        Assert.That(status.Action, Is.EqualTo(PieceAction.StartCheck));
-        Assert.That(status.WaitsForYou, Is.True);
+        Assert.That(status.WhoActs, Is.EqualTo("Theseus checks it: it makes its verifier once a scenario names it."));
+        Assert.That(status.Action, Is.EqualTo(PieceAction.StartCheck), "Start the checks… stays, to run it now");
+        Assert.That(status.WaitsForYou, Is.False, "git-22, 2026-11-23: nothing Theseus makes waits on the owner's press");
         Assert.That(status.Meaning, Does.Contain("hidden from the builder (holdout scenarios)"));
     }
 
@@ -231,7 +231,7 @@ public class PieceStatusTests
 
         Assert.That(host.Stages[4].State, Is.EqualTo(StageNodeState.HoldoutsNotRun));
         Assert.That(host.Status.WhoActs, Is.EqualTo(
-            "Waiting for you to start the check, but its session is busy and has not said on what: check after it stops"));
+            "Theseus checks it once its session stops."), "git-22, 2026-11-23: Theseus runs the check itself");
     }
 
     [Test]

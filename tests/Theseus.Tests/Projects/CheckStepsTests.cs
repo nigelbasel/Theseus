@@ -36,6 +36,32 @@ public class CheckStepsTests
     }
 
     [Test]
+    public void ABuildAlreadyChecked_GetsNoSecondVerifier_AndNeedsNoWriter()
+    {
+        var first = Waiting().First(piece => piece.Card is { IsWorking: false });
+
+        var plan = CheckSteps.For(BymPieces(_folder), _ => true, writerStands: true, writerRunning: false, canWrite: true,
+            isChecked: piece => piece.Name == first.Name);
+        var unnamed = CheckSteps.For(BymPieces(_folder), piece => piece.Name != first.Name, writerStands: false, writerRunning: false,
+            canWrite: true, isChecked: piece => piece.Name == first.Name);
+
+        Assert.That(plan.VerifyKeys, Has.None.EqualTo(first.CardKey),
+            "review of the follow-on, M1: its verifier reported, and after a restart a second was made");
+        Assert.That(unnamed.MakeWriter, Is.False, "a checked build needs no scenarios written for it");
+    }
+
+    [Test]
+    public void ABuildTheOwnerHeld_GetsNoVerifier()
+    {
+        var held = Waiting().First(piece => piece.Card is { IsWorking: false });
+
+        var plan = CheckSteps.For(BymPieces(_folder), _ => true, writerStands: true, writerRunning: false, canWrite: true,
+            isHeld: piece => piece.Name == held.Name);
+
+        Assert.That(plan.VerifyKeys, Has.None.EqualTo(held.CardKey), "review of the follow-on, S3: paused, blocked or stopped by him");
+    }
+
+    [Test]
     public void ABuildStillBusy_WaitsForItsSessionToStop()
     {
         var busy = Waiting().First(piece => piece.Card is { IsWorking: true });

@@ -1782,7 +1782,9 @@ public sealed partial class ShellViewModel : ObservableObject
     /// Makes a verifier card for this card, or says why not: a follow-on in the checked card's folder with the holdout clone
     /// in reach, role verifier, linked both ways, with its fixed brief (verifier-card AC 7, 9 and 10). It starts nothing.
     /// </summary>
-    private WorkstreamCardViewModel? MakeVerifier(WorkstreamCardViewModel card)
+    /// <param name="card">The build.</param>
+    /// <param name="quietly">Whether a refusal is only logged: Theseus making one itself opens no dialog nobody asked for.</param>
+    private WorkstreamCardViewModel? MakeVerifier(WorkstreamCardViewModel card, bool quietly = false)
     {
         // Worked out at the press, not taken from the last refresh, so a second press never makes a second verifier for the
         // same build (git-22, 2026-11-23).
@@ -1790,7 +1792,14 @@ public sealed partial class ShellViewModel : ObservableObject
 
         if (WhyCannotVerify(card) is { } reason)
         {
-            Refuse($"{reason}.");
+            if (quietly)
+            {
+                TheseusLog.Information("Made no verifier for {Workstream} itself: {Reason}", card.Key, reason);
+            }
+            else
+            {
+                Refuse($"{reason}.");
+            }
 
             return null;
         }
@@ -1876,10 +1885,12 @@ public sealed partial class ShellViewModel : ObservableObject
     /// Verify with holdouts… for several builds, as Start the checks… asks: each verifier is made, then all are started
     /// together, so their notices do not overwrite one another.
     /// </summary>
-    private void VerifyManyWithHoldouts(IReadOnlyList<string> keys)
+    private void VerifyManyWithHoldouts(IReadOnlyList<string> keys) => VerifyManyWithHoldouts(keys, quietly: false);
+
+    private void VerifyManyWithHoldouts(IReadOnlyList<string> keys, bool quietly)
     {
         var made = keys.Select(Board.Card).OfType<WorkstreamCardViewModel>()
-            .Select(card => MakeVerifier(card)).OfType<WorkstreamCardViewModel>().ToList();
+            .Select(card => MakeVerifier(card, quietly)).OfType<WorkstreamCardViewModel>().ToList();
 
         if (made.Count > 0)
         {

@@ -70,7 +70,7 @@ public sealed class ProjectOverview
 
         // The Undo line offers a way back, not a thing waiting, and what is under way asks nothing: both are left out of the
         // sentence's count (review of item 5, S7).
-        var sentence = SentenceOf(file, pieces, waits);
+        var sentence = SentenceOf(file, pieces, [.. waits.Where(wait => wait.Kind != WaitKind.StartChecks)]);
 
         waits.InsertRange(0, (underway ?? []).Select(line => new WaitItem(WaitKind.Underway, line, [])));
 
@@ -149,8 +149,8 @@ public sealed class ProjectOverview
             var busy = builds.FirstOrDefault(piece => piece.Card is { IsWorking: true } && piece.IsCurrentPiece);
             var from = file.Rounds.Count > 1 ? $" from round {round.Key}" : string.Empty;
             var text = $"{Capital(Count(builds.Count, "build"))}{from} {(builds.Count == 1 ? "needs" : "need")} "
-                       + "their independent check, which you start: each gets a verifier that runs on its own."
-                       + (busy is null ? string.Empty : $" One of them, {busy.Title}, is still busy: check it after it stops.");
+                       + "their independent check, which Theseus runs: Start the checks… runs it now."
+                       + (busy is null ? string.Empty : $" One of them, {busy.Title}, is still busy: Theseus checks it after it stops.");
             waits.Add(new WaitItem(WaitKind.StartChecks, text, [.. builds.Select(piece => piece.Name)]));
         }
 
