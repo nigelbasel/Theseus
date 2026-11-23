@@ -741,7 +741,7 @@ public sealed class ProjectViewModel : ObservableObject
             ServesCommand = piece.ObjectiveNumber is { } served ? new RelayCommand(_ => GoToObjective(served)) : null,
             // Only where starting it is the box's next step: a built piece waiting for its check keeps its own answer.
             StartedBy = piece.Status.Action == PieceAction.Start && boxActions.Any(action => action.Label == WhoStarts.StartAnywayLabel)
-                ? _actions.WhoStarts?.Invoke(piece.CardKey)
+                ? _actions.WhoStarts?.Invoke(piece.CardKey)?.Line
                 : null,
         };
     }
@@ -793,10 +793,13 @@ public sealed class ProjectViewModel : ObservableObject
         var reason = offer.DisabledReason ?? why;
 
         // In a running project the project decides what runs: Start is the owner's override, asked about as before (item 5).
-        if (offer.Action == StageAction.Start && _actions.WhoStarts?.Invoke(key) is { } who)
+        if (offer.Action == StageAction.Start && _actions.WhoStarts?.Invoke(key) is { } run)
         {
             return new PieceActionViewModel(WhoStarts.StartAnywayLabel, what.Run, isEnabled,
-                reason ?? $"{who} Start it yourself instead: you are asked first.");
+                reason ?? $"{run.Line ?? "Its project is running and decides what runs."} Start it yourself instead: you are asked first.")
+            {
+                IsLink = true,
+            };
         }
 
         return new PieceActionViewModel(offer.Label, what.Run, isEnabled, reason ?? what.ToolTip)

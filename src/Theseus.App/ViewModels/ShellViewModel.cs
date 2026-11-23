@@ -2356,19 +2356,24 @@ public sealed class ShellViewModel : ObservableObject
             lead);
 
     // F31's who-acts line for a card of a running project, from the same test the Start question uses (item 5).
-    private string? WhoStartsCard(string key)
+    private ProjectRunStart? WhoStartsCard(string key)
     {
         if (Board.Card(key) is not { } card
+            || card.Workstream.Role == WorkstreamRole.Verifier
             || ProjectCardGuard.RunningProjectOf(card, Board.ProjectCards) is not { } project)
         {
             return null;
         }
 
-        var isLead = string.Equals(project.LeadKey, key, StringComparison.OrdinalIgnoreCase);
-        var lead = project.LeadKey is { } leadKey ? Board.Card(leadKey)?.Title ?? leadKey : null;
+        var lead = project.LeadKey is { } leadKey && Board.Card(leadKey) is { IsLive: true } live ? live.Title : null;
+        var heldByOwner = card.IsBlocked || card.StopReason?.Kind is WhyStoppedKind.Done or WhyStoppedKind.PausedBy or WhyStoppedKind.StoppedByYou;
+        IReadOnlyList<string> waitsOn = Chains?.Waiting([card.Workstream]).Count > 0
+            ? [.. Chains.AllLinks.Where(link => link.IsActive && link.Kind == LinkKind.HandsOver
+                                                && string.Equals(link.To, key, StringComparison.OrdinalIgnoreCase) && link.SatisfiedUtc is null)
+                .Select(link => Board.Card(link.From)?.Title ?? link.From).Distinct()]
+            : [];
 
-        return Theseus.Core.Projects.WhoStarts.Line(project.Title, lead, isLead || card.Workstream.Role == WorkstreamRole.Verifier,
-            Chains?.Waiting([card.Workstream]).Count > 0);
+        return new ProjectRunStart(Theseus.Core.Projects.WhoStarts.Line(project.Title, lead, heldByOwner, waitsOn));
     }
 
     /// <summary>What the project view knows of a board card (1.1d AC 1): its session, marks, role and whether Start would start it.</summary>
@@ -4085,12 +4090,7 @@ public sealed class ShellViewModel : ObservableObject
             }, toolTip: $"Remove the hand-over that shows {card.Title} under {parent}"));
         }
 
-        actions.Add(new PieceActionViewModel("Show on the board", () =>
-        {
-            CloseProject();
-            card.IsCollapsed = false;
-            Board.ClickSelect(card, toggle: false, extend: false);
-        }, toolTip: $"Close the view and select {card.Title} on the board"));
+        actions.Add(ShowTheCard.For(card, shown => ShowCard(shown, DrawerTab.Overview)));
 
         return actions;
     }

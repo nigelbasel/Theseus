@@ -37,10 +37,10 @@ public sealed record ProjectViewActions(
     Func<string, StageAction, PieceActionViewModel?>? WayOn = null)
 {
     /// <summary>
-    /// Who starts a card while its project is running, and why it is not running yet, by card key; null where the owner is
-    /// the one to start it (project-view-usability item 5). Its box then says so, and its Start becomes Start anyway….
+    /// Whether a card's project is running, by card key, and if so who starts it and when; null where the owner is the one
+    /// to start it (project-view-usability item 5). Its Start then becomes Start anyway…, and its box says who starts it.
     /// </summary>
-    public Func<string, string?>? WhoStarts { get; init; }
+    public Func<string, ProjectRunStart?>? WhoStarts { get; init; }
 
     /// <summary>
     /// Opens a piece's Records window, a stage's document chosen when one is named (Nigel, 2026-11-22);
@@ -53,7 +53,7 @@ public sealed record ProjectViewActions(
 
     /// <summary>
     /// A piece's card's own board actions, for its box and Properties: Archive, Remove from project or Unlink from its
-    /// parent, Show on the board (Nigel, 2026-11-22); null in tests.
+    /// parent, Show the card (Nigel, 2026-11-22; item 3, 2026-11-23); null in tests.
     /// </summary>
     public Func<PieceOfWork, IReadOnlyList<PieceActionViewModel>>? CardActions { get; init; }
 
