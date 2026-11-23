@@ -188,40 +188,9 @@
         </Style>
 
         <!-- Group by's two toggle buttons, one pressed (AC 45): radio buttons drawn as toggle buttons. -->
-        <!--
-            A selector bar item: two views of the same project are tabs over the page, not toggle buttons in a toolbar
-            (walkthrough row 44; checklist G125). Text, an accent underline under the one selected, a wash on hover.
-        -->
-        <Style x:Key="GroupByButton" TargetType="RadioButton">
+        <!-- The project's two views as a selector bar's items (walkthrough row 44; checklist G125; baseline W15). -->
+        <Style x:Key="GroupByButton" TargetType="RadioButton" BasedOn="{StaticResource SelectorBarItem}">
             <Setter Property="GroupName" Value="GroupBy" />
-            <Setter Property="Padding" Value="12,8" />
-            <Setter Property="FontSize" Value="14" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
-            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="RadioButton">
-                        <Grid Background="Transparent">
-                            <Border x:Name="Wash" CornerRadius="4" Margin="0,0,0,4" Background="Transparent" />
-                            <ContentPresenter Margin="{TemplateBinding Padding}" RecognizesAccessKey="True"
-                                              TextElement.Foreground="{TemplateBinding Foreground}" />
-                            <Rectangle x:Name="Underline" Height="3" RadiusX="1.5" RadiusY="1.5" Margin="12,0" VerticalAlignment="Bottom"
-                                       Fill="{DynamicResource AccentFillColorDefaultBrush}" Visibility="Hidden" />
-                        </Grid>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Wash" Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
-                            </Trigger>
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="Underline" Property="Visibility" Value="Visible" />
-                                <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
-                                <Setter Property="FontWeight" Value="SemiBold" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
         </Style>
 
         <!-- A heading's chevron, as a box's (AC 46). -->
