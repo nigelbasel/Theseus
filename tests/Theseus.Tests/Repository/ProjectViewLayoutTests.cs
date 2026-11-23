@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Input;
 using System.Windows.Shapes;
+using System.Windows.Automation;
 using Path = System.Windows.Shapes.Path;
 using Theseus.App.ViewModels;
 using Theseus.App.Views;
@@ -315,6 +316,29 @@ public class ProjectViewLayoutTests
 
         Assert.That(stops, Is.EqualTo(new[] { "Chevron", "PieceHeader" }.Concat(Enumerable.Repeat("Stage", 7)).Append("Serves")
             .Concat(Enumerable.Repeat("Action", 6))));
+    }
+
+    [Test]
+    public void TheGroupByRow_IsOneSize_ItsThreeFoldButtonsSmallIcons_AsTallAsTheRadioButtons()
+    {
+        // Nigel, 2026-11-23: Collapse all, Expand all and Open what needs attention were "large buttons much larger than
+        // everything else in that row". Their names, keys and tooltips stay; only their size and face change.
+        var control = LaidOut(_views.Theseus());
+        var radio = Named<RadioButton>(control, "GroupByFlow");
+
+        foreach (var (name, spoken) in new[] { ("CollapseAll", "Collapse all"), ("ExpandAll", "Expand all"), ("OpenWhatNeedsAttention", "Open what needs attention") })
+        {
+            var button = Named<Button>(control, name);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(button.ActualHeight, Is.EqualTo(radio.ActualHeight).Within(0.5), name);
+                Assert.That(button.ActualWidth, Is.LessThanOrEqualTo(button.ActualHeight + 20), $"{name} is a small icon, not a word");
+                Assert.That(AutomationProperties.GetName(button), Is.EqualTo(spoken), "UI Automation reads the same name as before");
+                Assert.That(button.ToolTip as string, Does.StartWith(spoken), "its hover says what it does");
+                Assert.That(KeyboardNavigation.GetIsTabStop(button) && button.Focusable && button.IsEnabled, Is.True, "still reached with the keyboard");
+            });
+        }
     }
 
     [Test]

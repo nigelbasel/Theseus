@@ -24,6 +24,12 @@ public sealed class FolderTrustViewModel : ObservableObject
         UndoCommand = new RelayCommand(_ => Show(_trust.Undo()), _ => _trust.CanUndo);
     }
 
+    /// <summary>
+    /// Says what Trust or Undo came to in the status bar too: the line under the section alone left Nigel unable to tell
+    /// whether anything had changed (2026-11-23). Set by the shell; null says nothing more.
+    /// </summary>
+    public Action<string>? Said { get; set; }
+
     /// <summary>Asks the owner to agree to a change, shown in full; true to make it. Set by the app.</summary>
     public Func<string, bool>? ConfirmChange { get; set; }
 
@@ -91,6 +97,7 @@ public sealed class FolderTrustViewModel : ObservableObject
         _needs = _trust.Needs(_folders());
         RaiseState();
         Result = outcome.Message;
+        Said?.Invoke(outcome.Message);
         TheseusLog.Information("Folder trust: {Result}", outcome.Message);
     }
 
