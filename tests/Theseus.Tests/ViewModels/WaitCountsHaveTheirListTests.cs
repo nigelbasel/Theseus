@@ -34,9 +34,10 @@ public class WaitCountsHaveTheirListTests
 
     private static string CardOf(string piece) => BuildYourMarketCards.Single(entry => entry.Piece == piece).Card;
 
-    private ProjectViewModel WithVerifier(string build, SessionLifecycle lifecycle)
+    private ProjectViewModel WithVerifier(string build, SessionLifecycle lifecycle, string? failed = null)
     {
-        IReadOnlyList<PieceCard> cards = [.. BuildYourMarketBoard(), Card(Verifier, lifecycle, role: WorkstreamRole.Verifier)];
+        IReadOnlyList<PieceCard> cards =
+            [.. BuildYourMarketBoard(), Card(Verifier, lifecycle, role: WorkstreamRole.Verifier) with { StartFailure = failed }];
         IReadOnlyList<Link> links = [.. BuildYourMarketLinks(), NewLink(LinkKind.ReportsBack, Verifier, CardOf(build))];
 
         return _views.BuildYourMarket(cards: cards, links: links);
@@ -91,9 +92,9 @@ public class WaitCountsHaveTheirListTests
     }
 
     [Test]
-    public void AnUnstartedVerifier_IsListedUnderItsObjective_WithItsStart()
+    public void AVerifierWhoseStartFailed_IsListedUnderItsObjective_WithStartAgain()
     {
-        var view = WithVerifier("bym-mcp-identity", SessionLifecycle.NotStarted);
+        var view = WithVerifier("bym-mcp-identity", SessionLifecycle.NotStarted, failed: "its tab never ran");
         var heading = ObjectiveOf(view, "bym-mcp-identity");
 
         Assert.That(heading.Waits.Select(wait => wait.Item.Kind), Does.Contain(WaitKind.StartVerifier));

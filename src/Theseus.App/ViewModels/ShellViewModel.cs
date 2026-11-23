@@ -23,6 +23,9 @@ public sealed partial class ShellViewModel : ObservableObject
 {
     private readonly ISettingsStore _settings;
     private readonly HoldoutChecks _holdouts = new();
+
+    // Why a verifier Theseus started failed to start, by card, until it starts (Nigel, 2026-11-23).
+    private readonly Dictionary<string, string> _verifierStartFailures = new(StringComparer.OrdinalIgnoreCase);
     private string _updaterStates = string.Empty;
     private readonly CardEventLog _cardEvents = new(Path.Combine(App.DataDirectory, "card-events.jsonl"));
     private IReadOnlyDictionary<string, ProjectBranchGrant> _branchGrants = new Dictionary<string, ProjectBranchGrant>();
@@ -1520,6 +1523,7 @@ public sealed partial class ShellViewModel : ObservableObject
                 {
                     IsArchived = card.Workstream.IsArchived,
                     HasRun = HasRun(card),
+                    StartFailure = _verifierStartFailures.GetValueOrDefault(card.Key),
                 }),
             Chains?.AllLinks ?? []);
     }
@@ -1649,6 +1653,10 @@ public sealed partial class ShellViewModel : ObservableObject
     /// </summary>
     private void VerifyWithHoldouts(WorkstreamCardViewModel card)
     {
+        // Worked out at the press, not taken from the last refresh, so a second press never makes a second verifier for the
+        // same build (git-22, 2026-11-23).
+        RefreshStandingVerifiers();
+
         if (WhyCannotVerify(card) is { } reason)
         {
             Refuse($"{reason}.");
@@ -1683,12 +1691,51 @@ public sealed partial class ShellViewModel : ObservableObject
         Chains?.FollowedOn(card.Key, key, verifier.ReportPath);
         RefreshStandingVerifiers();
         SetVerifyTexts(card);
-        Notice = $"Created {verifier.Title}. Start it when you are ready.";
         WriteVerifierRow(card, created);
 
         WireProjectChoices();
 
         TheseusLog.Information("Created {Verifier} to verify {Workstream} with the holdout scenarios", key, card.Key);
+        StartVerifier(created);
+    }
+
+    /// <summary>
+    /// Starts a verifier Theseus has just made, since the owner no longer presses Start for one (Nigel, 2026-11-23). A start
+    /// that fails is remembered with its reason, which the project view shows with Start again.
+    /// </summary>
+    private void StartVerifier(WorkstreamCardViewModel verifier)
+    {
+        _verifierStartFailures.Remove(verifier.Key);
+        var before = verifier.Workstream.LastSessionId;
+
+        StartMany([verifier.Workstream]);
+
+        if (Board.Card(verifier.Key) is { } after && after.Workstream.LastSessionId != before)
+        {
+            Notice = $"Created {verifier.Title} and started it.";
+
+            return;
+        }
+
+        var why = _launcher.Impediment ?? _launcher.LastRefusal ?? (string.IsNullOrWhiteSpace(Notice) ? "it could not be started" : Notice);
+        _verifierStartFailures[verifier.Key] = why.TrimEnd('.');
+        TheseusLog.Warning("Created {Verifier} but could not start it: {Why}", verifier.Key, why);
+        Notice = $"Created {verifier.Title}, but it did not start: {why.TrimEnd('.')}. Start it again from its build's Waits line.";
+        RefreshStandingVerifiers();
+        WireProjectChoices();
+    }
+
+    /// <summary>A start that never reached its tab: said on the board, and remembered for a verifier, which waits for nobody else.</summary>
+    public void StartLost(string key, string text)
+    {
+        Warn(text);
+
+        if (Board.Card(key) is { Workstream.Role: WorkstreamRole.Verifier })
+        {
+            _verifierStartFailures[key] = "Windows Terminal opened the tab but never ran the session in it; close that tab";
+            RefreshStandingVerifiers();
+            WireProjectChoices();
+        }
     }
 
     /// <summary>A project workstream's records folder in its project home, as last read; null for any other card.</summary>
@@ -2419,6 +2466,7 @@ public sealed partial class ShellViewModel : ObservableObject
             BranchRulesSince = BranchRulesSince(card.Workstream),
             IsArchived = card.Workstream.IsArchived,
             HasRun = HasRun(card),
+            StartFailure = _verifierStartFailures.GetValueOrDefault(card.Key),
         };
 
     /// <summary>Open spec and Accept spec on the menu bar, for the open project's waiting specs (R16).</summary>
@@ -4302,6 +4350,7 @@ public sealed partial class ShellViewModel : ObservableObject
             }
 
             Remember(workstream, sessionId);
+            _verifierStartFailures.Remove(workstream.Key);
             RunCommands.Started(workstream.Key);
             started.Add(workstream.Title);
             startedKeys.Add(workstream.Key);

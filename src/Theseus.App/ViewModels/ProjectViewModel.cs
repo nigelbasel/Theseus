@@ -824,15 +824,16 @@ public sealed class ProjectViewModel : ObservableObject
         };
     }
 
-    // A verifier card has no box of its own (AC 13), so one made and not started is started from its subject's box and
-    // Verify stage, with the card's own Start; only the owner starts a verifier (Nigel, 2026-11-23).
+    // A verifier card has no box of its own (AC 13). Theseus starts one as it makes it (Nigel, 2026-11-23), so its subject's
+    // box and Verify stage offer it only when that start failed, with the card's own Start.
     private List<PieceActionViewModel> VerifierStarts(PieceOfWork piece) =>
     [
-        .. piece.PendingVerifiers.Where(verifier => !verifier.HasSession).Select(verifier => new PieceActionViewModel(
-            $"▶ Start {verifier.Title}", () => _actions.Start(verifier.Key), verifier.CanStart,
-            verifier.CanStart
-                ? $"Start {verifier.Title}: it runs the holdout scenarios against {piece.Workstream} and reports only a verdict"
-                : $"{verifier.Title} cannot be started from the board now")),
+        .. piece.PendingVerifiers.Where(verifier => !verifier.HasSession && verifier.StartFailure is not null).Select(verifier =>
+            new PieceActionViewModel(
+                $"Start {verifier.Title} again", () => _actions.Start(verifier.Key), verifier.CanStart,
+                verifier.CanStart
+                    ? $"{verifier.Title} did not start: {verifier.StartFailure}. Start it again: it runs the holdout scenarios against {piece.Workstream}"
+                    : $"{verifier.Title} cannot be started from the board now")),
     ];
 
     private static void Run(SpecAtGate? spec, Action<SpecAtGate> action)

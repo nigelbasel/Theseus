@@ -9,8 +9,9 @@ namespace Theseus.Tests.ViewModels;
 
 /// <summary>
 /// A build that already has a verifier card, unstarted or running, gets no second one (Nigel, 2026-11-23: Start the
-/// checks… stayed after it made the verifier cards, so a second press made a duplicate of each). The Waits line names
-/// each unstarted verifier with its own ▶ Start, which runs the card's own Start; only the owner starts a verifier.
+/// checks… stayed after it made the verifier cards, so a second press made a duplicate of each). Theseus starts a verifier
+/// itself when it makes one (Nigel, 2026-11-23), so the Waits line names a verifier only when its start failed, with why
+/// and Start again, which runs the card's own Start.
 /// </summary>
 [TestFixture]
 public class NoDuplicateVerifierTests
@@ -35,12 +36,14 @@ public class NoDuplicateVerifierTests
     [TearDown]
     public void TearDown() => _folder.Dispose();
 
-    private ProjectViewModel WithVerifier(SessionLifecycle lifecycle, bool archived = false, bool hasRun = false)
+    private const string WhyNot = "Windows Terminal opened the tab but never ran the session in it";
+
+    private ProjectViewModel WithVerifier(SessionLifecycle lifecycle, bool archived = false, bool hasRun = false, string? failed = null)
     {
         IReadOnlyList<PieceCard> cards =
         [
             .. BuildYourMarketBoard(),
-            Card(Verifier, lifecycle, role: WorkstreamRole.Verifier) with { IsArchived = archived, HasRun = hasRun },
+            Card(Verifier, lifecycle, role: WorkstreamRole.Verifier) with { IsArchived = archived, HasRun = hasRun, StartFailure = failed },
         ];
         IReadOnlyList<Link> links = [.. BuildYourMarketLinks(), NewLink(LinkKind.ReportsBack, Verifier, _buildCard)];
 
@@ -60,13 +63,22 @@ public class NoDuplicateVerifierTests
     }
 
     [Test]
-    public void AnUnstartedVerifier_IsNamedInTheWaitsLine_WithItsOwnStart_WhichRunsTheCardsStart()
+    public void AVerifierBeingStarted_NeedsNothingFromYou()
     {
-        var line = Of(WithVerifier(SessionLifecycle.NotStarted), WaitKind.StartVerifier).Single();
+        var view = WithVerifier(SessionLifecycle.NotStarted);
 
-        Assert.That(line.Button, Is.EqualTo("▶ Start"));
-        Assert.That(line.Text, Does.Contain(Verifier));
-        Assert.That(line.Text, Does.Contain("only you start it"));
+        Assert.That(Of(view, WaitKind.StartVerifier), Is.Empty, "Theseus starts it (Nigel, 2026-11-23): no \"only you start it\"");
+        Assert.That(view.AllNodes.Single(node => node.Name == _build).Actions.Select(action => action.Label),
+            Has.None.Contains(Verifier), "no ▶ Start on its build's box");
+    }
+
+    [Test]
+    public void AVerifierWhoseStartFailed_SaysWhyInTheWaitsLine_WithStartAgain_WhichRunsTheCardsStart()
+    {
+        var line = Of(WithVerifier(SessionLifecycle.NotStarted, failed: WhyNot), WaitKind.StartVerifier).Single();
+
+        Assert.That(line.Button, Is.EqualTo("Start again"));
+        Assert.That(line.Text, Is.EqualTo($"{Verifier} did not start: {WhyNot}."));
 
         line.Command!.Execute(null);
 
@@ -98,7 +110,7 @@ public class NoDuplicateVerifierTests
         var view = _views.BuildYourMarket(cards: cards, links: links);
 
         Assert.That(Of(view, WaitKind.StartChecks), Is.Empty);
-        Assert.That(Of(view, WaitKind.StartVerifier), Has.Count.EqualTo(BuildYourMarketCards.Length), "one per verifier, whatever its subject's state");
+        Assert.That(Of(view, WaitKind.StartVerifier), Is.Empty, "each is started by Theseus as it is made");
     }
 
     [Test]
@@ -110,10 +122,10 @@ public class NoDuplicateVerifierTests
     }
 
     [Test]
-    public void AnUnstartedVerifier_HasItsOwnStart_OnItsBuildsBox_AndItsVerifyStage()
+    public void AVerifierWhoseStartFailed_HasStartAgain_OnItsBuildsBox_AndItsVerifyStage()
     {
-        var box = WithVerifier(SessionLifecycle.NotStarted).AllNodes.Single(node => node.Name == _build);
-        var start = box.Actions.Single(action => action.Label == $"▶ Start {Verifier}");
+        var box = WithVerifier(SessionLifecycle.NotStarted, failed: WhyNot).AllNodes.Single(node => node.Name == _build);
+        var start = box.Actions.Single(action => action.Label == $"Start {Verifier} again");
         var inMenu = box.Stages.Single(stage => stage.Node.Stage == PipelineStage.Verify).MenuItems.Single(item => item.Label == start.Label);
 
         Assert.That((start.IsEnabled, inMenu.IsEnabled), Is.EqualTo((true, true)));
@@ -129,17 +141,17 @@ public class NoDuplicateVerifierTests
     {
         var box = WithVerifier(SessionLifecycle.Running).AllNodes.Single(node => node.Name == _build);
 
-        Assert.That(box.Actions.Select(action => action.Label), Has.None.EqualTo($"▶ Start {Verifier}"));
+        Assert.That(box.Actions.Select(action => action.Label), Has.None.Contains(Verifier));
     }
 
     // The live case (git-22, 2026-11-23): "Verify: Theseus" checks a piece that is Done, not awaiting its check.
     [Test]
-    public void AnUnstartedVerifier_OfAPieceThatIsDone_IsStillInTheWaitsLine_AndOnItsVerifyStage()
+    public void AFailedVerifier_OfAPieceThatIsDone_IsStillInTheWaitsLine_AndOnItsVerifyStage()
     {
         var done = _views.BuildYourMarket().AllNodes.First(node => node.Piece is { IsCurrentPiece: true, Card: not null }
                                                                    && node.Piece.Status.State == StageNodeState.Done
                                                                    && node.Piece.Stages.Any(stage => stage.Stage == PipelineStage.Verify));
-        IReadOnlyList<PieceCard> cards = [.. BuildYourMarketBoard(), Card(Verifier, role: WorkstreamRole.Verifier)];
+        IReadOnlyList<PieceCard> cards = [.. BuildYourMarketBoard(), Card(Verifier, role: WorkstreamRole.Verifier) with { StartFailure = WhyNot }];
         IReadOnlyList<Link> links = [.. BuildYourMarketLinks(), NewLink(LinkKind.ReportsBack, Verifier, done.Piece.CardKey)];
         var view = _views.BuildYourMarket(cards: cards, links: links);
         var box = view.AllNodes.Single(node => node.Name == done.Name);
@@ -147,7 +159,7 @@ public class NoDuplicateVerifierTests
         Assert.That(box.Piece.Status.State, Is.EqualTo(StageNodeState.Done));
         Assert.That(Of(view, WaitKind.StartVerifier).Single().Item.CardKey, Is.EqualTo(Verifier));
         Assert.That(box.Stages.Single(stage => stage.Node.Stage == PipelineStage.Verify).MenuItems.Select(item => item.Label),
-            Does.Contain($"▶ Start {Verifier}"));
+            Does.Contain($"Start {Verifier} again"));
     }
 
     // NotStarted means "no run today" (CardLifecycle), so a verifier that ran yesterday reads NotStarted this morning
@@ -168,7 +180,7 @@ public class NoDuplicateVerifierTests
             Card("v", lifecycle, role: WorkstreamRole.Verifier) with { HasRun = hasRun, IsArchived = archived };
 
         Assert.That(VerifierCards.WhyAlreadyChecked(["Verify: Theseus"]),
-            Is.EqualTo("Verify: Theseus is already created to check it: start it rather than make another"));
+            Is.EqualTo("Verify: Theseus is already made to check it, so no second is made"));
         Assert.That(new[]
             {
                 VerifierCards.Stands(Verifier(SessionLifecycle.NotStarted)),
@@ -180,6 +192,8 @@ public class NoDuplicateVerifierTests
                 VerifierCards.Stands(Card("v", SessionLifecycle.NotStarted)),
             },
             Is.EqualTo(new[] { true, true, true, false, false, false, false }));
+        Assert.That(VerifierCards.Stands(Verifier(SessionLifecycle.Ghost, hasRun: true) with { StartFailure = "its tab never ran" }), Is.True,
+            "a verifier whose start failed stands until it is started again, so its failure is shown and no second is made");
     }
 
     [Test]

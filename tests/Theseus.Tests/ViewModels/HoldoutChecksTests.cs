@@ -84,13 +84,39 @@ public class HoldoutChecksTests
         var checks = new HoldoutChecks(_root);
         checks.Refresh(Chosen(), _ => HoldoutConvention.None, [Card()]);
         Directory.CreateDirectory(Path.GetDirectoryName(Scenario("p"))!);
-        File.WriteAllText(Scenario("p"), "x");
+        File.WriteAllText(Scenario("p"), "Checks: a-card");
 
         Assert.That(checks.WhyCannotVerify(Card(), "A card"), Is.Not.Null, "the folder is not read again on a query");
 
         checks.Refresh(Chosen(), _ => HoldoutConvention.None, [Card()]);
 
         Assert.That((checks.WhyCannotVerify(Card(), "A card"), checks.WayOn(Card())), Is.EqualTo(((string?)null, HoldoutWayOn.None)));
+    }
+
+    [Test]
+    public void ScenariosThatNameOtherWork_MakeNoVerifierForThisBuild_AndSayWhy()
+    {
+        var checks = new HoldoutChecks(_root);
+        Directory.CreateDirectory(Path.GetDirectoryName(Scenario("p"))!);
+        File.WriteAllText(Scenario("p"), "# Stop with handoff\nChecks: another-card\n");
+        checks.Refresh(Chosen(), _ => HoldoutConvention.None, [Card()]);
+
+        Assert.That(checks.WhyCannotVerify(Card(), "A card"), Is.EqualTo(
+            "No holdout scenario names a-card: a scenario says which work it checks in a line such as \"Checks: a-card\""),
+            "git-22, 2026-11-23: BYM's verifiers ran Theseus's scenarios because one folder judged every build");
+        Assert.That(checks.WayOn(Card()), Is.EqualTo(HoldoutWayOn.WriteScenarios));
+    }
+
+    [Test]
+    public void AScenarioNamingTheBuildsSlug_LetsItBeVerified()
+    {
+        var card = ProjectCards.Card("a-card", "p", slug: "verifier-runs");
+        var checks = new HoldoutChecks(_root);
+        Directory.CreateDirectory(Path.GetDirectoryName(Scenario("p"))!);
+        File.WriteAllText(Scenario("p"), "Checks: close-step, Verifier-Runs");
+        checks.Refresh(Chosen(), _ => HoldoutConvention.None, [card]);
+
+        Assert.That(checks.WhyCannotVerify(card, "A card"), Is.Null);
     }
 
     [Test]

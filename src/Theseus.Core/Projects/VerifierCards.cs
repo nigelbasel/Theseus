@@ -19,7 +19,7 @@ public static class VerifierCards
         ArgumentNullException.ThrowIfNull(card);
 
         return card is { Role: WorkstreamRole.Verifier, IsArchived: false }
-               && (card.HasSession || (card.Lifecycle == SessionLifecycle.NotStarted && !card.HasRun));
+               && (card.HasSession || card.StartFailure is not null || (card.Lifecycle == SessionLifecycle.NotStarted && !card.HasRun));
     }
 
     /// <summary>The standing verifiers by the card each checks: the one its latest active report-back link goes to.</summary>
@@ -49,7 +49,7 @@ public static class VerifierCards
         ArgumentNullException.ThrowIfNull(verifiers);
 
         return verifiers.Count == 1
-            ? $"{verifiers[0]} is already created to check it: start it rather than make another"
-            : $"{string.Join(", ", verifiers)} are already created to check it: start them rather than make another";
+            ? $"{verifiers[0]} is already made to check it, so no second is made"
+            : $"{string.Join(", ", verifiers)} are already made to check it, so no other is made";
     }
 }

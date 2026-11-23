@@ -25,6 +25,12 @@ public sealed record PieceCard(
     /// <summary>Why it is stopped, such as "Stopped by you", shown in the view's Properties (1.1e AC 12); null when its own line says enough.</summary>
     public string? StopLine { get; init; }
 
+    /// <summary>
+    /// Why its last start failed, for a verifier Theseus started itself, or null: the one time a verifier waits for the
+    /// owner, with Start again (Nigel, 2026-11-23).
+    /// </summary>
+    public string? StartFailure { get; init; }
+
     /// <summary>The question its session has open for the owner (1.6), or null.</summary>
     public Theseus.Core.Questions.OwnerQuestion? Question { get; init; }
 

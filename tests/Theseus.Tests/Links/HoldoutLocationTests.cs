@@ -95,6 +95,22 @@ public class HoldoutLocationTests
         Assert.That((writer.Title, writer.WorkingDirectory, writer.AddDirectories),
             Is.EqualTo(("Write holdout scenarios for Theseus", @"<root>\holdouts\theseus", new[] { @"<projects>\theseus" })));
         Assert.That(writer.Prompt, Does.Contain("you write scenarios, never code"));
+        Assert.That(writer.Prompt, Does.Contain("a line \"Checks: <slug>, <slug>\" naming each piece of work it checks"),
+            "a scenario that names no work makes no verifier (Nigel, 2026-11-23, A2)");
+    }
+
+    [Test]
+    public void TheWorkAHoldoutsScenariosCheck_IsReadFromTheirChecksLines_NeverFromResults()
+    {
+        var holdout = Path.Combine(_root, "holdout");
+        Directory.CreateDirectory(Path.Combine(holdout, "scenarios"));
+        Directory.CreateDirectory(Path.Combine(holdout, VerifierCard.ResultsFolder));
+        File.WriteAllText(Path.Combine(holdout, "scenarios", "stop.md"), "# Stop\nChecks: close-step, resumed-stop\n");
+        File.WriteAllText(Path.Combine(holdout, "lock.md"), "Checks: guard-mentions");
+        File.WriteAllText(Path.Combine(holdout, VerifierCard.ResultsFolder, "report.md"), "Checks: a-report-is-no-scenario");
+
+        Assert.That(new HoldoutLocation(holdout, false).CheckedWork(),
+            Is.EquivalentTo(new[] { "close-step", "resumed-stop", "guard-mentions" }));
     }
 
     [Test]

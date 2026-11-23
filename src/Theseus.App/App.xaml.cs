@@ -141,7 +141,8 @@ public partial class App : Application
 
         chains.Proposals = proposed;
         proposals.Changed += (_, _) => Dispatcher.BeginInvoke(proposed.Update);
-        sink.StartLost = shell.Warn;
+        sink.StartLost = shell.StartLost;
+        sink.InFlight = _launcher.InFlight;
         links.Changed += (_, _) =>
         {
             if (!Dispatcher.CheckAccess())

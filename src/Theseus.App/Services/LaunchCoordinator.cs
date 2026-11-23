@@ -57,6 +57,9 @@ public sealed class LaunchCoordinator : IAsyncDisposable
         _pipe.Start();
     }
 
+    /// <summary>The launches whose runs have not ended, so one card started twice never opens a second session.</summary>
+    public LaunchesInFlight InFlight { get; } = new();
+
     /// <summary>Whether everything a launch needs was found on this machine.</summary>
     public bool CanLaunch => _claude.Locate() is not null
                              && _terminals.Resolve().Source != TerminalSource.None
@@ -130,6 +133,16 @@ public sealed class LaunchCoordinator : IAsyncDisposable
 
         LastRefusal = null;
 
+        // A tab waiting at Claude Code's question about trusting its folder has registered no session yet, so the board's
+        // own check would start the card again (git-22, 2026-11-23).
+        if (InFlight.IsInFlight(workstream.Key))
+        {
+            LastRefusal = $"{workstream.Title} is already starting: its tab is open, perhaps asking whether to trust its folder. Answer it there.";
+            TheseusLog.Information("Refused a second start of {Workstream}: its launch is still in flight", workstream.Key);
+
+            return null;
+        }
+
         if (_claude.Locate() is not { } claudePath
             || _terminals.Resolve() is not { Source: not TerminalSource.None } terminal)
         {
@@ -198,6 +211,7 @@ public sealed class LaunchCoordinator : IAsyncDisposable
 
         _ticketIssued?.Invoke(plan.Ticket.Ticket, workstream.Key, runId);
         _pipe.Register(plan.Ticket);
+        InFlight.Began(workstream.Key, plan.Ticket.Ticket);
 
         try
         {

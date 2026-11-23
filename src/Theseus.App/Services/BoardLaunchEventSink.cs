@@ -37,18 +37,26 @@ public sealed class BoardLaunchEventSink : ILaunchEventSink
     /// <inheritdoc />
     public void ShimConnected(string ticket, int shimProcessId) => Set(ticket, SessionLifecycle.Launching);
 
+    /// <summary>The launches in flight, told each run's end so the card can be started again.</summary>
+    public Theseus.Core.Launching.LaunchesInFlight? InFlight { get; set; }
+
     /// <inheritdoc />
-    public void TicketRefused(string ticket, string reason) => Set(ticket, SessionLifecycle.Ghost);
+    public void TicketRefused(string ticket, string reason)
+    {
+        InFlight?.Ended(ticket);
+        Set(ticket, SessionLifecycle.Ghost);
+    }
 
     /// <inheritdoc />
     public void Started(string ticket, StartedPayload payload) => Set(ticket, SessionLifecycle.Running);
 
-    /// <summary>Told, in words, when a start never reached its tab, so Nigel knows to start it again.</summary>
-    public Action<string>? StartLost { get; set; }
+    /// <summary>Told, by card and in words, when a start never reached its tab, so Nigel knows to start it again.</summary>
+    public Action<string, string>? StartLost { get; set; }
 
     /// <inheritdoc />
     public void TicketLapsed(string ticket, string workstreamKey)
     {
+        InFlight?.Ended(ticket);
         End(ticket, null, SessionExitReason.NeverStarted);
         Set(ticket, SessionLifecycle.Ghost);
 
@@ -61,7 +69,7 @@ public sealed class BoardLaunchEventSink : ILaunchEventSink
         {
             var title = _board.Card(workstreamKey)?.Title ?? workstreamKey;
 
-            StartLost?.Invoke($"{title} did not start: Windows Terminal opened the tab but never ran the session in it."
+            StartLost?.Invoke(workstreamKey, $"{title} did not start: Windows Terminal opened the tab but never ran the session in it."
                               + " Close that tab and press Start again.");
         });
     }
@@ -73,6 +81,7 @@ public sealed class BoardLaunchEventSink : ILaunchEventSink
     /// <inheritdoc />
     public void Exited(string ticket, ExitedPayload payload)
     {
+        InFlight?.Ended(ticket);
         End(ticket, payload.ExitCode,
             payload.ExitCode == 0 ? SessionExitReason.ClosedCleanly : SessionExitReason.CrashedOrKilled);
 
@@ -85,6 +94,7 @@ public sealed class BoardLaunchEventSink : ILaunchEventSink
     /// </summary>
     public void Disconnected(string ticket)
     {
+        InFlight?.Ended(ticket);
         End(ticket, null, SessionExitReason.CrashedOrKilled);
 
         lock (_ticketsToWorkstreams)

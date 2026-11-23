@@ -34,6 +34,7 @@ public sealed record ScenarioWriterCard(string Title, string WorkingDirectory, I
                 $"You write the holdout scenarios for {projectTitle}, in {holdout}.",
                 read,
                 "Write each scenario as a file there: what is set up, what is done, and what must be true afterwards, in words a verifier can check against the running work.",
+                "Begin each scenario with a line \"Checks: <slug>, <slug>\" naming each piece of work it checks, by its slug; Theseus makes a verifier only for work a scenario names.",
                 $"Keep the {VerifierCard.ResultsFolder} folder for verifiers' reports. Change nothing outside {holdout}: you write scenarios, never code.",
                 "When they are written, say so and stop."));
     }

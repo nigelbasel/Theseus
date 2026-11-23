@@ -112,6 +112,32 @@ public sealed partial record HoldoutLocation(string Folder, bool IsDefault)
                 .Any(directory => Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories).Any()));
 
     /// <summary>
+    /// The work its scenarios check, from their Checks lines (A2): every file outside the results folder and the
+    /// repository's own, not too large to be a scenario. Read once per refresh, not on every query.
+    /// </summary>
+    public IReadOnlySet<string> CheckedWork()
+    {
+        const long LargestScenario = 1024 * 1024;
+
+        if (!Directory.Exists(Folder))
+        {
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var top = Directory.EnumerateFiles(Folder).Where(file => !Path.GetFileName(file).StartsWith(".git", StringComparison.OrdinalIgnoreCase));
+        var below = Directory.EnumerateDirectories(Folder)
+            .Where(directory => Path.GetFileName(directory) is var name
+                                && !string.Equals(name, VerifierCard.ResultsFolder, StringComparison.OrdinalIgnoreCase)
+                                && !name.StartsWith(".git", StringComparison.OrdinalIgnoreCase))
+            .SelectMany(directory => Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories));
+
+        return top.Concat(below)
+            .Where(file => new FileInfo(file).Length <= LargestScenario)
+            .SelectMany(file => ScenarioChecks.NamesIn(File.ReadAllText(file)))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
     /// Creates Theseus's own folder on first use and makes it a local git repository with a first commit, so scenarios keep
     /// a history without a remote (1.1e AC 6e). A folder the owner chose, or one beside the repo, is never created or
     /// changed. Whether it is a git repository now.

@@ -119,14 +119,14 @@ public sealed class ProjectOverview
             waits.Add(new WaitItem(kind, text, [piece.Name]) { CardKey = status.ActsOnCard ?? piece.CardKey });
         }
 
-        // A verifier card made and not started waits for the owner alone, whatever its subject's state: a verifier has no
-        // box of its own, so this line and its subject's Verify stage are where it is started (Nigel, 2026-11-23).
+        // Theseus starts a verifier itself as it makes one (Nigel, 2026-11-23), so one waits for the owner only when that
+        // start failed, whatever its subject's state: this line and its subject's Verify stage say why, with Start again.
         foreach (var piece in pieces)
         {
-            foreach (var verifier in piece.PendingVerifiers.Where(verifier => !verifier.HasSession))
+            foreach (var verifier in piece.PendingVerifiers.Where(verifier => !verifier.HasSession && verifier.StartFailure is not null))
             {
                 waits.Add(new WaitItem(WaitKind.StartVerifier,
-                    $"{verifier.Title} is created to check {piece.Title}; only you start it.", [piece.Name]) { CardKey = verifier.Key });
+                    $"{verifier.Title} did not start: {verifier.StartFailure!.TrimEnd('.')}.", [piece.Name]) { CardKey = verifier.Key });
             }
         }
 
@@ -144,7 +144,7 @@ public sealed class ProjectOverview
             var busy = builds.FirstOrDefault(piece => piece.Card is { IsWorking: true } && piece.IsCurrentPiece);
             var from = file.Rounds.Count > 1 ? $" from round {round.Key}" : string.Empty;
             var text = $"{Capital(Count(builds.Count, "build"))}{from} {(builds.Count == 1 ? "needs" : "need")} "
-                       + "their independent check, which only you start."
+                       + "their independent check, which you start: each gets a verifier that runs on its own."
                        + (busy is null ? string.Empty : $" One of them, {busy.Title}, is still busy: check it after it stops.");
             waits.Add(new WaitItem(WaitKind.StartChecks, text, [.. builds.Select(piece => piece.Name)]));
         }
