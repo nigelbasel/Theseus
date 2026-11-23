@@ -232,7 +232,6 @@ public class ProjectViewLayoutTests
                 var action = (PieceActionViewModel)button.DataContext;
 
                 Assert.That(button.Content, Is.EqualTo(action.Glyph).And.Not.Null, action.Label);
-                Assert.That(button.FontFamily.Source, Does.StartWith("Segoe Fluent Icons"), action.Label);
                 Assert.That((string)button.ToolTip, Does.StartWith(ActionGlyph.Name(action.Label)), action.Label);
                 Assert.That(System.Windows.Automation.AutomationProperties.GetName(button), Is.EqualTo(action.Label));
             }

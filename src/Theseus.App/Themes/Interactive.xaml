@@ -7,6 +7,9 @@
     -->
 
     <!-- The keyboard-focus ring every clickable control shows when reached with Tab. -->
+    <!-- The Fluent theme's icon font key, defined here too so icons still draw with the theme off (baseline W24). -->
+    <FontFamily x:Key="SymbolThemeFontFamily">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
+
     <Style x:Key="FocusRing">
         <Setter Property="Control.Template">
             <Setter.Value>

@@ -540,7 +540,7 @@
                                 </ContentControl>
 
                                 <!-- Open: every action (H39), as icons like the board's toolbar, the words in each tooltip, one
-                                     height in the row (walkthrough rows 24, 32; checklist G38, G40, G86, G90, G92). -->
+                                     height in the row (walkthrough rows 24, 32; checklist G38, G40, G86, G90, G92; baseline W24, W56). -->
                                 <ItemsControl x:Name="Actions" ItemsSource="{Binding Actions}" Margin="0,8,0,0" Focusable="False"
                                               ItemTemplate="{DynamicResource BoxAction}"
                                               Visibility="{Binding IsOpen, Converter={StaticResource Visible}}">
@@ -684,7 +684,7 @@
                 <Button.Style>
                     <Style TargetType="Button" BasedOn="{StaticResource ToolIcon}">
                         <Setter Property="Content" Value="{Binding Glyph}" />
-                        <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets" />
+                        <Setter Property="FontFamily" Value="{DynamicResource SymbolThemeFontFamily}" />
                         <Setter Property="FontSize" Value="16" />
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding Glyph}" Value="{x:Null}">
