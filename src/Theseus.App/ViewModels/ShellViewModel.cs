@@ -2606,7 +2606,8 @@ public sealed partial class ShellViewModel : ObservableObject
                     }
                 },
                 VerifyMany = VerifyManyWithHoldouts,
-                AskChecklist = model => AskChecklist?.Invoke(model),
+                // With no dialog set, every row counts as ticked, as Clear up does, so the two never disagree (review, S2).
+                AskChecklist = model => AskChecklist is { } ask ? ask(model) : model.Ticked,
                 UndoClearVerifiers = UndoClearUp,
                 WhoStarts = WhoStartsCard,
                 ProposalsOf = key => [.. Chains?.Proposals?.Pending.Where(row =>
