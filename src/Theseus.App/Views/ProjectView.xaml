@@ -225,12 +225,13 @@
         </Style>
 
         <!-- A heading's chevron, as a box's (AC 46). -->
+        <!-- 20 high, in a 28-wide target: at 14 the arrow was "very small on the tree" (walkthrough row 21; checklist W22, G112). -->
         <Style x:Key="HeadingChevron" TargetType="Button">
-            <Setter Property="Padding" Value="2,0" />
-            <Setter Property="Margin" Value="0,0,8,0" />
-            <Setter Property="MinWidth" Value="0" />
-            <Setter Property="MinHeight" Value="0" />
-            <Setter Property="FontSize" Value="14" />
+            <Setter Property="Padding" Value="4,0" />
+            <Setter Property="Margin" Value="0,0,4,0" />
+            <Setter Property="MinWidth" Value="28" />
+            <Setter Property="MinHeight" Value="28" />
+            <Setter Property="FontSize" Value="20" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="VerticalAlignment" Value="Top" />
@@ -914,9 +915,11 @@
                                     <TextBlock x:Name="ObjectiveRollup" Text="{Binding RollupText}" ToolTip="{Binding Rollup.ToolTip}"
                                                FontSize="12.5" FontWeight="SemiBold" Margin="0,0,10,0" TextWrapping="Wrap" VerticalAlignment="Center"
                                                Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                    <TextBlock x:Name="ObjectiveCriteria" Text="{Binding CriteriaText}" ToolTip="{Binding CriteriaToolTip}"
-                                               FontFamily="{StaticResource Mono}" FontSize="12" Margin="0,0,10,4" VerticalAlignment="Center"
-                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                    <Button x:Name="ObjectiveCriteria" Content="{Binding CriteriaToggleText}" Command="{Binding ToggleCommand}"
+                                            Style="{StaticResource ChipButton}" FontSize="12" Margin="0,0,10,4" VerticalAlignment="Center"
+                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" ToolTip="{Binding CriteriaToolTip}"
+                                            AutomationProperties.Name="{Binding CriteriaText}"
+                                            Visibility="{Binding CriteriaToggleText, Converter={StaticResource NotEmpty}}" />
                                     <ItemsControl x:Name="ObjectiveCounts" ItemsSource="{Binding Counts}" Focusable="False">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
@@ -1083,26 +1086,35 @@
                         <ItemsControl x:Name="WaitItems" ItemsSource="{Binding Waits}" ItemTemplate="{StaticResource WaitLine}" Focusable="False" />
                     </StackPanel>
                 </Border>
-                <!-- The phase strip (G34), then the value of the process as tallies (G35). -->
-                <ItemsControl x:Name="PhaseStrip" ItemsSource="{Binding PhaseStrip}" Margin="0,10,0,0" Focusable="False">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <WrapPanel />
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border x:Name="PhaseCell" BorderThickness="1" CornerRadius="5" Padding="8,4" Margin="0,0,6,6" MaxWidth="260"
-                                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" ToolTip="{Binding Phase.ExitGate}">
-                                <StackPanel>
-                                    <TextBlock Text="{Binding Title}" FontSize="12.5" FontWeight="SemiBold" TextWrapping="Wrap"
-                                               Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                    <TextBlock Text="{Binding Line}" FontSize="12" TextWrapping="Wrap" Style="{StaticResource StateForeground}" />
-                                </StackPanel>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                <!-- The phase strip (G34), one line however many phases: it scrolls across rather than wrapping onto a second
+                     (walkthrough row 17), each cell's words in full in its tooltip. Then the value of the process as tallies (G35). -->
+                <ScrollViewer x:Name="PhaseStripScroller" Margin="0,10,0,0" HorizontalScrollBarVisibility="Auto"
+                              VerticalScrollBarVisibility="Disabled" Focusable="False">
+                    <ItemsControl x:Name="PhaseStrip" ItemsSource="{Binding PhaseStrip}" Focusable="False">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border x:Name="PhaseCell" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,4,4" Width="168"
+                                        BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
+                                    <Border.ToolTip>
+                                        <TextBlock MaxWidth="420" TextWrapping="Wrap">
+                                            <Run Text="{Binding Title, Mode=OneWay}" FontWeight="SemiBold" /><LineBreak /><Run Text="{Binding Line, Mode=OneWay}" /><LineBreak /><Run Text="{Binding Phase.ExitGate, Mode=OneWay}" />
+                                        </TextBlock>
+                                    </Border.ToolTip>
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Title}" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
+                                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                        <TextBlock Text="{Binding Line}" FontSize="12" TextTrimming="CharacterEllipsis" Style="{StaticResource StateForeground}" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
                 <ItemsControl x:Name="Tallies" ItemsSource="{Binding Tallies}" Margin="0,2,0,0" Focusable="False">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>

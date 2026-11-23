@@ -78,6 +78,12 @@ public sealed class ObjectiveHeadingViewModel : ObservableObject, IFoldable
     /// </summary>
     public string CriteriaText => Objective is { } objective ? $"{objective.TickedCount} of {objective.Criteria.Count} criteria met" : string.Empty;
 
+    /// <summary>
+    /// The count as the button that lists the criteria, its chevron showing whether they are listed: that opening the
+    /// objective listed them "wasn't obvious" (walkthrough row 20). Empty with no criteria.
+    /// </summary>
+    public string CriteriaToggleText => Objective is { Criteria.Count: > 0 } ? $"{(_isOpen ? "▾" : "▸")} {CriteriaText}" : string.Empty;
+
     /// <summary>Whether its criteria are listed under it: while it is open and has any (item 6).</summary>
     public bool ShowsCriteria => _isOpen && Criteria.Count > 0;
 
@@ -131,6 +137,7 @@ public sealed class ObjectiveHeadingViewModel : ObservableObject, IFoldable
             if (Set(ref _isOpen, value))
             {
                 Raise(nameof(Chevron));
+                Raise(nameof(CriteriaToggleText));
                 Raise(nameof(ChevronToolTip));
                 Raise(nameof(ShowsPieces));
                 Raise(nameof(ShowsCriteria));
@@ -148,7 +155,7 @@ public sealed class ObjectiveHeadingViewModel : ObservableObject, IFoldable
     public string Chevron => _isOpen ? "▾" : "▸";
 
     /// <summary>What the chevron does.</summary>
-    public string ChevronToolTip => _isOpen ? "Fold this objective" : "Show this objective's pieces of work";
+    public string ChevronToolTip => _isOpen ? "Fold this objective" : "Show this objective's criteria and pieces of work";
 
     /// <summary>Whether it is what the Properties pane shows.</summary>
     public bool IsSelected

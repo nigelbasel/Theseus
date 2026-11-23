@@ -192,6 +192,17 @@ public class ProjectViewLayoutTests
     }
 
     [Test]
+    public void ThePhaseStrip_IsOneLine_HoweverManyPhases()
+    {
+        // Walkthrough row 17: the strip wrapped onto a second line at Phase 6.
+        var control = LaidOut(_views.BuildYourMarket());
+        var cells = AllNamed<Border>(control, "PhaseCell").ToList();
+
+        Assert.That(cells, Has.Count.GreaterThan(1));
+        Assert.That(cells.Select(cell => Math.Round(cell.TranslatePoint(new Point(0, 0), control).Y)).Distinct().Count(), Is.EqualTo(1));
+    }
+
+    [Test]
     public void AnOpenBoxsActions_AreIcons_OneHeight_EachNamedAndExplainedInItsTooltip()
     {
         // Walkthrough rows 24 and 32: long words in a row of buttons cluttered the box; the board's icons were wanted, with
