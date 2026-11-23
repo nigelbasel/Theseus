@@ -1546,6 +1546,22 @@
                 <Button x:Name="ClearSearch" Style="{StaticResource CommandButton}" Content="Clear" Margin="6,0,0,0" Padding="10,3"
                         Command="{Binding ClearCommand}" ToolTip="{Binding ClearToolTip}" ToolTipService.ShowOnDisabled="True" />
             </StackPanel>
+            <!-- What the board shows: all, only project cards, or only workstreams (Nigel, 2026-11-23). Remembered. -->
+            <StackPanel x:Name="BoardShowsChoice" DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center"
+                        Margin="0,0,12,0" DataContext="{Binding Board}"
+                        Visibility="{Binding DataContext.IsBoardShown, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}">
+                <TextBlock Text="Show" VerticalAlignment="Center" FontSize="12" Margin="0,0,6,0"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                <RadioButton x:Name="ShowAllCards" Content="All" GroupName="BoardShows" Style="{StaticResource ToolIconToggle}" Padding="8,4"
+                             IsChecked="{Binding ShowsAll, Mode=TwoWay}" ToolTip="Show project cards and workstreams"
+                             AutomationProperties.Name="Show all cards" />
+                <RadioButton x:Name="ShowProjectCards" Content="Projects" GroupName="BoardShows" Style="{StaticResource ToolIconToggle}" Padding="8,4"
+                             Margin="2,0,0,0" IsChecked="{Binding ShowsProjects, Mode=TwoWay}" ToolTip="Show only the project cards"
+                             AutomationProperties.Name="Show only projects" />
+                <RadioButton x:Name="ShowWorkstreamCards" Content="Workstreams" GroupName="BoardShows" Style="{StaticResource ToolIconToggle}" Padding="8,4"
+                             Margin="2,0,0,0" IsChecked="{Binding ShowsWorkstreams, Mode=TwoWay}"
+                             ToolTip="Show only the workstreams that are in no project" AutomationProperties.Name="Show only workstreams" />
+            </StackPanel>
         <ToolBarTray IsLocked="True" Background="Transparent"
                      Visibility="{Binding IsToolbarVisible, Converter={StaticResource BoolToVisibility}}">
             <ToolBar Background="Transparent">

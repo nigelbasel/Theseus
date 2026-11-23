@@ -16,6 +16,7 @@ public sealed class BoardViewModel : ObservableObject
     private string _status = string.Empty;
     private WorkstreamCardViewModel? _selectedCard;
     private bool _showArchived;
+    private BoardShows _shows;
     private BoardColumnsBy _columnsBy;
     private BoardRowsBy _rowsBy;
     private List<WorkstreamCardViewModel> _all = [];
@@ -34,6 +35,7 @@ public sealed class BoardViewModel : ObservableObject
         _board = board;
         _settings = settings;
         _showArchived = settings.Read().ShowArchived;
+        _shows = settings.Read().BoardShows;
         _columnsBy = settings.Read().ColumnsBy;
         _rowsBy = settings.Read().RowsBy;
         Search = new BoardSearchViewModel(OnSearchChanged);
@@ -584,7 +586,7 @@ public sealed class BoardViewModel : ObservableObject
 
         foreach (var card in _all)
         {
-            if (KeepOutOfGrid?.Invoke(card) == true || HiddenBySearch(card))
+            if (KeepOutOfGrid?.Invoke(card) == true || HiddenBySearch(card) || _shows == BoardShows.Projects)
             {
                 continue;
             }
@@ -679,7 +681,7 @@ public sealed class BoardViewModel : ObservableObject
         foreach (var cell in Cells)
         {
             var wanted = _projects
-                .Where(project => !HiddenBySearch(project))
+                .Where(project => !HiddenBySearch(project) && _shows != BoardShows.Workstreams)
                 .Where(project =>
                 {
                     var place = places.FirstOrDefault(entry => string.Equals(entry.Key, project.Name, StringComparison.OrdinalIgnoreCase)).Value;
@@ -1299,6 +1301,52 @@ public sealed class BoardViewModel : ObservableObject
     /// two are shown apart rather than together: an archived workstream is one somebody decided to
     /// stop looking at, and a board that keeps showing it greyed out has not done what was asked.
     /// </summary>
+    /// <summary>Which cards the board shows (Nigel, 2026-11-23): all, only project cards, or only workstreams. Remembered.</summary>
+    public BoardShows Shows
+    {
+        get => _shows;
+        set
+        {
+            if (Set(ref _shows, value))
+            {
+                _settings.Write(_settings.Read() with { BoardShows = value });
+                Raise(nameof(ShowsAll));
+                Raise(nameof(ShowsProjects));
+                Raise(nameof(ShowsWorkstreams));
+                Place();
+            }
+        }
+    }
+
+    /// <summary>Show all, as a radio button binds it.</summary>
+    public bool ShowsAll
+    {
+        get => _shows == BoardShows.All;
+        set => Choose(value, BoardShows.All);
+    }
+
+    /// <summary>Show only the project cards, as a radio button binds it.</summary>
+    public bool ShowsProjects
+    {
+        get => _shows == BoardShows.Projects;
+        set => Choose(value, BoardShows.Projects);
+    }
+
+    /// <summary>Show only the workstreams, as a radio button binds it.</summary>
+    public bool ShowsWorkstreams
+    {
+        get => _shows == BoardShows.Workstreams;
+        set => Choose(value, BoardShows.Workstreams);
+    }
+
+    private void Choose(bool chosen, BoardShows shows)
+    {
+        if (chosen)
+        {
+            Shows = shows;
+        }
+    }
+
     public bool ShowArchived
     {
         get => _showArchived;

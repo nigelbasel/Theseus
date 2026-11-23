@@ -53,6 +53,9 @@ public sealed record TheseusSettings(
     /// </summary>
     public bool ShowArchived { get; init; }
 
+    /// <summary>Which cards the board shows: all, only project cards, or only workstreams (Nigel, 2026-11-23).</summary>
+    public BoardShows BoardShows { get; init; }
+
     /// <summary>
     /// How Start and Restart bring back a workstream that has run before, when nothing more specific
     /// is asked for. Resume by default, because that is what every earlier build did: changing what a
