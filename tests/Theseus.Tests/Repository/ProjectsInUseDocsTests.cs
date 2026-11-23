@@ -27,7 +27,7 @@ public class ProjectsInUseDocsTests
     [TestCase("cards.md", "is kept by Theseus, never in `project.md`. It covers the primary branch")]
     [TestCase("cards.md", "shows **project branch rules**")]
     [TestCase("holdouts.md", "the board says once that the holdout guard is out of date")]
-    [TestCase("chains.md", "A session acts only on its **descendants**")]
+    [TestCase("chains.md", "a session acts only on its **descendants**")]
     [TestCase("chains.md", "`start_workstream`")]
     [TestCase("cards.md", "says only **Needs updating**")]
     [TestCase("project-view.md", "## The spec window")]

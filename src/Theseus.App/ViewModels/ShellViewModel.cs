@@ -33,6 +33,10 @@ public sealed class ShellViewModel : ObservableObject
     private readonly SpecAcceptanceStore _acceptances;
     private readonly ReportedAcceptanceStore _reported;
     private readonly OwnerEventLog _ownerEvents = new(Path.Combine(App.DataDirectory, "owner-events.jsonl"));
+
+    /// <summary>Sessions' requests to start cards the owner paused (sessions-run-the-project items 12 to 15).</summary>
+    public StartRequestBook StartRequests { get; } =
+        new(new StartRequestStore(Path.Combine(App.DataDirectory, "start-requests.json")), new Theseus.Core.Abstractions.SystemClock());
     private SessionTells? _sessionTells;
 
     private SessionTells Tells => _sessionTells ??= new SessionTells(new StopRequestStore(StopRequestRoot.Tells), _ownerEvents);
@@ -61,6 +65,9 @@ public sealed class ShellViewModel : ObservableObject
     private readonly List<StopStep> _stopQueue = [];
     private readonly IStopRequestStore _stopRequests = new StopRequestStore(StopRequestRoot.Default);
     private readonly IRunLog _runs;
+
+    /// <summary>The questions sessions have open for the owner (1.6), shared with ask_owner and the hook.</summary>
+    public Theseus.Core.Questions.OwnerQuestionStore Questions { get; } = new(Theseus.Core.Questions.OwnerQuestionRoot.Default);
     private readonly HashSet<string> _handoffWriteFailures = new(StringComparer.OrdinalIgnoreCase);
     private readonly ISessionTodoReader _todos;
     private readonly RunEndings _endings;
@@ -1294,6 +1301,7 @@ public sealed class ShellViewModel : ObservableObject
         Timed("account", () => SyncAccount());
         _stopRequests.Sweep(DateTimeOffset.UtcNow, _closed.IsFinished);
         Tells.Waiting.Sweep(DateTimeOffset.UtcNow, _ => true);
+        LapseStartRequests();
     }
 
     // Start-up has taken anything from 4 seconds to over 2 minutes on the same machine, with nothing
@@ -2174,7 +2182,8 @@ public sealed class ShellViewModel : ObservableObject
                 : piece)];
             var waitingSpecs = ProjectViewModel.SpecsWaiting(reading, pieces);
             var overview = ProjectOverview.For(reading.File!, pieces, links, Chains?.Proposals?.Pending.Select(row => row.Proposal) ?? [],
-                acceptances.Count(acceptance => string.Equals(acceptance.Project, reading.Name, StringComparison.OrdinalIgnoreCase)));
+                acceptances.Count(acceptance => string.Equals(acceptance.Project, reading.Name, StringComparison.OrdinalIgnoreCase)),
+                StartRequests.Pending, key => Board.Card(key)?.Title ?? key);
             var file = reading.File!;
 
             foreach (var piece in pieces.Where(piece => piece.IsCurrentPiece && piece.Card is not null))
@@ -2386,6 +2395,7 @@ public sealed class ShellViewModel : ObservableObject
                 GoBack = GoBackCommand,
                 GoForward = GoForwardCommand,
                 ReviewProposal = ReviewProposal,
+                AnswerStartRequest = AnswerStartRequest,
                 ProposalsOf = key => [.. Chains?.Proposals?.Pending.Where(row =>
                     string.Equals(row.Proposal.RequesterKey, key, StringComparison.OrdinalIgnoreCase)) ?? []],
             },
@@ -2401,6 +2411,7 @@ public sealed class ShellViewModel : ObservableObject
             StartSelection.IsEligible(card.Workstream, Sessions.Snapshot))
         {
             StopLine = card.StopReason?.Line,
+            Question = card.Question,
             PausedBy = card.Workstream.PausedBy is { } by ? Board.Card(by)?.Title ?? by : null,
             BranchRulesSince = BranchRulesSince(card.Workstream),
             IsArchived = card.Workstream.IsArchived,
@@ -2792,8 +2803,33 @@ public sealed class ShellViewModel : ObservableObject
     {
         ArgumentNullException.ThrowIfNull(link);
 
-        // Its recipient is told (1.1e AC 27a).
-        Tell(Board.Card(link.To), OwnerEvents.Confirmed(link.Kind, Board.Card(link.From)?.Title ?? link.From, link.Output));
+        // Its recipient is told (1.1e AC 27a); in a project a stopped one is started with it (sessions-run-the-project 16a).
+        var confirmed = OwnerEvents.Confirmed(link.Kind, Board.Card(link.From)?.Title ?? link.From, link.Output);
+
+        // Only a report back starts its parent: accepting a hand-over tells the card it was for (review of PR 2, finding 3).
+        if (!Tell(Board.Card(link.To), confirmed) && link.Kind == LinkKind.ReportsBack && Board.Card(link.To) is { } parent
+            && ReportConfirmStart.StartsParent(parent.Workstream, parent.IsLive))
+        {
+            var before = parent.Workstream;
+
+            if (before.IsPaused)
+            {
+                parent.Workstream = before with { IsPaused = false, PausedBy = null, PauseReason = null };
+                Board.Persist(parent);
+            }
+
+            if (StartForSession([parent.Workstream with { StartInstruction = confirmed }], "ReportConfirmed") is { } notStarted)
+            {
+                parent.Workstream = parent.Workstream with { IsPaused = before.IsPaused, PausedBy = before.PausedBy, PauseReason = before.PauseReason };
+                Board.Persist(parent);
+                Notice = notStarted;
+            }
+            else
+            {
+                _cardEvents.Append(new CardEvent(DateTimeOffset.UtcNow, parent.Key,
+                    $"Started by your confirming {Board.Card(link.From)?.Title ?? link.From}'s report"));
+            }
+        }
 
         if (Board.Card(link.From) is not { IsLive: true } card
             || !VerifierEnding.StopsOnConfirm(link.Kind, card.Workstream.Role))
@@ -2803,6 +2839,108 @@ public sealed class ShellViewModel : ObservableObject
 
         TheseusLog.Information("Stopping {Verifier}: its report was confirmed, so its job is done", card.Key);
         BeginStop(CardSteps(card));
+    }
+
+    /// <summary>Asks the owner whether to allow a start request: true allows, false refuses, null leaves it waiting. Set by the App.</summary>
+    public Func<string, bool?>? AskStartRequest { get; set; }
+
+    /// <summary>
+    /// The owner's answer to a session's request to start a card he paused (sessions-run-the-project items 13, 14): Allow
+    /// clears his pause and starts it with the session's instruction; Refuse keeps the pause; either is told to the session.
+    /// </summary>
+    public void AnswerStartRequest(string requestId)
+    {
+        if (StartRequests.Find(requestId) is not { IsPending: true } request)
+        {
+            Notice = "That request is no longer waiting.";
+
+            return;
+        }
+
+        if (Board.Card(request.CardKey) is not { } card)
+        {
+            Notice = $"{request.CardKey} is not on the board.";
+
+            return;
+        }
+
+        var by = Board.Card(request.RequesterKey)?.Title ?? request.RequesterKey;
+        var question = $"{by} wants to start {card.Title}, which you paused"
+                       + (string.IsNullOrWhiteSpace(request.Reason) ? "." : $": {request.Reason.Trim()}")
+                       + (string.IsNullOrWhiteSpace(request.Instruction) ? string.Empty : $"\n\nIts instruction: {request.Instruction.Trim()}")
+                       + "\n\nYes allows it and starts the card. No refuses it and keeps your pause. Cancel decides later.";
+
+        if (AskStartRequest?.Invoke(question) is not { } allow)
+        {
+            return;
+        }
+
+        if (!allow)
+        {
+            var note = AskText?.Invoke("Refuse the start", $"Why, for {by} (optional)", string.Empty);
+            StartRequests.Decide(request.Id, StartRequestStatus.Refused, note);
+            TellKey(request.RequesterKey, OwnerEvents.StartRefused(card.Title, note));
+            Notice = $"Refused {by}'s start of {card.Title}; it stays paused.";
+
+            return;
+        }
+
+        var paused = card.Workstream;
+        card.Workstream = paused with { IsPaused = false, PausedBy = null, PauseReason = null };
+        Board.Persist(card);
+
+        // Allowed only once it launched; otherwise his pause is put back and the request keeps waiting (review of PR 2, finding 2).
+        if (StartForSession([card.Workstream with { StartInstruction = request.Instruction }], "StartRequestAllowed") is { } notStarted)
+        {
+            card.Workstream = card.Workstream with { IsPaused = paused.IsPaused, PausedBy = paused.PausedBy, PauseReason = paused.PauseReason };
+            Board.Persist(card);
+            Notice = $"{notStarted} Your pause stands and the request still waits.";
+
+            return;
+        }
+
+        StartRequests.Decide(request.Id, StartRequestStatus.Allowed, null);
+        _cardEvents.Append(new CardEvent(DateTimeOffset.UtcNow, card.Key, $"Started by {by}, allowed by you"));
+        TellKey(request.RequesterKey, OwnerEvents.StartAllowed(card.Title));
+    }
+
+    /// <summary>Tells a card's session by its key, logged for events() even when the card is not on the board just now.</summary>
+    private void TellKey(string key, string text)
+    {
+        if (Board.Card(key) is { } card)
+        {
+            Tell(card, text);
+        }
+        else
+        {
+            Tells.Tell(key, key, false, null, text, DateTimeOffset.UtcNow);
+        }
+    }
+
+    /// <summary>
+    /// Ends the requests that no longer apply (item 15): the owner resumed or started the card himself, it left the
+    /// requester's project, it was archived, or either card is gone; the requester is told why.
+    /// </summary>
+    private void LapseStartRequests()
+    {
+        // While the archive is showing, the board holds only archived cards, so every other card would look gone (review
+        // of PR 2, finding 1).
+        if (Board.ShowArchived)
+        {
+            return;
+        }
+
+        foreach (var request in StartRequests.Pending)
+        {
+            var card = Board.Card(request.CardKey);
+            var requester = Board.Card(request.RequesterKey);
+            var why = StartRequestLapse.Why(card?.Workstream, card?.IsLive ?? false, requester?.Workstream);
+
+            if (why is not null && StartRequests.Decide(request.Id, StartRequestStatus.Lapsed, why) is not null)
+            {
+                TellKey(request.RequesterKey, OwnerEvents.StartLapsed(card?.Title ?? request.CardKey, why));
+            }
+        }
     }
 
     /// <summary>
@@ -3320,13 +3458,16 @@ public sealed class ShellViewModel : ObservableObject
         var reasons = _settings.Read();
         _branchGrants = reasons.ProjectBranchRules;
         RefreshHoldouts([.. Board.Cards.Select(card => card.Workstream)]);
+        Questions.RemoveExcept(Sessions.Snapshot.Live.Select(session => session.SessionId), DateTimeOffset.UtcNow.AddMinutes(-10));
 
         foreach (var card in Board.Cards)
         {
             var session = Sessions.Find(card.Workstream.LastSessionId);
             var live = session is not null;
-            var state = CardLifecycle.For(card.Key, session?.Status, live, runs, now);
+            var question = live ? Questions.Read(card.Workstream.LastSessionId) : null;
+            var state = CardLifecycle.For(card.Key, session?.Status, live, runs, now, hasOpenQuestion: question is not null);
 
+            card.Question = question;
             card.MotionAllowed = _motionAllowed;
             card.Lifecycle = state.Lifecycle;
             card.LifecycleSinceUtc = state.Since;

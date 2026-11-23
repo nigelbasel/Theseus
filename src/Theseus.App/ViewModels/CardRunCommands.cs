@@ -85,7 +85,7 @@ public sealed class CardRunCommands
     }
 
     /// <summary>
-    /// A card's own ▶: on a card of a stopped project, the project's Start; on a done card, Restart for more work; otherwise
+    /// A card's own ▶: on a card of a stopped project, the project's Start; on a done ad hoc card, Restart for more work; otherwise
     /// the card's start, asked about first in a running project.
     /// </summary>
     public void StartCard(WorkstreamCardViewModel card)
@@ -106,7 +106,8 @@ public sealed class CardRunCommands
             return;
         }
 
-        if (card.StopReason?.Kind == WhyStoppedKind.Done)
+        // In a project sessions restart done cards, so the owner's ▶ is a plain start (sessions-run-the-project item 17).
+        if (card.StopReason?.Kind == WhyStoppedKind.Done && card.Workstream.Project is null)
         {
             var more = _askText?.Invoke("Restart for more work", $"What more work is there for {card.Title}?", string.Empty);
 

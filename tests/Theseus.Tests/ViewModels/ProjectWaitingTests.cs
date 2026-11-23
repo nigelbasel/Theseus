@@ -37,6 +37,20 @@ public class ProjectWaitingTests
     }
 
     [Test]
+    public void ACardAskingAQuestion_IsCountedInItsWords()
+    {
+        var asking = new WorkstreamCardViewModel(Card("member", "p", "a-slug"))
+        {
+            Lifecycle = SessionLifecycle.NeedsAttention,
+            Question = new Theseus.Core.Questions.OwnerQuestion("s", "Push now?", IsGuess: false, Now),
+        };
+
+        Assert.That(ProjectWaiting.For([asking], [], [], []), Is.EqualTo(new[] { "member asks: Push now?" }));
+        Assert.That(asking.StatusLine, Is.EqualTo("Asks: Push now?"));
+        Assert.That(asking.StatusToolTip, Does.StartWith("Asks: Push now?"));
+    }
+
+    [Test]
     public void NothingWaiting_IsAnEmptyCount_AndSaysSo()
     {
         var card = new ProjectCardViewModel("p", "P") { Waiting = ProjectWaiting.For([], [], [], []) };

@@ -30,6 +30,9 @@ public enum WaitKind
     /// <summary>Start a verifier card made for a build and not yet started; only the owner starts one.</summary>
     StartVerifier,
 
+    /// <summary>Allow or refuse a session's start of a card he paused (sessions-run-the-project item 13).</summary>
+    StartRequest,
+
     /// <summary>Something outside Theseus: no button.</summary>
     Outside,
 }

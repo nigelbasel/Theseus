@@ -44,15 +44,18 @@ public sealed class ProjectOverview
     /// <param name="links">The links; reports waiting for confirmation come from them.</param>
     /// <param name="proposals">Every proposal; the pending ones raised by this project's cards wait for him.</param>
     /// <param name="accepted">How many of its specs he has accepted.</param>
+    /// <param name="startRequests">Sessions' requests to start cards he paused; the pending ones for this project's cards wait for him.</param>
+    /// <param name="titleOf">A card's title from its key, for a card that works no current piece; null shows the key.</param>
     public static ProjectOverview For(ProjectFile file, IReadOnlyList<PieceOfWork> pieces, IEnumerable<Link> links,
-        IEnumerable<WorkstreamProposal> proposals, int accepted)
+        IEnumerable<WorkstreamProposal> proposals, int accepted, IEnumerable<StartRequest>? startRequests = null,
+        Func<string, string>? titleOf = null)
     {
         ArgumentNullException.ThrowIfNull(file);
         ArgumentNullException.ThrowIfNull(pieces);
         ArgumentNullException.ThrowIfNull(links);
         ArgumentNullException.ThrowIfNull(proposals);
 
-        var waits = WaitsOf(file, pieces, [.. links], proposals);
+        var waits = WaitsOf(file, pieces, [.. links], proposals, startRequests ?? [], titleOf);
         var roundLines = file.Rounds.ToDictionary(round => round.Number, round => RoundLine(pieces.Where(piece => piece.Round == round.Number).ToList()));
 
         return new ProjectOverview(SentenceOf(file, pieces, waits), roundLines, [.. file.Phases.Select(phase => Cell(phase, pieces))],
@@ -60,7 +63,7 @@ public sealed class ProjectOverview
     }
 
     private static List<WaitItem> WaitsOf(ProjectFile file, IReadOnlyList<PieceOfWork> pieces, List<Link> links,
-        IEnumerable<WorkstreamProposal> proposals)
+        IEnumerable<WorkstreamProposal> proposals, IEnumerable<StartRequest> startRequests, Func<string, string>? titleOf)
     {
         var waits = new List<WaitItem>();
 
@@ -89,7 +92,11 @@ public sealed class ProjectOverview
                 _ => WaitKind.Unblock,
             };
 
-            waits.Add(new WaitItem(kind, $"{piece.Title}: {status.WhoActs}", [piece.Name]) { CardKey = piece.CardKey });
+            var text = status.Question is { } question
+                ? Questions.QuestionWords.Named(piece.Title, question)
+                : $"{piece.Title}: {status.WhoActs}";
+
+            waits.Add(new WaitItem(kind, text, [piece.Name]) { CardKey = piece.CardKey });
         }
 
         // A verifier card made and not started waits for the owner alone, whatever its subject's state: a verifier has no
@@ -153,6 +160,22 @@ public sealed class ProjectOverview
             {
                 CardKey = proposal.RequesterKey,
                 ProposalId = proposal.Id,
+            });
+        }
+
+        string Title(string key) =>
+            pieces.FirstOrDefault(piece => piece.IsCurrentPiece && Same(piece.CardKey, key))?.Title ?? titleOf?.Invoke(key) ?? key;
+
+        var current = pieces.Where(piece => piece.IsCurrentPiece).Select(piece => piece.CardKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var request in startRequests.Where(request => request.IsPending && current.Contains(request.CardKey)))
+        {
+            waits.Add(new WaitItem(WaitKind.StartRequest,
+                $"{Title(request.RequesterKey)} wants to start {Title(request.CardKey)}, which you paused"
+                + (string.IsNullOrWhiteSpace(request.Reason) ? "." : $": {request.Reason.Trim()}"), [])
+            {
+                CardKey = request.CardKey,
+                StartRequestId = request.Id,
             });
         }
 

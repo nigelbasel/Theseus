@@ -62,6 +62,7 @@ internal sealed class ProjectViews
         (project, key) => Ran.Add($"AddToProject:{project}:{key}"))
     {
         ReviewProposal = id => Ran.Add($"ReviewProposal:{id}"),
+        AnswerStartRequest = id => Ran.Add($"AnswerStartRequest:{id}"),
     };
 
     public ProjectViewEdits Edits => new((_, criterion, ticked) => Edited.Add($"Tick:{criterion.Line}:{ticked}"),
@@ -115,12 +116,13 @@ internal sealed class ProjectViews
     }
 
     /// <summary>The one-piece project with these proposals waiting, the overview worked out as the board does.</summary>
-    public ProjectViewModel OneWith(IReadOnlyList<Theseus.Core.Proposals.WorkstreamProposal> proposals)
+    public ProjectViewModel OneWith(IReadOnlyList<Theseus.Core.Proposals.WorkstreamProposal> proposals,
+        IReadOnlyList<StartRequest>? startRequests = null)
     {
         var reading = WriteOne(_folder, "feature", null);
         IReadOnlyList<PieceCard> cards = [Card(ACard, SessionLifecycle.Idle)];
         var pieces = PiecesOfWork.Build(reading, _ => null, cards, []);
-        var overview = ProjectOverview.For(reading.File!, pieces, [], proposals, 0);
+        var overview = ProjectOverview.For(reading.File!, pieces, [], proposals, 0, startRequests, key => $"title of {key}");
 
         return ProjectViewModel.Build(reading, pieces, LinksOn([], cards), Tabs(OneProject), Settings, Actions, null, Edits, null,
             overview);

@@ -82,8 +82,10 @@ Ad hoc work can be promoted to a project. Its handoff becomes the project's firs
 - **A child exits once its report is in; its parent restarts it when there is more.** A workstream that reports back
   to the one that proposed it stops once its report is submitted. The parent reads it, and when there is more work it
   restarts the child with `start_workstream` and an instruction ("more work: ..."), or pauses or stops it, through the
-  Theseus tools that act only on its own descendants: cards made from proposals it raised and the owner approved. A
-  parent never closes another card's session any other way. (1.1e AC 14 and 17, Nigel 2026-11-21.)
+  Theseus tools: in a project they reach every card of the project, and a card the owner paused waits for his Allow;
+  on the ordinary board only the session's own descendants, cards made from proposals it raised and the owner
+  approved. A parent never closes another card's session any other way. (1.1e AC 14 and 17, Nigel 2026-11-21;
+  sessions-run-the-project, Nigel 2026-11-22.)
 
 ## Decisions recorded here
 

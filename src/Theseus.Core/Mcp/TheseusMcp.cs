@@ -20,6 +20,7 @@ public static class TheseusMcp
             "start_workstream", "stop_workstream", "pause_workstream", "resume_workstream", "workstreams",
             "gates", "accept_spec", "events",
             "now_at", "record_round", "tick_criterion", "add_objective", "record_decision", "set_waiting",
+            AskOwnerTool.Name,
         ];
 
     /// <summary>

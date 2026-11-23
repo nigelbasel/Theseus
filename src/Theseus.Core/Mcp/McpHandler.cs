@@ -6,6 +6,7 @@ using Theseus.Core.Attention;
 using Theseus.Core.Domain;
 using Theseus.Core.Links;
 using Theseus.Core.Locks;
+using Theseus.Core.Projects;
 using Theseus.Core.Proposals;
 
 namespace Theseus.Core.Mcp;
@@ -71,12 +72,14 @@ public sealed partial class McpHandler
         + "resume_workstream, with their state and why each is stopped: in a project, every card of the project but "
         + "your own; on the ordinary board, your descendants (cards made from proposals you raised). Give an "
         + "instruction for a start when there is more work. Another project's cards and ad hoc cards are the user's. "
-        + "A card the user paused stays paused: ask the user before starting it. "
+        + "In a project, starting a card the user paused waits for their Allow, and events() tells you their answer. "
         + "In a project, call now_at(stage, doing) on entering each stage of your piece of work, with what you are doing in "
         + "under 80 characters; a stage your pipeline lets you skip is reported as now_at(stage, \"skipped: <reason>\"). "
         + "Theseus writes project.md's structured lines: record a round with record_round, tick a criterion with "
         + "tick_criterion, add an objective with add_objective, record a decision with record_decision and say who a "
-        + "criterion waits on with set_waiting. Write prose by hand, never those lines.";
+        + "criterion waits on with set_waiting. Write prose by hand, never those lines. "
+        + "When you need the user's answer before you can go on, ask with the question tool and call ask_owner with the "
+        + "same question, so it shows in Theseus; never ask only in prose, which leaves your card looking finished.";
 
     private readonly WorkLog _work;
     private readonly LockBook? _locks;
@@ -91,11 +94,13 @@ public sealed partial class McpHandler
     private readonly Func<string> _briefFolderName;
     private readonly Func<WorkstreamProposal, bool, ProposalApproval>? _approve;
     private readonly Func<WorkstreamProposal, bool, ProposalApproval>? _create;
+    private readonly StartRequestBook? _startRequests;
     private readonly WorkItemBook? _workItems;
     private readonly IWorkstreamControl? _control;
     private readonly ISpecGates? _gates;
     private readonly Func<string, string>? _events;
     private readonly ProjectTools? _projectTools;
+    private readonly AskOwnerTool? _askOwner;
 
     /// <summary>Creates the handler over the work log, the sampler's intervals and the launched sessions.</summary>
     /// <param name="sessions">Finds the session a request's path names, or null for one Theseus did not launch.</param>
@@ -119,6 +124,11 @@ public sealed partial class McpHandler
     /// Makes the card for a proposal from a project's session, without approval (sessions-run-the-project item 1), and
     /// whether to start it; null when sessions in projects only propose.
     /// </param>
+    /// <param name="askOwner">ask_owner, which shows a session's question on the board (1.6), or null.</param>
+    /// <param name="startRequests">
+    /// Where a project's session's start of a card the owner paused waits for his Allow (sessions-run-the-project item 12),
+    /// or null, when such a start is refused.
+    /// </param>
     public McpHandler(
         WorkLog work,
         Func<IReadOnlyList<AttentionInterval>> attention,
@@ -137,9 +147,13 @@ public sealed partial class McpHandler
         ISpecGates? gates = null,
         Func<string, string>? events = null,
         ProjectTools? projectTools = null,
-        Func<WorkstreamProposal, bool, ProposalApproval>? create = null)
+        Func<WorkstreamProposal, bool, ProposalApproval>? create = null,
+        AskOwnerTool? askOwner = null,
+        StartRequestBook? startRequests = null)
     {
+        _startRequests = startRequests;
         _create = create;
+        _askOwner = askOwner;
         _projectTools = projectTools;
         _events = events;
         _gates = gates;
@@ -356,11 +370,12 @@ public sealed partial class McpHandler
                 "The cards you may start, stop, pause and resume, each with its state, why it is stopped, who made it and who paused it: in a project, every card of the project but your own; on the ordinary board, your descendants (cards made from proposals your card raised, and theirs in turn). Read-only.",
                 new JsonObject()),
             Tool("start_workstream",
-                "Start a card workstreams lists, resuming its conversation. An instruction, if given, is its opening prompt for this start only, such as \"more work: ...\". Refused if it is running, archived or blocked.",
+                "Start a card workstreams lists, resuming its conversation. An instruction, if given, is its opening prompt for this start only, such as \"more work: ...\". Refused if it is running, archived or blocked. In a project, a card the user paused is not started: your start waits for the user's Allow, and events() tells you their answer.",
                 new JsonObject
                 {
                     ["card"] = Property("The card's key or title, from workstreams."),
                     ["instruction"] = Property("Optional: what this start is for, given to it once."),
+                    ["reason"] = Property("Optional: why you want it started, shown to the user when the card is one they paused."),
                 },
                 "card"),
             Tool("stop_workstream",
@@ -376,11 +391,12 @@ public sealed partial class McpHandler
                 },
                 "card"),
             Tool("resume_workstream",
-                "Clear a session's pause on a card workstreams lists (in a project, any session's; otherwise yours) and start it, with an instruction for this start if given.",
+                "Clear a session's pause on a card workstreams lists (in a project, any session's; otherwise yours) and start it, with an instruction for this start if given. In a project, the user's own pause is not cleared: the resume waits for their Allow, and events() tells you their answer.",
                 new JsonObject
                 {
                     ["card"] = Property("The card's key or title, from workstreams."),
                     ["instruction"] = Property("Optional: what this start is for, given to it once."),
+                    ["reason"] = Property("Optional: why you want it started, shown to the user when the card is one they paused."),
                 },
                 "card"),
             Tool("record_work_item",
@@ -508,7 +524,8 @@ public sealed partial class McpHandler
                     ["who"] = Property("owner, work, or none to remove the note."),
                     ["what"] = Property("What it waits for, in plain words."),
                 },
-                "objective", "criterion", "text", "who")),
+                "objective", "criterion", "text", "who"),
+            AskOwnerTool.Definition.DeepClone()),
     };
 
     private McpResponse CallTool(JsonNode id, string sessionId, JsonObject? parameters)
@@ -566,8 +583,21 @@ public sealed partial class McpHandler
             "stop_workstream" => ControlWorkstream(session, arguments, WorkstreamCall.Stop),
             "pause_workstream" => ControlWorkstream(session, arguments, WorkstreamCall.Pause),
             "resume_workstream" => ControlWorkstream(session, arguments, WorkstreamCall.Resume),
+            AskOwnerTool.Name => AskOwner(session, arguments),
             _ => WhoAmI(session),
         });
+    }
+
+    private JsonObject AskOwner(McpSession session, JsonObject arguments)
+    {
+        if (_askOwner is null)
+        {
+            return Result("This Theseus does not show questions on the board.", isError: true);
+        }
+
+        var (text, isError) = _askOwner.Call(session, arguments);
+
+        return Result(text, isError);
     }
 
     /// <summary>accept_spec (1.1e AC 28): keeps the owner's words for him to confirm on the board; it accepts nothing.</summary>
@@ -718,6 +748,23 @@ public sealed partial class McpHandler
         }
 
         var inProject = project is not null;
+
+        // The owner's pause is his: in a project a session's start of it becomes his to allow (items 12, 16).
+        if (inProject && _startRequests is not null && call is WorkstreamCall.Start or WorkstreamCall.Resume
+            && card.Workstream is { IsPaused: true, PausedBy: null, IsArchived: false, IsBlocked: false } && !card.IsLive)
+        {
+            var (request, repeat) = _startRequests.Ask(card.Key, session.WorkstreamKey, Text(arguments["instruction"]),
+                Text(arguments["reason"]));
+
+            var mine = string.Equals(request.RequesterKey, session.WorkstreamKey, StringComparison.OrdinalIgnoreCase);
+
+            return Result($"{card.Title} is paused by the user, so it is not started: "
+                          + (!repeat ? $"your request ({request.Id}) waits for them in the project's Waits for you. "
+                              : mine ? $"your request ({request.Id}) was already waiting and is updated. "
+                              : $"{TitleOf(board, request.RequesterKey)}'s request ({request.Id}) was already waiting; it is told the answer, and workstreams shows the card's state. ")
+                          + (mine || !repeat ? "events() tells you whether they allow it; " : string.Empty)
+                          + "do not ask them again in the meantime.");
+        }
 
         var instruction = Text(arguments["instruction"]);
         var refusal = call switch

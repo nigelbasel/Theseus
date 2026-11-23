@@ -18,6 +18,9 @@ public sealed record WaitItem(WaitKind Kind, string Text, IReadOnlyList<string> 
     /// <summary>The proposal it concerns, for a proposal; null otherwise.</summary>
     public string? ProposalId { get; init; }
 
+    /// <summary>The start request it concerns, for a start request; null otherwise.</summary>
+    public string? StartRequestId { get; init; }
+
     /// <summary>The button's label, or null for something outside Theseus.</summary>
     public string? Button => Kind switch
     {
@@ -30,6 +33,7 @@ public sealed record WaitItem(WaitKind Kind, string Text, IReadOnlyList<string> 
         WaitKind.AddToObjective => "Add to project…",
         WaitKind.ConfirmReport => "Confirm the report…",
         WaitKind.Proposal => "Review the proposal…",
+        WaitKind.StartRequest => "Allow or refuse…",
         _ => null,
     };
 }

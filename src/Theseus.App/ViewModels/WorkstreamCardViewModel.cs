@@ -8,6 +8,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
 {
     private Workstream _workstream;
     private SessionLifecycle _lifecycle = SessionLifecycle.NotStarted;
+    private Theseus.Core.Questions.OwnerQuestion? _question;
     private Theseus.Core.Projects.WhyStopped? _stopReason;
     private string _verifyToolTip = string.Empty;
     private string _verifyMenuText = HoldoutChecks.VerifyMenuLabel;
@@ -320,6 +321,24 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
     /// <summary>What the archive button says, which is the opposite when it is already away.</summary>
     public string ArchiveLabel => IsArchived ? "Restore" : "Archive";
 
+    /// <summary>The question its session has open for the owner (1.6), or null; it is what the status line says while waiting.</summary>
+    public Theseus.Core.Questions.OwnerQuestion? Question
+    {
+        get => _question;
+        set
+        {
+            if (Set(ref _question, value))
+            {
+                RaiseStatus();
+            }
+        }
+    }
+
+    /// <summary>The status line's tooltip: the question with its options and why, when it asks one.</summary>
+    public string StatusToolTip => Question is { } question && Lifecycle == SessionLifecycle.NeedsAttention
+        ? Theseus.Core.Questions.QuestionWords.Detail(question)
+        : StatusLine;
+
     /// <summary>What the session is doing right now.</summary>
     public SessionLifecycle Lifecycle
     {
@@ -335,7 +354,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
                 Raise(nameof(ShowStop));
                 Raise(nameof(IsWorking));
                 Raise(nameof(IsRunning));
-                Raise(nameof(StatusLine));
+                RaiseStatus();
             }
         }
     }
@@ -388,7 +407,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
         {
             if (Set(ref _lifecycleSinceUtc, value))
             {
-                Raise(nameof(StatusLine));
+                RaiseStatus();
             }
         }
     }
@@ -401,7 +420,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
         {
             if (Set(ref _lastExitedUtc, value))
             {
-                Raise(nameof(StatusLine));
+                RaiseStatus();
             }
         }
     }
@@ -414,7 +433,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
         {
             if (Set(ref _lastStartedUtc, value))
             {
-                Raise(nameof(StatusLine));
+                RaiseStatus();
             }
         }
     }
@@ -627,7 +646,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
         {
             if (Set(ref _stopPending, value))
             {
-                Raise(nameof(StatusLine));
+                RaiseStatus();
             }
         }
     }
@@ -648,7 +667,9 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
         SessionLifecycle.Launching => "launching",
         SessionLifecycle.Running => Since("busy"),
         SessionLifecycle.Idle => Since("idle"),
-        SessionLifecycle.NeedsAttention => Since("waiting for you"),
+        SessionLifecycle.NeedsAttention => Question is { } question
+            ? Theseus.Core.Questions.QuestionWords.Card(question)
+            : Since("waiting for you"),
         SessionLifecycle.Ended => Since("ended"),
         SessionLifecycle.Ghost => "ended unexpectedly",
         _ => string.Empty,
@@ -708,7 +729,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
     /// <summary>The play button's tooltip: what it does, and what resuming would cost.</summary>
     public string PlayTooltip => StopReason?.Kind switch
     {
-        Theseus.Core.Projects.WhyStoppedKind.Done when !IsLive => "Restart for more work: asks what the more work is",
+        Theseus.Core.Projects.WhyStoppedKind.Done when !IsLive && Workstream.Project is null => "Restart for more work: asks what the more work is",
         Theseus.Core.Projects.WhyStoppedKind.ProjectStopped when !IsLive => "Start its project as it was when stopped",
         _ => string.IsNullOrWhiteSpace(RestartCost)
             ? $"{PrimaryAction} this workstream's session"
@@ -726,7 +747,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
         {
             if (Set(ref _stopReason, value))
             {
-                Raise(nameof(StatusLine));
+                RaiseStatus();
                 Raise(nameof(PrimaryAction));
                 Raise(nameof(PlayTooltip));
                 Raise(nameof(IsDone));
@@ -881,7 +902,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
     /// <summary>The single button the card offers on hover.</summary>
     public string PrimaryAction => IsLive ? "Focus" : StopReason?.Kind switch
     {
-        Theseus.Core.Projects.WhyStoppedKind.Done => "Restart for more work",
+        Theseus.Core.Projects.WhyStoppedKind.Done when Workstream.Project is null => "Restart for more work",
         Theseus.Core.Projects.WhyStoppedKind.ProjectStopped => "Start its project",
         _ => DefaultAction,
     };
@@ -892,6 +913,12 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
         SessionLifecycle.Ended or SessionLifecycle.Ghost => "Restart",
         _ => "Focus",
     };
+
+    private void RaiseStatus()
+    {
+        Raise(nameof(StatusLine));
+        Raise(nameof(StatusToolTip));
+    }
 
     private string Since(string verb)
     {

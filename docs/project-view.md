@@ -72,9 +72,10 @@ on the board accepts it. **Properties** shows the record: the version, when, by 
 The window follows its file: a spec changed on disk is drawn again and says so, and one changed since it was drawn is
 drawn again before it can be accepted. **Open in editor** opens the file itself; **Close** or **Esc** closes the window.
 
-A session in a project proposes a new workstream naming the objective it serves, its branch and its repos. Approving it
-writes its row under that objective, with branch `none` and repos `read-only` when it names none; a proposal from a
-project's card that names no objective says so in New workstream, and Create waits until it does. A verifier card's row
+A session in a project creates a new workstream naming the objective it serves, its records folder, its branch and its
+repos; the card is made at once and its row written under that objective, with branch `none` and repos `read-only` when
+it names none. One naming no objective, or one the file does not have, is refused and nothing is made. A session's start
+of a card you paused waits in **Waits for you** with **Allow or refuse…**. A verifier card's row
 is written too, under the checked card's objective, its records folder named verify- and the checked one's.
 
 ## Writing prompts

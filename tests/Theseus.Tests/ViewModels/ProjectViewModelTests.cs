@@ -99,6 +99,22 @@ public class ProjectViewModelTests
     }
 
     [Test]
+    public void ASessionsStartOfACardYouPaused_WaitsForYou_AndItsButtonAsks()
+    {
+        var waiting = new StartRequest("sr-1", ACard, "lead", null, "its spec is accepted", DateTimeOffset.UnixEpoch);
+        var elsewhere = new StartRequest("sr-2", "not-in-this-project", "lead", null, null, DateTimeOffset.UnixEpoch);
+        var decided = new StartRequest("sr-3", ACard, "lead", null, null, DateTimeOffset.UnixEpoch, StartRequestStatus.Refused);
+        var wait = _views.OneWith([], [waiting, elsewhere, decided]).Waits.Single(each => each.Item.Kind == WaitKind.StartRequest);
+
+        Assert.That((wait.Text, wait.Button), Is.EqualTo(
+            ("title of lead wants to start Something, which you paused: its spec is accepted", "Allow or refuse…")));
+
+        wait.Command!.Execute(null);
+
+        Assert.That(_views.Ran, Is.EqualTo(new[] { "AnswerStartRequest:sr-1" }));
+    }
+
+    [Test]
     public void ABugsWaitsButton_AcceptsTheRule()
     {
         var view = _views.One("bug", new Dictionary<string, string>
