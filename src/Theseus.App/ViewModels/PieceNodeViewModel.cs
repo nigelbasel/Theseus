@@ -109,6 +109,12 @@ public sealed class PieceNodeViewModel : ObservableObject, IFoldable
     /// <summary>Whether it has a branch under it.</summary>
     public bool HasChildren => Children.Count > 0;
 
+    /// <summary>The fold of its branch, when it has one (project-view-usability item 1); null with none.</summary>
+    public ChildrenFold? Branch { get; init; }
+
+    /// <summary>Every box beneath it, at any depth.</summary>
+    public IEnumerable<PieceNodeViewModel> Descendants => Children.SelectMany(child => child.Descendants.Prepend(child));
+
     /// <summary>Whether it hands work to more than one piece at once.</summary>
     public bool IsParallel => Node.IsParallel;
 
