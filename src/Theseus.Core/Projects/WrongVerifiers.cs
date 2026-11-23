@@ -26,11 +26,12 @@ public static class WrongVerifiers
                      .GroupBy(verifier => verifier.Subject, StringComparer.OrdinalIgnoreCase))
         {
             var elsewhere = build.Where(verifier => RanAnotherProjects(verifier, ownerOf)).OrderBy(verifier => verifier.CreatedUtc).ToList();
-            // One that cannot run under today's rules and has reported nothing would only ask for Start again (git-22,
-            // 2026-11-23); one running is left to run when only its build's name is missing, which a rewrite can cause.
+            // One made before Checks lines is not today's check, even once it has reported, unless he confirmed its report: its
+            // report would otherwise stand as the build's check, and no verifier is ever made (git-22, 2026-11-23 20:01). One
+            // of today's whose build is only unnamed goes when it has neither reported nor a session, which a rewrite can cause.
             var stranded = build.Except(elsewhere)
-                .Where(verifier => !verifier.ReportConfirmed && !verifier.HasReport
-                                   && (!verifier.BriefNamesChecks || (!verifier.SubjectNamed && !verifier.IsRunning)))
+                .Where(verifier => !verifier.ReportConfirmed
+                                   && (!verifier.BriefNamesChecks || (!verifier.SubjectNamed && !verifier.IsRunning && !verifier.HasReport)))
                 .OrderBy(verifier => verifier.CreatedUtc).ToList();
             var right = build.Except(elsewhere).Except(stranded).OrderBy(verifier => verifier.CreatedUtc).ToList();
             var kept = right.LastOrDefault();
@@ -38,7 +39,9 @@ public static class WrongVerifiers
             wrong.AddRange(elsewhere.Select(verifier => new WrongVerifier(verifier.Key, verifier.Title, verifier.Subject,
                 verifier.IsRunning, $"it ran another project's scenarios, in {VerifierRecord.HoldoutOfReport(verifier.ReportPath)}")));
             wrong.AddRange(stranded.Select(verifier => new WrongVerifier(verifier.Key, verifier.Title, verifier.Subject, verifier.IsRunning,
-                !verifier.BriefNamesChecks
+                !verifier.BriefNamesChecks && verifier.HasReport
+                    ? "it ran before scenarios named their work, so its report is not a check under today's rules"
+                : !verifier.BriefNamesChecks
                     ? "it was made before scenarios named their work, so it has nothing it may run"
                     : "no scenario names its build, so it has nothing it may run")));
             wrong.AddRange(right.Where(verifier => verifier != kept && !verifier.ReportConfirmed).Select(verifier => new WrongVerifier(

@@ -55,9 +55,23 @@ public class WrongVerifiersTests
     [Test]
     public void AVerifierWhoseReportHasArrived_IsNotStranded_ItWaitsForHisConfirmation()
     {
-        var wrong = WrongVerifiers.Among([Verifier("verify-x", "theseus-1-3", TheseusHoldout, Nine) with { BriefNamesChecks = false, HasReport = true }], OwnerOf);
+        var wrong = WrongVerifiers.Among([Verifier("verify-x", "theseus-1-3", TheseusHoldout, Nine) with { SubjectNamed = false, HasReport = true }], OwnerOf);
 
         Assert.That(wrong, Is.Empty, "review of the follow-ups, S2: Clear up rejected a report waiting under Confirm the report…");
+    }
+
+    [Test]
+    public void AnOldBriefVerifierThatReported_Goes_UnlessHeConfirmedTheReport()
+    {
+        var wrong = WrongVerifiers.Among(
+        [
+            Verifier("verify-read", "theseus-1-3", TheseusHoldout, Nine) with { BriefNamesChecks = false, HasReport = true },
+            Verifier("verify-confirmed", "theseus-1-6", TheseusHoldout, Nine, confirmed: true) with { BriefNamesChecks = false, HasReport = true },
+        ], OwnerOf);
+
+        Assert.That(wrong.Single().Key, Is.EqualTo("verify-read"),
+            "git-22, 2026-11-23 20:01: its needs-clarification report, read by hand, counted as the build's check, so no verifier was made");
+        Assert.That(wrong.Single().Why, Is.EqualTo("it ran before scenarios named their work, so its report is not a check under today's rules"));
     }
 
     [Test]
