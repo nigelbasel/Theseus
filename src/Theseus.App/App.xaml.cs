@@ -163,6 +163,12 @@ public partial class App : Application
                 MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes;
         }
 
+        if (shell.Settings.FolderTrust is { } trust)
+        {
+            trust.ConfirmChange = change => MessageBox.Show(MainWindow, change, "Trust these folders in Claude Code?",
+                MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes;
+        }
+
         // Said once for each newer guard an update brings, until it is installed from Options.
         if (HoldoutGuardNotice(settings) is { } guardNotice)
         {

@@ -23,6 +23,31 @@ public static class StartNotice
         return string.Join(" ", new[] { outcome }.Concat(refusals).OfType<string>());
     }
 
+    /// <summary>
+    /// The line for sessions started beside an older tab of the same name with nothing running in it, or null for none.
+    /// Said, not asked: asking made every Start two presses (Nigel, 2026-11-23).
+    /// </summary>
+    /// <param name="titles">The titles of the started workstreams that already had such a tab.</param>
+    public static string? OldTabLine(IReadOnlyList<string> titles) => titles.Count switch
+    {
+        0 => null,
+        1 => $"{titles[0]} also has an older tab open with nothing running in it; close it when you see it.",
+        _ => $"{string.Join(", ", titles)} also have older tabs open with nothing running in them; close them when you see them.",
+    };
+
+    /// <summary>
+    /// The line for the folders Claude Code will ask the owner to trust in the new tabs, or null when it will ask about
+    /// none: said on the board so the question in the tab is expected, with where to answer it once for every start
+    /// (project-view-usability item 7, Nigel 2026-11-23).
+    /// </summary>
+    /// <param name="keys">The trust records the started sessions lack.</param>
+    public static string? TrustLine(IReadOnlyList<string> keys) => keys.Count switch
+    {
+        0 => null,
+        1 => $"Claude Code will ask you in the tab to trust {keys[0]}: Options › Folder trust trusts it once for every start.",
+        _ => $"Claude Code will ask you in the tab to trust {keys.Count} folders ({string.Join(", ", keys)}): Options › Folder trust trusts them once for every start.",
+    };
+
     /// <summary>The line for one start the terminal refused.</summary>
     public static string Refusal(string title, string reason) =>
         $"{title} did not start: the terminal would not start ({reason}). The log has the details.";

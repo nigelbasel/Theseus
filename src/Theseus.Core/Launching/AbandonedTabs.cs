@@ -26,10 +26,16 @@ public static class AbandonedTabs
     /// <param name="starting">The workstreams a Start is about to launch.</param>
     /// <param name="tabTitles">Every terminal tab title that could be read.</param>
     /// <param name="live">The sessions running right now.</param>
+    /// <param name="occupiedTitles">
+    /// The titles of other workstreams launching or running now, each of which owns one tab. Two checks of the same work
+    /// share a title, so a tab of that name may be a sibling's (Nigel, 2026-11-23: every verifier Start asked for "Open
+    /// new tabs"). A workstream is held only when more tabs carry its name than its siblings account for.
+    /// </param>
     public static IReadOnlyList<Workstream> Among(
         IReadOnlyList<Workstream> starting,
         IReadOnlyList<string> tabTitles,
-        SessionRegistrySnapshot live)
+        SessionRegistrySnapshot live,
+        IReadOnlyList<string>? occupiedTitles = null)
     {
         ArgumentNullException.ThrowIfNull(starting);
         ArgumentNullException.ThrowIfNull(tabTitles);
@@ -44,9 +50,12 @@ public static class AbandonedTabs
         [
             .. starting.Where(workstream =>
                 !IsRunning(workstream, live)
-                && tabTitles.Any(title => LooseName.Same(title, workstream.Title)))
+                && Count(tabTitles, workstream.Title) > Count(occupiedTitles ?? [], workstream.Title))
         ];
     }
+
+    private static int Count(IReadOnlyList<string> titles, string title) =>
+        titles.Count(candidate => LooseName.Same(candidate, title));
 
     /// <summary>
     /// Whether a session is registered for this workstream. A workstream whose session is live is not

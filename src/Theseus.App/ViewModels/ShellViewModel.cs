@@ -98,15 +98,6 @@ public sealed class ShellViewModel : ObservableObject
     private readonly HashSet<string> _unconfirmed = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Workstreams a Start held back because a tab of their own name is already open with nothing
-    /// running in it. They wait for an answer rather than opening a second tab beside the first.
-    /// </summary>
-    private IReadOnlyList<Workstream> _heldForTabs = [];
-
-    /// <summary>How the held workstreams were asked to start, so Start anyway honours it.</summary>
-    private StartMode? _heldStartMode;
-
-    /// <summary>
     /// Workstreams a Start held back because they still wait on an input. A fresh session with
     /// nothing to read only goes looking for a document that does not exist yet.
     /// </summary>
@@ -270,6 +261,10 @@ public sealed class ShellViewModel : ObservableObject
         {
             Tags = new TagsViewModel(Board.Tags),
             Guard = new HoldoutGuardViewModel(new HoldoutGuardInstallation(HoldoutGuardInstallation.UserConfigFolder())),
+            FolderTrust = new FolderTrustViewModel(
+                new Theseus.Core.Trust.ClaudeFolderTrust(Theseus.Core.Trust.ClaudeFolderTrust.UserConfigPath(),
+                    Path.Combine(App.DataDirectory, "folder-trust-undo.json")),
+                () => Board.Cards.Where(card => !card.IsArchived).SelectMany(card => SessionFolders(card.Workstream))),
         };
         Drawer.TagsInUse = Board.Tags.InUse;
         Board.Tags.AskNewTag = () => AskText?.Invoke("New tag", "A tag: letters, digits and hyphens, such as security or waiting-on-dpo", string.Empty);
@@ -364,16 +359,6 @@ public sealed class ShellViewModel : ObservableObject
         ConfirmStopsCommand = new RelayCommand(_ => ConfirmStops());
         AbandonStopsCommand = new RelayCommand(_ => AbandonStops());
 
-        StartAnywayCommand = new RelayCommand(_ =>
-        {
-            var held = _heldForTabs;
-            var mode = _heldStartMode;
-
-            _heldForTabs = [];
-            TabsChanged();
-            StartMany(held, evenIfTabsExist: true, evenIfWaiting: true, startMode: mode);
-        });
-
         StartWithoutInputsCommand = new RelayCommand(_ =>
         {
             var held = _heldForInputs;
@@ -391,15 +376,6 @@ public sealed class ShellViewModel : ObservableObject
             _heldForInputs = [];
             InputsChanged();
             Notice = count == 1 ? "Left the waiting card unstarted." : $"Left {count} waiting cards unstarted.";
-        });
-
-        KeepExistingTabsCommand = new RelayCommand(_ =>
-        {
-            var count = _heldForTabs.Count;
-
-            _heldForTabs = [];
-            TabsChanged();
-            Notice = count == 1 ? "Left its tab alone." : $"Left {count} tabs alone.";
         });
 
         CollapseInactiveCommand = new RelayCommand(_ => Collapse(true),
@@ -562,33 +538,6 @@ public sealed class ShellViewModel : ObservableObject
 
     /// <summary>Opens every card again.</summary>
     public RelayCommand ExpandAllCommand { get; }
-
-    /// <summary>Starts the held-back workstreams anyway, opening a second tab for each.</summary>
-    public RelayCommand StartAnywayCommand { get; }
-
-    /// <summary>Drops them, leaving their existing tabs alone.</summary>
-    public RelayCommand KeepExistingTabsCommand { get; }
-
-    /// <summary>Whether a Start is waiting on an answer about tabs already open.</summary>
-    public bool HasHeldForTabs => _heldForTabs.Count > 0;
-
-    /// <summary>What the strip says: which workstreams already have a tab, and how many.</summary>
-    public string HeldForTabsSummary
-    {
-        get
-        {
-            if (_heldForTabs.Count == 0)
-            {
-                return string.Empty;
-            }
-
-            var names = string.Join(" · ", _heldForTabs.Select(workstream => workstream.Title));
-
-            return _heldForTabs.Count == 1
-                ? $"{names} already has a tab open, with no session running in it."
-                : $"{_heldForTabs.Count} workstreams already have a tab open with no session running in it: {names}.";
-        }
-    }
 
     /// <summary>Goes ahead with the stops that were asked for before the board opened.</summary>
     public RelayCommand ConfirmStopsCommand { get; }
@@ -4043,12 +3992,6 @@ public sealed class ShellViewModel : ObservableObject
         Raise(nameof(HeldForInputsSummary));
     }
 
-    private void TabsChanged()
-    {
-        Raise(nameof(HasHeldForTabs));
-        Raise(nameof(HeldForTabsSummary));
-    }
-
     /// <summary>
     /// Which of these already have a tab of their own name with nothing running in it.
     ///
@@ -4064,7 +4007,13 @@ public sealed class ShellViewModel : ObservableObject
                 .SelectMany(window => window.Tabs)
                 .ToList();
 
-            return AbandonedTabs.Among(workstreams, titles, Sessions.Snapshot);
+            var starting = workstreams.Select(workstream => workstream.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var occupied = Board.Cards
+                .Where(card => card.IsLive && !starting.Contains(card.Key))
+                .Select(card => card.Title)
+                .ToList();
+
+            return AbandonedTabs.Among(workstreams, titles, Sessions.Snapshot, occupied);
         }
         catch (Exception exception) when (exception is InvalidOperationException or System.Runtime.InteropServices.COMException)
         {
@@ -4151,17 +4100,16 @@ public sealed class ShellViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Starts what was asked for, holding back anything that already has a tab of its own name with
-    /// nothing running in it. Those are asked about rather than launched: opening a second tab beside
-    /// an abandoned one is what surprised Nigel on 2026-09-07, and the board gave no sign which tab
-    /// was which.
+    /// Starts what was asked for. Anything that already has a tab of its own name with nothing running in it starts too,
+    /// and the board says so: a second tab beside an abandoned one surprised Nigel on 2026-09-07, and asking first made
+    /// every Start two presses (Nigel, 2026-11-23).
     /// </summary>
-    private void StartMany(IReadOnlyList<Workstream> workstreams, bool evenIfTabsExist = false,
+    private void StartMany(IReadOnlyList<Workstream> workstreams,
         StartMode? startMode = null, bool evenIfWaiting = false,
         [System.Runtime.CompilerServices.CallerMemberName] string trigger = "")
     {
         // Which gesture asked, recorded before anything can go wrong with it. There are four callers
-        // — a card's own button, Start selected, "Open new tabs", and creating a workstream — and
+        // — a card's own button, Start selected, Start without inputs, and creating a workstream — and
         // when one press produced two launches on 2026-09-08 nothing said whether one caller had run
         // twice or two callers had each run once. Those want different fixes.
         TheseusLog.Information("{Trigger} asked to start {Count} workstream(s) ({StartMode}): {Keys}",
@@ -4230,22 +4178,12 @@ public sealed class ShellViewModel : ObservableObject
             }
         }
 
-        if (!evenIfTabsExist && Abandoned(workstreams) is { Count: > 0 } held)
-        {
-            // The rest go now; only the ones with a tab already open wait for an answer.
-            _heldForTabs = held;
-            _heldStartMode = startMode;
-            TabsChanged();
-
-            workstreams = [.. workstreams.Except(held)];
-
-            if (workstreams.Count == 0)
-            {
-                return;
-            }
-        }
+        // One press opens the tab (Nigel, 2026-11-23: "this seems onerous"): a tab already open under the same name
+        // with nothing running in it is said on the board, not asked about first.
+        var withOldTabs = Abandoned(workstreams);
 
         var started = new List<string>();
+        var startedFolders = new List<string>();
         var refusals = new List<string>();
 
         foreach (var candidate in workstreams)
@@ -4311,12 +4249,22 @@ public sealed class ShellViewModel : ObservableObject
             Remember(workstream, sessionId);
             RunCommands.Started(workstream.Key);
             started.Add(workstream.Title);
+            startedFolders.AddRange(SessionFolders(workstream));
         }
 
-        Notice = StartNotice.For(started, refusals);
+        var untrusted = Settings.FolderTrust?.NeedsFor(startedFolders).Select(need => need.Key).ToList() ?? [];
+        var oldTabs = withOldTabs.Where(workstream => started.Contains(workstream.Title)).Select(workstream => workstream.Title).ToList();
+        Notice = string.Join(" ", new[]
+        {
+            StartNotice.For(started, refusals), StartNotice.OldTabLine(oldTabs), StartNotice.TrustLine(untrusted),
+        }.OfType<string>());
 
         Refresh();
     }
+
+    // The folders a session starts in or adds, which Claude Code asks the owner to trust.
+    private static IEnumerable<string> SessionFolders(Workstream workstream) =>
+        new[] { workstream.WorkingDirectory }.Concat(workstream.AddDirectories);
 
     private void Remember(Workstream workstream, string sessionId)
     {
