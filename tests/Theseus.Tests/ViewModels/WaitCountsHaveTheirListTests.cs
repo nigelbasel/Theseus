@@ -81,6 +81,16 @@ public class WaitCountsHaveTheirListTests
     }
 
     [Test]
+    public void AnAskingVerifier_IsAWaitForYou_AimedAtTheVerifier()
+    {
+        var view = WithVerifier("bym-mcp-identity", SessionLifecycle.NeedsAttention);
+        var line = ObjectiveOf(view, "bym-mcp-identity").Waits.Single(wait => wait.Item.Kind == WaitKind.Answer);
+
+        Assert.That(line.Item.CardKey, Is.EqualTo(Verifier), "Answer it focuses the verifier, which is the one asking");
+        AssertEveryMarkHasItsList(view);
+    }
+
+    [Test]
     public void AnUnstartedVerifier_IsListedUnderItsObjective_WithItsStart()
     {
         var view = WithVerifier("bym-mcp-identity", SessionLifecycle.NotStarted);

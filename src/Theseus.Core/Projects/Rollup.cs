@@ -29,15 +29,17 @@ public sealed record Rollup(RollupState State, string Text, IReadOnlyList<string
         var asking = Names(serving.Where(piece => piece.IsCurrentPiece && piece.Card is { Lifecycle: SessionLifecycle.NeedsAttention }));
         var actors = Actors(working);
 
-        if (objective.IsDone)
-        {
-            return new Rollup(RollupState.Met, "✓ Met", [], "Met: every criterion is ticked. Nobody acts. Nothing for you to do.");
-        }
-
+        // Waiting for you wins over met: a ticked objective can still have a check to start or a report to confirm, and the
+        // items under it must never sit beside a mark that says nothing is wanted (review of item 6, finding 1).
         if (objective.Criteria.Any(criterion => criterion.WaitsOnOwner) || ObjectiveWaits.For(objective.Number, serving, waits).Count > 0)
         {
             return new Rollup(RollupState.WaitingForYou, "◆ Waiting for you", [.. asking.Union(working)],
-                "Waiting for you: a criterion waits on you, or a piece of work serving it does. You act. See Waits for you at the top.");
+                "Waiting for you: a criterion waits on you, or a piece of work serving it does. You act. See the items under it.");
+        }
+
+        if (objective.IsDone)
+        {
+            return new Rollup(RollupState.Met, "✓ Met", [], "Met: every criterion is ticked. Nobody acts. Nothing for you to do.");
         }
 
         if (working.Count > 0)

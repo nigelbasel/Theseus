@@ -23,6 +23,9 @@ public sealed record PieceStatus(StageNodeState State, string Text)
     /// <summary>The question its session asks the owner, which its "Waits for you" item quotes (1.6); null when none.</summary>
     public OwnerQuestion? Question { get; init; }
 
+    /// <summary>The card the owner acts on, when it is not the piece's own: a verifier asking him something (item 6).</summary>
+    public string? ActsOnCard { get; init; }
+
     /// <summary>The state's mark.</summary>
     public string Mark => StageNodeStates.Mark(State);
 
@@ -125,7 +128,20 @@ public sealed record PieceStatus(StageNodeState State, string Text)
             };
         }
 
-        // A verifier already running for it means its check is under way: nothing waits on the owner (item 6).
+        // A verifier with a session means its check is under way: nothing waits on the owner unless it asks him (item 6).
+        if (stages.Any(stage => stage.State == StageNodeState.HoldoutsNotRun)
+            && piece.PendingVerifiers.FirstOrDefault(verifier => verifier.HasSession && (verifier.Lifecycle == SessionLifecycle.NeedsAttention || verifier.IsBlocked)) is { } asking)
+        {
+            return new PieceStatus(StageNodeState.HoldoutsNotRun, $"Built; its check waits for you: {asking.Title} "
+                + (asking.IsBlocked ? "is blocked." : "has asked you something in its terminal."))
+            {
+                WhoActs = "You; the check does nothing until you answer.",
+                Action = PieceAction.Answer,
+                WaitsForYou = true,
+                ActsOnCard = asking.Key,
+            };
+        }
+
         if (stages.Any(stage => stage.State == StageNodeState.HoldoutsNotRun)
             && piece.PendingVerifiers.FirstOrDefault(verifier => verifier.HasSession) is { } checking)
         {

@@ -79,7 +79,7 @@ public sealed class ProjectOverview
                 continue;
             }
 
-            if (!status.WaitsForYou || status.State == StageNodeState.HoldoutsNotRun)
+            if (!status.WaitsForYou || (status.State == StageNodeState.HoldoutsNotRun && status.ActsOnCard is null))
             {
                 continue;
             }
@@ -96,7 +96,7 @@ public sealed class ProjectOverview
                 ? Questions.QuestionWords.Named(piece.Title, question)
                 : $"{piece.Title}: {status.WhoActs}";
 
-            waits.Add(new WaitItem(kind, text, [piece.Name]) { CardKey = piece.CardKey });
+            waits.Add(new WaitItem(kind, text, [piece.Name]) { CardKey = status.ActsOnCard ?? piece.CardKey });
         }
 
         // A verifier card made and not started waits for the owner alone, whatever its subject's state: a verifier has no
@@ -112,7 +112,7 @@ public sealed class ProjectOverview
 
         // One line for a round's independent checks, with the list in the dialog (G36). A build whose verifier card stands
         // is left out, so a second press makes no duplicate (Nigel, 2026-11-23).
-        foreach (var round in pieces.Where(piece => piece.Status.State == StageNodeState.HoldoutsNotRun).GroupBy(piece => piece.Round))
+        foreach (var round in pieces.Where(piece => piece.Status is { State: StageNodeState.HoldoutsNotRun, ActsOnCard: null }).GroupBy(piece => piece.Round))
         {
             var builds = round.Where(piece => piece.PendingVerifiers.Count == 0).ToList();
 

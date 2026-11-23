@@ -99,4 +99,16 @@ public class ObjectivesLensTests
 
         Assert.That(Rollup.Of(file.Objectives[0], [], []).State, Is.EqualTo(RollupState.WaitingForYou));
     }
+
+    [Test]
+    public void AMetObjective_WithSomethingStillWaiting_SaysWaitingForYou()
+    {
+        // Review of item 6, finding 1: "✓ Met" above an orange list of things to do said two opposite things.
+        var file = ProjectFileReader.Read("p", TestProjectsFolder.ProjectText("P", body: "## Phase 0: S\n\n### Objective 0.1: O\n"
+            + "- [x] One.\n\n**Pipeline:** freeform\n| Workstream | Slug | Branch | Repos |\n|---|---|---|---|\n")).File!;
+        var piece = ProjectViewFixtures.OnePiece(_folder, "feature", ProjectViewFixtures.Files("spec.md"), accepted: true);
+        WaitItem confirm = new(WaitKind.ConfirmReport, "It reported back.", [piece.Name]);
+
+        Assert.That(Rollup.Of(file.Objectives[0], [piece], [confirm]).State, Is.EqualTo(RollupState.WaitingForYou));
+    }
 }

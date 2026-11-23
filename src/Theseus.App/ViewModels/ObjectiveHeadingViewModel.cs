@@ -27,10 +27,9 @@ public sealed class ObjectiveHeadingViewModel : ObservableObject, IFoldable
         PhaseTitle = phaseTitle;
         Pieces = pieces;
         Summary = ProjectSummary.For(group.Pieces);
-        var items = projectWaits.Select(wait => wait.Item).ToList();
-        var mine = Objective is { } owned ? ObjectiveWaits.For(owned.Number, group.Pieces, items) : [];
-        Waits = [.. projectWaits.Where(wait => mine.Contains(wait.Item))];
-        Rollup = Objective is { } rolled ? Theseus.Core.Projects.Rollup.Of(rolled, group.Pieces, items) : null;
+        var belongs = ObjectiveWaits.Belongs(Objective?.Number, group.Pieces);
+        Waits = [.. projectWaits.Where(wait => belongs(wait.Item))];
+        Rollup = Objective is { } rolled ? Theseus.Core.Projects.Rollup.Of(rolled, group.Pieces, [.. projectWaits.Select(wait => wait.Item)]) : null;
         _isOpen = isOpen;
         ToggleCommand = new RelayCommand(_ => toggle(this));
         SelectCommand = new RelayCommand(_ => select(this));
