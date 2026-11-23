@@ -526,7 +526,9 @@ public sealed class ProjectViewModel : ObservableObject
                 .SelectMany(node => node.Children.Select(child => new ConnectorLink(node, child, ConnectorKind.HandsOver))),
             .. tree.ThenWorkedOn.Select(link => new ConnectorLink(byPiece[link.From], byPiece[link.To], ConnectorKind.ThenWorkedOn)),
         ];
-        view.Waits = [.. view.Overview.Waits.Select(item => new WaitItemViewModel(item, view.WaitCommand(item, reading.Name)))];
+        view.Waits = [.. view.Overview.Waits.Select(item => item.Kind == WaitKind.CheckCannotRun
+            ? view.CannotRunLine(item)
+            : new WaitItemViewModel(item, view.WaitCommand(item, reading.Name)))];
         view.Counts = [.. StateCountViewModel.For(view.Summary, zeros: true).Select(chip => chip with
         {
             Command = new RelayCommand(_ => view.ToggleFilter(chip.State,
@@ -556,20 +558,6 @@ public sealed class ProjectViewModel : ObservableObject
         }
 
         return view;
-    }
-
-    /// <summary>
-    /// The specs of a project's pieces that wait at their gate, for a project card's waiting count (project-view AC 12)
-    /// without building the whole view.
-    /// </summary>
-    public static IReadOnlyList<SpecAtGate> SpecsWaiting(ProjectFileReading reading, IReadOnlyList<PieceOfWork> pieces)
-    {
-        ArgumentNullException.ThrowIfNull(reading);
-        ArgumentNullException.ThrowIfNull(pieces);
-
-        var specs = SpecsOf(reading, reading.Name, pieces);
-
-        return [.. pieces.Select(piece => specs.GetValueOrDefault(piece.Name)).OfType<SpecAtGate>()];
     }
 
     /// <summary>
@@ -992,6 +980,12 @@ public sealed class ProjectViewModel : ObservableObject
     }
 
     // Each kind of wait runs what its piece's own button runs, so the two never disagree (G37).
+    // A check that cannot run offers its way on as its button, or none when there is nothing the owner can press.
+    private WaitItemViewModel CannotRunLine(WaitItem item) =>
+        item.CardKey is { } card && _actions.WayOn?.Invoke(card, StageAction.VerifyWithHoldouts) is { } wayOn
+            ? new WaitItemViewModel(item, wayOn.Command, button: wayOn.Label, toolTip: wayOn.ToolTip)
+            : new WaitItemViewModel(item, null);
+
     private System.Windows.Input.ICommand? WaitCommand(WaitItem item, string project)
     {
         var node = item.Pieces.Count == 0 ? null : AllNodes.FirstOrDefault(each => each.Name == item.Pieces[0]);

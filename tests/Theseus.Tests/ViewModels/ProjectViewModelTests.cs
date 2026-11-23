@@ -399,7 +399,7 @@ public class ProjectViewModelTests
 
         Assert.That(verify.IsEnabled, Is.False);
         Assert.That(verify.ToolTip, Is.EqualTo(
-            "git-22 has moved on to projects-and-method-ui; Independent check checks a card's current work"));
+            "git-22 has moved on to projects-and-method-ui; an independent check looks at a card's current work"));
     }
 
     [Test]

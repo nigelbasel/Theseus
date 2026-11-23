@@ -459,6 +459,20 @@ public class PiecesOfWorkTests
     }
 
     [Test]
+    public void AResearchPieceShapedLikeAVerifiersRow_WhoseCardIsOnTheBoard_IsStillAPiece()
+    {
+        // Review of P1, should-fix 4: a proposal with no branch and no repos is written "none" and "read-only" too, so a
+        // research piece called "Verify the migration" has a verifier's row; its card on the board says what it is.
+        _folder.Write("shaped/project.md", TestProjectsFolder.ProjectText("Shaped", body: "## Phase 0: Start\n\n### Objective 0.1: Something\n"
+            + "- [ ] A criterion.\n\n**Pipeline:** feature\n| Workstream | Slug | Branch | Repos | What |\n|---|---|---|---|---|\n"
+            + "| verify-the-migration | verify-the-migration | none | read-only | Verify the migration |\n"));
+
+        var pieces = PiecesOfWork.Build(ProjectViewFixtures.Read(_folder, "shaped"), _ => null, [Card("verify-the-migration")], []);
+
+        Assert.That(pieces.Select(piece => piece.Name), Is.EqualTo(new[] { "verify-the-migration" }));
+    }
+
+    [Test]
     public void AVerifierNamedInARow_IsNotAPiece()
     {
         var reading = WriteOne(_folder, "feature", Files("spec.md"));

@@ -78,6 +78,6 @@ public static class ProjectViewCommands
             whyNot is null ? null : (key, action) => cardOf(key) is { } card ? whyNot(card, action) : $"{key} is not on the board",
             wayOn is null ? null : (key, action) => cardOf(key) is { } card ? wayOn(card, action) : null);
 
-        return actions with { Explain = explain };
+        return actions;
     }
 }

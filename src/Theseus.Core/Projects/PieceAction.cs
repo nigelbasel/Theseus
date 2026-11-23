@@ -18,7 +18,6 @@ public enum PieceAction
     /// <summary>Answer the question its session asked, in its terminal.</summary>
     Answer,
 
-
     /// <summary>Open the evidence that failed.</summary>
     OpenEvidence,
 

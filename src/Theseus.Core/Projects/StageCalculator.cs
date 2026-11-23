@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace Theseus.Core.Projects;
 
 /// <summary>
@@ -139,27 +141,31 @@ public static class StageCalculator
         };
 
     /// <summary>
-    /// The file that records a stage in this folder: <see cref="RecordFileOf"/>, or a numbered or suffixed one of the same
-    /// name, such as review-pr1.md for review.md, the first in name order; null when there is none. Two reviews kept as
-    /// review-pr1.md and review-pr2.md showed Review as "not started" (walkthrough row 28).
+    /// The file that records a stage in this folder: <see cref="RecordFileOf"/>, or the latest numbered one of the same
+    /// name, such as review-pr2.md or review-2.md for review.md; null when there is none. Two reviews kept as review-pr1.md
+    /// and review-pr2.md showed Review as "not started" (walkthrough row 28). Spec and Verify take only their own name,
+    /// because the gate and the evidence are read from spec.md and evidence.md alone; and a word suffix such as
+    /// plan-old.md is not a record.
     /// </summary>
     public static string? RecordFileIn(PipelineKind pipeline, PipelineStage stage, IReadOnlySet<string> files)
     {
         ArgumentNullException.ThrowIfNull(files);
         var name = RecordFileOf(pipeline, stage);
 
-        if (files.Contains(name))
+        if (files.Contains(name) || stage is PipelineStage.Spec or PipelineStage.Verify)
         {
-            return name;
+            return files.Contains(name) ? name : null;
         }
 
-        var stem = Path.GetFileNameWithoutExtension(name);
+        var numbered = new System.Text.RegularExpressions.Regex(
+            $@"^{System.Text.RegularExpressions.Regex.Escape(Path.GetFileNameWithoutExtension(name))}-(pr)?(?<n>[0-9]{{1,6}})\.md$",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
 
         return files
-            .Where(file => file.StartsWith(stem + "-", StringComparison.OrdinalIgnoreCase)
-                           && file.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
-            .Order(StringComparer.OrdinalIgnoreCase)
-            .FirstOrDefault();
+            .Select(file => (File: file, Match: numbered.Match(file)))
+            .Where(each => each.Match.Success)
+            .OrderBy(each => int.Parse(each.Match.Groups["n"].Value, CultureInfo.InvariantCulture))
+            .LastOrDefault().File;
     }
 
     private static StageGate Gate(PipelineKind pipeline, PipelineStage stage, IReadOnlyList<PipelineStage> reached,

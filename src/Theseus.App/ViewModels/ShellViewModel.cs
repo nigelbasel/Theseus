@@ -583,12 +583,12 @@ public sealed partial class ShellViewModel : ObservableObject
     /// <summary>Properties' tooltip: what it opens, or why not for a project.</summary>
     public string PropertiesToolTip => ProjectSelection.ToolTip(Board, "The selected card's properties");
 
-    /// <summary>Independent check' tooltip, on the Workstream menu: what it does, or why not for a project.</summary>
+    /// <summary>Independent check's tooltip, on the Workstream menu: what it does, or why not for a project.</summary>
     public string VerifySelectedToolTip => Chosen() is [var only] && WhyCannotVerify(only) is { } why ? why : ProjectSelection.ToolTip(Board,
         "Create a verifier card for the one ticked card: it runs the holdout scenarios its spec names, and reports only a verdict back. Needs one card ticked and the holdout scenarios folder set in Tools > Options; not offered for a verifier card or an archived one");
 
     /// <summary>
-    /// Independent check' text on the Workstream menu: with one card ticked that cannot be checked, the reason follows
+    /// Independent check's text on the Workstream menu: with one card ticked that cannot be checked, the reason follows
     /// the label (Nigel, 2026-11-23).
     /// </summary>
     public string VerifySelectedMenuText => HoldoutChecks.MenuText(Chosen() is [var only] ? WhyCannotVerify(only) : null);
@@ -1853,7 +1853,7 @@ public sealed partial class ShellViewModel : ObservableObject
     private void StartVerifier(WorkstreamCardViewModel verifier) => StartVerifiers([verifier]);
 
     /// <summary>
-    /// Starts verifiers Theseus has made, in one go, so Start the checks… gives one notice for them all. A start that
+    /// Starts verifiers Theseus has made, in one go, so they give one notice for them all. A start that
     /// fails is remembered with its reason for the Waits line's Start again; one that fails later, in its tab, shows there
     /// too, since a standing verifier neither running nor starting always does.
     /// </summary>
@@ -1888,7 +1888,7 @@ public sealed partial class ShellViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Independent check… for several builds, as Start the checks… asks: each verifier is made, then all are started
+    /// Independent check… for several builds, as Theseus starts them itself: each verifier is made, then all are started
     /// together, so their notices do not overwrite one another.
     /// </summary>
 
@@ -2355,8 +2355,6 @@ public sealed partial class ShellViewModel : ObservableObject
             card.BranchRulesSince = BranchRulesSince(card.Workstream);
         }
 
-        var reports = Chains?.NeedsYou.Where(row => row.IsReported).Select(row => row.Link).ToList() ?? [];
-        var proposals = Chains?.Proposals?.Pending.Select(row => (row.Proposal.RequesterKey, row.Proposal.Request.Title)).ToList() ?? [];
         var projectCards = new List<ProjectCardViewModel>();
         ProjectViewModel? openView = null;
 
@@ -2383,12 +2381,11 @@ public sealed partial class ShellViewModel : ObservableObject
                     && string.Equals(report.Slug, piece.Name, StringComparison.OrdinalIgnoreCase)) is { } reported
                 ? piece with { Reported = reported }
                 : piece)];
-            var waitingSpecs = ProjectViewModel.SpecsWaiting(reading, pieces);
             var checkPlan = CheckPlanOf(reading, pieces);
             var overview = ProjectOverview.For(reading.File!, pieces, links, Chains?.Proposals?.Pending.Select(row => row.Proposal) ?? [],
                 acceptances.Count(acceptance => string.Equals(acceptance.Project, reading.Name, StringComparison.OrdinalIgnoreCase)),
                 StartRequests.Pending, key => Board.Card(key)?.Title ?? key, WrongVerifiersOf(reading.Name), ClearUpNoticeOf(reading),
-                checkPlan.Underway);
+                checkPlan.Underway, [.. ChecksThatCannotRun(reading, pieces, checkPlan), .. CardsAskingOutsideThePieces(reading.Name, pieces)]);
             TakeCheckSteps(reading, pieces, checkPlan);
             var file = reading.File!;
 
@@ -2595,7 +2592,6 @@ public sealed partial class ShellViewModel : ObservableObject
                 ShowRecords = ShowRecordsWindow is { } show ? (piece, stage) => show(new RecordsViewModel(piece, stage, OpenFile)) : null,
                 OpenLinks = key => ShowCardLinksCommand.Execute(Board.Card(key)),
                 CardActions = CardActionsOf,
-                Ask = ConfirmAcceptSpec,
                 Jumped = Jumped,
                 GoBack = GoBackCommand,
                 GoForward = GoForwardCommand,

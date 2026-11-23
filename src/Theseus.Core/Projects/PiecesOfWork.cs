@@ -76,7 +76,7 @@ public static class PiecesOfWork
                 // A verifier's row (written since 1.1e PR 6) is not a piece of work: it checks one. Its card may be gone (cleared
                 // up and archived), so its row is known by the shape ProposalRow.ForVerifier writes, too: drawn as a piece, it
                 // showed as "Spec · <objective title> · not started" (walkthrough, 2026-11-23).
-                if (card?.Role == WorkstreamRole.Verifier || Theseus.Core.Proposals.ProposalRow.IsVerifierRow(row))
+                if (card?.Role == WorkstreamRole.Verifier || (card is null && Theseus.Core.Proposals.ProposalRow.IsVerifierRow(row)))
                 {
                     continue;
                 }
@@ -115,10 +115,22 @@ public static class PiecesOfWork
         }
 
         var pending = VerifierCards.BySubject(byKey.Values, linkList);
+        var reported = new Dictionary<string, PieceCard>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var link in linkList.Where(link => link is { IsActive: true, Kind: LinkKind.ReportsBack, LatestReport: not null, SatisfiedUtc: null, ReportIsRejected: false }))
+        {
+            if (byKey.GetValueOrDefault(link.From) is { Role: WorkstreamRole.Verifier, IsArchived: false } verifier)
+            {
+                reported[link.To] = verifier;
+            }
+        }
 
         return [.. drafts.Select((draft, index) => Finish(draft, index, drafts, handOvers, parentOf, linkList, said, RoundOf(index)))
             .Select(piece => piece.IsCurrentPiece && pending.TryGetValue(piece.CardKey, out var verifiers)
                 ? piece with { PendingVerifiers = verifiers }
+                : piece)
+            .Select(piece => piece.IsCurrentPiece && reported.TryGetValue(piece.CardKey, out var verifier)
+                ? piece with { CheckReported = verifier }
                 : piece)];
     }
 

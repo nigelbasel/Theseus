@@ -39,7 +39,6 @@ public class CheckRefusalInPlainViewTests
         WayOn = (_, action) => action == StageAction.VerifyWithHoldouts && wayOn is not null
             ? new PieceActionViewModel(wayOn, () => ranWayOn?.Invoke(), toolTip: $"{wayOn} does it") { IsLink = true }
             : null,
-        Explain = _explained.Add,
     };
 
 
@@ -86,5 +85,42 @@ public class CheckRefusalInPlainViewTests
     {
         Assert.That(HoldoutChecks.MenuText(NoScenarios), Is.EqualTo($"_Independent check… — {NoScenarios}"));
         Assert.That(HoldoutChecks.MenuText(null), Is.EqualTo("_Independent check…"));
+    }
+
+    [Test]
+    public void ACheckThatCannotRun_IsALineInWaitsForYou_WithItsWayOnAsTheButton_AndCounts()
+    {
+        // Review of P1, blocker 1: with Start the checks… gone, a build whose check could not start said nothing at all.
+        var ran = 0;
+        var view = _views.BuildYourMarket(actions: Refusing(Missing, "Set the holdout folder…", () => ran++), otherWaits: pieces =>
+        {
+            var build = pieces.First(piece => piece.IsCurrentPiece && piece.Status.State == StageNodeState.HoldoutsNotRun);
+
+            return [new WaitItem(WaitKind.CheckCannotRun, $"{build.Title}: its independent check cannot run. {Missing}.", [build.Name]) { CardKey = build.CardKey }];
+        });
+        var line = view.Waits.Single(wait => wait.Item.Kind == WaitKind.CheckCannotRun);
+
+        line.Command!.Execute(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(line.Text, Does.EndWith($"{Missing}."));
+            Assert.That((line.Button, line.ToolTip), Is.EqualTo(("Set the holdout folder…", "Set the holdout folder… does it")));
+            Assert.That(ran, Is.EqualTo(1));
+            Assert.That(view.Overview.Asking, Has.Some.Matches<WaitItem>(wait => wait.Kind == WaitKind.CheckCannotRun), "the sentence and the badge count it");
+        });
+    }
+
+    [Test]
+    public void ACheckThatCannotRun_WithNoWayOn_IsALineWithNoButton()
+    {
+        var view = _views.BuildYourMarket(actions: Refusing(NoScenarios, null), otherWaits: pieces =>
+        {
+            var build = pieces.First(piece => piece.IsCurrentPiece && piece.Status.State == StageNodeState.HoldoutsNotRun);
+
+            return [new WaitItem(WaitKind.CheckCannotRun, "x", [build.Name]) { CardKey = build.CardKey }];
+        });
+
+        Assert.That(view.Waits.Single(wait => wait.Item.Kind == WaitKind.CheckCannotRun).HasButton, Is.False);
     }
 }

@@ -34,12 +34,12 @@ public sealed class VerifyStageNode : StageNode
         else if (Context.CurrentPiece is { } current)
         {
             yield return new StageActionOffer(StageAction.VerifyWithHoldouts, label, false,
-                $"{Context.Workstream} has moved on to {current}; Independent check checks a card's current work");
+                $"{Context.Workstream} has moved on to {current}; an independent check looks at a card's current work");
         }
         else
         {
             yield return new StageActionOffer(StageAction.VerifyWithHoldouts, label, false,
-                $"{Context.Workstream} is not on the board; Independent check checks a card's current work");
+                $"{Context.Workstream} is not on the board; an independent check looks at a card's current work");
         }
     }
 }

@@ -216,7 +216,7 @@ public class PieceStatusTests
     {
         var status = StatusOf(BuildYourMarketPieces(_folder), "bym-mcp-identity");
 
-        Assert.That(status.WhoActs, Is.EqualTo("Theseus checks it: it makes its verifier once a scenario names it."));
+        Assert.That(status.WhoActs, Is.EqualTo("Theseus checks it once a scenario names it; if it cannot, Waits for you says why."));
         Assert.That(status.Action, Is.EqualTo(PieceAction.None), "Theseus starts the check; a folded box offers nothing to press (git-22, 2026-11-23)");
         Assert.That(status.WaitsForYou, Is.False, "git-22, 2026-11-23: nothing Theseus makes waits on the owner's press");
         Assert.That(status.Meaning, Does.Contain("hidden from the builder (holdout scenarios)"));

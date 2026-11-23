@@ -66,15 +66,6 @@ public sealed record ProjectViewActions(
     /// </summary>
     public Func<PieceOfWork, IReadOnlyList<PieceActionViewModel>>? CardActions { get; init; }
 
-    /// <summary>
-    /// Says in a dialog why a button cannot act after all, when that is found only at the press (Nigel, 2026-11-23); null
-    /// in tests, where the status bar is told instead.
-    /// </summary>
-    public Action<string>? Explain { get; init; }
-
-    /// <summary>Asks the owner a yes-or-no question first, as "Start the checks…" does; null in tests, where it is yes.</summary>
-    public Func<string, bool>? Ask { get; init; }
-
     /// <summary>Told each jump within the view (a link followed), with what is now selected, for Back and Forward (1.1f I46).</summary>
     public Action<string?>? Jumped { get; init; }
 
@@ -89,7 +80,6 @@ public sealed record ProjectViewActions(
 
     /// <summary>Asks the owner to allow or refuse a start request by its id (sessions-run-the-project 13); null in tests.</summary>
     public Action<string>? AnswerStartRequest { get; init; }
-
 
     /// <summary>Starts a verifier card Theseus made, as Start again does; null starts it as a card's Start.</summary>
     public Action<string>? StartVerifier { get; init; }

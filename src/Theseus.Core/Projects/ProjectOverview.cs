@@ -61,7 +61,7 @@ public sealed class ProjectOverview
     public static ProjectOverview For(ProjectFile file, IReadOnlyList<PieceOfWork> pieces, IEnumerable<Link> links,
         IEnumerable<WorkstreamProposal> proposals, int accepted, IEnumerable<StartRequest>? startRequests = null,
         Func<string, string>? titleOf = null, IReadOnlyList<WrongVerifier>? wrongVerifiers = null, string? clearUpNotice = null,
-        IReadOnlyList<string>? underway = null)
+        IReadOnlyList<string>? underway = null, IReadOnlyList<WaitItem>? otherWaits = null)
     {
         ArgumentNullException.ThrowIfNull(file);
         ArgumentNullException.ThrowIfNull(pieces);
@@ -69,6 +69,7 @@ public sealed class ProjectOverview
         ArgumentNullException.ThrowIfNull(proposals);
 
         var waits = WaitsOf(file, pieces, [.. links], proposals, startRequests ?? [], titleOf);
+        waits.AddRange(otherWaits ?? []);
 
         if (wrongVerifiers is { Count: > 0 } wrong)
         {
@@ -161,6 +162,16 @@ public sealed class ProjectOverview
             waits.Add(new WaitItem(WaitKind.ConfirmReport,
                 $"{from?.Title ?? link.From} reported back: read it and confirm it on the board, which lets its objective's criteria be ticked.",
                 from is null ? [] : [from.Name]) { CardKey = link.From });
+        }
+
+        // A verifier is never a piece, so its report is found from the build it checks.
+        foreach (var piece in pieces.Where(piece => piece.CheckReported is not null))
+        {
+            waits.Add(new WaitItem(WaitKind.ConfirmReport,
+                $"{piece.CheckReported!.Title} reported on {piece.Title}: read it and confirm or reject it on the board.", [piece.Name])
+            {
+                CardKey = piece.CheckReported.Key,
+            });
         }
 
         foreach (var proposal in proposals.Where(proposal => proposal.IsPending && cards.Contains(proposal.RequesterKey)))

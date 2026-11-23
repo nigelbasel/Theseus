@@ -47,7 +47,7 @@ public sealed class PieceActionViewModel
     public bool IsLink { get; init; }
 
     /// <summary>
-    /// Why it cannot run, drawn beside the disabled button, not only as its tooltip: Independent check' reason
+    /// Why it cannot run, drawn beside the disabled button, not only as its tooltip: Independent check's reason
     /// (Nigel, 2026-11-23: a refusal seen nowhere but the status line read as "nothing happens"). Null otherwise.
     /// </summary>
     public string? Note { get; init; }

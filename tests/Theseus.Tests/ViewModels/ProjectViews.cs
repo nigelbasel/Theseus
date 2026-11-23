@@ -85,13 +85,16 @@ internal sealed class ProjectViews
 
     /// <summary>BuildYourMarket MCP with its fifteen links and no session, unless cards or links are given.</summary>
     public ProjectViewModel BuildYourMarket(ProjectViewModel? previous = null, ProjectViewActions? actions = null,
-        IReadOnlyList<PieceCard>? cards = null, IReadOnlyList<Link>? links = null, string? clearUpNotice = null)
+        IReadOnlyList<PieceCard>? cards = null, IReadOnlyList<Link>? links = null, string? clearUpNotice = null,
+        Func<IReadOnlyList<PieceOfWork>, IReadOnlyList<WaitItem>>? otherWaits = null)
     {
         links ??= BuildYourMarketLinks();
         cards ??= BuildYourMarketBoard();
         var pieces = BuildYourMarketPieces(_folder, cards, links);
         var reading = Read(_folder, ProjectViewFixtures.BuildYourMarket);
-        var overview = clearUpNotice is null ? null : ProjectOverview.For(reading.File!, pieces, links, [], 0, clearUpNotice: clearUpNotice);
+        var overview = clearUpNotice is null && otherWaits is null
+            ? null
+            : ProjectOverview.For(reading.File!, pieces, links, [], 0, clearUpNotice: clearUpNotice, otherWaits: otherWaits?.Invoke(pieces));
 
         return ProjectViewModel.Build(reading, pieces, LinksOn(links, cards), Tabs(ProjectViewFixtures.BuildYourMarket), Settings,
             actions ?? Actions, null, Edits, previous, overview);

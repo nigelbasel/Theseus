@@ -34,6 +34,7 @@ public sealed record WaitItem(WaitKind Kind, string Text, IReadOnlyList<string> 
         WaitKind.Proposal => "Review the proposal…",
         WaitKind.StartRequest => "Allow or refuse…",
         WaitKind.ClearVerifiers => "Clear up verifiers…",
+        WaitKind.CheckCannotRun => "Independent check…",
         _ => null,
     };
 }

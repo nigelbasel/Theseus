@@ -94,7 +94,7 @@ public class StageNodeActionsTests
         var verify = Named(TheseusPieces(_folder), "project-view").Stages[4];
 
         Assert.That(verify.Actions[0], Is.EqualTo(new StageActionOffer(StageAction.VerifyWithHoldouts, "Independent check…", false,
-            "git-22 has moved on to projects-and-method-ui; Independent check checks a card's current work")));
+            "git-22 has moved on to projects-and-method-ui; an independent check looks at a card's current work")));
     }
 
     [Test]

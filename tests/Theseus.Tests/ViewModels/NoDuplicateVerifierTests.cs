@@ -250,4 +250,39 @@ public class NoDuplicateVerifierTests
         Assert.That(bySubject.Keys, Is.EqualTo(new[] { "new" }));
         Assert.That(bySubject["new"].Single().Key, Is.EqualTo("v"));
     }
+
+    [Test]
+    public void AReportedCheck_WaitsForYou_OnTheBoxAndInWaitsForYou()
+    {
+        // Review of P1, blocker 2: once a verifier reported it no longer stood, and the box read "has not run yet" with
+        // Theseus to act, while the report waited for the owner and was counted nowhere.
+        var view = WithVerifier(SessionLifecycle.Ended, hasRun: true, reported: true);
+        var status = view.AllNodes.Single(node => node.Name == _build).Piece.Status;
+        var lines = Of(view, WaitKind.ConfirmReport).Where(wait => wait.Item.Pieces.Contains(_build)).ToList();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(status.WaitsForYou, Is.True);
+            Assert.That(status.Text, Does.EndWith("has reported."));
+            Assert.That(status.WhoActs, Does.StartWith("You: read the report"));
+            Assert.That(lines, Has.Count.EqualTo(1), "one line, not one from the box and one from the link");
+            Assert.That(lines[0].Item.CardKey, Is.EqualTo(Verifier));
+            Assert.That(view.Overview.Asking.Select(wait => wait.Text), Has.Some.Contains("reported on"), "the badge counts it");
+        });
+    }
+
+    [Test]
+    public void AConfirmedCheck_NoLongerWaits()
+    {
+        var view = WithVerifier(SessionLifecycle.Ended, hasRun: true, reported: true);
+        var confirmed = _views.BuildYourMarket(
+            cards: [.. BuildYourMarketBoard(), Card(Verifier, SessionLifecycle.Ended, role: WorkstreamRole.Verifier) with { HasRun = true }],
+            links: [.. BuildYourMarketLinks(), NewLink(LinkKind.ReportsBack, Verifier, _buildCard) with
+            {
+                LatestReport = new LinkReport(DateTimeOffset.UnixEpoch, "s", "r.md", "x: pass", "done"), SatisfiedUtc = DateTimeOffset.UnixEpoch,
+            }]);
+
+        Assert.That(view.AllNodes.Single(node => node.Name == _build).Piece.CheckReported, Is.Not.Null);
+        Assert.That(confirmed.AllNodes.Single(node => node.Name == _build).Piece.CheckReported, Is.Null);
+    }
 }
