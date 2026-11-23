@@ -320,7 +320,6 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
     /// <summary>What the archive button says, which is the opposite when it is already away.</summary>
     public string ArchiveLabel => IsArchived ? "Restore" : "Archive";
 
-    /// <summary>What the session is doing right now.</summary>
     /// <summary>The question its session has open for the owner (1.6), or null; it is what the status line says while waiting.</summary>
     public Theseus.Core.Questions.OwnerQuestion? Question
     {
@@ -334,17 +333,12 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
         }
     }
 
-    private void RaiseStatus()
-    {
-        Raise(nameof(StatusLine));
-        Raise(nameof(StatusToolTip));
-    }
-
     /// <summary>The status line's tooltip: the question with its options and why, when it asks one.</summary>
     public string StatusToolTip => Question is { } question && Lifecycle == SessionLifecycle.NeedsAttention
         ? Theseus.Core.Questions.QuestionWords.Detail(question)
         : StatusLine;
 
+    /// <summary>What the session is doing right now.</summary>
     public SessionLifecycle Lifecycle
     {
         get => _lifecycle;
@@ -908,6 +902,12 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
         SessionLifecycle.Ended or SessionLifecycle.Ghost => "Restart",
         _ => "Focus",
     };
+
+    private void RaiseStatus()
+    {
+        Raise(nameof(StatusLine));
+        Raise(nameof(StatusToolTip));
+    }
 
     private string Since(string verb)
     {

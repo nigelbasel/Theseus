@@ -85,22 +85,44 @@ public class OwnerQuestionStoreTests
     [Test]
     public void AnIdentifierThatIsNotASessionId_NeverBecomesAPath()
     {
-        _store.Ask(new OwnerQuestion(@"..\..\escape", "Push now?", IsGuess: false, Nine));
+        var written = _store.Ask(new OwnerQuestion(@"..\..\escape", "Push now?", IsGuess: false, Nine));
 
+        Assert.That(written, Is.False, "the session must not be told the owner can see a question that was never written");
         Assert.That(Directory.Exists(_root), Is.False, "the identifier arrives from outside, so it must never become a path unchecked");
         Assert.That(_store.Read(@"..\..\escape"), Is.Null);
     }
 
     [Test]
-    public void RemoveExcept_RemovesOldQuestionsOfSessionsNotRunning_AndKeepsTheRest()
+    public void RemoveExcept_RemovesQuestionsOfSessionsMissingFromThreeSweepsInARow_AndKeepsTheRest()
     {
         _store.Ask(new OwnerQuestion(SessionId, "Push now?", IsGuess: false, Nine));
         _store.Guess(new OwnerQuestion(Other, "Shall I?", IsGuess: true, Nine));
+        var later = DateTimeOffset.UtcNow.AddMinutes(1);
 
-        _store.RemoveExcept([SessionId.ToUpperInvariant()], DateTimeOffset.UtcNow.AddMinutes(1));
+        _store.RemoveExcept([SessionId.ToUpperInvariant()], later);
+        _store.RemoveExcept([SessionId], later);
+
+        Assert.That(_store.Read(Other), Is.Not.Null, "two sweeps are not yet enough");
+
+        _store.RemoveExcept([SessionId], later);
 
         Assert.That(_store.Read(SessionId), Is.Not.Null, "a running session's question stays, whatever the case of its id");
         Assert.That(_store.Read(Other), Is.Null);
+    }
+
+    [Test]
+    public void RemoveExcept_KeepsAQuestionWhoseSessionCameBackBetweenSweeps()
+    {
+        _store.Ask(new OwnerQuestion(SessionId, "Push now?", IsGuess: false, Nine));
+        var later = DateTimeOffset.UtcNow.AddMinutes(1);
+
+        _store.RemoveExcept([], later);
+        _store.RemoveExcept([], later);
+        _store.RemoveExcept([SessionId], later);
+        _store.RemoveExcept([], later);
+        _store.RemoveExcept([], later);
+
+        Assert.That(_store.Read(SessionId), Is.Not.Null, "one registry read that comes back short must not lose an open question");
     }
 
     [Test]
@@ -108,9 +130,12 @@ public class OwnerQuestionStoreTests
     {
         _store.Ask(new OwnerQuestion(SessionId, "Push now?", IsGuess: false, Nine));
 
-        _store.RemoveExcept([], DateTimeOffset.UtcNow.AddMinutes(-10));
+        for (var sweep = 0; sweep < OwnerQuestionStore.SweepsMissing + 1; sweep++)
+        {
+            _store.RemoveExcept([], DateTimeOffset.UtcNow.AddMinutes(-10));
+        }
 
-        Assert.That(_store.Read(SessionId), Is.Not.Null, "a registry read that comes back short must not lose a question just asked");
+        Assert.That(_store.Read(SessionId), Is.Not.Null, "a session not in the registry yet must not lose a question just asked");
     }
 
     [Test]

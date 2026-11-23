@@ -99,11 +99,15 @@ public sealed class AskOwnerTool
             return ($"At most {MaxOptions} options.", true);
         }
 
-        _store.Ask(new OwnerQuestion(session.SessionId, question, IsGuess: false, _clock())
+        if (!_store.Ask(new OwnerQuestion(session.SessionId, question, IsGuess: false, _clock())
+            {
+                Options = options,
+                Why = OneLine(arguments["why"]),
+            }))
         {
-            Options = options,
-            Why = OneLine(arguments["why"]),
-        });
+            return ("The question could not be recorded, so the owner cannot see it in Theseus. Ask it here with the question tool.", true);
+        }
+
         _changed();
 
         return ("Shown on the board: on your card, in Waits for you and in Needs you, until the owner next types in this tab. "

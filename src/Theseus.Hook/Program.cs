@@ -58,7 +58,7 @@ try
     // for the board (1.6). Kept apart so nothing it does can stop a delivery.
     try
     {
-        HookQuestion.OnEvent(input, new OwnerQuestionStore(OwnerQuestionRoot.Default), TranscriptTail.LastAssistantText,
+        HookQuestion.OnEvent(input, new OwnerQuestionStore(OwnerQuestionRoot.Default), TranscriptTail.Read,
             DateTimeOffset.UtcNow, delivered: request is not null);
     }
     catch (Exception)

@@ -11,16 +11,24 @@ namespace Theseus.Core.Questions;
 /// </summary>
 public sealed class OwnerQuestionStore
 {
+    /// <summary>How many sweeps in a row a session must be missing from before its question goes.</summary>
+    public const int SweepsMissing = 3;
+
     private readonly string _root;
+    private readonly Dictionary<string, int> _missing = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Creates the store over the folder that holds the questions.</summary>
     public OwnerQuestionStore(string root) => _root = root;
 
-    /// <summary>Records a question the session asked outright, replacing any question or guess it had open.</summary>
-    public void Ask(OwnerQuestion question)
+    /// <summary>
+    /// Records a question the session asked outright, replacing any question or guess it had open. False when it could
+    /// not be written, so the session is not told the owner can see it.
+    /// </summary>
+    public bool Ask(OwnerQuestion question)
     {
         ArgumentNullException.ThrowIfNull(question);
-        Write(question with { IsGuess = false });
+
+        return Write(question with { IsGuess = false });
     }
 
     /// <summary>Records a guess, unless the session has a question of its own open, which a guess never replaces.</summary>
@@ -33,7 +41,7 @@ public sealed class OwnerQuestionStore
             return;
         }
 
-        Write(question with { IsGuess = true });
+        _ = Write(question with { IsGuess = true });
     }
 
     /// <summary>The session's open question, or null.</summary>
@@ -70,9 +78,10 @@ public sealed class OwnerQuestionStore
 
     /// <summary>
     /// Removes the questions of every session not running. The hook cannot tell which sessions Theseus launched, so it
-    /// may leave a guess for any of them; this is what keeps the folder from growing (spec item 10). Only files older
-    /// than <paramref name="writtenBeforeUtc"/> go, so a registry read that comes back short, or a session not yet in it,
-    /// does not lose a question just asked.
+    /// may leave a guess for any of them; this is what keeps the folder from growing (spec item 10). A file goes only once
+    /// its session has been missing from <see cref="SweepsMissing"/> sweeps in a row and it is older than
+    /// <paramref name="writtenBeforeUtc"/>, so one registry read that comes back short, or a session not in it yet, never
+    /// loses a question the owner has still to answer.
     /// </summary>
     public void RemoveExcept(IEnumerable<string> runningSessionIds, DateTimeOffset writtenBeforeUtc)
     {
@@ -87,12 +96,32 @@ public sealed class OwnerQuestionStore
 
         try
         {
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
             foreach (var path in Directory.GetFiles(_root, "*.json"))
             {
-                if (!running.Contains(Path.GetFileNameWithoutExtension(path)) && File.GetLastWriteTimeUtc(path) < writtenBeforeUtc.UtcDateTime)
+                var session = Path.GetFileNameWithoutExtension(path);
+                seen.Add(session);
+
+                if (running.Contains(session))
+                {
+                    _missing.Remove(session);
+
+                    continue;
+                }
+
+                var missing = _missing[session] = _missing.GetValueOrDefault(session) + 1;
+
+                if (missing >= SweepsMissing && File.GetLastWriteTimeUtc(path) < writtenBeforeUtc.UtcDateTime)
                 {
                     Delete(path);
+                    _missing.Remove(session);
                 }
+            }
+
+            foreach (var gone in _missing.Keys.Where(session => !seen.Contains(session)).ToList())
+            {
+                _missing.Remove(gone);
             }
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
@@ -106,21 +135,25 @@ public sealed class OwnerQuestionStore
     private string? PathFor(string? sessionId) =>
         Guid.TryParseExact(sessionId, "D", out var id) ? Path.Combine(_root, $"{id:D}.json") : null;
 
-    private void Write(OwnerQuestion question)
+    private bool Write(OwnerQuestion question)
     {
         if (PathFor(question.SessionId) is not { } path)
         {
-            return;
+            return false;
         }
 
         try
         {
             Directory.CreateDirectory(_root);
             File.WriteAllText(path, JsonSerializer.Serialize(question, TheseusJson.Compact));
+
+            return true;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             TheseusLog.Warning("A question could not be written to {Path}: {Reason}", path, exception.Message);
+
+            return false;
         }
     }
 

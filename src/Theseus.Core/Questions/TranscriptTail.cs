@@ -1,23 +1,22 @@
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 
 namespace Theseus.Core.Questions;
 
 /// <summary>
-/// The last thing the session said in its transcript, read from the file's end only: the hook runs on every turn of
-/// every session on the machine, and a day-long transcript runs to many megabytes.
+/// What a session's transcript ends with, read from the file's end only: the hook runs on every turn of every session
+/// on the machine, and a day-long transcript runs to many megabytes.
 /// </summary>
 public static class TranscriptTail
 {
     /// <summary>How much of the file's end is read. A turn's final message is far shorter than this.</summary>
     public const int Window = 256 * 1024;
 
-    /// <summary>
-    /// The text of the last assistant message, or null when the turn ended on something else (a tool call, the
-    /// question tool among them), the file cannot be read, or nothing in the window is an assistant message.
-    /// Subagents' records are passed over: their words are not the session's.
-    /// </summary>
-    public static string? LastAssistantText(string? transcriptPath)
+    private const string QuestionTool = "AskUserQuestion";
+
+    /// <summary>The last <see cref="Window"/> bytes of the transcript as text, or null when it cannot be read.</summary>
+    public static string? Read(string? transcriptPath)
     {
         if (string.IsNullOrWhiteSpace(transcriptPath))
         {
@@ -26,7 +25,13 @@ public static class TranscriptTail
 
         try
         {
-            return LastAssistantTextIn(ReadEnd(transcriptPath));
+            using var stream = new FileStream(transcriptPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            var length = (int)Math.Min(stream.Length, Window);
+            stream.Seek(-length, SeekOrigin.End);
+            var buffer = new byte[length];
+            stream.ReadExactly(buffer);
+
+            return Encoding.UTF8.GetString(buffer);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException
                                               or NotSupportedException)
@@ -35,23 +40,73 @@ public static class TranscriptTail
         }
     }
 
-    /// <summary>The same, over transcript lines already read.</summary>
-    public static string? LastAssistantTextIn(string lines)
+    /// <summary>
+    /// The text of the last assistant message, or null when the turn ended on something else (a tool call, the
+    /// question tool among them) or nothing in the window is an assistant message. Subagents' records are passed over:
+    /// their words are not the session's.
+    /// </summary>
+    public static string? LastAssistantTextIn(string? lines)
     {
-        ArgumentNullException.ThrowIfNull(lines);
-
-        foreach (var line in lines.Split('\n').Reverse())
+        foreach (var record in Records(lines).Reverse())
         {
-            if (Block(line) is { } block)
+            if (record.Type == "assistant" && LastBlock(record.Content) is { } block)
             {
-                return block.Type == "text" ? block.Text : null;
+                return block.TryGetProperty("type", out var type) && type.GetString() == "text"
+                       && block.TryGetProperty("text", out var text) && text.ValueKind == JsonValueKind.String
+                    ? text.GetString()
+                    : null;
             }
         }
 
         return null;
     }
 
-    private static (string Type, string? Text)? Block(string line)
+    /// <summary>
+    /// Whether the session's question tool was answered at or after <paramref name="sinceUtc"/>. Answering it sends no
+    /// prompt, so without this a question asked with ask_owner and answered in the tab would stand until the owner next
+    /// typed, should the session forget to say it has its answer.
+    /// </summary>
+    public static bool QuestionToolAnsweredSince(string? lines, DateTimeOffset sinceUtc)
+    {
+        var asks = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var record in Records(lines))
+        {
+            foreach (var block in Blocks(record.Content))
+            {
+                if (record.Type == "assistant" && Text(block, "type") == "tool_use" && Text(block, "name") == QuestionTool
+                    && Text(block, "id") is { } id)
+                {
+                    asks.Add(id);
+                }
+                else if (record.Type == "user" && Text(block, "type") == "tool_result" && Text(block, "tool_use_id") is { } answered
+                         && asks.Contains(answered) && record.Timestamp >= sinceUtc)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static IEnumerable<Record> Records(string? lines)
+    {
+        if (lines is null)
+        {
+            yield break;
+        }
+
+        foreach (var line in lines.Split('\n'))
+        {
+            if (Parse(line) is { } record)
+            {
+                yield return record;
+            }
+        }
+    }
+
+    private static Record? Parse(string line)
     {
         if (string.IsNullOrWhiteSpace(line))
         {
@@ -64,22 +119,20 @@ public static class TranscriptTail
             var root = document.RootElement;
 
             if (root.ValueKind != JsonValueKind.Object
-                || !root.TryGetProperty("type", out var type) || type.GetString() != "assistant"
+                || Text(root, "type") is not { } type
                 || (root.TryGetProperty("isSidechain", out var sidechain) && sidechain.ValueKind == JsonValueKind.True)
                 || !root.TryGetProperty("message", out var message) || message.ValueKind != JsonValueKind.Object
-                || !message.TryGetProperty("content", out var content) || content.ValueKind != JsonValueKind.Array
-                || content.GetArrayLength() == 0)
+                || !message.TryGetProperty("content", out var content) || content.ValueKind != JsonValueKind.Array)
             {
                 return null;
             }
 
-            var last = content[content.GetArrayLength() - 1];
-            var kind = last.TryGetProperty("type", out var kindElement) ? kindElement.GetString() ?? string.Empty : string.Empty;
-            var text = last.TryGetProperty("text", out var textElement) && textElement.ValueKind == JsonValueKind.String
-                ? textElement.GetString()
-                : null;
+            var timestamp = Text(root, "timestamp") is { } stamp
+                            && DateTimeOffset.TryParse(stamp, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var parsed)
+                ? parsed
+                : DateTimeOffset.MinValue;
 
-            return (kind, text);
+            return new Record(type, content.Clone(), timestamp);
         }
         catch (JsonException)
         {
@@ -88,14 +141,16 @@ public static class TranscriptTail
         }
     }
 
-    private static string ReadEnd(string path)
-    {
-        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-        var length = (int)Math.Min(stream.Length, Window);
-        stream.Seek(-length, SeekOrigin.End);
-        var buffer = new byte[length];
-        stream.ReadExactly(buffer);
+    private static JsonElement? LastBlock(JsonElement content) =>
+        content.GetArrayLength() == 0 ? null : content[content.GetArrayLength() - 1];
 
-        return Encoding.UTF8.GetString(buffer);
-    }
+    private static IEnumerable<JsonElement> Blocks(JsonElement content) =>
+        content.EnumerateArray().Where(block => block.ValueKind == JsonValueKind.Object);
+
+    private static string? Text(JsonElement element, string name) =>
+        element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
+
+    private readonly record struct Record(string Type, JsonElement Content, DateTimeOffset Timestamp);
 }

@@ -107,6 +107,17 @@ public class McpAskOwnerToolTests
     }
 
     [Test]
+    public void AQuestionThatCannotBeRecorded_IsRefused_RatherThanSaidToBeShown()
+    {
+        var tool = new AskOwnerTool(_store, () => Nine);
+
+        var (text, isError) = tool.Call(new McpSession("not-a-session-id", "ledger-mcp", "LEDGER MCP"), new JsonObject { ["question"] = "Push now?" });
+
+        Assert.That(isError, Is.True);
+        Assert.That(text, Does.Contain("could not be recorded"));
+    }
+
+    [Test]
     public void TheToolIsListed_AndApprovedInAdvance()
     {
         var response = _handler.Handle(SessionId,
