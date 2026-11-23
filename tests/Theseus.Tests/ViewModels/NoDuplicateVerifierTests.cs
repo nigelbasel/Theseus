@@ -110,6 +110,47 @@ public class NoDuplicateVerifierTests
     }
 
     [Test]
+    public void AnUnstartedVerifier_HasItsOwnStart_OnItsBuildsBox_AndItsVerifyStage()
+    {
+        var box = WithVerifier(SessionLifecycle.NotStarted).AllNodes.Single(node => node.Name == _build);
+        var start = box.Actions.Single(action => action.Label == $"▶ Start {Verifier}");
+        var inMenu = box.Stages.Single(stage => stage.Node.Stage == PipelineStage.Verify).MenuItems.Single(item => item.Label == start.Label);
+
+        Assert.That((start.IsEnabled, inMenu.IsEnabled), Is.EqualTo((true, true)));
+
+        start.Command.Execute(null);
+        inMenu.Command.Execute(null);
+
+        Assert.That(_views.Ran, Is.EqualTo(new[] { $"Start:{Verifier}", $"Start:{Verifier}" }));
+    }
+
+    [Test]
+    public void ARunningVerifier_OffersNoStart_OnItsBuildsBox()
+    {
+        var box = WithVerifier(SessionLifecycle.Running).AllNodes.Single(node => node.Name == _build);
+
+        Assert.That(box.Actions.Select(action => action.Label), Has.None.EqualTo($"▶ Start {Verifier}"));
+    }
+
+    // The live case (git-22, 2026-11-23): "Verify: Theseus" checks a piece that is Done, not awaiting its check.
+    [Test]
+    public void AnUnstartedVerifier_OfAPieceThatIsDone_IsStillInTheWaitsLine_AndOnItsVerifyStage()
+    {
+        var done = _views.BuildYourMarket().AllNodes.First(node => node.Piece is { IsCurrentPiece: true, Card: not null }
+                                                                   && node.Piece.Status.State == StageNodeState.Done
+                                                                   && node.Piece.Stages.Any(stage => stage.Stage == PipelineStage.Verify));
+        IReadOnlyList<PieceCard> cards = [.. BuildYourMarketBoard(), Card(Verifier, role: WorkstreamRole.Verifier)];
+        IReadOnlyList<Link> links = [.. BuildYourMarketLinks(), NewLink(LinkKind.ReportsBack, Verifier, done.Piece.CardKey)];
+        var view = _views.BuildYourMarket(cards: cards, links: links);
+        var box = view.AllNodes.Single(node => node.Name == done.Name);
+
+        Assert.That(box.Piece.Status.State, Is.EqualTo(StageNodeState.Done));
+        Assert.That(Of(view, WaitKind.StartVerifier).Single().Item.CardKey, Is.EqualTo(Verifier));
+        Assert.That(box.Stages.Single(stage => stage.Node.Stage == PipelineStage.Verify).MenuItems.Select(item => item.Label),
+            Does.Contain($"▶ Start {Verifier}"));
+    }
+
+    [Test]
     public void TheShellsReason_NamesTheVerifierAlreadyMade()
     {
         Assert.That(VerifierCards.WhyAlreadyChecked(["Verify: Theseus"]),
