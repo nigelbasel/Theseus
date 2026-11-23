@@ -56,4 +56,37 @@ public static class QuestionWords
 
         return string.Join(Environment.NewLine, lines);
     }
+
+    /// <summary>The card's status line for a prompt: "Needs your permission to use Bash".</summary>
+    public static string Card(PermissionPrompt prompt)
+    {
+        ArgumentNullException.ThrowIfNull(prompt);
+
+        return Said(prompt) is { } said ? $"{char.ToUpperInvariant(said[0])}{said[1..]}" : $"Waits for you: {prompt.Text}";
+    }
+
+    /// <summary>A line naming who is stopped: "W7 needs your permission to use Bash".</summary>
+    public static string Named(string who, PermissionPrompt prompt)
+    {
+        ArgumentNullException.ThrowIfNull(prompt);
+
+        return Said(prompt) is { } said ? $"{who} {said}" : $"{who} waits for you: {prompt.Text}";
+    }
+
+    /// <summary>The card's tooltip for a prompt.</summary>
+    public static string Detail(PermissionPrompt prompt) =>
+        $"{Card(prompt)}{Environment.NewLine}Stopped at a prompt in its tab; it does nothing until you answer it there.";
+
+    /// <summary>
+    /// The line for a session waiting on the owner, whatever is known of why: a prompt it is stopped at first, as the
+    /// thing holding it now, then a question it asked, else only that it waits.
+    /// </summary>
+    public static string Named(string who, PermissionPrompt? prompt, OwnerQuestion? question) =>
+        prompt is not null ? Named(who, prompt) : question is not null ? Named(who, question) : $"{who} is waiting for your input";
+
+    // Claude Code words its prompts about itself: "Claude needs your permission to use Bash".
+    private static string? Said(PermissionPrompt prompt) =>
+        prompt.Text.StartsWith("Claude ", StringComparison.Ordinal) && prompt.Text.Length > "Claude ".Length
+            ? prompt.Text["Claude ".Length..]
+            : null;
 }

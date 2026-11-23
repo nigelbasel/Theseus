@@ -28,6 +28,9 @@ public sealed record PieceCard(
     /// <summary>The question its session has open for the owner (1.6), or null.</summary>
     public Theseus.Core.Questions.OwnerQuestion? Question { get; init; }
 
+    /// <summary>The prompt its session is stopped at in its tab (1.6), or null.</summary>
+    public Theseus.Core.Questions.PermissionPrompt? Prompt { get; init; }
+
     /// <summary>The card whose session paused it, or null (1.1e AC 14): a project's Start skips it while it stands.</summary>
     public string? PausedBy { get; init; }
 

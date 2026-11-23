@@ -1,6 +1,8 @@
+using Theseus.Core.Domain;
 using Theseus.Core.Links;
 using Theseus.Core.Projects;
 using Theseus.Core.Proposals;
+using Theseus.Core.Questions;
 using static Theseus.Tests.Projects.ClarityFixtures;
 
 namespace Theseus.Tests.Projects;
@@ -92,6 +94,23 @@ public class ProjectOverviewTests
             "Objective 0.1, Data protection: take D7 to the DPO. This happens outside Theseus.",
         }));
         Assert.That(waits.Single().Button, Is.Null, "no button: outside Theseus");
+    }
+
+    [Test]
+    public void AVerifierStoppedAtAPrompt_WaitsForTheOwner_NamingItAndWhatItAsks_WithFocus()
+    {
+        var file = ProjectFileReader.Read("p", TestProjectsFolder.ProjectText("P")).File!;
+        var verifier = new PieceCard("verify-a", "Verify: A", "#2f80ed", SessionLifecycle.NeedsAttention, Role: WorkstreamRole.Verifier)
+        {
+            Prompt = new PermissionPrompt("s", "Claude needs your permission to use Bash", DateTimeOffset.UnixEpoch),
+        };
+
+        var waits = ProjectOverview.For(file, [], [], [], 0, others: [verifier, new PieceCard("verify-b", "Verify: B", "#2f80ed", SessionLifecycle.Running)]).Waits;
+
+        Assert.That(waits.Select(wait => (wait.Kind, wait.Text, wait.CardKey)), Is.EqualTo(new[]
+        {
+            (WaitKind.Answer, "Verify: A needs your permission to use Bash; answer it in its tab.", (string?)"verify-a"),
+        }));
     }
 
     [Test]

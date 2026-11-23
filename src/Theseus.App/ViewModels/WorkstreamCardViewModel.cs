@@ -9,6 +9,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
     private Workstream _workstream;
     private SessionLifecycle _lifecycle = SessionLifecycle.NotStarted;
     private Theseus.Core.Questions.OwnerQuestion? _question;
+    private Theseus.Core.Questions.PermissionPrompt? _prompt;
     private Theseus.Core.Projects.WhyStopped? _stopReason;
     private string _verifyToolTip = string.Empty;
     private string _verifyMenuText = HoldoutChecks.VerifyMenuLabel;
@@ -334,10 +335,27 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
         }
     }
 
-    /// <summary>The status line's tooltip: the question with its options and why, when it asks one.</summary>
-    public string StatusToolTip => Question is { } question && Lifecycle == SessionLifecycle.NeedsAttention
-        ? Theseus.Core.Questions.QuestionWords.Detail(question)
-        : StatusLine;
+    /// <summary>The prompt its session is stopped at in its tab (1.6), or null; while set, it is what the status line says.</summary>
+    public Theseus.Core.Questions.PermissionPrompt? Prompt
+    {
+        get => _prompt;
+        set
+        {
+            if (Set(ref _prompt, value))
+            {
+                RaiseStatus();
+            }
+        }
+    }
+
+    /// <summary>The status line's tooltip: the prompt, or the question with its options and why, when it waits on one.</summary>
+    public string StatusToolTip => Lifecycle != SessionLifecycle.NeedsAttention
+        ? StatusLine
+        : Prompt is { } prompt
+            ? Theseus.Core.Questions.QuestionWords.Detail(prompt)
+            : Question is { } question
+                ? Theseus.Core.Questions.QuestionWords.Detail(question)
+                : StatusLine;
 
     /// <summary>What the session is doing right now.</summary>
     public SessionLifecycle Lifecycle
@@ -667,9 +685,11 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
         SessionLifecycle.Launching => "launching",
         SessionLifecycle.Running => Since("busy"),
         SessionLifecycle.Idle => Since("idle"),
-        SessionLifecycle.NeedsAttention => Question is { } question
-            ? Theseus.Core.Questions.QuestionWords.Card(question)
-            : Since("waiting for you"),
+        SessionLifecycle.NeedsAttention => Prompt is { } prompt
+            ? Theseus.Core.Questions.QuestionWords.Card(prompt)
+            : Question is { } question
+                ? Theseus.Core.Questions.QuestionWords.Card(question)
+                : Since("waiting for you"),
         SessionLifecycle.Ended => Since("ended"),
         SessionLifecycle.Ghost => "ended unexpectedly",
         _ => string.Empty,

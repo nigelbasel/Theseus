@@ -1,4 +1,5 @@
 using System.Globalization;
+using Theseus.Core.Domain;
 using Theseus.Core.Links;
 using Theseus.Core.Proposals;
 
@@ -46,16 +47,17 @@ public sealed class ProjectOverview
     /// <param name="accepted">How many of its specs he has accepted.</param>
     /// <param name="startRequests">Sessions' requests to start cards he paused; the pending ones for this project's cards wait for him.</param>
     /// <param name="titleOf">A card's title from its key, for a card that works no current piece; null shows the key.</param>
+    /// <param name="others">The project's cards that work no current piece, such as its verifiers: one waiting on the owner waits here.</param>
     public static ProjectOverview For(ProjectFile file, IReadOnlyList<PieceOfWork> pieces, IEnumerable<Link> links,
         IEnumerable<WorkstreamProposal> proposals, int accepted, IEnumerable<StartRequest>? startRequests = null,
-        Func<string, string>? titleOf = null)
+        Func<string, string>? titleOf = null, IEnumerable<PieceCard>? others = null)
     {
         ArgumentNullException.ThrowIfNull(file);
         ArgumentNullException.ThrowIfNull(pieces);
         ArgumentNullException.ThrowIfNull(links);
         ArgumentNullException.ThrowIfNull(proposals);
 
-        var waits = WaitsOf(file, pieces, [.. links], proposals, startRequests ?? [], titleOf);
+        var waits = WaitsOf(file, pieces, [.. links], proposals, startRequests ?? [], titleOf, others ?? []);
         var roundLines = file.Rounds.ToDictionary(round => round.Number, round => RoundLine(pieces.Where(piece => piece.Round == round.Number).ToList()));
 
         return new ProjectOverview(SentenceOf(file, pieces, waits), roundLines, [.. file.Phases.Select(phase => Cell(phase, pieces))],
@@ -63,7 +65,8 @@ public sealed class ProjectOverview
     }
 
     private static List<WaitItem> WaitsOf(ProjectFile file, IReadOnlyList<PieceOfWork> pieces, List<Link> links,
-        IEnumerable<WorkstreamProposal> proposals, IEnumerable<StartRequest> startRequests, Func<string, string>? titleOf)
+        IEnumerable<WorkstreamProposal> proposals, IEnumerable<StartRequest> startRequests, Func<string, string>? titleOf,
+        IEnumerable<PieceCard> others)
     {
         var waits = new List<WaitItem>();
 
@@ -97,6 +100,21 @@ public sealed class ProjectOverview
                 : $"{piece.Title}: {status.WhoActs}";
 
             waits.Add(new WaitItem(kind, text, [piece.Name]) { CardKey = status.ActsOnCard ?? piece.CardKey });
+        }
+
+        // A card working no piece, such as a verifier, shows in no box, so its waiting on the owner is said here or nowhere
+        // (1.6, Nigel 2026-11-23: "there is no indication in theseus that I need to respond").
+        foreach (var card in others.Where(card => card.Lifecycle == SessionLifecycle.NeedsAttention))
+        {
+            if (waits.Any(wait => string.Equals(wait.CardKey, card.Key, StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            waits.Add(new WaitItem(WaitKind.Answer, $"{Questions.QuestionWords.Named(card.Title, card.Prompt, card.Question)}; answer it in its tab.", [])
+            {
+                CardKey = card.Key,
+            });
         }
 
         // A verifier card made and not started waits for the owner alone, whatever its subject's state: a verifier has no
