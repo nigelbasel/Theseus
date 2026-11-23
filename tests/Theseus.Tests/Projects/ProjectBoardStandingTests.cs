@@ -38,6 +38,17 @@ public class ProjectBoardStandingTests
     }
 
     [Test]
+    public void AVerifierWaitingOnTheOwner_PutsItsProjectInNeedsYou_ThoughItWorksNoPiece()
+    {
+        var idle = OnePiece(_folder, "freeform", card: Card(ACard, SessionLifecycle.Idle)) with { IsCurrentPiece = true };
+        var verifier = Card("verify-a", SessionLifecycle.NeedsAttention) with { Role = WorkstreamRole.Verifier };
+
+        Assert.That(ProjectBoardStanding.StateColumn([idle], [verifier]), Is.EqualTo(BoardView.NeedsYou));
+        Assert.That(ProjectBoardStanding.StateColumn([idle], [verifier with { Lifecycle = SessionLifecycle.Running }]), Is.EqualTo(BoardView.Idle),
+            "a verifier at work moves nothing: only one waiting on the owner has nowhere else to show");
+    }
+
+    [Test]
     public void AProjectWithEveryPieceDone_AndNothingRunning_IsDone()
     {
         var done = OnePiece(_folder, "freeform", objectiveDone: true);

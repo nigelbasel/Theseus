@@ -186,6 +186,7 @@ public sealed partial class ShellViewModel
             {
                 AtUtc = clearUp.AtUtc,
                 Round = clearUp.Round,
+                Rows = earlier.Rows,
             };
         _settings.Write(_settings.Read() with { VerifierClearUp = record });
 
@@ -206,6 +207,8 @@ public sealed partial class ShellViewModel
     /// <summary>Archives each card of the kept clear-up whose session has gone; asked again on every refresh until all are.</summary>
     private void ArchiveClearedUp()
     {
+        TakeClearedRows();
+
         if (ClearUp is not { IsDone: false } clearUp)
         {
             return;
@@ -228,6 +231,7 @@ public sealed partial class ShellViewModel
         }
 
         _settings.Write(_settings.Read() with { VerifierClearUp = clearUp.Record });
+        TakeClearedRows();
 
         if (clearUp.IsDone)
         {
@@ -235,10 +239,61 @@ public sealed partial class ShellViewModel
         }
     }
 
-    /// <summary>Undo: restores the cards the clear-up archived and puts their report-back links back exactly as they were.</summary>
+    /// <summary>
+    /// Takes the rows of the kept clear-up's archived cards out of project.md, through the project-file writer, so the view
+    /// no longer draws them as not started (git-22, 2026-11-23). A refused write, such as a session having written the file
+    /// since it was read, is tried again on the next refresh.
+    /// </summary>
+    private void TakeClearedRows()
+    {
+        if (ClearUp is not { } clearUp || Readable(clearUp.Project) is not { File: { } file } reading)
+        {
+            return;
+        }
+
+        var due = clearUp.Archived
+            .Where(key => file.Workstreams.Any(row => string.Equals(row.Workstream, key, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
+        if (due.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            IReadOnlyList<ClearedRow> taken = [];
+            Write(reading, text =>
+            {
+                (var edited, taken) = ProjectFileEditor.TakeRows(text, due);
+
+                return edited;
+            });
+            clearUp.TookRows(taken);
+            _settings.Write(_settings.Read() with { VerifierClearUp = clearUp.Record });
+            TheseusLog.Information("Took the rows of {Cards} out of the project file of {Project}, cleared up", string.Join(", ", due),
+                clearUp.Project);
+        }
+        catch (Exception exception) when (exception is ProjectEditRefusedException or IOException or UnauthorizedAccessException)
+        {
+            TheseusLog.Warning("The rows of {Cards} could not be taken out of the project file of {Project} yet: {Reason}",
+                string.Join(", ", due), clearUp.Project, exception.Message);
+        }
+    }
+
+    /// <summary>
+    /// Undo: puts the rows the clear-up took back in project.md, restores the cards it archived and puts their report-back
+    /// links back exactly as they were. The rows go first: if project.md cannot be written, nothing is undone yet.
+    /// </summary>
     private void UndoClearUp(string project)
     {
         if (ClearUp is not { } clearUp || !string.Equals(clearUp.Project, project, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        if (clearUp.Rows.Count > 0
+            && !EditProject(project, text => ProjectFileEditor.PutBackRows(text, clearUp.Rows), $"Put back {clearUp.Rows.Count} row(s) in {project}."))
         {
             return;
         }

@@ -62,6 +62,11 @@ public sealed partial class ShellViewModel : ObservableObject
     private Theseus.Core.Terminal.ProjectWindowTarget _projectWindow = new(null, "Open a project first");
     private string _projectSummary = string.Empty;
     private readonly LaunchCoordinator _launcher;
+
+    // Sessions launched and not yet seen in the registry, with when: only these can be at Claude Code's folder trust
+    // question. Trust given to an added folder is never recorded, so the records alone would keep a running session
+    // that the registry misses (after /clear, say) at that question for good.
+    private readonly Dictionary<string, DateTimeOffset> _notYetRegistered = new(StringComparer.OrdinalIgnoreCase);
     private readonly IPlanStore _plans;
     private readonly ITabColourAllocator _colours;
     private readonly PullRequestResolver _pullRequests;
@@ -71,6 +76,9 @@ public sealed partial class ShellViewModel : ObservableObject
 
     /// <summary>The questions sessions have open for the owner (1.6), shared with ask_owner and the hook.</summary>
     public Theseus.Core.Questions.OwnerQuestionStore Questions { get; } = new(Theseus.Core.Questions.OwnerQuestionRoot.Default);
+
+    /// <summary>The prompts sessions are stopped at, as the hook recorded them (1.6).</summary>
+    public Theseus.Core.Questions.PermissionPromptStore Prompts { get; } = new(Theseus.Core.Questions.PermissionPromptStore.DefaultRoot);
     private readonly HashSet<string> _handoffWriteFailures = new(StringComparer.OrdinalIgnoreCase);
     private readonly ISessionTodoReader _todos;
     private readonly RunEndings _endings;
@@ -1026,7 +1034,7 @@ public sealed partial class ShellViewModel : ObservableObject
             var reading = readings.FirstOrDefault(each => string.Equals(each.Name, name, StringComparison.OrdinalIgnoreCase));
             var updater = reading is null ? null : UpdaterOf(reading);
 
-            if (reading is not null && updater is { IsLive: true }
+            if (reading is not null && updater is { IsLive: true } && Sessions.Find(updater.Workstream.LastSessionId) is not null
                 && ProjectUpdate.IsDone(startedOn, reading, updater.Lifecycle is SessionLifecycle.Idle or SessionLifecycle.NeedsAttention))
             {
                 TheseusLog.Information("Asking {Updater} to stop: the project file of {Project} has changed and its turn has ended", updater.Key, name);
@@ -2381,11 +2389,16 @@ public sealed partial class ShellViewModel : ObservableObject
                     && string.Equals(report.Slug, piece.Name, StringComparison.OrdinalIgnoreCase)) is { } reported
                 ? piece with { Reported = reported }
                 : piece)];
+            var working = pieces.Where(piece => piece.IsCurrentPiece && piece.Card is not null)
+                .Select(piece => piece.CardKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            IReadOnlyList<PieceCard> others = [.. cards
+                .Where(card => string.Equals(card.Workstream.Project, reading.Name, StringComparison.OrdinalIgnoreCase) && !working.Contains(card.Key))
+                .Select(PieceCardOf)];
             var checkPlan = CheckPlanOf(reading, pieces);
             var overview = ProjectOverview.For(reading.File!, pieces, links, Chains?.Proposals?.Pending.Select(row => row.Proposal) ?? [],
                 acceptances.Count(acceptance => string.Equals(acceptance.Project, reading.Name, StringComparison.OrdinalIgnoreCase)),
                 StartRequests.Pending, key => Board.Card(key)?.Title ?? key, WrongVerifiersOf(reading.Name), ClearUpNoticeOf(reading),
-                checkPlan.Underway, [.. ChecksThatCannotRun(reading, pieces, checkPlan), .. CardsAskingOutsideThePieces(reading.Name, pieces)]);
+                checkPlan.Underway, others, ChecksThatCannotRun(reading, pieces, checkPlan));
             TakeCheckSteps(reading, pieces, checkPlan);
             var file = reading.File!;
 
@@ -2422,7 +2435,7 @@ public sealed partial class ShellViewModel : ObservableObject
             projectCard.FocusLeadCommand = new RelayCommand(_ => FocusCardCommand.Execute(leadCard), _ => leadCard is not null && FocusCardCommand.CanExecute(leadCard));
 
             if (ProjectCardFace.Fill(projectCard, pieces, _settings.Read().ProjectRunStates.GetValueOrDefault(name),
-                    _settings.Read().CardsStoppedByOwner, overview, lead))
+                    _settings.Read().CardsStoppedByOwner, overview, lead, others))
             {
                 System.Windows.Input.CommandManager.InvalidateRequerySuggested();
             }
@@ -2653,6 +2666,7 @@ public sealed partial class ShellViewModel : ObservableObject
         {
             StopLine = card.StopReason?.Line,
             Question = card.Question,
+            Prompt = card.Prompt,
             PausedBy = card.Workstream.PausedBy is { } by ? Board.Card(by)?.Title ?? by : null,
             BranchRulesSince = BranchRulesSince(card.Workstream),
             IsArchived = card.Workstream.IsArchived,
@@ -3707,6 +3721,9 @@ public sealed partial class ShellViewModel : ObservableObject
         _branchGrants = reasons.ProjectBranchRules;
         RefreshHoldouts([.. Board.Cards.Select(card => card.Workstream)]);
         Questions.RemoveExcept(Sessions.Snapshot.Live.Select(session => session.SessionId), DateTimeOffset.UtcNow.AddMinutes(-10));
+        Prompts.RemoveExcept(Sessions.Snapshot.Live
+            .Where(session => string.Equals(session.Status, "waiting", StringComparison.OrdinalIgnoreCase))
+            .Select(session => session.SessionId), DateTimeOffset.UtcNow);
 
         foreach (var card in Board.Cards)
         {
@@ -3716,6 +3733,20 @@ public sealed partial class ShellViewModel : ObservableObject
             var state = CardLifecycle.For(card.Key, session?.Status, live, runs, now, hasOpenQuestion: question is not null);
 
             card.Question = question;
+            card.Prompt = live ? Theseus.Core.Questions.PermissionPrompt.Showing(Prompts.Read(card.Workstream.LastSessionId), session?.Status, question) : null;
+
+            if (live && card.Workstream.LastSessionId is { } registered)
+            {
+                _notYetRegistered.Remove(registered);
+            }
+            else if (card.Workstream.LastSessionId is { } launching && _notYetRegistered.TryGetValue(launching, out var launchedUtc)
+                     && Theseus.Core.Questions.TrustPrompt.For(launching, isRegistered: false, _launcher.InFlight.IsInFlight(card.Key),
+                         Settings.FolderTrust?.NeedsFor(SessionFolders(card.Workstream)).Select(need => need.Key).ToList() ?? [],
+                         launchedUtc) is { } trust)
+            {
+                card.Prompt = trust;
+                state = state with { Lifecycle = SessionLifecycle.NeedsAttention, Since = launchedUtc };
+            }
             card.MotionAllowed = _motionAllowed;
             card.Lifecycle = state.Lifecycle;
             card.LifecycleSinceUtc = state.Since;
@@ -4543,6 +4574,7 @@ public sealed partial class ShellViewModel : ObservableObject
             }
 
             Remember(workstream, sessionId);
+            _notYetRegistered[sessionId] = DateTimeOffset.UtcNow;
             _verifierStartFailures.Remove(workstream.Key);
             RunCommands.Started(workstream.Key);
             started.Add(workstream.Title);
@@ -4706,13 +4738,26 @@ public sealed partial class ShellViewModel : ObservableObject
     }
 
     private bool CanFocusCard(object? parameter) =>
-        parameter is WorkstreamCardViewModel card && Sessions.Find(card.Workstream.LastSessionId) is not null;
+        parameter is WorkstreamCardViewModel card
+        && (Sessions.Find(card.Workstream.LastSessionId) is not null
+            || (card.Workstream.LastSessionId is { } launching && _notYetRegistered.ContainsKey(launching) && _launcher.InFlight.IsInFlight(card.Key)));
 
     private void FocusCard(object? parameter)
     {
-        if (parameter is not WorkstreamCardViewModel card
-            || Sessions.Find(card.Workstream.LastSessionId) is not { } session)
+        if (parameter is not WorkstreamCardViewModel card)
         {
+            return;
+        }
+
+        // A tab at Claude Code's folder trust question has no session in the registry yet; Theseus titled the tab itself.
+        if (Sessions.Find(card.Workstream.LastSessionId) is not { } session)
+        {
+            if (card.Workstream.LastSessionId is { } launching && _notYetRegistered.ContainsKey(launching)
+                && _launcher.InFlight.IsInFlight(card.Key))
+            {
+                Notice = Describe(TerminalFocus.FocusSession(0, card.Title), card.Title);
+            }
+
             return;
         }
 

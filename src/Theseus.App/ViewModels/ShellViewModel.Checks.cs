@@ -199,25 +199,6 @@ public sealed partial class ShellViewModel
         ];
     }
 
-    // A project's card that is no piece, such as its scenario writer, can still be waiting for the owner's answer: the
-    // project card's badge counted it before it came from Waits for you (review of P1, should-fix 5).
-    private List<WaitItem> CardsAskingOutsideThePieces(string project, IReadOnlyList<PieceOfWork> pieces)
-    {
-        var inPieces = pieces.Select(piece => piece.CardKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        return
-        [
-            .. Board.Cards.Where(card => card.Lifecycle == SessionLifecycle.NeedsAttention && !inPieces.Contains(card.Key)
-                                          && string.Equals(card.Workstream.Project, project, StringComparison.OrdinalIgnoreCase))
-                .Select(card => new WaitItem(WaitKind.Answer, card.Question is { } question
-                    ? Theseus.Core.Questions.QuestionWords.Named(card.Title, question)
-                    : $"{card.Title} is waiting for your input", [])
-                {
-                    CardKey = card.Key,
-                }),
-        ];
-    }
-
     private static string Sentence(string text) => text.EndsWith('.') ? text : text + ".";
 
     // A build's check is tried once for the session that built it: reworked in a new session, it is checked again.

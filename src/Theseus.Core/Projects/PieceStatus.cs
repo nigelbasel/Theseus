@@ -51,7 +51,17 @@ public sealed record PieceStatus(StageNodeState State, string Text)
 
         if (isAsking)
         {
-            return card!.Question is { } question
+            if (card!.Prompt is { } prompt)
+            {
+                return new PieceStatus(StageNodeState.WaitingOnYou, $"Waiting for you: {QuestionWords.Named(piece.Workstream, prompt)}")
+                {
+                    WhoActs = "You; it does nothing until you answer in its tab.",
+                    Action = PieceAction.Answer,
+                    WaitsForYou = true,
+                };
+            }
+
+            return card.Question is { } question
                 ? new PieceStatus(StageNodeState.WaitingOnYou, $"Waiting for you: {QuestionWords.Named(piece.Workstream, question)}")
                 {
                     WhoActs = QuestionWords.WhoActs(question),
@@ -132,8 +142,8 @@ public sealed record PieceStatus(StageNodeState State, string Text)
         if (stages.Any(stage => stage.State == StageNodeState.HoldoutsNotRun)
             && piece.PendingVerifiers.FirstOrDefault(verifier => verifier.HasSession && (verifier.Lifecycle == SessionLifecycle.NeedsAttention || verifier.IsBlocked)) is { } asking)
         {
-            return new PieceStatus(StageNodeState.HoldoutsNotRun, $"Built; its check waits for you: {asking.Title} "
-                + (asking.IsBlocked ? "is blocked." : "has asked you something in its terminal."))
+            return new PieceStatus(StageNodeState.HoldoutsNotRun, $"Built; its check waits for you: "
+                + (asking.IsBlocked ? $"{asking.Title} is blocked." : $"{QuestionWords.Named(asking.Title, asking.Prompt, asking.Question)}."))
             {
                 WhoActs = "You; the check does nothing until you answer.",
                 Action = PieceAction.Answer,
