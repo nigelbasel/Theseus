@@ -65,10 +65,15 @@ public class NestedFoldTests
         view.ExpandAllCommand.Execute(null);
         var expanded = view.AllNodes.Where(node => node.Branch is not null).Select(node => node.Branch!.IsOpen).ToList();
 
+        view.CollapseAllCommand.Execute(null);
+        var rebuilt = _views.BuildYourMarket(previous: view);
+
         Assert.Multiple(() =>
         {
-            Assert.That(collapsed, Has.All.False);
-            Assert.That(expanded, Has.All.True);
+            Assert.That(collapsed, Is.Not.Empty.And.All.False);
+            Assert.That(expanded, Is.Not.Empty.And.All.True);
+            Assert.That(rebuilt.AllNodes.Select(node => node.Branch).OfType<ChildrenFold>().Select(fold => fold.IsOpen),
+                Is.Not.Empty.And.All.False, "Collapse all is remembered across a rebuild");
         });
     }
 
@@ -84,5 +89,17 @@ public class NestedFoldTests
         view.RevealSearch();
 
         Assert.That(parent.Branch.IsOpen, Is.True);
+    }
+
+    [Test]
+    public void SelectingABoxBeneathAFoldedBranch_OpensIt()
+    {
+        var view = _views.BuildYourMarket();
+        var parent = Parent(view);
+        parent.Branch!.ToggleCommand.Execute(null);
+
+        parent.Children[0].SelectCommand.Execute(null);
+
+        Assert.That(parent.Branch.IsOpen, Is.True, "Properties never shows a box that is not on screen");
     }
 }

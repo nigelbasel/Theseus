@@ -590,11 +590,18 @@ public sealed class ProjectViewModel : ObservableObject
 
         _selection = item is PieceNodeViewModel or StageNodeViewModel or PhaseHeadingViewModel or ObjectiveHeadingViewModel ? item : null;
 
-        // A selected box is never hidden in a folded run of finished pieces (D22).
-        if ((item as PieceNodeViewModel ?? (item as StageNodeViewModel)?.Piece) is { } box
-            && FinishedRuns.FirstOrDefault(run => !run.IsOpen && run.Boxes.Contains(box)) is { } folded)
+        // A selected box is never hidden in a folded run of finished pieces (D22), nor in a folded branch (item 1).
+        if ((item as PieceNodeViewModel ?? (item as StageNodeViewModel)?.Piece) is { } box)
         {
-            ToggleFold(folded);
+            if (FinishedRuns.FirstOrDefault(run => !run.IsOpen && run.Boxes.Contains(box)) is { } folded)
+            {
+                ToggleFold(folded);
+            }
+
+            foreach (var above in AllNodes.Where(each => each.Branch is { IsOpen: false } && each.Descendants.Contains(box)))
+            {
+                ToggleFold(above.Branch!);
+            }
         }
 
         switch (_selection)
@@ -1098,6 +1105,7 @@ public sealed class ProjectViewModel : ObservableObject
         {
             node.Branch!.IsOpen = node.Descendants.Any(child => NeedsAttention.Contains(child.State));
         }
+
 
         if (!IsGroupedByObjectives)
         {

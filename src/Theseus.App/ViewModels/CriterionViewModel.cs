@@ -17,6 +17,12 @@ public sealed record CriterionViewModel(string Text, bool IsTicked, ICommand? To
     /// </summary>
     public string TickGlyph => IsTicked ? "☑" : "☐";
 
+    /// <summary>On whom an unticked criterion waits, from its Waiting line: "Waiting for you: …"; empty otherwise (item 6).</summary>
+    public string Waiting { get; init; } = string.Empty;
+
+    /// <summary>Whether it says on whom it waits.</summary>
+    public bool HasWaiting => Waiting.Length > 0;
+
     /// <summary>What its button does.</summary>
     public string ToolTip => IsTicked ? "Untick this criterion in project.md" : "Tick this criterion in project.md";
 
@@ -24,6 +30,11 @@ public sealed record CriterionViewModel(string Text, bool IsTicked, ICommand? To
     internal static IReadOnlyList<CriterionViewModel> Of(ProjectObjective objective, ProjectViewEdits? edits) =>
     [
         .. objective.Criteria.Select(criterion => new CriterionViewModel(criterion.Text, criterion.IsTicked,
-            edits is null ? null : new RelayCommand(_ => edits.TickCriterion(objective, criterion, !criterion.IsTicked)))),
+            edits is null ? null : new RelayCommand(_ => edits.TickCriterion(objective, criterion, !criterion.IsTicked)))
+        {
+            Waiting = criterion.IsTicked || criterion.Waiting is not { } waiting
+                ? string.Empty
+                : waiting.IsOwner ? $"Waiting for you: {waiting.What}" : $"Waiting on work: {waiting.What}",
+        }),
     ];
 }

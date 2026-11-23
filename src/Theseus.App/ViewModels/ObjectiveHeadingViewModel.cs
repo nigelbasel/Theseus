@@ -72,8 +72,14 @@ public sealed class ObjectiveHeadingViewModel : ObservableObject, IFoldable
     /// <summary>"Phase 1: Evidence", the phase it is under, or null.</summary>
     public string? PhaseTitle { get; }
 
-    /// <summary>"0/6": ticked of criteria; empty with no objective.</summary>
-    public string CriteriaText => Objective is { } objective ? $"{objective.TickedCount}/{objective.Criteria.Count}" : string.Empty;
+    /// <summary>
+    /// "6 of 8 criteria met": what the count counts, said, since "6/8" beside a waiting mark read as six of eight things
+    /// waiting (Nigel, 2026-11-23); empty with no objective.
+    /// </summary>
+    public string CriteriaText => Objective is { } objective ? $"{objective.TickedCount} of {objective.Criteria.Count} criteria met" : string.Empty;
+
+    /// <summary>Whether its criteria are listed under it: while it is open and has any (item 6).</summary>
+    public bool ShowsCriteria => _isOpen && Criteria.Count > 0;
 
     /// <summary>"0 of 6 criteria ticked", or what the heading of unlisted pieces holds.</summary>
     public string CriteriaToolTip => Objective is { } objective
@@ -127,6 +133,7 @@ public sealed class ObjectiveHeadingViewModel : ObservableObject, IFoldable
                 Raise(nameof(Chevron));
                 Raise(nameof(ChevronToolTip));
                 Raise(nameof(ShowsPieces));
+                Raise(nameof(ShowsCriteria));
             }
         }
     }

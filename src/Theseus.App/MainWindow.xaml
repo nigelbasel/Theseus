@@ -1975,8 +1975,9 @@
                                             <DockPanel>
                                                 <!-- One click to its tab (item 8): four before, through the drawer's Overview. -->
                                                 <Button DockPanel.Dock="Right" Content="⌖ Focus" FontSize="11" Padding="6,0" Margin="6,0,0,0"
-                                                        Command="{Binding Focus}" Visibility="{Binding HasFocus, Converter={StaticResource BoolToVisibility}}"
+                                                        Command="{Binding Focus}" Visibility="{Binding Session, Converter={StaticResource NotEmptyToVisibility}}"
                                                         ToolTip="Bring its terminal tab forward"
+                                                        AutomationProperties.HelpText="Bring its terminal tab forward"
                                                         AutomationProperties.Name="{Binding Title, StringFormat=Focus {0}}" />
                                                 <TextBlock DockPanel.Dock="Right" Text="{Binding Session}" FontSize="11" Margin="8,0,0,0"
                                                            VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorSecondaryBrush}"

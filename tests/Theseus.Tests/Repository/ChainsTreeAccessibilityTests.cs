@@ -67,7 +67,7 @@ public class ChainsTreeAccessibilityTests
     public void TheTitleButton_TellsAScreenReaderWhatItDoes()
     {
         var (tree, _) = LaidOut();
-        var button = Descendants<Button>(tree).First();
+        var button = Descendants<Button>(tree).First(each => each.Content is TextBlock);
 
         Assert.That(UIElementAutomationPeer.CreatePeerForElement(button).GetHelpText(), Is.EqualTo("Open this card's details"),
             "a tooltip that is not a string gives a screen reader nothing");
