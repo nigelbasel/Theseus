@@ -173,20 +173,7 @@ public class CheckRefusalInPlainViewTests
     [Test]
     public void TheCardMenusVerify_NamesWhyItCannotRun_InItsOwnText()
     {
-        var root = Path.Combine(Path.GetTempPath(), "theseus-check-refusal-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(root);
-
-        try
-        {
-            var card = ProjectCards.Card("a-card", "p");
-            var checks = new HoldoutChecks(root);
-            checks.Refresh(string.Empty, [card]);
-
-            Assert.That(checks.VerifyMenuText(card, "A card"), Is.EqualTo($"_Verify with holdouts… — {NoScenarios}"));
-        }
-        finally
-        {
-            Directory.Delete(root, recursive: true);
-        }
+        Assert.That(HoldoutChecks.MenuText(NoScenarios), Is.EqualTo($"_Verify with holdouts… — {NoScenarios}"));
+        Assert.That(HoldoutChecks.MenuText(null), Is.EqualTo("_Verify with holdouts…"));
     }
 }

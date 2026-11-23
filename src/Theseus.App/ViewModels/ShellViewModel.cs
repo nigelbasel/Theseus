@@ -628,9 +628,7 @@ public sealed class ShellViewModel : ObservableObject
     /// Verify with holdouts' text on the Workstream menu: with one card ticked that cannot be checked, the reason follows
     /// the label (Nigel, 2026-11-23).
     /// </summary>
-    public string VerifySelectedMenuText => Chosen() is [var only]
-        ? _holdouts.VerifyMenuText(only.Workstream, only.Title)
-        : HoldoutChecks.VerifyMenuLabel;
+    public string VerifySelectedMenuText => HoldoutChecks.MenuText(Chosen() is [var only] ? WhyCannotVerify(only) : null);
 
     /// <summary>Ticks every card with a session running, so the end of the day is Select live, then Stop.</summary>
     public RelayCommand SelectLiveCommand { get; }
@@ -1491,6 +1489,9 @@ public sealed class ShellViewModel : ObservableObject
 
     private bool CanVerify(WorkstreamCardViewModel card) => WhyCannotVerify(card) is null;
 
+    private IReadOnlyDictionary<string, IReadOnlyList<PieceCard>> _standingVerifiers =
+        new Dictionary<string, IReadOnlyList<PieceCard>>(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>Says in a dialog why something pressed cannot be done, or in the status bar when no dialog is set. Set by the app.</summary>
     public Action<string>? ExplainRefusal { get; set; }
 
@@ -1516,22 +1517,37 @@ public sealed class ShellViewModel : ObservableObject
 
     /// <summary>Why Verify with holdouts cannot run for a card, or null (1.1e AC 6a, 6c), from the folders as last refreshed.</summary>
     private string? WhyCannotVerify(WorkstreamCardViewModel card) =>
-        PendingVerifiersOf(card) is [_, ..] verifiers
+        card.Workstream is { IsArchived: false, Role: WorkstreamRole.None } && PendingVerifiersOf(card) is [_, ..] verifiers
             ? VerifierCards.WhyAlreadyChecked(verifiers)
             : _holdouts.WhyCannotVerify(card.Workstream, card.Title);
 
     /// <summary>
-    /// The verifier cards made for a card that still stand, unstarted or with a session, by title: it gets no second
-    /// (Nigel, 2026-11-23: a second press of Start the checks… made a duplicate of each).
+    /// The standing verifier cards made for a card, by title: it gets no second (Nigel, 2026-11-23). Read from the map made
+    /// at each refresh, since this is asked by CanExecute on every requery (review, finding 3).
     /// </summary>
-    private List<string> PendingVerifiersOf(WorkstreamCardViewModel card)
-    {
-        var links = Chains?.AllLinks ?? [];
+    private List<string> PendingVerifiersOf(WorkstreamCardViewModel card) =>
+        [.. _standingVerifiers.GetValueOrDefault(card.Key, []).Select(verifier => verifier.Title)];
 
-        return [.. Board.Cards
-            .Where(each => each.Workstream is { Role: WorkstreamRole.Verifier, IsArchived: false } && VerifierCards.IsPending(each.Lifecycle)
-                           && string.Equals(VerifierCards.SubjectOf(each.Key, links), card.Key, StringComparison.OrdinalIgnoreCase))
-            .Select(each => each.Title)];
+    /// <summary>Works out again which verifier cards stand, by the card each checks, and each card's Verify texts.</summary>
+    private void RefreshStandingVerifiers()
+    {
+        _standingVerifiers = VerifierCards.BySubject(
+            Board.Cards.Where(card => card.Workstream.Role == WorkstreamRole.Verifier).Select(card =>
+                new PieceCard(card.Key, card.Title, card.ColorHex, card.Lifecycle, Role: WorkstreamRole.Verifier)
+                {
+                    IsArchived = card.Workstream.IsArchived,
+                    HasRun = HasRun(card),
+                }),
+            Chains?.AllLinks ?? []);
+    }
+
+    private static bool HasRun(WorkstreamCardViewModel card) => card.LastStartedUtc is not null || card.Workstream.LastSessionId is not null;
+
+    private void SetVerifyTexts(WorkstreamCardViewModel card)
+    {
+        var why = WhyCannotVerify(card);
+        card.VerifyToolTip = why ?? VerifyToolTipWhenItCan;
+        card.VerifyMenuText = HoldoutChecks.MenuText(why);
     }
 
     /// <summary>The way on from a disabled view button, offered beside it as a link (1.1e AC 6a, 6c).</summary>
@@ -1679,6 +1695,8 @@ public sealed class ShellViewModel : ObservableObject
         Board.Persist(created);
 
         Chains?.FollowedOn(card.Key, key, verifier.ReportPath);
+        RefreshStandingVerifiers();
+        SetVerifyTexts(card);
         Notice = $"Created {verifier.Title}. Start it when you are ready.";
         WriteVerifierRow(card, created);
 
@@ -2118,11 +2136,11 @@ public sealed class ShellViewModel : ObservableObject
 
         // Membership has just been read, so the holdout folders are looked at again by project (1.1e AC 6c).
         RefreshHoldouts([.. cards.Select(card => card.Workstream)]);
+        RefreshStandingVerifiers();
 
         foreach (var card in cards)
         {
-            card.VerifyToolTip = WhyCannotVerify(card) ?? VerifyToolTipWhenItCan;
-            card.VerifyMenuText = _holdouts.VerifyMenuText(card.Workstream, card.Title);
+            SetVerifyTexts(card);
             card.BranchRulesSince = BranchRulesSince(card.Workstream);
         }
 
@@ -2386,6 +2404,7 @@ public sealed class ShellViewModel : ObservableObject
             PausedBy = card.Workstream.PausedBy is { } by ? Board.Card(by)?.Title ?? by : null,
             BranchRulesSince = BranchRulesSince(card.Workstream),
             IsArchived = card.Workstream.IsArchived,
+            HasRun = HasRun(card),
         };
 
     /// <summary>Open spec and Accept spec on the menu bar, for the open project's waiting specs (R16).</summary>
@@ -3301,6 +3320,7 @@ public sealed class ShellViewModel : ObservableObject
         var reasons = _settings.Read();
         _branchGrants = reasons.ProjectBranchRules;
         RefreshHoldouts([.. Board.Cards.Select(card => card.Workstream)]);
+        RefreshStandingVerifiers();
 
         foreach (var card in Board.Cards)
         {
@@ -3316,8 +3336,7 @@ public sealed class ShellViewModel : ObservableObject
             card.IsInLastStage = lastStage is not null && string.Equals(card.Column, lastStage, StringComparison.OrdinalIgnoreCase);
             card.StopReason = CardStopReasons.For(card, reasons.ProjectRunStates, ProjectTitle, reasons.CardsStoppedByOwner,
                 Chains?.AllLinks ?? [], key => Board.Card(key)?.Title ?? key);
-            card.VerifyToolTip = WhyCannotVerify(card) ?? VerifyToolTipWhenItCan;
-            card.VerifyMenuText = _holdouts.VerifyMenuText(card.Workstream, card.Title);
+            SetVerifyTexts(card);
             card.LastRunCrashed = !live && (state.Lifecycle == SessionLifecycle.Ghost
                                             || runs.Where(run => string.Equals(run.WorkstreamKey, card.Key, StringComparison.OrdinalIgnoreCase))
                                                 .MaxBy(run => run.StartedUtc)?.ExitReason == SessionExitReason.CrashedOrKilled);

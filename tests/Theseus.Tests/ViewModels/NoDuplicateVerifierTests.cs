@@ -35,12 +35,12 @@ public class NoDuplicateVerifierTests
     [TearDown]
     public void TearDown() => _folder.Dispose();
 
-    private ProjectViewModel WithVerifier(SessionLifecycle lifecycle, bool archived = false)
+    private ProjectViewModel WithVerifier(SessionLifecycle lifecycle, bool archived = false, bool hasRun = false)
     {
         IReadOnlyList<PieceCard> cards =
         [
             .. BuildYourMarketBoard(),
-            Card(Verifier, lifecycle, role: WorkstreamRole.Verifier) with { IsArchived = archived },
+            Card(Verifier, lifecycle, role: WorkstreamRole.Verifier) with { IsArchived = archived, HasRun = hasRun },
         ];
         IReadOnlyList<Link> links = [.. BuildYourMarketLinks(), NewLink(LinkKind.ReportsBack, Verifier, _buildCard)];
 
@@ -150,13 +150,51 @@ public class NoDuplicateVerifierTests
             Does.Contain($"▶ Start {Verifier}"));
     }
 
+    // NotStarted means "no run today" (CardLifecycle), so a verifier that ran yesterday reads NotStarted this morning
+    // (review, finding 1): it no longer stands, and its build can be checked again.
     [Test]
-    public void TheShellsReason_NamesTheVerifierAlreadyMade()
+    public void AVerifierThatRanBefore_AndHasNoSessionNow_NoLongerStands()
     {
+        var view = WithVerifier(SessionLifecycle.NotStarted, hasRun: true);
+
+        Assert.That(Of(view, WaitKind.StartChecks).Single().Item.Pieces, Does.Contain(_build));
+        Assert.That(Of(view, WaitKind.StartVerifier), Is.Empty);
+    }
+
+    [Test]
+    public void TheShellsReason_NamesTheVerifierAlreadyMade_AndOnlyAStandingVerifierCounts()
+    {
+        PieceCard Verifier(SessionLifecycle lifecycle, bool hasRun = false, bool archived = false) =>
+            Card("v", lifecycle, role: WorkstreamRole.Verifier) with { HasRun = hasRun, IsArchived = archived };
+
         Assert.That(VerifierCards.WhyAlreadyChecked(["Verify: Theseus"]),
             Is.EqualTo("Verify: Theseus is already created to check it: start it rather than make another"));
-        Assert.That(VerifierCards.IsPending(SessionLifecycle.NotStarted), Is.True);
-        Assert.That(VerifierCards.IsPending(SessionLifecycle.Running), Is.True);
-        Assert.That(VerifierCards.IsPending(SessionLifecycle.Ended), Is.False);
+        Assert.That(new[]
+            {
+                VerifierCards.Stands(Verifier(SessionLifecycle.NotStarted)),
+                VerifierCards.Stands(Verifier(SessionLifecycle.Running, hasRun: true)),
+                VerifierCards.Stands(Verifier(SessionLifecycle.NeedsAttention, hasRun: true)),
+                VerifierCards.Stands(Verifier(SessionLifecycle.NotStarted, hasRun: true)),
+                VerifierCards.Stands(Verifier(SessionLifecycle.Ended, hasRun: true)),
+                VerifierCards.Stands(Verifier(SessionLifecycle.NotStarted, archived: true)),
+                VerifierCards.Stands(Card("v", SessionLifecycle.NotStarted)),
+            },
+            Is.EqualTo(new[] { true, true, true, false, false, false, false }));
+    }
+
+    [Test]
+    public void BySubject_FollowsEachVerifiersLatestActiveReportBack()
+    {
+        var verifier = Card("v", role: WorkstreamRole.Verifier);
+        IReadOnlyList<Link> links =
+        [
+            NewLink(LinkKind.ReportsBack, "v", "old"),
+            NewLink(LinkKind.ReportsBack, "v", "new"),
+            NewLink(LinkKind.HandsOver, "v", "elsewhere"),
+        ];
+        var bySubject = VerifierCards.BySubject([verifier, Card("plain")], links);
+
+        Assert.That(bySubject.Keys, Is.EqualTo(new[] { "new" }));
+        Assert.That(bySubject["new"].Single().Key, Is.EqualTo("v"));
     }
 }

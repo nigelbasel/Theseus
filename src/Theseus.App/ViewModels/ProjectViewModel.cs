@@ -941,14 +941,14 @@ public sealed class ProjectViewModel : ObservableObject
     private WaitItemViewModel ChecksWait(WaitItem item)
     {
         var builds = PiecesOf(item);
-        var count = builds.Count == 1 ? "1 build needs" : $"{builds.Count} builds need";
+        var count = builds.Count == 1 ? "1 build needs its" : $"{builds.Count} builds need their";
         var from = Rounds.Count > 1 && builds.Count > 0 ? $" from round {builds[0].Round}" : string.Empty;
         var reasons = builds.Select(WhyNoCheck).ToList();
 
         if (builds.Count > 0 && reasons.All(reason => reason is not null))
         {
             var why = string.Join("; ", reasons.Distinct(StringComparer.Ordinal));
-            var text = $"{count} their independent check{from}, but it cannot run: {why}.";
+            var text = $"{count} independent check{from}, but it cannot run: {why}.";
             var wayOn = builds.Select(piece => _actions.WayOn?.Invoke(piece.CardKey, StageAction.VerifyWithHoldouts))
                 .FirstOrDefault(way => way is not null);
 
@@ -960,7 +960,7 @@ public sealed class ProjectViewModel : ObservableObject
         if (builds.All(piece => piece.Card is { IsWorking: true }))
         {
             return new WaitItemViewModel(item, new RelayCommand(_ => { }, _ => false),
-                $"{count} their independent check{from}, but every one is still busy: start the checks after they stop.",
+                $"{count} independent check{from}, but every one is still busy: start the checks after they stop.",
                 toolTip: EveryBuildBusy);
         }
 
