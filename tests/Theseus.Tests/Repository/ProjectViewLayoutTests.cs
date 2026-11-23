@@ -344,12 +344,11 @@ public class ProjectViewLayoutTests
     }
 
     [Test]
-    public void TheGroupByRow_IsOneSize_ItsThreeFoldButtonsSmallIcons_AsTallAsTheRadioButtons()
+    public void TheToolbar_IsOneSize_ItsThreeFoldButtonsSmallIcons32High()
     {
         // Nigel, 2026-11-23: Collapse all, Expand all and Open what needs attention were "large buttons much larger than
         // everything else in that row". Their names, keys and tooltips stay; only their size and face change.
         var control = LaidOut(_views.Theseus());
-        var radio = Named<RadioButton>(control, "GroupByFlow");
 
         foreach (var (name, spoken) in new[] { ("CollapseAll", "Collapse all"), ("ExpandAll", "Expand all"), ("OpenWhatNeedsAttention", "Open what needs attention") })
         {
@@ -357,7 +356,7 @@ public class ProjectViewLayoutTests
 
             Assert.Multiple(() =>
             {
-                Assert.That(button.ActualHeight, Is.EqualTo(radio.ActualHeight).Within(0.5), name);
+                Assert.That(button.ActualHeight, Is.EqualTo(32).Within(0.5), name);
                 Assert.That(button.ActualWidth, Is.LessThanOrEqualTo(button.ActualHeight + 20), $"{name} is a small icon, not a word");
                 Assert.That(AutomationProperties.GetName(button), Is.EqualTo(spoken), "UI Automation reads the same name as before");
                 Assert.That(button.ToolTip as string, Does.StartWith(spoken), "its hover says what it does");

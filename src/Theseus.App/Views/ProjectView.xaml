@@ -188,10 +188,40 @@
         </Style>
 
         <!-- Group by's two toggle buttons, one pressed (AC 45): radio buttons drawn as toggle buttons. -->
-        <Style x:Key="GroupByButton" TargetType="RadioButton" BasedOn="{StaticResource {x:Type ToggleButton}}">
+        <!--
+            A selector bar item: two views of the same project are tabs over the page, not toggle buttons in a toolbar
+            (walkthrough row 44; checklist G125). Text, an accent underline under the one selected, a wash on hover.
+        -->
+        <Style x:Key="GroupByButton" TargetType="RadioButton">
             <Setter Property="GroupName" Value="GroupBy" />
-            <Setter Property="Padding" Value="9,3" />
-            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Padding" Value="12,8" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Grid Background="Transparent">
+                            <Border x:Name="Wash" CornerRadius="4" Margin="0,0,0,4" Background="Transparent" />
+                            <ContentPresenter Margin="{TemplateBinding Padding}" RecognizesAccessKey="True"
+                                              TextElement.Foreground="{TemplateBinding Foreground}" />
+                            <Rectangle x:Name="Underline" Height="3" RadiusX="1.5" RadiusY="1.5" Margin="12,0" VerticalAlignment="Bottom"
+                                       Fill="{DynamicResource AccentFillColorDefaultBrush}" Visibility="Hidden" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Wash" Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Underline" Property="Visibility" Value="Visible" />
+                                <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                                <Setter Property="FontWeight" Value="SemiBold" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <!-- A heading's chevron, as a box's (AC 46). -->
@@ -1089,33 +1119,35 @@
             </StackPanel>
         </Border>
 
-        <!-- Group by, the toolbar, then the legend, all wrapping, so a narrow window cuts nothing off (AC 21, 22, 45, 54). -->
+        <!-- The two views of the project, as a selector bar over the page: one Tab stop, arrow keys between them (G124, G125). -->
+        <Border DockPanel.Dock="Top" Padding="12,4,12,0" BorderThickness="0,0,0,1"
+                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
+            <StackPanel x:Name="GroupBy" Orientation="Horizontal" KeyboardNavigation.TabNavigation="Once"
+                        KeyboardNavigation.DirectionalNavigation="Cycle" AutomationProperties.Name="Views of the project">
+                <RadioButton x:Name="GroupByFlow" Content="_Rounds and work" Style="{StaticResource GroupByButton}" Margin="0,0,4,0"
+                             IsChecked="{Binding IsGroupedByFlow, Mode=TwoWay}" AutomationProperties.Name="Rounds and work"
+                             ToolTip="Rounds and work: pieces of work as they hand work on, time running down the page" />
+                <RadioButton x:Name="GroupByObjectives" Content="_Objectives only" Style="{StaticResource GroupByButton}"
+                             IsChecked="{Binding IsGroupedByObjectives, Mode=TwoWay}" AutomationProperties.Name="Objectives only"
+                             ToolTip="Objectives only: pieces of work under the phases and objectives of project.md" />
+            </StackPanel>
+        </Border>
+        <!-- The page's toolbar, then the legend, wrapping, so a narrow window cuts nothing off (AC 21, 22, 45, 54). -->
         <Border DockPanel.Dock="Top" Padding="14,8,14,2" BorderThickness="0,0,0,1"
                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
             <WrapPanel x:Name="Toolbar">
-                <StackPanel x:Name="GroupBy" Orientation="Horizontal" Margin="0,0,12,6" VerticalAlignment="Center">
-                    <TextBlock Text="Group by:" FontSize="13" Margin="0,0,6,0" VerticalAlignment="Center"
-                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                    <RadioButton x:Name="GroupByFlow" Content="Rounds and work" Style="{StaticResource GroupByButton}" Margin="0,0,2,0"
-                                 IsChecked="{Binding IsGroupedByFlow, Mode=TwoWay}"
-                                 ToolTip="Pieces of work as they hand work on, time running down the page" />
-                    <RadioButton x:Name="GroupByObjectives" Content="Objectives only" Style="{StaticResource GroupByButton}"
-                                 IsChecked="{Binding IsGroupedByObjectives, Mode=TwoWay}"
-                                 ToolTip="Pieces of work under the phases and objectives of project.md" />
-                </StackPanel>
                 <!--
-                    One size with Group by (Nigel, 2026-11-23: "large buttons much larger than everything else in that row"):
-                    small icons exactly as tall as the radio buttons, each named for UI Automation as its words were, and
-                    saying what it does on hover.
+                    One size in the row (Nigel, 2026-11-23: "large buttons much larger than everything else in that row"):
+                    small icons 32 high, each named for UI Automation as its words were, and saying what it does on hover.
                 -->
                 <Button x:Name="CollapseAll" Content="&#xE73F;" Command="{Binding CollapseAllCommand}" Style="{StaticResource ToolbarIcon}"
-                        Height="{Binding ActualHeight, ElementName=GroupByFlow}" Margin="0,0,4,6"
+                        Height="32" Margin="0,0,4,6"
                         AutomationProperties.Name="Collapse all" ToolTip="Collapse all: fold every piece of work, and every heading" />
                 <Button x:Name="ExpandAll" Content="&#xE740;" Command="{Binding ExpandAllCommand}" Style="{StaticResource ToolbarIcon}"
-                        Height="{Binding ActualHeight, ElementName=GroupByFlow}" Margin="0,0,4,6"
+                        Height="32" Margin="0,0,4,6"
                         AutomationProperties.Name="Expand all" ToolTip="Expand all: open every piece of work into its stages, and every heading" />
                 <Button x:Name="OpenWhatNeedsAttention" Content="&#xE7C1;" Command="{Binding OpenWhatNeedsAttentionCommand}"
-                        Style="{StaticResource ToolbarIcon}" Height="{Binding ActualHeight, ElementName=GroupByFlow}" Margin="0,0,12,6"
+                        Style="{StaticResource ToolbarIcon}" Height="32" Margin="0,0,12,6"
                         AutomationProperties.Name="Open what needs attention"
                         ToolTip="Open what needs attention: what is busy, waiting on you, stuck or waiting for its holdout check, and the headings on the way to it; fold the rest" />
                 <WrapPanel x:Name="Legend" Margin="0,0,0,6" VerticalAlignment="Center">

@@ -12,7 +12,7 @@ public class ProjectViewGroupingDocsTests
     private static string Doc(string name) => File.ReadAllText(Path.Combine(RepositoryRoot(), "docs", name));
 
     [TestCase("## Group by")]
-    [TestCase("**Group by: Flow | Objectives**")]
+    [TestCase("**Rounds and work | Objectives only**")]
     [TestCase("**View > Group project by**")]
     [TestCase("**nothing yet**")]
     [TestCase("**Not in project.md**")]

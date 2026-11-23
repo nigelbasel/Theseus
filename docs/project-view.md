@@ -89,7 +89,8 @@ typed; the bar only types Markdown for you.
 
 ## Group by
 
-**Group by: Flow | Objectives** on the toolbar, or **View > Group project by**, chooses how the boxes are laid out.
+The two tabs over the page, **Rounds and work | Objectives only** (Alt+R, Alt+O), or **View > Group project by**, choose
+how the boxes are laid out.
 Each project keeps its own choice, across restarts.
 
 - **Flow** shows the pieces of work as they hand work on, time running down the page, with the links below.

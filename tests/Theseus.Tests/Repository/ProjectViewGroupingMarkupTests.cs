@@ -22,7 +22,7 @@ public class ProjectViewGroupingMarkupTests
         document.Descendants().Single(element => (string?)element.Attribute(Xaml + "Name") == name);
 
     [Test]
-    public void TheToolbar_HasGroupBy_FlowOrObjectives_AsTwoToggleButtons_OnePressed()
+    public void TheTwoViews_AreASelectorBarOverThePage_OneSelected_OneTabStop()
     {
         var view = View();
         var buttons = Named(view, "GroupBy").Elements(Presentation + "RadioButton").ToList();
@@ -30,9 +30,12 @@ public class ProjectViewGroupingMarkupTests
 
         Assert.That(buttons.Select(button => ((string?)button.Attribute("Content"), (string?)button.Attribute("IsChecked"))), Is.EqualTo(new[]
         {
-            ("Rounds and work", "{Binding IsGroupedByFlow, Mode=TwoWay}"), ("Objectives only", "{Binding IsGroupedByObjectives, Mode=TwoWay}"),
+            ("_Rounds and work", "{Binding IsGroupedByFlow, Mode=TwoWay}"), ("_Objectives only", "{Binding IsGroupedByObjectives, Mode=TwoWay}"),
         }));
-        Assert.That((string?)style.Attribute("BasedOn"), Is.EqualTo("{StaticResource {x:Type ToggleButton}}"), "drawn as toggle buttons");
+        // Walkthrough row 44: two views of the same data are tabs over the page (checklist G124, G125), not a toolbar's toggles.
+        Assert.That(Named(view, "Toolbar").Descendants().Any(element => (string?)element.Attribute(Xaml + "Name") == "GroupBy"), Is.False);
+        Assert.That((string?)Named(view, "GroupBy").Attribute("KeyboardNavigation.TabNavigation"), Is.EqualTo("Once"));
+        Assert.That(style.Descendants(Presentation + "Rectangle").Single().Attribute(Xaml + "Name")!.Value, Is.EqualTo("Underline"));
         Assert.That(style.Elements(Presentation + "Setter").Single(setter => (string?)setter.Attribute("Property") == "GroupName")
             .Attribute("Value")!.Value, Is.EqualTo("GroupBy"), "pressing one releases the other");
     }
