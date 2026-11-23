@@ -828,13 +828,17 @@ public sealed class ProjectViewModel : ObservableObject
     // box and Verify stage offer it only when that start failed, with the card's own Start.
     private List<PieceActionViewModel> VerifierStarts(PieceOfWork piece) =>
     [
-        .. piece.PendingVerifiers.Where(verifier => !verifier.HasSession && verifier.StartFailure is not null).Select(verifier =>
+        .. piece.PendingVerifiers.Where(VerifierCards.NeedsAStart).Select(verifier =>
             new PieceActionViewModel(
-                $"Start {verifier.Title} again", () => _actions.Start(verifier.Key), verifier.CanStart,
+                $"Start {verifier.Title} again", () => StartVerifier(verifier.Key), verifier.CanStart,
                 verifier.CanStart
-                    ? $"{verifier.Title} did not start: {verifier.StartFailure}. Start it again: it runs the holdout scenarios against {piece.Workstream}"
+                    ? $"{VerifierCards.NotRunning(verifier)} Start it again: it runs the holdout scenarios against {piece.Workstream}"
                     : $"{verifier.Title} cannot be started from the board now")),
     ];
+
+    // A verifier is started by the shell's own start for one, not the card's Start, which in a stopped project starts the
+    // whole project (review of the auto-start).
+    private void StartVerifier(string key) => (_actions.StartVerifier ?? _actions.Start)(key);
 
     private static void Run(SpecAtGate? spec, Action<SpecAtGate> action)
     {
@@ -1039,7 +1043,16 @@ public sealed class ProjectViewModel : ObservableObject
             return;
         }
 
-        foreach (var key in builds.Select(piece => piece.CardKey).Distinct(StringComparer.OrdinalIgnoreCase))
+        var keys = builds.Select(piece => piece.CardKey).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
+        if (_actions.VerifyMany is { } many)
+        {
+            many(keys);
+
+            return;
+        }
+
+        foreach (var key in keys)
         {
             _actions.VerifyWithHoldouts(key);
         }
@@ -1057,7 +1070,7 @@ public sealed class ProjectViewModel : ObservableObject
             WaitKind.Answer when item.CardKey is { } card => new RelayCommand(_ => _actions.Focus(card)),
             WaitKind.Unblock when item.CardKey is { } card && node?.PrimaryAction is { } action => action.Command,
             WaitKind.StartChecks => new RelayCommand(_ => StartChecks(item)),
-            WaitKind.StartVerifier when item.CardKey is { } verifier => new RelayCommand(_ => _actions.Start(verifier)),
+            WaitKind.StartVerifier when item.CardKey is { } verifier => new RelayCommand(_ => StartVerifier(verifier)),
             WaitKind.ClearVerifiers when _actions.ClearVerifiers is { } clear => new RelayCommand(_ => clear(project)),
             WaitKind.UndoClearVerifiers when _actions.UndoClearVerifiers is { } undo => new RelayCommand(_ => undo(project)),
             WaitKind.AddToObjective when item.CardKey is { } card && _actions.AddToProject is { } add => new RelayCommand(_ => add(project, card)),

@@ -62,7 +62,7 @@ public sealed class ProjectOverview
         if (wrongVerifiers is { Count: > 0 } wrong)
         {
             waits.Insert(0, new WaitItem(WaitKind.ClearVerifiers,
-                $"{Capital(Count(wrong.Count, "verifier card"))} should not be kept: a copy of a build's check, or a check run against another project's scenarios.",
+                $"{Capital(Count(wrong.Count, "card"))} Theseus made should not be kept: a copy of a build's check, a check of another project's scenarios, or a scenario writer aimed at the wrong folder.",
                 []));
         }
 
@@ -119,14 +119,14 @@ public sealed class ProjectOverview
             waits.Add(new WaitItem(kind, text, [piece.Name]) { CardKey = status.ActsOnCard ?? piece.CardKey });
         }
 
-        // Theseus starts a verifier itself as it makes one (Nigel, 2026-11-23), so one waits for the owner only when that
-        // start failed, whatever its subject's state: this line and its subject's Verify stage say why, with Start again.
+        // Theseus starts a verifier itself as it makes one (Nigel, 2026-11-23), so one waits for the owner only when it is
+        // neither running nor starting nor reported, whatever its subject's state: this line and its subject's Verify stage
+        // say so, with Start again.
         foreach (var piece in pieces)
         {
-            foreach (var verifier in piece.PendingVerifiers.Where(verifier => !verifier.HasSession && verifier.StartFailure is not null))
+            foreach (var verifier in piece.PendingVerifiers.Where(VerifierCards.NeedsAStart))
             {
-                waits.Add(new WaitItem(WaitKind.StartVerifier,
-                    $"{verifier.Title} did not start: {verifier.StartFailure!.TrimEnd('.')}.", [piece.Name]) { CardKey = verifier.Key });
+                waits.Add(new WaitItem(WaitKind.StartVerifier, VerifierCards.NotRunning(verifier), [piece.Name]) { CardKey = verifier.Key });
             }
         }
 

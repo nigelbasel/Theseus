@@ -41,11 +41,7 @@ public sealed class BoardLaunchEventSink : ILaunchEventSink
     public Theseus.Core.Launching.LaunchesInFlight? InFlight { get; set; }
 
     /// <inheritdoc />
-    public void TicketRefused(string ticket, string reason)
-    {
-        InFlight?.Ended(ticket);
-        Set(ticket, SessionLifecycle.Ghost);
-    }
+    public void TicketRefused(string ticket, string reason) => Set(ticket, SessionLifecycle.Ghost);
 
     /// <inheritdoc />
     public void Started(string ticket, StartedPayload payload) => Set(ticket, SessionLifecycle.Running);

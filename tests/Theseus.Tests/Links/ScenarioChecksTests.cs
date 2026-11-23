@@ -15,6 +15,9 @@ public class ScenarioChecksTests
     [TestCase("**Checks:** close-step")]
     [TestCase("- Checks: `close-step`")]
     [TestCase("  Checks:close-step  ")]
+    [TestCase("## Checks: close-step")]
+    [TestCase("1. Checks: close-step")]
+    [TestCase("Checks : close-step.")]
     public void ALineSaysWhichWorkItChecks_HoweverItIsWritten(string line)
     {
         Assert.That(ScenarioChecks.NamesIn($"# Stop with handoff\n\n{line}\n\nSet up: …"), Is.EquivalentTo(new[] { "close-step" }));
@@ -25,6 +28,8 @@ public class ScenarioChecksTests
     {
         Assert.That(ScenarioChecks.NamesIn("Checks: close-step, resumed-stop\r\nChecks: git-22"),
             Is.EquivalentTo(new[] { "close-step", "resumed-stop", "git-22" }));
+        Assert.That(ScenarioChecks.NamesIn("Checks: close-step; resumed-stop\rChecks: git-22"),
+            Is.EquivalentTo(new[] { "close-step", "resumed-stop", "git-22" }), "review of the auto-start: ; and bare CR");
     }
 
     [Test]

@@ -112,11 +112,25 @@ public sealed class HoldoutChecks
         _checkedWork.TryGetValue(card.Project ?? string.Empty, out var named)
         && new[] { card.Slug, card.Key }.OfType<string>().Any(named.Contains);
 
-    private static IReadOnlySet<string> Checked(HoldoutLocation location)
+    // The names read last time from each folder, kept while its scenarios are unchanged: a refresh comes on every change
+    // to the session registry, and reading every scenario each time held up the board (review of the auto-start).
+    private readonly Dictionary<string, (string Stamp, IReadOnlySet<string> Named)> _namesRead = new(StringComparer.OrdinalIgnoreCase);
+
+    private IReadOnlySet<string> Checked(HoldoutLocation location)
     {
         try
         {
-            return location.CheckedWork();
+            var stamp = location.ScenariosStamp();
+
+            if (_namesRead.TryGetValue(location.Folder, out var read) && read.Stamp == stamp)
+            {
+                return read.Named;
+            }
+
+            var named = location.CheckedWork();
+            _namesRead[location.Folder] = (stamp, named);
+
+            return named;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {

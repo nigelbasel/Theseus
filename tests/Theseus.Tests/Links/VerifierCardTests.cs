@@ -42,7 +42,8 @@ public class VerifierCardTests
 
         Assert.That(brief, Does.Contain("You are a verifier for close-step."));
         Assert.That(brief, Does.Contain(
-            "Find the checked change's spec in its project home, under work/<slug>/, and its section naming the holdout scenarios that apply."));
+            "The scenarios to run are those in the holdout whose \"Checks:\" line names close-step; the checked change's spec is in its project home, under work/<slug>/."),
+            "the scenarios Theseus matched, not a list in the spec (review of the auto-start)");
         Assert.That(brief, Does.Contain(
             "Read the scenarios with the file tools; run builds and tests from the checked card's folder, never from inside the holdout."));
         Assert.That(brief, Does.Contain("Run each named scenario."));
@@ -84,7 +85,7 @@ public class VerifierCardTests
         Assert.That(card.AddDirectories, Is.EqualTo(new[] { Holdout, @"C:\work\close-step\other", @"C:\projects\theseus\work\close-step" }),
             "records are kept outside every code repo (1.1b AC 9)");
         Assert.That(card.Prompt, Does.Contain(
-            @"Find the checked change's spec in C:\projects\theseus\work\close-step, and its section naming the holdout scenarios that apply."));
+            @"The scenarios to run are those in the holdout whose ""Checks:"" line names close-step; the checked change's spec is in C:\projects\theseus\work\close-step."));
     }
 
     [Test]

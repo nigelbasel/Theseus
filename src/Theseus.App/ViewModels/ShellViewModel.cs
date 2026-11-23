@@ -1504,7 +1504,9 @@ public sealed partial class ShellViewModel : ObservableObject
     /// <summary>Why Verify with holdouts cannot run for a card, or null (1.1e AC 6a, 6c), from the folders as last refreshed.</summary>
     private string? WhyCannotVerify(WorkstreamCardViewModel card) =>
         card.Workstream is { IsArchived: false, Role: WorkstreamRole.None } && PendingVerifiersOf(card) is [_, ..] verifiers
-            ? VerifierCards.WhyAlreadyChecked(verifiers)
+            ? _standingVerifiers.GetValueOrDefault(card.Key, []).FirstOrDefault(VerifierCards.NeedsAStart) is { } idle
+                ? $"{idle.Title} is already made to check it, but is not running: Start it again from the Waits line"
+                : VerifierCards.WhyAlreadyChecked(verifiers)
             : _holdouts.WhyCannotVerify(card.Workstream, card.Title);
 
     /// <summary>
@@ -1524,6 +1526,7 @@ public sealed partial class ShellViewModel : ObservableObject
                     IsArchived = card.Workstream.IsArchived,
                     HasRun = HasRun(card),
                     StartFailure = _verifierStartFailures.GetValueOrDefault(card.Key),
+                    IsStarting = _launcher.InFlight.IsInFlight(card.Key),
                 }),
             Chains?.AllLinks ?? []);
     }
@@ -1626,8 +1629,7 @@ public sealed partial class ShellViewModel : ObservableObject
             Notice = $"{holdout.Folder} could not be made a git repository (is git installed?); the scenarios there will have no history.";
         }
         var project = card.Workstream.Project;
-        var reading = project is null ? null : Readable(project);
-        var writer = ScenarioWriterCard.For(reading?.File?.Title ?? card.Title, holdout.Folder, reading?.Folder);
+        var writer = WriterFor(project, card.Title, holdout.Folder);
         var key = WorkstreamKey.Unique(writer.Title, [.. _plans.Keys(), .. Chains?.TakenKeys ?? []]);
 
         _plans.Write(key, new SessionPlan(_plans.Keys().Count + 1, writer.Title, card.Workstream.ColorHex,
@@ -1636,21 +1638,91 @@ public sealed partial class ShellViewModel : ObservableObject
         Refresh();
         Board.Place(key, card.Column, card.Workstream.Area);
 
-        if (Board.Card(key) is { } created)
+        if (Board.Card(key) is not { } created)
         {
-            created.Workstream = created.Workstream with { Role = ScenarioWriterCard.Role };
-            Board.Persist(created);
+            Notice = $"{writer.Title} was written but is not on the board; refresh and try again.";
+
+            return;
         }
 
+        // Its project is kept on the card, so each start aims it at the project's holdout folder of that day (item 7b).
+        created.Workstream = created.Workstream with { Role = ScenarioWriterCard.Role, Project = project };
+        Board.Persist(created);
         TheseusLog.Information("Created {Writer} to write holdout scenarios in {Folder}", key, holdout.Folder);
-        Notice = $"Created {writer.Title}. Start it when you are ready.";
+
+        // Theseus starts what it makes; nothing is left for the owner to start (Nigel, 2026-11-23).
+        StartMany([created.Workstream]);
+    }
+
+    /// <summary>A project's scenario writer, aimed at a holdout folder, given the project's slugs for its Checks lines.</summary>
+    private ScenarioWriterCard WriterFor(string? project, string fallbackTitle, string folder)
+    {
+        var reading = project is null ? null : Readable(project);
+
+        return ScenarioWriterCard.For(reading?.File?.Title ?? fallbackTitle, folder, reading?.Folder,
+            reading?.File is { } file ? [.. file.Workstreams.Select(row => row.Slug).Where(slug => !string.IsNullOrWhiteSpace(slug)).Distinct()] : null);
     }
 
     /// <summary>
-    /// Creates a verifier card for this card: a follow-on in the checked card's folder with the holdout clone in reach,
-    /// role verifier, linked both ways, with its fixed brief. It starts nothing (verifier-card AC 7, 9, 10 and 12).
+    /// A scenario writer's project: the one kept on its card, else the project whose home it has in reach, as older writers
+    /// were made with none (git-22, item 7a).
     /// </summary>
+    private string? WriterProject(Workstream writer) =>
+        writer.Project ?? _projectReads.Current.FirstOrDefault(reading => reading.IsReadable && reading.Folder is { } home
+            && writer.AddDirectories.Any(directory => SameFolder(directory, home)))?.Name;
+
+    /// <summary>
+    /// Aims a scenario writer at its project's holdout folder of today before it starts, rewriting its plan when the folder
+    /// has changed: a folder saved when the card was made sent old writers to the wrong place (git-22, item 7b).
+    /// </summary>
+    private Workstream AimedWriter(Workstream writer)
+    {
+        if (writer.Role != WorkstreamRole.ScenarioWriter || WriterProject(writer) is not { } project)
+        {
+            return writer;
+        }
+
+        var folder = _holdouts.LocationOf(writer with { Project = project }).Folder;
+
+        if (string.IsNullOrWhiteSpace(folder) || SameFolder(writer.WorkingDirectory, folder))
+        {
+            return writer;
+        }
+
+        var aimed = WriterFor(project, writer.Title, folder);
+
+        if (_plans.TryRead(writer.Key) is { } plan)
+        {
+            _plans.Write(writer.Key, plan with { Cwd = aimed.WorkingDirectory, AddDirs = aimed.AddDirectories, Prompt = aimed.Prompt });
+        }
+
+        var updated = writer with { WorkingDirectory = aimed.WorkingDirectory, AddDirectories = aimed.AddDirectories, Prompt = aimed.Prompt, Project = project };
+
+        if (Board.Card(writer.Key) is { } card)
+        {
+            card.Workstream = updated;
+            Board.Persist(card);
+        }
+
+        TheseusLog.Information("Aimed {Writer} at {Folder}, its project's holdout folder now, before starting it", writer.Key, folder);
+
+        return updated;
+    }
+
+    /// <summary>Verify with holdouts…: makes this card's verifier and starts it (Nigel, 2026-11-23).</summary>
     private void VerifyWithHoldouts(WorkstreamCardViewModel card)
+    {
+        if (MakeVerifier(card) is { } made)
+        {
+            StartVerifier(made);
+        }
+    }
+
+    /// <summary>
+    /// Makes a verifier card for this card, or says why not: a follow-on in the checked card's folder with the holdout clone
+    /// in reach, role verifier, linked both ways, with its fixed brief (verifier-card AC 7, 9 and 10). It starts nothing.
+    /// </summary>
+    private WorkstreamCardViewModel? MakeVerifier(WorkstreamCardViewModel card)
     {
         // Worked out at the press, not taken from the last refresh, so a second press never makes a second verifier for the
         // same build (git-22, 2026-11-23).
@@ -1660,7 +1732,7 @@ public sealed partial class ShellViewModel : ObservableObject
         {
             Refuse($"{reason}.");
 
-            return;
+            return null;
         }
 
         var holdout = HoldoutOf(card).Folder;
@@ -1681,7 +1753,7 @@ public sealed partial class ShellViewModel : ObservableObject
             Notice = $"{verifier.Title} was written but is not on the board, so it was not made a verifier; refresh and try again.";
             TheseusLog.Warning("Created {Verifier} but could not find its card to make it a verifier", key);
 
-            return;
+            return null;
         }
 
         created.Workstream = verifier.Apply(created.Workstream);
@@ -1695,33 +1767,64 @@ public sealed partial class ShellViewModel : ObservableObject
         WireProjectChoices();
 
         TheseusLog.Information("Created {Verifier} to verify {Workstream} with the holdout scenarios", key, card.Key);
-        StartVerifier(created);
+
+        return created;
     }
 
     /// <summary>
     /// Starts a verifier Theseus has just made, since the owner no longer presses Start for one (Nigel, 2026-11-23). A start
     /// that fails is remembered with its reason, which the project view shows with Start again.
     /// </summary>
-    private void StartVerifier(WorkstreamCardViewModel verifier)
+    private void StartVerifier(WorkstreamCardViewModel verifier) => StartVerifiers([verifier]);
+
+    /// <summary>
+    /// Starts verifiers Theseus has made, in one go, so Start the checks… gives one notice for them all. A start that
+    /// fails is remembered with its reason for the Waits line's Start again; one that fails later, in its tab, shows there
+    /// too, since a standing verifier neither running nor starting always does.
+    /// </summary>
+    private void StartVerifiers(IReadOnlyList<WorkstreamCardViewModel> verifiers)
     {
-        _verifierStartFailures.Remove(verifier.Key);
-        var before = verifier.Workstream.LastSessionId;
+        var before = verifiers.ToDictionary(verifier => verifier.Key, verifier => verifier.Workstream.LastSessionId, StringComparer.OrdinalIgnoreCase);
 
-        StartMany([verifier.Workstream]);
-
-        if (Board.Card(verifier.Key) is { } after && after.Workstream.LastSessionId != before)
+        foreach (var verifier in verifiers)
         {
-            Notice = $"Created {verifier.Title} and started it.";
+            _verifierStartFailures.Remove(verifier.Key);
+        }
 
+        StartMany([.. verifiers.Select(verifier => verifier.Workstream)]);
+
+        var unstarted = verifiers.Where(verifier => Board.Card(verifier.Key) is not { } after || after.Workstream.LastSessionId == before[verifier.Key]).ToList();
+
+        if (unstarted.Count == 0)
+        {
             return;
         }
 
-        var why = _launcher.Impediment ?? _launcher.LastRefusal ?? (string.IsNullOrWhiteSpace(Notice) ? "it could not be started" : Notice);
-        _verifierStartFailures[verifier.Key] = why.TrimEnd('.');
-        TheseusLog.Warning("Created {Verifier} but could not start it: {Why}", verifier.Key, why);
-        Notice = $"Created {verifier.Title}, but it did not start: {why.TrimEnd('.')}. Start it again from its build's Waits line.";
+        var why = _launcher.Impediment ?? _launcher.LastRefusal ?? "it could not be started";
+
+        foreach (var verifier in unstarted)
+        {
+            _verifierStartFailures[verifier.Key] = why;
+            TheseusLog.Warning("Made {Verifier} but could not start it: {Why}", verifier.Key, why);
+        }
+
         RefreshStandingVerifiers();
         WireProjectChoices();
+    }
+
+    /// <summary>
+    /// Verify with holdouts… for several builds, as Start the checks… asks: each verifier is made, then all are started
+    /// together, so their notices do not overwrite one another.
+    /// </summary>
+    private void VerifyManyWithHoldouts(IReadOnlyList<string> keys)
+    {
+        var made = keys.Select(Board.Card).OfType<WorkstreamCardViewModel>()
+            .Select(card => MakeVerifier(card)).OfType<WorkstreamCardViewModel>().ToList();
+
+        if (made.Count > 0)
+        {
+            StartVerifiers(made);
+        }
     }
 
     /// <summary>A start that never reached its tab: said on the board, and remembered for a verifier, which waits for nobody else.</summary>
@@ -2421,6 +2524,14 @@ public sealed partial class ShellViewModel : ObservableObject
                 ReviewProposal = ReviewProposal,
                 AnswerStartRequest = AnswerStartRequest,
                 ClearVerifiers = ClearUpVerifiers,
+                StartVerifier = key =>
+                {
+                    if (Board.Card(key) is { } verifier)
+                    {
+                        StartVerifier(verifier);
+                    }
+                },
+                VerifyMany = VerifyManyWithHoldouts,
                 UndoClearVerifiers = UndoClearUp,
                 WhoStarts = WhoStartsCard,
                 ProposalsOf = key => [.. Chains?.Proposals?.Pending.Where(row =>
@@ -2466,6 +2577,7 @@ public sealed partial class ShellViewModel : ObservableObject
             IsArchived = card.Workstream.IsArchived,
             HasRun = HasRun(card),
             StartFailure = _verifierStartFailures.GetValueOrDefault(card.Key),
+            IsStarting = _launcher.InFlight.IsInFlight(card.Key),
         };
 
     /// <summary>Open spec and Accept spec on the menu bar, for the open project's waiting specs (R16).</summary>
@@ -4290,7 +4402,7 @@ public sealed partial class ShellViewModel : ObservableObject
 
         foreach (var candidate in workstreams)
         {
-            var workstream = Board.Pin(candidate);
+            var workstream = AimedWriter(Board.Pin(candidate));
 
             // What the owner's board actions told its last session, still waiting, is given with this start instead, so it
             // is neither lost nor told twice (review of PR 6, finding 3).

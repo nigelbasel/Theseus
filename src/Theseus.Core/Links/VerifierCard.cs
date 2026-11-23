@@ -68,6 +68,6 @@ public sealed record VerifierCard(
             .Distinct(StringComparer.OrdinalIgnoreCase)];
 
         return new VerifierCard($"Verify: {checkedCard.Title}", checkedCard.WorkingDirectory, reach,
-            VerifierBrief.For(checkedCard.Title, report, recordsFolder), report, stem + "-handoff.md");
+            VerifierBrief.For(checkedCard.Title, checkedCard.Slug ?? checkedCard.Key, report, recordsFolder), report, stem + "-handoff.md");
     }
 }

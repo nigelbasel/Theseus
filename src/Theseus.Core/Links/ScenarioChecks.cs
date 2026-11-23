@@ -15,14 +15,16 @@ public static partial class ScenarioChecks
     {
         ArgumentNullException.ThrowIfNull(text);
 
-        return ChecksLine().Matches(text)
-            .SelectMany(match => match.Groups["names"].Value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
-            .Select(name => name.Trim('`', '*', '_', '"', '\'', ' ').ToLowerInvariant())
+        var lines = text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
+
+        return ChecksLine().Matches(lines)
+            .SelectMany(match => match.Groups["names"].Value.Split([',', ';'], StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+            .Select(name => name.Trim('`', '*', '_', '"', '\'', ' ', '.').ToLowerInvariant())
             .Where(name => name.Length > 0)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 
-    // A line that begins, after any list marker or emphasis, with "Checks:".
-    [GeneratedRegex(@"^[ \t>*_\-]*checks[*_]*:[*_]*[ \t]*(?<names>[^\r\n]*)\r?$", RegexOptions.IgnoreCase | RegexOptions.Multiline)]
+    // A line that begins, after any heading, list marker or emphasis, with "Checks:".
+    [GeneratedRegex(@"^[ \t>*_\-#]*(?:\d+[.)][ \t]*)?[*_]*checks[*_]*[ \t]*:[*_]*[ \t]*(?<names>[^\n]*)$", RegexOptions.IgnoreCase | RegexOptions.Multiline)]
     private static partial Regex ChecksLine();
 }

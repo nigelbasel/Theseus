@@ -57,13 +57,16 @@ a quote inside a name) can still do what the file tools are refused.
 
 While a project has no scenarios yet, **Verify with holdouts…** is shown disabled, saying "No holdout scenarios for this
 project yet", and **Write scenarios…** beside it creates a card, **Write holdout scenarios for <project>**, that works in
-the project's holdout folder and is the one kind of session allowed to write there. It writes scenarios, never code, and
-starts when you start it. If the folder you chose is missing, **Set the holdout folder…** opens Options at that setting.
+the project's holdout folder and is the one kind of session allowed to write there. It writes scenarios, never code.
+Theseus starts it at once, and each time it starts it is aimed at the project's holdout folder of that day, so a folder
+changed since it was made is followed. If the folder you chose is missing, **Set the holdout folder…** opens Options at
+that setting.
 
 Each scenario names the work it checks in a line of its own, such as `Checks: verifier-runs, close-step`, giving each
 piece of work by its slug (or a card in no project by its key). Theseus reads those lines, and makes a verifier only for
 a build some scenario names: otherwise **Verify with holdouts…** says "No holdout scenario names <slug>", and offers
-**Write scenarios…**. So one folder's scenarios never judge work they were not written for.
+**Write scenarios…**, whose writer is given the project's slugs and adds the line to scenarios already there. So one
+folder's scenarios never judge work they were not written for.
 
 ## Verifying a change
 
@@ -71,9 +74,11 @@ a build some scenario names: otherwise **Verify with holdouts…** says "No hold
    and use **Workstream ▸ Verify with holdouts…**.
 2. A new card, **Verify: <card title>**, appears beside it, linked both ways. It runs in the checked card's folder, so
    it can build and run the change, with the holdout folder in reach for reading the scenarios. Theseus starts it at
-   once; if the start fails, the build's Waits line says why, with **Start again**. A build already being checked gets no
-   second verifier, and a card already starting (its tab perhaps asking whether to trust its folder) is not started again.
-3. Its session reads which scenarios the change's spec names, runs each, and asks you in its own tab for any step only
+   once. A verifier that is neither running nor starting and has not reported, after a failed start or a restart of
+   Theseus, shows in the build's Waits line with **Start again**. A build stays checked from the moment its verifier is
+   made until it reports or is archived, so it gets no second verifier, and a card already starting (its tab perhaps
+   asking whether to trust its folder) is not started again while Theseus runs.
+3. Its session runs the scenarios whose Checks line names the change, and asks you in its own tab for any step only
    a person can do. It writes the details to a dated file in the holdout's `results` folder, and reports back to the
    checked card with only each scenario's name, pass or fail, and one line.
 4. Read the report on the board and confirm it. Confirming a verifier's report also stops the verifier card, the same

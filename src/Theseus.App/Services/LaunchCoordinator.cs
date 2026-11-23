@@ -223,6 +223,7 @@ public sealed class LaunchCoordinator : IAsyncDisposable
             TheseusLog.Warning(exception, "The terminal {Terminal} would not start for {Workstream}",
                 plan.TerminalExecutablePath, workstream.Key);
             LastRefusal = StartNotice.Refusal(workstream.Title, exception.Message);
+            InFlight.Ended(plan.Ticket.Ticket);
             _sink.TicketRefused(plan.Ticket.Ticket, $"The terminal would not start: {exception.Message}");
 
             return null;

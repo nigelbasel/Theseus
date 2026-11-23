@@ -100,6 +100,17 @@ public class HoldoutLocationTests
     }
 
     [Test]
+    public void AScenarioWriter_AddsChecksLinesToScenariosAlreadyThere_GivenTheProjectsSlugs()
+    {
+        var writer = ScenarioWriterCard.For("Theseus", @"<root>\Theseus-holdout", @"<projects>\theseus", ["close-step", "verifier-runs"]);
+
+        Assert.That(writer.Prompt, Does.Contain(
+            "A scenario already there without a Checks line gets one: add it, naming the work it checks, and change nothing else in it."),
+            "git-22, 2026-11-23, item 7c: the stage 0 scenarios name no work");
+        Assert.That(writer.Prompt, Does.Contain("The project's work, by slug: close-step, verifier-runs."));
+    }
+
+    [Test]
     public void TheWorkAHoldoutsScenariosCheck_IsReadFromTheirChecksLines_NeverFromResults()
     {
         var holdout = Path.Combine(_root, "holdout");

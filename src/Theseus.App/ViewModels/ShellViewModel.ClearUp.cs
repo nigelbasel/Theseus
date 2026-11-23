@@ -15,8 +15,23 @@ public sealed partial class ShellViewModel
 {
     private VerifierClearUp? ClearUp => _settings.Read().VerifierClearUp is { } record ? VerifierClearUp.From(record) : null;
 
-    /// <summary>The verifier cards of a project's builds that should not be kept, leaving out those a clear-up already takes away.</summary>
+    /// <summary>
+    /// The cards of a project Theseus made that should not be kept: its builds' wrong verifiers and its scenario writers aimed
+    /// at another folder than its holdout of today (git-22, item 7a), leaving out those a clear-up already takes away.
+    /// </summary>
     private IReadOnlyList<WrongVerifier> WrongVerifiersOf(string project)
+    {
+        var pending = ClearUp;
+        var writers = Board.Cards
+            .Where(card => card.Workstream.Role == WorkstreamRole.ScenarioWriter && pending?.Covers(card.Key) != true)
+            .Select(card => new WriterRecord(card.Key, card.Title, WriterProject(card.Workstream), card.Workstream.WorkingDirectory, card.IsLive,
+                card.Workstream.IsArchived))
+            .Where(writer => string.Equals(writer.Project, project, StringComparison.OrdinalIgnoreCase));
+
+        return [.. WrongBuildVerifiersOf(project), .. WrongWriters.Among(writers, of => _holdouts.LocationOfProject(of ?? string.Empty).Folder)];
+    }
+
+    private IReadOnlyList<WrongVerifier> WrongBuildVerifiersOf(string project)
     {
         var links = Chains?.AllLinks ?? [];
         var pending = ClearUp;
@@ -65,7 +80,7 @@ public sealed partial class ShellViewModel
     }
 
     private static bool SameFolder(string? left, string right) =>
-        !string.IsNullOrWhiteSpace(left)
+        !string.IsNullOrWhiteSpace(left) && !string.IsNullOrWhiteSpace(right)
         && string.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(left)), Path.TrimEndingDirectorySeparator(Path.GetFullPath(right)),
             StringComparison.OrdinalIgnoreCase);
 
@@ -85,7 +100,7 @@ public sealed partial class ShellViewModel
             return;
         }
 
-        var question = $"Clear up {listed.Count} verifier {(listed.Count == 1 ? "card" : "cards")}? Each running one is stopped first; "
+        var question = $"Clear up {listed.Count} {(listed.Count == 1 ? "card" : "cards")}? Each running one is stopped first; "
                        + "then each is archived and every report it filed is rejected, a confirmed one too, so nothing it said counts as met.\n"
                        + string.Join("\n", listed.Select(verifier =>
                            $"  • {verifier.Title} ({(verifier.IsRunning ? "running" : "not running")}): {verifier.Why}"))

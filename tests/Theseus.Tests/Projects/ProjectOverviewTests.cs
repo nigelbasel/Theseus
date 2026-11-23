@@ -66,7 +66,7 @@ public class ProjectOverviewTests
             .Waits.Single(item => item.Kind == WaitKind.ClearVerifiers);
 
         Assert.That(wait.Text, Is.EqualTo(
-            "Two verifier cards should not be kept: a copy of a build's check, or a check run against another project's scenarios."));
+            "Two cards Theseus made should not be kept: a copy of a build's check, a check of another project's scenarios, or a scenario writer aimed at the wrong folder."));
         Assert.That(wait.Button, Is.EqualTo("Clear up verifiers…"));
         Assert.That(Bym().Waits.Where(item => item.Kind == WaitKind.ClearVerifiers), Is.Empty, "none wrong, no line");
     }

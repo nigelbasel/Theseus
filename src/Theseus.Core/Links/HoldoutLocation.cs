@@ -118,10 +118,40 @@ public sealed partial record HoldoutLocation(string Folder, bool IsDefault)
     public IReadOnlySet<string> CheckedWork()
     {
         const long LargestScenario = 1024 * 1024;
+        var named = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+        foreach (var file in ScenarioFiles().Where(file => file.Length <= LargestScenario))
+        {
+            // One locked or vanished file leaves the others' names standing (review of the auto-start).
+            try
+            {
+                named.UnionWith(ScenarioChecks.NamesIn(File.ReadAllText(file.FullName)));
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                TheseusLog.Warning("Could not read the holdout scenario {File} for its Checks line: {Error}", file.FullName, exception.Message);
+            }
+        }
+
+        return named;
+    }
+
+    /// <summary>
+    /// What changes when its scenarios do: their count, and the newest write among them. Cheap beside reading them, so the
+    /// Checks lines are read again only when this changes (review of the auto-start).
+    /// </summary>
+    public string ScenariosStamp()
+    {
+        var files = ScenarioFiles().ToList();
+
+        return $"{files.Count}:{(files.Count == 0 ? 0 : files.Max(file => file.LastWriteTimeUtc.Ticks))}";
+    }
+
+    private IEnumerable<FileInfo> ScenarioFiles()
+    {
         if (!Directory.Exists(Folder))
         {
-            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            return [];
         }
 
         var top = Directory.EnumerateFiles(Folder).Where(file => !Path.GetFileName(file).StartsWith(".git", StringComparison.OrdinalIgnoreCase));
@@ -131,10 +161,7 @@ public sealed partial record HoldoutLocation(string Folder, bool IsDefault)
                                 && !name.StartsWith(".git", StringComparison.OrdinalIgnoreCase))
             .SelectMany(directory => Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories));
 
-        return top.Concat(below)
-            .Where(file => new FileInfo(file).Length <= LargestScenario)
-            .SelectMany(file => ScenarioChecks.NamesIn(File.ReadAllText(file)))
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return top.Concat(below).Select(file => new FileInfo(file));
     }
 
     /// <summary>

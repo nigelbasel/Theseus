@@ -81,6 +81,12 @@ public sealed record ProjectViewActions(
     /// <summary>Asks the owner to allow or refuse a start request by its id (sessions-run-the-project 13); null in tests.</summary>
     public Action<string>? AnswerStartRequest { get; init; }
 
+    /// <summary>Verify with holdouts… for several builds at once, as Start the checks… asks; null runs it for each in turn.</summary>
+    public Action<IReadOnlyList<string>>? VerifyMany { get; init; }
+
+    /// <summary>Starts a verifier card Theseus made, as Start again does; null starts it as a card's Start.</summary>
+    public Action<string>? StartVerifier { get; init; }
+
     /// <summary>Clear up verifiers… for a project: stops, archives and rejects the verifier cards that should not be kept.</summary>
     public Action<string>? ClearVerifiers { get; init; }
 
