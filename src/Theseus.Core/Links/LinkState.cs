@@ -30,6 +30,9 @@ public enum LinkState
     /// <summary>A link whose document Nigel has accepted.</summary>
     Satisfied,
 
+    /// <summary>A link whose latest report Nigel rejected: it waits for a new report, and is not his to act on meanwhile.</summary>
+    Rejected,
+
     /// <summary>The card at one end was deleted or its plan file has gone. Shown, never acted on.</summary>
     CardMissing,
 }

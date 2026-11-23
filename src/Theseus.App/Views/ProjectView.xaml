@@ -165,11 +165,17 @@
             </Style.Triggers>
         </Style>
 
-        <Style x:Key="ToolbarButton" TargetType="Button">
-            <Setter Property="Padding" Value="9,3" />
-            <Setter Property="Margin" Value="0,0,6,0" />
-            <Setter Property="FontSize" Value="13" />
+        <!-- The fold buttons beside Group by, as small icons of its height (item 9). -->
+        <Style x:Key="ToolbarIcon" TargetType="Button">
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Padding" Value="8,0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="ToolTipService.ShowOnDisabled" Value="True" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
         </Style>
 
         <!-- Group by's two toggle buttons, one pressed (AC 45): radio buttons drawn as toggle buttons. -->
@@ -333,6 +339,16 @@
                                         AutomationProperties.Name="{Binding KindLabel}">
                                     <TextBlock Text="{Binding KindLabel}" FontSize="11" FontWeight="Bold" Foreground="White" />
                                 </Border>
+                                <!-- One click to its tab, folded or open, while its session runs (item 8). -->
+                                <!-- Out of the Tab order, so Tab still reaches the title after the chevron; an open box's Focus is in its actions. -->
+                                <Button x:Name="BoxFocus" DockPanel.Dock="Right" Content="⌖ Focus" Command="{Binding FocusAction.Command}" IsTabStop="False"
+                                        Visibility="{Binding HasSessionMark, Converter={StaticResource Visible}}"
+                                        ToolTip="Bring its terminal tab forward" AutomationProperties.Name="{Binding Title, StringFormat=Focus {0}}"
+                                        Padding="6,0" Margin="6,0,0,0" FontSize="11.5" VerticalAlignment="Center" Cursor="Hand"
+                                        Background="#38000000" Foreground="White" BorderThickness="0" />
+                                <TextBlock x:Name="BoxSession" DockPanel.Dock="Right" Text="{Binding SessionMark}" FontSize="11.5"
+                                           Margin="6,0,0,0" VerticalAlignment="Center" Foreground="White"
+                                           Visibility="{Binding HasSessionMark, Converter={StaticResource Visible}}" />
                                 <Border x:Name="PieceHeader" Background="Transparent" Focusable="True" Cursor="Hand"
                                         AutomationProperties.Name="{Binding Title}">
                                     <Border.InputBindings>
@@ -354,6 +370,15 @@
                                            Style="{StaticResource StateForeground}" FontSize="13" FontWeight="Medium" TextWrapping="Wrap" />
                                 <TextBlock x:Name="WhoActs" Text="{Binding WhoActs}" FontSize="12.5" TextWrapping="Wrap" Margin="0,2,0,0"
                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                <!-- A report filed after he confirmed an earlier one: seen here, never counted (Nigel, 2026-11-23). -->
+                                <DockPanel x:Name="ReportedAgain" Margin="0,4,0,0" Visibility="{Binding HasReportedAgain, Converter={StaticResource Visible}}">
+                                    <Button x:Name="OpenLaterReport" DockPanel.Dock="Right" Content="Open report" Command="{Binding OpenLaterReport}"
+                                            IsTabStop="{Binding HasReportedAgain}"
+                                            FontSize="11.5" Padding="6,0" Margin="6,0,0,0" VerticalAlignment="Center"
+                                            ToolTip="Open the report it filed after you confirmed the earlier one" />
+                                    <TextBlock Text="{Binding ReportedAgain}" FontSize="12.5" TextWrapping="Wrap" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource LinkBrush}" />
+                                </DockPanel>
 
                                 <!-- Folded: one chip per stage and the gate diamond after Spec (1.1f D21; 1.1d AC 26). -->
                                 <ItemsControl x:Name="Strip" ItemsSource="{Binding StripItems}" Margin="0,7,-3,0" Focusable="False"
@@ -508,6 +533,16 @@
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="1">
+                        <!-- The boxes beneath fold together (item 1): the chevron, and while folded one line naming them. -->
+                        <DockPanel x:Name="BranchFold" Margin="0,0,0,4">
+                            <Button x:Name="BranchChevron" DockPanel.Dock="Left" Style="{StaticResource HeadingChevron}"
+                                    Content="{Binding Branch.Chevron}" Command="{Binding Branch.ToggleCommand}"
+                                    ToolTip="{Binding Branch.ToolTip}" AutomationProperties.Name="{Binding Branch.ToolTip}" />
+                            <TextBlock x:Name="BranchSummary" Text="{Binding Branch.Summary}" FontSize="12" TextWrapping="Wrap"
+                                       VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                       Visibility="{Binding Branch.IsFolded, Converter={StaticResource Visible}}" />
+                        </DockPanel>
+                        <StackPanel x:Name="BranchBody" Visibility="{Binding Branch.IsOpen, Converter={StaticResource Visible}}">
                         <TextBlock x:Name="HandedOn" Text="↳ handed on" FontSize="12" Margin="0,0,0,6"
                                    Foreground="{DynamicResource StateHandedOnBrush}"
                                    Visibility="{Binding IsSingleHandOver, Converter={StaticResource Visible}}" />
@@ -539,6 +574,7 @@
                             <TextBlock x:Name="JoinLabel" Text="{Binding JoinText}" FontSize="12" Margin="10,0,0,0" TextWrapping="Wrap"
                                        VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                         </DockPanel>
+                        </StackPanel>
                     </StackPanel>
                 </Grid>
                 <!-- A proposal it raised, waiting for you: a dashed node under it (1.1e item 30). -->
@@ -737,6 +773,23 @@
             </StackPanel>
         </DataTemplate>
 
+        <!-- One criterion, ticked or not as project.md has it, and on whom it waits: in Properties and under its objective. -->
+        <DataTemplate x:Key="CriterionLine" DataType="{x:Type vm:CriterionViewModel}">
+            <DockPanel Margin="0,0,0,4">
+                <Button x:Name="Tick" DockPanel.Dock="Left" VerticalAlignment="Top" Margin="0,0,6,0" Padding="2,0"
+                        MinWidth="0" MinHeight="0" Background="Transparent" BorderThickness="0" FontSize="14"
+                        Content="{Binding TickGlyph}" Command="{Binding ToggleCommand}" ToolTip="{Binding ToolTip}"
+                        AutomationProperties.Name="{Binding AccessibleName}" AutomationProperties.HelpText="{Binding ToolTip}" />
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Text}" FontSize="13" TextWrapping="Wrap"
+                               Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                    <TextBlock Text="{Binding Waiting}" FontSize="12" TextWrapping="Wrap" Margin="0,1,0,0"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                               Visibility="{Binding HasWaiting, Converter={StaticResource Visible}}" />
+                </StackPanel>
+            </DockPanel>
+        </DataTemplate>
+
         <!-- One line of Waits for you with its button, at the top and under the objective it belongs to (item 6). -->
         <DataTemplate x:Key="WaitLine" DataType="{x:Type vm:WaitItemViewModel}">
             <DockPanel Margin="0,0,0,6">
@@ -810,6 +863,10 @@
                             BorderBrush="{DynamicResource AccentFillColorDefaultBrush}"
                             Visibility="{Binding IsSelected, Converter={StaticResource Visible}}" />
                 </Grid>
+                <!-- What "n of m criteria met" counts, listed while the heading is open (Nigel, 2026-11-23). -->
+                <ItemsControl x:Name="ObjectiveCriteriaList" ItemsSource="{Binding Criteria}" ItemTemplate="{StaticResource CriterionLine}"
+                              Margin="27,8,0,0" Focusable="False" AutomationProperties.Name="Criteria of this objective"
+                              Visibility="{Binding ShowsCriteria, Converter={StaticResource Visible}}" />
                 <!-- What waits for him here, shown folded or open, since the mark above shows either way (item 6). -->
                 <Border x:Name="ObjectiveWaits" Margin="27,8,0,0" Padding="10,6,10,0" CornerRadius="6" BorderThickness="1"
                         BorderBrush="{DynamicResource StateWaitingBrush}" Background="{DynamicResource StateWaitingSoftBrush}"
@@ -922,6 +979,20 @@
                 </WrapPanel>
                 <TextBlock x:Name="Sentence" local:LinkedText.Text="{Binding Sentence}" FontSize="15" TextWrapping="Wrap" Margin="0,10,0,0"
                            Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                <!-- A clear-up's notice: it asks nothing of him, so it is not under Waits for you, and lapses with its Undo (Nigel, 2026-11-23). -->
+                <DockPanel x:Name="ClearUpNoticeLine" Margin="0,8,0,0"
+                           Visibility="{Binding ClearUpNotice, Converter={StaticResource NotEmpty}}">
+                    <TextBlock DockPanel.Dock="Left" Text="&#xE946;" FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="0,0,6,0"
+                               VerticalAlignment="Center" Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+                    <Button x:Name="DismissClearUp" DockPanel.Dock="Right" Content="✕ Dismiss" Command="{Binding DismissClearUpCommand}"
+                            Style="{StaticResource CommandButton}" Padding="8,1" FontSize="12.5" Margin="6,0,0,0"
+                            AutomationProperties.Name="Dismiss the clear-up notice; it can no longer be undone" />
+                    <Button x:Name="UndoClearUp" DockPanel.Dock="Right" Content="Undo" Command="{Binding UndoClearUpCommand}"
+                            Style="{StaticResource CommandButton}" Padding="8,1" FontSize="12.5" Margin="8,0,0,0"
+                            AutomationProperties.Name="Undo the clear-up" />
+                    <TextBlock x:Name="ClearUpNoticeText" Text="{Binding ClearUpNotice}" FontSize="13" TextWrapping="Wrap" VerticalAlignment="Center"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                </DockPanel>
                 <!-- What waits for you, the most prominent block, in place even when empty (1.1f G36, G37a). -->
                 <Border x:Name="WaitingBand" Margin="0,10,0,0" Padding="12,8,12,6" CornerRadius="6" BorderThickness="1"
                         BorderBrush="{DynamicResource StateWaitingBrush}" Background="{DynamicResource StateWaitingSoftBrush}">
@@ -985,13 +1056,21 @@
                                  IsChecked="{Binding IsGroupedByObjectives, Mode=TwoWay}"
                                  ToolTip="Pieces of work under the phases and objectives of project.md" />
                 </StackPanel>
-                <Button x:Name="CollapseAll" Content="Collapse all" Command="{Binding CollapseAllCommand}" Style="{StaticResource ToolbarButton}"
-                        Margin="0,0,6,6" ToolTip="Fold every piece of work, and every heading" />
-                <Button x:Name="ExpandAll" Content="Expand all" Command="{Binding ExpandAllCommand}" Style="{StaticResource ToolbarButton}"
-                        Margin="0,0,6,6" ToolTip="Open every piece of work into its stages, and every heading" />
-                <Button x:Name="OpenWhatNeedsAttention" Content="Open what needs attention" Command="{Binding OpenWhatNeedsAttentionCommand}"
-                        Style="{StaticResource ToolbarButton}" Margin="0,0,12,6"
-                        ToolTip="Open what is busy, waiting on you, stuck or waiting for its holdout check, and the headings on the way to it; fold the rest" />
+                <!--
+                    One size with Group by (Nigel, 2026-11-23: "large buttons much larger than everything else in that row"):
+                    small icons exactly as tall as the radio buttons, each named for UI Automation as its words were, and
+                    saying what it does on hover.
+                -->
+                <Button x:Name="CollapseAll" Content="&#xE73F;" Command="{Binding CollapseAllCommand}" Style="{StaticResource ToolbarIcon}"
+                        Height="{Binding ActualHeight, ElementName=GroupByFlow}" Margin="0,0,4,6"
+                        AutomationProperties.Name="Collapse all" ToolTip="Collapse all: fold every piece of work, and every heading" />
+                <Button x:Name="ExpandAll" Content="&#xE740;" Command="{Binding ExpandAllCommand}" Style="{StaticResource ToolbarIcon}"
+                        Height="{Binding ActualHeight, ElementName=GroupByFlow}" Margin="0,0,4,6"
+                        AutomationProperties.Name="Expand all" ToolTip="Expand all: open every piece of work into its stages, and every heading" />
+                <Button x:Name="OpenWhatNeedsAttention" Content="&#xE7C1;" Command="{Binding OpenWhatNeedsAttentionCommand}"
+                        Style="{StaticResource ToolbarIcon}" Height="{Binding ActualHeight, ElementName=GroupByFlow}" Margin="0,0,12,6"
+                        AutomationProperties.Name="Open what needs attention"
+                        ToolTip="Open what needs attention: what is busy, waiting on you, stuck or waiting for its holdout check, and the headings on the way to it; fold the rest" />
                 <WrapPanel x:Name="Legend" Margin="0,0,0,6" VerticalAlignment="Center">
                     <!-- The legend row is the state chips, and a click filters by them (1.1e item 26, moved here by 1.1f D15). -->
                     <ItemsControl x:Name="Counts" ItemsSource="{Binding Counts}" Focusable="False">
@@ -1182,19 +1261,7 @@
                                         Visibility="{Binding HasObjective, Converter={StaticResource Visible}}">
                                 <TextBlock Text="{Binding ObjectiveHeading}" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,6"
                                            Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                <ItemsControl x:Name="Criteria" ItemsSource="{Binding Criteria}" Focusable="False">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate DataType="{x:Type vm:CriterionViewModel}">
-                                            <DockPanel Margin="0,0,0,4">
-                                                <Button x:Name="Tick" DockPanel.Dock="Left" VerticalAlignment="Top" Margin="0,0,6,0" Padding="2,0"
-                                                        MinWidth="0" MinHeight="0" Background="Transparent" BorderThickness="0" FontSize="14"
-                                                        Content="{Binding TickGlyph}" Command="{Binding ToggleCommand}" ToolTip="{Binding ToolTip}" />
-                                                <TextBlock Text="{Binding Text}" FontSize="13" TextWrapping="Wrap" VerticalAlignment="Center"
-                                                           Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                        </DockPanel>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
+                                <ItemsControl x:Name="Criteria" ItemsSource="{Binding Criteria}" ItemTemplate="{StaticResource CriterionLine}" Focusable="False" />
                             <Button x:Name="EditObjective" Content="Edit objective…" Command="{Binding EditObjectiveCommand}" HorizontalAlignment="Left"
                                     Padding="9,3" Margin="0,4,0,0" FontSize="13" ToolTip="{x:Static vm:ObjectiveHeadingViewModel.EditObjectiveToolTip}"
                                     Visibility="{Binding CanEditObjective, Converter={StaticResource Visible}}" />

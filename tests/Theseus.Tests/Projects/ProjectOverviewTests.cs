@@ -31,18 +31,22 @@ public class ProjectOverviewTests
         var overview = Bym();
 
         Assert.That(overview.Sentence, Does.StartWith("Round 2 of 2, GUI parity: one build is under way and "));
-        Assert.That(overview.Sentence, Does.Contain($"{Words(overview.Waits.Count)} things wait for you."));
+        Assert.That(overview.Sentence, Does.Contain($"{Words(Asking(overview).Count)} things wait for you."));
         Assert.That(overview.Sentence, Does.EndWith("Round 1 has one piece of work still open and five independent checks to run."), "E1 is not in project.md, so round 1 is not finished");
     }
 
     [Test]
-    public void ACountOfThingsWaiting_IsTheCountOfTheList()
+    public void ACountOfThingsWaiting_IsTheCountOfTheListThatAsksSomethingOfYou()
     {
         var overview = Bym();
 
-        Assert.That(overview.Waits, Has.Count.GreaterThan(1));
-        Assert.That(overview.Sentence, Does.Contain($"{Words(overview.Waits.Count)} things wait for you"));
+        Assert.That(Asking(overview), Has.Count.GreaterThan(1));
+        Assert.That(overview.Sentence, Does.Contain($"{Words(Asking(overview).Count)} things wait for you"),
+            "the round's checks, run by Theseus, and lines saying what is under way ask nothing of him");
     }
+
+    private static IReadOnlyList<WaitItem> Asking(ProjectOverview overview) =>
+        [.. overview.Waits.Where(wait => wait.Kind is not (WaitKind.StartChecks or WaitKind.Underway))];
 
     [Test]
     public void ARoundsIndependentChecks_AreOneLine_NamingTheBusyOne()
@@ -50,9 +54,76 @@ public class ProjectOverviewTests
         var checks = Bym().Waits.Single(wait => wait.Kind == WaitKind.StartChecks);
 
         Assert.That(checks.Pieces, Has.Count.EqualTo(5));
-        Assert.That(checks.Text, Does.StartWith("Five builds from round 1 need their independent check, which only you start."));
-        Assert.That(checks.Text, Does.EndWith("One of them, MCP host and staff plugin, is still busy: check it after it stops."));
+        Assert.That(checks.Text, Does.StartWith("Five builds from round 1 need their independent check, which Theseus runs: Start the checks… runs it now."));
+        Assert.That(checks.Text, Does.EndWith("One of them, MCP host and staff plugin, is still busy: Theseus checks it after it stops."));
         Assert.That(checks.Button, Is.EqualTo("Start the checks…"));
+    }
+
+    [Test]
+    public void WrongVerifiers_WaitForYouOnOneLine_ThatClearsThemUp()
+    {
+        IReadOnlyList<WrongVerifier> wrong =
+        [
+            new("verify-w1", "Verify: W1", "w1", true, "it ran another project's scenarios, in C:\\h"),
+            new("verify-w2-2", "Verify: W2 (2)", "w2", false, "a copy: Verify: W2 checks the same build"),
+        ];
+
+        var wait = ProjectOverview.For(WriteBym(_folder).File!, BymPieces(_folder), BymLinks(), [], 5, wrongVerifiers: wrong)
+            .Waits.Single(item => item.Kind == WaitKind.ClearVerifiers);
+
+        Assert.That(wait.Text, Is.EqualTo(
+            "Two cards Theseus made should not be kept: a copy of a build's check, a check of another project's scenarios, or a scenario writer aimed at the wrong folder."));
+        Assert.That(wait.Button, Is.EqualTo("Clear up verifiers…"));
+        Assert.That(Bym().Waits.Where(item => item.Kind == WaitKind.ClearVerifiers), Is.Empty, "none wrong, no line");
+    }
+
+    [Test]
+    public void AClearUp_IsANoticeUnderTheHeading_NotAWait()
+    {
+        const string notice = "Three cards were cleared up: stopped, archived, their reports rejected. Undo until 19:24 tomorrow.";
+        var overview = ProjectOverview.For(WriteBym(_folder).File!, BymPieces(_folder), BymLinks(), [], 5, clearUpNotice: notice);
+
+        Assert.That(overview.ClearUpNotice, Is.EqualTo(notice));
+        Assert.That(overview.Waits.Select(wait => wait.Text), Has.None.EqualTo(notice),
+            "Nigel, 2026-11-23: it sat under Waits for you, though nothing waits on him");
+    }
+
+    [Test]
+    public void WhatIsUnderWay_IsSaid_AsksNothing_AndIsNotCountedAsAWait()
+    {
+        var file = WriteBym(_folder).File!;
+        var without = ProjectOverview.For(file, BymPieces(_folder), BymLinks(), [], 5).Sentence;
+        var overview = ProjectOverview.For(file, BymPieces(_folder), BymLinks(), [], 5, underway: ["Writing scenarios for five builds…"]);
+        var line = overview.Waits.Single(item => item.Kind == WaitKind.Underway);
+
+        Assert.That(line.Text, Is.EqualTo("Writing scenarios for five builds…"));
+        Assert.That(line.Button, Is.Null, "git-22, 2026-11-23: it names no action for the owner");
+        Assert.That(overview.Sentence, Is.EqualTo(without));
+    }
+
+    [Test]
+    public void TheUndoLine_IsNotCountedAsAThingThatWaits()
+    {
+        var file = WriteBym(_folder).File!;
+        var without = ProjectOverview.For(file, BymPieces(_folder), BymLinks(), [], 5).Sentence;
+        var with = ProjectOverview.For(file, BymPieces(_folder), BymLinks(), [], 5, clearUpNotice: "Three cards were cleared up.").Sentence;
+
+        Assert.That(with, Is.EqualTo(without), "review of item 5, S7: the project read \"One thing waits for you\" until a restart");
+    }
+
+    [Test]
+    public void ARejectedReport_NoLongerWaitsForYou()
+    {
+        var links = BymLinks().Select(link => link.Kind == LinkKind.ReportsBack && link.From == "w2"
+            ? link with
+            {
+                LatestReport = new LinkReport(DateTimeOffset.UnixEpoch, "s", "report.md", "done", null),
+                Rejection = new LinkRejection(DateTimeOffset.UnixEpoch, "wrong scenarios", DateTimeOffset.UnixEpoch),
+            }
+            : link).ToList();
+
+        Assert.That(Bym(links, []).Waits.Where(wait => wait.Kind == WaitKind.ConfirmReport), Is.Empty,
+            "git-22, 2026-11-23: rejected reports stayed in NEEDS YOU");
     }
 
     [Test]
@@ -135,8 +206,8 @@ public class ProjectOverviewTests
         var sentence = ProjectOverview.For(reading.File!, pieces, [], [], 0).Sentence;
 
         Assert.That(sentence, Does.Not.Contain("Round"));
-        Assert.That(sentence, Is.EqualTo("Being built: “projects in use”; under way: “the project view made obvious (design)”. "
-                                         + "One thing waits for you: three builds need their independent check, which only you start."));
+        Assert.That(sentence, Is.EqualTo("Being built: “projects in use”; under way: “the project view made obvious (design)”. Nothing waits for you."),
+            "Theseus runs the three builds' checks itself (git-22, 2026-11-23)");
     }
 
     [Test]

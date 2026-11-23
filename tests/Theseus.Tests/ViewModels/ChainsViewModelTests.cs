@@ -375,6 +375,44 @@ public class ChainsViewModelTests
     }
 
     [Test]
+    public void ASetAsideReport_SaysSoOnItsGreyedButton()
+    {
+        _book.Add(LinkKind.HandsOver, "token-spike", "auth-research", output: @"C:\work\REPORT.md");
+        _book.Report("token-spike", "session-1", [], @"C:\work\REPORT.md", "Half of it.", "partial");
+        _chains.Update();
+        var row = _chains.NeedsYou.Single();
+
+        Assert.That(row.NotYetLabel, Is.EqualTo("Not yet"));
+
+        row.NotYetCommand.Execute(null);
+
+        Assert.That(_chains.NeedsYou.Single().NotYetLabel, Is.EqualTo("Set aside: still unconfirmed"),
+            "git-22, 2026-11-23: a greyed Not yet said nothing of what had happened");
+    }
+
+    [Test]
+    public void Reject_AsksWhy_ThenTakesTheReportOutOfNeedsYou()
+    {
+        _book.Add(LinkKind.HandsOver, "token-spike", "auth-research", output: @"C:\work\REPORT.md");
+        _book.Report("token-spike", "session-1", [], @"C:\work\REPORT.md", "Wrong scenarios.", "partial");
+        _chains.Update();
+        var row = _chains.NeedsYou.Single();
+
+        row.AskRejectCommand.Execute(null);
+
+        Assert.That(row.IsAskingReason, Is.True);
+        Assert.That(row.IsRejecting, Is.True);
+        Assert.That(_book.Active.Single().ReportIsRejected, Is.False, "asking writes nothing");
+
+        row.Reason = "it ran another project's scenarios";
+        row.RejectCommand.Execute(null);
+
+        Assert.That(_book.Active.Single().Rejection!.Reason, Is.EqualTo("it ran another project's scenarios"));
+        Assert.That(_book.Active.Single().SatisfiedUtc, Is.Null);
+        Assert.That(_chains.NeedsYou, Is.Empty);
+    }
+
+    [Test]
     public void ReportArrived_IsToldOnceForANewReportAndNotForOnesAlreadyThere()
     {
         _book.Add(LinkKind.HandsOver, "token-spike", "auth-research", output: @"C:\work\REPORT.md");
@@ -410,6 +448,84 @@ public class ChainsViewModelTests
     }
 
     private WorkstreamCardViewModel Find(string key) => _cards.Single(card => card.Key == key);
+
+    [Test]
+    public void ARowWithASession_HasFocusAndItsMark_OneClickToItsTab()
+    {
+        // Nigel, 2026-11-23: the tree, the details, Overview, then Focus: four clicks to reach a card's tab.
+        var focused = new List<string>();
+        _chains.FocusCard = focused.Add;
+        _cards[0].Lifecycle = SessionLifecycle.NeedsAttention;
+        _book.Add(LinkKind.HandsOver, "auth-research", "token-spike");
+
+        _chains.Update();
+        var running = _chains.Roots.Single();
+        var stopped = running.Children.Single();
+        running.Focus!.Execute(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(running.Session, Is.EqualTo("◆ waiting"));
+            Assert.That(focused, Is.EqualTo(new[] { "auth-research" }));
+            Assert.That(stopped.HasFocus, Is.False);
+            Assert.That(stopped.Session, Is.Empty);
+        });
+    }
+
+    [Test]
+    public void TwoRowsWithTheSameTitle_ShowTheirKeys()
+    {
+        _cards = [Card("verify-search", "Verify: Search"), Card("verify-search-2", "Verify: Search"), Card("search")];
+        _book.Add(LinkKind.HandsOver, "search", "verify-search");
+        _book.Add(LinkKind.HandsOver, "search", "verify-search-2");
+
+        _chains.Update();
+        var rows = _chains.Roots.SelectMany(root => root.Children.Prepend(root)).ToList();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(rows.Single(row => row.Key == "verify-search").Copy, Is.EqualTo("verify-search"));
+            Assert.That(rows.Single(row => row.Key == "verify-search-2").Copy, Is.EqualTo("verify-search-2"));
+            Assert.That(rows.Single(row => row.Key == "search").Copy, Is.Empty);
+        });
+    }
+
+    [Test]
+    public void ASessionsTurn_UpdatesItsRowInPlace_WithoutRebuildingTheTree()
+    {
+        // Review of item 8: a rebuild on every turn lost the tree's selection and folds.
+        _chains.FocusCard = _ => { };
+        _cards[0].Lifecycle = SessionLifecycle.Running;
+        _book.Add(LinkKind.HandsOver, "auth-research", "token-spike");
+        _chains.Update();
+        var row = _chains.Roots.Single();
+
+        _cards[0].Lifecycle = SessionLifecycle.Idle;
+        _chains.Update();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(_chains.Roots.Single(), Is.SameAs(row));
+            Assert.That(row.Session, Is.EqualTo("○ idle"));
+            Assert.That(row.HasFocus, Is.True);
+        });
+    }
+
+    [Test]
+    public void ALaunchingCard_ShowsItsMark_ButNoFocusYet()
+    {
+        _chains.FocusCard = _ => { };
+        _cards[0].Lifecycle = SessionLifecycle.Launching;
+        _book.Add(LinkKind.HandsOver, "auth-research", "token-spike");
+
+        _chains.Update();
+
+        Assert.That((_chains.Roots.Single().Session, _chains.Roots.Single().HasFocus), Is.EqualTo(("● running", false)));
+    }
+
+    private static WorkstreamCardViewModel Card(string key, string title) =>
+        new(new Workstream(key, title, "#208DD7", false, @"C:\work", [], "Carry on.", 0, "New", false, false,
+            false, null, [], null, Nine));
 
     private static WorkstreamCardViewModel Card(string key) =>
         new(new Workstream(key, key, "#208DD7", false, @"C:\work", [], "Carry on.", 0, "New", false, false,

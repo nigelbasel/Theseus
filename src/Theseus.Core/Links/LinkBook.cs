@@ -161,8 +161,65 @@ public sealed class LinkBook
                 return LinkChange.Refused("That link is already satisfied.");
             }
 
+            if (link.ReportIsRejected)
+            {
+                return LinkChange.Refused("That report was rejected, so it cannot be confirmed; a new report can be.");
+            }
+
             return LinkChange.Made(link with { SatisfiedUtc = _clock.UtcNow, SatisfiedBy = ConfirmedReport });
         }));
+
+    /// <summary>
+    /// Rejects the report on a link, for the reason Nigel gives: it never satisfies the link, cannot be confirmed, and leaves
+    /// NEEDS YOU. Only Nigel does this, from the board.
+    /// </summary>
+    public LinkChange Reject(string id, string reason) =>
+        Logged(id, "rejected", $": {reason}", Change(id, link =>
+        {
+            if (link.LatestReport is not { } report)
+            {
+                return LinkChange.Refused("There is no report on that link to reject.");
+            }
+
+            if (link.SatisfiedUtc is not null)
+            {
+                return LinkChange.Refused("That link is already satisfied.");
+            }
+
+            if (link.ReportIsRejected)
+            {
+                return LinkChange.Refused("That report is rejected already.");
+            }
+
+            if (string.IsNullOrWhiteSpace(reason))
+            {
+                return LinkChange.Refused("Say why it is rejected; the reason is kept with the link.");
+            }
+
+            return LinkChange.Made(link with { Rejection = new LinkRejection(_clock.UtcNow, reason.Trim(), report.AtUtc) });
+        }));
+
+    /// <summary>
+    /// Retires a verifier's link, as Clear up verifiers… does: every report on it, now or later, is rejected, and a
+    /// confirmation is taken back, so nothing that verifier said ever counts as met. <see cref="Restore"/> undoes it.
+    /// </summary>
+    public LinkChange Retire(string id, string reason) =>
+        Logged(id, "retired", $": {reason}", Change(id, link => string.IsNullOrWhiteSpace(reason)
+            ? LinkChange.Refused("Say why it is retired; the reason is kept with the link.")
+            : LinkChange.Made(link with
+            {
+                SatisfiedUtc = null,
+                SatisfiedBy = null,
+                Rejection = new LinkRejection(_clock.UtcNow, reason.Trim(), null),
+            })));
+
+    /// <summary>Puts a link back exactly as it was before a change, as Undo of Clear up verifiers… does.</summary>
+    public LinkChange Restore(Link before)
+    {
+        ArgumentNullException.ThrowIfNull(before);
+
+        return Logged(before.Id, "restored", string.Empty, Change(before.Id, _ => LinkChange.Made(before)));
+    }
 
     /// <summary>
     /// Records a report on one or more links: a hand-over from the parent, or a report back from the

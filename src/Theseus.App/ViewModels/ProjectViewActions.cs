@@ -43,6 +43,15 @@ public sealed record ProjectViewActions(
     public Func<string, ProjectRunStart?>? WhoStarts { get; init; }
 
     /// <summary>
+    /// Whether the owner has opened a later report, by link id and the report's time; null treats none as opened.
+    /// Opening it clears its box's line (Nigel, 2026-11-23).
+    /// </summary>
+    public Func<string, DateTimeOffset, bool>? ReportOpened { get; init; }
+
+    /// <summary>Opens a later report and remembers it, by link id, report time and document; null opens the file only.</summary>
+    public Action<string, DateTimeOffset, string>? OpenReport { get; init; }
+
+    /// <summary>
     /// Opens a piece's Records window, a stage's document chosen when one is named (Nigel, 2026-11-22);
     /// when null, Open records opens the folder as before.
     /// </summary>
@@ -80,6 +89,24 @@ public sealed record ProjectViewActions(
 
     /// <summary>Asks the owner to allow or refuse a start request by its id (sessions-run-the-project 13); null in tests.</summary>
     public Action<string>? AnswerStartRequest { get; init; }
+
+    /// <summary>Shows a checklist confirmation, returning the keys ticked, or null when cancelled; null asks with Ask instead (tests).</summary>
+    public Func<ChecklistViewModel, IReadOnlyList<string>?>? AskChecklist { get; init; }
+
+    /// <summary>Verify with holdouts… for several builds at once, as Start the checks… asks; null runs it for each in turn.</summary>
+    public Action<IReadOnlyList<string>>? VerifyMany { get; init; }
+
+    /// <summary>Starts a verifier card Theseus made, as Start again does; null starts it as a card's Start.</summary>
+    public Action<string>? StartVerifier { get; init; }
+
+    /// <summary>Clear up verifiers… for a project: stops, archives and rejects the verifier cards that should not be kept.</summary>
+    public Action<string>? ClearVerifiers { get; init; }
+
+    /// <summary>Undo of the last Clear up verifiers… of a project.</summary>
+    public Action<string>? UndoClearVerifiers { get; init; }
+
+    /// <summary>✕ Dismiss on a clear-up's notice: it can no longer be undone.</summary>
+    public Action<string>? DismissClearUp { get; init; }
 
     /// <summary>The pending proposals a card raised, as the board's Chains panel shows them (1.1e item 30); null in tests.</summary>
     public Func<string, IReadOnlyList<ProposalRowViewModel>>? ProposalsOf { get; init; }

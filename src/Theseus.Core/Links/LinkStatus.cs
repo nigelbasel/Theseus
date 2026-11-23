@@ -35,6 +35,11 @@ public sealed class LinkStatus
             return LinkState.Satisfied;
         }
 
+        if (link.ReportIsRejected)
+        {
+            return LinkState.Rejected;
+        }
+
         if (link.LatestReport is not null)
         {
             return LinkState.Reported;

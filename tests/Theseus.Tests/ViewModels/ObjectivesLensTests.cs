@@ -111,4 +111,35 @@ public class ObjectivesLensTests
 
         Assert.That(Rollup.Of(file.Objectives[0], [piece], [confirm]).State, Is.EqualTo(RollupState.WaitingForYou));
     }
+
+    [Test]
+    public void AnObjectivesCount_SaysItCountsCriteriaMet_AndTheCriteriaAreListedUnderIt()
+    {
+        // Nigel, 2026-11-23: "1.4 says waiting for you 6/8 ... I have no idea what the 6/8 are."
+        var heading = Bym(new MemorySettingsStore()).AllObjectives.Single(each => each.Objective?.Number == "1.10");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(heading.CriteriaText, Is.EqualTo($"{heading.Objective!.TickedCount} of {heading.Objective.Criteria.Count} criteria met"));
+            Assert.That(heading.Criteria.Select(criterion => criterion.Text), Is.EqualTo(heading.Objective.Criteria.Select(criterion => criterion.Text)));
+            Assert.That(heading.ShowsCriteria, Is.True, "listed under the open heading, not only in Properties");
+            Assert.That(heading.Criteria.Select(criterion => criterion.AccessibleName), Has.All.StartWith("Met: ").Or.StartWith("Not met: "));
+        });
+    }
+
+    [Test]
+    public void ACriterionWaitingOnSomeone_SaysOnWhom()
+    {
+        var file = ProjectFileReader.Read("p", TestProjectsFolder.ProjectText("P", body: "## Phase 0: S\n\n### Objective 0.1: O\n"
+            + "- [x] One.\n- [ ] Two.\n      Waiting: owner: install the guard\n\n**Pipeline:** freeform\n"
+            + "| Workstream | Slug | Branch | Repos |\n|---|---|---|---|\n")).File!;
+
+        var criteria = CriterionViewModel.Of(file.Objectives[0], null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(criteria[0].Waiting, Is.Empty);
+            Assert.That(criteria[1].Waiting, Is.EqualTo("Waiting for you: install the guard"));
+        });
+    }
 }

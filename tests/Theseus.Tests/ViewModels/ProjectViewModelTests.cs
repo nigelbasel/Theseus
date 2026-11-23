@@ -308,6 +308,22 @@ public class ProjectViewModelTests
     }
 
     [Test]
+    public void ABoxWhoseSessionRuns_ShowsItsMarkAndFocus_OnItsTitleBar()
+    {
+        var running = Box(_views.Theseus(SessionLifecycle.Running), "projects-and-method-ui");
+        var stopped = Box(_views.Theseus(SessionLifecycle.NotStarted), "projects-and-method-ui");
+        running.FocusAction!.Command.Execute(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(running.SessionMark, Is.EqualTo("● running"));
+            Assert.That(_views.Ran, Is.EqualTo(new[] { "Focus:git-22" }), "one click to its tab, folded or open");
+            Assert.That(stopped.HasSessionMark, Is.False);
+            Assert.That(stopped.FocusAction, Is.Null);
+        });
+    }
+
+    [Test]
     public void ACardWithNoSession_OffersStart_NotFocusOrStop()
     {
         var box = Box(_views.Theseus(SessionLifecycle.NotStarted), "projects-and-method-ui");

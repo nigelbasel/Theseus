@@ -64,6 +64,7 @@ internal sealed class ProjectViews
         ReviewProposal = id => Ran.Add($"ReviewProposal:{id}"),
         AnswerStartRequest = id => Ran.Add($"AnswerStartRequest:{id}"),
         OpenLinks = key => Ran.Add($"OpenLinks:{key}"),
+        StartVerifier = key => Ran.Add($"StartVerifier:{key}"),
     };
 
     public ProjectViewEdits Edits => new((_, criterion, ticked) => Edited.Add($"Tick:{criterion.Line}:{ticked}"),
@@ -84,15 +85,16 @@ internal sealed class ProjectViews
 
     /// <summary>BuildYourMarket MCP with its fifteen links and no session, unless cards or links are given.</summary>
     public ProjectViewModel BuildYourMarket(ProjectViewModel? previous = null, ProjectViewActions? actions = null,
-        IReadOnlyList<PieceCard>? cards = null, IReadOnlyList<Link>? links = null)
+        IReadOnlyList<PieceCard>? cards = null, IReadOnlyList<Link>? links = null, string? clearUpNotice = null)
     {
         links ??= BuildYourMarketLinks();
         cards ??= BuildYourMarketBoard();
         var pieces = BuildYourMarketPieces(_folder, cards, links);
         var reading = Read(_folder, ProjectViewFixtures.BuildYourMarket);
+        var overview = clearUpNotice is null ? null : ProjectOverview.For(reading.File!, pieces, links, [], 0, clearUpNotice: clearUpNotice);
 
         return ProjectViewModel.Build(reading, pieces, LinksOn(links, cards), Tabs(ProjectViewFixtures.BuildYourMarket), Settings,
-            actions ?? Actions, null, Edits, previous);
+            actions ?? Actions, null, Edits, previous, overview);
     }
 
     /// <summary>The one-piece project of <see cref="ProjectViewFixtures.WriteOne"/>, its card in this state.</summary>

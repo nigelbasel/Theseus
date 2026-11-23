@@ -118,6 +118,7 @@ public partial class App : Application
         shell.Chains = chains;
         shell.Snapshots = snapshots;
         chains.ReportArrived = shell.Warn;
+        chains.FocusCard = key => shell.FocusCardCommand.Execute(shell.Board.Card(key));
         chains.ReportConfirmed = shell.ReportConfirmed;
 
         var workItems = new WorkItemBook(Path.Combine(DataDirectory, "work-items.json"));
@@ -140,7 +141,12 @@ public partial class App : Application
 
         chains.Proposals = proposed;
         proposals.Changed += (_, _) => Dispatcher.BeginInvoke(proposed.Update);
-        sink.StartLost = shell.Warn;
+        sink.StartLost = shell.StartLost;
+        shell.RunsChecksItself = true;
+        shell.AskChecklist = model =>
+            new ChecklistWindow(model) { Owner = Windows.OfType<Window>().FirstOrDefault(window => window.IsActive) ?? MainWindow }
+                .ShowDialog() == true ? model.Ticked : null;
+        sink.InFlight = _launcher.InFlight;
         links.Changed += (_, _) =>
         {
             if (!Dispatcher.CheckAccess())
@@ -318,8 +324,10 @@ public partial class App : Application
         };
         shell.ConfirmProjectCard = (question, action) =>
             new QuestionWindow($"{action} a card of a running project?", question, action) { Owner = MainWindow }.ShowDialog() == true;
+        // Owned by the active window, so one opened from Options sits above it rather than behind it.
         shell.AskProjectProperties = properties =>
-            new ProjectPropertiesWindow(properties) { Owner = MainWindow }.ShowDialog() == true;
+            new ProjectPropertiesWindow(properties) { Owner = Windows.OfType<Window>().FirstOrDefault(window => window.IsActive) ?? MainWindow }
+                .ShowDialog() == true;
         // Owned by the window it was asked from, so a spec window is blocked behind its question (review of PR 5, 13).
         shell.ConfirmAcceptSpec = question =>
             MessageBox.Show(Windows.OfType<Window>().FirstOrDefault(window => window.IsActive) ?? MainWindow, question, "Accept spec?",

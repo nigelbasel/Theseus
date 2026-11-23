@@ -210,7 +210,7 @@ public class ClarityModelTests
 
         Assert.That(w4.Stages[4].State, Is.EqualTo(StageNodeState.HoldoutsNotRun));
         Assert.That(w4.Status.WhoActs, Is.EqualTo(
-            "Waiting for you to start the check, but its session is busy and has not said on what: check after it stops"));
+            "Theseus checks it once its session stops."), "git-22, 2026-11-23: Theseus runs the check itself");
     }
 
     [Test]

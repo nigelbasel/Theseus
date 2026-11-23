@@ -7,9 +7,10 @@ namespace Theseus.Core.Links;
 /// <summary>
 /// Where a project's holdout scenarios are (1.1e AC 6c, 6e; Nigel, 2026-11-22: "use convention to come up with a default
 /// so only a user who really understands the implications would change it"), found in this order: a folder the owner
-/// chose for the project in Options, or the old single setting for every project; a <c>&lt;repo&gt;-holdout</c> folder
-/// beside the clone of the project's home code repo; otherwise Theseus's own,
+/// chose for the project in its Project properties; the holdout repository its project.md records, beside the home repo's
+/// clone; a <c>&lt;repo&gt;-holdout</c> folder beside that clone; otherwise Theseus's own,
 /// <c>%LOCALAPPDATA%\Theseus\holdouts\&lt;project folder name&gt;\</c>, created on first use as a local git repository.
+/// There is no folder for every project: one reached projects nothing on screen named (options-made-clear).
 /// </summary>
 /// <param name="Folder">The folder.</param>
 /// <param name="IsDefault">Whether it is Theseus's own, not one the owner chose or one beside the repo.</param>
@@ -25,35 +26,36 @@ public sealed partial record HoldoutLocation(string Folder, bool IsDefault)
     public static string DefaultRoot(string? localAppData = null) =>
         Path.Combine(localAppData ?? Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Theseus", "holdouts");
 
-    /// <summary>The holdout folder for a project's cards with only the old single setting (1.1e AC 6c).</summary>
-    public static HoldoutLocation For(string? chosen, string? project, string? localAppData = null) =>
-        Find(project, null, chosen, null, localAppData);
-
-    /// <summary>The holdout folder for a project's cards, in the order of 1.1e AC 6e.</summary>
+    /// <summary>The holdout folder for a project's cards, in the order above.</summary>
     /// <param name="project">The project's folder name, or null for a card in no project.</param>
-    /// <param name="chosenForProject">The folder the owner chose for this project in Options, or null.</param>
-    /// <param name="chosenForAll">The old single setting, which counts for every project when set.</param>
-    /// <param name="besideRepo">A <c>&lt;repo&gt;-holdout</c> folder found beside the home repo's clone, or null.</param>
+    /// <param name="chosenForProject">The folder the owner chose for this project, or null.</param>
+    /// <param name="convention">The project's home clone and recorded holdout repository, or null for none.</param>
     /// <param name="localAppData">Where Theseus's own goes, for tests; null for the user's local application data.</param>
-    public static HoldoutLocation Find(string? project, string? chosenForProject, string? chosenForAll, string? besideRepo,
+    public static HoldoutLocation Find(string? project, string? chosenForProject, HoldoutConvention? convention,
         string? localAppData = null)
     {
+        var own = new HoldoutLocation(Path.Combine(DefaultRoot(localAppData), string.IsNullOrWhiteSpace(project) ? AdHocFolder : project), true);
+
+        if (string.IsNullOrWhiteSpace(project))
+        {
+            return own;
+        }
+
         if (FolderPath(chosenForProject) is { } forProject)
         {
             return new HoldoutLocation(forProject, false) { Source = HoldoutSource.Chosen };
         }
 
-        if (FolderPath(chosenForAll) is { } forAll)
+        // A recorded repository not found is missing, never Theseus's own: Verify would judge against an empty folder
+        // (Nigel, accepting the spec, 2026-11-23).
+        if (convention?.Recorded is not null)
         {
-            return new HoldoutLocation(forAll, false) { Source = HoldoutSource.Chosen };
+            return new HoldoutLocation(convention.RecordedFolder ?? string.Empty, false) { Source = HoldoutSource.Recorded };
         }
 
-        if (!string.IsNullOrWhiteSpace(project) && !string.IsNullOrWhiteSpace(besideRepo))
-        {
-            return new HoldoutLocation(besideRepo, false) { Source = HoldoutSource.BesideRepo };
-        }
-
-        return new HoldoutLocation(Path.Combine(DefaultRoot(localAppData), string.IsNullOrWhiteSpace(project) ? AdHocFolder : project), true);
+        return convention?.BesideRepo is { } beside
+            ? new HoldoutLocation(beside, false) { Source = HoldoutSource.BesideRepo }
+            : own;
     }
 
     /// <summary>
@@ -89,8 +91,12 @@ public sealed partial record HoldoutLocation(string Folder, bool IsDefault)
     [GeneratedRegex(@"^/(?:mnt/)?(?<drive>[a-zA-Z])(?:/(?<rest>.*))?$")]
     private static partial Regex GitBashPath();
 
-    /// <summary>Whether a folder the owner chose is not there: the way on is to set it again.</summary>
-    public bool IsMissing => Source == HoldoutSource.Chosen && !Directory.Exists(Folder);
+    /// <summary>
+    /// Whether a folder the owner chose, or the recorded repository's clone, is not there: the way on is to clone it or to
+    /// choose a folder in Project properties.
+    /// </summary>
+    public bool IsMissing => Source is HoldoutSource.Chosen or HoldoutSource.Recorded
+                             && (Folder.Length == 0 || !Directory.Exists(Folder));
 
     /// <summary>
     /// Whether it holds any scenario: a file outside the verifiers' results folder and the repository's own folder.
@@ -104,6 +110,59 @@ public sealed partial record HoldoutLocation(string Folder, bool IsDefault)
                                     && !string.Equals(name, VerifierCard.ResultsFolder, StringComparison.OrdinalIgnoreCase)
                                     && !name.StartsWith(".git", StringComparison.OrdinalIgnoreCase))
                 .Any(directory => Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories).Any()));
+
+    /// <summary>
+    /// The work its scenarios check, from their Checks lines (A2): every file outside the results folder and the
+    /// repository's own, not too large to be a scenario. Read once per refresh, not on every query.
+    /// </summary>
+    public IReadOnlySet<string> CheckedWork()
+    {
+        const long LargestScenario = 1024 * 1024;
+        var named = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var file in ScenarioFiles().Where(file => file.Length <= LargestScenario))
+        {
+            // One locked or vanished file leaves the others' names standing (review of the auto-start).
+            try
+            {
+                named.UnionWith(ScenarioChecks.NamesIn(File.ReadAllText(file.FullName)));
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                TheseusLog.Warning("Could not read the holdout scenario {File} for its Checks line: {Error}", file.FullName, exception.Message);
+            }
+        }
+
+        return named;
+    }
+
+    /// <summary>
+    /// What changes when its scenarios do: their count, and the newest write among them. Cheap beside reading them, so the
+    /// Checks lines are read again only when this changes (review of the auto-start).
+    /// </summary>
+    public string ScenariosStamp()
+    {
+        var files = ScenarioFiles().ToList();
+
+        return $"{files.Count}:{(files.Count == 0 ? 0 : files.Max(file => file.LastWriteTimeUtc.Ticks))}";
+    }
+
+    private IEnumerable<FileInfo> ScenarioFiles()
+    {
+        if (!Directory.Exists(Folder))
+        {
+            return [];
+        }
+
+        var top = Directory.EnumerateFiles(Folder).Where(file => !Path.GetFileName(file).StartsWith(".git", StringComparison.OrdinalIgnoreCase));
+        var below = Directory.EnumerateDirectories(Folder)
+            .Where(directory => Path.GetFileName(directory) is var name
+                                && !string.Equals(name, VerifierCard.ResultsFolder, StringComparison.OrdinalIgnoreCase)
+                                && !name.StartsWith(".git", StringComparison.OrdinalIgnoreCase))
+            .SelectMany(directory => Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories));
+
+        return top.Concat(below).Select(file => new FileInfo(file));
+    }
 
     /// <summary>
     /// Creates Theseus's own folder on first use and makes it a local git repository with a first commit, so scenarios keep

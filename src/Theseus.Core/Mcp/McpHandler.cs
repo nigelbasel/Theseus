@@ -895,6 +895,14 @@ public sealed partial class McpHandler
                 ["you"] = (link.Kind == LinkKind.HandsOver) == writes ? "parent" : "child",
                 ["youWrite"] = writes,
                 ["state"] = StateWord(status.StateOf(link)),
+                ["rejection"] = link.ReportIsRejected
+                    ? new JsonObject
+                    {
+                        ["at"] = link.Rejection!.AtUtc.ToString("O", System.Globalization.CultureInfo.InvariantCulture),
+                        ["reason"] = link.Rejection.Reason,
+                        ["everyReport"] = link.Rejection.ReportAtUtc is null,
+                    }
+                    : null,
                 ["other"] = new JsonObject
                 {
                     ["key"] = otherKey,
@@ -1417,7 +1425,9 @@ public sealed partial class McpHandler
         LinkState.NoReportYet => "no-report-yet",
         LinkState.ReportLost => "report-lost",
         LinkState.Satisfied => "satisfied",
-        _ => "card-missing",
+        LinkState.Rejected => "rejected",
+        LinkState.CardMissing => "card-missing",
+        _ => "unknown",
     };
 
     private JsonObject StartWork(McpSession session, JsonObject arguments)

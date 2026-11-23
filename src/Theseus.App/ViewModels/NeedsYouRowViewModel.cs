@@ -17,6 +17,7 @@ public sealed class NeedsYouRowViewModel : ObservableObject
     private string _reason = string.Empty;
     private string _refusal = string.Empty;
     private bool _isAskingReason;
+    private bool _isRejecting;
 
     /// <summary>Creates the row for one link.</summary>
     /// <param name="heading">"Writer → reader", in titles.</param>
@@ -27,9 +28,10 @@ public sealed class NeedsYouRowViewModel : ObservableObject
     /// <param name="confirm">Confirms the report, returning why not if it was refused.</param>
     /// <param name="satisfy">Satisfies the link by hand for a reason, returning why not if it was refused.</param>
     /// <param name="notYet">Sets the report aside until it changes.</param>
+    /// <param name="reject">Rejects the report for a reason, returning why not if it was refused; null offers no Reject….</param>
     public NeedsYouRowViewModel(Link link, LinkState state, string heading, string detail, string colorHex,
         string? handoff, bool isSetAside, Func<string, string?> confirm, Func<string, string, string?> satisfy,
-        Action<NeedsYouRowViewModel> notYet)
+        Action<NeedsYouRowViewModel> notYet, Func<string, string, string?>? reject = null)
     {
         Link = link;
         State = state;
@@ -48,8 +50,17 @@ public sealed class NeedsYouRowViewModel : ObservableObject
         AskReasonCommand = new RelayCommand(_ =>
         {
             Reason = "Satisfied by hand";
+            IsRejecting = false;
             IsAskingReason = true;
         });
+        AskRejectCommand = new RelayCommand(_ =>
+        {
+            Reason = string.Empty;
+            IsRejecting = true;
+            IsAskingReason = true;
+        }, _ => reject is not null && IsReported);
+        RejectCommand = new RelayCommand(_ => Refusal = reject?.Invoke(link.Id, Reason) ?? string.Empty,
+            _ => reject is not null && !string.IsNullOrWhiteSpace(Reason));
         SatisfyCommand = new RelayCommand(_ => Refusal = _satisfy(link.Id, Reason) ?? string.Empty,
             _ => !string.IsNullOrWhiteSpace(Reason));
         CancelReasonCommand = new RelayCommand(_ => IsAskingReason = false);
@@ -90,6 +101,33 @@ public sealed class NeedsYouRowViewModel : ObservableObject
 
     /// <summary>Whether Not yet was pressed, so it sorts below the others.</summary>
     public bool IsSetAside { get; }
+
+    /// <summary>What Not yet says: once pressed, what it did, since a greyed button said nothing (git-22, 2026-11-23).</summary>
+    public string NotYetLabel => IsSetAside ? "Set aside: still unconfirmed" : "Not yet";
+
+    /// <summary>Whether the reason box is asking why the report is rejected, rather than why the link is satisfied.</summary>
+    public bool IsRejecting
+    {
+        get => _isRejecting;
+        private set
+        {
+            if (Set(ref _isRejecting, value))
+            {
+                Raise(nameof(ReasonQuestion));
+            }
+        }
+    }
+
+    /// <summary>What the reason box asks.</summary>
+    public string ReasonQuestion => IsRejecting
+        ? "Why is it rejected? Kept with the link; this report never counts as met."
+        : "Why is it satisfied? Kept with the link.";
+
+    /// <summary>Opens the reason box for Reject….</summary>
+    public RelayCommand AskRejectCommand { get; }
+
+    /// <summary>Rejects the report for the reason given: it never satisfies the link, and the row leaves NEEDS YOU.</summary>
+    public RelayCommand RejectCommand { get; }
 
     /// <summary>Whether the reason box for Mark satisfied is showing.</summary>
     public bool IsAskingReason

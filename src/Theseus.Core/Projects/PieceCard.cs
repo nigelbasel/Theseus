@@ -25,6 +25,18 @@ public sealed record PieceCard(
     /// <summary>Why it is stopped, such as "Stopped by you", shown in the view's Properties (1.1e AC 12); null when its own line says enough.</summary>
     public string? StopLine { get; init; }
 
+    /// <summary>Why its last start failed, when Theseus knows, or null: said beside Start again.</summary>
+    public string? StartFailure { get; init; }
+
+    /// <summary>
+    /// For a verifier: whether it cannot run under today's rules (made before Checks lines, or its build named by no
+    /// scenario). It neither stands nor asks for a start; Clear up verifiers… takes it.
+    /// </summary>
+    public bool IsObsolete { get; init; }
+
+    /// <summary>Whether a launch of it is in flight: its tab is open, perhaps asking whether to trust its folder.</summary>
+    public bool IsStarting { get; init; }
+
     /// <summary>The question its session has open for the owner (1.6), or null.</summary>
     public Theseus.Core.Questions.OwnerQuestion? Question { get; init; }
 

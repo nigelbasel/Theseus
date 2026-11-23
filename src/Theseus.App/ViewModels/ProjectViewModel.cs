@@ -79,6 +79,15 @@ public sealed class ProjectViewModel : ObservableObject
     /// <summary>The summary's sentence.</summary>
     public string Sentence => Overview.Sentence;
 
+    /// <summary>The quiet line the last clear-up leaves under the heading while it can be undone, or null (Nigel, 2026-11-23).</summary>
+    public string? ClearUpNotice => Overview.ClearUpNotice;
+
+    /// <summary>Undo on the clear-up's notice.</summary>
+    public ICommand? UndoClearUpCommand => _actions.UndoClearVerifiers is { } undo ? new RelayCommand(_ => undo(Name)) : null;
+
+    /// <summary>✕ Dismiss on the clear-up's notice.</summary>
+    public ICommand? DismissClearUpCommand => _actions.DismissClearUp is { } dismiss ? new RelayCommand(_ => dismiss(Name)) : null;
+
     /// <summary>The summary, phase strip, tallies and "Waits for you" (1.1f G33 to G37b).</summary>
     public ProjectOverview Overview { get; private set; } = null!;
 
@@ -259,9 +268,14 @@ public sealed class ProjectViewModel : ObservableObject
         }
     }
 
-    // Opens what hides a box: its round and the run of finished pieces it sits in.
+    // Opens what hides a box: its round, the run of finished pieces it sits in, and the branches above it.
     private void Reveal(PieceNodeViewModel node)
     {
+        foreach (var above in AllNodes.Where(each => each.Branch is { IsOpen: false } && each.Descendants.Contains(node)))
+        {
+            ToggleFold(above.Branch!);
+        }
+
         if (Rounds.FirstOrDefault(round => round.Boxes.Contains(node)) is { IsOpen: false } round)
         {
             ToggleFold(round);
@@ -585,11 +599,18 @@ public sealed class ProjectViewModel : ObservableObject
 
         _selection = item is PieceNodeViewModel or StageNodeViewModel or PhaseHeadingViewModel or ObjectiveHeadingViewModel ? item : null;
 
-        // A selected box is never hidden in a folded run of finished pieces (D22).
-        if ((item as PieceNodeViewModel ?? (item as StageNodeViewModel)?.Piece) is { } box
-            && FinishedRuns.FirstOrDefault(run => !run.IsOpen && run.Boxes.Contains(box)) is { } folded)
+        // A selected box is never hidden in a folded run of finished pieces (D22), nor in a folded branch (item 1).
+        if ((item as PieceNodeViewModel ?? (item as StageNodeViewModel)?.Piece) is { } box)
         {
-            ToggleFold(folded);
+            if (FinishedRuns.FirstOrDefault(run => !run.IsOpen && run.Boxes.Contains(box)) is { } folded)
+            {
+                ToggleFold(folded);
+            }
+
+            foreach (var above in AllNodes.Where(each => each.Branch is { IsOpen: false } && each.Descendants.Contains(box)))
+            {
+                ToggleFold(above.Branch!);
+            }
         }
 
         switch (_selection)
@@ -729,6 +750,10 @@ public sealed class ProjectViewModel : ObservableObject
 
         return new PieceNodeViewModel(node, children, stages, boxActions, PieceFolds.IsOpen(_folds, piece.Name), Toggle, Select)
         {
+            Branch = children.Count == 0
+                ? null
+                : new ChildrenFold(piece.Name, [.. children.Select(child => child.Title)],
+                    PieceFolds.IsOpen(_folds, ChildrenFold.Entry(piece.Name), true), ToggleFold),
             LinkLines = LinkLines(node, links, tree, parents),
             Evidence = EvidenceOf(reading.Artefacts.GetValueOrDefault(piece.Name)),
             Objective = piece.ObjectiveNumber is { } number
@@ -739,6 +764,23 @@ public sealed class ProjectViewModel : ObservableObject
             AddToProject = addToProject,
             Proposals = piece.IsCurrentPiece ? _actions.ProposalsOf?.Invoke(piece.CardKey) ?? [] : [],
             ServesCommand = piece.ObjectiveNumber is { } served ? new RelayCommand(_ => GoToObjective(served)) : null,
+            LaterReport = piece.LaterReport is { } later && piece.LaterReportLink is { } link && _actions.ReportOpened?.Invoke(link, later.AtUtc) != true
+                ? later
+                : null,
+            OpenLaterReport = piece.LaterReport is { } shown && piece.LaterReportLink is { } on
+                ? new RelayCommand(_ =>
+                    {
+                        if (_actions.OpenReport is { } open)
+                        {
+                            open(on, shown.AtUtc, shown.Document);
+                        }
+                        else
+                        {
+                            _actions.OpenPath(shown.Document);
+                        }
+                    },
+                    _ => System.IO.File.Exists(shown.Document))
+                : null,
             // Only where starting it is the box's next step: a built piece waiting for its check keeps its own answer.
             StartedBy = piece.Status.Action == PieceAction.Start && boxActions.Any(action => action.Label == WhoStarts.StartAnywayLabel)
                 ? _actions.WhoStarts?.Invoke(piece.CardKey)?.Line
@@ -808,16 +850,21 @@ public sealed class ProjectViewModel : ObservableObject
         };
     }
 
-    // A verifier card has no box of its own (AC 13), so one made and not started is started from its subject's box and
-    // Verify stage, with the card's own Start; only the owner starts a verifier (Nigel, 2026-11-23).
+    // A verifier card has no box of its own (AC 13). Theseus starts one as it makes it (Nigel, 2026-11-23), so its subject's
+    // box and Verify stage offer it only when that start failed, with the card's own Start.
     private List<PieceActionViewModel> VerifierStarts(PieceOfWork piece) =>
     [
-        .. piece.PendingVerifiers.Where(verifier => !verifier.HasSession).Select(verifier => new PieceActionViewModel(
-            $"▶ Start {verifier.Title}", () => _actions.Start(verifier.Key), verifier.CanStart,
-            verifier.CanStart
-                ? $"Start {verifier.Title}: it runs the holdout scenarios against {piece.Workstream} and reports only a verdict"
-                : $"{verifier.Title} cannot be started from the board now")),
+        .. piece.PendingVerifiers.Where(VerifierCards.NeedsAStart).Select(verifier =>
+            new PieceActionViewModel(
+                $"Start {verifier.Title} again", () => StartVerifier(verifier.Key), verifier.CanStart,
+                verifier.CanStart
+                    ? $"{VerifierCards.NotRunning(verifier)} Start it again: it runs the holdout scenarios against {piece.Workstream}"
+                    : $"{verifier.Title} cannot be started from the board now")),
     ];
+
+    // A verifier is started by the shell's own start for one, not the card's Start, which in a stopped project starts the
+    // whole project (review of the auto-start).
+    private void StartVerifier(string key) => (_actions.StartVerifier ?? _actions.Start)(key);
 
     private static void Run(SpecAtGate? spec, Action<SpecAtGate> action)
     {
@@ -839,7 +886,10 @@ public sealed class ProjectViewModel : ObservableObject
     }
 
     private IEnumerable<IFoldable> Headings =>
-        Phases.Cast<IFoldable>().Concat(AllObjectives).Concat(Rounds).Concat(FinishedRuns);
+        Phases.Cast<IFoldable>().Concat(AllObjectives).Concat(Rounds).Concat(FinishedRuns).Concat(Branches);
+
+    // The folds of the boxes indented beneath a box (item 1), counted with the headings, which open at first like them.
+    private IEnumerable<ChildrenFold> Branches => AllNodes.Select(node => node.Branch).OfType<ChildrenFold>();
 
     // A round's top level: a run of two or more finished roots with no children folds to one line (1.1f D22, D12).
     private RoundViewModel RoundFor(PieceRound round, ProjectRound? next, bool isLatest, ProjectFile file,
@@ -974,7 +1024,7 @@ public sealed class ProjectViewModel : ObservableObject
         if (builds.All(piece => piece.Card is { IsWorking: true }))
         {
             return new WaitItemViewModel(item, new RelayCommand(_ => { }, _ => false),
-                $"{count} independent check{from}, but every one is still busy: start the checks after they stop.",
+                $"{count} independent check{from}, but every one is still busy: Theseus checks them after they stop.",
                 toolTip: EveryBuildBusy);
         }
 
@@ -1008,18 +1058,47 @@ public sealed class ProjectViewModel : ObservableObject
             return;
         }
 
-        var question = $"Start the independent check of {builds.Count} {(builds.Count == 1 ? "build" : "builds")}? Each gets a verifier card:\n"
-                       + string.Join("\n", builds.Select(piece => $"  • {piece.Title}"))
-                       + (refused.Count == 0
-                           ? string.Empty
-                           : "\nNot checked:\n" + string.Join("\n", refused.Select(entry => $"  • {entry.Piece.Title}: {entry.Why}")));
+        var all = builds.Select(piece => piece.CardKey).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        List<string> keys;
 
-        if (_actions.Ask?.Invoke(question) == false)
+        // A checklist, one row per build, each ticked to begin with, not a message box titled for a spec (Nigel, 2026-11-23).
+        if (_actions.AskChecklist is { } ask)
         {
+            var list = Checklists.StartChecks(
+                [.. builds.DistinctBy(piece => piece.CardKey, StringComparer.OrdinalIgnoreCase).Select(piece => (piece.CardKey, piece.Title))],
+                [.. refused.Select(entry => (entry.Piece.Title, entry.Why!))]);
+
+            if (ask(new ChecklistViewModel(list)) is not { Count: > 0 } ticked)
+            {
+                return;
+            }
+
+            keys = [.. all.Where(key => ticked.Contains(key, StringComparer.OrdinalIgnoreCase))];
+        }
+        else
+        {
+            var question = $"Start the independent check of {builds.Count} {(builds.Count == 1 ? "build" : "builds")}? Each gets a verifier card:\n"
+                           + string.Join("\n", builds.Select(piece => $"  • {piece.Title}"))
+                           + (refused.Count == 0
+                               ? string.Empty
+                               : "\nNot checked:\n" + string.Join("\n", refused.Select(entry => $"  • {entry.Piece.Title}: {entry.Why}")));
+
+            if (_actions.Ask?.Invoke(question) == false)
+            {
+                return;
+            }
+
+            keys = all;
+        }
+
+        if (_actions.VerifyMany is { } many)
+        {
+            many(keys);
+
             return;
         }
 
-        foreach (var key in builds.Select(piece => piece.CardKey).Distinct(StringComparer.OrdinalIgnoreCase))
+        foreach (var key in keys)
         {
             _actions.VerifyWithHoldouts(key);
         }
@@ -1037,7 +1116,8 @@ public sealed class ProjectViewModel : ObservableObject
             WaitKind.Answer when item.CardKey is { } card => new RelayCommand(_ => _actions.Focus(card)),
             WaitKind.Unblock when item.CardKey is { } card && node?.PrimaryAction is { } action => action.Command,
             WaitKind.StartChecks => new RelayCommand(_ => StartChecks(item)),
-            WaitKind.StartVerifier when item.CardKey is { } verifier => new RelayCommand(_ => _actions.Start(verifier)),
+            WaitKind.StartVerifier when item.CardKey is { } verifier => new RelayCommand(_ => StartVerifier(verifier)),
+            WaitKind.ClearVerifiers when _actions.ClearVerifiers is { } clear => new RelayCommand(_ => clear(project)),
             WaitKind.AddToObjective when item.CardKey is { } card && _actions.AddToProject is { } add => new RelayCommand(_ => add(project, card)),
             WaitKind.Proposal when item.ProposalId is { } proposal && _actions.ReviewProposal is { } review =>
                 new RelayCommand(_ => review(proposal)),
@@ -1081,6 +1161,12 @@ public sealed class ProjectViewModel : ObservableObject
         {
             round.IsOpen = round.IsLatest || round.Boxes.Any(box => NeedsAttention.Contains(box.State));
         }
+
+        foreach (var node in AllNodes.Where(node => node.Branch is not null))
+        {
+            node.Branch!.IsOpen = node.Descendants.Any(child => NeedsAttention.Contains(child.State));
+        }
+
 
         if (!IsGroupedByObjectives)
         {
@@ -1263,6 +1349,7 @@ public sealed class ProjectViewModel : ObservableObject
         LinkState.NoReportYet => ": ran since, no report yet",
         LinkState.ReportLost => ": report lost",
         LinkState.CardMissing => ": card missing",
+        LinkState.Rejected => ": report rejected",
         _ => ": not accepted yet",
     };
 
@@ -1273,7 +1360,7 @@ public sealed class ProjectViewModel : ObservableObject
         IEnumerable<string> Lines(PieceNodeViewModel node, int depth) =>
             node.Children.SelectMany(child => Lines(child, depth + 1)).Prepend(string.Join("/",
                 depth.ToString(CultureInfo.InvariantCulture), node.Name, node.Workstream, node.ColourHex, node.KindWord,
-                node.ObjectiveLabel, node.StatusText, node.WhoActs, node.Title, node.KindLabel, node.Gate?.ToolTip,
+                node.ObjectiveLabel, node.StatusText, node.WhoActs, node.ReportedAgain, node.Title, node.KindLabel, node.Gate?.ToolTip,
                 node.Piece.Round, node.ReportBackText, node.IsReportLost, node.Piece.RecordsFolder,
                 node.Evidence, node.Spec?.ContentHash, string.Join(";", node.CrossMarks), node.Piece.Card?.StopLine, node.BranchRulesToolTip,
                 node.Objective is { } objective
@@ -1291,7 +1378,7 @@ public sealed class ProjectViewModel : ObservableObject
                 string.Join(",", objective.Counts.Select(chip => chip.Text)),
                 string.Join(",", objective.Pieces.Select(piece => piece.Name)));
 
-        return string.Join("|", new[] { view.Name, view.Title, view.Sentence, view._grouping.ToString() }
+        return string.Join("|", new[] { view.Name, view.Title, view.Sentence, view.ClearUpNotice ?? string.Empty, view._grouping.ToString() }
             .Concat(view.Tabs.Select(tab => $"{tab.Name}:{tab.Title}:{tab.IsOpen}:{tab.ColourHex}"))
             .Concat(view.Roots.SelectMany(root => Lines(root, 0)))
             .Concat(view._thenWorkedOn.Select(link => $"{link.From.Name}>{link.To.Name}"))

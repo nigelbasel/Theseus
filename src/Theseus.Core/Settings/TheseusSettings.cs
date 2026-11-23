@@ -53,6 +53,9 @@ public sealed record TheseusSettings(
     /// </summary>
     public bool ShowArchived { get; init; }
 
+    /// <summary>Which cards the board shows: all, only project cards, or only workstreams (Nigel, 2026-11-23).</summary>
+    public BoardShows BoardShows { get; init; }
+
     /// <summary>
     /// How Start and Restart bring back a workstream that has run before, when nothing more specific
     /// is asked for. Resume by default, because that is what every earlier build did: changing what a
@@ -93,6 +96,9 @@ public sealed record TheseusSettings(
 
     /// <summary>The holdout's remote address, such as host/owner/repo, which the guard also refuses to non-verifiers.</summary>
     public string HoldoutRemote { get; init; } = string.Empty;
+
+    /// <summary>The clear-up of verifier cards under way or last made, so a restart neither loses its archives nor Undo.</summary>
+    public Theseus.Core.Projects.VerifierClearUpRecord? VerifierClearUp { get; init; }
 
     /// <summary>The bundled holdout guard's version the out-of-date notice was last given for, so it is said once.</summary>
     public string? HoldoutGuardNoticeFor { get; init; }

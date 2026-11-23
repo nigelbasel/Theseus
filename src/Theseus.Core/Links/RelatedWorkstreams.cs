@@ -58,6 +58,11 @@ public static class RelatedWorkstreams
             {
                 lines.Add($"Since your last session: Nigel accepted your output for {Name(link.To, status)}.");
             }
+            else if (link.ReportIsRejected && link.Rejection!.AtUtc > lastSessionStartedUtc)
+            {
+                lines.Add($"Since your last session: Nigel rejected the report on the link with {Name(Same(link.From, key) ? link.To : link.From, status)}"
+                          + $" ({link.Rejection.Reason}).");
+            }
             else if (link.SatisfiedUtc is null && link.LatestReport is { } report && report.AtUtc > lastSessionStartedUtc
                      && Same(link.To, key))
             {
@@ -95,6 +100,11 @@ public static class RelatedWorkstreams
             return $"{Path(link.Output)}, accepted by Nigel {Day(accepted)}.";
         }
 
+        if (link.ReportIsRejected)
+        {
+            return $"{Path(link.Output)}. Nigel rejected its report ({link.Rejection!.Reason}); it does not count as met.";
+        }
+
         return link.LatestReport is { } report
             ? $"{Path(link.Output)}. It reported at {Day(report.AtUtc)}{Verdict(report)}; Nigel has not confirmed it yet. Read it with the related tool."
             : $"{Path(link.Output)}. Nigel has not accepted it yet.";
@@ -112,6 +122,13 @@ public static class RelatedWorkstreams
         if (link.SatisfiedUtc is not null)
         {
             return $"{where}. Nigel has accepted it.";
+        }
+
+        if (link.ReportIsRejected)
+        {
+            return link.Rejection!.ReportAtUtc is null
+                ? $"{where}. Nigel retired this link ({link.Rejection.Reason}): no report on it counts as met, so do not report on it again."
+                : $"{where}. Nigel rejected your report ({link.Rejection.Reason}); a new report_back can still be confirmed.";
         }
 
         return link.LatestReport is { } sent

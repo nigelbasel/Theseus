@@ -109,6 +109,42 @@ public sealed class PieceNodeViewModel : ObservableObject, IFoldable
     /// <summary>Whether it has a branch under it.</summary>
     public bool HasChildren => Children.Count > 0;
 
+    /// <summary>The fold of its branch, when it has one (project-view-usability item 1); null with none.</summary>
+    public ChildrenFold? Branch { get; init; }
+
+    /// <summary>
+    /// "● running", "○ idle" or "◆ waiting" while its card's session works this piece; empty otherwise (item 8).
+    /// </summary>
+    public string SessionMark => Piece.IsCurrentPiece && Piece.Card is { } card && FocusAction is not null
+        ? Theseus.Core.Domain.SessionMark.Of(card.Lifecycle)
+        : string.Empty;
+
+    /// <summary>Whether the mark and ⌖ Focus show on its title bar.</summary>
+    public bool HasSessionMark => SessionMark.Length > 0;
+
+    /// <summary>Its card's Focus, on the title bar while its session runs: its tab in one click (item 8); null otherwise.</summary>
+    public PieceActionViewModel? FocusAction =>
+        Piece.IsCurrentPiece && Piece.Card is { HasSession: true }
+            ? Actions.FirstOrDefault(action => action.Label.StartsWith("⧉ Focus", StringComparison.Ordinal) && action.IsEnabled)
+            : null;
+
+    /// <summary>"Reported again after you confirmed: read it", when its session reported after the confirmation; null otherwise.</summary>
+    public string? ReportedAgain => LaterReport is { } report
+        ? $"Reported again after you confirmed{(report.Verdict is { } verdict ? $" (verdict {verdict})" : string.Empty)}: read it"
+        : null;
+
+    /// <summary>Whether that line shows.</summary>
+    public bool HasReportedAgain => ReportedAgain is not null;
+
+    /// <summary>The later report while the owner has not opened it; null once he has (Nigel, 2026-11-23). Set by the view.</summary>
+    public Theseus.Core.Links.LinkReport? LaterReport { get; init; }
+
+    /// <summary>Opens the later report; null with none. Set by the view.</summary>
+    public System.Windows.Input.ICommand? OpenLaterReport { get; init; }
+
+    /// <summary>Every box beneath it, at any depth.</summary>
+    public IEnumerable<PieceNodeViewModel> Descendants => Children.SelectMany(child => child.Descendants.Prepend(child));
+
     /// <summary>Whether it hands work to more than one piece at once.</summary>
     public bool IsParallel => Node.IsParallel;
 

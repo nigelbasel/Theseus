@@ -39,6 +39,18 @@ public sealed record Link(
     /// </summary>
     public string? ParentPiece { get; init; }
 
+    /// <summary>The owner's rejection of a report, or of every report on the link, or null.</summary>
+    public LinkRejection? Rejection { get; init; }
+
+    /// <summary>
+    /// Whether the latest report, or any report on the link, is rejected: it never satisfies the link and cannot be
+    /// confirmed.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool ReportIsRejected =>
+        SatisfiedUtc is null && Rejection is { } rejection
+        && (rejection.ReportAtUtc is null || (LatestReport is { } report && report.AtUtc == rejection.ReportAtUtc));
+
     /// <summary>Whether the link still stands.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public bool IsActive => RemovedUtc is null;
