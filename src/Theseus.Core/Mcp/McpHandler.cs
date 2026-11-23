@@ -71,7 +71,9 @@ public sealed partial class McpHandler
         + "under 80 characters; a stage your pipeline lets you skip is reported as now_at(stage, \"skipped: <reason>\"). "
         + "Theseus writes project.md's structured lines: record a round with record_round, tick a criterion with "
         + "tick_criterion, add an objective with add_objective, record a decision with record_decision and say who a "
-        + "criterion waits on with set_waiting. Write prose by hand, never those lines.";
+        + "criterion waits on with set_waiting. Write prose by hand, never those lines. "
+        + "When you need the user's answer before you can go on, ask with the question tool and call ask_owner with the "
+        + "same question, so it shows in Theseus; never ask only in prose, which leaves your card looking finished.";
 
     private readonly WorkLog _work;
     private readonly LockBook? _locks;
@@ -90,6 +92,7 @@ public sealed partial class McpHandler
     private readonly ISpecGates? _gates;
     private readonly Func<string, string>? _events;
     private readonly ProjectTools? _projectTools;
+    private readonly AskOwnerTool? _askOwner;
 
     /// <summary>Creates the handler over the work log, the sampler's intervals and the launched sessions.</summary>
     /// <param name="sessions">Finds the session a request's path names, or null for one Theseus did not launch.</param>
@@ -109,6 +112,7 @@ public sealed partial class McpHandler
     /// </param>
     /// <param name="gates">Answers gates() and keeps accept_spec's reports (1.1e AC 28), or null.</param>
     /// <param name="events">What the owner did on the board for a card since its session last asked (1.1e AC 27a), or null.</param>
+    /// <param name="askOwner">ask_owner, which shows a session's question on the board (1.6), or null.</param>
     public McpHandler(
         WorkLog work,
         Func<IReadOnlyList<AttentionInterval>> attention,
@@ -126,8 +130,10 @@ public sealed partial class McpHandler
         IWorkstreamControl? control = null,
         ISpecGates? gates = null,
         Func<string, string>? events = null,
-        ProjectTools? projectTools = null)
+        ProjectTools? projectTools = null,
+        AskOwnerTool? askOwner = null)
     {
+        _askOwner = askOwner;
         _projectTools = projectTools;
         _events = events;
         _gates = gates;
@@ -491,7 +497,8 @@ public sealed partial class McpHandler
                     ["who"] = Property("owner, work, or none to remove the note."),
                     ["what"] = Property("What it waits for, in plain words."),
                 },
-                "objective", "criterion", "text", "who")),
+                "objective", "criterion", "text", "who"),
+            AskOwnerTool.Definition.DeepClone()),
     };
 
     private McpResponse CallTool(JsonNode id, string sessionId, JsonObject? parameters)
@@ -549,8 +556,21 @@ public sealed partial class McpHandler
             "stop_workstream" => ControlWorkstream(session, arguments, WorkstreamCall.Stop),
             "pause_workstream" => ControlWorkstream(session, arguments, WorkstreamCall.Pause),
             "resume_workstream" => ControlWorkstream(session, arguments, WorkstreamCall.Resume),
+            AskOwnerTool.Name => AskOwner(session, arguments),
             _ => WhoAmI(session),
         });
+    }
+
+    private JsonObject AskOwner(McpSession session, JsonObject arguments)
+    {
+        if (_askOwner is null)
+        {
+            return Result("This Theseus does not show questions on the board.", isError: true);
+        }
+
+        var (text, isError) = _askOwner.Call(session, arguments);
+
+        return Result(text, isError);
     }
 
     /// <summary>accept_spec (1.1e AC 28): keeps the owner's words for him to confirm on the board; it accepts nothing.</summary>

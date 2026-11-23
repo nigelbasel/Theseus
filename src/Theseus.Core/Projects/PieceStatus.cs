@@ -1,4 +1,5 @@
 using Theseus.Core.Domain;
+using Theseus.Core.Questions;
 
 namespace Theseus.Core.Projects;
 
@@ -18,6 +19,9 @@ public sealed record PieceStatus(StageNodeState State, string Text)
 
     /// <summary>Whether it waits on the owner, and so is a "Waits for you" item.</summary>
     public bool WaitsForYou { get; init; }
+
+    /// <summary>The question its session asks the owner, which its "Waits for you" item quotes (1.6); null when none.</summary>
+    public OwnerQuestion? Question { get; init; }
 
     /// <summary>The state's mark.</summary>
     public string Mark => StageNodeStates.Mark(State);
@@ -44,12 +48,20 @@ public sealed record PieceStatus(StageNodeState State, string Text)
 
         if (isAsking)
         {
-            return new PieceStatus(StageNodeState.WaitingOnYou, $"Waiting for you: {piece.Workstream} has asked you something in its terminal.")
-            {
-                WhoActs = "You; it does nothing until you answer.",
-                Action = PieceAction.Answer,
-                WaitsForYou = true,
-            };
+            return card!.Question is { } question
+                ? new PieceStatus(StageNodeState.WaitingOnYou, $"Waiting for you: {QuestionWords.Named(piece.Workstream, question)}")
+                {
+                    WhoActs = QuestionWords.WhoActs(question),
+                    Action = PieceAction.Answer,
+                    WaitsForYou = true,
+                    Question = question,
+                }
+                : new PieceStatus(StageNodeState.WaitingOnYou, $"Waiting for you: {piece.Workstream} has asked you something in its terminal.")
+                {
+                    WhoActs = "You; it does nothing until you answer.",
+                    Action = PieceAction.Answer,
+                    WaitsForYou = true,
+                };
         }
 
         if (stages.FirstOrDefault(stage => stage.State == StageNodeState.Stuck) is { } stuck)

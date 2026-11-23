@@ -18,11 +18,13 @@ namespace Theseus.Core.Stopping;
 /// Present when a subagent is running rather than the session itself. A subagent is not the session
 /// the user asked to stop, and telling one to write a handoff and exit would end the wrong thing.
 /// </param>
+/// <param name="TranscriptPath">The session's transcript, read at the end of a turn for a question asked in prose (1.6).</param>
 public sealed record StopHookInput(
     [property: JsonPropertyName("session_id")] string? SessionId,
     [property: JsonPropertyName("hook_event_name")] string? HookEventName,
     [property: JsonPropertyName("stop_hook_active")] bool StopHookActive = false,
-    [property: JsonPropertyName("agent_id")] string? AgentId = null)
+    [property: JsonPropertyName("agent_id")] string? AgentId = null,
+    [property: JsonPropertyName("transcript_path")] string? TranscriptPath = null)
 {
     /// <summary>
     /// Reads what arrived on standard input, or nothing when it cannot be understood.

@@ -8,6 +8,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
 {
     private Workstream _workstream;
     private SessionLifecycle _lifecycle = SessionLifecycle.NotStarted;
+    private Theseus.Core.Questions.OwnerQuestion? _question;
     private Theseus.Core.Projects.WhyStopped? _stopReason;
     private string _verifyToolTip = string.Empty;
     private DateTimeOffset? _branchRulesSince;
@@ -320,6 +321,30 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
     public string ArchiveLabel => IsArchived ? "Restore" : "Archive";
 
     /// <summary>What the session is doing right now.</summary>
+    /// <summary>The question its session has open for the owner (1.6), or null; it is what the status line says while waiting.</summary>
+    public Theseus.Core.Questions.OwnerQuestion? Question
+    {
+        get => _question;
+        set
+        {
+            if (Set(ref _question, value))
+            {
+                RaiseStatus();
+            }
+        }
+    }
+
+    private void RaiseStatus()
+    {
+        Raise(nameof(StatusLine));
+        Raise(nameof(StatusToolTip));
+    }
+
+    /// <summary>The status line's tooltip: the question with its options and why, when it asks one.</summary>
+    public string StatusToolTip => Question is { } question && Lifecycle == SessionLifecycle.NeedsAttention
+        ? Theseus.Core.Questions.QuestionWords.Detail(question)
+        : StatusLine;
+
     public SessionLifecycle Lifecycle
     {
         get => _lifecycle;
@@ -334,7 +359,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
                 Raise(nameof(ShowStop));
                 Raise(nameof(IsWorking));
                 Raise(nameof(IsRunning));
-                Raise(nameof(StatusLine));
+                RaiseStatus();
             }
         }
     }
@@ -387,7 +412,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
         {
             if (Set(ref _lifecycleSinceUtc, value))
             {
-                Raise(nameof(StatusLine));
+                RaiseStatus();
             }
         }
     }
@@ -400,7 +425,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
         {
             if (Set(ref _lastExitedUtc, value))
             {
-                Raise(nameof(StatusLine));
+                RaiseStatus();
             }
         }
     }
@@ -413,7 +438,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
         {
             if (Set(ref _lastStartedUtc, value))
             {
-                Raise(nameof(StatusLine));
+                RaiseStatus();
             }
         }
     }
@@ -626,7 +651,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
         {
             if (Set(ref _stopPending, value))
             {
-                Raise(nameof(StatusLine));
+                RaiseStatus();
             }
         }
     }
@@ -647,7 +672,9 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
         SessionLifecycle.Launching => "launching",
         SessionLifecycle.Running => Since("busy"),
         SessionLifecycle.Idle => Since("idle"),
-        SessionLifecycle.NeedsAttention => Since("waiting for you"),
+        SessionLifecycle.NeedsAttention => Question is { } question
+            ? Theseus.Core.Questions.QuestionWords.Card(question)
+            : Since("waiting for you"),
         SessionLifecycle.Ended => Since("ended"),
         SessionLifecycle.Ghost => "ended unexpectedly",
         _ => string.Empty,
@@ -725,7 +752,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
         {
             if (Set(ref _stopReason, value))
             {
-                Raise(nameof(StatusLine));
+                RaiseStatus();
                 Raise(nameof(PrimaryAction));
                 Raise(nameof(PlayTooltip));
                 Raise(nameof(IsDone));

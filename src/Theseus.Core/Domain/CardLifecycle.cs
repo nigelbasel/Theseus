@@ -21,18 +21,25 @@ public static class CardLifecycle
     /// <param name="reportedStatus">
     /// What a live session says it is doing, from the registry. Null when nothing is running.
     /// </param>
+    /// <param name="hasOpenQuestion">
+    /// Whether the session has a question open for the owner (1.6). An idle session asking in prose reports "idle", the
+    /// same as finished work, so the question is what makes it wait on him; a busy one is still busy.
+    /// </param>
     public static CardState For(
         string workstreamKey,
         string? reportedStatus,
         bool isLive,
         IReadOnlyList<SessionRun> runs,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        bool hasOpenQuestion = false)
     {
         ArgumentNullException.ThrowIfNull(runs);
 
         if (isLive)
         {
-            return new CardState(SessionActivity.For(reportedStatus), null);
+            var activity = SessionActivity.For(reportedStatus);
+
+            return new CardState(hasOpenQuestion && activity == SessionLifecycle.Idle ? SessionLifecycle.NeedsAttention : activity, null);
         }
 
         var latest = LatestToday(workstreamKey, runs, now);

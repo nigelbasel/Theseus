@@ -267,7 +267,9 @@ public partial class App : Application
                 // read (review of PR 6, finding 2).
                 events: shell.EventsFor,
                 projectTools: new Theseus.Core.Mcp.ProjectTools(shell.MemberOf, shell.ProjectReadingOf, stageReports,
-                    () => DateTimeOffset.UtcNow, write: (project, edit) => Dispatcher.Invoke(() => shell.WriteProjectFile(project, edit)))),
+                    () => DateTimeOffset.UtcNow, write: (project, edit) => Dispatcher.Invoke(() => shell.WriteProjectFile(project, edit))),
+                askOwner: new Theseus.Core.Mcp.AskOwnerTool(shell.Questions, () => DateTimeOffset.UtcNow,
+                    () => Dispatcher.BeginInvoke(shell.Refresh))),
             Theseus.Core.Mcp.TheseusMcp.DefaultPort,
             new LockHttpApi(locks, () => DateTimeOffset.UtcNow));
 

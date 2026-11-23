@@ -25,6 +25,9 @@ public sealed record PieceCard(
     /// <summary>Why it is stopped, such as "Stopped by you", shown in the view's Properties (1.1e AC 12); null when its own line says enough.</summary>
     public string? StopLine { get; init; }
 
+    /// <summary>The question its session has open for the owner (1.6), or null.</summary>
+    public Theseus.Core.Questions.OwnerQuestion? Question { get; init; }
+
     /// <summary>The card whose session paused it, or null (1.1e AC 14): a project's Start skips it while it stands.</summary>
     public string? PausedBy { get; init; }
 

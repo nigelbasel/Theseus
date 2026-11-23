@@ -28,7 +28,9 @@ public static class ProjectWaiting
 
         lines.AddRange(members
             .Where(card => card.Lifecycle == SessionLifecycle.NeedsAttention)
-            .Select(card => $"{card.Title} is waiting for your input"));
+            .Select(card => card.Question is { } question
+                ? Theseus.Core.Questions.QuestionWords.Named(card.Title, question)
+                : $"{card.Title} is waiting for your input"));
 
         lines.AddRange(reports
             .Where(link => keys.ContainsKey(link.From) || keys.ContainsKey(link.To))

@@ -641,7 +641,7 @@
                                        VerticalAlignment="Center"
                                        Visibility="{Binding FlagText, Converter={StaticResource NotEmptyToVisibility}}" />
                             <TextBlock DockPanel.Dock="Right" Margin="8,0,0,0" VerticalAlignment="Center" Text="{Binding Lifecycle, Converter={StaticResource LifecycleGlyph}}"
-                                       FontSize="14" ToolTip="{Binding StatusLine}">
+                                       FontSize="14" ToolTip="{Binding StatusToolTip}">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="Foreground"
@@ -718,7 +718,7 @@
                                        Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                             <TextBlock Grid.Column="2" VerticalAlignment="Center"
                                        Text="{Binding Lifecycle, Converter={StaticResource LifecycleGlyph}}"
-                                       FontSize="16" ToolTip="{Binding StatusLine}">
+                                       FontSize="16" ToolTip="{Binding StatusToolTip}">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="Foreground"
@@ -885,7 +885,7 @@
                                    Text="{Binding Resources}"
                                    Visibility="{Binding Resources, Converter={StaticResource NotEmptyToVisibility}}" />
 
-                        <TextBlock FontSize="12" TextTrimming="CharacterEllipsis" ToolTip="{Binding StatusLine}"
+                        <TextBlock FontSize="12" TextTrimming="CharacterEllipsis" ToolTip="{Binding StatusToolTip}"
                                    Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                    Text="{Binding StatusLine}" />
 

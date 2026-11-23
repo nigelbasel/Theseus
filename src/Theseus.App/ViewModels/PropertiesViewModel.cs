@@ -130,6 +130,7 @@ public sealed class PropertiesViewModel
     {
         null => "not on the board",
         { IsWorking: true } => "its session is busy",
+        { Lifecycle: SessionLifecycle.NeedsAttention, Question: { } question } => Theseus.Core.Questions.QuestionWords.Detail(question),
         { Lifecycle: SessionLifecycle.NeedsAttention } => "its session asks you something",
         { HasSession: true } => "its session is idle",
         _ => "no session",

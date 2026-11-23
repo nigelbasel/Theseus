@@ -104,6 +104,30 @@ public class PieceStatusTests
     }
 
     [Test]
+    public void ASessionAskingAQuestionItRecorded_QuotesIt()
+    {
+        var question = new Theseus.Core.Questions.OwnerQuestion("s", "Push the branch now?", IsGuess: false, DateTimeOffset.UnixEpoch);
+        var piece = OnePiece(_folder, "feature", Files("spec.md"),
+            Card(Git22, SessionLifecycle.NeedsAttention) with { Key = ACard, Question = question }, accepted: true);
+
+        Assert.That(piece.Status.Text, Is.EqualTo("Waiting for you: git-22 asks: Push the branch now?"));
+        Assert.That(piece.Status.WhoActs, Is.EqualTo("You; it does nothing until you answer in its tab."));
+        Assert.That(piece.Status.Question, Is.SameAs(question));
+        Assert.That(piece.Status.Action, Is.EqualTo(PieceAction.Answer));
+    }
+
+    [Test]
+    public void ASessionProbablyAsking_SaysItIsAGuess()
+    {
+        var question = new Theseus.Core.Questions.OwnerQuestion("s", "Shall I push?", IsGuess: true, DateTimeOffset.UnixEpoch);
+        var piece = OnePiece(_folder, "feature", Files("spec.md"),
+            Card(Git22, SessionLifecycle.NeedsAttention) with { Key = ACard, Question = question }, accepted: true);
+
+        Assert.That(piece.Status.Text, Is.EqualTo("Waiting for you: git-22 is probably asking you something: Shall I push?"));
+        Assert.That(piece.Status.WaitsForYou, Is.True);
+    }
+
+    [Test]
     public void FailedEvidence_IsStuckAtVerify_AndOffersTheEvidence()
     {
         var records = Files("spec.md");
