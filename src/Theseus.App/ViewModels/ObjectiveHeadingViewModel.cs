@@ -95,8 +95,10 @@ public sealed class ObjectiveHeadingViewModel : ObservableObject, IFoldable
     /// <summary>Its pieces of work, counted as the summary counts them.</summary>
     public ProjectSummary Summary { get; }
 
-    /// <summary>The summary's chips for its pieces, zeros left out (AC 46).</summary>
-    public IReadOnlyList<StateCountViewModel> Counts => StateCountViewModel.For(Summary, zeros: false);
+    /// <summary>
+    /// The summary's chips for its pieces, zeros left out (AC 46), "waiting on you" counting its items of Waits for you.
+    /// </summary>
+    public IReadOnlyList<StateCountViewModel> Counts => StateCountViewModel.For(Summary, zeros: false, Waits.Count);
 
     /// <summary>Its pieces of work, in file order, as the Flow's boxes.</summary>
     public IReadOnlyList<PieceNodeViewModel> Pieces { get; }

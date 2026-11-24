@@ -8,9 +8,8 @@ using static Theseus.Tests.Projects.ClarityFixtures;
 namespace Theseus.Tests.ViewModels;
 
 /// <summary>
-/// 1.1f's view on its two fixtures: rounds as the top level with the change banner, title bars, gate diamonds, fork and
-/// join labels, folded runs of finished pieces, and the folded box's one action (A2, A3, C10 to C14, D18, D19, D21, D22,
-/// H38).
+/// 1.1f's view on its two fixtures: rounds as the top level with the change banner, title bars, gate diamonds, and the
+/// folded box's one action (A2, A3, C10 to C14, D21, H38). A round's state headings are RoundStateGroupTests'.
 /// </summary>
 [TestFixture]
 public class ClarityViewTests
@@ -87,15 +86,16 @@ public class ClarityViewTests
     }
 
     [Test]
-    public void EachRound_HoldsItsOwnTree()
+    public void EachRound_HoldsItsOwnPieces()
     {
         var rounds = Bym().Rounds;
 
-        Assert.That(rounds[0].Items.OfType<PieceNodeViewModel>().Single().Title, Is.EqualTo("Specify the BuildYourMarket MCP server"));
-        Assert.That(rounds[1].Items.OfType<PieceNodeViewModel>().Single().Children.Select(child => child.Name), Is.EqualTo(new[]
+        Assert.That(rounds[0].Boxes.Select(box => box.Title), Does.Contain("Specify the BuildYourMarket MCP server"));
+        Assert.That(rounds[1].Boxes.Select(box => box.Name), Is.SupersetOf(new[]
         {
             "bym-mcp-gui-table-reads", "bym-mcp-gui-search-reads", "bym-mcp-search-blob-access",
         }));
+        Assert.That(rounds[0].Boxes.Intersect(rounds[1].Boxes), Is.Empty);
     }
 
     [Test]
@@ -127,25 +127,6 @@ public class ClarityViewTests
     }
 
     [Test]
-    public void TheForkAndJoin_SayHowManyRunInParallel_InWhatStates_AndHowManyHaveReportedBack()
-    {
-        var spec2 = Box(Bym(), Spec2);
-
-        Assert.That(spec2.IsParallel, Is.True);
-        Assert.That(spec2.ForkText, Does.StartWith("3 in parallel · "));
-        Assert.That(spec2.ForkText, Does.Contain("1 answered, criteria not ticked"));
-        Assert.That(spec2.JoinText, Is.EqualTo("Waiting for 2 of 3 to report back, then the Specify the GUI-parity tools session takes their reports"));
-    }
-
-    [Test]
-    public void ASingleHandOver_HasNoBars()
-    {
-        var w1 = Box(Bym(), "bym-mcp-identity");
-
-        Assert.That((w1.IsSingleHandOver, w1.IsParallel), Is.EqualTo((true, false)));
-    }
-
-    [Test]
     public void TheGateDiamond_SitsAfterSpec_PassedWaitingOrNotReached_AndFreeformHasNone()
     {
         var view = Bym();
@@ -168,40 +149,5 @@ public class ClarityViewTests
         Assert.That(Box(view, Spec2).Gate!.ToolTip, Does.StartWith("Not passed here: no spec.md in its records"));
         Assert.That(Box(view, "bym-mcp-identity").PrimaryAction, Is.Null, "Theseus starts its check: nothing for him to press (git-22, 2026-11-23)");
         Assert.That(Box(view, "bym-mcp-preconditions").HasPrimaryAction, Is.False, "answered: nothing for you");
-    }
-
-    [Test]
-    public void ARunOfFinishedPieces_FoldsToOneLine_AndTheRestShowAsBoxes()
-    {
-        var view = Theseus();
-        var round = view.Rounds.Single();
-        var run = round.Items.OfType<FinishedRunViewModel>().First();
-
-        Assert.That(run.Text, Is.EqualTo($"▶ {run.Boxes.Count} finished"));
-        Assert.That(run.Boxes.Select(box => box.Name).Take(2), Is.EqualTo(new[] { "method-kit", "holdout-scenarios" }));
-        Assert.That(run.Boxes, Has.All.Matches<PieceNodeViewModel>(box => box.State is StageNodeState.Done or StageNodeState.Answered));
-        Assert.That(round.Items.OfType<PieceNodeViewModel>(), Has.None.Matches<PieceNodeViewModel>(box => box.Name == "method-kit"));
-
-        run.ToggleCommand.Execute(null);
-
-        Assert.That((run.IsOpen, run.Text), Is.EqualTo((true, $"▼ {run.Boxes.Count} finished")));
-    }
-
-    [Test]
-    public void CollapseAll_ClosesEveryBranchAndRun_AndExpandAllOpensThem()
-    {
-        // Walkthrough row 39: there was no way to close all children at once.
-        var view = Theseus();
-        var branches = view.AllNodes.Select(node => node.Branch).OfType<ChildrenFold>().ToList();
-        var runs = view.Rounds.SelectMany(round => round.Items.OfType<FinishedRunViewModel>()).ToList();
-
-        view.CollapseAllCommand.Execute(null);
-
-        Assert.That(branches.Select(branch => branch.IsOpen).Concat(runs.Select(run => run.IsOpen)), Has.All.False);
-        Assert.That(branches.Count + runs.Count, Is.GreaterThan(0));
-
-        view.ExpandAllCommand.Execute(null);
-
-        Assert.That(branches.Select(branch => branch.IsOpen).Concat(runs.Select(run => run.IsOpen)), Has.All.True);
     }
 }

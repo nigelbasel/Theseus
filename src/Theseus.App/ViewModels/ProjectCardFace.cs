@@ -29,7 +29,7 @@ public static class ProjectCardFace
 
         // The card and the view say the same sentence, from the one overview (1.1f G33).
         card.Sentence = overview?.Sentence ?? summary.Sentence;
-        card.Counts = StateCountViewModel.For(summary, zeros: false);
+        card.Counts = StateCountViewModel.For(summary, zeros: false, overview?.Waits.Count);
         card.IsLive = pieces.Any(piece => piece.IsCurrentPiece && piece.Card is { HasSession: true });
         card.StateColumn = ProjectBoardStanding.StateColumn(pieces, others);
         card.FirstCardKey = ProjectBoardStanding.FirstCardKey(pieces);

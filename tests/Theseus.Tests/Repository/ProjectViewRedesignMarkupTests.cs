@@ -61,15 +61,15 @@ public partial class ProjectViewRedesignMarkupTests
     }
 
     [Test]
-    public void TheLegend_EndsWithTheTwoLinesAndTheReportBackMark()
+    public void TheLegend_EndsWithTheReportBackMark_AndDrawsNoLines()
     {
+        // A round's pieces sit under their states' headings, so no hand-over line is drawn to explain (git-22, 2026-11-24).
         var legend = Named(View(), "Legend");
         var words = legend.Descendants(Presentation + "TextBlock").Select(text => (string?)text.Attribute("Text"))
             .Where(text => text is not null && !text.StartsWith('{')).ToList();
 
-        Assert.That(words, Is.EqualTo(new[] { "hands work to", "then worked on", "↩ reported back" }));
-        Assert.That((string?)Named(View(), "HandsOverSample").Attribute("X2"), Is.EqualTo("26"));
-        Assert.That((string?)Named(View(), "ThenWorkedOnSample").Attribute("StrokeDashArray"), Is.EqualTo("1 2"));
+        Assert.That(words, Is.EqualTo(new[] { "↩ reported back" }));
+        Assert.That(legend.Descendants(Presentation + "Line"), Is.Empty);
     }
 
     [Test]
@@ -130,7 +130,7 @@ public partial class ProjectViewRedesignMarkupTests
 
         Assert.That(dark.Keys, Is.EquivalentTo(light.Keys));
         Assert.That(new[] { "Done", "Waiting", "Busy", "Stuck", "Holdouts", "ToDo" }.Select(state => light[$"State{state}Brush"]),
-            Is.EqualTo(new[] { "#2e8b57", "#b7791f", "#2563c9", "#c0392b", "#8a5cc7", "#8a9490" }));
+            Is.EqualTo(new[] { "#1e6b40", "#8a5a10", "#2563c9", "#b0342a", "#7a4cb8", "#5f6b67" }));
         Assert.That(new[] { "Done", "Waiting", "Busy", "Stuck", "Holdouts", "ToDo" }.Select(state => dark[$"State{state}SoftBrush"]),
             Is.EqualTo(new[] { "#183026", "#33281a", "#1a2640", "#3a1f1c", "#2a2238", "#222a27" }));
         Assert.That((light["ConnectorBrush"], dark["ConnectorBrush"]), Is.EqualTo(("#6b7672", "#8d9994")));

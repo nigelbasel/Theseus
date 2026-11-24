@@ -169,7 +169,8 @@ public class ProjectViewGroupingTests
         Assert.That((unlisted.Title, unlisted.CriteriaText), Is.EqualTo(("Not in project.md", string.Empty)));
         Assert.That(unlisted.Pieces.Select(piece => piece.Name), Is.EqualTo(new[] { RedirectAnchoring, ClientFixes }), "in link order, after the listed pieces");
         Assert.That(unlisted.FoldName, Is.EqualTo("unlisted:"));
-        Assert.That(unlisted.Counts.Select(chip => chip.Text), Is.EqualTo(new[] { "+ 2 not in project.md" }));
+        Assert.That(unlisted.Counts.Select(chip => chip.Text), Is.EqualTo(new[] { "◆ 2 waiting on you", "+ 2 not in project.md" }),
+            "each waits on you to add it to the project, as its heading's Waits for you says (git-22, 2026-11-24)");
     }
 
     [Test]
@@ -241,8 +242,8 @@ public class ProjectViewGroupingTests
         Assert.That(view.Phases.Select(phase => phase.IsOpen), Is.EqualTo(new[] { false, true }));
         Assert.That(Stored(TheseusProject), Does.Contain("phase:Seed the method=folded").And.Contain("objective:Checks shown on cards=open")
             .And.Contain("project-view=open"));
-        Assert.That(Stored(TheseusProject), Has.Count.EqualTo(12 + 5 + 2 + 1 + 2),
-            "every box and every heading, the one round, and its two runs of finished pieces (1.1f C13, D22)");
+        Assert.That(Stored(TheseusProject), Has.Count.EqualTo(12 + 5 + 2 + 1 + 3),
+            "every box and every heading, the one round, and its three headings of states: done, waiting on you, to do (1.1f C13)");
     }
 
     [Test]
@@ -255,7 +256,7 @@ public class ProjectViewGroupingTests
         view.OpenWhatNeedsAttentionCommand.Execute(null);
 
         Assert.That(Stored(TheseusProject), Does.Contain("phase:Seed the method=folded"));
-        Assert.That(Stored(TheseusProject), Has.Count.EqualTo(13));
+        Assert.That(Stored(TheseusProject), Has.Count.EqualTo(14));
         Assert.That(Phase(view, 0).IsOpen, Is.False);
     }
 

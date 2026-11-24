@@ -72,8 +72,9 @@ folder's scenarios never judge work they were not written for.
 
 In a project, Theseus runs the checks itself. When a build waits for its independent check and a scenario names it, and
 its own session has stopped, Theseus makes its verifier and starts it. When some waiting build is named by no scenario
-and the project has no scenario writer, Theseus makes one and starts it. Meanwhile the Waits line says what is under way,
-such as "Writing scenarios for 7 builds…" or "Checking 3 builds…", with nothing to press. A project you stopped starts
+and the project has no scenario writer, Theseus makes one and starts it. Meanwhile a line under **Waits for you** says
+what Theseus is doing itself, such as "Writing scenarios for 7 builds…" or "Checking 3 builds…", with nothing to press;
+it is not counted as waiting for you. A project you stopped starts
 nothing until you start it. You need not start a check: if Theseus could not start one, its line in **Waits for you**
 says why, with **Start again**. What waits for you is the report each check files, to confirm or reject.
 

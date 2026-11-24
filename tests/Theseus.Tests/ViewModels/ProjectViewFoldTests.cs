@@ -69,7 +69,7 @@ public class ProjectViewFoldTests
 
         view.OpenWhatNeedsAttentionCommand.Execute(null);
 
-        Assert.That(Stored(TheseusProject), Has.Count.EqualTo(12));
+        Assert.That(Stored(TheseusProject), Has.Count.EqualTo(12 + 1), "every box, and its round's to do heading, folded");
         Assert.That(Stored(TheseusProject), Does.Contain("project-view=open").And.Contain("stop-timing=folded"));
     }
 

@@ -7,6 +7,7 @@ using System.Windows.Shapes;
 using System.Windows.Automation;
 using Path = System.Windows.Shapes.Path;
 using Theseus.App.ViewModels;
+using Theseus.Core.Projects;
 using Theseus.App.Views;
 using Theseus.Tests.Projects;
 using Theseus.Tests.ViewModels;
@@ -55,7 +56,7 @@ public class ProjectViewLayoutTests
 
     private static ProjectViewModel WithRunsOpen(ProjectViewModel view)
     {
-        foreach (var run in view.FinishedRuns.ToList())
+        foreach (var run in view.StateGroups.Where(group => !group.IsOpen).ToList())
         {
             run.ToggleCommand.Execute(null);
         }
@@ -122,7 +123,7 @@ public class ProjectViewLayoutTests
     }
 
     [Test]
-    public void TheFlow_IsAScrollViewer_HoldingTheConnectorsBehindTheRoots()
+    public void TheFlow_IsAScrollViewer_HoldingTheRoots()
     {
         var control = LaidOut(_views.Theseus());
         var flow = (ScrollViewer)control.FindName("Flow");
@@ -131,25 +132,9 @@ public class ProjectViewLayoutTests
 
         Assert.That((flow.HorizontalScrollBarVisibility, flow.VerticalScrollBarVisibility),
             Is.EqualTo((ScrollBarVisibility.Auto, ScrollBarVisibility.Auto)));
-        Assert.That(content.Children[0], Is.SameAs(control.FindName("Connectors")));
-        Assert.That(((Canvas)content.Children[0]).IsHitTestVisible, Is.False);
-        Assert.That(content.Children[1], Is.SameAs(control.FindName("RootList")));
+        Assert.That(content.Children[0], Is.SameAs(control.FindName("RootList")));
         Assert.That(frame.Padding, Is.EqualTo(new Thickness(20)));
         Assert.That(frame.MaxWidth, Is.EqualTo(flow.ViewportWidth), "the flow is never wider than what shows of it");
-    }
-
-    [Test]
-    public void RootsStackDown_LeftAligned_48PxApart_WhereTheSameSessionMovedOn()
-    {
-        var control = LaidOut(WithRunsOpen(_views.Theseus()));
-        var first = BoxOf(control, "method-kit");
-        var second = BoxOf(control, "holdout-scenarios");
-        var connectors = (Canvas)control.FindName("Connectors");
-        var a = first.TranslatePoint(new Point(0, 0), connectors);
-        var b = second.TranslatePoint(new Point(0, 0), connectors);
-
-        Assert.That(b.X, Is.EqualTo(a.X));
-        Assert.That(b.Y - (a.Y + first.ActualHeight), Is.EqualTo(48).Within(0.5), "room for the arrow and its label (Nigel, 2026-11-22)");
     }
 
     [Test]
@@ -192,14 +177,14 @@ public class ProjectViewLayoutTests
     }
 
     [Test]
-    public void AnOpenRunOfFinishedPieces_ShowsItsBoxes_NotAlsoTheLineOfTheirNames()
+    public void AnOpenStateHeading_ShowsItsBoxes_NotAlsoTheLineOfTheirNames()
     {
         // Walkthrough row 38: open, the run showed its boxes and the paragraph of their names below them.
         var view = _views.Theseus();
-        var run = view.Rounds.Single().Items.OfType<FinishedRunViewModel>().First();
+        var run = view.StateGroups.First(group => group.State == StageNodeState.Done);
         run.ToggleCommand.Execute(null);
         var control = LaidOut(view);
-        var titles = AllNamed<TextBlock>(control, "RunTitles").Where(text => text.DataContext == run).ToList();
+        var titles = AllNamed<TextBlock>(control, "StateTitles").Where(text => text.DataContext == run).ToList();
 
         Assert.That(titles, Is.Not.Empty);
         Assert.That(titles.Select(text => text.IsVisible || (text.Visibility == Visibility.Visible && text.ActualHeight > 0)), Has.All.False);
@@ -290,116 +275,15 @@ public class ProjectViewLayoutTests
     }
 
     [Test]
-    public void ParallelWork_SitsBetweenAForkBarAndAJoinBar_EachLabelled_AndASingleHandOverHasNoBars()
-    {
-        var control = LaidOut(_views.BuildYourMarket());
-        var rows = AllNamed<Grid>(control, "BranchRow").Where(row => row.Visibility == Visibility.Visible).ToList();
-        var parallel = rows.Single(row => ((PieceNodeViewModel)row.DataContext).Name == ServerSpec);
-        var single = rows.Single(row => ((PieceNodeViewModel)row.DataContext).Name == "bym-mcp-identity");
-        T Own<T>(Grid row, string name) where T : FrameworkElement =>
-            AllNamed<T>(row, name).First(element => element.DataContext == row.DataContext);
-
-        Assert.That(Own<DockPanel>(parallel, "Fork").Visibility, Is.EqualTo(Visibility.Visible));
-        Assert.That(Own<DockPanel>(parallel, "Join").Visibility, Is.EqualTo(Visibility.Visible));
-        Assert.That(Own<TextBlock>(parallel, "ForkLabel").Text, Does.StartWith("7 in parallel · "));
-        Assert.That(Own<TextBlock>(parallel, "JoinLabel").Text, Does.EndWith("then the Specify the BuildYourMarket MCP server session takes their reports"));
-        Assert.That(Own<Border>(parallel, "Branch").BorderThickness.Left, Is.EqualTo(2), "the children's line runs from fork to join");
-        Assert.That(Own<TextBlock>(parallel, "HandedOn").Visibility, Is.EqualTo(Visibility.Collapsed));
-        Assert.That(Own<DockPanel>(single, "Fork").Visibility, Is.EqualTo(Visibility.Collapsed), "one hand-over has no bars (D19)");
-        Assert.That(Own<TextBlock>(single, "HandedOn").Text, Is.EqualTo("↳ handed on"));
-        Assert.That(Own<TextBlock>(single, "HandedOn").Visibility, Is.EqualTo(Visibility.Visible));
-    }
-
-    [Test]
-    public void NoLineOrBar_CrossesALine_TheChildrenSitBetweenForkAndJoin()
-    {
-        var view = _views.BuildYourMarket();
-        var control = LaidOut(view);
-        control.DrawConnectors();
-        var connectors = (Canvas)control.FindName("Connectors");
-        var row = AllNamed<Grid>(control, "BranchRow").Single(each => ((PieceNodeViewModel)each.DataContext).Name == ServerSpec);
-        Rect InCanvas(FrameworkElement element) =>
-            new(element.TranslatePoint(new Point(0, 0), connectors), new Size(element.ActualWidth, element.ActualHeight));
-        var fork = InCanvas(AllNamed<DockPanel>(row, "Fork").First(panel => panel.DataContext == row.DataContext));
-        var join = InCanvas(AllNamed<DockPanel>(row, "Join").First(panel => panel.DataContext == row.DataContext));
-        var children = view.Roots.Single().Children.Select(child => InCanvas(BoxOf(control, child.Name))).ToList();
-
-        Assert.That(fork.Bottom, Is.LessThanOrEqualTo(children.Min(child => child.Top)), "the fork is above every child");
-        Assert.That(join.Top, Is.GreaterThanOrEqualTo(children.Max(child => child.Bottom)), "the join is below every child");
-
-        foreach (var line in connectors.Children.OfType<Path>())
-        {
-            Assert.That(line.Data.Bounds.IntersectsWith(fork) || line.Data.Bounds.IntersectsWith(join), Is.False, $"{line.Tag} crosses a bar");
-            Assert.That((string)line.Tag, Does.Not.StartWith($"HandsOver:{view.Roots.Single().Children[0].Name}"),
-                "parallel children get no line of their own (D20)");
-        }
-    }
-
-    [Test]
-    public void ASingleHandOversConnector_EndsOnTheChildsLeftEdge_WithinAPixel()
-    {
-        var view = _views.BuildYourMarket();
-        var control = LaidOut(view);
-        control.DrawConnectors();
-        var connectors = (Canvas)control.FindName("Connectors");
-        var lines = connectors.Children.OfType<Path>().Where(path => ((string)path.Tag).StartsWith("HandsOver", StringComparison.Ordinal)
-                                                                    && !((string)path.Tag).EndsWith(":arrow", StringComparison.Ordinal)).ToList();
-        var child = view.AllNodes.Single(node => node.Name == RedirectAnchoring);
-        var arrow = connectors.Children.OfType<Path>().Single(path => (string)path.Tag == $"HandsOver:{child.Name}:arrow");
-        var left = BoxOf(control, child.Name).TranslatePoint(new Point(0, 0), connectors);
-
-        Assert.That(lines, Has.Count.EqualTo(1), "only identity's one hand-over is a line; the spec's seven sit between bars");
-        Assert.That(lines.Single().StrokeThickness, Is.EqualTo(2));
-        Assert.That(arrow.Data.Bounds.Right, Is.EqualTo(left.X).Within(1));
-    }
-
-    [Test]
     public void ATooltipUnderThePointer_ShowsWithinTheViewsShortDelay()
     {
         var control = LaidOut(_views.Theseus());
         var tipped = new TextBlock { ToolTip = "tip" };
-        ((Panel)control.FindName("Connectors")).Children.Add(tipped);
+        ((Panel)control.FindName("FlowContent")).Children.Add(tipped);
 
         control.QuickToolTips(tipped);
 
         Assert.That(ToolTipService.GetInitialShowDelay(tipped), Is.EqualTo(ProjectView.ToolTipDelay), "review of PR 5, finding 3");
-    }
-
-    [Test]
-    public void NoConnectorLabel_OverlapsABox_AndItReadsAtTheViewsTextSize()
-    {
-        var control = LaidOut(WithRunsOpen(_views.Theseus()));
-        control.DrawConnectors();
-        var connectors = (Canvas)control.FindName("Connectors");
-        var labels = connectors.Children.OfType<TextBlock>().ToList();
-        var boxes = AllNamed<Border>(control, "Box")
-            .Select(box => new Rect(box.TranslatePoint(new Point(0, 0), connectors), new Size(box.ActualWidth, box.ActualHeight))).ToList();
-
-        Assert.That(labels, Is.Not.Empty);
-
-        foreach (var label in labels)
-        {
-            label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-            var bounds = new Rect(new Point(Canvas.GetLeft(label), Canvas.GetTop(label)), label.DesiredSize);
-
-            Assert.That(boxes.Where(box => box.IntersectsWith(bounds) && Rect.Intersect(box, bounds) is { Width: > 0.5, Height: > 0.5 }),
-                Is.Empty, $"{label.Tag} sits under a box (Nigel, 2026-11-22)");
-            Assert.That((label.FontSize, label.TextTrimming), Is.EqualTo((13.0, TextTrimming.CharacterEllipsis)));
-        }
-    }
-
-    [Test]
-    public void ThenWorkedOn_IsDotted_InUnitsOfItsStroke()
-    {
-        var control = LaidOut(WithRunsOpen(_views.Theseus()));
-        control.DrawConnectors();
-        var lines = ((Canvas)control.FindName("Connectors")).Children.OfType<Path>()
-            .Where(path => ((string)path.Tag).StartsWith("ThenWorkedOn", StringComparison.Ordinal) && !((string)path.Tag).EndsWith(":arrow", StringComparison.Ordinal))
-            .ToList();
-
-        Assert.That(lines, Has.Count.EqualTo(11));
-        Assert.That(lines.Select(line => (line.StrokeThickness, string.Join(" ", line.StrokeDashArray), line.StrokeDashCap)),
-            Has.All.EqualTo((1.5, "1.33 2.67", PenLineCap.Flat)));
     }
 
     [Test]
