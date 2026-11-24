@@ -1414,7 +1414,7 @@
                                Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
 
                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                        <Button Content="Focus" FontSize="12" Padding="8,4" Margin="0,0,8,0"
+                        <Button Style="{StaticResource CommandButton}" Content="Focus" FontSize="12" Margin="0,0,8,0"
                                 ToolTip="Focus: bring the session's window forward."
                                 Command="{Binding DataContext.Sessions.FocusCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                 CommandParameter="{Binding}" />
@@ -2116,12 +2116,12 @@
                                                            Visibility="{Binding Warnings, Converter={StaticResource NotEmptyToVisibility}}" />
                                                 <WrapPanel Margin="0,8,0,0"
                                                            Visibility="{Binding IsRejecting, Converter={StaticResource NotBoolToVisibility}}">
-                                                    <Button Content="Review…" FontSize="12" Padding="8,4" Margin="0,0,8,0"
+                                                    <Button Style="{StaticResource CommandButton}" Content="Review…" FontSize="12" Margin="0,0,8,0"
                                                             ToolTip="Open the proposal: Approve makes its card, Reject… turns it down."
                                                             Command="{Binding ReviewCommand}" />
-                                                    <Button Content="Open brief" FontSize="12" Padding="8,4" Margin="0,0,8,0"
+                                                    <Button Style="{StaticResource CommandButton}" Content="Open brief" FontSize="12" Margin="0,0,8,0"
                                                             Command="{Binding OpenBriefCommand}" />
-                                                    <Button Content="Reject…" FontSize="12" Padding="8,4" Margin="0,0,8,0"
+                                                    <Button Style="{StaticResource CommandButton}" Content="Reject…" FontSize="12" Margin="0,0,8,0"
                                                             Command="{Binding AskRejectCommand}" />
                                                 </WrapPanel>
                                                 <StackPanel Margin="0,8,0,0"
@@ -2132,9 +2132,9 @@
                                                              AutomationProperties.LabeledBy="{x:Reference RejectNoteLabel}"
                                                              Margin="0,4,0,4" />
                                                     <StackPanel Orientation="Horizontal">
-                                                        <Button Content="Reject" FontSize="12" Padding="8,4" Margin="0,0,8,0"
+                                                        <Button Style="{StaticResource CommandButton}" Content="Reject" FontSize="12" Margin="0,0,8,0"
                                                                 Command="{Binding RejectCommand}" />
-                                                        <Button Content="Cancel" FontSize="12" Padding="8,4"
+                                                        <Button Style="{StaticResource CommandButton}" Content="Cancel" FontSize="12"
                                                                 Command="{Binding CancelRejectCommand}" />
                                                     </StackPanel>
                                                 </StackPanel>
@@ -2173,14 +2173,14 @@
                                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                                                 <WrapPanel Margin="0,8,0,0"
                                                            Visibility="{Binding IsAskingReason, Converter={StaticResource NotBoolToVisibility}}">
-                                                    <Button Content="Open report" FontSize="12" Padding="8,4" Margin="0,0,8,0"
+                                                    <Button Style="{StaticResource CommandButton}" Content="Open report" FontSize="12" Margin="0,0,8,0"
                                                             Command="{Binding OpenReportCommand}"
                                                             Visibility="{Binding IsReported, Converter={StaticResource BoolToVisibility}}" />
-                                                    <Button Content="Confirm report…" FontSize="12" Padding="8,4" Margin="0,0,8,0"
+                                                    <Button Style="{StaticResource CommandButton}" Content="Confirm report…" FontSize="12" Margin="0,0,8,0"
                                                             ToolTip="Accept the report, which satisfies the link."
                                                             Command="{Binding ConfirmCommand}"
                                                             Visibility="{Binding IsReported, Converter={StaticResource BoolToVisibility}}" />
-                                                    <Button Content="Not yet" FontSize="12" Padding="8,4" Margin="0,0,8,0"
+                                                    <Button Style="{StaticResource CommandButton}" Content="Not yet" FontSize="12" Margin="0,0,8,0"
                                                             ToolTip="Leave it reported and move it below the others. It stays unconfirmed."
                                                             ToolTipService.ShowOnDisabled="True"
                                                             Command="{Binding NotYetCommand}"
@@ -2188,14 +2188,14 @@
                                                     <TextBlock Text="{Binding SetAsideText}" Style="{StaticResource CaptionText}" Margin="0,0,8,0"
                                                                VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                                                Visibility="{Binding SetAsideText, Converter={StaticResource NotEmptyToVisibility}}" />
-                                                    <Button Content="Reject…" FontSize="12" Padding="8,4" Margin="0,0,8,0"
+                                                    <Button Style="{StaticResource CommandButton}" Content="Reject…" FontSize="12" Margin="0,0,8,0"
                                                             ToolTip="Say why, then the report never satisfies the link and leaves this list; a new report can still be confirmed."
                                                             Command="{Binding AskRejectCommand}"
                                                             Visibility="{Binding IsReported, Converter={StaticResource BoolToVisibility}}" />
-                                                    <Button Content="Open handoff" FontSize="12" Padding="8,4" Margin="0,0,8,0"
+                                                    <Button Style="{StaticResource CommandButton}" Content="Open handoff" FontSize="12" Margin="0,0,8,0"
                                                             Command="{Binding OpenHandoffCommand}"
                                                             Visibility="{Binding IsLost, Converter={StaticResource BoolToVisibility}}" />
-                                                    <Button Content="Mark satisfied…" FontSize="12" Padding="8,4" Margin="0,0,8,0"
+                                                    <Button Style="{StaticResource CommandButton}" Content="Mark satisfied…" FontSize="12" Margin="0,0,8,0"
                                                             Command="{Binding AskReasonCommand}"
                                                             Visibility="{Binding IsLost, Converter={StaticResource BoolToVisibility}}" />
                                                 </WrapPanel>
@@ -2207,13 +2207,13 @@
                                                              AutomationProperties.LabeledBy="{x:Reference ReasonLabel}"
                                                              Margin="0,4,0,4" />
                                                     <StackPanel Orientation="Horizontal">
-                                                        <Button Content="Mark satisfied" FontSize="12" Padding="8,4" Margin="0,0,8,0"
+                                                        <Button Style="{StaticResource CommandButton}" Content="Mark satisfied" FontSize="12" Margin="0,0,8,0"
                                                                 Command="{Binding SatisfyCommand}"
                                                                 Visibility="{Binding IsRejecting, Converter={StaticResource NotBoolToVisibility}}" />
-                                                        <Button Content="Reject" FontSize="12" Padding="8,4" Margin="0,0,8,0"
+                                                        <Button Style="{StaticResource CommandButton}" Content="Reject" FontSize="12" Margin="0,0,8,0"
                                                                 Command="{Binding RejectCommand}"
                                                                 Visibility="{Binding IsRejecting, Converter={StaticResource BoolToVisibility}}" />
-                                                        <Button Content="Cancel" FontSize="12" Padding="8,4"
+                                                        <Button Style="{StaticResource CommandButton}" Content="Cancel" FontSize="12"
                                                                 Command="{Binding CancelReasonCommand}" />
                                                     </StackPanel>
                                                 </StackPanel>
@@ -3085,7 +3085,7 @@
                                 </ContextMenu>
                             </Button.ContextMenu>
                         </Button>
-                        <Button Grid.Column="4" Content="Close" Padding="12,4"
+                        <Button Style="{StaticResource CommandButton}" Grid.Column="4" Content="Close"
                                 Command="{Binding Drawer.CloseCommand}" />
                     </Grid>
 
@@ -3112,21 +3112,21 @@
                                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                                    Visibility="{Binding Drawer.HasStartedBy, Converter={StaticResource BoolToVisibility}}" />
                                         <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                            <Button Content="{Binding Drawer.StartLabel}" Padding="12,4" Margin="0,0,8,0"
+                                            <Button Style="{StaticResource CommandButton}" Content="{Binding Drawer.StartLabel}" Margin="0,0,8,0"
                                                     ToolTip="{Binding Drawer.Card.RestartCost}"
                                                     Visibility="{Binding Drawer.Card.IsLive, Converter={StaticResource NotBoolToVisibility}}"
                                                     Command="{Binding StartCardCommand}"
                                                     CommandParameter="{Binding Drawer.Card}" />
-                                            <Button Content="_Stop" Padding="12,4" Margin="0,0,8,0"
+                                            <Button Style="{StaticResource CommandButton}" Content="_Stop" Margin="0,0,8,0"
                                                     ToolTip="Ask this session to write a handoff and exit when its turn ends."
                                                     Visibility="{Binding Drawer.Card.ShowStop, Converter={StaticResource BoolToVisibility}}"
                                                     Command="{Binding StopCardCommand}"
                                                     CommandParameter="{Binding Drawer.Card}" />
-                                            <Button Content="Focus" Padding="12,4" Margin="0,0,8,0"
+                                            <Button Style="{StaticResource CommandButton}" Content="Focus" Margin="0,0,8,0"
                                                     ToolTip="Focus: bring the session's window forward."
                                                     Command="{Binding FocusCardCommand}"
                                                     CommandParameter="{Binding Drawer.Card}" />
-                                            <Button Content="Spawn follow-on…" Padding="12,4"
+                                            <Button Style="{StaticResource CommandButton}" Content="Spawn follow-on…"
                                                     ToolTip="Create a new card this one hands over to, in the same working directory."
                                                     Command="{Binding SpawnFollowOnCommand}"
                                                     CommandParameter="{Binding Drawer.Card}" />
@@ -3179,7 +3179,7 @@
                                                         <TextBlock Text="{Binding}" FontSize="12" Margin="0,0,72,0"
                                                                    VerticalAlignment="Center"
                                                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                                        <Button Content="Remove" FontSize="12" Padding="8,0"
+                                                        <Button Style="{StaticResource CommandButton}" Content="Remove" FontSize="12" Padding="8,0"
                                                                 HorizontalAlignment="Right"
                                                                 Command="{Binding DataContext.Drawer.RemoveJiraKeyCommand,
                                                                           RelativeSource={RelativeSource AncestorType=Window}}"
@@ -3192,10 +3192,10 @@
                                             <TextBox Text="{Binding Drawer.NewJiraKey, UpdateSourceTrigger=PropertyChanged}"
                                                      AutomationProperties.LabeledBy="{x:Reference JiraIssuesLabel}"
                                                      Margin="0,0,60,0" />
-                                            <Button Content="Add" HorizontalAlignment="Right" Padding="12,4"
+                                            <Button Style="{StaticResource CommandButton}" Content="Add" HorizontalAlignment="Right"
                                                     Command="{Binding Drawer.AddJiraKeyCommand}" />
                                         </Grid>
-                                        <Button Content="{Binding Drawer.UnclaimedKeys.Count, StringFormat=Take {0} more}"
+                                        <Button Style="{StaticResource CommandButton}" Content="{Binding Drawer.UnclaimedKeys.Count, StringFormat=Take {0} more}"
                                                 ToolTip="{Binding Drawer.UnclaimedKeys.Count, Converter={StaticResource TagToolTip}, ConverterParameter=Take {0} more Jira keys from the prompt.}"
                                                 HorizontalAlignment="Left" Margin="0,8,0,0" Padding="8,4" FontSize="12"
                                                 Command="{Binding Drawer.RescanPromptCommand}"
@@ -3261,7 +3261,7 @@
                                                    TextTrimming="CharacterEllipsis"
                                                    ToolTip="Where this workstream's sessions start"
                                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                        <Button Content="Edit setup…" HorizontalAlignment="Left" Margin="0,8,0,0" Padding="12,4"
+                                        <Button Style="{StaticResource CommandButton}" Content="Edit setup…" HorizontalAlignment="Left" Margin="0,8,0,0"
                                                 ToolTip="Working directory, prompts, handover notes, terminal window and order"
                                                 Command="{Binding Drawer.EditSetupCommand}" />
                                     </StackPanel>
@@ -3302,24 +3302,24 @@
                                                                      ToolTip="Why the input is accepted. It is kept with the link." />
                                                         </StackPanel>
                                                         <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                                            <Button Content="Confirm report…" FontSize="12" Padding="8,0" Margin="0,0,8,0"
+                                                            <Button Style="{StaticResource CommandButton}" Content="Confirm report…" FontSize="12" Padding="8,0" Margin="0,0,8,0"
                                                                     Command="{Binding ConfirmReportCommand}"
                                                                     ToolTip="Accept the report: one press for done or go, otherwise the verdict goes in the reason box."
                                                                     Visibility="{Binding CanConfirm, Converter={StaticResource BoolToVisibility}}" />
-                                                            <Button Content="Mark satisfied" FontSize="12" Padding="8,0" Margin="0,0,8,0"
+                                                            <Button Style="{StaticResource CommandButton}" Content="Mark satisfied" FontSize="12" Padding="8,0" Margin="0,0,8,0"
                                                                     Command="{Binding SatisfyCommand}"
                                                                     ToolTip="Accept this input by hand, for the reason given."
                                                                     Visibility="{Binding CanSatisfy, Converter={StaticResource BoolToVisibility}}" />
-                                                            <Button Content="Open document" FontSize="12" Padding="8,0" Margin="0,0,8,0"
+                                                            <Button Style="{StaticResource CommandButton}" Content="Open document" FontSize="12" Padding="8,0" Margin="0,0,8,0"
                                                                     Command="{Binding OpenDocumentCommand}"
                                                                     Visibility="{Binding Document, Converter={StaticResource NotEmptyToVisibility}}" />
-                                                            <Button Content="Remove…" FontSize="12" Padding="8,0"
+                                                            <Button Style="{StaticResource CommandButton}" Content="Remove…" FontSize="12" Padding="8,0"
                                                                     Command="{Binding AskRemoveCommand}"
                                                                     Visibility="{Binding CanAskRemove, Converter={StaticResource BoolToVisibility}}" />
-                                                            <Button Content="Remove the link" FontSize="12" Padding="8,0" Margin="0,0,8,0"
+                                                            <Button Style="{StaticResource CommandButton}" Content="Remove the link" FontSize="12" Padding="8,0" Margin="0,0,8,0"
                                                                     Command="{Binding ConfirmRemoveCommand}"
                                                                     Visibility="{Binding IsConfirmingRemove, Converter={StaticResource BoolToVisibility}}" />
-                                                            <Button Content="Keep" FontSize="12" Padding="8,0"
+                                                            <Button Style="{StaticResource CommandButton}" Content="Keep" FontSize="12" Padding="8,0"
                                                                     Command="{Binding KeepCommand}"
                                                                     Visibility="{Binding IsConfirmingRemove, Converter={StaticResource BoolToVisibility}}" />
                                                         </StackPanel>
@@ -3360,10 +3360,10 @@
 
                                         <StackPanel Orientation="Horizontal" Margin="0,12,0,0"
                                                     Visibility="{Binding Chains.IsAddingLink, Converter={StaticResource NotBoolToVisibility}}">
-                                            <Button Content="+ Add _link…" Padding="12,4" Margin="0,0,8,0"
+                                            <Button Style="{StaticResource CommandButton}" Content="+ Add _link…" Margin="0,0,8,0"
                                                     ToolTip="Link this card to another card on the board."
                                                     Command="{Binding Chains.BeginAddLinkCommand}" />
-                                            <Button Content="Spawn follow-on…" Padding="12,4"
+                                            <Button Style="{StaticResource CommandButton}" Content="Spawn follow-on…"
                                                     ToolTip="Create a new card this one hands over to, in the same working directory."
                                                     Command="{Binding SpawnFollowOnCommand}"
                                                     CommandParameter="{Binding Drawer.Card}" />
