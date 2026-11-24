@@ -1,29 +1,32 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 
 namespace Theseus.App.Controls;
 
 /// <summary>
-/// Puts the focus on a list's first row when a list window opens (baseline W43, checklist G66): the row itself where the
-/// list's rows take the focus, as a ListBox's do, or else the first control the row holds, such as its check box.
+/// Puts the focus on a list's starting row when a list window opens (baseline W43, checklist G66): the chosen row of a
+/// list that has one, so the arrows move from the row whose content is shown, or else the first. The row itself takes the
+/// focus where the list's rows do, as a ListBox's do, or else the first control it holds, such as its check box.
 /// </summary>
 public static class FirstRow
 {
-    /// <summary>Focuses the first row of <paramref name="list"/>; false when it has no row to focus.</summary>
+    /// <summary>Focuses the starting row of <paramref name="list"/>; false only when it has no row.</summary>
     public static bool Focus(ItemsControl list)
     {
         ArgumentNullException.ThrowIfNull(list);
         list.UpdateLayout();
+        int index = list is Selector { SelectedIndex: >= 0 } chosen ? chosen.SelectedIndex : 0;
 
-        if (list.ItemContainerGenerator.ContainerFromIndex(0) is not UIElement row)
+        if (list.ItemContainerGenerator.ContainerFromIndex(index) is not UIElement row)
         {
             return false;
         }
 
-        UIElement? target = row.Focusable ? row : FirstFocusable(row);
+        (row.Focusable ? row : FirstFocusable(row))?.Focus();
 
-        return target?.Focus() ?? false;
+        return true;
     }
 
     private static UIElement? FirstFocusable(DependencyObject parent)

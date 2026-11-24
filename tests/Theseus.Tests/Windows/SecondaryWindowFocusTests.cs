@@ -1,7 +1,11 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using Theseus.App;
 using Theseus.App.Controls;
+using Theseus.App.ViewModels;
+using Theseus.Tests.Projects;
+using static Theseus.Tests.Projects.ClarityFixtures;
 
 namespace Theseus.Tests.Windows;
 
@@ -20,7 +24,7 @@ public class SecondaryWindowFocusTests
         ["About", "CloseButton"],
         ["AddObjective", "TitleBox"],
         ["AddToProject", "ProjectBox"],
-        ["Arrange", "KindBox"],
+        ["Arrange", "row:Groups"],
         ["Checklist", "row:Rows"],
         ["DayReport", "CloseButton"],
         ["Instructions", "FilesTab"],
@@ -36,10 +40,31 @@ public class SecondaryWindowFocusTests
     public void OnceLoaded_TheFocusIsOnTheFirstControl(string name, string first)
     {
         using OpenedWindow opened = OpenedWindow.Of(name);
-        DependencyObject? focused = FocusManager.GetFocusedElement(opened.Window) as DependencyObject;
+        DependencyObject? focused = Keyboard.FocusedElement as DependencyObject;
 
-        Assert.That(focused, Is.Not.Null, "something has the focus when the window opens (B3)");
+        Assert.That(focused, Is.Not.Null, "the keyboard is somewhere when the window opens (B3)");
         Assert.That(focused, Is.SameAs(Expected(opened, first)), $"{name} starts at {first} (W43)");
+    }
+
+    [Test]
+    public void TheRecordsWindow_StartsOnTheChosenRow_NotTheFirst()
+    {
+        using TestProjectsFolder folder = TestProjectsFolder.Create();
+        RecordsViewModel model = new(Named(BymPieces(folder), "bym-mcp-identity"), "Plan", _ => { });
+        Window window = DialogHost.Open(new RecordsWindow(model));
+
+        try
+        {
+            ListBox entries = (ListBox)window.FindName("Entries");
+
+            Assert.That(entries.SelectedIndex, Is.GreaterThan(0), "the stage asked for is not the first row");
+            Assert.That(Keyboard.FocusedElement, Is.SameAs(entries.ItemContainerGenerator.ContainerFromIndex(entries.SelectedIndex)),
+                "the keyboard starts where the shown document is, so an arrow moves from there (W43)");
+        }
+        finally
+        {
+            window.Close();
+        }
     }
 
     [TestCaseSource(typeof(SecondaryWindowNames), nameof(SecondaryWindowNames.Every))]

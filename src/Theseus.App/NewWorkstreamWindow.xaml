@@ -117,7 +117,7 @@
                 <TextBlock Style="{StaticResource FieldHint}"
                            Text="Which cell of the board the card starts in. It can be dragged anywhere afterwards." />
 
-                <Label x:Name="PromptLabel" Content="Opening _prompt" Target="{Binding ElementName=PromptBox}" Style="{StaticResource Field}" />
+                <Label x:Name="PromptLabel" Content="Opening _prompt" Target="{Binding Editor, ElementName=PromptBox}" Style="{StaticResource Field}" />
                 <controls:MarkdownBox x:Name="PromptBox" Text="{Binding NewWorkstream.Prompt}" EditorMinHeight="160" EditorMaxHeight="420"
                                       AutomationProperties.LabeledBy="{Binding ElementName=PromptLabel}" />
             </StackPanel>

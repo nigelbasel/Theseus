@@ -45,6 +45,20 @@ public class SecondaryWindowNamesTests
             $"each key once in the window (W26): {string.Join(", ", keys)}");
     }
 
+    [TestCaseSource(typeof(SecondaryWindowNames), nameof(SecondaryWindowNames.Every))]
+    public void EveryLabelsAccessKey_ReachesAFieldThatTakesTheFocus(string name)
+    {
+        using OpenedWindow opened = OpenedWindow.Of(name);
+
+        Assert.Multiple(() =>
+        {
+            foreach (Label label in opened.Logical().OfType<Label>().Where(label => label.Target is not null))
+            {
+                Assert.That(label.Target.Focusable, Is.True, $"{label.Content}: Alt with its key moves to its field (W26)");
+            }
+        });
+    }
+
     [TestCase("About", "CheckButton", 'C')]
     [TestCase("Arrange", "ArrangeButton", 'A')]
     [TestCase("Arrange", "PutBackButton", 'U')]

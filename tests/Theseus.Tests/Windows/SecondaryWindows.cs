@@ -1,7 +1,9 @@
 using System.IO;
 using System.Windows;
 using Theseus.App;
+using Theseus.App.Services;
 using Theseus.App.ViewModels;
+using Theseus.Core.Layout;
 using Theseus.Core.Projects;
 using Theseus.Core.Proposals;
 
@@ -19,7 +21,7 @@ public static class SecondaryWindows
         ("About", () => new AboutWindow()),
         ("AddObjective", () => new AddObjectiveWindow()),
         ("AddToProject", () => new AddToProjectWindow([new ProjectOption("theseus", "Theseus", [("1.9", "Windows conventions")])], "wg-secondary-windows")),
-        ("Arrange", () => new ArrangeWindow { DataContext = new ArrangeViewModel() }),
+        ("Arrange", () => new ArrangeWindow { DataContext = Arrange() }),
         ("Checklist", () => new ChecklistWindow(Checklist())),
         ("DayReport", () => new DayReportWindow()),
         ("Instructions", () => new InstructionsWindow()),
@@ -30,6 +32,15 @@ public static class SecondaryWindows
         ("Records", () => new RecordsWindow(Records())),
         ("Spec", () => new SpecWindow(Spec(scratchFolder))),
     ];
+
+    /// <summary>The arranger with one terminal window, read from nowhere: no real window is looked at or moved.</summary>
+    public static ArrangeViewModel Arrange()
+    {
+        ArrangeViewModel model = new();
+        model.Groups.Add(new ArrangeGroupViewModel(new TerminalWindow(0, new LayoutRect(0, 0, 1200, 800), false, ["Cache spike", "Auth research"])));
+
+        return model;
+    }
 
     /// <summary>A two-row clear-up list, both rows ticked.</summary>
     public static ChecklistViewModel Checklist() =>

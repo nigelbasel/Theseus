@@ -22,7 +22,7 @@
         <Label x:Name="TitleLabel" Content="_Title" Target="{Binding ElementName=TitleBox}" Style="{StaticResource Field}" />
         <TextBox x:Name="TitleBox" TextChanged="OnChanged" AutomationProperties.LabeledBy="{Binding ElementName=TitleLabel}" />
 
-        <Label x:Name="CriteriaLabel" Content="Acceptance _criteria" Target="{Binding ElementName=CriteriaBox}" Style="{StaticResource Field}"
+        <Label x:Name="CriteriaLabel" Content="Acceptance _criteria" Target="{Binding Editor, ElementName=CriteriaBox}" Style="{StaticResource Field}"
                Margin="0,16,0,8" />
         <controls:MarkdownBox x:Name="CriteriaBox" EditorMinHeight="90" EditorMaxHeight="320"
                               AutomationProperties.LabeledBy="{Binding ElementName=CriteriaLabel}" />
