@@ -395,10 +395,17 @@ public partial class App : Application
     {
         _releases = new GitHubReleaseFeed(AppVersion.Current, () => settings.Read().IncludePreReleases);
 
-        var updates = new UpdateViewModel(_releases, AppVersion.Current, Path.Combine(DataDirectory, "updates"), msi =>
+        UpdateViewModel? updates = null;
+        updates = new UpdateViewModel(_releases, AppVersion.Current, Path.Combine(DataDirectory, "updates"), msi =>
         {
-            UpdateInstaller.Start(msi, Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "Theseus.exe"),
-                Environment.ProcessId);
+            if (UpdateInstaller.Start(msi, Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "Theseus.exe"),
+                    Environment.ProcessId) is { } notStarted)
+            {
+                updates!.InstallFailed(notStarted);
+
+                return;
+            }
+
             MainWindow?.Close();
         });
 

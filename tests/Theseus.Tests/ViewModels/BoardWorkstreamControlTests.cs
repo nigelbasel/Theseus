@@ -287,7 +287,8 @@ public class BoardWorkstreamControlTests
         _board.Card("child")!.Lifecycle = SessionLifecycle.Running;
 
         Assert.That(Control().Stop("child", "parent"), Is.Null);
-        Assert.That(Events(), Is.EqualTo(new[] { "Stopped by parent" }));
+        Assert.That(Events(), Is.EqualTo(new[] { "Asked to stop by parent, waiting for it to hand over and close" }),
+            "it is not stopped until its tab has closed");
 
         _stopRefusal = "Theseus's stop hook is not installed, so child cannot be asked to stop from here; the user must stop it.";
 

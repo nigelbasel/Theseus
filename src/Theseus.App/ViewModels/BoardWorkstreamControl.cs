@@ -88,7 +88,7 @@ public sealed class BoardWorkstreamControl : IWorkstreamControl
             return notStopped;
         }
 
-        Say(card, $"Stopped by {TitleOf(caller)}");
+        Say(card, $"Asked to stop by {TitleOf(caller)}, waiting for it to hand over and close");
 
         return null;
     }

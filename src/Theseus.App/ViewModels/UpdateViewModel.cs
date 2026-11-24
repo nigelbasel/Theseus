@@ -252,6 +252,14 @@ public sealed class UpdateViewModel : ObservableObject
         Raise(nameof(IsDownloading));
     }
 
+    /// <summary>The installer could not be started: said as an error, with the update offered again, and Theseus left running.</summary>
+    public void InstallFailed(string why)
+    {
+        Severity = NoticeSeverity.Error;
+        Status = $"{why} Nothing was installed, and Theseus keeps running.";
+        SetBusy(false);
+    }
+
     private void SetBusy(bool busy)
     {
         _isBusy = busy;

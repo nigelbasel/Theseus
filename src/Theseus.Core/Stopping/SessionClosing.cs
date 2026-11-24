@@ -25,6 +25,12 @@ public static class SessionClosing
     /// </summary>
     public static readonly TimeSpan Quiet = TimeSpan.FromSeconds(20);
 
+    /// <summary>
+    /// How soon after a stop is handed over the turn that took it must end, for a handover written earlier in the run to
+    /// count. A turn that ends later is someone working with the session, not its answer to the stop.
+    /// </summary>
+    public static readonly TimeSpan AnswerWindow = TimeSpan.FromMinutes(10);
+
     /// <summary>Whether this session should now be told to exit.</summary>
     /// <param name="delivered">The stop request this session was handed, if any.</param>
     /// <param name="handoffWrittenUtc">When the handover document was last written, if it exists.</param>
@@ -32,13 +38,18 @@ public static class SessionClosing
     /// <param name="statusSinceUtc">When it last changed to that.</param>
     /// <param name="now">The current moment.</param>
     /// <param name="alreadyAsked">Whether this session has already been told to exit.</param>
+    /// <param name="sessionStartedUtc">
+    /// When the run now going started, if known. A handover this run wrote before the stop counts once the turn that took
+    /// the stop has ended: a session whose handover is already current says so and leaves the file as it is.
+    /// </param>
     public static bool ShouldClose(
         PendingStopRequest? delivered,
         DateTimeOffset? handoffWrittenUtc,
         string? status,
         DateTimeOffset? statusSinceUtc,
         DateTimeOffset now,
-        bool alreadyAsked)
+        bool alreadyAsked,
+        DateTimeOffset? sessionStartedUtc = null)
     {
         // Only a session Theseus asked to stop, and only once. Asking twice would type /exit into a
         // session that had already begun something else.
@@ -54,10 +65,20 @@ public static class SessionClosing
             return false;
         }
 
-        // The handover has to exist and be this stop's, not one left over from a previous day.
+        // The handover has to exist and be this stop's, or this run's when the stop's own turn left it as it was; never one
+        // left over from a previous run.
         // Without that check a session asked to hand over and failing to would be closed anyway,
         // losing exactly what stopping is for.
-        if (handoffWrittenUtc is not { } written || written < delivered.RequestedUtc)
+        if (handoffWrittenUtc is not { } written)
+        {
+            return false;
+        }
+
+        var handed = delivered.DeliveredUtc ?? delivered.RequestedUtc;
+        var currentBeforeTheStop = sessionStartedUtc is { } started && written >= started
+                                   && statusSinceUtc is { } idleSince && idleSince >= handed && idleSince <= handed + AnswerWindow;
+
+        if (written < delivered.RequestedUtc && !currentBeforeTheStop)
         {
             return false;
         }
@@ -98,13 +119,13 @@ public static class SessionClosing
             return new CloseDecision(CloseVerdict.Retire);
         }
 
-        if (ShouldClose(delivered, handoffWrittenUtc, status, statusSinceUtc, now, alreadyAsked))
+        if (ShouldClose(delivered, handoffWrittenUtc, status, statusSinceUtc, now, alreadyAsked, sessionStartedUtc))
         {
             return new CloseDecision(CloseVerdict.Close);
         }
 
         if (statusSinceUtc is { } since
-            && ShouldClose(delivered, handoffWrittenUtc, status, statusSinceUtc, since + Quiet, alreadyAsked))
+            && ShouldClose(delivered, handoffWrittenUtc, status, statusSinceUtc, since + Quiet, alreadyAsked, sessionStartedUtc))
         {
             return new CloseDecision(CloseVerdict.Wait, since + Quiet);
         }

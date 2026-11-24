@@ -806,7 +806,7 @@ public sealed partial class McpHandler
             : Result(call switch
             {
                 WorkstreamCall.Start => $"Started {card.Title}.",
-                WorkstreamCall.Stop => $"Asked {card.Title} to write its handover and stop; it ends after its current turn.",
+                WorkstreamCall.Stop => $"Asked {card.Title} to stop, waiting: it writes its handover, then its tab closes. An idle session is woken to do it now, a working one when its turn ends.",
                 WorkstreamCall.Pause => $"Paused {card.Title}; its project's Start leaves it alone until you resume it.",
                 _ => $"Resumed {card.Title}.",
             });

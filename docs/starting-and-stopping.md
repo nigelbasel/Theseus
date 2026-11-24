@@ -46,7 +46,8 @@ delivered exactly once.
 An idle session has no turn coming, so Theseus starts one by typing a single word into that session's
 own console. Nothing comes to the front and the window you are working in keeps the keyboard. Once the
 handover is written and the session has gone quiet, Theseus types `/exit` the same way and the tab
-closes.
+closes. A session whose handover was already up to date, written earlier in the same run, closes once it
+has answered the stop. Until the tab has closed, its card says it was asked to stop and is waiting.
 
 ### Sessions that end by themselves
 

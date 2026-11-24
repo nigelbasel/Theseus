@@ -47,9 +47,9 @@ public class CloseDecisionTests
     }
 
     [Test]
-    public void ASessionWithNoHandoffSinceItWasAsked_IsLeftAndNotWaitedFor()
+    public void ASessionWhoseRunWroteNoHandoff_IsLeftAndNotWaitedFor()
     {
-        Assert.That(Decide(written: Asked.AddMinutes(-30), statusSince: Now.AddSeconds(-3)).Verdict,
+        Assert.That(Decide(written: StartedBeforeAsking.AddMinutes(-30), statusSince: Now.AddSeconds(-3)).Verdict,
             Is.EqualTo(CloseVerdict.Skip));
     }
 

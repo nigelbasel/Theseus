@@ -796,12 +796,22 @@ public sealed partial class ShellViewModel : ObservableObject
             return $"{card.Title} has no session to stop.";
         }
 
+        // The close step first: it retires a stop handed to an earlier run, which would otherwise hold back this one, and
+        // closes a session that already has its stop and has answered it.
+        CloseFinishedSessions();
+
+        if (_stopRequests.Delivered(step.SessionId) is { } handed && Sessions.Find(step.SessionId) is { } running
+            && !SessionClosing.HandedBefore(handed, running.StartedUtc))
+        {
+            return null;
+        }
+
         if (_stopRequests.Waiting(step.SessionId) is null)
         {
             Ask(step);
         }
 
-        if (step.Lifecycle == SessionLifecycle.Idle && _stopRequests.Delivered(step.SessionId) is null)
+        if (step.Lifecycle == SessionLifecycle.Idle)
         {
             Wake(step, StopRouting.NudgeMarker);
         }
@@ -4136,6 +4146,7 @@ public sealed partial class ShellViewModel : ObservableObject
         {
             _stopRequests.Retire(sessionId);
             StopTiming.ReportFinished(delivered!, handoffWritten, DateTimeOffset.UtcNow);
+            _cardEvents.Append(new CardEvent(DateTimeOffset.UtcNow, card.Key, "Handed over, and /exit typed: its tab is closing"));
 
             // The one ending Theseus can be certain of, recorded at the moment it is caused.
             // Nothing else was recording it: the reconcile only writes an ending when a session

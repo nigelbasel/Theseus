@@ -87,6 +87,26 @@ public class UpdateViewModelTests
     }
 
     [Test]
+    public void AnInstallerThatCannotBeStarted_IsSaid_NotThrown_SoTheseusKeepsRunning()
+    {
+        var why = UpdateInstaller.Start(@"C:\updates\Theseus.msi", @"C:\Program Files\Theseus\Theseus.exe", 4242,
+            _ => throw new System.ComponentModel.Win32Exception("The request is not supported."));
+
+        Assert.That(why, Is.EqualTo("The update's installer could not be started: The request is not supported."));
+    }
+
+    [Test]
+    public void AFailedInstall_IsShownAsAnError_AndTheUpdateCanBeTriedAgain()
+    {
+        var updates = Updates(Release("2026.10.29.100"));
+
+        updates.InstallFailed("The update's installer could not be started: The request is not supported.");
+
+        Assert.That((updates.Severity, updates.Status), Is.EqualTo((NoticeSeverity.Error,
+            "The update's installer could not be started: The request is not supported. Nothing was installed, and Theseus keeps running.")));
+    }
+
+    [Test]
     public void Script_QuotesPathsSoNothingInThemIsExpanded()
     {
         var script = UpdateInstaller.Script(@"C:\Users\o'brien\$updates\Theseus.msi", @"C:\Program Files\Theseus\Theseus.exe", 4242);

@@ -14,8 +14,15 @@ namespace Theseus.App.Services;
 /// </summary>
 public static class UpdateInstaller
 {
-    /// <summary>Starts the helper. The caller closes Theseus straight afterwards.</summary>
-    public static void Start(string msiPath, string relaunchPath, int theseusProcessId)
+    /// <summary>
+    /// Starts the helper; why it could not, or null. The caller closes Theseus straight afterwards only when it started:
+    /// an update that cannot hand over leaves Theseus running and says so.
+    /// </summary>
+    /// <param name="msiPath">The verified installer.</param>
+    /// <param name="relaunchPath">What starts Theseus again afterwards.</param>
+    /// <param name="theseusProcessId">This Theseus, which the helper waits to exit.</param>
+    /// <param name="start">Starts the helper's process; <see cref="Process.Start(ProcessStartInfo)"/> unless a test says otherwise.</param>
+    public static string? Start(string msiPath, string relaunchPath, int theseusProcessId, Func<ProcessStartInfo, Process?>? start = null)
     {
         var script = Script(msiPath, relaunchPath, theseusProcessId);
         var startInfo = new ProcessStartInfo
@@ -31,8 +38,20 @@ public static class UpdateInstaller
             startInfo.ArgumentList.Add(argument);
         }
 
-        Process.Start(startInfo);
+        try
+        {
+            using var helper = (start ?? Process.Start)(startInfo);
+        }
+        catch (Exception exception) when (exception is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            TheseusLog.Warning(exception, "The update helper for {Msi} could not be started", msiPath);
+
+            return $"The update's installer could not be started: {exception.Message}";
+        }
+
         TheseusLog.Information("Handed {Msi} to the update helper; Theseus restarts from {Path} afterwards", msiPath, relaunchPath);
+
+        return null;
     }
 
     /// <summary>The helper script. Paths go in single-quoted literals, so nothing in them is expanded.</summary>
