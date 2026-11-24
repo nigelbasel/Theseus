@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Windows;
+using Theseus.App.Controls;
 using Theseus.App.Markdown;
 using Theseus.App.ViewModels;
 
@@ -18,7 +19,10 @@ public partial class RecordsWindow : Window
         DataContext = model;
         Draw();
         model.PropertyChanged += OnChanged;
+        Loaded += (_, _) => FirstRow.Focus(Entries);
     }
+
+    private void OnClose(object sender, RoutedEventArgs e) => Close();
 
     private void OnChanged(object? sender, PropertyChangedEventArgs e)
     {

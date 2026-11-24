@@ -56,6 +56,9 @@ public partial class SpecWindow : Window
         SourceInitialized += (_, _) => Restore();
         Activated += (_, _) => _model.Refresh();
         Closing += OnClosing;
+
+        // The keyboard starts in the spec, so the arrow keys scroll what is being read (W43).
+        Loaded += (_, _) => (_model.IsSource ? (UIElement)SourceView : PreviewView).Focus();
     }
 
     /// <summary>The model it shows.</summary>
@@ -151,8 +154,6 @@ public partial class SpecWindow : Window
     {
         PreviewView.Visibility = _model.IsSource ? Visibility.Collapsed : Visibility.Visible;
         SourceView.Visibility = _model.IsSource ? Visibility.Visible : Visibility.Collapsed;
-        PreviewTab.FontWeight = _model.IsSource ? FontWeights.Normal : FontWeights.SemiBold;
-        SourceTab.FontWeight = _model.IsSource ? FontWeights.SemiBold : FontWeights.Normal;
     }
 
     private void OnModelChanged(object? sender, PropertyChangedEventArgs e)

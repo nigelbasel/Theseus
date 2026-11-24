@@ -33,9 +33,16 @@ public partial class AddToProjectWindow : Window
         OnChanged(sender, e);
     }
 
-    private void OnChanged(object sender, RoutedEventArgs e) =>
-        AddButton.IsEnabled = ProjectBox.SelectedItem is not null && ObjectiveBox.SelectedItem is not null
-                              && ProjectMembership.IsSlug(SlugBox.Text.Trim());
+    // A disabled Add says why on hover (W13): the first thing still missing.
+    private void OnChanged(object sender, RoutedEventArgs e)
+    {
+        string? missing = ProjectBox.SelectedItem is null ? "Choose a project first."
+            : ObjectiveBox.SelectedItem is null ? "Choose one of its objectives first."
+            : !ProjectMembership.IsSlug(SlugBox.Text.Trim()) ? "Name the records folder in lower-case letters, digits and hyphens first."
+            : null;
+        AddButton.IsEnabled = missing is null;
+        AddButton.ToolTip = missing;
+    }
 
     private void OnAdd(object sender, RoutedEventArgs e) => DialogResult = true;
 }

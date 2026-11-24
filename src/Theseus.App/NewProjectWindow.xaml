@@ -8,31 +8,40 @@
         ShowInTaskbar="False"
         ResizeMode="NoResize"
         Background="{DynamicResource SolidBackgroundFillColorSecondaryBrush}">
+    <Window.Resources>
+        <!-- A field's label, with the access key that moves to its field (W26, W50). -->
+        <Style x:Key="Field" TargetType="Label">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0,16,0,8" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+    </Window.Resources>
     <!-- New project, as New workstream is a dialog of its own (1.1c AC 6). Only the name is needed; the rest fills in
          the starter project.md, and what is left empty keeps the starter's prompt to fill in later. -->
-    <StackPanel Margin="20">
-        <TextBlock Text="Name" FontWeight="SemiBold" />
-        <TextBox x:Name="NameBox" Margin="0,6,0,0" TextChanged="OnNameChanged" />
-        <TextBlock Margin="0,4,0,0" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+    <StackPanel Margin="24">
+        <Label x:Name="NameLabel" Content="_Name" Target="{Binding ElementName=NameBox}" Style="{StaticResource Field}" Margin="0,0,0,8" />
+        <TextBox x:Name="NameBox" TextChanged="OnNameChanged" AutomationProperties.LabeledBy="{Binding ElementName=NameLabel}" />
+        <TextBlock x:Name="NameHint" Margin="0,4,0,0" Style="{DynamicResource ExplanationText}"
                    Text="Lower-case letters, digits and hyphens, such as my-project. It names the project's folder in the projects folder." />
 
-        <TextBlock Text="Title" FontWeight="SemiBold" Margin="0,12,0,0" />
-        <TextBox x:Name="TitleBox" Margin="0,6,0,0" />
+        <Label x:Name="TitleLabel" Content="_Title" Target="{Binding ElementName=TitleBox}" Style="{StaticResource Field}" />
+        <TextBox x:Name="TitleBox" AutomationProperties.LabeledBy="{Binding ElementName=TitleLabel}" />
 
-        <TextBlock Text="Objective" FontWeight="SemiBold" Margin="0,12,0,0" />
-        <TextBox x:Name="ObjectiveBox" Margin="0,6,0,0" MinHeight="60" TextWrapping="Wrap" AcceptsReturn="False"
-                 VerticalScrollBarVisibility="Auto" />
-        <TextBlock Margin="0,4,0,0" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
-                   Text="One paragraph: the outcome the whole project exists for." />
+        <Label x:Name="ObjectiveLabel" Content="O_bjective" Target="{Binding ElementName=ObjectiveBox}" Style="{StaticResource Field}" />
+        <TextBox x:Name="ObjectiveBox" MinHeight="60" TextWrapping="Wrap" AcceptsReturn="False"
+                 VerticalScrollBarVisibility="Auto" AutomationProperties.LabeledBy="{Binding ElementName=ObjectiveLabel}" />
+        <TextBlock Margin="0,4,0,0" Style="{DynamicResource ExplanationText}" Text="One paragraph: the outcome the whole project exists for." />
 
-        <TextBlock Text="Primary branch" FontWeight="SemiBold" Margin="0,12,0,0" />
-        <TextBox x:Name="PrimaryBox" Margin="0,6,0,0" />
-        <TextBlock Margin="0,4,0,0" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+        <Label x:Name="PrimaryLabel" Content="_Primary branch" Target="{Binding ElementName=PrimaryBox}" Style="{StaticResource Field}" />
+        <TextBox x:Name="PrimaryBox" AutomationProperties.LabeledBy="{Binding ElementName=PrimaryLabel}" />
+        <TextBlock Margin="0,4,0,0" Style="{DynamicResource ExplanationText}"
                    Text="The project's long-lived branch off the trunk, such as you/my-project: workstream branches come off it, and one pull request takes it into the trunk." />
 
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-            <Button x:Name="CreateButton" Content="_Create" IsDefault="True" MinWidth="88" Click="OnCreate" IsEnabled="False" />
-            <Button Content="Cancel" IsCancel="True" MinWidth="88" Margin="8,0,0,0" />
+        <StackPanel x:Name="Footer" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,24,0,0">
+            <Button x:Name="CreateButton" Content="_Create" IsDefault="True" Style="{DynamicResource AccentButton}" Click="OnCreate" IsEnabled="False"
+                    ToolTipService.ShowOnDisabled="True" ToolTip="Give the project a name first." />
+            <Button x:Name="CancelButton" Content="Cancel" IsCancel="True" Style="{DynamicResource DialogButton}" Margin="8,0,0,0" />
         </StackPanel>
     </StackPanel>
 </Window>
