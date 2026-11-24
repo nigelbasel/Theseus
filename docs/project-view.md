@@ -53,9 +53,10 @@ workstream that works it, its kind (feature, bug or freeform), its objective, an
   **Open records**. Start, Stop, Focus and Verify act on the workstream's current piece of work only.
 
 When another card of the project gives a card work, by starting or resuming it with an instruction, its box says so:
-**← <that card>: <the instruction's first line>, <time>**. While its session works on that work, starts or asks about
-it, the box reopens at its build or fix stage, until the piece reports back. Properties shows the whole instruction
-under **Handed in**.
+**← <that card>: <the instruction's first line>, <time>**. While the session that start opened is open, the box reopens
+at its build or fix stage, until the card reports back after it and you have not rejected that report; a spec piece
+reopens at its own last stage, leaving what it handed on. A later run for something else shows it no more.
+Properties shows the whole instruction under **Handed in**.
 
 Right-click a stage, or press Shift+F10 or the Menu key on it, for **Properties** and that stage's own actions.
 

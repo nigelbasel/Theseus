@@ -494,19 +494,27 @@ public class PiecesOfWorkTests
     private static readonly string[] Everything =
         ["research.md", "spec.md", "plan.md", "implementation.md", "evidence.md", "review.md", "lessons.md"];
 
-    private static HandIn LeadsHandIn => new(new DateTimeOffset(2026, 11, 24, 8, 41, 0, TimeSpan.Zero), "lead", "The lead",
+    private static readonly DateTimeOffset HandedAt = new(2026, 11, 24, 8, 41, 0, TimeSpan.Zero);
+
+    private static HandIn LeadsHandIn => new(HandedAt, "lead", "The lead",
         "Fix the search bugs I found\nfrom testing the MCP: get_contact returns 500 on an unknown id.");
+
+    // The run the hand-in launched starts a moment before the hand-in is recorded.
+    private static PieceCard Given(SessionLifecycle lifecycle, DateTimeOffset? runStarted = null) =>
+        Card(ACard, lifecycle) with { HandIn = LeadsHandIn, LastRunStartedUtc = runStarted ?? HandedAt.AddSeconds(-3) };
+
+    private PieceOfWork Handed(PieceCard card, string pipeline = "feature", params string[] files) =>
+        OnePiece(_folder, pipeline, Files(files.Length == 0 ? Everything : files), card, accepted: true);
 
     [Test]
     public void AHandIn_ToAWorkingCard_ReopensItsDonePieceAtItsBuildStage()
     {
         // git-22, 2026-11-24: the lead gave W7 the bugs it found, and the view showed only the card turning busy.
-        var piece = OnePiece(_folder, "feature", Files(Everything), Card(ACard, SessionLifecycle.Running) with { HandIn = LeadsHandIn },
-            accepted: true);
+        var piece = Handed(Given(SessionLifecycle.Running));
         var build = piece.Stages.Single(stage => stage.Stage == PipelineStage.Implement);
         var after = piece.Stages.SkipWhile(stage => stage.Stage != PipelineStage.Implement).Skip(1).ToList();
 
-        Assert.That((build.State, build.Reason), Is.EqualTo((StageNodeState.Busy, "← The lead: Fix the search bugs I found")));
+        Assert.That((build.State, build.Reason), Is.EqualTo((StageNodeState.Busy, "work handed in by The lead")));
         Assert.That(after.Select(stage => stage.State), Has.All.EqualTo(StageNodeState.ToDo));
         Assert.That(piece.Stages.TakeWhile(stage => stage.Stage != PipelineStage.Implement).Select(stage => stage.State),
             Has.All.EqualTo(StageNodeState.Done), "its research, spec and plan stand");
@@ -516,28 +524,86 @@ public class PiecesOfWorkTests
     [Test]
     public void AHandIn_ToACardThatIsAsking_PutsTheQuestionOnItsBuildStage()
     {
-        var piece = OnePiece(_folder, "feature", Files(Everything),
-            Card(ACard, SessionLifecycle.NeedsAttention) with { HandIn = LeadsHandIn }, accepted: true);
 
-        Assert.That(piece.Stages.Single(stage => stage.Stage == PipelineStage.Implement).State, Is.EqualTo(StageNodeState.WaitingOnYou));
+        Assert.That(Handed(Given(SessionLifecycle.NeedsAttention)).Stages.Single(stage => stage.Stage == PipelineStage.Implement).State,
+            Is.EqualTo(StageNodeState.WaitingOnYou));
     }
 
     [Test]
-    public void OnceItsSessionStopsWorking_AHandInNoLongerReopensThePiece_ButIsStillShown()
+    public void BetweenTurns_TheHandedInPieceStaysReopened()
     {
-        // Nothing in the records says the work it was given is done or not, so the records stand again.
-        var piece = OnePiece(_folder, "feature", Files(Everything), Card(ACard, SessionLifecycle.Idle) with { HandIn = LeadsHandIn },
-            accepted: true);
+        // Review of the hand-ins, 2: Idle closed it, so the box flipped back to done between turns of the very work.
+
+        Assert.That(Handed(Given(SessionLifecycle.Idle)).Stages.Single(stage => stage.Stage == PipelineStage.Implement).State,
+            Is.EqualTo(StageNodeState.ToDo));
+    }
+
+    [Test]
+    public void OnceItsSessionEnds_TheRecordsStandAgain_AndTheHandInIsStillShown()
+    {
+        // Nothing in the records says the work it was given is done or not.
+        var piece = Handed(Given(SessionLifecycle.Ended));
 
         Assert.That(piece.Stages, Has.All.Matches<StageNode>(stage => stage.State == StageNodeState.Done));
         Assert.That(piece.HandIn, Is.EqualTo(LeadsHandIn));
     }
 
     [Test]
+    public void ALaterRunForSomethingElse_NeitherShowsNorReopensAnOldHandIn()
+    {
+        // Review of the hand-ins, 2 and 6: Monday's hand-in reopened the box when the owner restarted it on Thursday.
+        var piece = Handed(Given(SessionLifecycle.Running, runStarted: HandedAt.AddDays(3)));
+
+        Assert.That(piece.HandIn, Is.Null);
+        Assert.That(piece.Stages.Single(stage => stage.Stage == PipelineStage.Implement).State, Is.Not.EqualTo(StageNodeState.ToDo));
+    }
+
+    [Test]
+    public void ABlockedHandedInCard_IsStuckAtItsBuildStage_NotAlsoBusy()
+    {
+        var piece = Handed(Given(SessionLifecycle.Running) with { IsBlocked = true });
+
+        Assert.That(piece.Stages.Single(stage => stage.Stage == PipelineStage.Implement).State, Is.EqualTo(StageNodeState.Stuck));
+        Assert.That(piece.Stages, Has.None.Matches<StageNode>(stage => stage.State == StageNodeState.Busy));
+    }
+
+    [Test]
     public void AHandIn_ReopensAFreeformPiecesOneStage()
     {
-        var piece = OnePiece(_folder, "freeform", Files("notes.md"), Card(ACard, SessionLifecycle.Running) with { HandIn = LeadsHandIn });
 
-        Assert.That(piece.Stages.Single().State, Is.EqualTo(StageNodeState.Busy));
+        Assert.That(Handed(Given(SessionLifecycle.Running), "freeform", "notes.md").Stages.Single().State, Is.EqualTo(StageNodeState.Busy));
+    }
+
+    [TestCase(false, false)]
+    [TestCase(true, true)]
+    public void AReportAfterTheHandIn_ClosesIt_UnlessYouRejectedIt(bool rejected, bool reopened)
+    {
+        var report = new Theseus.Core.Links.LinkReport(HandedAt.AddHours(1), "s", "report.md", "done", null);
+        var link = NewLink(LinkKind.ReportsBack, ACard, "lead") with
+        {
+            LatestReport = report,
+            Rejection = rejected ? new Theseus.Core.Links.LinkRejection(HandedAt.AddHours(2), "not done", report.AtUtc) : null,
+        };
+        var reading = WriteOne(_folder, "feature", Files(Everything));
+        var piece = PiecesOfWork.Build(reading, _ => null, [Given(SessionLifecycle.Idle)], [link]).Single();
+
+        Assert.That(piece.Stages.Single(stage => stage.Stage == PipelineStage.Implement).State == StageNodeState.ToDo, Is.EqualTo(reopened));
+    }
+
+    [Test]
+    public void ASpecPieceThatHandedItsBuildOn_ReopensAtItsOwnLastStage_LeavingWhatItHandedOn()
+    {
+        // Review of the hand-ins, 4: asked to revise its spec, the spec card looked as if it were building.
+        var pieces = BuildYourMarketPieces(_folder);
+        var spec = pieces.First(piece => piece.IsCurrentPiece && piece.Stages.Any(stage => stage.State == StageNodeState.HandedOn));
+        var cards = BuildYourMarketBoard().Select(card => card.Key == spec.CardKey
+            ? card with { Lifecycle = SessionLifecycle.Running, HandIn = LeadsHandIn, LastRunStartedUtc = HandedAt }
+            : card).ToList();
+        var again = BuildYourMarketPieces(_folder, cards).Single(piece => piece.Name == spec.Name);
+        var handedOn = spec.Stages.Select((stage, index) => (stage, index)).Where(each => each.stage.State == StageNodeState.HandedOn)
+            .Select(each => each.index).ToList();
+
+        Assert.That(handedOn.Select(index => again.Stages[index].State), Has.All.EqualTo(StageNodeState.HandedOn));
+        Assert.That(again.Stages[handedOn[0] - 1].State, Is.EqualTo(StageNodeState.Busy), "its own last stage before what it handed on");
     }
 }
