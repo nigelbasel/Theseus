@@ -29,6 +29,7 @@ public class SecondaryWindowButtonsTests
         ["Proposal", "ApproveButton", "CloseButton", "ApproveButton"],
         ["Records", "CloseButton", "CloseButton", null],
         ["Spec", "AcceptButton", "CloseButton", "AcceptButton"],
+        ["Waits", "CloseButton", "CloseButton", null],
     ];
 
     [TestCaseSource(nameof(Footers))]

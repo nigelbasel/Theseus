@@ -49,6 +49,13 @@ public sealed class ProjectOverview
     /// </summary>
     public IReadOnlyList<string> Underway { get; }
 
+    /// <summary>
+    /// What waits on the project's lead rather than the owner, such as "Thirty-five objectives have no workstream yet.":
+    /// the lead plans an objective's work, so it is said beside Waits for you and not counted in it (project-view-scale,
+    /// 2026-11-24).
+    /// </summary>
+    public IReadOnlyList<string> ForTheLead { get; init; } = [];
+
     /// <summary>The line its last clear-up leaves under the heading, with Undo and Dismiss, or null.</summary>
     public string? ClearUpNotice { get; init; }
 
@@ -85,11 +92,18 @@ public sealed class ProjectOverview
                 []));
         }
 
+        waits = Distinct(waits);
         var sentence = SentenceOf(file, pieces, waits);
         var roundLines = file.Rounds.ToDictionary(round => round.Number, round => RoundLine(pieces.Where(piece => piece.Round == round.Number).ToList()));
 
+        var unplanned = file.Objectives.Count(objective => !objective.IsDone && objective.Workstreams.Count == 0);
+
         return new ProjectOverview(sentence, roundLines, [.. file.Phases.Select(phase => Cell(phase, pieces))],
-            TalliesOf(file, pieces, accepted), waits, underway ?? []) { ClearUpNotice = clearUpNotice };
+            TalliesOf(file, pieces, accepted), waits, underway ?? [])
+        {
+            ClearUpNotice = clearUpNotice,
+            ForTheLead = unplanned == 0 ? [] : [$"{Capital(Count(unplanned, "objective"))} {(unplanned == 1 ? "has" : "have")} no workstream yet."],
+        };
     }
 
     private static List<WaitItem> WaitsOf(ProjectFile file, IReadOnlyList<PieceOfWork> pieces, List<Link> links,
@@ -159,17 +173,7 @@ public sealed class ProjectOverview
         // No line asks the owner to start a round's independent checks: Theseus starts each itself once a scenario names
         // the build, and only a start that failed waits for him, as a verifier's Start again above (git-22, 2026-11-23).
 
-        foreach (var objective in file.Objectives)
-        {
-            foreach (var criterion in objective.Criteria.Where(criterion => criterion.WaitsOnOwner))
-            {
-                waits.Add(new WaitItem(WaitKind.Outside,
-                    $"Objective {objective.Number}, {objective.Title}: {criterion.Waiting!.What}. This happens outside Theseus.", [])
-                {
-                    Objective = objective.Number,
-                });
-            }
-        }
+        waits.AddRange(OutsideWaits(file));
 
         var cards = pieces.Select(piece => piece.CardKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
@@ -220,6 +224,60 @@ public sealed class ProjectOverview
         }
 
         return waits;
+    }
+
+    // One line per thing asked, however many criteria wait on it: a real project's 68 owner notes were 47 asks, one of
+    // them on sixteen criteria (project-view-scale, 2026-11-24).
+    private static IEnumerable<WaitItem> OutsideWaits(ProjectFile file)
+    {
+        var asks = file.Objectives
+            .SelectMany(objective => objective.Criteria.Where(criterion => criterion.WaitsOnOwner)
+                .SelectMany(criterion => criterion.Waiting!.OwnerAsks.Select(ask => (Objective: objective, Ask: ask.What.TrimEnd('.', ' ')))))
+            .GroupBy(entry => entry.Ask, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var ask in asks)
+        {
+            var objectives = ask.Select(entry => entry.Objective).DistinctBy(objective => objective.Number).ToList();
+            var criteria = ask.Count();
+            var text = objectives.Count == 1
+                ? $"Objective {objectives[0].Number}, {objectives[0].Title}: {ask.Key}"
+                  + (criteria == 1 ? string.Empty : $" ({Count(criteria, "criterion", "criteria")})")
+                : $"{Capital(ask.Key)}: {Count(criteria, "criterion", "criteria")}, in objectives {List(objectives.Select(objective => objective.Number))}";
+
+            yield return new WaitItem(WaitKind.Outside, $"{text}. This happens outside Theseus.", [])
+            {
+                Objective = objectives[0].Number,
+                Objectives = [.. objectives.Select(objective => objective.Number)],
+            };
+        }
+    }
+
+    // The same ask of the same person is one line: a card serving two objectives is two pieces, and its question was two
+    // lines (project-view-scale, 2026-11-24: "many duplicates as well"). A card's question is its session's one question,
+    // so it merges across the card's pieces; a block or a spec to accept is the piece's own and keeps its line.
+    private static List<WaitItem> Distinct(List<WaitItem> waits) =>
+    [
+        .. waits.GroupBy(wait => wait.Kind is WaitKind.Answer && wait.CardKey is not null
+                ? (wait.Kind, Card: wait.CardKey.ToUpperInvariant(), wait.ProposalId, wait.StartRequestId, Text: string.Empty, Pieces: string.Empty)
+                : (wait.Kind, Card: wait.CardKey?.ToUpperInvariant(), wait.ProposalId, wait.StartRequestId, wait.Text, Pieces: string.Join("|", wait.Pieces)))
+            .Select(group => group.Skip(1).Aggregate(group.First(), (kept, next) => kept with
+            {
+                Pieces = [.. kept.Pieces.Union(next.Pieces, StringComparer.Ordinal)],
+                Objectives = [.. kept.Objectives.Union(next.Objectives, StringComparer.Ordinal)],
+            })),
+    ];
+
+    // A line names at most four objectives, so an ask on every objective stays one line.
+    private static string List(IEnumerable<string> items)
+    {
+        var all = items.ToList();
+
+        return all.Count switch
+        {
+            <= 2 => string.Join(" and ", all),
+            <= 4 => $"{string.Join(", ", all[..^1])} and {all[^1]}",
+            _ => $"{string.Join(", ", all[..3])} and {Count(all.Count - 3, "more", "more")}",
+        };
     }
 
     private static string SentenceOf(ProjectFile file, IReadOnlyList<PieceOfWork> pieces, List<WaitItem> waits)
