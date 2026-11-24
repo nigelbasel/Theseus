@@ -35,7 +35,7 @@
                     <ComboBox x:Name="KindBox" Width="152" VerticalAlignment="Center"
                               ItemsSource="{Binding Kinds}"
                               SelectedItem="{Binding Kind, Mode=TwoWay}"
-                              AutomationProperties.LabeledBy="{Binding ElementName=KindLabel}" />
+                              AutomationProperties.LabeledBy="{x:Reference KindLabel}" />
                     <Button x:Name="LookAgainButton" Content="_Look again" Style="{DynamicResource CommandButton}" Margin="12,0,0,0"
                             ToolTip="Read the desktop again, in case a window has opened or closed."
                             Command="{Binding RefreshCommand}" />

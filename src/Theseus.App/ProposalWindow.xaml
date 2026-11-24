@@ -48,7 +48,7 @@
             <!-- The box is named by the words over it, so a screen reader says what is shown (E-m2, W17). -->
             <TextBlock x:Name="NoteLabel" Text="Why you reject it (optional)" Style="{DynamicResource CaptionText}" />
             <TextBox x:Name="NoteBox" Text="{Binding Note, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0"
-                     AcceptsReturn="True" TextWrapping="Wrap" MinHeight="48" AutomationProperties.LabeledBy="{Binding ElementName=NoteLabel}" />
+                     AcceptsReturn="True" TextWrapping="Wrap" MinHeight="48" AutomationProperties.LabeledBy="{x:Reference NoteLabel}" />
             <Button x:Name="ConfirmRejectButton" Content="Reject the _proposal" HorizontalAlignment="Right" Margin="0,8,0,0"
                     Style="{DynamicResource DialogButton}" Command="{Binding RejectCommand}" />
         </StackPanel>
