@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls.Primitives;
+using System.Windows.Input;
 
 namespace Theseus.App.Controls;
 
@@ -19,7 +20,14 @@ public sealed class PaneResizeThumb : Thumb
         nameof(IsOnTheRight), typeof(bool), typeof(PaneResizeThumb));
 
     /// <summary>Creates the edge.</summary>
-    public PaneResizeThumb() => DragDelta += OnDragDelta;
+    public PaneResizeThumb()
+    {
+        Focusable = true;
+        DragDelta += OnDragDelta;
+    }
+
+    /// <summary>How far one arrow key moves the edge.</summary>
+    public const double KeyStep = 16;
 
     /// <summary>The pane whose width the edge sets.</summary>
     public FrameworkElement? Pane
@@ -35,7 +43,48 @@ public sealed class PaneResizeThumb : Thumb
         set => SetValue(IsOnTheRightProperty, value);
     }
 
+    /// <summary>Moves the edge one step for an arrow key; false for any other key.</summary>
+    /// <param name="key">The key pressed while the edge has focus.</param>
+    public bool Step(Key key)
+    {
+        double towardsTheRight = key switch
+        {
+            Key.Right => KeyStep,
+            Key.Left => -KeyStep,
+            _ => 0,
+        };
+
+        if (towardsTheRight == 0)
+        {
+            return false;
+        }
+
+        Resize(towardsTheRight);
+
+        return true;
+    }
+
+    /// <inheritdoc />
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        ArgumentNullException.ThrowIfNull(e);
+
+        if (Step(e.Key))
+        {
+            e.Handled = true;
+            return;
+        }
+
+        base.OnKeyDown(e);
+    }
+
     private void OnDragDelta(object sender, DragDeltaEventArgs e)
+    {
+        Resize(e.HorizontalChange);
+        e.Handled = true;
+    }
+
+    private void Resize(double towardsTheRight)
     {
         if (Pane is not { } pane)
         {
@@ -43,9 +92,8 @@ public sealed class PaneResizeThumb : Thumb
         }
 
         double from = double.IsNaN(pane.Width) ? pane.ActualWidth : pane.Width;
-        double change = IsOnTheRight ? -e.HorizontalChange : e.HorizontalChange;
+        double change = IsOnTheRight ? -towardsTheRight : towardsTheRight;
 
         pane.Width = Math.Clamp(from + change, pane.MinWidth, pane.MaxWidth);
-        e.Handled = true;
     }
 }

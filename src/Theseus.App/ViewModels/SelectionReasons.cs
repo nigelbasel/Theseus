@@ -43,6 +43,23 @@ public static class SelectionReasons
         : ticked == 0 ? NothingTicked
         : null;
 
+    /// <summary>Mark as paused or blocked: needs a ticked card not already so marked.</summary>
+    /// <param name="ticked">How many cards are ticked.</param>
+    /// <param name="markable">How many of them do not have the mark yet.</param>
+    /// <param name="mark">The mark, "paused" or "blocked".</param>
+    public static string? Mark(int ticked, int markable, string mark) =>
+        markable > 0 ? null
+        : ticked == 0 ? NothingTicked
+        : $"Every ticked card is already {mark}.";
+
+    /// <summary>Clear paused and blocked: needs a ticked card with either mark.</summary>
+    /// <param name="ticked">How many cards are ticked.</param>
+    /// <param name="marked">How many of them are paused or blocked.</param>
+    public static string? ClearMarks(int ticked, int marked) =>
+        marked > 0 ? null
+        : ticked == 0 ? NothingTicked
+        : "No ticked card is paused or blocked.";
+
     /// <summary>Select live: needs a card on the board with a session running.</summary>
     /// <param name="live">How many cards shown have a session running.</param>
     public static string? SelectLive(int live) => live > 0 ? null : "No card on the board has a session running.";

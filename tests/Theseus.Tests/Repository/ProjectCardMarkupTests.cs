@@ -47,11 +47,11 @@ public class ProjectCardMarkupTests
             ("_Not a project", "{Binding HideCommand}"),
             ("_Start", "{Binding StartCommand}"),
             ("S_top", "{Binding StopCommand}"),
-            ("Project p_roperties", "{Binding PropertiesCommand}"),
             ("T_ags", null),
             ("Open project._md", "{Binding OpenFileCommand}"),
             ("Add o_bjective…", "{Binding AddObjectiveCommand}"),
-        }));
+            ("Project p_roperties", "{Binding PropertiesCommand}"),
+        }), "Properties last, G51 (baseline re-run NC-7)");
     }
 
     [Test]

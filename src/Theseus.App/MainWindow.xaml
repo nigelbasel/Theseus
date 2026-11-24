@@ -218,7 +218,7 @@
         <Style x:Key="PaneEdge" TargetType="controls:PaneResizeThumb">
             <Setter Property="Width" Value="8" />
             <Setter Property="Cursor" Value="SizeWE" />
-            <Setter Property="Focusable" Value="False" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="controls:PaneResizeThumb">
@@ -228,16 +228,38 @@
             </Setter>
         </Style>
 
-        <!-- A project card's fold chevron: up folds it to its title, down opens it; named for what it does (E9, W25). -->
+        <!-- Focus brings a session's window forward; while the card has none, it says so on hover, disabled (W13, G157). -->
+        <Style x:Key="FocusCardIcon" TargetType="Button" BasedOn="{StaticResource CardIcon}">
+            <Setter Property="ToolTipService.ShowOnDisabled" Value="True" />
+            <Setter Property="ToolTip" Value="Focus: bring the session's window forward." />
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="ToolTip" Value="No session to bring forward: it opens when the card is started." />
+                    <Setter Property="AutomationProperties.HelpText" Value="No session to bring forward: it opens when the card is started." />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="FocusCardButton" TargetType="Button" BasedOn="{StaticResource CommandButton}">
+            <Setter Property="ToolTipService.ShowOnDisabled" Value="True" />
+            <Setter Property="ToolTip" Value="Focus: bring the session's window forward." />
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="ToolTip" Value="No session to bring forward: it opens when the card is started." />
+                    <Setter Property="AutomationProperties.HelpText" Value="No session to bring forward: it opens when the card is started." />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- A project card's fold chevron shows its state, as a row's does (W25): down while open, right while folded; named for what it does (E9). -->
         <Style x:Key="CardFoldButton" TargetType="Button" BasedOn="{StaticResource ToolButton}">
             <Setter Property="FontSize" Value="12" />
             <Setter Property="VerticalAlignment" Value="Center" />
-            <Setter Property="Content" Value="&#xE70E;" />
+            <Setter Property="Content" Value="&#xE70D;" />
             <Setter Property="ToolTip" Value="Fold card: fold this project card down to its title." />
             <Setter Property="AutomationProperties.Name" Value="Fold card" />
             <Style.Triggers>
                 <DataTrigger Binding="{Binding IsCollapsed}" Value="True">
-                    <Setter Property="Content" Value="&#xE70D;" />
+                    <Setter Property="Content" Value="&#xE76C;" />
                     <Setter Property="ToolTip" Value="Unfold card: open this project card again." />
                     <Setter Property="AutomationProperties.Name" Value="Unfold card" />
                 </DataTrigger>
@@ -514,8 +536,6 @@
                             <MenuItem.Icon><TextBlock Text="&#xE71A;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
                         </MenuItem>
                         <Separator />
-                        <MenuItem Header="Project p_roperties" Command="{Binding PropertiesCommand}"
-                                  ToolTip="Its title, its colour, its tags and its project.md; the colour can be changed here." />
                         <MenuItem Header="T_ags" ItemsSource="{Binding TagMenu}" ItemContainerStyle="{StaticResource TagMenuItem}"
                                   ToolTip="Put a tag on this card, or the selected cards, or take one off." />
                         <MenuItem Header="Open project._md" Command="{Binding OpenFileCommand}"
@@ -524,6 +544,9 @@
                         <MenuItem Header="Add o_bjective…" Command="{Binding AddObjectiveCommand}"
                                   Visibility="{Binding IsDimmed, Converter={StaticResource NotBoolToVisibility}}"
                                   ToolTip="Add an objective at the end of the current phase in project.md." />
+                        <Separator />
+                        <MenuItem Header="Project p_roperties" Command="{Binding PropertiesCommand}"
+                                  ToolTip="Its title, its colour, its tags and its project.md; the colour can be changed here." />
                     </ContextMenu>
                 </Border.ContextMenu>
                 <Grid>
@@ -823,7 +846,7 @@
                                 ToolTip="Unfold card: open this card again."
                                 AutomationProperties.Name="Unfold card"
                                 Click="OnExpandCard">
-                            <controls:GlyphText Text="&#xE70D;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="12" />
+                            <controls:GlyphText Text="&#xE76C;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="12" />
                         </Button>
                     </Grid>
 
@@ -855,7 +878,7 @@
                                     ToolTip="Fold card: fold this card down to its title."
                                     AutomationProperties.Name="Fold card"
                                     Click="OnCollapseCard">
-                                <controls:GlyphText Text="&#xE70E;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="12" />
+                                <controls:GlyphText Text="&#xE70D;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="12" />
                             </Button>
 
                             <!--
@@ -958,8 +981,8 @@
                                     </Style>
                                 </Button.Style>
                             </Button>
-                            <Button Style="{StaticResource CardIcon}" Content="&#xE8A7;" Margin="0,0,8,0"
-                                    ToolTip="Focus: bring the session's window forward." AutomationProperties.Name="Focus"
+                            <Button Style="{StaticResource FocusCardIcon}" Content="&#xE8A7;" Margin="0,0,8,0"
+                                    AutomationProperties.Name="Focus"
                                     Command="{Binding DataContext.FocusCardCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                     CommandParameter="{Binding}" />
                             <Button Style="{StaticResource CardIcon}" Content="&#xE7B8;" Margin="0,0,4,0"
@@ -1629,12 +1652,15 @@
                     <MenuItem.Icon><controls:GlyphText Text="&#xE8A7;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
                 </MenuItem>
                 <Separator />
-                <MenuItem Header="Mark as _paused" Command="{Binding MarkSelectedPausedCommand}"
-                          ToolTip="Mark the ticked cards paused: set aside on purpose, keeping their stage." />
-                <MenuItem Header="Mark as _blocked" Command="{Binding MarkSelectedBlockedCommand}"
-                          ToolTip="Mark the ticked cards blocked: waiting on something outside your control." />
-                <MenuItem Header="_Clear paused and blocked" Command="{Binding ClearSelectedMarksCommand}"
-                          ToolTip="Take both marks off the ticked cards." />
+                <MenuItem Header="Mark as _paused" Command="{Binding MarkSelectedPausedCommand}" Style="{StaticResource ExplainsWhenOff}"
+                          Tag="Mark the ticked cards paused: set aside on purpose, keeping their stage."
+                          controls:OffReason.Text="{Binding MarkSelectedPausedCommand.WhyNot}" />
+                <MenuItem Header="Mark as _blocked" Command="{Binding MarkSelectedBlockedCommand}" Style="{StaticResource ExplainsWhenOff}"
+                          Tag="Mark the ticked cards blocked: waiting on something outside your control."
+                          controls:OffReason.Text="{Binding MarkSelectedBlockedCommand.WhyNot}" />
+                <MenuItem Header="_Clear paused and blocked" Command="{Binding ClearSelectedMarksCommand}" Style="{StaticResource ExplainsWhenOff}"
+                          Tag="Take both marks off the ticked cards."
+                          controls:OffReason.Text="{Binding ClearSelectedMarksCommand.WhyNot}" />
                 <Separator />
                 <MenuItem Command="{Binding VerifySelectedWithHoldoutsCommand}"
                           ToolTipService.ShowOnDisabled="True" ToolTip="{Binding VerifySelectedToolTip}">
@@ -1849,7 +1875,7 @@
                 While it hides any cards it says so with a mark and words beside it, not colour alone (1.5 walkthrough row 3).
             -->
             <StackPanel x:Name="BoardShowsChoice" AutomationProperties.Name="Show" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"
-                        KeyboardNavigation.TabNavigation="Once" KeyboardNavigation.DirectionalNavigation="Contained"
+                        KeyboardNavigation.DirectionalNavigation="Contained"
                         Margin="12,0,12,0" DataContext="{Binding Board}"
                         Visibility="{Binding DataContext.IsBoardShown, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}">
                 <StackPanel.Resources>
@@ -1878,10 +1904,10 @@
                 <StackPanel x:Name="ShowHides" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0"
                             ToolTip="Show hides some cards. Choose All to see every card."
                             Visibility="{Binding ShowsAll, Converter={StaticResource NotBoolToVisibility}}">
-                    <controls:GlyphText Text="&#xE7BA;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="16"
-                                        VerticalAlignment="Center" Foreground="{DynamicResource CautionTextBrush}" />
+                    <controls:GlyphText Text="&#xE946;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="16"
+                                        VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                     <TextBlock x:Name="ShowHidesText" Margin="4,0,0,0" VerticalAlignment="Center" FontSize="12"
-                               Foreground="{DynamicResource CautionTextBrush}">
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock">
                                 <Setter Property="Text" Value="Some cards hidden" />
@@ -1929,9 +1955,11 @@
                                 <TextBlock Text="Show cards with:" VerticalAlignment="Center" FontSize="12" Margin="0,0,8,0"
                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                                 <RadioButton x:Name="TagsAny" Content="Any" GroupName="TagMatch" IsChecked="{Binding IsAny, Mode=TwoWay}"
+                                             IsTabStop="{Binding IsChecked, RelativeSource={RelativeSource Self}}"
                                              controls:SelectorBar.SelectsOnFocus="True"
                                              ToolTip="Show cards with any of the ticked tags." Margin="0,0,8,0" />
                                 <RadioButton x:Name="TagsAll" Content="All" GroupName="TagMatch" IsChecked="{Binding IsAll, Mode=TwoWay}"
+                                             IsTabStop="{Binding IsChecked, RelativeSource={RelativeSource Self}}"
                                              controls:SelectorBar.SelectsOnFocus="True"
                                              ToolTip="Show only cards with every ticked tag." />
                             </StackPanel>
@@ -3155,8 +3183,7 @@
                                                     Visibility="{Binding Drawer.Card.ShowStop, Converter={StaticResource BoolToVisibility}}"
                                                     Command="{Binding StopCardCommand}"
                                                     CommandParameter="{Binding Drawer.Card}" />
-                                            <Button Style="{StaticResource CommandButton}" Content="Focus" Margin="0,0,8,0"
-                                                    ToolTip="Focus: bring the session's window forward."
+                                            <Button Style="{StaticResource FocusCardButton}" Content="Focus" Margin="0,0,8,0"
                                                     Command="{Binding FocusCardCommand}"
                                                     CommandParameter="{Binding Drawer.Card}" />
                                             <Button Style="{StaticResource CommandButton}" Content="Spawn follow-on…"
