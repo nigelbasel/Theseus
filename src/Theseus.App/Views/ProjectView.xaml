@@ -271,10 +271,11 @@
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Wash" Property="Opacity" Value="0.14" />
                             </Trigger>
-                            <Trigger Property="IsSelected" Value="True">
+                            <!-- The open project, not the selection, which Ctrl+click can clear while it stays open. -->
+                            <DataTrigger Binding="{Binding IsOpen}" Value="True">
                                 <Setter TargetName="Frame" Property="BorderBrush" Value="{DynamicResource TextFillColorPrimaryBrush}" />
                                 <Setter TargetName="Underline" Property="Visibility" Value="Visible" />
-                            </Trigger>
+                            </DataTrigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
@@ -1058,9 +1059,10 @@
             <WrapPanel>
                 <!--
                     Back and Forward first, then the board, then the project tabs (1.1f I46): glyph and word, 32 high as the tabs
-                    are (W25, W56; C2, D19). The keys are the View menu's for Back and Forward, and none of the search bar's R and C.
+                    are (W25, W56; C2, D19). No key the window already uses: the menu bar's F E V W D T H, the search bar's R and C.
                 -->
                 <Button x:Name="GoBackButton" Command="{Binding GoBackCommand}" Style="{StaticResource CommandButton}" Margin="0,0,8,0"
+                        ToolTipService.ShowOnDisabled="True"
                         ToolTip="Back to where you were (Alt+Left, or the mouse's back button)." AutomationProperties.Name="Back"
                         AutomationProperties.AcceleratorKey="Alt+Left">
                     <StackPanel Orientation="Horizontal">
@@ -1070,10 +1072,11 @@
                     </StackPanel>
                 </Button>
                 <Button x:Name="GoForwardButton" Command="{Binding GoForwardCommand}" Style="{StaticResource CommandButton}" Margin="0,0,8,0"
+                        ToolTipService.ShowOnDisabled="True"
                         ToolTip="Forward again (Alt+Right, or the mouse's forward button)." AutomationProperties.Name="Forward"
                         AutomationProperties.AcceleratorKey="Alt+Right">
                     <StackPanel Orientation="Horizontal">
-                        <AccessText Text="_Forward" VerticalAlignment="Center" />
+                        <AccessText Text="Forw_ard" VerticalAlignment="Center" />
                         <controls:GlyphText Text="&#xE72A;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="16" Margin="8,0,0,0"
                                             VerticalAlignment="Center" />
                     </StackPanel>
@@ -1091,6 +1094,7 @@
                     the selected tab is the open project, so selecting one opens it. Ctrl+1 to Ctrl+9 and Ctrl+Tab are the window's.
                 -->
                 <ListBox x:Name="Tabs" ItemsSource="{Binding Tabs}" SelectedItem="{Binding OpenTab, Mode=TwoWay}"
+                         SelectionChanged="OnTabSelectionChanged"
                          ItemContainerStyle="{StaticResource ProjectTab}" VerticalAlignment="Center" Background="Transparent"
                          BorderThickness="0" Padding="0" SelectionMode="Single" AutomationProperties.Name="Project tabs"
                          KeyboardNavigation.TabNavigation="Once" KeyboardNavigation.DirectionalNavigation="Contained"
@@ -1155,7 +1159,7 @@
                             <StackPanel Orientation="Horizontal">
                                 <controls:GlyphText Text="&#xE711;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="12" Margin="0,0,8,0"
                                                     VerticalAlignment="Center" />
-                                <AccessText Text="_Dismiss" VerticalAlignment="Center" />
+                                <AccessText Text="Dis_miss" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
                     </StackPanel>
@@ -1331,7 +1335,7 @@
                           ToolTip="Drag to resize; double-click to reset." AutomationProperties.Name="Resize Properties"
                           Visibility="{Binding IsPaneDocked, Converter={StaticResource Visible}}"
                           Background="Transparent" FocusVisualStyle="{StaticResource FocusRing}"
-                          DragCompleted="OnSplitterDragCompleted" MouseDoubleClick="OnSplitterDoubleClick">
+                          DragCompleted="OnSplitterDragCompleted" KeyUp="OnSplitterKeyUp" MouseDoubleClick="OnSplitterDoubleClick">
                 <GridSplitter.Template>
                     <ControlTemplate TargetType="GridSplitter">
                         <Border Background="{TemplateBinding Background}">

@@ -17,6 +17,7 @@ namespace Theseus.App.Views;
 public partial class ProjectView : UserControl
 {
     private ProjectViewGrouping _grouping;
+    private bool _tabsHadFocus;
 
     /// <summary>Creates the view.</summary>
     public ProjectView()
@@ -102,7 +103,17 @@ public partial class ProjectView : UserControl
         else
         {
             Flow.ScrollToHome();
-            Dispatcher.BeginInvoke(DispatcherPriority.Input, () => FocusView());
+
+            // An arrow key in the tab strip opened this project: the rebuilt strip keeps the focus, so the next arrow works.
+            bool fromTabs = _tabsHadFocus;
+            _tabsHadFocus = false;
+            Dispatcher.BeginInvoke(DispatcherPriority.Input, () =>
+            {
+                if (!(fromTabs && Tabs.ItemContainerGenerator.ContainerFromItem(Tabs.SelectedItem) is ListBoxItem tab && tab.Focus()))
+                {
+                    FocusView();
+                }
+            });
         }
     }
 
@@ -173,6 +184,11 @@ public partial class ProjectView : UserControl
             view.RememberPaneWidth(ProjectPaneWidth.Clamp(PaneColumn.ActualWidth, ActualWidth));
         }
     }
+
+    // The arrow keys move the splitter without a drag, so its width is kept on their release too (B17).
+    private void OnSplitterKeyUp(object sender, KeyEventArgs e) => OnSplitterDragCompleted(sender, null!);
+
+    private void OnTabSelectionChanged(object sender, SelectionChangedEventArgs e) => _tabsHadFocus = Tabs.IsKeyboardFocusWithin;
 
     private void OnSplitterDoubleClick(object sender, MouseButtonEventArgs e)
     {

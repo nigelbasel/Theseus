@@ -125,6 +125,13 @@ public sealed class ProjectViewModel : ObservableObject
 
         if (IsGroupedByObjectives && AllObjectives.FirstOrDefault(objective => objective.Objective?.Number == number) is { } heading)
         {
+            // A filter that hides the heading gives way, or the selection would be nowhere on screen.
+            if (!heading.IsShown)
+            {
+                _filter = [];
+                ApplyFilter();
+            }
+
             Select(heading);
         }
         else if (AllNodes.FirstOrDefault(node => node.Piece.ObjectiveNumber == number) is { } first)
@@ -959,13 +966,13 @@ public sealed class ProjectViewModel : ObservableObject
         }
 
         // Objectives only the same way: a heading shows while it holds a match, and opens, unremembered, to show it.
-        foreach (var objective in AllObjectives)
+        foreach (ObjectiveHeadingViewModel objective in AllObjectives)
         {
             objective.IsShown = _filter.Count == 0 || objective.Pieces.Any(node => node.IsShown);
             objective.IsOpen |= _filter.Count > 0 && objective.IsShown;
         }
 
-        foreach (var phase in Phases)
+        foreach (PhaseHeadingViewModel phase in Phases)
         {
             phase.IsShown = _filter.Count == 0 || phase.Objectives.Any(objective => objective.IsShown);
             phase.IsOpen |= _filter.Count > 0 && phase.IsShown;
@@ -1198,14 +1205,14 @@ public sealed class ProjectViewModel : ObservableObject
         }
 
         lines.AddRange(node.Children.Select(child =>
-            $"hands work to {child.Piece.Name}{StateWords(HandOver(links, piece, child.Piece), links)}"));
+            $"Hands work to {child.Piece.Name}{StateWords(HandOver(links, piece, child.Piece), links)}"));
 
         if (node.ReportBack is { } mark)
         {
-            lines.Add($"reports back to {mark.ParentPiece}{StateWords(mark.State)}");
+            lines.Add($"Reports back to {mark.ParentPiece}{StateWords(mark.State)}");
         }
 
-        lines.AddRange(tree.ThenWorkedOn.Where(link => link.From == piece).Select(link => $"then worked on {link.To.Name}"));
+        lines.AddRange(tree.ThenWorkedOn.Where(link => link.From == piece).Select(link => $"Then worked on {link.To.Name}"));
 
         return lines;
     }

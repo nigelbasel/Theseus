@@ -47,7 +47,7 @@ public class CheckRefusalInPlainViewTests
     {
         var box = _views.Theseus(actions: Refusing(NoScenarios, "Write scenarios…")).AllNodes.Single(node => node.Name == "projects-and-method-ui");
         var verify = box.Actions.Single(action => action.Label == "Independent check…");
-        var inMenu = box.Stages.SelectMany(stage => stage.MenuEntries).First(item => item.Action.Label == "Independent check…");
+        MenuEntryViewModel inMenu = box.Stages.SelectMany(stage => stage.MenuEntries).First(item => item.Action.Label == "Independent check…");
 
         Assert.That((verify.IsEnabled, verify.Note), Is.EqualTo((false, (string?)NoScenarios)));
         Assert.That((inMenu.Header, inMenu.Note), Is.EqualTo(("Independent _check…", NoScenarios)),
@@ -59,7 +59,7 @@ public class CheckRefusalInPlainViewTests
     {
         var box = _views.Theseus(actions: _views.Actions with { WhyNot = (_, _) => null }).AllNodes.Single(node => node.Name == "projects-and-method-ui");
         var verify = box.Actions.Single(action => action.Label == "Independent check…");
-        var inMenu = box.Stages.SelectMany(stage => stage.MenuEntries).First(item => item.Action.Label == verify.Label);
+        MenuEntryViewModel inMenu = box.Stages.SelectMany(stage => stage.MenuEntries).First(item => item.Action.Label == verify.Label);
 
         Assert.That((verify.Note, inMenu.Note, inMenu.Header), Is.EqualTo(((string?)null, (string?)null, "Independent _check…")));
     }

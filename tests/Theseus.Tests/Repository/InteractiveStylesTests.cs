@@ -117,20 +117,21 @@ public class InteractiveStylesTests
         Assert.That(wash.Select(trigger => (((Binding)trigger.Binding).Path.Path, trigger.Value?.ToString())),
             Is.EqualTo(new[] { ("IsMouseOver", "True"), ("IsPressed", "True"), ("IsEnabled", "False") }));
 
-        var chain = view.Descendants(Presentation + "Style").Single(each => (string?)each.Attribute(Xaml + "Key") == "ChainStage");
+        XElement chain = view.Descendants(Presentation + "Style").Single(each => (string?)each.Attribute(Xaml + "Key") == "ChainStage");
 
         Assert.That((string?)chain.Attribute("BasedOn"), Is.EqualTo("{StaticResource ClickableSurface}"));
         Assert.That(chain.Descendants(Presentation + "Border").Select(border => (string?)border.Attribute("Style")),
             Has.One.EqualTo("{StaticResource SurfaceWash}"));
 
         // A tab is a selector's item now (W41), so it draws its own ring and hover wash: a ListBoxItem has no IsPressed.
-        var tab = view.Descendants(Presentation + "Style").Single(each => (string?)each.Attribute(Xaml + "Key") == "ProjectTab");
+        XElement tab = view.Descendants(Presentation + "Style").Single(each => (string?)each.Attribute(Xaml + "Key") == "ProjectTab");
 
         Assert.That((string?)tab.Attribute("TargetType"), Is.EqualTo("ListBoxItem"));
         Assert.That(tab.Elements(Presentation + "Setter").Single(setter => (string?)setter.Attribute("Property") == "FocusVisualStyle")
             .Attribute("Value")?.Value, Is.EqualTo("{StaticResource FocusRing}"));
-        Assert.That(tab.Descendants(Presentation + "Trigger").Select(trigger => (string?)trigger.Attribute("Property")),
-            Is.SupersetOf(new[] { "IsMouseOver", "IsSelected" }));
+        Assert.That(tab.Descendants(Presentation + "Trigger").Select(trigger => (string?)trigger.Attribute("Property")), Has.Member("IsMouseOver"));
+        Assert.That(tab.Descendants(Presentation + "DataTrigger").Select(trigger => (string?)trigger.Attribute("Binding")), Has.Member("{Binding IsOpen}"),
+            "the open project is marked, whatever the selection");
     }
 
     [Test]

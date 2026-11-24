@@ -148,14 +148,14 @@ public class ProjectViewConventionsTests
     }
 
     [Test]
-    public void TheCommonButtons_HaveAccessKeys_UniqueInTheView_AndNoneTheSearchBarUses()
+    public void TheCommonButtons_HaveAccessKeys_UniqueInTheView_AndNoneTheMainWindowUses()
     {
         ProjectView control = LaidOut(_views.BuildYourMarket(clearUpNotice: "Removed 2 verifier cards.",
             actions: _views.Actions with { UndoClearVerifiers = _ => { }, DismissClearUp = _ => { } }));
         Dictionary<string, string> expected = new()
         {
-            ["GoBackButton"] = "Bac_k", ["GoForwardButton"] = "_Forward", ["BackButton"] = "_Board",
-            ["UndoClearUp"] = "_Undo", ["DismissClearUp"] = "_Dismiss",
+            ["GoBackButton"] = "Bac_k", ["GoForwardButton"] = "Forw_ard", ["BackButton"] = "_Board",
+            ["UndoClearUp"] = "_Undo", ["DismissClearUp"] = "Dis_miss",
         };
 
         foreach ((string name, string label) in expected)
@@ -166,7 +166,7 @@ public class ProjectViewConventionsTests
 
         List<char> keys = [.. Descendants<AccessText>(control).Where(text => text.AccessKey != '\0').Select(text => char.ToUpperInvariant(text.AccessKey))];
         Assert.That(keys, Is.Unique);
-        Assert.That(keys, Has.None.EqualTo('R').And.None.EqualTo('C'), "the board's search bar has Hide the _rest and _Clear");
+        Assert.That(keys.Intersect(MainWindowKeys()), Is.Empty, "W26: a key unique in its scope, the main window's menu bar and search bar too");
     }
 
     [Test]
@@ -274,6 +274,42 @@ public class ProjectViewConventionsTests
         Assert.That(onScreen.Select(node => node.Piece.Status.State), Has.All.EqualTo(Theseus.Core.Projects.StageNodeState.HoldoutsNotRun));
         Assert.That(((TextBlock)control.FindName("FilterText")).Text, Does.StartWith("Showing: built, not yet checked"));
     }
+
+    [Test]
+    public void AKeyboardMoveOfTheSplitter_IsKept_AsADragIs()
+    {
+        ProjectViewModel view = _views.Theseus();
+        ProjectView control = LaidOut(view);
+        ColumnDefinition pane = (ColumnDefinition)control.FindName("PaneColumn");
+        GridSplitter splitter = (GridSplitter)control.FindName("Splitter");
+
+        pane.Width = new GridLength(400);
+        control.UpdateLayout();
+        using (System.Windows.Interop.HwndSource source = new(new System.Windows.Interop.HwndSourceParameters("wb8-keys")))
+        {
+            splitter.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, source, 0, Key.Left) { RoutedEvent = Keyboard.KeyUpEvent });
+        }
+
+        Assert.That(view.PaneWidth, Is.EqualTo(400), "B17: a refresh would otherwise snap it back");
+    }
+
+    // The window's own access keys: its menu bar's and its search bar's (MainWindow.xaml).
+    private static IEnumerable<char> MainWindowKeys()
+    {
+        string window = File.ReadAllText(Path.Combine(RepositoryRoot(), "src", "Theseus.App", "MainWindow.xaml"));
+        int bar = window.IndexOf("<Menu DockPanel.Dock=\"Top\"", StringComparison.Ordinal);
+        string menuBar = window[bar..window.IndexOf("</Menu>", bar, StringComparison.Ordinal)];
+        string[] labels = [.. System.Text.RegularExpressions.Regex.Matches(menuBar, "(?m)^            <MenuItem Header=\"([^\"]*)\"")
+            .Select(match => match.Groups[1].Value), "Hide the _rest", "_Clear"];
+
+        Assert.That(labels, Has.Length.GreaterThan(5), "the menu bar's top level was found");
+        Assert.That(window, Does.Contain("Content=\"Hide the _rest\"").And.Contain("Content=\"_Clear\""));
+
+        return labels.Select(label => char.ToUpperInvariant(label[label.IndexOf('_') + 1]));
+    }
+
+    private static string RepositoryRoot([System.Runtime.CompilerServices.CallerFilePath] string thisFile = "") =>
+        Path.GetFullPath(Path.Combine(Path.GetDirectoryName(thisFile)!, "..", "..", ".."));
 
     private ProjectView LaidOut(ProjectViewModel view)
     {

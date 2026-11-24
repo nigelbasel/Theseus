@@ -83,6 +83,18 @@ public class ObjectivesLensFilterTests
         Assert.That(view.Counts.Select(chip => chip.Command!.CanExecute(null)), Has.All.True);
     }
 
+    [Test]
+    public void GoingToAnObjectiveTheFilterHides_ClearsTheFilter_SoTheSelectionIsOnScreen()
+    {
+        ProjectViewModel view = Objectives();
+        view.ToggleFilter(Built, add: false);
+        ObjectiveHeadingViewModel hidden = AllObjectives(view).First(objective => !objective.IsShown && objective.Objective is not null);
+
+        view.GoToObjective(hidden.Objective!.Number);
+
+        Assert.That((view.IsFiltered, hidden.IsShown, hidden.IsSelected), Is.EqualTo((false, true, true)));
+    }
+
     private ProjectViewModel Objectives()
     {
         ProjectViewModel view = _views.BuildYourMarket();

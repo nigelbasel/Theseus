@@ -87,7 +87,7 @@ public class ProjectViewGroupingLayoutTests
             Is.EqualTo(new[] { ($"← handed on from Specify the BuildYourMarket MCP server", true) }));
         Assert.That(Shown(AllNamed<TextBlock>(readApi, "ReportBack").Single(), control), Is.True);
         var criteria = AllNamed<Button>(objectives, "ObjectiveCriteria").First();
-        var words = Descendants<TextBlock>(criteria).Select(text => text.Text).ToList();
+        List<string> words = Descendants<TextBlock>(criteria).Select(text => text.Text).ToList();
         Assert.That(words, Has.Member("0 of 1 criteria met"));
         Assert.That(words, Has.Member(FoldGlyph.Folded).Or.Member(FoldGlyph.Open), "its chevron says the criteria are listed by opening it (walkthrough row 20)");
         Assert.That(AllNamed<ItemsControl>(objectives, "ObjectiveCounts").First().Items.Cast<StateCountViewModel>().Single().Text,
