@@ -74,6 +74,8 @@ public sealed partial class ShellViewModel : ObservableObject
     private readonly IPlanStore _plans;
     private readonly ITabColourAllocator _colours;
     private readonly PullRequestResolver _pullRequests;
+    private readonly GitRemoteReader _remotes = new();
+    private CiStatusViewModel? _ciStatus;
     private readonly List<StopStep> _stopQueue = [];
     private readonly IStopRequestStore _stopRequests = new StopRequestStore(StopRequestRoot.Default);
     private readonly IRunLog _runs;
@@ -184,6 +186,7 @@ public sealed partial class ShellViewModel : ObservableObject
         {
             Refresh();
             _ = Updates?.CheckQuietlyAsync();
+            _ = CiStatus?.PollAsync(refresh: true);
         });
         FocusCardCommand = new RelayCommand(FocusCard, CanFocusCard);
         OpenJiraCommand = new RelayCommand(OpenJira, parameter => parameter is string);
@@ -3953,6 +3956,61 @@ public sealed partial class ShellViewModel : ObservableObject
         return TodoProgress.Of(_todos.Read(sessionId)).Summary;
     }
 
+    /// <summary>
+    /// The pull request and CI poller (pr-ci-status). Null until the app wires it, so a shell built in a test calls
+    /// nothing on the network.
+    /// </summary>
+    public CiStatusViewModel? CiStatus
+    {
+        get => _ciStatus;
+        set
+        {
+            if (_ciStatus is { } old)
+            {
+                old.Changed -= OnCiStatusChanged;
+            }
+
+            _ciStatus = value;
+
+            if (value is not null)
+            {
+                value.Changed += OnCiStatusChanged;
+            }
+
+            Raise();
+        }
+    }
+
+    private void OnCiStatusChanged(object? sender, EventArgs e) => ApplyCiStatus();
+
+    /// <summary>Words every card's status again from the latest readings, without reading the repos' files again.</summary>
+    private void ApplyCiStatus()
+    {
+        foreach (var card in Board.Cards)
+        {
+            card.SetStatus(CiStatus is { } ci && card.StatusRepos.Count > 0 ? ci.StatusFor(card.StatusRepos) : Theseus.Core.CiStatus.CardStatus.None);
+        }
+    }
+
+    /// <summary>
+    /// The repos a card's status covers: the ones its branch line shows, its declared repos or else its working
+    /// directory's, each with its origin remote.
+    /// </summary>
+    private IReadOnlyList<Theseus.Core.CiStatus.CardStatusRepo> StatusRepos(string? workingDirectory, IReadOnlyList<CardRepo> repos)
+    {
+        if (repos.Count > 0)
+        {
+            return [.. repos.Select(repo => new Theseus.Core.CiStatus.CardStatusRepo(repo.Name, repo.Branch, _remotes.ReadOriginUrl(repo.Path)))];
+        }
+
+        if (GitRepository.RootOf(workingDirectory) is not { } root)
+        {
+            return [];
+        }
+
+        return [new Theseus.Core.CiStatus.CardStatusRepo(new DirectoryInfo(root).Name, GitBranchReader.Read(root), _remotes.ReadOriginUrl(root))];
+    }
+
     /// <summary>Finds the pull requests each workstream mentions and where they live.</summary>
     public void SyncPullRequests()
     {
@@ -3973,7 +4031,17 @@ public sealed partial class ShellViewModel : ObservableObject
             card.SetItems(
                 CardItemRows.Jira(card.JiraKeys, recorded, jiraBase, key => WorkItems?.TitleOf(WorkItemKind.Jira, key)),
                 CardItemRows.PullRequests(card.PullRequests, recorded, number => WorkItems?.TitleOf(WorkItemKind.PullRequest, number)));
+            card.StatusRepos = card.IsArchived ? [] : StatusRepos(card.Workstream.WorkingDirectory, repos);
         }
+
+        if (CiStatus is { } ci)
+        {
+            ci.SetRepositories([.. Board.Cards.SelectMany(card => card.StatusRepos)
+                .Select(repo => Theseus.Core.CiStatus.GitHubRepoRef.FromRemote(repo.Origin))
+                .OfType<Theseus.Core.CiStatus.GitHubRepoRef>()]);
+        }
+
+        ApplyCiStatus();
 
         // A search on branches or repos reads them only now they are known (card-search-and-tags item 2).
         if (Board.Search.IsOn)

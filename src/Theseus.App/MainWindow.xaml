@@ -11,6 +11,7 @@
         xmlns:behaviors="clr-namespace:Theseus.App.Behaviors"
         xmlns:settings="clr-namespace:Theseus.Core.Settings;assembly=Theseus.Core"
         xmlns:launching="clr-namespace:Theseus.Core.Launching;assembly=Theseus.Core"
+        xmlns:ci="clr-namespace:Theseus.Core.CiStatus;assembly=Theseus.Core"
         xmlns:sys="clr-namespace:System;assembly=System.Runtime"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:ShellViewModel}"
@@ -177,6 +178,11 @@
             <Setter Property="Header" Value="{Binding Display, Converter={StaticResource AccessKeyEscape}}" />
             <Setter Property="Command" Value="{Binding OpenCommand}" />
             <Setter Property="ToolTip" Value="{Binding Tooltip}" />
+        </Style>
+
+        <!-- A status row (pr-ci-status): one with nothing to open is disabled, and still says why when hovered. -->
+        <Style x:Key="StatusRow" TargetType="MenuItem" BasedOn="{StaticResource ItemRow}">
+            <Setter Property="ToolTipService.ShowOnDisabled" Value="True" />
         </Style>
 
         <!--
@@ -1054,6 +1060,37 @@
                                 </StackPanel>
                                 <Button.ContextMenu>
                                     <ContextMenu ItemsSource="{Binding PullRequestItems}" ItemContainerStyle="{StaticResource ItemRow}"
+                                                 DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}" />
+                                </Button.ContextMenu>
+                            </Button>
+                            <!--
+                                Pull request and CI status (pr-ci-status, objective 1.7): each repo's open pull request and newest
+                                CI run, read from GitHub with no token, each row opening its page. Unknown says unknown; only
+                                GitHub's answer is ever shown as passing. Failed is critical with a cross, so the shape says it too.
+                            -->
+                            <Button Click="OnOverflowClick" AutomationProperties.Name="{Binding StatusButtonText}"
+                                    AutomationProperties.HelpText="Pull request and CI status, read from GitHub. Choose a row to open it."
+                                    ToolTip="Pull request and CI status, read from GitHub. Choose a row to open it."
+                                    Visibility="{Binding StatusButtonText, Converter={StaticResource NotEmptyToVisibility}}">
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource ItemDropDown}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding StatusState}" Value="{x:Static ci:CiState.Passed}">
+                                                <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding StatusState}" Value="{x:Static ci:CiState.Failed}">
+                                                <Setter Property="Foreground" Value="{DynamicResource CriticalTextBrush}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding StatusButtonText, Mode=OneWay}" VerticalAlignment="Center" />
+                                    <controls:GlyphText Text="&#xE70D;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="8"
+                                                        Margin="4,0,0,0" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <Button.ContextMenu>
+                                    <ContextMenu ItemsSource="{Binding StatusItems}" ItemContainerStyle="{StaticResource StatusRow}"
                                                  DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}" />
                                 </Button.ContextMenu>
                             </Button>
@@ -2908,6 +2945,22 @@
                     <Button Style="{StaticResource PanelIcon}" Content="&#xE72C;" Margin="4,0,0,0"
                             ToolTip="Read usage now" AutomationProperties.Name="Read usage now" Command="{Binding Usage.RefreshCommand}" />
 
+                    <!-- When GitHub was last read for cards' pull requests and CI, with the calls left in the tooltip (pr-ci-status AC 16). -->
+                    <TextBlock x:Name="GitHubStatus" FontSize="12" Margin="16,0,0,0" VerticalAlignment="Center"
+                               Text="{Binding CiStatus.Text}" ToolTip="{Binding CiStatus.Tooltip}"
+                               AutomationProperties.HelpText="{Binding CiStatus.Tooltip}"
+                               Visibility="{Binding CiStatus.Text, Converter={StaticResource NotEmptyToVisibility}, FallbackValue=Collapsed}">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding CiStatus.IsCaution}" Value="True">
+                                        <Setter Property="Foreground" Value="{DynamicResource CautionTextBrush}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
                     <TextBlock FontSize="12" Margin="16,0,0,0"
                                VerticalAlignment="Center"
                                ToolTip="The machine's shared locks, held by Theseus"
