@@ -176,6 +176,29 @@ public class DutyBookTests
     }
 
     [Test]
+    public void ASessionsPause_NeverReplacesTheOwnersOrTheseuss()
+    {
+        var book = Book();
+        var id = book.Set("card", "Check", "x", Twenty, DutyEnd.Never, "lead").Duty!.Id;
+        book.Pause(id, Duty.Owner, "not tonight");
+
+        var after = book.Pause(id, "lead", "mine now")!;
+
+        Assert.That((after.PausedBy, after.PauseReason), Is.EqualTo((Duty.Owner, "not tonight")));
+    }
+
+    [Test]
+    public void AnOwnersEdit_MakesTheDutyHis()
+    {
+        var book = Book();
+        book.Set("card", "Check", "x", Twenty, DutyEnd.Never, "lead");
+
+        var (edited, _, _) = book.Set("card", "Check", "y", Twenty, DutyEnd.Never, null);
+
+        Assert.That(edited!.IsOwners, Is.True);
+    }
+
+    [Test]
     public void Delete_RemovesIt()
     {
         var book = Book();

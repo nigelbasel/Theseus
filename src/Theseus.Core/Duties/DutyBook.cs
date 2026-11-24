@@ -117,7 +117,7 @@ public sealed class DutyBook
                 state = state with { NextDueUtc = cadence.NextAfter(anchor, now, _zone) };
             }
 
-            var duty = new Duty(existing?.Id ?? NewId(), card, name.Trim(), instruction.Trim(), cadence, end, existing?.SetBy ?? setBy, anchor, state)
+            var duty = new Duty(existing?.Id ?? NewId(), card, name.Trim(), instruction.Trim(), cadence, end, existing is null || setBy is null ? setBy : existing.SetBy, anchor, state)
             {
                 DailyRunCap = dailyRunCap,
                 ThroughQuietHours = throughQuietHours,
@@ -132,8 +132,11 @@ public sealed class DutyBook
     }
 
     /// <summary>Pauses a duty, by the owner, Theseus or a card.</summary>
+    /// <remarks>A pause by the owner or by Theseus is kept: a session's pause on top of it would let the session lift it.</remarks>
     public Duty? Pause(string id, string by, string? reason) =>
-        Change(id, duty => duty.IsEnded ? duty : duty with { PausedBy = by, PauseReason = Clean(reason) });
+        Change(id, duty => duty.IsEnded || duty.PausedBy is Duty.Owner or Duty.Theseus
+            ? duty
+            : duty with { PausedBy = by, PauseReason = Clean(reason) });
 
     /// <summary>Clears a duty's pause and its count of failures, its next run counting on from now.</summary>
     public Duty? Resume(string id) => Change(id, duty => duty.IsEnded ? duty : duty with

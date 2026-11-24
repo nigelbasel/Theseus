@@ -168,9 +168,11 @@ public sealed class DutyTools
             return ("Only a card in a project can end on a criterion.", true);
         }
 
-        var cap = arguments["daily_cap"] is JsonValue capValue && capValue.TryGetValue<int>(out var number) ? number : (int?)null;
-        var through = arguments["through_quiet_hours"] is JsonValue quiet && quiet.TryGetValue<bool>(out var flag) && flag;
         var existing = _book.Find(card.Key, name);
+        var cap = arguments["daily_cap"] is JsonValue capValue && capValue.TryGetValue<int>(out var number) ? number : existing?.DailyRunCap;
+        var through = arguments["through_quiet_hours"] is JsonValue quiet && quiet.TryGetValue<bool>(out var flag)
+            ? flag
+            : existing?.ThroughQuietHours ?? false;
         var resumes = existing?.PausedBy is { } by && !string.Equals(by, Duty.Owner, StringComparison.Ordinal)
                                                    && !string.Equals(by, Duty.Theseus, StringComparison.Ordinal);
         var (duty, updated, refusal) = _book.Set(card.Key, name, Text(arguments["instruction"]) ?? string.Empty, cadence, end,
@@ -212,6 +214,11 @@ public sealed class DutyTools
             _record(card.Key, $"Duty \"{duty.Name}\" ended by {session.WorkstreamTitle}{Why(why)}");
 
             return ($"Ended duty \"{duty.Name}\" on {card.Workstream.Title}.", false);
+        }
+
+        if (duty.PausedBy is Duty.Owner or Duty.Theseus)
+        {
+            return ($"The duty \"{duty.Name}\" is already paused ({duty.PauseReason ?? "by the user"}): only the user resumes it.", true);
         }
 
         _book.Pause(duty.Id, session.WorkstreamKey, why);

@@ -1,3 +1,4 @@
+using System.IO;
 using System.Globalization;
 using System.Windows.Threading;
 using Theseus.Core.Diagnostics;
@@ -107,12 +108,23 @@ public sealed partial class ShellViewModel : IDutyDelivery
 
             FollowRuns(book, cards, settings.FailureLimit);
 
+            // A card given a run in this look is busy for the rest of it: a second duty, or the queue, waits for the next.
+            // So is one whose run was given at an earlier look and not yet taken up: it is still about to start that turn.
+            var given = book.Live.Where(duty => duty.State is { DeliveredUtc: not null, SeenWorking: false })
+                .Select(duty => duty.Card).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
             foreach (var decision in DutyScheduler.Decide(book.Live, cards, settings, DateTimeOffset.UtcNow, TimeZoneInfo.Local, CriterionTicked))
             {
+                if (decision.Action == DutyAction.Run && !given.Add(decision.Duty.Card))
+                {
+                    Act(book, decision with { Action = DutyAction.Wait, Reason = "card busy" });
+                    continue;
+                }
+
                 Act(book, decision);
             }
 
-            ResumeFromQueue(book, settings);
+            ResumeFromQueue(book, board, cards, given);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
@@ -140,7 +152,12 @@ public sealed partial class ShellViewModel : IDutyDelivery
                 : DutyDelivery.Delivered("handed in");
         }
 
-        var trigger = reason == DutyRunReason.Queue ? "Queue" : "Duty";
+        if (reason == DutyRunReason.Queue)
+        {
+            return DutyDelivery.Failed("its session is not open, and the queue never starts a card");
+        }
+
+        const string trigger = "Duty";
 
         return StartForSession([target.Workstream with { StartInstruction = instruction }], trigger) is { } notStarted
             ? DutyDelivery.Failed(notStarted)
@@ -209,9 +226,10 @@ public sealed partial class ShellViewModel : IDutyDelivery
             .Where(each => each.AtUtc > since && !each.Text.StartsWith("Duty ", StringComparison.Ordinal))
             .Select(each => $"{each.AtUtc.ToLocalTime().ToString("HH:mm", CultureInfo.InvariantCulture)} {each.Text}")];
         var text = DutyPrompt.For(duty, changes, missed, TimeZoneInfo.Local);
-        var delivery = Deliver(duty.Card, DutyRunReason.Duty, text);
 
+        // Recorded before it is given, so a delivery that throws is a failed run, not one tried again at every look.
         book.Ran(duty.Id);
+        var delivery = SafeDeliver(duty.Card, DutyRunReason.Duty, text);
 
         if (delivery.Kind == DutyDeliveryKind.Delivered)
         {
@@ -229,16 +247,24 @@ public sealed partial class ShellViewModel : IDutyDelivery
         }
     }
 
-    private void ResumeFromQueue(DutyBook book, Core.Settings.DutySettings settings)
+    private void ResumeFromQueue(DutyBook book, TheseusSettings board, IReadOnlyDictionary<string, DutyCard> cards, HashSet<string> given)
     {
+        var settings = board.Duties;
+
         if (settings.QueueProjects.Count == 0)
         {
             return;
         }
 
-        foreach (var resume in OvernightQueue.Choose(_queueCandidates, book.QueueRecordFor, settings, DateTimeOffset.UtcNow, TimeZoneInfo.Local))
+        // The pieces come from the last read of the projects; the cards' states are this look's, so a card paused, asking or
+        // stopped since then is not woken, nor one a duty has just been given.
+        IReadOnlyList<QueueCandidate> fresh = [.. _queueCandidates
+            .Where(candidate => !given.Contains(candidate.Card.Key) && cards.ContainsKey(candidate.Card.Key))
+            .Select(candidate => candidate with { Card = cards[candidate.Card.Key], StatusSinceUtc = cards[candidate.Card.Key].StatusSinceUtc })];
+
+        foreach (var resume in OvernightQueue.Choose(fresh, book.QueueRecordFor, settings, DateTimeOffset.UtcNow, TimeZoneInfo.Local))
         {
-            var delivery = Deliver(resume.Card, DutyRunReason.Queue, resume.Instruction);
+            var delivery = SafeDeliver(resume.Card, DutyRunReason.Queue, resume.Instruction);
             var said = delivery.Kind == DutyDeliveryKind.Delivered
                 ? $"Resumed by the overnight queue at {resume.Status}"
                 : $"The overnight queue could not resume it: {delivery.Detail}";
@@ -281,6 +307,20 @@ public sealed partial class ShellViewModel : IDutyDelivery
         }
     }
 
+    private DutyDelivery SafeDeliver(string card, DutyRunReason reason, string instruction)
+    {
+        try
+        {
+            return Deliver(card, reason, instruction);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            TheseusLog.Warning(exception, "Giving {Card} its {Reason} run failed", card, reason);
+
+            return DutyDelivery.Failed(exception.Message);
+        }
+    }
+
     private DutyCard DutyCardOf(WorkstreamCardViewModel card, TheseusSettings settings)
     {
         var workstream = card.Workstream;
@@ -296,6 +336,7 @@ public sealed partial class ShellViewModel : IDutyDelivery
                              || (workstream.Project is { } project && settings.ProjectRunStates.ContainsKey(project)),
             IsAsking = card.Question is not null,
             IsStopping = step is not null && _stopRequests.Waiting(step.SessionId) is not null,
+            StatusSinceUtc = card.LifecycleSinceUtc,
         };
     }
 

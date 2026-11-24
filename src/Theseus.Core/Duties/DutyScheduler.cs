@@ -150,7 +150,8 @@ public static class DutyScheduler
             return (DutyOutcome.Crashed, "its session died during the run", state.SeenWorking);
         }
 
-        var seen = state.SeenWorking || card.IsBusy;
+        // A short turn can start and end between two looks, so a status change since the run was given counts as taking it.
+        var seen = state.SeenWorking || card.IsBusy || card.StatusSinceUtc > given;
 
         if (seen && !card.IsBusy)
         {

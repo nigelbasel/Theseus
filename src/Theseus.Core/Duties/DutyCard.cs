@@ -30,6 +30,9 @@ public sealed record DutyCard(string Key, string Title, SessionLifecycle Lifecyc
     /// <summary>Whether a stop request waits for its session.</summary>
     public bool IsStopping { get; init; }
 
+    /// <summary>When its session's status last changed, or null when not known.</summary>
+    public DateTimeOffset? StatusSinceUtc { get; init; }
+
     /// <summary>Whether its session is working or starting.</summary>
     public bool IsBusy => IsLive && Lifecycle is SessionLifecycle.Running or SessionLifecycle.Launching;
 }

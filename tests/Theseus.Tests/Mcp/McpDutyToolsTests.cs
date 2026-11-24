@@ -152,6 +152,33 @@ public class McpDutyToolsTests
     }
 
     [Test]
+    public void SetDutyAgain_KeepsItsCapAndQuietHours_WhenLeftOut()
+    {
+        Call("set_duty", new JsonObject { ["name"] = "Check", ["instruction"] = "x", ["every"] = "1h", ["daily_cap"] = 4, ["through_quiet_hours"] = true });
+
+        Call("set_duty", new JsonObject { ["name"] = "Check", ["instruction"] = "y", ["every"] = "1h" });
+
+        var duty = _duties.Find("parent", "Check")!;
+        Assert.That((duty.DailyRunCap, duty.ThroughQuietHours, duty.Instruction), Is.EqualTo(((int?)4, true, "y")));
+    }
+
+    [Test]
+    public void PauseDuty_OnADutyTheUserPaused_IsRefused_SoSetDutyCannotLiftIt()
+    {
+        Call("set_duty", new JsonObject { ["name"] = "Check", ["instruction"] = "x", ["every"] = "1h" });
+        _duties.Pause(_duties.Find("parent", "Check")!.Id, Duty.Owner, null);
+
+        var paused = Call("pause_duty", new JsonObject { ["name"] = "Check" });
+        Call("set_duty", new JsonObject { ["name"] = "Check", ["instruction"] = "x", ["every"] = "1h" });
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(Text(paused), Does.Contain("only the user resumes it"));
+            Assert.That(_duties.Find("parent", "Check")!.PausedBy, Is.EqualTo(Duty.Owner));
+        });
+    }
+
+    [Test]
     public void Duties_ListsTheCardsItMayActOn_Only()
     {
         Call("set_duty", new JsonObject { ["card"] = "child", ["name"] = "Check", ["instruction"] = "look", ["every"] = "2h" });

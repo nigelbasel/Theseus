@@ -184,6 +184,16 @@ public class DutySchedulerTests
     }
 
     [Test]
+    public void Observe_CountsAShortTurnBetweenTwoLooks_ByItsStatusChange()
+    {
+        var given = DueDuty(state => state with { DeliveredUtc = SetAt });
+
+        var outcome = DutyScheduler.Observe(given, Idle() with { StatusSinceUtc = SetAt.AddSeconds(20) }, SetAt.AddMinutes(1));
+
+        Assert.That(outcome.Outcome, Is.EqualTo(DutyOutcome.Finished));
+    }
+
+    [Test]
     public void Observe_CountsADeadSession_AsACrash_AndAnUntakenRun_AsNotDelivered()
     {
         var given = DueDuty(state => state with { DeliveredUtc = SetAt });
