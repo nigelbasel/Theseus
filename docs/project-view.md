@@ -16,8 +16,10 @@ for each project that reads, its stacked-card mark in the project's own colour; 
 Under the tabs are the project's mark in its colour, its title and the word PROJECT, as on its card on the board, then
 one sentence saying where it is: how many pieces of work it has across how
 many objectives, how many are done, busy, waiting on you, waiting for their holdout check, stuck or still to do, which
-session is working on what, and what comes next. Six counts follow, zeros included. The project card shows the same
-sentence and the same counts, leaving out the zeros. The colour is changed in **Project properties…** on the project
+session is working on what, and what comes next. Six counts follow, zeros included: "waiting on you" counts the lines of
+**Waits for you**, the same number its heading and the sentence give, and choosing it shows the boxes those lines name.
+The project card shows the same sentence and the same counts, leaving out the zeros. What Theseus is doing itself, such
+as checking builds, is said on a line under Waits for you and is not counted in it. The colour is changed in **Project properties…** on the project
 card's menu.
 
 While something waits on you, a band lists it: **Accept the spec of …** opens that piece of work, selects its spec and

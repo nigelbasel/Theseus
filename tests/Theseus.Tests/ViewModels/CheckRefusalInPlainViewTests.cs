@@ -107,7 +107,7 @@ public class CheckRefusalInPlainViewTests
             Assert.That(line.Text, Does.EndWith($"{Missing}."));
             Assert.That((line.Button, line.ToolTip), Is.EqualTo(("Set the holdout folder…", "Set the holdout folder… does it")));
             Assert.That(ran, Is.EqualTo(1));
-            Assert.That(view.Overview.Asking, Has.Some.Matches<WaitItem>(wait => wait.Kind == WaitKind.CheckCannotRun), "the sentence and the badge count it");
+            Assert.That(view.Overview.Waits, Has.Some.Matches<WaitItem>(wait => wait.Kind == WaitKind.CheckCannotRun), "the sentence and the badge count it");
         });
     }
 

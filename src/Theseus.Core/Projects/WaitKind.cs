@@ -39,9 +39,6 @@ public enum WaitKind
     /// </summary>
     CheckCannotRun,
 
-    /// <summary>What Theseus is doing itself, such as writing scenarios or checking builds: said, with nothing to press.</summary>
-    Underway,
-
     /// <summary>Something outside Theseus: no button.</summary>
     Outside,
 }

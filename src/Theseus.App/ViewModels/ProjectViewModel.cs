@@ -43,6 +43,7 @@ public sealed class ProjectViewModel : ObservableObject
     private bool _isOverlayOpen;
     private IReadOnlyList<ThenWorkedOnLink> _thenWorkedOn = [];
     private HashSet<StageNodeState> _filter = [];
+    private IReadOnlySet<string> _waitingPieces = new HashSet<string>();
 
     private ProjectViewModel(ProjectFile file, ProjectSummary summary, ISettingsStore settings, ProjectViewActions actions,
         ProjectViewEdits? edits)
@@ -319,6 +320,11 @@ public sealed class ProjectViewModel : ObservableObject
     /// <summary>Whether anything waits; the block reads "Nothing waits for you." when not, still in place (G36).</summary>
     public bool HasWaits => Waits.Count > 0;
 
+    /// <summary>"Theseus is doing this itself: Checking one build…", or empty: under the band, since it asks nothing.</summary>
+    public string UnderwayText => Overview.Underway.Count == 0
+        ? string.Empty
+        : $"Theseus is doing this itself: {string.Join(" ", Overview.Underway)}";
+
     /// <summary>The phase strip (G34).</summary>
     public IReadOnlyList<PhaseCell> PhaseStrip => Overview.Phases;
 
@@ -335,7 +341,7 @@ public sealed class ProjectViewModel : ObservableObject
     public string FilterText => _filter.Count == 0
         ? string.Empty
         : $"Showing: {string.Join(", ", _filter.Select(state => StageNodeStates.Word(state).ToLowerInvariant()))} "
-          + $"({AllNodes.Count(node => _filter.Contains(node.State))} of {AllNodes.Count()})";
+          + $"({AllNodes.Count(InFilter)} of {AllNodes.Count()})";
 
     /// <summary>Whether a filter is on.</summary>
     public bool IsFiltered => _filter.Count > 0;
@@ -534,7 +540,8 @@ public sealed class ProjectViewModel : ObservableObject
         view.Waits = [.. view.Overview.Waits.Select(item => item.Kind == WaitKind.CheckCannotRun
             ? view.CannotRunLine(item)
             : new WaitItemViewModel(item, view.WaitCommand(item, reading.Name)))];
-        view.Counts = [.. StateCountViewModel.For(view.Summary, zeros: true).Select(chip => chip with
+        view._waitingPieces = view.Overview.Waits.SelectMany(wait => wait.Pieces).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        view.Counts = [.. StateCountViewModel.For(view.Summary, zeros: true, view.Overview.Waits.Count).Select(chip => chip with
         {
             Command = new RelayCommand(_ => view.ToggleFilter(chip.State,
                 System.Windows.Input.Keyboard.Modifiers.HasFlag(System.Windows.Input.ModifierKeys.Control))),
@@ -966,7 +973,7 @@ public sealed class ProjectViewModel : ObservableObject
 
     private void ApplyFilter()
     {
-        bool Shown(PieceNodeViewModel node) => _filter.Count == 0 || _filter.Contains(node.State) || node.Children.Any(Shown);
+        bool Shown(PieceNodeViewModel node) => _filter.Count == 0 || InFilter(node) || node.Children.Any(Shown);
 
         foreach (var node in AllNodes)
         {
@@ -989,6 +996,10 @@ public sealed class ProjectViewModel : ObservableObject
         Raise(nameof(FilterText));
         Raise(nameof(IsFiltered));
     }
+
+    // "Waiting on you" counts the items of Waits for you, so it shows the boxes they name as well as those in that state.
+    private bool InFilter(PieceNodeViewModel node) =>
+        _filter.Contains(node.State) || _filter.Contains(StageNodeState.WaitingOnYou) && _waitingPieces.Contains(node.Name);
 
     // Each kind of wait runs what its piece's own button runs, so the two never disagree (G37).
     // A check that cannot run offers its way on as its button, or none when there is nothing the owner can press.
@@ -1281,7 +1292,7 @@ public sealed class ProjectViewModel : ObservableObject
                 string.Join(",", objective.Counts.Select(chip => chip.Text)),
                 string.Join(",", objective.Pieces.Select(piece => piece.Name)));
 
-        return string.Join("|", new[] { view.Name, view.Title, view.Sentence, view.ClearUpNotice ?? string.Empty, view._grouping.ToString() }
+        return string.Join("|", new[] { view.Name, view.Title, view.Sentence, view.ClearUpNotice ?? string.Empty, view.UnderwayText, view._grouping.ToString() }
             .Concat(view.Tabs.Select(tab => $"{tab.Name}:{tab.Title}:{tab.IsOpen}:{tab.ColourHex}"))
             .Concat(view.Roots.SelectMany(root => Lines(root, 0)))
             .Concat(view._thenWorkedOn.Select(link => $"{link.From.Name}>{link.To.Name}"))

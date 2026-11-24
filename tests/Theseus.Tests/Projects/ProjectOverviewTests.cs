@@ -45,7 +45,7 @@ public class ProjectOverviewTests
             "the round's checks, run by Theseus, and lines saying what is under way ask nothing of him");
     }
 
-    private static IReadOnlyList<WaitItem> Asking(ProjectOverview overview) => overview.Asking;
+    private static IReadOnlyList<WaitItem> Asking(ProjectOverview overview) => overview.Waits;
 
     [Test]
     public void NoLineAsksYouToStartTheChecks_TheseusStartsThemItself()
@@ -94,10 +94,10 @@ public class ProjectOverviewTests
         var file = WriteBym(_folder).File!;
         var without = ProjectOverview.For(file, BymPieces(_folder), BymLinks(), [], 5).Sentence;
         var overview = ProjectOverview.For(file, BymPieces(_folder), BymLinks(), [], 5, underway: ["Writing scenarios for five builds…"]);
-        var line = overview.Waits.Single(item => item.Kind == WaitKind.Underway);
 
-        Assert.That(line.Text, Is.EqualTo("Writing scenarios for five builds…"));
-        Assert.That(line.Button, Is.Null, "git-22, 2026-11-23: it names no action for the owner");
+        Assert.That(overview.Underway, Is.EqualTo(new[] { "Writing scenarios for five builds…" }));
+        Assert.That(overview.Waits.Select(wait => wait.Text), Has.None.EqualTo("Writing scenarios for five builds…"),
+            "git-22, 2026-11-24: it was counted in the Waits for you heading, though it names no action for the owner");
         Assert.That(overview.Sentence, Is.EqualTo(without));
     }
 

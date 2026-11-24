@@ -96,7 +96,7 @@ public sealed class ObjectiveHeadingViewModel : ObservableObject, IFoldable
     public ProjectSummary Summary { get; }
 
     /// <summary>The summary's chips for its pieces, zeros left out (AC 46).</summary>
-    public IReadOnlyList<StateCountViewModel> Counts => StateCountViewModel.For(Summary, zeros: false);
+    public IReadOnlyList<StateCountViewModel> Counts => StateCountViewModel.For(Summary, zeros: false, Waits.Count);
 
     /// <summary>Its pieces of work, in file order, as the Flow's boxes.</summary>
     public IReadOnlyList<PieceNodeViewModel> Pieces { get; }

@@ -15,13 +15,14 @@ public sealed class ProjectOverview
     private static readonly string[] Numbers = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
 
     private ProjectOverview(string sentence, IReadOnlyDictionary<int, string> roundLines, IReadOnlyList<PhaseCell> phases,
-        IReadOnlyList<string> tallies, IReadOnlyList<WaitItem> waits)
+        IReadOnlyList<string> tallies, IReadOnlyList<WaitItem> waits, IReadOnlyList<string> underway)
     {
         Sentence = sentence;
         RoundLines = roundLines;
         Phases = phases;
         Tallies = tallies;
         Waits = waits;
+        Underway = underway;
     }
 
     /// <summary>The summary sentence under the project's name (G33).</summary>
@@ -37,13 +38,16 @@ public sealed class ProjectOverview
     public IReadOnlyList<string> Tallies { get; }
 
     /// <summary>
-    /// What asks something of the owner: Waits for you without the lines saying what is under way. The summary sentence and
-    /// the project card's badge both count this, so they never disagree (walkthrough rows 6, 14).
+    /// Everything that asks something of the owner, grouped as G36 groups it (G36, G37a). The sentence, the heading, the
+    /// "waiting on you" chip and the project card's badge all count this, so they never disagree (walkthrough rows 6, 14).
     /// </summary>
-    public IReadOnlyList<WaitItem> Asking => [.. Waits.Where(wait => wait.Kind != WaitKind.Underway)];
-
-    /// <summary>Everything that waits for the owner, grouped as G36 groups it (G36, G37a).</summary>
     public IReadOnlyList<WaitItem> Waits { get; }
+
+    /// <summary>
+    /// What Theseus is doing itself for its checks, such as "Checking one build…": said apart from Waits for you, since it
+    /// asks nothing (git-22, 2026-11-24: it was counted in the heading as a wait).
+    /// </summary>
+    public IReadOnlyList<string> Underway { get; }
 
     /// <summary>The line its last clear-up leaves under the heading, with Undo and Dismiss, or null.</summary>
     public string? ClearUpNotice { get; init; }
@@ -81,16 +85,11 @@ public sealed class ProjectOverview
                 []));
         }
 
-        // The Undo line offers a way back, not a thing waiting, and what is under way asks nothing: both are left out of the
-        // sentence's count (review of item 5, S7), being added after it.
         var sentence = SentenceOf(file, pieces, waits);
-
-        waits.InsertRange(0, (underway ?? []).Select(line => new WaitItem(WaitKind.Underway, line, [])));
-
         var roundLines = file.Rounds.ToDictionary(round => round.Number, round => RoundLine(pieces.Where(piece => piece.Round == round.Number).ToList()));
 
         return new ProjectOverview(sentence, roundLines, [.. file.Phases.Select(phase => Cell(phase, pieces))],
-            TalliesOf(file, pieces, accepted), waits) { ClearUpNotice = clearUpNotice };
+            TalliesOf(file, pieces, accepted), waits, underway ?? []) { ClearUpNotice = clearUpNotice };
     }
 
     private static List<WaitItem> WaitsOf(ProjectFile file, IReadOnlyList<PieceOfWork> pieces, List<Link> links,

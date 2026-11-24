@@ -1080,6 +1080,10 @@
                         <ItemsControl x:Name="WaitItems" ItemsSource="{Binding Waits}" ItemTemplate="{StaticResource WaitLine}" Focusable="False" />
                     </StackPanel>
                 </Border>
+                <!-- What Theseus is doing itself asks nothing of him, so it is said under the band and not counted in it (git-22, 2026-11-24). -->
+                <TextBlock x:Name="UnderwayLine" Text="{Binding UnderwayText}" FontSize="13" TextWrapping="Wrap" Margin="0,6,0,0"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                           Visibility="{Binding UnderwayText, Converter={StaticResource NotEmpty}}" />
                 <!-- The phase strip (G34), one line however many phases: it scrolls across rather than wrapping onto a second
                      (walkthrough row 17), each cell's words in full in its tooltip. Then the value of the process as tallies (G35). -->
                 <ScrollViewer x:Name="PhaseStripScroller" Margin="0,10,0,0" HorizontalScrollBarVisibility="Auto"
