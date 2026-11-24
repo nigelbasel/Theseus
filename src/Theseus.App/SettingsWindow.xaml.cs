@@ -141,7 +141,7 @@ public partial class SettingsWindow : Window
 
     private string? Ask(string title, string label, string current, bool allowsEmpty = false, bool isList = false)
     {
-        var ask = new TextPromptWindow(title, label, current) { Owner = this, AllowsEmpty = allowsEmpty, IsList = isList };
+        TextPromptWindow ask = new(title, label, current) { Owner = this, AllowsEmpty = allowsEmpty, IsList = isList, ActionLabel = "_Save" };
 
         return ask.ShowDialog() == true ? ask.Text : null;
     }
@@ -177,6 +177,20 @@ public partial class SettingsWindow : Window
         };
 
         return dialog.ShowDialog(this) == true ? dialog.FileName : null;
+    }
+
+    // One dialog at a time (W8, G17): Options closes, then About opens over the board, as Help > About Theseus opens it.
+    private void OnAbout(object sender, RoutedEventArgs e)
+    {
+        Window? owner = Owner;
+        object? board = owner?.DataContext;
+        Close();
+
+        owner?.Dispatcher.BeginInvoke(() =>
+        {
+            (board as ShellViewModel)?.Help.Check();
+            new AboutWindow { Owner = owner, DataContext = board }.ShowDialog();
+        });
     }
 
     private void OnLink(object sender, RequestNavigateEventArgs e)

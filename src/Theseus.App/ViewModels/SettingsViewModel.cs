@@ -77,8 +77,19 @@ public sealed class SettingsViewModel : ObservableObject
     /// <summary>Shows the panel, read afresh from the settings file.</summary>
     public RelayCommand OpenCommand { get; }
 
-    /// <summary>The themes to choose between.</summary>
-    public IReadOnlyList<AppTheme> Themes { get; } = Enum.GetValues<AppTheme>();
+    /// <summary>The themes to choose between, each named in words.</summary>
+    public IReadOnlyList<ThemeChoice> ThemeChoices { get; } =
+    [
+        new(AppTheme.System, "Use system setting"),
+        new(AppTheme.Light, "Light"),
+        new(AppTheme.Dark, "Dark"),
+    ];
+
+    /// <summary>The theme in force, as Options shows it.</summary>
+    public string ThemeValue => ThemeChoices.First(choice => choice.Theme == Theme).Label;
+
+    /// <summary>This Theseus's version, for the About section at the foot of Advanced (W53).</summary>
+    public string VersionDescribed => Services.AppVersion.Described;
 
     /// <summary>Which theme to paint in, applied as soon as it is chosen, because a theme is judged by looking at it.</summary>
     public AppTheme Theme
@@ -94,6 +105,7 @@ public sealed class SettingsViewModel : ObservableObject
             _store.Write(_store.Read() with { Theme = value });
             Services.ThemeApplier.Apply(value);
             Raise(nameof(Theme));
+            Raise(nameof(ThemeValue));
         }
     }
 
