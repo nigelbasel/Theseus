@@ -42,4 +42,7 @@
     <Thickness x:Key="FlyoutBorderThickness">2</Thickness>
     <!-- No band of light over a working card's banner: the banner's words say it is working (W47). -->
     <SolidColorBrush x:Key="SheenBrush" Color="{x:Static SystemColors.WindowColor}" Opacity="0" />
+    <!-- The new-release bar under a contrast theme: the user's own highlight pair. -->
+    <SolidColorBrush x:Key="UpdateOfferBrush" Color="{x:Static SystemColors.HighlightColor}" />
+    <SolidColorBrush x:Key="UpdateOfferTextBrush" Color="{x:Static SystemColors.HighlightTextColor}" />
 </ResourceDictionary>
