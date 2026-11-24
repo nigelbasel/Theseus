@@ -34,7 +34,13 @@ public static partial class RepoEntries
 
     private static bool IsRepo(string entry) =>
         entry.Length > 0
-        && !entry.Any(char.IsWhiteSpace)
+        // A path may hold a space (a hosting project such as "Team Name"); a phrase with no path is prose.
+        && (entry.Contains('/', StringComparison.Ordinal) || !entry.Any(char.IsWhiteSpace))
+        // Only a place under the clones folder: nothing rooted, nothing climbing out (review of worktree-per-repo, finding 6).
+        && !entry.Contains(':', StringComparison.Ordinal)
+        && !entry.StartsWith('/')
+        && !entry.StartsWith('\\')
+        && !Segments(entry).Any(segment => segment is "." or "..")
         && !entry.StartsWith('[')
         && !entry.StartsWith('<')
         && !entry.Contains('*', StringComparison.Ordinal)

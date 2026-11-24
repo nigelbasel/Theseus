@@ -36,6 +36,7 @@ internal sealed class ScratchRepos : IDisposable
         Directory.CreateDirectory(Path.GetDirectoryName(clone)!);
         Must(Root, "clone", origin, clone);
         File.WriteAllText(Path.Combine(clone, "readme.txt"), name);
+        File.WriteAllLines(Path.Combine(clone, ".gitignore"), ["bin/", "*.local.json"]);
         Commit(clone, "first");
         Must(clone, "push", "origin", "HEAD:main");
         Must(clone, "remote", "set-head", "origin", "main");

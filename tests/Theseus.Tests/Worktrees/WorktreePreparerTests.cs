@@ -101,13 +101,26 @@ public class WorktreePreparerTests
     }
 
     [Test]
-    public void ABranchCheckedOutElsewhere_StopsTheStart_NamingWhere()
+    public void ABranchCheckedOutElsewhere_IsAdoptedWhereItIs_AndNothingIsMade()
     {
         var alpha = _scratch.Repo("alpha");
-        var elsewhere = Path.Combine(_scratch.Root, "elsewhere");
+        var elsewhere = Path.GetFullPath(Path.Combine(_scratch.Root, "elsewhere"));
         _scratch.Must(alpha, "worktree", "add", "-b", Branch, elsewhere);
 
-        Assert.That(Prepare("alpha").Refusal, Does.Contain("already checked out at").And.Contain("elsewhere"));
+        var prepared = Prepare("alpha");
+
+        Assert.That(prepared.Refusal, Is.Null);
+        Assert.That(prepared.Repos.Single(), Is.EqualTo(new PreparedRepo("alpha", alpha, elsewhere, Branch, WorktreeKind.Adopted)));
+        Assert.That(Directory.Exists(Folder("alpha")), Is.False);
+    }
+
+    [Test]
+    public void TheBranchCheckedOutInTheCloneItself_StopsTheStart()
+    {
+        var alpha = _scratch.Repo("alpha");
+        _scratch.Must(alpha, "switch", "-c", Branch);
+
+        Assert.That(Prepare("alpha").Refusal, Does.Contain("is checked out in the clone"));
     }
 
     [Test]

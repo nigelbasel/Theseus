@@ -65,7 +65,7 @@ public sealed class WorktreeClearUp
 
         if (!IsClean(worktree.Folder))
         {
-            return $"{worktree.Folder} has uncommitted changes now, so it was kept.";
+            return $"{worktree.Folder} has uncommitted changes or ignored files now, so it was kept.";
         }
 
         // No --force: git itself refuses a worktree with changes, a second guard behind the check above.
@@ -98,12 +98,33 @@ public sealed class WorktreeClearUp
         }
     }
 
+    /// <summary>
+    /// Whether removing it loses nothing but build output. <c>git worktree remove</c> without force still deletes ignored
+    /// files, so a worktree holding an ignored file that is not build output (a local settings file, an environment file,
+    /// notes) is kept (review of worktree-per-repo, finding 3).
+    /// </summary>
     private bool IsClean(string folder)
     {
         var status = _git.Run(folder, "status", "--porcelain", "--untracked-files=all");
 
-        return status.Succeeded && status.Output.Trim().Length == 0;
+        if (!status.Succeeded || status.Output.Trim().Length != 0)
+        {
+            return false;
+        }
+
+        // Traditional mode names an ignored folder once, so node_modules is one line, not thousands.
+        var ignored = _git.Run(folder, "status", "--porcelain", "--ignored=traditional", "--untracked-files=normal");
+
+        return ignored.Succeeded
+               && ignored.Output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                   .Where(line => line.StartsWith("!! ", StringComparison.Ordinal))
+                   .All(line => IsBuildOutput(line[3..].Trim('"')));
     }
+
+    private static readonly string[] BuildOutputs = ["bin", "obj", "node_modules", ".vs", "TestResults", "dist", "coverage", ".angular", ".next"];
+
+    private static bool IsBuildOutput(string path) =>
+        RepoEntries.Segments(path).Any(segment => BuildOutputs.Contains(segment, StringComparer.OrdinalIgnoreCase));
 
     private string? CloneOf(string folder)
     {

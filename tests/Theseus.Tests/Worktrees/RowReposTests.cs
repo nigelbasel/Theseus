@@ -33,6 +33,18 @@ public class RowReposTests
         Assert.That(repos.Select(repo => repo.Entry), Is.EqualTo(new[] { "host/owner/one", "host/owner/two" }));
     }
 
+    [Test]
+    public void APathWithASpace_IsARepo_ThoughAPhraseIsNot()
+    {
+        var repos = RowRepos.For("host/Team Name/tools, the holdout repository", null);
+
+        Assert.That(repos.Select(repo => repo.Entry), Is.EqualTo(new[] { "host/Team Name/tools" }));
+    }
+
+    [TestCase("../outside/repo")]
+    [TestCase("host/owner/../../repo")]
+    [TestCase("C:/elsewhere/repo")]
+    [TestCase("/rooted/repo")]
     [TestCase("read-only")]
     [TestCase("none (reads only)")]
     [TestCase("the holdout repository")]
@@ -53,6 +65,14 @@ public class RowReposTests
     public void TheHome_IsLeftOut_WhenTheRowNamesTheProjectsOwnFolder()
     {
         Assert.That(RowRepos.For("bug-fixing", Project, "bug-fixing"), Is.Empty);
+    }
+
+    [Test]
+    public void ACodeRepoSharingTheProjectsName_IsStillARepo()
+    {
+        var repo = RowRepos.For("App", Project, "app").Single();
+
+        Assert.That(repo.Reference, Is.EqualTo("github.com/owner/app"));
     }
 
     [Test]

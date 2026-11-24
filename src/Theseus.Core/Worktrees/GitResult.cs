@@ -6,6 +6,9 @@ namespace Theseus.Core.Worktrees;
 /// <param name="Error">What it wrote to standard error, or why it did not run.</param>
 public sealed record GitResult(int ExitCode, string Output, string Error)
 {
+    /// <summary>Whether it was stopped at its cap, so what it was doing may be half done.</summary>
+    public bool TimedOut { get; init; }
+
     /// <summary>Whether it succeeded.</summary>
     public bool Succeeded => ExitCode == 0;
 

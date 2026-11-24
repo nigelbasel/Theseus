@@ -85,8 +85,8 @@ already there, and the session is told each folder and its branch when it opens.
 ### When the card is archived
 
 Archiving a card whose slug folder holds its worktrees asks, as a checklist, which to remove. Only clean worktrees on
-the card's branch are listed. One with uncommitted changes or untracked files is named and kept, and so is one another
-card still uses. Removing a worktree never deletes its branch: every commit stays. Cancel removes nothing; the card is
+the card's branch are listed. One with uncommitted changes, untracked files, or ignored files other than build output
+(a local settings file, say) is named and kept, and so is one another card still uses. Removing a worktree never deletes its branch: every commit stays. Cancel removes nothing; the card is
 archived either way.
 
 ## Starting a project

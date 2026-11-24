@@ -48,8 +48,8 @@ public static class Checklists
 
         return new Checklist("Remove worktrees",
             "The card is archived. Each worktree ticked is removed from its clone; its branch and every commit on it are kept, "
-            + "and nothing with uncommitted changes is touched."
-            + (kept.Count == 0 ? string.Empty : $" Kept for their uncommitted changes: {Folders(kept)}."),
+            + "and nothing with uncommitted changes, or ignored files other than build output, is touched."
+            + (kept.Count == 0 ? string.Empty : $" Kept for their uncommitted changes or ignored files: {Folders(kept)}."),
             "Remove",
             [.. clean.Select(worktree => new ChecklistRow(worktree.Folder, worktree.Repo, $"{worktree.Folder} · on {worktree.Branch} · clean"))],
             ticked => ticked.Count switch

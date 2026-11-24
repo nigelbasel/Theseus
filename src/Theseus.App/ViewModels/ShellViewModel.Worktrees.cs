@@ -104,6 +104,27 @@ public sealed partial class ShellViewModel
             file.PrimaryBranch, settings.ClonesFolder, settings.WorktreesFolder);
     }
 
+    /// <summary>Whether another card's folder is the worktree, inside it, or holds it, so removing it would pull work from under that card.</summary>
+    private static bool Overlaps(string? other, string worktree)
+    {
+        if (string.IsNullOrWhiteSpace(other))
+        {
+            return false;
+        }
+
+        try
+        {
+            var a = ListedWorktree.Normal(other) + Path.DirectorySeparatorChar;
+            var b = ListedWorktree.Normal(worktree) + Path.DirectorySeparatorChar;
+
+            return a.StartsWith(b, StringComparison.OrdinalIgnoreCase) || b.StartsWith(a, StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception exception) when (exception is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return false;
+        }
+    }
+
     private static string? ProjectText(string? folder)
     {
         try
@@ -146,14 +167,14 @@ public sealed partial class ShellViewModel
             }
 
             var found = clearUp.Find(settings.WorktreesFolder, request.Slug, request.Branch,
-                folder => others.Any(other => SameFolder(other, folder)));
+                folder => others.Any(other => Overlaps(other, folder)));
             clean.AddRange(found.Clean);
             kept.AddRange(found.Kept);
         }
 
         if (clean.Count == 0)
         {
-            return kept.Count == 0 ? null : $" Kept {Checklists.Folders(kept)}: uncommitted changes.";
+            return kept.Count == 0 ? null : $" Kept {Checklists.Folders(kept)}: uncommitted changes or ignored files.";
         }
 
         var ticked = ask(new ChecklistViewModel(Checklists.RemoveWorktrees(clean, kept)));
@@ -180,6 +201,6 @@ public sealed partial class ShellViewModel
 
         return $" Removed {removed.Count} {(removed.Count == 1 ? "worktree" : "worktrees")}; every branch is kept."
                + (refused.Count > 0 ? $" {string.Join(" ", refused)}" : string.Empty)
-               + (kept.Count > 0 ? $" Kept {Checklists.Folders(kept)}: uncommitted changes." : string.Empty);
+               + (kept.Count > 0 ? $" Kept {Checklists.Folders(kept)}: uncommitted changes or ignored files." : string.Empty);
     }
 }

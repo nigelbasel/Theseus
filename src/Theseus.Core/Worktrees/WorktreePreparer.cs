@@ -79,6 +79,9 @@ public sealed class WorktreePreparer
 
                     return WorktreePreparation.Refused(
                         $"The worktree {step.Folder} could not be made: {added.FirstErrorLine}"
+                        + (added.TimedOut
+                            ? $" It may be half made: check it, and remove it with git worktree remove --force {step.Folder} if it is, before starting again."
+                            : string.Empty)
                         + (ready.Any(each => each.Kind == WorktreeKind.Made) ? " The worktrees already made stay, and are taken as they are next time." : string.Empty),
                         ready);
                 }
@@ -128,16 +131,21 @@ public sealed class WorktreePreparer
                 : ($"{folder} is on {there.Branch ?? "a detached head"}, not {branch}. Put it on {branch}, or correct the row's Branch.", null);
         }
 
+        // The branch already checked out elsewhere is the card's code, wherever it was put: a worktree made by hand before
+        // Theseus made them, or one card sharing its primary branch's worktree. Refusing it would stop every such card.
+        if (listed.FirstOrDefault(each => string.Equals(each.Branch, branch, StringComparison.Ordinal)) is { } elsewhere)
+        {
+            // The first entry is the clone itself, which stays on its trunk, pull only; it is never handed over as a worktree.
+            return elsewhere.Is(clone)
+                ? ($"{branch} is checked out in the clone {clone} itself. Put the clone back on its trunk so a worktree can have the branch, or mark the repo worked in place in the Repos table.", null)
+                : (null, new Step(name, clone, elsewhere.Folder, WorktreeKind.Adopted, null));
+        }
+
         if (Directory.Exists(folder) && Directory.EnumerateFileSystemEntries(folder).Any())
         {
             return (GitRepository.IsRoot(folder)
                 ? $"{folder} is already a repository, but not a worktree of {clone}."
                 : $"{folder} is not empty and is not a worktree. Move what is in it, then start again.", null);
-        }
-
-        if (listed.FirstOrDefault(each => string.Equals(each.Branch, branch, StringComparison.Ordinal)) is { } elsewhere)
-        {
-            return ($"{branch} is already checked out at {elsewhere.Folder}, so it cannot also be at {folder}.", null);
         }
 
         if (Exists(clone, $"refs/heads/{branch}"))

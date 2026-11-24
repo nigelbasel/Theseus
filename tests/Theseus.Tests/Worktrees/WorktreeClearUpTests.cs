@@ -67,6 +67,23 @@ public class WorktreeClearUpTests
     }
 
     [Test]
+    public void AnIgnoredFileThatIsNotBuildOutput_KeepsTheWorktree()
+    {
+        File.WriteAllText(Path.Combine(Folder("alpha"), "settings.local.json"), "{}");
+
+        Assert.That(Find().Kept.Select(each => each.Repo), Is.EqualTo(new[] { "alpha" }));
+    }
+
+    [Test]
+    public void IgnoredBuildOutput_DoesNotKeepTheWorktree()
+    {
+        Directory.CreateDirectory(Path.Combine(Folder("alpha"), "bin"));
+        File.WriteAllText(Path.Combine(Folder("alpha"), "bin", "app.dll"), "built");
+
+        Assert.That(Find().Clean.Select(each => each.Repo), Is.EqualTo(new[] { "alpha", "beta" }));
+    }
+
+    [Test]
     public void AWorktreeAnotherCardUses_IsNotListed()
     {
         var found = new WorktreeClearUp(_scratch.Git).Find(_scratch.Worktrees, "feature", Branch,

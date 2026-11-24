@@ -9,15 +9,26 @@ namespace Theseus.Core.Worktrees;
 /// </summary>
 public sealed class GitProcess : IGit
 {
-    private readonly TimeSpan _cap;
+    private readonly TimeSpan _queryCap;
+    private readonly TimeSpan _changeCap;
 
-    /// <summary>Creates a runner whose calls are each stopped after <paramref name="cap"/>; 60 s when not given.</summary>
-    public GitProcess(TimeSpan? cap = null) => _cap = cap ?? TimeSpan.FromSeconds(60);
+    /// <summary>
+    /// Creates a runner. A query is stopped after <paramref name="queryCap"/>, 60 s when not given. Making or removing a
+    /// worktree gets <paramref name="changeCap"/>, 10 minutes when not given: a large checkout stopped half way leaves a
+    /// worktree git has registered but not filled (review of worktree-per-repo, finding 4).
+    /// </summary>
+    public GitProcess(TimeSpan? queryCap = null, TimeSpan? changeCap = null)
+    {
+        _queryCap = queryCap ?? TimeSpan.FromSeconds(60);
+        _changeCap = changeCap ?? TimeSpan.FromMinutes(10);
+    }
 
     /// <inheritdoc />
     public GitResult Run(string workingDirectory, params string[] arguments)
     {
         ArgumentNullException.ThrowIfNull(arguments);
+
+        var cap = IsChange(arguments) ? _changeCap : _queryCap;
 
         try
         {
@@ -48,12 +59,15 @@ public sealed class GitProcess : IGit
             var output = git.StandardOutput.ReadToEndAsync();
             var error = git.StandardError.ReadToEndAsync();
 
-            if (!git.WaitForExit(_cap))
+            if (!git.WaitForExit(cap))
             {
                 git.Kill(entireProcessTree: true);
-                TheseusLog.Warning("git {Arguments} in {Folder} was stopped after {Cap}", string.Join(' ', arguments), workingDirectory, _cap);
+                TheseusLog.Warning("git {Arguments} in {Folder} was stopped after {Cap}", string.Join(' ', arguments), workingDirectory, cap);
 
-                return new GitResult(-1, string.Empty, $"git {arguments.FirstOrDefault()} took longer than {_cap.TotalSeconds:0} s and was stopped");
+                return new GitResult(-1, string.Empty, $"git {string.Join(' ', arguments.Take(2))} took longer than {cap.TotalSeconds:0} s and was stopped")
+                {
+                    TimedOut = true,
+                };
             }
 
             return new GitResult(git.ExitCode, output.GetAwaiter().GetResult(), error.GetAwaiter().GetResult());
@@ -65,5 +79,12 @@ public sealed class GitProcess : IGit
 
             return new GitResult(-1, string.Empty, $"git could not run: {exception.Message}");
         }
+    }
+
+    private static bool IsChange(string[] arguments)
+    {
+        var at = Array.IndexOf(arguments, "worktree");
+
+        return at >= 0 && at + 1 < arguments.Length && arguments[at + 1] is "add" or "remove";
     }
 }

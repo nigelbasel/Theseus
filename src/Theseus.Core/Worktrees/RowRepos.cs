@@ -13,7 +13,8 @@ public static class RowRepos
 
     /// <summary>
     /// The repos, in the row's order. The project's home is left out: a Repos row whose role is home, or an entry that is
-    /// the project's own folder name, as a lead's row writes its home (a lead row naming its project's folder).
+    /// the project's own folder name and matches no Repos row, as a lead's row writes its home. A project may share its
+    /// code repo's name, as Theseus does, and then the Repos row says it is code.
     /// </summary>
     public static IReadOnlyList<RowRepo> For(string? reposCell, string? projectText, string? projectName = null)
     {
@@ -25,7 +26,7 @@ public static class RowRepos
             var row = table.FirstOrDefault(each => each.Match(entry) is not null);
 
             if (row is { IsHome: true }
-                || (projectName is not null && string.Equals(entry, projectName, StringComparison.OrdinalIgnoreCase)))
+                || (row is null && projectName is not null && string.Equals(entry, projectName, StringComparison.OrdinalIgnoreCase)))
             {
                 continue;
             }
