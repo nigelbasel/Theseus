@@ -4,6 +4,8 @@
         Title="Instructions and skills"
         Width="820"
         Height="760"
+        MinWidth="560"
+        MinHeight="400"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False"
         ResizeMode="CanResize"
@@ -16,7 +18,7 @@
             the point of looking.
         -->
         <DataTemplate x:Key="RowTemplate">
-            <Border Padding="0,7" Margin="{Binding Indent}" BorderThickness="0,0,0,1"
+            <Border Padding="0,8" Margin="{Binding Indent}" BorderThickness="0,0,0,1"
                     BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
                 <Border.Style>
                     <Style TargetType="Border">
@@ -30,26 +32,28 @@
                 </Border.Style>
                 <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="130" />
+                        <ColumnDefinition Width="132" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <TextBlock Grid.Column="0" Text="{Binding Badge}" FontSize="11" Margin="0,2,10,0"
+                    <TextBlock Grid.Column="0" Text="{Binding Badge}" Style="{DynamicResource CaptionText}" Margin="0,0,12,0"
                                TextWrapping="Wrap"
-                               Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
 
                     <StackPanel Grid.Column="1">
                         <TextBlock Text="{Binding Title}" FontSize="12"
                                    FontFamily="Cascadia Mono, Consolas, monospace"
                                    TextTrimming="CharacterEllipsis" ToolTip="{Binding Path}" />
-                        <TextBlock Text="{Binding Detail}" FontSize="11.5" Margin="0,2,0,0" TextWrapping="Wrap"
+                        <TextBlock Text="{Binding Detail}" Style="{DynamicResource CaptionText}" Margin="0,4,0,0" TextWrapping="Wrap"
                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                     </StackPanel>
 
-                    <Button Grid.Column="2" Content="Open" Padding="10,2" FontSize="11" Margin="10,0,0,0"
+                    <!-- Opening a file outside Theseus is a link (W12); no access key, since every row has one (W26). -->
+                    <Button Grid.Column="2" Content="Open" Style="{DynamicResource LinkButton}" Margin="12,0,0,0"
                             VerticalAlignment="Top"
-                            ToolTip="Open this file in VS Code"
+                            ToolTip="Open this file in VS Code."
+                            AutomationProperties.Name="{Binding Title, StringFormat=Open {0}}"
                             Command="{Binding DataContext.OpenFileCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                             CommandParameter="{Binding Path}" />
                 </Grid>
@@ -57,20 +61,26 @@
         </DataTemplate>
     </Window.Resources>
 
-    <DockPanel>
-        <Border DockPanel.Dock="Top" Padding="20,14"
+    <!-- Rows in reading order, so Tab goes from the lists to the footer (B2, W43). -->
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Border Padding="24,16"
                 Background="{DynamicResource LayerFillColorDefaultBrush}"
                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                 BorderThickness="0,0,0,1">
             <StackPanel>
-                <TextBlock Text="{Binding Heading}" FontSize="16" FontWeight="SemiBold"
+                <TextBlock Text="{Binding Heading}" Style="{DynamicResource BodyLargeText}" FontWeight="SemiBold"
                            TextTrimming="CharacterEllipsis" />
-                <TextBlock Text="{Binding Summary}" FontSize="12" Margin="0,6,0,0" TextWrapping="Wrap"
+                <TextBlock Text="{Binding Summary}" Style="{DynamicResource CaptionText}" Margin="0,8,0,0" TextWrapping="Wrap"
                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                <TextBlock FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"
-                           Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                <TextBlock Style="{DynamicResource ExplanationText}" Margin="0,8,0,0"
                            Text="Instruction files never override one another: every one is read, broadest first, so a file nearer the work is read later. Skills, commands and agents do override by name. Worked out from Claude Code's documentation; /context in a session shows what actually loaded." />
-                <ProgressBar IsIndeterminate="True" Height="3" Margin="0,10,0,0">
+                <ProgressBar IsIndeterminate="True" Height="3" Margin="0,12,0,0">
                     <ProgressBar.Style>
                         <Style TargetType="ProgressBar">
                             <Setter Property="Visibility" Value="Collapsed" />
@@ -85,30 +95,33 @@
             </StackPanel>
         </Border>
 
-        <Border DockPanel.Dock="Bottom" Padding="20,12"
-                Background="{DynamicResource LayerFillColorDefaultBrush}"
-                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
-                BorderThickness="0,1,0,0">
-            <Grid>
-                <CheckBox Content="List plugin skills, commands and agents too" VerticalAlignment="Center"
-                          IsChecked="{Binding ShowPluginItems, Mode=TwoWay}"
-                          ToolTip="Plugins can bring hundreds. Each is prefixed with its plugin's name, so none of them takes another's." />
-                <Button Content="Close" Padding="18,5" HorizontalAlignment="Right" IsCancel="True" IsDefault="True"
-                        Command="{Binding CloseCommand}" />
-            </Grid>
-        </Border>
-
-        <TabControl Margin="12,10,12,0" Background="Transparent" BorderThickness="0">
-            <TabItem Header="Instruction files">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="8,4">
-                    <ItemsControl ItemsSource="{Binding Files}" ItemTemplate="{StaticResource RowTemplate}" />
+        <TabControl x:Name="Tabs" Grid.Row="1" Margin="12,12,12,0" Background="Transparent" BorderThickness="0">
+            <TabItem x:Name="FilesTab" Header="Instruction files">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="8,4" Focusable="False">
+                    <ItemsControl ItemsSource="{Binding Files}" ItemTemplate="{StaticResource RowTemplate}" Focusable="False" />
                 </ScrollViewer>
             </TabItem>
             <TabItem Header="Skills, commands and agents">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="8,4">
-                    <ItemsControl ItemsSource="{Binding Commands}" ItemTemplate="{StaticResource RowTemplate}" />
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="8,4" Focusable="False">
+                    <ItemsControl ItemsSource="{Binding Commands}" ItemTemplate="{StaticResource RowTemplate}" Focusable="False" />
                 </ScrollViewer>
             </TabItem>
         </TabControl>
-    </DockPanel>
+
+        <Border Grid.Row="2" Padding="24,12"
+                Background="{DynamicResource LayerFillColorDefaultBrush}"
+                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                BorderThickness="0,1,0,0">
+            <!-- The plugin items apply the moment they are switched, so a toggle switch, not a check box (D3, W40). -->
+            <DockPanel x:Name="Footer" LastChildFill="False">
+                <ToggleButton x:Name="PluginItems" DockPanel.Dock="Left" Content="_Plugin items" Style="{DynamicResource ToggleSwitch}"
+                              VerticalAlignment="Center"
+                              IsChecked="{Binding ShowPluginItems, Mode=TwoWay}"
+                              ToolTip="Plugin items: list plugin skills, commands and agents too. Plugins can bring hundreds; each is prefixed with its plugin's name, so none of them takes another's." />
+                <Button x:Name="CloseButton" DockPanel.Dock="Right" Content="Close" Style="{DynamicResource DialogButton}"
+                        IsCancel="True" IsDefault="True"
+                        Command="{Binding CloseCommand}" />
+            </DockPanel>
+        </Border>
+    </Grid>
 </Window>
