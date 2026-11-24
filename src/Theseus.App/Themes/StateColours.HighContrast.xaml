@@ -41,5 +41,5 @@
     <!-- A flyout's edge is drawn at 2 so it stands clear of the window behind it (G163). -->
     <Thickness x:Key="FlyoutBorderThickness">2</Thickness>
     <!-- No band of light over a working card's banner: the banner's words say it is working (W47). -->
-    <SolidColorBrush x:Key="SheenBrush" Color="Transparent" />
+    <SolidColorBrush x:Key="SheenBrush" Color="{x:Static SystemColors.WindowColor}" Opacity="0" />
 </ResourceDictionary>

@@ -485,7 +485,7 @@
                                   ToolTip="{Binding OpenToolTip}"
                                   Visibility="{Binding IsDimmed, Converter={StaticResource BoolToVisibility}}" />
                         <MenuItem Header="_Not a project" Command="{Binding HideCommand}"
-                                  ToolTip="Hide this folder's card: it is not a project. Tools &gt; Options lists it, to show it again"
+                                  ToolTip="Hide this folder's card: it is not a project. Tools &gt; Options lists it, to show it again."
                                   Visibility="{Binding IsDimmed, Converter={StaticResource BoolToVisibility}}" />
                         <MenuItem Header="_Start" Command="{Binding StartCommand}" ToolTip="{Binding StartToolTip}"
                                   ToolTipService.ShowOnDisabled="True"
@@ -499,15 +499,15 @@
                         </MenuItem>
                         <Separator />
                         <MenuItem Header="Project p_roperties" Command="{Binding PropertiesCommand}"
-                                  ToolTip="Its title, its colour, its tags and its project.md; the colour can be changed here" />
+                                  ToolTip="Its title, its colour, its tags and its project.md; the colour can be changed here." />
                         <MenuItem Header="T_ags" ItemsSource="{Binding TagMenu}" ItemContainerStyle="{StaticResource TagMenuItem}"
-                                  ToolTip="Put a tag on this card, or the selected cards, or take one off" />
+                                  ToolTip="Put a tag on this card, or the selected cards, or take one off." />
                         <MenuItem Header="Open project._md" Command="{Binding OpenFileCommand}"
-                                  ToolTip="Open the project's file in its editor"
+                                  ToolTip="Open the project's file in its editor."
                                   Visibility="{Binding IsDimmed, Converter={StaticResource NotBoolToVisibility}}" />
                         <MenuItem Header="Add o_bjective…" Command="{Binding AddObjectiveCommand}"
                                   Visibility="{Binding IsDimmed, Converter={StaticResource NotBoolToVisibility}}"
-                                  ToolTip="Add an objective at the end of the current phase in project.md" />
+                                  ToolTip="Add an objective at the end of the current phase in project.md." />
                     </ContextMenu>
                 </Border.ContextMenu>
                 <Grid>
@@ -523,11 +523,11 @@
                         <DockPanel>
                             <Border DockPanel.Dock="Right" CornerRadius="9" Padding="8,0" MinWidth="18" Margin="8,0,0,0"
                                     VerticalAlignment="Center"
-                                    Background="{DynamicResource AccentFillColorDefaultBrush}"
+                                    Background="{DynamicResource StateWaitingSoftBrush}"
                                     ToolTip="{Binding WaitingText}"
                                     Visibility="{Binding HasBadge, Converter={StaticResource BoolToVisibility}}">
-                                <TextBlock Text="{Binding CountText}" FontSize="14" FontWeight="SemiBold" HorizontalAlignment="Center"
-                                           Foreground="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+                                <TextBlock Text="{Binding CountText}" FontSize="12" HorizontalAlignment="Center"
+                                           Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                             </Border>
                             <controls:StackedCardMark x:Name="ProjectMark" Margin="0,0,8,0" VerticalAlignment="Center"
                                                       Foreground="{Binding ColourHex, Converter={StaticResource HexToBrush}}" />
@@ -535,13 +535,13 @@
                                        Margin="8,0,0,0" VerticalAlignment="Center" />
                             <TextBlock x:Name="ProjectTitle" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"
                                        controls:HighlightedText.Text="{Binding Title}" controls:HighlightedText.Spans="{Binding TitleHighlights}"
-                                       TextTrimming="CharacterEllipsis" ToolTip="{Binding Title}"
+                                       TextTrimming="CharacterEllipsis" ToolTip="{Binding Title}" behaviors:TrimmedToolTip.IsEnabled="True"
                                        Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                         </DockPanel>
                         <!-- A search that matches its cards says so, since they are not on the board (card-search-and-tags item 7). -->
                         <TextBlock x:Name="ProjectMatchesInside" Text="{Binding MatchesInsideText}" FontSize="14" FontWeight="SemiBold" Margin="0,4,0,0"
-                                   ToolTip="Open the project to see its matching pieces of work highlighted"
-                                   Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
+                                   ToolTip="Open the project to see its matching pieces of work highlighted."
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                    Visibility="{Binding MatchesInsideText, Converter={StaticResource NotEmptyToVisibility}}" />
                         <!-- Its tags, at most three then "+2"; clicking one filters the board by it (card-search-and-tags items 11, 12). -->
                         <WrapPanel x:Name="ProjectTags" Margin="0,4,0,0" Visibility="{Binding HasTags, Converter={StaticResource BoolToVisibility}}">
@@ -565,18 +565,18 @@
                                        Visibility="{Binding MoreTags, Converter={StaticResource NotEmptyToVisibility}}" />
                         </WrapPanel>
                         <TextBlock Text="{Binding PhaseText}" FontSize="12" Margin="0,4,0,0" TextTrimming="CharacterEllipsis"
-                                   ToolTip="{Binding PhaseText}"
+                                   ToolTip="{Binding PhaseText}" behaviors:TrimmedToolTip.IsEnabled="True"
                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                         <TextBlock Text="{Binding ObjectivesText}" FontSize="12" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"
                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                         <!-- Where it is, on one line: the view's sentence, whole in its tooltip (1.1d AC 39). -->
                         <TextBlock x:Name="ProjectSentence" Text="{Binding Sentence}" FontSize="12" Margin="0,4,0,0"
-                                   TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTip="{Binding Sentence}"
+                                   TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTip="{Binding Sentence}" behaviors:TrimmedToolTip.IsEnabled="True"
                                    Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                                    Visibility="{Binding HasSentence, Converter={StaticResource BoolToVisibility}}" />
                         <!-- A stopped project keeps its run state and says so (1.1e AC 8). -->
                         <TextBlock x:Name="ProjectStopped" Text="⏸ Project stopped" FontSize="12" Margin="0,4,0,0"
-                                   ToolTip="Start brings back the cards that were running when it was stopped"
+                                   ToolTip="Start brings back the cards that were running when it was stopped."
                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                    Visibility="{Binding IsStopped, Converter={StaticResource BoolToVisibility}}" />
                         <ItemsControl x:Name="ProjectCounts" ItemsSource="{Binding Counts}" Margin="0,8,0,0" Focusable="False"
@@ -776,11 +776,11 @@
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="Foreground"
-                                                Value="{DynamicResource TextFillColorTertiaryBrush}" />
+                                                Value="{DynamicResource TextFillColorSecondaryBrush}" />
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding IsLive}" Value="True">
                                                 <Setter Property="Foreground"
-                                                        Value="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+                                                        Value="{DynamicResource StateBusyBrush}" />
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
@@ -793,7 +793,6 @@
                             <TextBlock FontSize="14"
                                        controls:HighlightedText.Text="{Binding Title}" controls:HighlightedText.Spans="{Binding TitleHighlights}"
                                        VerticalAlignment="Center" Style="{StaticResource SearchableTitle}"
-                                       ToolTip="{Binding Title}"
                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                         </DockPanel>
 
@@ -847,7 +846,6 @@
                                        controls:HighlightedText.Text="{Binding Title}" controls:HighlightedText.Spans="{Binding TitleHighlights}"
                                        FontWeight="SemiBold" VerticalAlignment="Center"
                                        Style="{StaticResource SearchableTitle}" Margin="0,0,8,0"
-                                       ToolTip="{Binding Title}"
                                        Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                             <TextBlock Grid.Column="2" VerticalAlignment="Center"
                                        Text="{Binding Lifecycle, Converter={StaticResource LifecycleGlyph}}"
@@ -855,11 +853,11 @@
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="Foreground"
-                                                Value="{DynamicResource TextFillColorTertiaryBrush}" />
+                                                Value="{DynamicResource TextFillColorSecondaryBrush}" />
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding IsLive}" Value="True">
                                                 <Setter Property="Foreground"
-                                                        Value="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+                                                        Value="{DynamicResource StateBusyBrush}" />
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
@@ -1009,8 +1007,8 @@
                         </WrapPanel>
 
                         <TextBlock FontSize="12" TextTrimming="CharacterEllipsis"
-                                   Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
-                                   ToolTip="{Binding TodoSummary}"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                   ToolTip="{Binding TodoSummary}" behaviors:TrimmedToolTip.IsEnabled="True"
                                    Text="{Binding TodoSummary}"
                                    Visibility="{Binding TodoSummary, Converter={StaticResource NotEmptyToVisibility}}" />
 
@@ -1043,7 +1041,7 @@
                         -->
                         <TextBlock FontSize="12" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"
                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                   ToolTip="{Binding RunningAs}"
+                                   ToolTip="{Binding RunningAs}" behaviors:TrimmedToolTip.IsEnabled="True"
                                    Text="{Binding RunningAs}"
                                    Visibility="{Binding RunningAs, Converter={StaticResource NotEmptyToVisibility}}" />
 
@@ -1054,7 +1052,7 @@
                         -->
                         <TextBlock FontSize="12" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"
                                    Foreground="{DynamicResource CautionTextBrush}"
-                                   ToolTip="{Binding Clash}"
+                                   ToolTip="{Binding Clash}" behaviors:TrimmedToolTip.IsEnabled="True"
                                    Text="{Binding Clash}"
                                    Visibility="{Binding Clash, Converter={StaticResource NotEmptyToVisibility}}" />
 
@@ -1064,7 +1062,7 @@
                         -->
                         <TextBlock FontSize="12" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"
                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                   ToolTip="{Binding LinkedShare}"
+                                   ToolTip="{Binding LinkedShare}" behaviors:TrimmedToolTip.IsEnabled="True"
                                    Text="{Binding LinkedShare}"
                                    Visibility="{Binding LinkedShare, Converter={StaticResource NotEmptyToVisibility}}" />
 
@@ -1165,13 +1163,13 @@
                                Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                     <TextBlock Text="{Binding LiveCount, StringFormat='&#x25CF; {0}'}" FontSize="12" Margin="0,4,0,0"
                                HorizontalAlignment="Center"
-                               Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
+                               Foreground="{DynamicResource StateBusyBrush}"
                                Visibility="{Binding LiveCount, Converter={StaticResource CountToVisibility}}" />
                     <!-- A match folded away shows without unfolding anything (card-search-and-tags item 4). -->
                     <StackPanel x:Name="FoldedMatches" Margin="0,8,0,0" HorizontalAlignment="Center"
                                 Visibility="{Binding MatchText, Converter={StaticResource NotEmptyToVisibility}}">
                         <TextBlock Text="{Binding MatchText}" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap" TextAlignment="Center"
-                                   MaxWidth="40" Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+                                   MaxWidth="40" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                         <Border Width="4" Height="24" Margin="0,4,0,0" CornerRadius="2" HorizontalAlignment="Center"
                                 Background="{DynamicResource SearchHighlightBrush}" />
                     </StackPanel>
@@ -1304,7 +1302,7 @@
                             <TextBlock Text="{Binding LiveText, StringFormat='  &#x25CF; {0}'}" FontSize="12"
                                        VerticalAlignment="Center"
                                        ToolTip="Cards in this row with a session running"
-                                       Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}">
+                                       Foreground="{DynamicResource StateBusyBrush}">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="Visibility" Value="Collapsed" />
@@ -1324,11 +1322,10 @@
                         </StackPanel>
                         <TextBlock Text="{Binding Area}" FontSize="14" FontWeight="SemiBold"
                                    TextWrapping="Wrap" Margin="0,8,0,0"
-                                   ToolTip="{Binding Area}"
                                    Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                         <TextBlock x:Name="RowMatchText" Text="{Binding MatchText}" FontSize="14" FontWeight="SemiBold" Margin="0,4,0,0"
                                    ToolTip="Cards in this row the search matches"
-                                   Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}">
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="Visibility" Value="Collapsed" />
@@ -1363,7 +1360,7 @@
                                     <Border CornerRadius="4" Padding="8,0" Margin="0,0,8,4"
                                             Background="{DynamicResource SearchHighlightBrush}">
                                         <TextBlock Text="{Binding Title}" FontSize="12" MaxWidth="220" TextTrimming="CharacterEllipsis"
-                                                   ToolTip="{Binding Title}"
+                                                   ToolTip="{Binding Title}" behaviors:TrimmedToolTip.IsEnabled="True"
                                                    Foreground="{DynamicResource SearchHighlightTextBrush}" />
                                     </Border>
                                 </DataTemplate>
@@ -1413,12 +1410,12 @@
                                TextTrimming="CharacterEllipsis"
                                Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                     <TextBlock Text="{Binding StatusLine}" FontSize="12" Margin="0,2,0,0"
-                               TextTrimming="CharacterEllipsis" ToolTip="{Binding StatusLine}"
+                               TextTrimming="CharacterEllipsis" ToolTip="{Binding StatusLine}" behaviors:TrimmedToolTip.IsEnabled="True"
                                Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
 
                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                         <Button Content="Focus" FontSize="12" Padding="8,4" Margin="0,0,8,0"
-                                ToolTip="Bring this session's terminal to the front"
+                                ToolTip="Focus: bring the session's window forward."
                                 Command="{Binding DataContext.Sessions.FocusCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                 CommandParameter="{Binding}" />
                         <Button x:Name="AdoptButton" Style="{StaticResource ItemDropDown}"
@@ -1902,10 +1899,10 @@
                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                                 <RadioButton x:Name="TagsAny" Content="Any" GroupName="TagMatch" IsChecked="{Binding IsAny, Mode=TwoWay}"
                                              controls:SelectorBar.SelectsOnFocus="True"
-                                             ToolTip="Show cards with any of the ticked tags" Margin="0,0,8,0" />
+                                             ToolTip="Show cards with any of the ticked tags." Margin="0,0,8,0" />
                                 <RadioButton x:Name="TagsAll" Content="All" GroupName="TagMatch" IsChecked="{Binding IsAll, Mode=TwoWay}"
                                              controls:SelectorBar.SelectsOnFocus="True"
-                                             ToolTip="Show only cards with every ticked tag" />
+                                             ToolTip="Show only cards with every ticked tag." />
                             </StackPanel>
                             <TextBlock DockPanel.Dock="Top" FontSize="12" TextWrapping="Wrap" MaxWidth="260"
                                        Text="No card has a tag yet. Add one from a card's menu, Tags, or its Properties."
@@ -2120,7 +2117,7 @@
                                                 <WrapPanel Margin="0,8,0,0"
                                                            Visibility="{Binding IsRejecting, Converter={StaticResource NotBoolToVisibility}}">
                                                     <Button Content="Review…" FontSize="12" Padding="8,4" Margin="0,0,8,0"
-                                                            ToolTip="Open the proposal: Approve makes its card, Reject… turns it down"
+                                                            ToolTip="Open the proposal: Approve makes its card, Reject… turns it down."
                                                             Command="{Binding ReviewCommand}" />
                                                     <Button Content="Open brief" FontSize="12" Padding="8,4" Margin="0,0,8,0"
                                                             Command="{Binding OpenBriefCommand}" />
@@ -2180,7 +2177,7 @@
                                                             Command="{Binding OpenReportCommand}"
                                                             Visibility="{Binding IsReported, Converter={StaticResource BoolToVisibility}}" />
                                                     <Button Content="Confirm report…" FontSize="12" Padding="8,4" Margin="0,0,8,0"
-                                                            ToolTip="Accept the report, which satisfies the link"
+                                                            ToolTip="Accept the report, which satisfies the link."
                                                             Command="{Binding ConfirmCommand}"
                                                             Visibility="{Binding IsReported, Converter={StaticResource BoolToVisibility}}" />
                                                     <Button Content="Not yet" FontSize="12" Padding="8,4" Margin="0,0,8,0"
@@ -2192,7 +2189,7 @@
                                                                VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                                                Visibility="{Binding SetAsideText, Converter={StaticResource NotEmptyToVisibility}}" />
                                                     <Button Content="Reject…" FontSize="12" Padding="8,4" Margin="0,0,8,0"
-                                                            ToolTip="Say why, then the report never satisfies the link and leaves this list; a new report can still be confirmed"
+                                                            ToolTip="Say why, then the report never satisfies the link and leaves this list; a new report can still be confirmed."
                                                             Command="{Binding AskRejectCommand}"
                                                             Visibility="{Binding IsReported, Converter={StaticResource BoolToVisibility}}" />
                                                     <Button Content="Open handoff" FontSize="12" Padding="8,4" Margin="0,0,8,0"
@@ -2556,10 +2553,10 @@
                                                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                                                                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                                                                         <Button Style="{StaticResource CommandButton}" Content="Move up" Margin="0,0,8,0"
-                                                                                ToolTip="Move one place towards the front"
+                                                                                ToolTip="Move one place towards the front."
                                                                                 Command="{Binding MoveUpCommand}" />
                                                                         <Button Style="{StaticResource CommandButton}" Content="Move down" Margin="0,0,8,0"
-                                                                                ToolTip="Move one place back"
+                                                                                ToolTip="Move one place back."
                                                                                 Command="{Binding MoveDownCommand}" />
                                                                         <Button Style="{StaticResource CommandButton}" Content="Cancel request"
                                                                                 ToolTip="Take it out of the queue. Its script is told it was cancelled."
@@ -2613,7 +2610,7 @@
                                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                                                     <Button Style="{StaticResource CommandButton}" Content="Remove…" Margin="0,8,0,0"
                                                             HorizontalAlignment="Left"
-                                                            ToolTip="Stop and delete this container"
+                                                            ToolTip="Stop and delete this container."
                                                             Command="{Binding AskRemoveCommand}"
                                                             Visibility="{Binding CanAskRemove, Converter={StaticResource BoolToVisibility}}" />
                                                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0"
@@ -2659,13 +2656,13 @@
                         AutomationProperties.HelpText="Shows the recent notices"
                         Visibility="{Binding Notice, Converter={StaticResource NotEmptyToVisibility}}">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="&#xE946;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="12" Margin="0,0,8,0"
+                        <controls:GlyphText Text="&#xE946;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="12" Margin="0,0,8,0"
                                    VerticalAlignment="Center"
-                                   Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                         <TextBlock Text="{Binding Notice}" FontSize="12" TextTrimming="CharacterEllipsis"
                                    VerticalAlignment="Center"
                                    Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                        <TextBlock Text="&#xE70D;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="8" Margin="8,0,0,0"
+                        <controls:GlyphText Text="&#xE70D;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="8" Margin="8,0,0,0"
                                    VerticalAlignment="Center"
                                    Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
                     </StackPanel>
@@ -2701,7 +2698,7 @@
                                Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                     <Button x:Name="IncludeArchived" Style="{StaticResource CommandButton}" Content="Include _archived" FontSize="12"
                             Padding="8,0" Margin="8,4,0,4" VerticalAlignment="Center"
-                            ToolTip="Show the archive, keeping the search: an archived card matches it"
+                            ToolTip="Show the archive, keeping the search: an archived card matches it."
                             Command="{Binding IncludeArchivedCommand}"
                             Visibility="{Binding Board.Search.ShowsIncludeArchived, Converter={StaticResource BoolToVisibility}}" />
                     <TextBlock FontSize="12" Margin="12,0,0,0" VerticalAlignment="Center"
@@ -2761,7 +2758,7 @@
 
                     <TextBlock Text="{Binding Usage.Problem}" FontSize="12" Margin="16,0,0,0"
                                VerticalAlignment="Center" MaxWidth="360" TextTrimming="CharacterEllipsis"
-                               ToolTip="{Binding Usage.Problem}"
+                               ToolTip="{Binding Usage.Problem}" behaviors:TrimmedToolTip.IsEnabled="True"
                                Visibility="{Binding Usage.Problem, Converter={StaticResource NotEmptyToVisibility}}"
                                Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
 
@@ -2815,7 +2812,7 @@
                 -->
                 <Border DockPanel.Dock="Top" Margin="4,0,4,8" Padding="12,8" CornerRadius="4"
                         Background="{DynamicResource LayerFillColorDefaultBrush}"
-                        BorderBrush="{DynamicResource AccentFillColorDefaultBrush}"
+                        BorderBrush="{DynamicResource ControlStrongStrokeColorDefaultBrush}"
                         BorderThickness="1"
                         Visibility="{Binding HasUnconfirmedStops, Converter={StaticResource BoolToVisibility}}">
                     <DockPanel>
@@ -2823,10 +2820,10 @@
                                     VerticalAlignment="Center" Margin="12,0,0,0">
                             <Button Style="{StaticResource CommandButton}" Content="Close the_m"
                                     Margin="0,0,8,0"
-                                    ToolTip="Finish the stop: each session is told to exit"
+                                    ToolTip="Finish the stop: each session is told to exit."
                                     Command="{Binding ConfirmStopsCommand}" />
                             <Button Style="{StaticResource CommandButton}" Content="Leave them running"
-                                    ToolTip="Drop the request and carry on"
+                                    ToolTip="Drop the request and carry on."
                                     Command="{Binding AbandonStopsCommand}" />
                         </StackPanel>
 
@@ -2843,7 +2840,7 @@
                 -->
                 <Border DockPanel.Dock="Top" Margin="4,0,4,8" Padding="12,8" CornerRadius="4"
                         Background="{DynamicResource LayerFillColorDefaultBrush}"
-                        BorderBrush="{DynamicResource AccentFillColorDefaultBrush}"
+                        BorderBrush="{DynamicResource ControlStrongStrokeColorDefaultBrush}"
                         BorderThickness="1"
                         Visibility="{Binding HasHeldForInputs, Converter={StaticResource BoolToVisibility}}">
                     <DockPanel>
@@ -2851,10 +2848,10 @@
                                     VerticalAlignment="Center" Margin="12,0,0,0">
                             <Button Style="{StaticResource CommandButton}" Content="Start without their i_nputs"
                                     Margin="0,0,8,0"
-                                    ToolTip="Start them anyway, before what they wait on has been accepted"
+                                    ToolTip="Start them anyway, before what they wait on has been accepted."
                                     Command="{Binding StartWithoutInputsCommand}" />
                             <Button Style="{StaticResource CommandButton}" Content="Skip them"
-                                    ToolTip="Leave them unstarted until their inputs are accepted"
+                                    ToolTip="Leave them unstarted until their inputs are accepted."
                                     Command="{Binding SkipWaitingCommand}" />
                         </StackPanel>
 
@@ -2872,7 +2869,7 @@
                         Visibility="{Binding IsOn, Converter={StaticResource BoolToVisibility}}">
                     <DockPanel>
                         <TextBlock Text="{Binding FilteredLine}" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"
-                                   TextTrimming="CharacterEllipsis" ToolTip="{Binding FilteredLine}"
+                                   TextTrimming="CharacterEllipsis" ToolTip="{Binding FilteredLine}" behaviors:TrimmedToolTip.IsEnabled="True"
                                    Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                     </DockPanel>
                 </Border>
@@ -2934,7 +2931,7 @@
                                     <TextBlock DockPanel.Dock="Right" FontSize="12" Margin="0,0,8,0" VerticalAlignment="Center"
                                                Text="{Binding LiveCount, StringFormat='&#x25CF; {0}'}"
                                                ToolTip="Cards in this stage with a session running"
-                                               Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}">
+                                               Foreground="{DynamicResource StateBusyBrush}">
                                         <TextBlock.Style>
                                             <Style TargetType="TextBlock">
                                                 <Setter Property="Visibility" Value="Collapsed" />
@@ -2974,7 +2971,7 @@
                                     </TextBlock>
                                     <TextBlock Text="{Binding Stage}" FontSize="14" FontWeight="SemiBold"
                                                Margin="4,0,0,0" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
-                                               ToolTip="{Binding Stage}"
+                                               ToolTip="{Binding Stage}" behaviors:TrimmedToolTip.IsEnabled="True"
                                                Visibility="{Binding IsCollapsed, Converter={StaticResource NotBoolToVisibility}}"
                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                                 </DockPanel>
@@ -3103,16 +3100,16 @@
                                                     Command="{Binding StartCardCommand}"
                                                     CommandParameter="{Binding Drawer.Card}" />
                                             <Button Content="_Stop" Padding="12,4" Margin="0,0,8,0"
-                                                    ToolTip="Ask this session to write a handoff and exit when its turn ends"
+                                                    ToolTip="Ask this session to write a handoff and exit when its turn ends."
                                                     Visibility="{Binding Drawer.Card.ShowStop, Converter={StaticResource BoolToVisibility}}"
                                                     Command="{Binding StopCardCommand}"
                                                     CommandParameter="{Binding Drawer.Card}" />
                                             <Button Content="Focus" Padding="12,4" Margin="0,0,8,0"
-                                                    ToolTip="Bring this session's tab to the front"
+                                                    ToolTip="Focus: bring the session's window forward."
                                                     Command="{Binding FocusCardCommand}"
                                                     CommandParameter="{Binding Drawer.Card}" />
                                             <Button Content="Spawn follow-on…" Padding="12,4"
-                                                    ToolTip="Create a new card this one hands over to, in the same working directory"
+                                                    ToolTip="Create a new card this one hands over to, in the same working directory."
                                                     Command="{Binding SpawnFollowOnCommand}"
                                                     CommandParameter="{Binding Drawer.Card}" />
                                         </StackPanel>
@@ -3139,7 +3136,7 @@
 
                                         <TextBlock Text="Chain" Style="{StaticResource FieldLabel}" />
                                         <Button Padding="0" HorizontalAlignment="Left" Background="Transparent"
-                                                BorderThickness="0" Cursor="Hand" ToolTip="Show this card's links"
+                                                BorderThickness="0" Cursor="Hand" ToolTip="Show this card's links."
                                                 Command="{Binding Drawer.ShowLinksCommand}">
                                             <TextBlock FontSize="12" TextWrapping="Wrap"
                                                        Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}">
@@ -3214,7 +3211,7 @@
                                             </ItemsControl>
                                             <Grid Margin="0,4,0,0">
                                                 <TextBox Text="{Binding NewTag, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,60,0"
-                                                         AutomationProperties.Name="New tag" ToolTip="A tag: letters, digits and hyphens. Enter adds it">
+                                                         AutomationProperties.Name="New tag" ToolTip="A tag: letters, digits and hyphens. Enter adds it.">
                                                     <TextBox.InputBindings>
                                                         <KeyBinding Key="Return" Command="{Binding EnterCommand}" />
                                                     </TextBox.InputBindings>
@@ -3269,7 +3266,7 @@
                                                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                                                             <Button Padding="0" HorizontalAlignment="Left" Background="Transparent"
                                                                     BorderThickness="0" Cursor="Hand"
-                                                                    ToolTip="Open this card's details"
+                                                                    ToolTip="Open this card's details."
                                                                     Command="{Binding ShowOtherCommand}">
                                                                 <TextBlock Text="{Binding OtherTitle}" FontSize="14"
                                                                            TextTrimming="CharacterEllipsis"
@@ -3277,7 +3274,7 @@
                                                             </Button>
                                                         </DockPanel>
                                                         <TextBlock Text="{Binding Document}" FontSize="12" TextTrimming="CharacterEllipsis"
-                                                                   ToolTip="{Binding Document}"
+                                                                   ToolTip="{Binding Document}" behaviors:TrimmedToolTip.IsEnabled="True"
                                                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                                                    Visibility="{Binding Document, Converter={StaticResource NotEmptyToVisibility}}" />
                                                         <StackPanel Visibility="{Binding CanSatisfy, Converter={StaticResource BoolToVisibility}}"
@@ -3289,11 +3286,11 @@
                                                         <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                                                             <Button Content="Confirm report…" FontSize="12" Padding="8,0" Margin="0,0,8,0"
                                                                     Command="{Binding ConfirmReportCommand}"
-                                                                    ToolTip="Accept the report: one press for done or go, otherwise the verdict goes in the reason box"
+                                                                    ToolTip="Accept the report: one press for done or go, otherwise the verdict goes in the reason box."
                                                                     Visibility="{Binding CanConfirm, Converter={StaticResource BoolToVisibility}}" />
                                                             <Button Content="Mark satisfied" FontSize="12" Padding="8,0" Margin="0,0,8,0"
                                                                     Command="{Binding SatisfyCommand}"
-                                                                    ToolTip="Accept this input by hand, for the reason given"
+                                                                    ToolTip="Accept this input by hand, for the reason given."
                                                                     Visibility="{Binding CanSatisfy, Converter={StaticResource BoolToVisibility}}" />
                                                             <Button Content="Open document" FontSize="12" Padding="8,0" Margin="0,0,8,0"
                                                                     Command="{Binding OpenDocumentCommand}"
@@ -3346,10 +3343,10 @@
                                         <StackPanel Orientation="Horizontal" Margin="0,12,0,0"
                                                     Visibility="{Binding Chains.IsAddingLink, Converter={StaticResource NotBoolToVisibility}}">
                                             <Button Content="+ Add _link…" Padding="12,4" Margin="0,0,8,0"
-                                                    ToolTip="Link this card to another card on the board"
+                                                    ToolTip="Link this card to another card on the board."
                                                     Command="{Binding Chains.BeginAddLinkCommand}" />
                                             <Button Content="Spawn follow-on…" Padding="12,4"
-                                                    ToolTip="Create a new card this one hands over to, in the same working directory"
+                                                    ToolTip="Create a new card this one hands over to, in the same working directory."
                                                     Command="{Binding SpawnFollowOnCommand}"
                                                     CommandParameter="{Binding Drawer.Card}" />
                                         </StackPanel>
