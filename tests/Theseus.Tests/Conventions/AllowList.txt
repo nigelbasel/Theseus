@@ -1,4 +1,4 @@
-# What the Windows conventions decisions keep on purpose (baseline W5). This list stays; Exemptions/ is what shrinks.
+# What the Windows conventions decisions keep on purpose (baseline W5). This list stays. Exemptions/ held what still failed, and is now empty (WB9).
 # Rule | value | scope | reason
 # scope: * for every file, glyph for a glyph anywhere, or a path under src/Theseus.App.
 # value nudge: nothing to the sides, and only 1 or 2 above or below.

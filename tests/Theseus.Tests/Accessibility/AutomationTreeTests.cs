@@ -29,6 +29,10 @@ public class AutomationTreeTests
                 shell.Chains.Roots.Add(root);
                 shell.Chains.IsOpen = true;
                 shell.IsSessionsPanelOpen = true;
+
+                // A session whose console title cannot be read: its row must still be named (review must-fix 1).
+                shell.Sessions.Sessions.Add(new LiveSessionViewModel(new Theseus.Core.Sessions.LiveSession(
+                    42, "0123456789abcdef", @"C:\work", null, "idle", "cli", DateTimeOffset.UnixEpoch)));
                 shell.Drawer.Show(shell.Board.Cards.Single(card => card.Key == "alpha"));
 
                 // The fake's panel flags do not notify, so the window is bound again to read them.
@@ -41,7 +45,8 @@ public class AutomationTreeTests
 
                 Assert.That(peers.Count(peer => peer.Type == System.Windows.Automation.Peers.AutomationControlType.TreeItem), Is.EqualTo(2),
                     "the walk reached both Chains rows");
-                AssertNothingWrong(AutomationTree.Problems((UIElement)window.Content));
+                Assert.That(peers.Any(peer => peer.Name == "01234567"), Is.True, "the session row is named by what it shows");
+                AssertNothingWrong(EveryTab((UIElement)window.Content, () => Relayout(window)));
             },
             board => board.With("alpha").With("beta", column: "In progress").Tag("alpha", "cache"));
 
@@ -88,7 +93,7 @@ public class AutomationTreeTests
     {
         using OpenedWindow opened = OpenedWindow.Of(name);
 
-        AssertNothingWrong(AutomationTree.Problems(opened.Window));
+        AssertNothingWrong(EveryTab(opened.Window, DialogHost.Pump));
     }
 
     [TestCaseSource(nameof(OtherDialogs))]
@@ -119,26 +124,35 @@ public class AutomationTreeTests
 
         try
         {
-            if (window.FindName("Tabs") is not TabControl tabs)
-            {
-                return [.. AutomationTree.Problems(window)];
-            }
-
-            List<string> problems = [];
-
-            foreach (TabItem tab in tabs.Items)
-            {
-                tabs.SelectedItem = tab;
-                DialogHost.Pump();
-                problems.AddRange(AutomationTree.Problems(window).Select(problem => $"{tab.Header}: {problem}"));
-            }
-
-            return [.. problems.Distinct()];
+            return EveryTab(window, DialogHost.Pump);
         }
         finally
         {
             window.Close();
         }
+    }
+
+    // The tree with each tab of every tab control selected in turn, since a tab's content is in the tree only while selected.
+    private static List<string> EveryTab(UIElement root, Action relayout)
+    {
+        List<string> problems = [.. AutomationTree.Problems(root)];
+
+        foreach (TabControl tabs in DialogHost.Descendants(root).OfType<TabControl>().ToList())
+        {
+            object? selected = tabs.SelectedItem;
+
+            foreach (TabItem tab in tabs.Items.OfType<TabItem>().ToList())
+            {
+                tabs.SelectedItem = tab;
+                relayout();
+                problems.AddRange(AutomationTree.Problems(root).Select(problem => $"{tab.Header}: {problem}"));
+            }
+
+            tabs.SelectedItem = selected;
+            relayout();
+        }
+
+        return [.. problems.Distinct()];
     }
 
     private static void AssertNothingWrong(IReadOnlyList<string> problems) =>

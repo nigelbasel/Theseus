@@ -1393,7 +1393,7 @@
                     </StackPanel>
 
 
-                    <ItemsControl AutomationProperties.Name="{Binding Area}" ItemsSource="{Binding Cells}"
+                    <ItemsControl AutomationProperties.Name="{Binding Area, StringFormat={}{0} stages}" ItemsSource="{Binding Cells}"
                                   ItemTemplate="{StaticResource ColumnTemplate}"
                                   Height="{Binding Height}"
                                   Visibility="{Binding IsCollapsed, Converter={StaticResource NotBoolToVisibility}}">
@@ -2068,7 +2068,7 @@
                 </Grid>
 
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <ItemsControl AutomationProperties.Name="Sessions" ItemContainerStyle="{StaticResource ItemNamedByConsoleTitle}" ItemsSource="{Binding Sessions.Sessions}"
+                    <ItemsControl AutomationProperties.Name="Sessions" ItemContainerStyle="{StaticResource ItemNamedByName}" ItemsSource="{Binding Sessions.Sessions}"
                                   ItemTemplate="{StaticResource LiveSessionTemplate}" />
                 </ScrollViewer>
             </DockPanel>
@@ -2623,7 +2623,7 @@
                                 <TextBlock FontSize="12" Margin="0,4,0,8" TextWrapping="Wrap"
                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                            Text="No lock holder accounts for these. A leftover like this can make the next suite fail as if it were broken. Remove only what you know is not a run in progress." />
-                                <ItemsControl AutomationProperties.Name="Leftover containers" ItemContainerStyle="{StaticResource ItemNamedByName}" ItemsSource="{Binding Locks.Unowned}">
+                                <ItemsControl AutomationProperties.Name="Unowned test containers" ItemContainerStyle="{StaticResource ItemNamedByName}" ItemsSource="{Binding Locks.Unowned}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                             <Border Margin="0,0,0,8" Padding="8,8" CornerRadius="4"
@@ -3493,7 +3493,7 @@
                                         <TextBlock Text="Workflows" Style="{StaticResource FieldLabel}"
                                                    Visibility="{Binding Drawer.Workflows.Count,
                                                                 Converter={StaticResource CountToVisibility}}" />
-                                        <ItemsControl ItemContainerStyle="{StaticResource ItemNamedByHeadline}" AutomationProperties.Name="Workflow runs" ItemsSource="{Binding Drawer.Workflows}">
+                                        <ItemsControl ItemContainerStyle="{StaticResource ItemNamedByHeadline}" AutomationProperties.Name="Workflows" ItemsSource="{Binding Drawer.Workflows}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
                                                     <StackPanel Margin="0,0,0,8" ToolTip="{Binding Summary}">

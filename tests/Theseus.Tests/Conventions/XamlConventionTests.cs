@@ -13,9 +13,8 @@ namespace Theseus.Tests.Conventions;
 /// font sizes off the type ramp and spacing off the 4 epx grid; every C# file for MessageBox.Show.
 /// <para>
 /// What a decision keeps on purpose is in <c>AllowList.txt</c>, with its reason, and stays. What still fails is in
-/// <c>Exemptions/</c>, one file per source file, one line per rule and value with how many times it occurs. A count may
-/// only fall: a batch that fixes something lowers its count or deletes its line, and the last batch leaves the folder
-/// empty. A new occurrence fails the test.
+/// <c>Exemptions/</c>, one file per source file, one line per rule and value with how many times it occurs; it is empty,
+/// and a test keeps it so. A new occurrence fails the test: fix it, or keep it by a decision in the allow-list.
 /// </para>
 /// </summary>
 [TestFixture]

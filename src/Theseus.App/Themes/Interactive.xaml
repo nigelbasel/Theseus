@@ -562,9 +562,6 @@
     <Style x:Key="ItemNamedByWho" TargetType="ContentPresenter">
         <Setter Property="AutomationProperties.Name" Value="{Binding Who}" />
     </Style>
-    <Style x:Key="ItemNamedByConsoleTitle" TargetType="ContentPresenter">
-        <Setter Property="AutomationProperties.Name" Value="{Binding ConsoleTitle}" />
-    </Style>
     <Style x:Key="ItemNamedByDisplay" TargetType="ContentPresenter">
         <Setter Property="AutomationProperties.Name" Value="{Binding Display}" />
     </Style>

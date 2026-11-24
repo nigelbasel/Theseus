@@ -75,6 +75,9 @@ internal sealed class FakeShell : System.ComponentModel.INotifyPropertyChanged
     /// <summary>The chains panel.</summary>
     public FakeChains Chains { get; } = new();
 
+    /// <summary>The Sessions panel.</summary>
+    public FakeSessions Sessions { get; } = new();
+
     /// <summary>The day report.</summary>
     public FakeOpener DayReport { get; } = new();
 
