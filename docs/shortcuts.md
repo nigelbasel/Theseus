@@ -18,6 +18,7 @@
 | Alt+Enter | Properties of the selected card |
 | Del | Archive the selected cards, on the board |
 | Ctrl+L | Focus the lead session of the open project |
+| Ctrl+K | Show active only, on or off: hides every card with no session and nothing waiting on you |
 | F6, Shift+F6 | Move to the next or previous pane |
 | F7 | Live sessions panel, on or off |
 | F8 | Locks panel, on or off |

@@ -66,7 +66,7 @@ public partial class MainWindowMenuTests
 
     [Test]
     public void TheViewMenu_FollowsTheW26Map() =>
-        Assert.That(string.Concat(Items(TopLevel("_View")).Select(Key)), Is.EqualTo("SLCGAHPWOEKFNDUMVTBR"));
+        Assert.That(string.Concat(Items(TopLevel("_View")).Select(Key)), Is.EqualTo("SLCGAHPWJOEKFNDUMVTBR"), "W26's map, with J for Show just active cards (2026-11-24)");
 
     [Test]
     public void TheGroupBySubmenu_FollowsTheW26Map()
