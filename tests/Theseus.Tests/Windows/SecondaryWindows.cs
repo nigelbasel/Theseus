@@ -31,7 +31,16 @@ public static class SecondaryWindows
         ("Proposal", () => new ProposalWindow(Proposal())),
         ("Records", () => new RecordsWindow(Records())),
         ("Spec", () => new SpecWindow(Spec(scratchFolder))),
+        ("Waits", () => new WaitsWindow(Waits())),
     ];
+
+    /// <summary>Two lines of Waits for you, one with a button and one outside Theseus, and a line for the lead.</summary>
+    public static WaitsListViewModel Waits() =>
+        new("Cache spike",
+        [
+            new WaitItemViewModel(new WaitItem(WaitKind.Answer, "Auth research asks which cache to use.", []), new RelayCommand(_ => { })),
+            new WaitItemViewModel(new WaitItem(WaitKind.Outside, "Name the reviewer. This happens outside Theseus.", []), null),
+        ], "Waits on the lead: 2 objectives have no workstream yet.");
 
     /// <summary>The arranger with one terminal window, read from nowhere: no real window is looked at or moved.</summary>
     public static ArrangeViewModel Arrange()

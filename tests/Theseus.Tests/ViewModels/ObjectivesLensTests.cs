@@ -142,4 +142,15 @@ public class ObjectivesLensTests
             Assert.That(criteria[1].Waiting, Is.EqualTo("Waiting for you: install the guard"));
         });
     }
+
+    [Test]
+    public void ACriterionWaitingOnTheOwnerAndOnWork_SaysEachApart()
+    {
+        var file = ProjectFileReader.Read("p", TestProjectsFolder.ProjectText("P", body: "## Phase 0: S\n\n### Objective 0.1: O\n"
+            + "- [ ] One.\n      Waiting: owner: name the agent; work: the audit store; work: the staff bound\n\n**Pipeline:** freeform\n"
+            + "| Workstream | Slug | Branch | Repos |\n|---|---|---|---|\n")).File!;
+
+        Assert.That(CriterionViewModel.Of(file.Objectives[0], null)[0].Waiting,
+            Is.EqualTo("Waiting for you: name the agent; Waiting on work: the audit store; the staff bound"));
+    }
 }

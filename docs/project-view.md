@@ -24,6 +24,12 @@ card's menu.
 
 While something waits on you, a band lists it: **Accept the spec of …** opens that piece of work, selects its spec and
 asks you to accept it, naming the version; **Answer … in its terminal** brings that session's terminal forward.
+The same ask of the same person is one line, however many criteria or pieces of work it holds up: a line that several
+criteria share says how many, and in which objectives. The band shows the first three lines; **and n more…** opens a
+dialog listing every line with its button, and a button there does its line and closes the dialog. An objective with no
+workstream yet waits on the project's lead, which plans it, so that is said on a line under the band and not counted
+in it. However much waits, the top of the view takes at most part of its height and scrolls, so the work below always
+has room.
 
 ## The marks
 

@@ -1,0 +1,70 @@
+<Window x:Class="Theseus.App.WaitsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="clr-namespace:Theseus.App.Views"
+        Title="{Binding Title}"
+        Width="720" Height="560" MinWidth="520" MinHeight="320"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        Background="{DynamicResource SolidBackgroundFillColorSecondaryBrush}"
+        Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="Visible" />
+    </Window.Resources>
+    <!-- Every line of Waits for you, laid out as the checklist dialog is: what it is, the rows scrolling, the count at the
+         foot (project-view-scale, 2026-11-24). A row's button does that row and closes the dialog. -->
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock x:Name="Intro" Text="{Binding Intro}" Style="{DynamicResource BodyText}" TextWrapping="Wrap" MaxWidth="480"
+                   HorizontalAlignment="Left" Margin="0,0,0,16" />
+
+        <Border Grid.Row="1" BorderThickness="1" CornerRadius="4" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
+            <ScrollViewer x:Name="RowsScroller" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+                <!-- One Tab stop; the arrow keys move between the rows' buttons and stop at either end (B-m5, W42). -->
+                <ItemsControl x:Name="Rows" ItemsSource="{Binding Rows}" Margin="12,8" Focusable="False"
+                              KeyboardNavigation.TabNavigation="Once" KeyboardNavigation.DirectionalNavigation="Contained"
+                              AutomationProperties.Name="Waits for you">
+                    <ItemsControl.ItemContainerStyle>
+                        <Style TargetType="ContentPresenter">
+                            <Setter Property="AutomationProperties.Name" Value="{Binding Text}" />
+                        </Style>
+                    </ItemsControl.ItemContainerStyle>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <DockPanel Margin="0,8">
+                                <!-- The label as text, so a repeated row has no access key (W26; B12). -->
+                                <Button x:Name="RowButton" DockPanel.Dock="Right" Command="{Binding Command}"
+                                        Style="{DynamicResource DialogButton}" Margin="12,0,0,0" VerticalAlignment="Top" Click="OnRowButton"
+                                        ToolTip="{Binding ToolTip}" ToolTipService.ShowOnDisabled="True"
+                                        AutomationProperties.Name="{Binding Button}" AutomationProperties.HelpText="{Binding Text}"
+                                        Visibility="{Binding HasButton, Converter={StaticResource Visible}}">
+                                    <TextBlock Text="{Binding Button}" />
+                                </Button>
+                                <TextBlock x:Name="RowText" views:LinkedText.Text="{Binding Text}" Style="{DynamicResource BodyText}" TextWrapping="Wrap"
+                                           VerticalAlignment="Center" />
+                            </DockPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Border>
+
+        <TextBlock x:Name="ForTheLead" Grid.Row="2" Text="{Binding ForTheLead}" Style="{DynamicResource CaptionText}" TextWrapping="Wrap"
+                   Margin="0,12,0,0" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                   Visibility="{Binding HasForTheLead, Converter={StaticResource Visible}}" />
+
+        <DockPanel x:Name="Footer" Grid.Row="3" Margin="0,16,0,0" LastChildFill="False">
+            <TextBlock x:Name="Foot" DockPanel.Dock="Left" Text="{Binding Foot}" Style="{DynamicResource BodyStrongText}" VerticalAlignment="Center" />
+            <!-- Close, so the window closes the way every other does, and Esc closes it (A17, B14, G8, G13). -->
+            <Button x:Name="CloseButton" DockPanel.Dock="Right" Content="Close" IsCancel="True" IsDefault="True"
+                    Style="{DynamicResource DialogButton}" Click="OnClose" />
+        </DockPanel>
+    </Grid>
+</Window>

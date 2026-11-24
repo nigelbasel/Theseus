@@ -15,6 +15,6 @@ public sealed record ProjectCriterion(string Text, bool IsTicked, int Line)
     /// <summary>Its evidence note, a one-line pointer to what shows it is met; null when it has none.</summary>
     public string? Evidence { get; init; }
 
-    /// <summary>Whether it waits on the owner: unticked, with an owner note (G37b).</summary>
-    public bool WaitsOnOwner => !IsTicked && Waiting is { IsOwner: true };
+    /// <summary>Whether it waits on the owner: unticked, with an owner ask anywhere in its note (G37b).</summary>
+    public bool WaitsOnOwner => !IsTicked && Waiting is { } waiting && waiting.OwnerAsks.Count > 0;
 }
