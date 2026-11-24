@@ -179,17 +179,11 @@ public sealed class DetailDrawerViewModel : ObservableObject
     /// <summary>Whether this workstream is put away.</summary>
     public bool IsArchived => _card?.Workstream.IsArchived ?? false;
 
-    /// <summary>What the archive button says, which is the opposite thing when it is already away.</summary>
-    public string ArchiveLabel => IsArchived ? "Restore" : "Archive";
-
     /// <summary>Whether a session is running, which is what stops either from being possible.</summary>
     public bool IsLive => _card?.IsLive ?? false;
 
-    /// <summary>Beside the ⋯ button, why Archive is greyed, so it is not found only inside the menu (git-22, 2026-11-23).</summary>
+    /// <summary>Beside the More button, why Archive is greyed, so it is not found only inside the menu (git-22, 2026-11-23).</summary>
     public string ArchiveWhyNot => IsLive ? "Stop its session first" : string.Empty;
-
-    /// <summary>Why neither can be done, or empty when both can.</summary>
-    public string RemovalRefusal => WorkstreamRemoval.RefusalToArchive(IsLive) ?? string.Empty;
 
     /// <summary>What deleting will destroy, said before it is done.</summary>
     public string DeleteConsequence => WorkstreamRemoval.Consequence(Key);
@@ -535,9 +529,7 @@ public sealed class DetailDrawerViewModel : ObservableObject
         IsConfirmingDelete = false;
 
         Raise(nameof(IsArchived));
-        Raise(nameof(ArchiveLabel));
         Raise(nameof(IsLive));
-        Raise(nameof(RemovalRefusal));
         Raise(nameof(ArchiveWhyNot));
         Raise(nameof(DeleteConsequence));
 

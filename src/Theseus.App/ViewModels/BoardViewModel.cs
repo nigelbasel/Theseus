@@ -1198,6 +1198,17 @@ public sealed class BoardViewModel : ObservableObject
         [.. Rows.Where(row => !row.IsCollapsed).SelectMany(row => row.Cells.Where(cell => !cell.IsCollapsed))
             .SelectMany(cell => cell.Projects.Cast<IBoardCard>().Concat(cell.Cards))];
 
+    private RelayCommand? _keySelect;
+    private RelayCommand? _keyToggleSelect;
+
+    /// <summary>Space on a focused card or project card: selects it alone, as a click does (baseline W44, G64, G69).</summary>
+    public RelayCommand KeySelectCommand => _keySelect ??= new RelayCommand(
+        item => ClickSelect((IBoardCard)item!, toggle: false, extend: false), item => item is IBoardCard);
+
+    /// <summary>Ctrl+Space on a focused card or project card: adds it to the selection or takes it out, as Ctrl+click does.</summary>
+    public RelayCommand KeyToggleSelectCommand => _keyToggleSelect ??= new RelayCommand(
+        item => ClickSelect((IBoardCard)item!, toggle: true, extend: false), item => item is IBoardCard);
+
     /// <summary>
     /// Selects as a click does everywhere in Windows (Nigel, 2026-10-30): a click selects that card
     /// alone, Ctrl+click adds or removes it, and Shift+click selects the run from the last card

@@ -73,6 +73,18 @@ public class ChainsTreeAccessibilityTests
             "a tooltip that is not a string gives a screen reader nothing");
     }
 
+    [Test]
+    public void ARow_IsNamedByItsTitle_NotByItsRecord()
+    {
+        // A record's ToString read "ChainNodeViewModel { Key = one, ... }" to a screen reader (E11, W50, G170).
+        var (tree, _) = LaidOut();
+        string name = UIElementAutomationPeer.CreatePeerForElement(Descendants<TreeViewItem>(tree).First()).GetName();
+
+        Assert.That(name, Is.EqualTo("One"));
+        Assert.That(name, Does.Not.Contain("Theseus.").And.Not.Contain(" { "));
+        Assert.That(System.Windows.Automation.AutomationProperties.GetName(tree), Is.EqualTo("Chains"));
+    }
+
     private static (TreeView Tree, Border Host) LaidOut()
     {
         var node = new ChainNodeViewModel("one", "One", "#C0392B", "waiting", IsReady: false, string.Empty, string.Empty,

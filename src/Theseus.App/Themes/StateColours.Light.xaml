@@ -39,4 +39,10 @@
     <SolidColorBrush x:Key="OnKindTextBrush" Color="#ffffff" />
     <SolidColorBrush x:Key="KindWordWashBrush" Color="#38000000" />
     <Thickness x:Key="FlyoutBorderThickness">1</Thickness>
+    <!-- The band of light that crosses a working card's banner (W47): white, faint at its middle. -->
+    <LinearGradientBrush x:Key="SheenBrush" StartPoint="0,0" EndPoint="1,0">
+        <GradientStop Color="#00ffffff" Offset="0" />
+        <GradientStop Color="#66ffffff" Offset="0.5" />
+        <GradientStop Color="#00ffffff" Offset="1" />
+    </LinearGradientBrush>
 </ResourceDictionary>

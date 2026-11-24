@@ -10,9 +10,10 @@ namespace Theseus.Core.Updates;
 public static class UpdateDownloader
 {
     /// <summary>Downloads and verifies the installer into a folder, returning its path.</summary>
+    /// <param name="progress">How far the installer's download has got, from 0 to 1, or null while its size is unknown.</param>
     /// <exception cref="InvalidDataException">The release has no checksum for it, or the file does not match.</exception>
     public static async Task<string> FetchAsync(IReleaseFeed feed, AvailableRelease release, string directory,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, IProgress<double?>? progress = null)
     {
         ArgumentNullException.ThrowIfNull(feed);
         ArgumentNullException.ThrowIfNull(release);
@@ -29,7 +30,7 @@ public static class UpdateDownloader
             throw new InvalidDataException($"{GitHubReleaseFeed.ChecksumsAsset} for {release.Version} lists no {GitHubReleaseFeed.InstallerAsset}.");
         }
 
-        var installer = await feed.DownloadAsync(release.Installer, cancellationToken);
+        var installer = await feed.DownloadAsync(release.Installer, progress, cancellationToken);
 
         if (!Sha256Sums.Matches(installer, expected))
         {

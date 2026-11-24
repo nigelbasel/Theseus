@@ -102,8 +102,11 @@ public sealed class NeedsYouRowViewModel : ObservableObject
     /// <summary>Whether Not yet was pressed, so it sorts below the others.</summary>
     public bool IsSetAside { get; }
 
-    /// <summary>What Not yet says: once pressed, what it did, since a greyed button said nothing (git-22, 2026-11-23).</summary>
-    public string NotYetLabel => IsSetAside ? "Set aside: still unconfirmed" : "Not yet";
+    /// <summary>
+    /// Beside the greyed Not yet, what pressing it did, since a greyed button says nothing (git-22, 2026-11-23); the button
+    /// itself keeps its label, because a label never changes with state (baseline W17, W30; finding A8).
+    /// </summary>
+    public string SetAsideText => IsSetAside ? "Set aside: still unconfirmed" : string.Empty;
 
     /// <summary>Whether the reason box is asking why the report is rejected, rather than why the link is satisfied.</summary>
     public bool IsRejecting

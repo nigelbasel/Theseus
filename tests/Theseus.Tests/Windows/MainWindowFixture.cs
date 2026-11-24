@@ -37,7 +37,7 @@ internal static class MainWindowFixture
             board?.Invoke(fixture);
             fixture.Board.Refresh();
 
-            FakeShell shell = new(fixture.Board);
+            FakeShell shell = new(fixture.Board, fixture.Plans);
             MainWindow window = new() { DataContext = shell };
             Size at = size ?? new Size(1400, 760);
             FrameworkElement content = (FrameworkElement)window.Content;
