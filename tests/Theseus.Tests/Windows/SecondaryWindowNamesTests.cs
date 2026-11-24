@@ -27,7 +27,7 @@ public class SecondaryWindowNamesTests
             {
                 string spoken = UIElementAutomationPeer.CreatePeerForElement(control).GetName();
 
-                Assert.That(spoken, Is.Not.Empty, $"{Describe(control)} has a name");
+                Assert.That(spoken, Is.Not.Empty, $"{Describe(control)} has a name (labelled by {Label(control)})");
                 Assert.That(spoken, Is.Not.EqualTo("Markdown text"), $"{Describe(control)} is named from its label (E12)");
             }
         });
@@ -101,6 +101,12 @@ public class SecondaryWindowNamesTests
 
         return null;
     }
+
+    // What a field is labelled by, for a failure's message: which element, and what its own peer says.
+    private static string Label(Control control) =>
+        System.Windows.Automation.AutomationProperties.GetLabeledBy(control) is { } label
+            ? $"{label.GetType().Name} {(label as FrameworkElement)?.Name} saying \"{UIElementAutomationPeer.CreatePeerForElement(label)?.GetName()}\""
+            : "nothing";
 
     private static string Describe(Control control) =>
         $"{control.GetType().Name} {(control.Name.Length > 0 ? control.Name : "(unnamed)")}";

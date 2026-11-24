@@ -35,7 +35,8 @@ jobs:
           global-json-file: global.json
 
       - name: Test
-        run: dotnet test tests/Theseus.Tests --nologo --logger "console;verbosity=normal"
+        # Each failing test also becomes an annotation, which can be read without signing in to GitHub.
+        run: dotnet test tests/Theseus.Tests --nologo --logger "console;verbosity=normal" --logger GitHubActions
 
       - name: Install WiX
         run: |

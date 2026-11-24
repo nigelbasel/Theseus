@@ -46,19 +46,19 @@
 
             <TextBlock x:Name="VersionLabel" Text="Version" Style="{StaticResource Label}" />
             <TextBox Text="{Binding VersionDescribed, Mode=OneWay}" Style="{StaticResource Value}"
-                     AutomationProperties.LabeledBy="{Binding ElementName=VersionLabel}" />
+                     AutomationProperties.LabeledBy="{x:Reference VersionLabel}" />
 
             <TextBlock x:Name="AccountLabel" Text="Account sessions run as" Style="{StaticResource Label}" />
             <TextBox Text="{Binding Account, Mode=OneWay}" Style="{StaticResource Value}"
-                     AutomationProperties.LabeledBy="{Binding ElementName=AccountLabel}" />
+                     AutomationProperties.LabeledBy="{x:Reference AccountLabel}" />
 
             <TextBlock x:Name="InstalledLabel" Text="Installed in" Style="{StaticResource Label}" />
             <TextBox Text="{Binding InstallFolder, Mode=OneWay}" Style="{StaticResource Value}"
-                     AutomationProperties.LabeledBy="{Binding ElementName=InstalledLabel}" />
+                     AutomationProperties.LabeledBy="{x:Reference InstalledLabel}" />
 
             <TextBlock x:Name="DataLabel" Text="Board, settings and logs" Style="{StaticResource Label}" />
             <TextBox Text="{Binding DataFolder, Mode=OneWay}" Style="{StaticResource Value}"
-                     AutomationProperties.LabeledBy="{Binding ElementName=DataLabel}" />
+                     AutomationProperties.LabeledBy="{x:Reference DataLabel}" />
 
             <TextBlock Text="Stop hook" Style="{StaticResource Label}" />
             <TextBlock Text="{Binding Help.HookStatus}" Style="{DynamicResource BodyText}" TextWrapping="Wrap" />
