@@ -45,6 +45,44 @@ public partial class SettingsWindow : Window
         }
     }
 
+    private void OnChangeDutyCap(object sender, RoutedEventArgs e) =>
+        ChangeDuty("Daily cap", "The most runs a duty gives in a day.", duties => duties.CapText, (duties, text) => duties.SetCap(text));
+
+    private void OnChangeDutyFailures(object sender, RoutedEventArgs e) =>
+        ChangeDuty("Pauses itself", "Failed runs in a row before a duty pauses itself.", duties => duties.FailureText,
+            (duties, text) => duties.SetFailures(text));
+
+    private void OnChangeQuietHours(object sender, RoutedEventArgs e) =>
+        ChangeDuty("Quiet hours", "off, or a start and an end such as 22:00-07:00.", duties => duties.QuietText,
+            (duties, text) => duties.SetQuiet(text));
+
+    private void OnChangeQueue(object sender, RoutedEventArgs e) =>
+        ChangeDuty("Overnight queue", "How long a card is idle before it is resumed, then the most times a day, such as 30m, 6.",
+            duties => duties.QueueText, (duties, text) => duties.SetQueue(text));
+
+    // Asked again with the reason until it reads or is cancelled.
+    private void ChangeDuty(string title, string label, Func<DutyOptionsViewModel, string> current, Func<DutyOptionsViewModel, string, string?> set)
+    {
+        if (Settings?.Duties is not { } duties)
+        {
+            return;
+        }
+
+        var text = current(duties);
+        var prompt = label;
+
+        while (Ask(title, prompt, text) is { } answer)
+        {
+            if (set(duties, answer) is not { } refusal)
+            {
+                return;
+            }
+
+            text = answer;
+            prompt = $"{label} {refusal}";
+        }
+    }
+
     private void OnChangeAreas(object sender, RoutedEventArgs e)
     {
         if (Settings is { } settings && Ask("Board areas", "The board's areas, one per line, in order. Each gets its own terminal window.", settings.AreaList, isList: true) is { } areas)

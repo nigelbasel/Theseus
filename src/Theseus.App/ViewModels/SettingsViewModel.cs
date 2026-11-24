@@ -44,6 +44,7 @@ public sealed class SettingsViewModel : ObservableObject
     {
         _store = store;
         _changedAndClosed = changedAndClosed;
+        Duties = new DutyOptionsViewModel(store);
 
         OpenCommand = new RelayCommand(_ => Open());
         OpenProjectPropertiesCommand = new RelayCommand(parameter =>
@@ -629,6 +630,9 @@ public sealed class SettingsViewModel : ObservableObject
 
     /// <summary>Options, Holdouts: the installed holdout guard and its Install button; acts at once. Set by the shell.</summary>
     public HoldoutGuardViewModel? Guard { get; set; }
+
+    /// <summary>Options, Duties: the limits for duties and the overnight queue; each change is saved at once.</summary>
+    public DutyOptionsViewModel Duties { get; }
 
     /// <summary>Options, Folder trust: Claude Code's trust of the folders sessions start in; acts at once. Set by the shell.</summary>
     public FolderTrustViewModel? FolderTrust { get; set; }
