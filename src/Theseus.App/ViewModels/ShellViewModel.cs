@@ -14,6 +14,7 @@ using Theseus.Core.Projects;
 using Theseus.Core.Sessions;
 using Theseus.Core.Settings;
 using Theseus.Core.Stopping;
+using Theseus.Core.Terminal;
 using Theseus.Core.Usage;
 
 namespace Theseus.App.ViewModels;
@@ -741,6 +742,7 @@ public sealed partial class ShellViewModel : ObservableObject
     public IWorkstreamControl WorkstreamControl => _workstreamControl ??= new BoardWorkstreamControl(Board,
         StartForSession,
         StopForSession,
+        HandInForSession,
         _cardEvents,
         text => Extend(string.IsNullOrWhiteSpace(Notice) ? text : $"{Notice} {text}"),
         () => DateTimeOffset.UtcNow,
@@ -777,9 +779,10 @@ public sealed partial class ShellViewModel : ObservableObject
     }
 
     /// <summary>
-    /// A session's stop of a descendant (review of PR 3, finding 7): only the stop request, which its session reads when
-    /// its turn ends. It never cuts in, never touches the owner's own Stop all, and never hands the owner text to paste;
-    /// without the stop hook it says the user must stop it.
+    /// A session's stop of a descendant: the stop request, which its session reads when its
+    /// turn ends; an idle session, which takes no turn of its own, is woken through its console to take it at once. It
+    /// never cuts a turn short, never touches the owner's own Stop all, and never hands the owner text to paste; without
+    /// the stop hook it says the user must stop it.
     /// </summary>
     private string? StopForSession(WorkstreamCardViewModel card)
     {
@@ -796,6 +799,11 @@ public sealed partial class ShellViewModel : ObservableObject
         if (_stopRequests.Waiting(step.SessionId) is null)
         {
             Ask(step);
+        }
+
+        if (step.Lifecycle == SessionLifecycle.Idle && _stopRequests.Delivered(step.SessionId) is null)
+        {
+            Wake(step, StopRouting.NudgeMarker);
         }
 
         return null;
@@ -2504,7 +2512,7 @@ public sealed partial class ShellViewModel : ObservableObject
             var overview = ProjectOverview.For(reading.File!, pieces, links, Chains?.Proposals?.Pending.Select(row => row.Proposal) ?? [],
                 acceptances.Count(acceptance => string.Equals(acceptance.Project, reading.Name, StringComparison.OrdinalIgnoreCase)),
                 StartRequests.Pending, key => Board.Card(key)?.Title ?? key, WrongVerifiersOf(reading.Name), ClearUpNoticeOf(reading),
-                checkPlan.Underway, others, ChecksThatCannotRun(reading, pieces, checkPlan));
+                checkPlan.Underway, others, ChecksThatCannotRun(reading, pieces, checkPlan), OwnerAccount.Names);
             TakeCheckSteps(reading, pieces, checkPlan);
             var file = reading.File!;
 
@@ -2715,6 +2723,7 @@ public sealed partial class ShellViewModel : ObservableObject
                 GoBack = GoBackCommand,
                 GoForward = GoForwardCommand,
                 ReviewProposal = ReviewProposal,
+                TellCard = (key, text) => Tell(Board.Card(key), text),
                 AnswerStartRequest = AnswerStartRequest,
                 ClearVerifiers = ClearUpVerifiers,
                 StartVerifier = key =>
@@ -3186,7 +3195,7 @@ public sealed partial class ShellViewModel : ObservableObject
 
     /// <summary>
     /// A report was confirmed on the board. A verifier's job ends there, so its card is stopped as a Stop press would
-    /// stop it; no other card ever stops without a press (verifier-card AC 13).
+    /// stop it; any other finished card is ended by <see cref="EndFinishedCards"/> once it is idle.
     /// </summary>
     public void ReportConfirmed(Link link)
     {
@@ -3588,7 +3597,12 @@ public sealed partial class ShellViewModel : ObservableObject
 
                     Ask(step);
 
-                    var nudge = TabNudge.Nudge(step.Pid, step.SessionName, StopRouting.NudgeMarker, cutIn);
+                    // An idle session is woken through its console first, which takes no focus; typing into its tab is kept for
+                    // when that cannot join the console, and for cutting a turn short.
+                    var woken = cutIn ? ConsoleTypingOutcome.NotAttached : Wake(step, StopRouting.NudgeMarker);
+                    var nudge = woken == ConsoleTypingOutcome.Sent ? NudgeOutcome.Sent
+                        : NothingTyped(woken) ? TabNudge.Nudge(step.Pid, step.SessionName, StopRouting.NudgeMarker, cutIn)
+                        : NudgeOutcome.Refused;
 
                     TheseusLog.Information(
                         cutIn
@@ -4029,6 +4043,7 @@ public sealed partial class ShellViewModel : ObservableObject
                     card.Lifecycle, card.IsLive, card.IsInLastStage, card.LastStartedUtc, card.LastRunCrashed)
                 {
                     StopLine = card.StopReason?.Line,
+                    ProjectOfRole = card.Workstream.Role == WorkstreamRole.ScenarioWriter ? WriterProject(card.Workstream) : null,
                 }),
                 .. Board.AllWorkstreams().Where(workstream => !shown.Contains(workstream.Key))
                     .Select(workstream => new BoardSnapshotCard(workstream, HandoffPath.For(workstream),
@@ -4043,13 +4058,16 @@ public sealed partial class ShellViewModel : ObservableObject
     ///
     /// Nothing is killed. A killed process writes nothing, which is the whole reason stopping exists;
     /// this types what a person would type, and the session exits the ordinary way, which lets the
-    /// launcher finish and the tab close on its own. The typing refuses unless focus is in a terminal
-    /// buffer, so a keystroke cannot land somewhere unintended.
+    /// launcher finish and the tab close on its own. It is typed into the session's own console, which
+    /// takes no focus; typing into its tab, which refuses unless focus is in a terminal buffer, is kept
+    /// for when that console cannot be joined.
     /// </summary>
     private void CloseFinishedSessions()
     {
         var now = DateTimeOffset.UtcNow;
         var waiting = new List<DateTimeOffset>();
+
+        EndFinishedCards(now, waiting);
 
         foreach (var card in Board.Cards)
         {
@@ -4099,7 +4117,10 @@ public sealed partial class ShellViewModel : ObservableObject
 
         _closed.Typed(delivered!);
 
-        var outcome = TabNudge.Nudge(session.Pid, session.Name, SessionClosing.ExitCommand);
+        var typed = ConsoleTyping.TypeLine(session.Pid, SessionClosing.ExitCommand);
+        var outcome = typed == ConsoleTypingOutcome.Sent ? NudgeOutcome.Sent
+            : NothingTyped(typed) ? TabNudge.Nudge(session.Pid, session.Name, SessionClosing.ExitCommand)
+            : NudgeOutcome.Refused;
 
         _closed.Attempted(delivered!, new ExitAttempt(ExitResults.From(outcome), DateTimeOffset.UtcNow));
 

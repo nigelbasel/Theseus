@@ -28,7 +28,10 @@ internal static class ThemeFiles
         Entries(file).Where(entry => entry.Value.Name == Presentation + "SolidColorBrush")
             .ToDictionary(entry => entry.Key, entry => Parse((string)entry.Value.Attribute("Color")!));
 
-    public static Color Parse(string hex) => (Color)ColorConverter.ConvertFromString(hex);
+    public static Color Parse(string value) =>
+        System.Text.RegularExpressions.Regex.Match(value, @"^\{x:Static SystemColors\.(\w+)\}$") is { Success: true } system
+            ? (Color)typeof(System.Windows.SystemColors).GetProperty(system.Groups[1].Value)!.GetValue(null)!
+            : (Color)ColorConverter.ConvertFromString(value);
 
     /// <summary>The WCAG 2.2 contrast ratio of two opaque colours, from 1 to 21.</summary>
     public static double Contrast(Color first, Color second)

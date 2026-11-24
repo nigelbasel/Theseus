@@ -29,7 +29,7 @@ foreach (var line in ExitBanner.Build(result))
 
 if (result.HoldTab)
 {
-    Console.ReadLine();
+    WaitForEnter();
 }
 
 return result.ExitCode;
@@ -37,6 +37,9 @@ return result.ExitCode;
 static void Hold(string message)
 {
     Console.Error.WriteLine(message);
-    Console.Error.WriteLine("This tab is being held open. Press Enter to close it.");
-    Console.ReadLine();
+    Console.Error.WriteLine($"This tab is held open for {LauncherHold.Limit.TotalMinutes:F0} minutes so this can be read. Press Enter to close it now.");
+    WaitForEnter();
 }
+
+// A held tab nobody reads must not keep its launcher running for ever.
+static void WaitForEnter() => Task.Run(Console.ReadLine).Wait(LauncherHold.Limit);

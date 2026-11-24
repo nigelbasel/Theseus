@@ -201,7 +201,7 @@ public partial class ProjectView : UserControl
 
     private void OnTabSelectionChanged(object sender, SelectionChangedEventArgs e) => _tabsHadFocus = Tabs.IsKeyboardFocusWithin;
 
-    private void OnAllWaitsRequested(object? sender, WaitsListViewModel list) =>
+    private void OnAllWaitsRequested(object? sender, WaitsChecklistViewModel list) =>
         new WaitsWindow(list) { Owner = Window.GetWindow(this) }.ShowDialog();
 
     internal void ForgetAutomationChildren()

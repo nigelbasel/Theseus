@@ -69,7 +69,43 @@ internal sealed class ProjectViews
 
     public ProjectViewEdits Edits => new((_, criterion, ticked) => Edited.Add($"Tick:{criterion.Line}:{ticked}"),
         objective => Edited.Add($"Edit:{objective.Number}"),
-        phase => Edited.Add($"Add:{phase}"));
+        phase => Edited.Add($"Add:{phase}"))
+    {
+        EditFile = (edit, done) =>
+        {
+            var path = Path.Combine(_folder.Home(ScaleFixtures.Large), "project.md");
+            File.WriteAllText(path, edit(File.ReadAllText(path)));
+            Notices.Add(done);
+        },
+        AskText = (title, _, _) =>
+        {
+            Asked.Add(title);
+
+            return Answers.Count > 0 ? Answers.Dequeue() : null;
+        },
+    };
+
+    /// <summary>What the next questions the view asks are answered with, in order; none left answers as if cancelled.</summary>
+    public Queue<string?> Answers { get; } = [];
+
+    /// <summary>The titles of the questions the view asked, in order.</summary>
+    public List<string> Asked { get; } = [];
+
+    /// <summary>What the view told cards, as "key: text".</summary>
+    public List<string> Told { get; } = [];
+
+    /// <summary>
+    /// The large project of <see cref="ScaleFixtures"/>, its overview read with the owner's names as the shell reads them,
+    /// and its lead card, <paramref name="lead"/>, on the board when given.
+    /// </summary>
+    public ProjectViewModel Large(string? lead = "large-lead", ProjectViewModel? previous = null, bool write = true)
+    {
+        var reading = write ? ScaleFixtures.WriteLarge(_folder) : Read(_folder, ScaleFixtures.Large);
+        var overview = ProjectOverview.For(reading.File!, [], [], [], 0, ownerNames: ScaleFixtures.Names);
+
+        return ProjectViewModel.Build(reading, [], LinksOn([], []), Tabs(ScaleFixtures.Large), Settings,
+            Actions with { TellCard = (key, text) => Told.Add($"{key}: {text}") }, null, Edits, previous, overview, lead);
+    }
 
     /// <summary>Theseus bootstrap, with git-22 in this state, open in its tab beside BuildYourMarket's.</summary>
     public ProjectViewModel Theseus(SessionLifecycle git22 = SessionLifecycle.Idle, ProjectViewModel? previous = null,

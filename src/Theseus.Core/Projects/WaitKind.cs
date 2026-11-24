@@ -39,6 +39,12 @@ public enum WaitKind
     /// </summary>
     CheckCannotRun,
 
-    /// <summary>Something outside Theseus: no button.</summary>
+    /// <summary>
+    /// A criterion's ask of the owner: he answers it, marks it done, or asks the lead, and the project file records it
+    /// (project-view-scale, git-22 for Nigel, 2026-11-24: "there is no way for me to take any action on them").
+    /// </summary>
+    Decide,
+
+    /// <summary>A criterion's ask of someone other than the owner: said as theirs, never counted as his.</summary>
     Outside,
 }

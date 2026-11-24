@@ -253,6 +253,35 @@ public class McpProjectWorkstreamToolsTests
         });
     }
 
+    [Test]
+    public void Workstreams_ListsTheProjectsScenarioWriters_AndTheyMayBeStopped()
+    {
+        _cards.Add(Card("writer", null, live: true) with { ProjectOfRole = Project });
+        _cards.Add(Card("other-writer", null, live: true) with { ProjectOfRole = "another-project" });
+
+        var text = Text(Call("workstreams", new JsonObject(), "lead-session"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(text, Does.Contain("Writer (writer): running"));
+            Assert.That(text, Does.Not.Contain("other-writer"));
+            Assert.That(IsError(Call("stop_workstream", new JsonObject { ["card"] = "writer" }, "lead-session")), Is.False);
+            Assert.That(_control.Calls, Has.Count.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public void AStartGivenToAnIdleOpenCard_GoesToTheBoard_ToBeHandedIn()
+    {
+        _cards[1] = Card("sibling", Project, live: true) with { Lifecycle = SessionLifecycle.Idle };
+
+        Assert.That(IsError(Call("start_workstream", new JsonObject { ["card"] = "sibling", ["instruction"] = "the filter too" }, "lead-session")),
+            Is.False);
+        Assert.That(Text(Call("start_workstream", new JsonObject { ["card"] = "sibling" }, "lead-session")),
+            Does.Contain("is open and idle: give it an instruction"));
+        Assert.That(_control.Calls, Has.Count.EqualTo(1));
+    }
+
     [TestCase("start_workstream")]
     [TestCase("stop_workstream")]
     [TestCase("pause_workstream")]

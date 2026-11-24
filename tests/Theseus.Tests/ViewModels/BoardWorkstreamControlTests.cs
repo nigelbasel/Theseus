@@ -18,6 +18,8 @@ public class BoardWorkstreamControlTests
     private string _events = string.Empty;
     private readonly List<(string Key, string? Instruction, string Trigger)> _started = [];
     private readonly List<string> _stopped = [];
+    private readonly List<(string Key, string Instruction, string Caller)> _handedIn = [];
+    private string? _handInRefusal;
     private readonly List<string> _notices = [];
     private string? _startRefusal;
     private string? _stopRefusal;
@@ -31,6 +33,8 @@ public class BoardWorkstreamControlTests
         _events = Path.Combine(Path.GetTempPath(), $"theseus-card-events-{Guid.NewGuid():N}.jsonl");
         _started.Clear();
         _stopped.Clear();
+        _handedIn.Clear();
+        _handInRefusal = null;
         _notices.Clear();
         _startRefusal = null;
         _stopRefusal = null;
@@ -53,6 +57,12 @@ public class BoardWorkstreamControlTests
             _stopped.Add(card.Key);
 
             return _stopRefusal;
+        },
+        (card, instruction, caller) =>
+        {
+            _handedIn.Add((card.Key, instruction, caller));
+
+            return _handInRefusal;
         },
         new CardEventLog(_events),
         _notices.Add,
@@ -196,6 +206,50 @@ public class BoardWorkstreamControlTests
         Assert.That(Control().Start("child", null, "parent"), Is.EqualTo("child is running."));
         Assert.That(Control().Start("gone", null, "parent"), Does.StartWith("gone is not on the board just now"));
         Assert.That(_started, Is.Empty);
+    }
+
+    [Test]
+    public void AStartGivenToAnIdleOpenSession_IsHandedInAsItsNextTurn_AndKeptAsAHandIn()
+    {
+        _board.Card("child")!.Lifecycle = SessionLifecycle.Idle;
+
+        Assert.That(Control().Start("child", "more work: the chips\nand the filter", "parent"), Is.Null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(_handedIn, Is.EqualTo(new[] { ("child", "more work: the chips\nand the filter", "parent") }));
+            Assert.That(_started, Is.Empty, "nothing is launched beside the open session");
+            Assert.That(Events(), Is.EqualTo(new[] { "Handed in by parent: more work: the chips" }));
+            Assert.That(new CardEventLog(_events).For("child").Single().Instruction, Is.EqualTo("more work: the chips\nand the filter"));
+        });
+    }
+
+    [Test]
+    public void AResumeGivenToAnIdleOpenSession_ClearsThePause_AndIsHandedIn_OrPutsThePauseBack()
+    {
+        var child = _board.Card("child")!;
+        child.Lifecycle = SessionLifecycle.Idle;
+        child.Workstream = child.Workstream with { IsPaused = true, PausedBy = "parent", PauseReason = "wait" };
+        _handInRefusal = "child's instruction could not be left for it; nothing was handed in.";
+
+        Assert.That(Control().Resume("child", "go on", "parent"), Is.EqualTo(_handInRefusal));
+        Assert.That((child.Workstream.IsPaused, child.Workstream.PausedBy), Is.EqualTo((true, (string?)"parent")));
+
+        _handInRefusal = null;
+
+        Assert.That(Control().Resume("child", "go on", "parent"), Is.Null);
+        Assert.That((child.Workstream.IsPaused, _handedIn.Count, _started.Count), Is.EqualTo((false, 2, 0)));
+    }
+
+    [TestCase(SessionLifecycle.Running, "more work", "child is running.")]
+    [TestCase(SessionLifecycle.NeedsAttention, "more work", "child is waiting for the user to answer it.")]
+    [TestCase(SessionLifecycle.Idle, null, "child is open and idle: give it an instruction, and it is handed in as its next turn.")]
+    public void AStartGivenToAnOpenSessionThatCannotTakeIt_IsRefused_SayingWhy(SessionLifecycle lifecycle, string? instruction, string said)
+    {
+        _board.Card("child")!.Lifecycle = lifecycle;
+
+        Assert.That(Control().Start("child", instruction, "parent"), Is.EqualTo(said));
+        Assert.That((_handedIn.Count, _started.Count), Is.EqualTo((0, 0)));
     }
 
     [Test]

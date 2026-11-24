@@ -59,6 +59,10 @@ public static class ProjectViewFileEdits
                     Write(text => ProjectFileEditor.AddObjective(text, phase, objective.Title, objective.Criteria).Text,
                         $"Added objective {objective.Title} to phase {phase} of {project}.");
                 }
-            });
+            })
+        {
+            EditFile = Write,
+            AskText = askText,
+        };
     }
 }

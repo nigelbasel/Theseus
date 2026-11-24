@@ -21,6 +21,15 @@ public sealed record WaitItem(WaitKind Kind, string Text, IReadOnlyList<string> 
     /// </summary>
     public IReadOnlyList<string> Objectives { get; init; } = [];
 
+    /// <summary>Whom it waits on, for a criterion's ask on someone other than the owner; null for the owner's.</summary>
+    public string? Who { get; init; }
+
+    /// <summary>What a criterion's ask asks, without its whom; empty for the other kinds.</summary>
+    public string Ask { get; init; } = string.Empty;
+
+    /// <summary>The criteria a criterion's ask covers, which Answer, Mark done and Reassign edit; empty for the other kinds.</summary>
+    public IReadOnlyList<WaitCriterion> Criteria { get; init; } = [];
+
     /// <summary>The proposal it concerns, for a proposal; null otherwise.</summary>
     public string? ProposalId { get; init; }
 
@@ -41,6 +50,7 @@ public sealed record WaitItem(WaitKind Kind, string Text, IReadOnlyList<string> 
         WaitKind.StartRequest => "Allow or refuse…",
         WaitKind.ClearVerifiers => "Clear up verifiers…",
         WaitKind.CheckCannotRun => "Independent check…",
+        WaitKind.Decide or WaitKind.Outside => "Respond…",
         _ => null,
     };
 }

@@ -93,6 +93,6 @@ public class WaitsCountTests
         view.ToggleFilter(StageNodeState.WaitingOnYou, add: false);
 
         Assert.That(view.AllNodes.Single(node => node.Name == card).IsShown, Is.True, "the proposal is its card's");
-        Assert.That(view.FilterText, Does.EndWith("; 1 more is only in Waits for you"));
+        Assert.That(view.FilterText, Does.EndWith("; 1 more has no piece of work and is listed at the top"));
     }
 }

@@ -2006,31 +2006,43 @@
         <Border x:Name="UpdateBar" DockPanel.Dock="Top" Margin="12,0,12,8" Padding="12,8" CornerRadius="4"
                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1"
                 Visibility="{Binding Updates.IsOffered, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
-            <!-- The offer is information; a stopped update is an error, with its own glyph and background (W46, C17, G150). -->
+            <!--
+                The offer is an informational bar on the accent, so it stands out (Nigel, 2026-11-24), never caution amber; a
+                stopped update is an error, on the critical red with its own glyph (W46, C17, G150).
+            -->
             <Border.Style>
                 <Style TargetType="Border">
-                    <Setter Property="Background" Value="{DynamicResource SystemFillColorAttentionBackgroundBrush}" />
+                    <Setter Property="Background" Value="{DynamicResource UpdateOfferBrush}" />
+                    <Setter Property="TextElement.Foreground" Value="{DynamicResource UpdateOfferTextBrush}" />
                     <Style.Triggers>
                         <DataTrigger Binding="{Binding Updates.Severity}" Value="{x:Static vm:NoticeSeverity.Error}">
                             <Setter Property="Background" Value="{DynamicResource SystemFillColorCriticalBackgroundBrush}" />
+                            <Setter Property="TextElement.Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
                         </DataTrigger>
                     </Style.Triggers>
                 </Style>
             </Border.Style>
             <DockPanel>
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button Style="{StaticResource CommandButton}" Content="_Update and restart" Margin="8,0,0,0"
+                    <!-- A solid backing: the button's own fill is translucent, and on the accent its label would fade (Nigel, 2026-11-24). -->
+                    <Border Margin="8,0,0,0" CornerRadius="4" Background="{DynamicResource SolidBackgroundFillColorBaseBrush}"
+                            Visibility="{Binding Updates.IsDownloading, Converter={StaticResource NotBoolToVisibility}}">
+                        <Button Style="{StaticResource CommandButton}" Content="_Update and restart"
                             ToolTip="Download it, check its SHA-256, install it (Windows asks for permission) and restart Theseus. Running sessions are not touched."
-                            Visibility="{Binding Updates.IsDownloading, Converter={StaticResource NotBoolToVisibility}}"
                             Command="{Binding Updates.UpdateCommand}" />
-                    <Button Style="{StaticResource CommandButton}" Content="S_kip this version" Margin="8,0,0,0"
+                    </Border>
+                    <Border Margin="8,0,0,0" CornerRadius="4" Background="{DynamicResource SolidBackgroundFillColorBaseBrush}"
+                            Visibility="{Binding Updates.IsDownloading, Converter={StaticResource NotBoolToVisibility}}">
+                        <Button Style="{StaticResource CommandButton}" Content="S_kip this version"
                             ToolTip="Not this version. Theseus offers again when a newer one is published."
-                            Visibility="{Binding Updates.IsDownloading, Converter={StaticResource NotBoolToVisibility}}"
                             Command="{Binding Updates.LaterCommand}" />
-                    <Button x:Name="CancelUpdate" Style="{StaticResource CommandButton}" Content="Cancel" Margin="8,0,0,0"
+                    </Border>
+                    <Border Margin="8,0,0,0" CornerRadius="4" Background="{DynamicResource SolidBackgroundFillColorBaseBrush}"
+                            Visibility="{Binding Updates.IsDownloading, Converter={StaticResource BoolToVisibility}}">
+                        <Button x:Name="CancelUpdate" Style="{StaticResource CommandButton}" Content="Cancel"
                             ToolTip="Stop the download. Nothing is installed, and the offer stays."
-                            Visibility="{Binding Updates.IsDownloading, Converter={StaticResource BoolToVisibility}}"
                             Command="{Binding Updates.CancelDownloadCommand}" />
+                    </Border>
                 </StackPanel>
                 <controls:GlyphText DockPanel.Dock="Left" Margin="0,0,8,0" VerticalAlignment="Center"
                                     FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="16">
@@ -2064,8 +2076,7 @@
                 <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" FontSize="12"
                            ToolTip="{Binding Updates.Offer.Page}">
                     <Run Text="{Binding Updates.OfferText, Mode=OneWay}" />
-                    <Run Text="{Binding Updates.Status, Mode=OneWay}"
-                         Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                    <Run Text="{Binding Updates.Status, Mode=OneWay}" />
                 </TextBlock>
             </DockPanel>
         </Border>

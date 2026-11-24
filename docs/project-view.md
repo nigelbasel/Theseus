@@ -25,11 +25,23 @@ card's menu.
 While something waits on you, a band lists it: **Accept the spec of …** opens that piece of work, selects its spec and
 asks you to accept it, naming the version; **Answer … in its terminal** brings that session's terminal forward.
 The same ask of the same person is one line, however many criteria or pieces of work it holds up: a line that several
-criteria share says how many, and in which objectives. The band shows the first three lines; **and n more…** opens a
-dialog listing every line with its button, and a button there does its line and closes the dialog. An objective with no
-workstream yet waits on the project's lead, which plans it, so that is said on a line under the band and not counted
-in it. However much waits, the top of the view takes at most part of its height and scrolls, so the work below always
-has room.
+criteria share says how many, and in which objectives. Only what waits on you is counted. A criterion's ask of someone
+else, written `Waiting: on <who>: …`, is said on a line of its own under the band, **Waits on others**, and an ask in a
+phase that has not started is held under that phase's heading in **Objectives only**. An objective with no workstream
+yet waits on the project's lead, which plans it, so that is said under the band too and not counted. However much
+waits, the top of the view takes at most part of its height and scrolls, so the work below always has room.
+
+The band shows the first three lines; **and n more…** opens the **waits checklist**. So does **Respond…** on a
+criterion's line, on an objective's banner, on the others' line and on a phase's held line, with those waits already
+ticked. The checklist lists every wait, grouped by what it asks, each saying whom it waits on and which objectives and
+criteria it covers; ticking a wait ticks its criteria. Its command bar acts on what is ticked: **Answer…** records one
+answer for every ticked wait as a decision in project.md and clears them; **Mark done** records them as done and clears
+them; **Ask the lead** gives them to the lead's session as its prompt and brings its tab forward; **Go to objective**
+shows the one objective they concern; **Reassign to…** puts them on someone else, or back on you. An action that cannot
+apply says why on hover. **Select all** (Ctrl+A) and **Clear** tick and untick everything; Space ticks a row; Esc closes.
+
+With the "waiting on you" chip on, the view shows as many things as the chip says: the waits that have no piece of
+work yet are listed at the top, and in **Objectives only** every objective a wait concerns is shown.
 
 ## The marks
 
