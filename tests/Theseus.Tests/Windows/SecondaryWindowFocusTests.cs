@@ -34,6 +34,7 @@ public class SecondaryWindowFocusTests
         ["Proposal", "BriefView"],
         ["Records", "row:Entries"],
         ["Spec", "PreviewView"],
+        ["Waits", "row:Rows"],
     ];
 
     [TestCaseSource(nameof(FirstControls))]
@@ -83,6 +84,7 @@ public class SecondaryWindowFocusTests
     [TestCase("Spec", "ViewChoice")]
     [TestCase("Records", "ViewChoice")]
     [TestCase("Checklist", "Rows")]
+    [TestCase("Waits", "Rows")]
     [TestCase("Arrange", "Groups")]
     public void AGroup_IsOneTabStop_AndTheArrowsStayInsideIt(string name, string group)
     {

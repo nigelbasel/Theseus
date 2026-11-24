@@ -14,6 +14,32 @@ public sealed record CriterionWaiting(bool IsOwner, string What)
     /// <summary>The line as the file holds it, without its indent.</summary>
     public string Line => $"{Label} {(IsOwner ? "owner" : "work")}: {What}";
 
+    /// <summary>
+    /// Each ask the note lists, split at "; owner:" and "; work:", in order; the first is on <see cref="IsOwner"/>'s side.
+    /// </summary>
+    public IReadOnlyList<WaitingAsk> Asks
+    {
+        get
+        {
+            var parts = AskBoundary.Split(What);
+            var asks = new List<WaitingAsk> { new(IsOwner, parts[0].Trim()) };
+
+            foreach (var part in parts.Skip(1))
+            {
+                var isOwner = part.StartsWith("owner:", StringComparison.OrdinalIgnoreCase);
+                asks.Add(new WaitingAsk(isOwner, part[(isOwner ? "owner:" : "work:").Length..].Trim()));
+            }
+
+            return [.. asks.Where(ask => ask.What.Length > 0)];
+        }
+    }
+
+    /// <summary>The owner's asks among <see cref="Asks"/>.</summary>
+    public IReadOnlyList<WaitingAsk> OwnerAsks => [.. Asks.Where(ask => ask.IsOwner)];
+
+    private static readonly System.Text.RegularExpressions.Regex AskBoundary =
+        new(@";\s*(?=(?:owner|work):)", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
     /// <summary>Reads a continuation line's text, or null when it is not a waiting note.</summary>
     public static CriterionWaiting? Parse(string trimmed)
     {
