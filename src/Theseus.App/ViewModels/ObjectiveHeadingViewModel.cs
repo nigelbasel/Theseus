@@ -22,7 +22,8 @@ public sealed class ObjectiveHeadingViewModel : ObservableObject, IFoldable
     private bool _isSelected;
 
     internal ObjectiveHeadingViewModel(ObjectiveGroup group, string? phaseTitle, IReadOnlyList<PieceNodeViewModel> pieces,
-        bool isOpen, Action<IFoldable> toggle, Action<object> select, ProjectViewEdits? edits, IReadOnlyList<WaitItemViewModel> projectWaits)
+        bool isOpen, Action<IFoldable> toggle, Action<object> select, ProjectViewEdits? edits, IReadOnlyList<WaitItemViewModel> projectWaits,
+        IReadOnlyCollection<string>? ownerNames = null)
     {
         Objective = group.Objective;
         PhaseTitle = phaseTitle;
@@ -34,7 +35,7 @@ public sealed class ObjectiveHeadingViewModel : ObservableObject, IFoldable
         _isOpen = isOpen;
         ToggleCommand = new RelayCommand(_ => toggle(this));
         SelectCommand = new RelayCommand(_ => select(this));
-        Criteria = Objective is { } objective ? CriterionViewModel.Of(objective, edits) : [];
+        Criteria = Objective is { } objective ? CriterionViewModel.Of(objective, edits, ownerNames) : [];
         EditObjectiveCommand = Objective is { } edited && edits is not null
             ? new RelayCommand(_ => edits.EditObjective(edited))
             : null;
@@ -57,6 +58,9 @@ public sealed class ObjectiveHeadingViewModel : ObservableObject, IFoldable
     /// when there are any (project-view-usability item 6).
     /// </summary>
     public IReadOnlyList<WaitItemViewModel> Waits { get; }
+
+    /// <summary>Respond… on its banner: the waits checklist with its waits ticked (git-22 for Nigel, 2026-11-24).</summary>
+    public System.Windows.Input.ICommand? RespondCommand { get; init; }
 
     /// <summary>Whether any item of Waits for you belongs to this objective.</summary>
     public bool HasWaits => Waits.Count > 0;

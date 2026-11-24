@@ -34,13 +34,21 @@ public static class SecondaryWindows
         ("Waits", () => new WaitsWindow(Waits())),
     ];
 
-    /// <summary>Two lines of Waits for you, one with a button and one outside Theseus, and a line for the lead.</summary>
-    public static WaitsListViewModel Waits() =>
-        new("Cache spike",
-        [
-            new WaitItemViewModel(new WaitItem(WaitKind.Answer, "Auth research asks which cache to use.", []), new RelayCommand(_ => { })),
-            new WaitItemViewModel(new WaitItem(WaitKind.Outside, "Name the reviewer. This happens outside Theseus.", []), null),
-        ], "Waits on the lead: 2 objectives have no workstream yet.");
+    /// <summary>A criterion's ask on two criteria, its first ticked, and a session's question with its own button.</summary>
+    public static WaitsChecklistViewModel Waits()
+    {
+        var ask = new WaitItem(WaitKind.Decide, "Name the reviewer (2 criteria, in objectives 0.1 and 0.2).", [])
+        {
+            Ask = "Name the reviewer",
+            Objectives = ["0.1", "0.2"],
+            Criteria = [new("0.1", "Cache", 0, "One.", "Name the reviewer"), new("0.2", "Auth", 0, "Two.", "Name the reviewer")],
+        };
+        var question = new WaitItem(WaitKind.Answer, "Auth research asks which cache to use.", []);
+
+        return new WaitsChecklistViewModel(
+            [(new WaitItemViewModel(ask, new RelayCommand(_ => { })), "For you"), (new WaitItemViewModel(question, new RelayCommand(_ => { })), "For you")],
+            [ask], new WaitsChecklistActions("Cache spike", (_, _) => { }, (_, _, _) => null, "Cache lead", _ => { }, _ => { }));
+    }
 
     /// <summary>The arranger with one terminal window, read from nowhere: no real window is looked at or moved.</summary>
     public static ArrangeViewModel Arrange()

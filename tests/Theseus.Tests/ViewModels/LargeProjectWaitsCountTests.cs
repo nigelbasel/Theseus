@@ -23,19 +23,17 @@ public class LargeProjectWaitsCountTests
     [Test]
     public void TheSentence_Heading_Chip_CardChip_AndDialog_GiveOneCount()
     {
-        var reading = WriteLarge(_folder);
-        var overview = ProjectOverview.For(reading.File!, [], [], [], 0);
-        var view = ProjectViewModel.Build(reading, [], ProjectViewFixtures.LinksOn([], []), [], new MemorySettingsStore(),
-            new ProjectViews(_folder).Actions, overview: overview);
-        var card = new ProjectCardViewModel(reading.Name, reading.File!.Title);
+        var view = new ProjectViews(_folder).Large();
+        var overview = view.Overview;
+        var card = new ProjectCardViewModel(ScaleFixtures.Large, "Large");
         ProjectCardFace.Fill(card, [], overview: overview);
         var count = overview.Waits.Count;
 
-        Assert.That(count, Is.EqualTo(Objectives + 1));
-        Assert.That(view.Sentence, Does.Contain($"{count} things wait for you"));
+        Assert.That(count, Is.EqualTo(Yours));
+        Assert.That(view.Sentence, Does.Contain("Seven things wait for you"));
         Assert.That(view.WaitsHeading, Is.EqualTo($"◆ Waits for you ({count})"));
         Assert.That(view.Counts.Single(chip => chip.State == StageNodeState.WaitingOnYou).Count, Is.EqualTo(count));
         Assert.That(card.Counts.Single(chip => chip.State == StageNodeState.WaitingOnYou).Count, Is.EqualTo(count));
-        Assert.That(view.AllWaits.Rows, Has.Count.EqualTo(count));
+        Assert.That(view.Checklist([]).Groups.Count(group => group.Whom == "For you"), Is.EqualTo(count));
     }
 }

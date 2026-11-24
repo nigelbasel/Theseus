@@ -97,7 +97,8 @@ public class ObjectivesLensTests
             + "- [x] One.\n- [ ] Two.\n      Waiting: owner: install the guard\n\n**Pipeline:** freeform\n"
             + "| Workstream | Slug | Branch | Repos |\n|---|---|---|---|\n")).File!;
 
-        Assert.That(Rollup.Of(file.Objectives[0], [], []).State, Is.EqualTo(RollupState.WaitingForYou));
+        // The mark comes from Waits for you, the one source, so an ask on someone else or in a later phase marks nothing.
+        Assert.That(Rollup.Of(file.Objectives[0], [], ProjectOverview.For(file, [], [], [], 0).Waits).State, Is.EqualTo(RollupState.WaitingForYou));
     }
 
     [Test]

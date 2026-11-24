@@ -56,6 +56,21 @@ public sealed class ProjectOverview
     /// </summary>
     public IReadOnlyList<string> ForTheLead { get; init; } = [];
 
+    /// <summary>
+    /// The criteria's asks of someone other than the owner in the phases under way, as "Waits on the gateway team: …": said
+    /// beside Waits for you and never counted in it (project-view-scale, git-22 for Nigel, 2026-11-24).
+    /// </summary>
+    public IReadOnlyList<WaitItem> Others { get; init; } = [];
+
+    /// <summary>
+    /// The criteria's asks in phases not yet started, by phase number, the owner's and others': held under their phase,
+    /// not in the band, since the band shows what blocks the phase under way (git-22 for Nigel, 2026-11-24).
+    /// </summary>
+    public IReadOnlyDictionary<int, IReadOnlyList<WaitItem>> Held { get; init; } = new Dictionary<int, IReadOnlyList<WaitItem>>();
+
+    /// <summary>The owner's names the asks were read against, for lines written before the <c>on</c> form.</summary>
+    public IReadOnlyCollection<string> OwnerNames { get; init; } = [];
+
     /// <summary>The line its last clear-up leaves under the heading, with Undo and Dismiss, or null.</summary>
     public string? ClearUpNotice { get; init; }
 
@@ -72,17 +87,22 @@ public sealed class ProjectOverview
     /// <param name="clearUpNotice">The line its last clear-up leaves while it can be undone, or null: a notice, not a wait.</param>
     /// <param name="underway">What Theseus is doing itself for its checks, said with nothing to press (git-22, 2026-11-23).</param>
     /// <param name="otherWaits">Lines the shell works out that the file and pieces cannot say, such as a check Theseus cannot start and why.</param>
+    /// <param name="ownerNames">The owner's names, for criteria lines written before the <c>on &lt;who&gt;:</c> form.</param>
     public static ProjectOverview For(ProjectFile file, IReadOnlyList<PieceOfWork> pieces, IEnumerable<Link> links,
         IEnumerable<WorkstreamProposal> proposals, int accepted, IEnumerable<StartRequest>? startRequests = null,
         Func<string, string>? titleOf = null, IReadOnlyList<WrongVerifier>? wrongVerifiers = null, string? clearUpNotice = null,
-        IReadOnlyList<string>? underway = null, IEnumerable<PieceCard>? others = null, IReadOnlyList<WaitItem>? otherWaits = null)
+        IReadOnlyList<string>? underway = null, IEnumerable<PieceCard>? others = null, IReadOnlyList<WaitItem>? otherWaits = null,
+        IReadOnlyCollection<string>? ownerNames = null)
     {
         ArgumentNullException.ThrowIfNull(file);
         ArgumentNullException.ThrowIfNull(pieces);
         ArgumentNullException.ThrowIfNull(links);
         ArgumentNullException.ThrowIfNull(proposals);
 
+        var names = ownerNames ?? [];
+        var asks = CriterionAsks(file, names);
         var waits = WaitsOf(file, pieces, [.. links], proposals, startRequests ?? [], titleOf, others ?? []);
+        waits.AddRange(asks.Where(ask => ask.Phase is null && ask.Item.Who is null).Select(ask => ask.Item));
         waits.AddRange(otherWaits ?? []);
 
         if (wrongVerifiers is { Count: > 0 } wrong)
@@ -102,6 +122,10 @@ public sealed class ProjectOverview
             TalliesOf(file, pieces, accepted), waits, underway ?? [])
         {
             ClearUpNotice = clearUpNotice,
+            Others = [.. asks.Where(ask => ask.Phase is null && ask.Item.Who is not null).Select(ask => ask.Item)],
+            Held = asks.Where(ask => ask.Phase is not null).GroupBy(ask => ask.Phase!.Value)
+                .ToDictionary(group => group.Key, group => (IReadOnlyList<WaitItem>)[.. group.Select(ask => ask.Item)]),
+            OwnerNames = names,
             ForTheLead = unplanned == 0 ? [] : [$"{Capital(Count(unplanned, "objective"))} {(unplanned == 1 ? "has" : "have")} no workstream yet."],
         };
     }
@@ -173,7 +197,6 @@ public sealed class ProjectOverview
         // No line asks the owner to start a round's independent checks: Theseus starts each itself once a scenario names
         // the build, and only a start that failed waits for him, as a verifier's Start again above (git-22, 2026-11-23).
 
-        waits.AddRange(OutsideWaits(file));
 
         var cards = pieces.Select(piece => piece.CardKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
@@ -226,30 +249,55 @@ public sealed class ProjectOverview
         return waits;
     }
 
-    // One line per thing asked, however many criteria wait on it: a real project's 68 owner notes were 47 asks, one of
-    // them on sixteen criteria (project-view-scale, 2026-11-24).
-    private static IEnumerable<WaitItem> OutsideWaits(ProjectFile file)
+    // One line per thing asked of one person, however many criteria wait on it: a real project's 68 owner notes were 47
+    // asks, one of them on sixteen criteria (project-view-scale, 2026-11-24). An ask in a phase after the one under way is
+    // held there; Phase is null for the phases under way and done.
+    private static List<(WaitItem Item, int? Phase)> CriterionAsks(ProjectFile file, IReadOnlyCollection<string> names)
     {
-        var asks = file.Objectives
-            .SelectMany(objective => objective.Criteria.Where(criterion => criterion.WaitsOnOwner)
-                .SelectMany(criterion => criterion.Waiting!.OwnerAsks.Select(ask => (Objective: objective, Ask: ask.What.TrimEnd('.', ' ')))))
-            .GroupBy(entry => entry.Ask, StringComparer.OrdinalIgnoreCase);
+        var current = file.CurrentPhase?.Number ?? int.MaxValue;
+        var phaseOf = file.Phases.SelectMany(phase => phase.Objectives.Select(objective => (objective.Number, phase.Number)))
+            .ToDictionary(pair => pair.Item1, pair => pair.Item2, StringComparer.Ordinal);
+        var entries = file.Objectives
+            .SelectMany(objective => objective.Criteria
+                .Select((criterion, index) => (Criterion: criterion, Index: index))
+                .Where(each => each.Criterion.WaitsOnOwner)
+                .SelectMany(each => each.Criterion.Waiting!.OwnerAsks.Select(ask => (
+                    Objective: objective,
+                    Who: ask.Who(names),
+                    Asked: ask.Asked(names).TrimEnd('.', ' '),
+                    Criterion: new WaitCriterion(objective.Number, objective.Title, each.Index, each.Criterion.Text, ask.What)
+                    {
+                        IsOwnerAsk = ask.IsOwner,
+                        On = ask.On,
+                        Asked = ask.Asked(names),
+                    }))))
+            .Select(entry => (Entry: entry, Phase: phaseOf.TryGetValue(entry.Objective.Number, out var phase) && phase > current ? phase : (int?)null));
 
-        foreach (var ask in asks)
+        return
+        [
+            .. entries.GroupBy(each => (each.Phase, Who: each.Entry.Who?.ToUpperInvariant(), Asked: each.Entry.Asked.ToUpperInvariant()))
+                .Select(group => (Item: AskLine([.. group.Select(each => each.Entry)]), group.Key.Phase)),
+        ];
+    }
+
+    private static WaitItem AskLine(List<(ProjectObjective Objective, string? Who, string Asked, WaitCriterion Criterion)> entries)
+    {
+        var (_, who, asked, _) = entries[0];
+        var objectives = entries.Select(entry => entry.Objective).DistinctBy(objective => objective.Number).ToList();
+        var criteria = entries.Count;
+        var where = objectives.Count == 1
+            ? $"objective {objectives[0].Number}, {objectives[0].Title}" + (criteria == 1 ? string.Empty : $", {Count(criteria, "criterion", "criteria")}")
+            : $"{Count(criteria, "criterion", "criteria")}, in objectives {List(objectives.Select(objective => objective.Number))}";
+        var text = who is null ? $"{Capital(asked)} ({where})." : $"Waits on {who}: {asked} ({where}).";
+
+        return new WaitItem(who is null ? WaitKind.Decide : WaitKind.Outside, text, [])
         {
-            var objectives = ask.Select(entry => entry.Objective).DistinctBy(objective => objective.Number).ToList();
-            var criteria = ask.Count();
-            var text = objectives.Count == 1
-                ? $"Objective {objectives[0].Number}, {objectives[0].Title}: {ask.Key}"
-                  + (criteria == 1 ? string.Empty : $" ({Count(criteria, "criterion", "criteria")})")
-                : $"{Capital(ask.Key)}: {Count(criteria, "criterion", "criteria")}, in objectives {List(objectives.Select(objective => objective.Number))}";
-
-            yield return new WaitItem(WaitKind.Outside, $"{text}. This happens outside Theseus.", [])
-            {
-                Objective = objectives[0].Number,
-                Objectives = [.. objectives.Select(objective => objective.Number)],
-            };
-        }
+            Who = who,
+            Ask = asked,
+            Criteria = [.. entries.Select(entry => entry.Criterion)],
+            Objective = objectives[0].Number,
+            Objectives = [.. objectives.Select(objective => objective.Number)],
+        };
     }
 
     // The same ask of the same person is one line: a card serving two objectives is two pieces, and its question was two

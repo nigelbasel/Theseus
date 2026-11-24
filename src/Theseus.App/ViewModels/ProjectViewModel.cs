@@ -46,6 +46,7 @@ public sealed class ProjectViewModel : ObservableObject
     private IReadOnlySet<string> _waitingPieces = new HashSet<string>();
     private int _waitsWithNoBox;
     private string? _leadName;
+    private string? _leadKey;
 
     private ProjectViewModel(ProjectFile file, ProjectSummary summary, ISettingsStore settings, ProjectViewActions actions,
         ProjectViewEdits? edits)
@@ -68,7 +69,8 @@ public sealed class ProjectViewModel : ObservableObject
         OpenWhatNeedsAttentionCommand = new RelayCommand(_ => OpenWhatNeedsAttention());
         ClearSelectionCommand = new RelayCommand(_ => Escape(), _ => _selection is not null || _filter.Count > 0);
         CloseOverlayCommand = new RelayCommand(_ => SetOverlay(false), _ => _isOverlayOpen);
-        ShowAllWaitsCommand = new RelayCommand(_ => AllWaitsRequested?.Invoke(this, AllWaits), _ => HasMoreWaits);
+        ShowAllWaitsCommand = new RelayCommand(_ => Respond([]), _ => HasMoreWaits);
+        RespondToOthersCommand = new RelayCommand(_ => Respond(Overview.Others), _ => Overview.Others.Count > 0);
     }
 
     /// <summary>The project's name.</summary>
@@ -350,11 +352,60 @@ public sealed class ProjectViewModel : ObservableObject
     /// <summary>"and n more…": every line in a dialog of its own, since lists of items go in dialogs (Nigel's rule).</summary>
     public ICommand ShowAllWaitsCommand { get; }
 
-    /// <summary>Raised by <see cref="ShowAllWaitsCommand"/> with the dialog's model; the view opens the dialog.</summary>
-    public event EventHandler<WaitsListViewModel>? AllWaitsRequested;
+    /// <summary>Raised with the waits checklist to open; the view opens the dialog.</summary>
+    public event EventHandler<WaitsChecklistViewModel>? AllWaitsRequested;
 
-    /// <summary>The dialog of every line of Waits for you, each with its button.</summary>
-    public WaitsListViewModel AllWaits => new(Title, Waits, LeadWaitsText);
+    /// <summary>The criteria's asks of someone other than the owner, each with Respond… (git-22 for Nigel, 2026-11-24).</summary>
+    public IReadOnlyList<WaitItemViewModel> OtherWaits { get; private set; } = [];
+
+    /// <summary>"Waits on others: 4, on the gateway team and the DPO.", or empty: said, not counted.</summary>
+    public string OthersText => Overview.Others.Count == 0
+        ? string.Empty
+        : $"Waits on others: {Overview.Others.Count}, on {Names([.. Overview.Others.Select(wait => wait.Who!).Distinct(StringComparer.OrdinalIgnoreCase)])}.";
+
+    /// <summary>Respond… on the others' line: the checklist with theirs ticked.</summary>
+    public ICommand RespondToOthersCommand { get; }
+
+    /// <summary>
+    /// The waits that concern no box, shown at the top of the work while the "waiting on you" chip filters, so the chip's
+    /// count is what the filter shows (git-22 for Nigel, 2026-11-24: the chip "filters to nothing in both lenses").
+    /// </summary>
+    public IReadOnlyList<WaitItemViewModel> NoPieceWaits => _filter.Contains(StageNodeState.WaitingOnYou)
+        ? [.. Waits.Where(wait => !AllNodes.Any(node => Concerns(wait.Item, node)))]
+        : [];
+
+    /// <summary>Whether the group of waits with no piece of work shows.</summary>
+    public bool HasNoPieceWaits => NoPieceWaits.Count > 0;
+
+    /// <summary>The waits checklist with every wait, these ticked: what every Respond… opens.</summary>
+    public WaitsChecklistViewModel Checklist(IEnumerable<WaitItem> ticked)
+    {
+        var rows = Waits.Select(line => (line, "For you"))
+            .Concat(OtherWaits.Select(line => (line, $"On {line.Item.Who}")))
+            .Concat(Phases.SelectMany(phase => phase.Held.Select(line =>
+                (line, $"{(line.Item.Who is { } who ? $"On {who}" : "For you")}, when phase {phase.Group.Phase.Number} starts"))))
+            .ToList();
+        Action<string>? askLead = _leadKey is { } lead && _actions.TellCard is { } tell
+            ? text =>
+            {
+                tell(lead, text);
+                _actions.Focus(lead);
+            }
+            : null;
+
+        return new WaitsChecklistViewModel(rows, ticked,
+            new WaitsChecklistActions(Title, _edits?.EditFile, _edits?.AskText, _leadName, askLead, number =>
+            {
+                IsGroupedByObjectives = true;
+                GoToObjective(number);
+            }));
+    }
+
+    /// <summary>Opens the waits checklist with these ticked.</summary>
+    public void Respond(IEnumerable<WaitItem> ticked) => AllWaitsRequested?.Invoke(this, Checklist(ticked));
+
+    private static string Names(IReadOnlyList<string> names) =>
+        names.Count <= 2 ? string.Join(" and ", names) : $"{string.Join(", ", names.Take(names.Count - 1))} and {names[^1]}";
 
     /// <summary>
     /// "Waits on the lead, Spec lead: 35 objectives have no workstream yet.", or empty: the lead plans an objective's
@@ -387,7 +438,7 @@ public sealed class ProjectViewModel : ObservableObject
         : $"Showing: {string.Join(", ", _filter.Select(state => StageNodeStates.Word(state).ToLowerInvariant()))} "
           + $"({AllNodes.Count(InFilter)} of {AllNodes.Count()})"
           + (_filter.Contains(StageNodeState.WaitingOnYou) && _waitsWithNoBox > 0
-              ? $"; {_waitsWithNoBox} more {(_waitsWithNoBox == 1 ? "is" : "are")} only in Waits for you"
+              ? $"; {_waitsWithNoBox} more {(_waitsWithNoBox == 1 ? "has" : "have")} no piece of work and {(_waitsWithNoBox == 1 ? "is" : "are")} listed at the top"
               : string.Empty);
 
     /// <summary>Whether a filter is on.</summary>
@@ -570,6 +621,7 @@ public sealed class ProjectViewModel : ObservableObject
                 _ => "no session",
             };
             view._leadName = card?.Title ?? leadKey;
+            view._leadKey = leadKey;
             view.LeadText = $"Lead: {view._leadName} · {state}";
             view.FocusLeadCommand = new RelayCommand(_ => actions.Focus(leadKey), _ => card?.HasSession == true);
             view.FocusLeadToolTip = card?.HasSession == true
@@ -595,6 +647,7 @@ public sealed class ProjectViewModel : ObservableObject
         view.Waits = [.. view.Overview.Waits.Select(item => item.Kind == WaitKind.CheckCannotRun
             ? view.CannotRunLine(item)
             : new WaitItemViewModel(item, view.WaitCommand(item, reading.Name)))];
+        view.OtherWaits = [.. view.Overview.Others.Select(item => new WaitItemViewModel(item, view.WaitCommand(item, reading.Name)))];
         view._waitingPieces = view.AllNodes.Where(node => view.Overview.Waits.Any(wait => Concerns(wait, node)))
             .Select(node => node.Name).ToHashSet(StringComparer.Ordinal);
         view._waitsWithNoBox = view.Overview.Waits.Count(wait => !view.AllNodes.Any(node => Concerns(wait, node)));
@@ -674,12 +727,12 @@ public sealed class ProjectViewModel : ObservableObject
         {
             case PieceNodeViewModel piece:
                 piece.IsSelected = true;
-                Properties = PropertiesViewModel.ForPiece(piece, _actions, _edits);
+                Properties = PropertiesViewModel.ForPiece(piece, _actions, _edits, Overview.OwnerNames);
                 break;
             case StageNodeViewModel stage:
                 stage.IsSelected = true;
                 stage.Piece.IsSelected = true;
-                Properties = PropertiesViewModel.ForStage(stage, _actions, _edits);
+                Properties = PropertiesViewModel.ForStage(stage, _actions, _edits, Overview.OwnerNames);
                 break;
             case PhaseHeadingViewModel phase:
                 phase.IsSelected = true;
@@ -848,15 +901,31 @@ public sealed class ProjectViewModel : ObservableObject
         var title = $"Phase {group.Phase.Number.ToString(CultureInfo.InvariantCulture)}: {group.Phase.Name}";
         var objectives = group.Objectives.Select(objective => ObjectiveFor(objective, title, byPiece, edits)).ToList();
 
+        IReadOnlyList<WaitItemViewModel> held = [.. Overview.Held.GetValueOrDefault(group.Phase.Number, [])
+            .Select(item => new WaitItemViewModel(item, new RelayCommand(_ => Respond([item]))))];
+
         return new PhaseHeadingViewModel(group, objectives,
-            PieceFolds.IsOpen(_folds, PieceFolds.PhaseEntry(group.Phase.Name), !group.IsDone), ToggleFold, Select, edits);
+            PieceFolds.IsOpen(_folds, PieceFolds.PhaseEntry(group.Phase.Name), !group.IsDone), ToggleFold, Select, edits)
+        {
+            Held = held,
+            RespondCommand = held.Count == 0 ? null : new RelayCommand(_ => Respond(held.Select(line => line.Item))),
+        };
     }
 
     private ObjectiveHeadingViewModel ObjectiveFor(ObjectiveGroup group, string? phaseTitle,
         IReadOnlyDictionary<PieceOfWork, PieceNodeViewModel> byPiece, ProjectViewEdits? edits) =>
         new(group, phaseTitle, [.. group.Pieces.Select(piece => byPiece[piece])],
             PieceFolds.IsOpen(_folds, group.Objective is { } objective ? PieceFolds.ObjectiveEntry(objective.Title) : PieceFolds.UnlistedEntry,
-                true), ToggleFold, Select, edits, Waits);
+                true), ToggleFold, Select, edits, Waits, Overview.OwnerNames)
+        {
+            RespondCommand = new RelayCommand(_ => Respond(CriterionWaitsFirst(Waits.Select(wait => wait.Item)
+                .Where(ObjectiveWaits.Belongs(group.Objective?.Number, group.Pieces)).ToList()))),
+        };
+
+    // A banner's Respond… ticks its criteria's asks, which the checklist's actions apply to; a proposal or a report under the
+    // same objective keeps its own button and is ticked only when nothing else is (review of the follow-on, nit 3).
+    private static IReadOnlyList<WaitItem> CriterionWaitsFirst(IReadOnlyList<WaitItem> waits) =>
+        waits.Any(wait => wait.Criteria.Count > 0) ? [.. waits.Where(wait => wait.Criteria.Count > 0)] : waits;
 
     private PieceActionViewModel Action(StageActionOffer offer, PieceOfWork piece, StageNode stage, SpecAtGate? spec)
     {
@@ -1006,7 +1075,8 @@ public sealed class ProjectViewModel : ObservableObject
         // Objectives only the same way: a heading shows while it holds a match, and opens, unremembered, to show it.
         foreach (ObjectiveHeadingViewModel objective in AllObjectives)
         {
-            objective.IsShown = _filter.Count == 0 || objective.Pieces.Any(node => node.IsShown);
+            objective.IsShown = _filter.Count == 0 || objective.Pieces.Any(node => node.IsShown)
+                                || _filter.Contains(StageNodeState.WaitingOnYou) && objective.HasWaits;
             objective.IsOpen |= _filter.Count > 0 && objective.IsShown;
         }
 
@@ -1021,6 +1091,8 @@ public sealed class ProjectViewModel : ObservableObject
         Raise(nameof(Filter));
         Raise(nameof(FilterText));
         Raise(nameof(IsFiltered));
+        Raise(nameof(NoPieceWaits));
+        Raise(nameof(HasNoPieceWaits));
     }
 
     // A wait concerns a box it names, or the current box of the card it concerns. One naming only an objective, such as
@@ -1051,6 +1123,7 @@ public sealed class ProjectViewModel : ObservableObject
             WaitKind.Answer when item.CardKey is { } card => new RelayCommand(_ => _actions.Focus(card)),
             WaitKind.Unblock when item.CardKey is { } card && node?.PrimaryAction is { } action => action.Command,
             WaitKind.StartVerifier when item.CardKey is { } verifier => new RelayCommand(_ => StartVerifier(verifier)),
+            WaitKind.Decide or WaitKind.Outside => new RelayCommand(_ => Respond([item])),
             WaitKind.ClearVerifiers when _actions.ClearVerifiers is { } clear => new RelayCommand(_ => clear(project)),
             WaitKind.AddToObjective when item.CardKey is { } card && _actions.AddToProject is { } add => new RelayCommand(_ => add(project, card)),
             WaitKind.Proposal when item.ProposalId is { } proposal && _actions.ReviewProposal is { } review =>
@@ -1300,9 +1373,11 @@ public sealed class ProjectViewModel : ObservableObject
                 string.Join(",", objective.Counts.Select(chip => chip.Text)),
                 string.Join(",", objective.Pieces.Select(piece => piece.Name)));
 
-        return string.Join("|", new[] { view.Name, view.Title, view.Sentence, view.ClearUpNotice ?? string.Empty, view.UnderwayText, view.LeadWaitsText,
+        return string.Join("|", new[] { view.Name, view.Title, view.Sentence, view.ClearUpNotice ?? string.Empty, view.UnderwayText, view.LeadWaitsText, view.OthersText,
                 view._grouping.ToString(),
-                string.Join(";", view.Waits.Select(wait => $"{wait.Text}:{wait.Button}:{string.Join(",", wait.Item.Pieces)}:{wait.Item.CardKey}")) }
+                string.Join(";", view.Waits.Concat(view.OtherWaits).Concat(view.Phases.SelectMany(phase => phase.Held)).Select(wait =>
+                    $"{wait.Text}:{wait.Button}:{string.Join(",", wait.Item.Pieces)}:{wait.Item.CardKey}:"
+                    + string.Join(",", wait.Item.Criteria.Select(criterion => $"{criterion.Objective}/{criterion.Index}/{criterion.On}/{criterion.Ask}")))) }
             .Concat(view.Tabs.Select(tab => $"{tab.Name}:{tab.Title}:{tab.IsOpen}:{tab.ColourHex}"))
             .Concat(view.Roots.SelectMany(root => Lines(root, 0)))
             .Concat(view._thenWorkedOn.Select(link => $"{link.From.Name}>{link.To.Name}"))

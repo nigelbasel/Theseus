@@ -43,4 +43,48 @@ public class CriterionWaitingTests
 
         Assert.That(waiting.Asks.Single().What, Is.EqualTo("figures; and the slice definition"));
     }
+
+    [Test]
+    public void AnAskOnSomeoneByName_IsReadAndWrittenInTheOnForm()
+    {
+        var waiting = CriterionWaiting.Parse("Waiting: on the gateway team: the EC answers; owner: decide")!;
+
+        Assert.That(waiting.Asks, Is.EqualTo(new[] { new WaitingAsk(false, "the EC answers") { On = "the gateway team" }, new WaitingAsk(true, "decide") }));
+        Assert.That(waiting.Line, Is.EqualTo("Waiting: on the gateway team: the EC answers; owner: decide"));
+        Assert.That(CriterionWaiting.Join(waiting.Asks), Is.EqualTo("on the gateway team: the EC answers; owner: decide"));
+        Assert.That(waiting.Asks[0].Who([]), Is.EqualTo("the gateway team"), "named, so no owner's name is needed");
+    }
+
+    [Test]
+    public void AnOlderOwnerLine_NamesSomeoneElse_OnlyWhenItsWhoDoesNotNameTheOwner()
+    {
+        IReadOnlyList<string> names = ["owner-account", "Owner Person", "Owner"];
+
+        Assert.That(new WaitingAsk(true, "Gateway owners: EC answers").Who(names), Is.EqualTo("Gateway owners"));
+        Assert.That(new WaitingAsk(true, "The team with Owner: a budget").Who(names), Is.Null);
+        Assert.That(new WaitingAsk(true, "owner-account names the reviewer").Who(names), Is.Null);
+        Assert.That(new WaitingAsk(true, "Owner's rule: minimums set later").Who(names), Is.Null);
+        Assert.That(new WaitingAsk(false, "Gateway owners: EC answers").Who(names), Is.Null, "a work ask is on no one");
+        Assert.That(new WaitingAsk(true, "Decide: A or B").Who(names), Is.EqualTo("Decide"), "one word reads as a whom; the on form is the sure way");
+        Assert.That(new WaitingAsk(true, "confirm the URL with the team: https://example.org").Who(names), Is.Null,
+            "more than four words is a sentence, not a whom");
+    }
+
+    [Test]
+    public void AnOnFormNamingTheOwner_IsTheOwners()
+    {
+        IReadOnlyList<string> names = ["owner-account", "Owner Person", "Owner"];
+
+        Assert.That(new WaitingAsk(false, "decide") { On = "Owner" }.Who(names), Is.Null);
+        Assert.That(new WaitingAsk(false, "decide") { On = "me" }.Who([]), Is.Null);
+    }
+
+    [TestCase("the gateway team", true)]
+    [TestCase("Legal: Ana", false)]
+    [TestCase("legal; ops", false)]
+    [TestCase("", false)]
+    public void AWhom_IsWritable_OnlyAsTheGrammarReadsItBack(string who, bool writable)
+    {
+        Assert.That(WaitingAsk.IsWritableWho(who), Is.EqualTo(writable));
+    }
 }

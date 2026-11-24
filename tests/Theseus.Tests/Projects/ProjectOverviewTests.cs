@@ -160,9 +160,9 @@ public class ProjectOverviewTests
 
         Assert.That(waits.Select(wait => wait.Text), Is.EqualTo(new[]
         {
-            "Objective 0.1, Data protection: take D7 to the DPO. This happens outside Theseus.",
+            "Take D7 to the DPO (objective 0.1, Data protection).",
         }));
-        Assert.That(waits.Single().Button, Is.Null, "no button: outside Theseus");
+        Assert.That(waits.Single().Button, Is.EqualTo("Respond…"), "every wait on the owner has an action (git-22 for Nigel, 2026-11-24)");
     }
 
     [Test]

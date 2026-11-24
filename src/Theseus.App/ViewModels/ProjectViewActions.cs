@@ -75,6 +75,12 @@ public sealed record ProjectViewActions(
     /// <summary>Forward ▶, from the shell's history; null in tests.</summary>
     public System.Windows.Input.ICommand? GoForward { get; init; }
 
+    /// <summary>
+    /// Tells a card's session something with its next turn, by key: Ask the lead in the waits checklist (project-view-scale,
+    /// 2026-11-24). Null where the view cannot.
+    /// </summary>
+    public Action<string, string>? TellCard { get; init; }
+
     /// <summary>Opens the proposal window for a proposal by its id (sessions-run-the-project 0.2); null in tests.</summary>
     public Action<string>? ReviewProposal { get; init; }
 

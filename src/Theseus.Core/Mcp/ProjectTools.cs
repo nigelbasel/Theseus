@@ -282,12 +282,15 @@ public sealed class ProjectTools
             return ProjectToolOutcome.Refused("set_waiting needs the objective's number, the criterion's number from 1 and its text as the file has it.");
         }
 
-        var who = Text(arguments, "who")?.ToLowerInvariant();
+        // The owner is a value of its own; anyone else is named, and the line says "on <who>:", so a wait on someone else is
+        // never counted as his (git-22 for Nigel, 2026-11-24).
+        var named = Text(arguments, "who")?.Trim();
+        var who = named?.ToLowerInvariant() is "owner" or "work" or "none" ? named.ToLowerInvariant() : named;
         var what = Text(arguments, "what");
 
-        if (who is not ("owner" or "work" or "none") || (who != "none" && what is null))
+        if (!WaitingAsk.IsWritableWho(who) || (who != "none" && what is null))
         {
-            return ProjectToolOutcome.Refused("who is owner, work or none; owner and work need what it waits for.");
+            return ProjectToolOutcome.Refused($"who is owner, work, none, or the name of whoever else it waits on ({WaitingAsk.LongestWho} characters at most, no colon or semicolon); all but none need what it waits for.");
         }
 
         if (who != "none" && reading.File!.Objectives.FirstOrDefault(objective => objective.Number == at.Objective)?.Criteria
@@ -297,7 +300,7 @@ public sealed class ProjectTools
         }
 
         Write(reading, text => ProjectFileEditor.SetCriterionNote(text, at.Objective, at.Index, at.Text, CriterionWaiting.Label,
-            who == "none" ? null : $"{who}: {what}"));
+            who switch { "none" => null, "owner" or "work" => $"{who}: {what}", _ => $"on {who}: {what}" }));
         Log(session, reading, $"criterion {at.Index + 1} of objective {at.Objective} waits on {who}");
 
         return new ProjectToolOutcome(who == "none"

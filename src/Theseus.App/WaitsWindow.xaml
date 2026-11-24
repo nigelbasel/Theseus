@@ -3,34 +3,73 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:views="clr-namespace:Theseus.App.Views"
         Title="{Binding Title}"
-        Width="720" Height="560" MinWidth="520" MinHeight="320"
+        Width="880" Height="640" MinWidth="560" MinHeight="360"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False"
         Background="{DynamicResource SolidBackgroundFillColorSecondaryBrush}"
         Foreground="{DynamicResource TextFillColorPrimaryBrush}">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="Visible" />
+        <Style x:Key="BarButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Margin" Value="0,0,8,8" />
+            <Setter Property="MinHeight" Value="32" />
+            <Setter Property="Padding" Value="12,0" />
+            <Setter Property="ToolTipService.ShowOnDisabled" Value="True" />
+        </Style>
     </Window.Resources>
-    <!-- Every line of Waits for you, laid out as the checklist dialog is: what it is, the rows scrolling, the count at the
-         foot (project-view-scale, 2026-11-24). A row's button does that row and closes the dialog. -->
+    <Window.InputBindings>
+        <KeyBinding Key="A" Modifiers="Control" Command="{Binding SelectAllCommand}" />
+    </Window.InputBindings>
+    <!-- A checklist (Nigel's rule for lists of items): a command bar over ticked rows grouped by what is asked, and the count
+         at the foot (git-22 for Nigel, 2026-11-24). An action that cannot apply to the ticked rows is disabled and says why. -->
     <Grid Margin="24">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <TextBlock x:Name="Intro" Text="{Binding Intro}" Style="{DynamicResource BodyText}" TextWrapping="Wrap" MaxWidth="480"
-                   HorizontalAlignment="Left" Margin="0,0,0,16" />
+        <TextBlock x:Name="Intro" Text="{Binding Intro}" Style="{DynamicResource BodyText}" TextWrapping="Wrap" Margin="0,0,0,12" />
 
-        <Border Grid.Row="1" BorderThickness="1" CornerRadius="4" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+        <WrapPanel x:Name="CommandBar" Grid.Row="1" Margin="0,0,0,4" AutomationProperties.Name="Actions on the ticked waits">
+            <Button x:Name="AnswerButton" Style="{StaticResource BarButton}" Command="{Binding AnswerCommand}" ToolTip="{Binding AnswerToolTip}"
+                    AutomationProperties.Name="Answer…">
+                <AccessText Text="_Answer…" />
+            </Button>
+            <Button x:Name="DoneButton" Style="{StaticResource BarButton}" Command="{Binding DoneCommand}" ToolTip="{Binding DoneToolTip}"
+                    AutomationProperties.Name="Mark done">
+                <AccessText Text="_Mark done" />
+            </Button>
+            <Button x:Name="AskLeadButton" Style="{StaticResource BarButton}" Command="{Binding AskLeadCommand}" ToolTip="{Binding AskLeadToolTip}"
+                    AutomationProperties.Name="Ask the lead">
+                <AccessText Text="Ask the _lead" />
+            </Button>
+            <Button x:Name="GoToObjectiveButton" Style="{StaticResource BarButton}" Command="{Binding GoToObjectiveCommand}"
+                    ToolTip="{Binding GoToObjectiveToolTip}" AutomationProperties.Name="Go to objective">
+                <AccessText Text="_Go to objective" />
+            </Button>
+            <Button x:Name="ReassignButton" Style="{StaticResource BarButton}" Command="{Binding ReassignCommand}" ToolTip="{Binding ReassignToolTip}"
+                    AutomationProperties.Name="Reassign to…">
+                <AccessText Text="_Reassign to…" />
+            </Button>
+            <Button x:Name="SelectAllButton" Style="{StaticResource BarButton}" Command="{Binding SelectAllCommand}" ToolTip="Tick every wait (Ctrl+A)"
+                    AutomationProperties.Name="Select all" AutomationProperties.AcceleratorKey="Ctrl+A">
+                <AccessText Text="_Select all" />
+            </Button>
+            <Button x:Name="ClearButton" Style="{StaticResource BarButton}" Command="{Binding ClearCommand}" ToolTip="Untick every wait"
+                    ToolTipService.ShowOnDisabled="True" AutomationProperties.Name="Clear">
+                <AccessText Text="Cl_ear" />
+            </Button>
+        </WrapPanel>
+
+        <Border Grid.Row="2" BorderThickness="1" CornerRadius="4" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                 Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
             <ScrollViewer x:Name="RowsScroller" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
-                <!-- One Tab stop; the arrow keys move between the rows' buttons and stop at either end (B-m5, W42). -->
-                <ItemsControl x:Name="Rows" ItemsSource="{Binding Rows}" Margin="12,8" Focusable="False"
+                <!-- One Tab stop; the arrow keys move between the rows and stop at either end; Space ticks (B-m5, W42). -->
+                <ItemsControl x:Name="Rows" ItemsSource="{Binding Groups}" Margin="12,8" Focusable="False"
                               KeyboardNavigation.TabNavigation="Once" KeyboardNavigation.DirectionalNavigation="Contained"
-                              AutomationProperties.Name="Waits for you">
+                              AutomationProperties.Name="Waits">
                     <ItemsControl.ItemContainerStyle>
                         <Style TargetType="ContentPresenter">
                             <Setter Property="AutomationProperties.Name" Value="{Binding Text}" />
@@ -38,30 +77,54 @@
                     </ItemsControl.ItemContainerStyle>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <DockPanel Margin="0,8">
-                                <!-- The label as text, so a repeated row has no access key (W26; B12). -->
-                                <Button x:Name="RowButton" DockPanel.Dock="Right" Command="{Binding Command}"
-                                        Style="{DynamicResource DialogButton}" Margin="12,0,0,0" VerticalAlignment="Top" Click="OnRowButton"
-                                        ToolTip="{Binding ToolTip}" ToolTipService.ShowOnDisabled="True"
-                                        AutomationProperties.Name="{Binding Button}" AutomationProperties.HelpText="{Binding Text}"
-                                        Visibility="{Binding HasButton, Converter={StaticResource Visible}}">
-                                    <TextBlock Text="{Binding Button}" />
-                                </Button>
-                                <TextBlock x:Name="RowText" views:LinkedText.Text="{Binding Text}" Style="{DynamicResource BodyText}" TextWrapping="Wrap"
-                                           VerticalAlignment="Center" />
-                            </DockPanel>
+                            <StackPanel Margin="0,8">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <CheckBox x:Name="GroupBox" IsChecked="{Binding IsTicked, Mode=TwoWay}" IsThreeState="False"
+                                              AutomationProperties.Name="{Binding Text}" AutomationProperties.HelpText="{Binding Detail}">
+                                        <StackPanel>
+                                            <TextBlock x:Name="RowText" views:LinkedText.Text="{Binding Text}" Style="{DynamicResource BodyStrongText}"
+                                                       TextWrapping="Wrap" />
+                                            <TextBlock x:Name="RowDetail" Text="{Binding Detail}" Style="{DynamicResource CaptionText}" TextWrapping="Wrap"
+                                                       Margin="0,4,0,0" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                        </StackPanel>
+                                    </CheckBox>
+                                    <!-- A wait Theseus acts on itself keeps its own button; the bar acts on criteria's asks. -->
+                                    <Button x:Name="RowButton" Grid.Column="1" Command="{Binding Line.Command}" Margin="12,0,0,0"
+                                            VerticalAlignment="Top" Click="OnRowButton" ToolTip="{Binding Line.ToolTip}"
+                                            AutomationProperties.Name="{Binding Line.Button}" AutomationProperties.HelpText="{Binding Text}">
+                                        <Button.Visibility>
+                                            <MultiBinding Converter="{x:Static views:WaitsWindowRowButton.Visibility}">
+                                                <Binding Path="Line.HasButton" />
+                                                <Binding Path="IsCriterionWait" />
+                                            </MultiBinding>
+                                        </Button.Visibility>
+                                        <TextBlock Text="{Binding Line.Button}" />
+                                    </Button>
+                                </Grid>
+                                <ItemsControl x:Name="Members" ItemsSource="{Binding Members}" Margin="28,4,0,0" Focusable="False"
+                                              Visibility="{Binding HasMembers, Converter={StaticResource Visible}}"
+                                              AutomationProperties.Name="Criteria it covers">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <CheckBox IsChecked="{Binding IsTicked, Mode=TwoWay}" Margin="0,2" AutomationProperties.Name="{Binding Label}">
+                                                <TextBlock Text="{Binding Label}" Style="{DynamicResource CaptionText}" TextWrapping="Wrap" />
+                                            </CheckBox>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </ScrollViewer>
         </Border>
 
-        <TextBlock x:Name="ForTheLead" Grid.Row="2" Text="{Binding ForTheLead}" Style="{DynamicResource CaptionText}" TextWrapping="Wrap"
-                   Margin="0,12,0,0" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                   Visibility="{Binding HasForTheLead, Converter={StaticResource Visible}}" />
-
         <DockPanel x:Name="Footer" Grid.Row="3" Margin="0,16,0,0" LastChildFill="False">
-            <TextBlock x:Name="Foot" DockPanel.Dock="Left" Text="{Binding Foot}" Style="{DynamicResource BodyStrongText}" VerticalAlignment="Center" />
+            <TextBlock x:Name="Count" DockPanel.Dock="Left" Text="{Binding CountText}" Style="{DynamicResource BodyStrongText}" VerticalAlignment="Center" />
             <!-- Close, so the window closes the way every other does, and Esc closes it (A17, B14, G8, G13). -->
             <Button x:Name="CloseButton" DockPanel.Dock="Right" Content="Close" IsCancel="True" IsDefault="True"
                     Style="{DynamicResource DialogButton}" Click="OnClose" />

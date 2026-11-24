@@ -515,13 +515,13 @@ public sealed partial class McpHandler
                 },
                 "decision", "by"),
             Tool("set_waiting",
-                "Say who an unticked criterion in project.md waits on: the owner (it then shows in his Waits for you) or work, with what it waits for.",
+                "Say who an unticked criterion in project.md waits on, with what it waits for: the owner (it then shows in his Waits for you), work, or anyone else by name, such as the project's lead or another team (shown as theirs, not his).",
                 new JsonObject
                 {
                     ["objective"] = Property("The objective's number."),
                     ["criterion"] = new JsonObject { ["type"] = "integer", ["description"] = "The criterion's number in the objective, from 1." },
                     ["text"] = Property("The criterion's text as the file has it."),
-                    ["who"] = Property("owner, work, or none to remove the note."),
+                    ["who"] = Property("owner, work, the name of whoever else it waits on, or none to remove the note."),
                     ["what"] = Property("What it waits for, in plain words."),
                 },
                 "objective", "criterion", "text", "who"),
