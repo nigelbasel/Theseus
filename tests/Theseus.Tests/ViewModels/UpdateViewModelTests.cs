@@ -157,6 +157,23 @@ public class UpdateViewModelTests
         Assert.That(updates.IsOffered, Is.False);
     }
 
+    [Test]
+    public async Task TheQuietCheck_OffersANewerRelease_AndAFailureSaysNothing()
+    {
+        var feed = new Feed(Release("2026.10.29.100"));
+        var said = new List<string>();
+        var updates = new UpdateViewModel(feed, Running, Path.GetTempPath(), _ => { }) { Said = said.Add };
+
+        await updates.CheckQuietlyAsync();
+
+        Assert.That(updates.Offer!.Version, Is.EqualTo("2026.10.29.100"));
+
+        feed.Failure = new HttpRequestException("offline");
+
+        Assert.DoesNotThrowAsync(updates.CheckQuietlyAsync);
+        Assert.That((updates.IsOffered, said.Count), Is.EqualTo((true, 0)));
+    }
+
     private static UpdateViewModel Updates(AvailableRelease latest) =>
         new(new Feed(latest), Running, Path.GetTempPath(), _ => { });
 

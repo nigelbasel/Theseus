@@ -1867,7 +1867,7 @@
 
                     <Separator />
 
-                    <Button Style="{StaticResource ToolIcon}" Content="&#xE72C;" ToolTip="Refresh (F5)" AutomationProperties.Name="Refresh"
+                    <Button Style="{StaticResource ToolIcon}" Content="&#xE72C;" ToolTip="Refresh, and check for a new version (F5)" AutomationProperties.Name="Refresh"
                             AutomationProperties.AcceleratorKey="F5" Command="{Binding RefreshCommand}" />
                 </ToolBar>
             </ToolBarTray>

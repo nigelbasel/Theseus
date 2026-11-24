@@ -179,7 +179,11 @@ public sealed partial class ShellViewModel : ObservableObject
         Board.WaitsOnOwner = key => Chains?.NeedsYou.Any(row => string.Equals(row.Link.From, key, StringComparison.OrdinalIgnoreCase)) == true;
         _transcripts.Changed += (_, _) => ApplyTranscripts();
 
-        RefreshCommand = new RelayCommand(_ => Refresh());
+        RefreshCommand = new RelayCommand(_ =>
+        {
+            Refresh();
+            _ = Updates?.CheckQuietlyAsync();
+        });
         FocusCardCommand = new RelayCommand(FocusCard, CanFocusCard);
         OpenJiraCommand = new RelayCommand(OpenJira, parameter => parameter is string);
         OpenPullRequestCommand = new RelayCommand(OpenPullRequest,

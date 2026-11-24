@@ -416,7 +416,7 @@ public partial class App : Application
         _updateTimer.Tick += async (_, _) =>
         {
             _updateTimer.Interval = TimeSpan.FromHours(6);
-            await updates.CheckAsync();
+            await updates.CheckQuietlyAsync();
         };
         _updateTimer.Start();
     }

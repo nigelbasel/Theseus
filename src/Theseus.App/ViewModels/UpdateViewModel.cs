@@ -155,6 +155,23 @@ public sealed class UpdateViewModel : ObservableObject
     }
 
     /// <summary>
+    /// The check of the six-hourly timer and of Refresh: <see cref="CheckAsync"/>, where a failure is logged and says
+    /// nothing, as no answer was asked for.
+    /// </summary>
+    public async Task CheckQuietlyAsync()
+    {
+        try
+        {
+            await CheckAsync();
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or IOException
+                                              or InvalidDataException or System.Text.Json.JsonException)
+        {
+            TheseusLog.Warning(exception, "Checking for updates failed");
+        }
+    }
+
+    /// <summary>
     /// The check behind Help, Check for updates. Unlike the timed check it ignores a version put aside
     /// with Later, since asking by hand is changing your mind, and it always answers: a failed check
     /// must not read as "up to date".
