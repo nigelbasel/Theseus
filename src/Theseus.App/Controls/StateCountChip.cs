@@ -18,8 +18,8 @@ public sealed class StateCountChip : Border
     /// <summary>Creates the chip; its data context is a <see cref="StateCountViewModel"/>.</summary>
     public StateCountChip()
     {
-        CornerRadius = new CornerRadius(10);
-        Padding = new Thickness(10, 3, 10, 3);
+        CornerRadius = new CornerRadius(12);
+        Padding = new Thickness(12, 4, 12, 4);
         Margin = new Thickness(0, 0, 8, 4);
         _label.SetBinding(TextBlock.TextProperty, new Binding(nameof(StateCountViewModel.Text)));
         Child = _label;

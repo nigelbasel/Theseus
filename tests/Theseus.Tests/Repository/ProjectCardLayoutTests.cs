@@ -63,7 +63,7 @@ public class ProjectCardLayoutTests
         Assert.That(face.CornerRadius, Is.EqualTo(new CornerRadius(8)));
         Assert.That((stripe.ActualWidth, ((SolidColorBrush)stripe.Background).Color.ToString()), Is.EqualTo((5.0, "#FF8674D6")));
         Assert.That(((SolidColorBrush)mark.Foreground).Color.ToString(), Is.EqualTo("#FF8674D6"));
-        Assert.That((mark.Width, mark.Height), Is.EqualTo((18.0, 14.0)));
+        Assert.That((mark.Width, mark.Height), Is.EqualTo((20.0, 16.0)), "on the 4 epx grid (baseline W36, D9)");
         Assert.That(Named<TextBlock>(face, "ProjectTag").Text, Is.EqualTo("PROJECT"));
         Assert.That(Named<TextBlock>(face, "ProjectTitle").Text, Is.EqualTo("Theseus bootstrap"));
     }

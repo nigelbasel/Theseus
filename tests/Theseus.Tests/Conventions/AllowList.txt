@@ -1,0 +1,13 @@
+# What the Windows conventions decisions keep on purpose (baseline W5). This list stays; Exemptions/ is what shrinks.
+# Rule | value | scope | reason
+# scope: * for every file, glyph for a glyph anywhere, or a path under src/Theseus.App.
+# value nudge: nothing to the sides, and only 1 or 2 above or below.
+
+Colour | Transparent | * | Not a colour choice: nothing is drawn, so it is right in every theme and in high contrast.
+FontSize | 16 | glyph | The glyph size in menus and the project-view toolbar (W22, checklist G41, G53).
+FontSize | 8 | glyph | The drop-down caret, as WinUI's own DropDownButton draws it (W22, a recorded deviation in W4).
+Spacing | nudge | * | A text-baseline nudge of 1 or 2 epx, vertical only, such as 0,1 or 0,2 (W36).
+Font | Segoe MDL2 Assets | Themes/Interactive.xaml | The fallback of the theme's icon font key, so icons still draw with the theme off (W24).
+Spacing | -2 | Themes/Interactive.xaml | The keyboard-focus ring sits 2 epx outside its control, as the Fluent focus visual does.
+Spacing | -3 | Themes/Interactive.xaml | A card's focus ring sits 3 epx outside the card's own border.
+FontSize | 11 | Themes/CompactMenu.xaml | The accelerator text in Microsoft's copied MenuItem template (baseline section 5).

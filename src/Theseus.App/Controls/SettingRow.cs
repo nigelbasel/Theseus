@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Data;
+using Theseus.App.Text;
 
 namespace Theseus.App.Controls;
 
@@ -30,12 +31,12 @@ public sealed class SettingRow : DockPanel
     /// <summary>Creates the row.</summary>
     public SettingRow()
     {
-        Margin = new Thickness(0, 0, 0, 20);
+        Margin = new Thickness(0, 0, 0, 16);
         LastChildFill = true;
 
-        _text.Children.Add(Line(LabelProperty, 13, "TextFillColorPrimaryBrush", semiBold: true, "Name"));
-        _text.Children.Add(Line(ValueProperty, 12, "TextFillColorPrimaryBrush", semiBold: false, "Value"));
-        _text.Children.Add(Line(ExplanationProperty, 11.5, "TextFillColorSecondaryBrush", semiBold: false, "Explanation"));
+        _text.Children.Add(Line(LabelProperty, TypeRamp.Body, "TextFillColorPrimaryBrush", semiBold: true, "Name"));
+        _text.Children.Add(Line(ValueProperty, TypeRamp.Caption, "TextFillColorPrimaryBrush", semiBold: false, "Value"));
+        _text.Children.Add(Line(ExplanationProperty, TypeRamp.Caption, "TextFillColorSecondaryBrush", semiBold: false, "Explanation"));
         SetBinding(AutomationProperties.NameProperty, new Binding(nameof(Label)) { Source = this });
     }
 
@@ -86,7 +87,7 @@ public sealed class SettingRow : DockPanel
             FontSize = size,
             TextWrapping = TextWrapping.Wrap,
             FontWeight = semiBold ? FontWeights.SemiBold : FontWeights.Normal,
-            Margin = new Thickness(0, semiBold ? 0 : 2, 0, 0),
+            Margin = new Thickness(0, semiBold ? 0 : 4, 0, 0),
         };
         line.SetBinding(TextBlock.TextProperty, new Binding(property.Name) { Source = this });
         line.SetResourceReference(TextBlock.ForegroundProperty, brush);

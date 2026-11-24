@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Windows;
 using System.Windows.Documents;
 using System.Windows.Media;
+using Theseus.App.Text;
 using Theseus.Core.Markdown;
 
 namespace Theseus.App.Markdown;
@@ -21,8 +22,9 @@ public static class MarkdownRenderer
         var document = new FlowDocument
         {
             PagePadding = new Thickness(4),
-            FontFamily = new FontFamily("Segoe UI"),
-            FontSize = 13,
+            MaxPageWidth = 640,
+            FontFamily = TypeRamp.UiFont,
+            FontSize = TypeRamp.Body,
             TextAlignment = TextAlignment.Left,
         };
         document.SetResourceReference(TextElement.ForegroundProperty, "TextFillColorPrimaryBrush");
@@ -57,7 +59,7 @@ public static class MarkdownRenderer
                         _ => block.Depth == 0 ? TextMarkerStyle.Disc : TextMarkerStyle.Circle,
                     },
                     StartIndex = block.Kind == MarkdownBlockKind.Numbered ? Math.Max(1, block.Number) : 1,
-                    Margin = new Thickness(18 * (block.Depth + 1), 2, 0, 2),
+                    Margin = new Thickness(20 * (block.Depth + 1), 4, 0, 4),
                     Padding = new Thickness(0),
                 };
                 listKind = kind;
@@ -65,7 +67,7 @@ public static class MarkdownRenderer
                 document.Blocks.Add(list);
             }
 
-            var paragraph = new Paragraph { Margin = new Thickness(0, 1, 0, 1) };
+            Paragraph paragraph = new() { Margin = new Thickness(0, 0, 0, 4) };
 
             if (block.Kind == MarkdownBlockKind.Task)
             {
@@ -94,11 +96,11 @@ public static class MarkdownRenderer
         {
             case MarkdownBlockKind.Heading:
             {
-                var heading = new Paragraph
+                Paragraph heading = new()
                 {
-                    FontSize = block.Level switch { 1 => 22, 2 => 18, 3 => 16, _ => 14 },
+                    FontSize = block.Level switch { 1 => TypeRamp.Subtitle, 2 => TypeRamp.BodyLarge, _ => TypeRamp.Body },
                     FontWeight = FontWeights.SemiBold,
-                    Margin = new Thickness(0, block.Level <= 2 ? 14 : 10, 0, 4),
+                    Margin = new Thickness(0, block.Level <= 2 ? 16 : 12, 0, 4),
                 };
                 AddInlines(heading.Inlines, block.Text);
 
@@ -107,12 +109,12 @@ public static class MarkdownRenderer
 
             case MarkdownBlockKind.Code:
             {
-                var code = new Paragraph(new Run(block.Text))
+                Paragraph code = new(new Run(block.Text))
                 {
                     FontFamily = Mono,
-                    FontSize = 12,
-                    Padding = new Thickness(8, 6, 8, 6),
-                    Margin = new Thickness(0, 4, 0, 6),
+                    FontSize = TypeRamp.Caption,
+                    Padding = new Thickness(8, 4, 8, 4),
+                    Margin = new Thickness(0, 4, 0, 8),
                     BorderThickness = new Thickness(1),
                 };
                 code.SetResourceReference(TextElement.BackgroundProperty, "ControlFillColorSecondaryBrush");
@@ -123,10 +125,10 @@ public static class MarkdownRenderer
 
             case MarkdownBlockKind.Quote:
             {
-                var quote = new Paragraph
+                Paragraph quote = new()
                 {
-                    Padding = new Thickness(10, 2, 0, 2),
-                    Margin = new Thickness(0, 4, 0, 6),
+                    Padding = new Thickness(12, 4, 0, 4),
+                    Margin = new Thickness(0, 4, 0, 8),
                     BorderThickness = new Thickness(3, 0, 0, 0),
                 };
                 quote.SetResourceReference(Block.BorderBrushProperty, "AccentFillColorDefaultBrush");
@@ -138,7 +140,7 @@ public static class MarkdownRenderer
 
             case MarkdownBlockKind.Rule:
             {
-                var rule = new Paragraph { Margin = new Thickness(0, 6, 0, 6), BorderThickness = new Thickness(0, 0, 0, 1), FontSize = 2 };
+                Paragraph rule = new() { Margin = new Thickness(0, 8, 0, 8), BorderThickness = new Thickness(0, 0, 0, 1), FontSize = 2 };
                 rule.SetResourceReference(Block.BorderBrushProperty, "CardStrokeColorDefaultBrush");
 
                 return rule;
@@ -149,7 +151,7 @@ public static class MarkdownRenderer
 
             default:
             {
-                var paragraph = new Paragraph { Margin = new Thickness(0, 2, 0, 8) };
+                Paragraph paragraph = new() { Margin = new Thickness(0, 4, 0, 8) };
                 AddInlines(paragraph.Inlines, block.Text);
 
                 return paragraph;
@@ -179,7 +181,7 @@ public static class MarkdownRenderer
             {
                 var paragraph = new Paragraph { Margin = new Thickness(0) };
                 AddInlines(paragraph.Inlines, column < cells.Count ? cells[column] : string.Empty);
-                var cell = new TableCell(paragraph) { Padding = new Thickness(6, 3, 6, 3), BorderThickness = new Thickness(0, 0, 1, 1) };
+                TableCell cell = new(paragraph) { Padding = new Thickness(8, 4, 8, 4), BorderThickness = new Thickness(0, 0, 1, 1) };
                 cell.SetResourceReference(TableCell.BorderBrushProperty, "CardStrokeColorDefaultBrush");
 
                 if (index == 0)
@@ -223,7 +225,7 @@ public static class MarkdownRenderer
                 }
                 case MarkdownInlineKind.Code:
                 {
-                    var code = new Run(span.Text) { FontFamily = Mono, FontSize = 12 };
+                    Run code = new(span.Text) { FontFamily = Mono, FontSize = TypeRamp.Caption };
                     code.SetResourceReference(TextElement.BackgroundProperty, "ControlFillColorSecondaryBrush");
                     inlines.Add(code);
 

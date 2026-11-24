@@ -61,7 +61,9 @@ public static class LinkedText
                 var link = new Hyperlink(new Run(span.Text)) { ToolTip = span.ToolTip, Cursor = System.Windows.Input.Cursors.Hand };
                 var token = span.Text;
                 link.Click += (_, _) => ViewOf(block)?.LinkTarget(token)?.Follow();
-                System.Windows.Automation.AutomationProperties.SetName(link, span.ToolTip);
+                // The name is what is on the screen; where the link goes is explanation (baseline W50, E15).
+                System.Windows.Automation.AutomationProperties.SetName(link, span.Text);
+                System.Windows.Automation.AutomationProperties.SetHelpText(link, span.ToolTip);
                 block.Inlines.Add(link);
             }
             else
