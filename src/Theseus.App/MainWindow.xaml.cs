@@ -1091,6 +1091,16 @@ public partial class MainWindow : Window
     /// <summary>Folds one card down to its title, from the button beside its status.</summary>
     private void OnCollapseCard(object sender, RoutedEventArgs e) => FoldCard(sender, e, folded: true);
 
+    private void OnFoldProjectCard(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: ProjectCardViewModel project } && DataContext is ShellViewModel shell)
+        {
+            shell.Board.Fold(project, !project.IsCollapsed);
+        }
+
+        e.Handled = true;
+    }
+
     private void FoldCard(object sender, RoutedEventArgs e, bool folded)
     {
         if (sender is FrameworkElement { DataContext: WorkstreamCardViewModel card } && DataContext is ShellViewModel shell)

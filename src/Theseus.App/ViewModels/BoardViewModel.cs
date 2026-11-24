@@ -17,6 +17,9 @@ public sealed class BoardViewModel : ObservableObject
     private WorkstreamCardViewModel? _selectedCard;
     private bool _showArchived;
     private BoardShows _shows;
+    private bool _activeOnly;
+    private string _activeOnlyNote = string.Empty;
+    private RelayCommand? _toggleActiveOnly;
     private BoardColumnsBy _columnsBy;
     private BoardRowsBy _rowsBy;
     private List<WorkstreamCardViewModel> _all = [];
@@ -36,6 +39,7 @@ public sealed class BoardViewModel : ObservableObject
         _settings = settings;
         _showArchived = settings.Read().ShowArchived;
         _shows = settings.Read().BoardShows;
+        _activeOnly = settings.Read().ShowActiveOnly;
         _columnsBy = settings.Read().ColumnsBy;
         _rowsBy = settings.Read().RowsBy;
         Search = new BoardSearchViewModel(OnSearchChanged);
@@ -223,8 +227,11 @@ public sealed class BoardViewModel : ObservableObject
 
         var cardsOnGrid = _all.Where(card => KeepOutOfGrid?.Invoke(card) != true).Cast<IBoardCard>().ToList();
         var hiddenKind = Kept(BoardShows.Projects) ? cardsOnGrid : Kept(BoardShows.Workstreams) ? [.. _projects] : [];
-        var onBoard = cardsOnGrid.Concat(_projects).Except(hiddenKind).ToList();
+        var shownKinds = cardsOnGrid.Concat(_projects).Except(hiddenKind).ToList();
+        var onBoard = shownKinds.Where(item => !HiddenByActiveOnly(item)).ToList();
         Search.HiddenByShows = on ? hiddenKind.Count(_matching.Contains) : 0;
+        Search.HiddenByActiveOnly = on ? shownKinds.Except(onBoard).Count(_matching.Contains) : 0;
+        ActiveOnlyNote = _activeOnly && !ShowArchived ? $"Showing {onBoard.Count} of {shownKinds.Count} cards · active only" : string.Empty;
         var archivedWouldMatch = on && !ShowArchived && _archived.Any(workstream => filter.Admits(new SearchableCard(
             workstream.Key, workstream.Title, workstream.Project ?? string.Empty, workstream.Area ?? string.Empty,
             workstream.JiraKeys, workstream.Tags, [], [])));
@@ -331,9 +338,12 @@ public sealed class BoardViewModel : ObservableObject
     {
         ArgumentNullException.ThrowIfNull(projects);
 
+        var folded = _settings.Read().CollapsedProjects;
+
         foreach (var project in projects)
         {
             project.Tags = Tags.OfProject(project.Name);
+            project.IsCollapsed = folded.Contains(project.Name, StringComparer.OrdinalIgnoreCase);
         }
 
         _projects = projects;
@@ -589,7 +599,7 @@ public sealed class BoardViewModel : ObservableObject
 
         foreach (var card in _all)
         {
-            if (KeepOutOfGrid?.Invoke(card) == true || HiddenBySearch(card) || Kept(BoardShows.Projects))
+            if (KeepOutOfGrid?.Invoke(card) == true || HiddenBySearch(card) || Kept(BoardShows.Projects) || HiddenByActiveOnly(card))
             {
                 continue;
             }
@@ -684,7 +694,7 @@ public sealed class BoardViewModel : ObservableObject
         foreach (var cell in Cells)
         {
             var wanted = _projects
-                .Where(project => !HiddenBySearch(project) && !Kept(BoardShows.Workstreams))
+                .Where(project => !HiddenBySearch(project) && !Kept(BoardShows.Workstreams) && !HiddenByActiveOnly(project))
                 .Where(project =>
                 {
                     var place = places.FirstOrDefault(entry => string.Equals(entry.Key, project.Name, StringComparison.OrdinalIgnoreCase)).Value;
@@ -1023,6 +1033,41 @@ public sealed class BoardViewModel : ObservableObject
         Raise(nameof(CanMoveRows));
     }
 
+    /// <summary>Folds every card and project card.</summary>
+    public void FoldAll() => SetFolds(_ => true);
+
+    /// <summary>Folds every card and project card with no session, and opens the rest, so folded means nothing runs there.</summary>
+    public void FoldInactive() => SetFolds(item => !item.IsLive && !(item is ProjectCardViewModel project && MembersLive(project)));
+
+    /// <summary>Opens every card and project card.</summary>
+    public void UnfoldAll() => SetFolds(_ => false);
+
+    /// <summary>Folds one project card or opens it, and remembers which way it was left.</summary>
+    public void Fold(ProjectCardViewModel project, bool folded)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+
+        project.IsCollapsed = folded;
+        RememberFolds();
+    }
+
+    private void SetFolds(Func<IBoardCard, bool> folded)
+    {
+        foreach (var card in Cards)
+        {
+            card.IsCollapsed = folded(card);
+        }
+
+        foreach (var project in _projects)
+        {
+            project.IsCollapsed = folded(project);
+        }
+
+        RememberFolds();
+    }
+
+    private bool MembersLive(ProjectCardViewModel project) => KeysIn(project).Any(key => Card(key) is { IsLive: true });
+
     /// <summary>Folds one card or opens it, and remembers which way it was left.</summary>
     public void Fold(WorkstreamCardViewModel card, bool folded)
     {
@@ -1047,6 +1092,11 @@ public sealed class BoardViewModel : ObservableObject
             [
                 .. settings.CollapsedCards.Where(key => !shown.Contains(key)),
                 .. Cards.Where(card => card.IsCollapsed).Select(card => card.Key),
+            ],
+            CollapsedProjects =
+            [
+                .. settings.CollapsedProjects.Where(name => !_projects.Any(project => string.Equals(project.Name, name, StringComparison.OrdinalIgnoreCase))),
+                .. _projects.Where(project => project.IsCollapsed).Select(project => project.Name),
             ],
         });
     }
@@ -1360,6 +1410,56 @@ public sealed class BoardViewModel : ObservableObject
         get => _shows == BoardShows.Workstreams;
         set => Choose(value, BoardShows.Workstreams);
     }
+
+    /// <summary>
+    /// Show active only (Nigel, 2026-11-24): the board keeps only what is active, a card with a session or with something
+    /// waiting on the owner, and a project when any of its cards is or something in it waits on the owner. Remembered.
+    /// </summary>
+    public bool ShowsActiveOnly
+    {
+        get => _activeOnly;
+        set
+        {
+            if (Set(ref _activeOnly, value))
+            {
+                _settings.Write(_settings.Read() with { ShowActiveOnly = value });
+                Place();
+            }
+        }
+    }
+
+    /// <summary>Turns Show active only on or off.</summary>
+    public RelayCommand ToggleActiveOnlyCommand => _toggleActiveOnly ??= new RelayCommand(_ => ShowsActiveOnly = !ShowsActiveOnly);
+
+    /// <summary>Whether something on a card waits on the owner, by key, such as a report to confirm. Set by the shell.</summary>
+    public Func<string, bool>? WaitsOnOwner { get; set; }
+
+    /// <summary>"Showing 5 of 40 cards · active only" while it is on; empty otherwise.</summary>
+    public string ActiveOnlyNote
+    {
+        get => _activeOnlyNote;
+        private set
+        {
+            if (Set(ref _activeOnlyNote, value))
+            {
+                Raise(nameof(ActiveOnlyNoteInStatus));
+            }
+        }
+    }
+
+    /// <summary>The note as the status bar shows it, after a separator; empty, with no separator, while it is off.</summary>
+    public string ActiveOnlyNoteInStatus => _activeOnlyNote.Length == 0 ? string.Empty : $"  ·  {_activeOnlyNote}";
+
+    private bool IsActive(IBoardCard item) => item switch
+    {
+        WorkstreamCardViewModel card => card.IsLive || WaitsOnOwner?.Invoke(card.Key) == true,
+        ProjectCardViewModel project => project.IsLive || project.WaitingCount > 0
+            || KeysIn(project).Any(key => Card(key) is { } member && IsActive(member)),
+        _ => item.IsLive,
+    };
+
+    // The archive is a view of its own, so the filter leaves it alone, as Show does.
+    private bool HiddenByActiveOnly(IBoardCard item) => _activeOnly && !ShowArchived && !IsActive(item);
 
     // The archive shows workstreams only, so while it is on the choice hides nothing (review, finding 4).
     private bool Kept(BoardShows shows) => _shows == shows && !ShowArchived;

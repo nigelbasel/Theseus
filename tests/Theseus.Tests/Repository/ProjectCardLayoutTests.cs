@@ -176,7 +176,7 @@ public class ProjectCardLayoutTests
 
         // The window's handlers need the window behind them; what they do is tested apart (BoardGestureTests).
         foreach (var handled in template.Descendants().Attributes()
-                     .Where(attribute => attribute.Name.LocalName is "MouseLeftButtonDown" or "MouseLeftButtonUp" or "PreviewMouseRightButtonDown" or "Opened")
+                     .Where(attribute => attribute.Name.LocalName is "MouseLeftButtonDown" or "MouseLeftButtonUp" or "PreviewMouseRightButtonDown" or "Opened" or "Click")
                      .ToList())
         {
             handled.Remove();
@@ -193,6 +193,7 @@ public class ProjectCardLayoutTests
                 Converter("NotEmptyToVisibilityConverter", "NotEmptyToVisibility"),
                 Style("MenuGlyph", "TextBlock"),
                 Style("CardIcon", "Button"),
+                Style("CardFoldButton", "Button"),
                 Style("CommandButton", "Button"),
                 Style("ClickableCard", "Border"),
                 Style("TagChipButton", "Button"),
