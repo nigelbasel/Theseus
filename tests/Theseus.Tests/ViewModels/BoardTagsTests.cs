@@ -61,6 +61,18 @@ public class BoardTagsTests
     }
 
     [Test]
+    public void TheMenu_EscapesATagsUnderscores_SoTheyAreDrawn_NotTakenAsAnAccessKey()
+    {
+        // The item's header is access text (C9), so "on_hold" would show as "onhold" with h underlined (B12).
+        var fixture = Board().Tag("gdpr", "on_hold");
+        fixture.Board.Refresh();
+
+        var menu = fixture.Board.Tags.MenuFor(CardOf(fixture, "gdpr"));
+
+        Assert.That(menu.Select(item => item.Header), Does.Contain("on__hold"));
+    }
+
+    [Test]
     public void TheMenu_TicksATagEveryTargetHas_AndChoosingItTakesItOff()
     {
         var fixture = Board();
@@ -74,7 +86,7 @@ public class BoardTagsTests
         {
             Assert.That(bym.IsChecked, Is.True);
             Assert.That(card.Tags, Is.EqualTo(new[] { "security" }));
-            Assert.That(menu.Last().Header, Is.EqualTo("New tag…"));
+            Assert.That(menu.Last().Header, Is.EqualTo("_New tag…"), "New tag… has its access key, N");
             Assert.That(menu.Select(item => item.Header), Does.Contain("waiting-on-dpo"), "every tag in use is listed");
         });
     }

@@ -41,20 +41,21 @@ public class ProjectViewGroupingMarkupTests
     }
 
     [Test]
-    public void TheViewMenu_HasGroupProjectBy_BesideRowsBy_WhileAProjectIsOpen()
+    public void TheViewMenusGroupBy_EndsWithTheProjectSet_DisabledWhileNoProjectIsOpen()
     {
+        // Columns by, Rows by and Group project by are one Group by submenu of radio sets (W32, C12, C23); the project's
+        // set has the project view's own names (C25) and is disabled, not hidden, with no project open (W31).
         var view = Load("MainWindow.xaml").Descendants(Presentation + "MenuItem").Single(item => (string?)item.Attribute("Header") == "_View");
-        var items = view.Elements(Presentation + "MenuItem").ToList();
-        var group = items.Single(item => (string?)item.Attribute("Header") == "_Group project by");
+        var group = view.Elements(Presentation + "MenuItem").Single(item => (string?)item.Attribute("Header") == "_Group by");
+        var project = group.Elements(Presentation + "MenuItem").TakeLast(2).ToList();
 
-        Assert.That(items.IndexOf(group), Is.EqualTo(items.FindIndex(item => (string?)item.Attribute("Header") == "Rows b_y") + 1));
-        Assert.That((string?)group.Attribute("Visibility"), Is.EqualTo("{Binding IsProjectOpen, Converter={StaticResource BoolToVisibility}}"));
-        Assert.That(group.Elements(Presentation + "MenuItem").Select(item =>
-            ((string?)item.Attribute("Header"), (string?)item.Attribute("IsCheckable"), (string?)item.Attribute("IsChecked"))), Is.EqualTo(new[]
+        Assert.That(project.Select(item =>
+            ((string?)item.Attribute("Header"), (string?)item.Attribute("IsEnabled"), (string?)item.Attribute("IsChecked"))), Is.EqualTo(new[]
         {
-            ("_Flow", "True", "{Binding ProjectView.IsGroupedByFlow, Mode=TwoWay}"),
-            ("_Objectives", "True", "{Binding ProjectView.IsGroupedByObjectives, Mode=TwoWay}"),
+            ("Project by _rounds and work", "{Binding IsProjectOpen}", "{Binding ProjectView.IsGroupedByFlow, Mode=TwoWay}"),
+            ("Project by o_bjectives only", "{Binding IsProjectOpen}", "{Binding ProjectView.IsGroupedByObjectives, Mode=TwoWay}"),
         }));
+        Assert.That(project.Select(item => (string?)item.Attribute("Style")), Is.All.EqualTo("{StaticResource RadioMenuItem}"));
     }
 
     [Test]

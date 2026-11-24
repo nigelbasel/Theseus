@@ -20,15 +20,18 @@ public class CheckRefusalMarkupTests
     private static XElement MenuItemFor(XDocument window, string command) =>
         window.Descendants(Presentation + "MenuItem").Single(item => (string?)item.Attribute("Command") == command);
 
-    [Test]
-    public void BothVerifyMenuItems_TakeTheirTextFromTheReason()
+    [TestCase("{Binding VerifyWithHoldoutsCommand}", "{Binding VerifyOffReason}")]
+    [TestCase("{Binding VerifySelectedWithHoldoutsCommand}", "{Binding VerifySelectedOffReason}")]
+    public void BothVerifyMenuItems_KeepAFixedLabel_WithTheReasonOnASecondLine(string command, string reason)
     {
-        var window = Load("MainWindow.xaml");
+        // The label never changes with the state (W30, G62); the reason is still in plain view, under it (Nigel, 2026-11-23).
+        var item = MenuItemFor(Load("MainWindow.xaml"), command);
 
-        Assert.That((string?)MenuItemFor(window, "{Binding VerifyWithHoldoutsCommand}").Attribute("Header"),
-            Is.EqualTo("{Binding VerifyMenuText}"));
-        Assert.That((string?)MenuItemFor(window, "{Binding VerifySelectedWithHoldoutsCommand}").Attribute("Header"),
-            Is.EqualTo("{Binding VerifySelectedMenuText}"));
+        Assert.That(item.Attribute("Header"), Is.Null, "no label bound to the state");
+        Assert.That(item.Descendants(Presentation + "AccessText").Select(text => (string?)text.Attribute("Text")),
+            Is.EqualTo(new[] { "Independent c_heck…" }));
+        Assert.That(item.Descendants(Presentation + "TextBlock").Select(text => (string?)text.Attribute("Text")),
+            Does.Contain(reason));
     }
 
     [Test]

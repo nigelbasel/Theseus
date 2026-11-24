@@ -41,25 +41,28 @@ public class ProjectViewMarkupTests
     [Test]
     public void EveryCommandInTheView_IsOnTheMenuBar()
     {
-        Assert.That(Headers(Menu("_View")), Is.SupersetOf(new[] { "Open pro_ject", "Back to the boar_d" }));
+        Assert.That(Headers(Menu("_View")), Is.SupersetOf(new[] { "_Open project", "Back to th_e board" }));
         Assert.That(Headers(Menu("_Workstream")), Is.SupersetOf(new[] { "_Start selected", "Ope_n spec", "Acc_ept spec" }));
     }
 
     [Test]
-    public void TheMenuBarsProjectItems_AreHidden_WhileThereIsNothingToOffer()
+    public void TheMenuBarsProjectItems_AreDisabledWithTheirReason_WhileThereIsNothingToOffer()
     {
+        // Disabled, not hidden, in the menu bar (W31, C8; G46, G61); Back to the board is disabled by its command.
         var items = Menu("_View").Descendants(Presentation + "MenuItem")
             .Concat(Menu("_Workstream").Descendants(Presentation + "MenuItem"))
-            .Where(item => (string?)item.Attribute("Header") is "Open pro_ject" or "Back to the boar_d" or "Ope_n spec" or "Acc_ept spec")
+            .Where(item => (string?)item.Attribute("Header") is "_Open project" or "Back to th_e board" or "Ope_n spec" or "Acc_ept spec")
             .ToList();
 
-        Assert.That(items.Select(item => (string?)item.Attribute("Visibility")), Is.EqualTo(new[]
+        Assert.That(items.Select(item => (string?)item.Attribute("Visibility")), Is.All.Null);
+        Assert.That(items.Select(item => (string?)item.Attribute("IsEnabled") ?? (string?)item.Attribute("Command")), Is.EqualTo(new[]
         {
-            "{Binding HasOpenProjectChoices, Converter={StaticResource BoolToVisibility}}",
-            "{Binding IsProjectOpen, Converter={StaticResource BoolToVisibility}}",
-            "{Binding HasSpecChoices, Converter={StaticResource BoolToVisibility}}",
-            "{Binding HasSpecChoices, Converter={StaticResource BoolToVisibility}}",
+            "{Binding HasOpenProjectChoices}",
+            "{Binding CloseProjectCommand}",
+            "{Binding HasSpecChoices}",
+            "{Binding HasSpecChoices}",
         }));
+        Assert.That(items.Select(item => (string?)item.Attribute("Style")), Is.All.EqualTo("{StaticResource ExplainsWhenOff}"));
     }
 
     [Test]
@@ -68,7 +71,7 @@ public class ProjectViewMarkupTests
         var item = Menu("_View").Descendants(Presentation + "MenuItem")
             .Single(each => (string?)each.Attribute("IsChecked") == "{Binding Board.RowsByProject, Mode=TwoWay}");
 
-        Assert.That((string?)item.Attribute("Header"), Is.EqualTo("_Folder"));
+        Assert.That((string?)item.Attribute("Header"), Is.EqualTo("Rows by _folder"), "in the Group by submenu (W26, W32)");
     }
 
     [Test]

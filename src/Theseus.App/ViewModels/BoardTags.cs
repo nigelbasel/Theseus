@@ -148,14 +148,14 @@ public sealed class BoardTags
         {
             var all = targets.All(target => TagsOf(target).Contains(use.Tag, StringComparer.Ordinal));
             var tag = use.Tag;
-            items.Add(new TagMenuItemViewModel(tag, all, ColourOf(tag),
+            items.Add(new TagMenuItemViewModel(Theseus.App.Text.AccessKeyText.Escape(tag), all, ColourOf(tag),
                 new RelayCommand(_ => Set(targets, tag, !all)),
                 all
                     ? several ? $"Take #{tag} off the {targets.Count} selected cards" : $"Take #{tag} off this card"
                     : several ? $"Put #{tag} on the {targets.Count} selected cards" : $"Put #{tag} on this card"));
         }
 
-        items.Add(new TagMenuItemViewModel("New tag…", false, null, new RelayCommand(_ => AddNew(targets)),
+        items.Add(new TagMenuItemViewModel("_New tag…", false, null, new RelayCommand(_ => AddNew(targets)),
             several ? $"Make a tag and put it on the {targets.Count} selected cards" : "Make a tag and put it on this card"));
 
         return items;

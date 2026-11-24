@@ -10,6 +10,7 @@
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False"
         ResizeMode="CanResize"
+        FocusManager.FocusedElement="{Binding ElementName=WorkingDirectoryBox}"
         Background="{DynamicResource SolidBackgroundFillColorSecondaryBrush}">
     <!--
         A card's setup (Nigel, 2026-10-22): how its sessions start, in a window of its own that moves
@@ -17,128 +18,155 @@
         the room, and is the one thing about a card with Save and Cancel, which sit side by side in a
         footer that never scrolls away. Closing it, or Escape, is Cancel.
     -->
-    <Window.InputBindings>
-        <KeyBinding Key="Escape" Command="{Binding Drawer.CancelSetupCommand}" />
-    </Window.InputBindings>
+    <Window.Resources>
+        <!-- FieldLabel's look on a Label, so a field's label carries its access key and names the field (W50). -->
+        <Style x:Key="FieldLabelFor" TargetType="Label">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0,12,0,8" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+        </Style>
+    </Window.Resources>
 
-    <Grid Margin="22,16,22,18">
-        <DockPanel>
-            <TextBlock DockPanel.Dock="Top" FontSize="11" Margin="0,0,0,4" TextWrapping="Wrap"
-                       Foreground="{DynamicResource TextFillColorTertiaryBrush}"
-                       Text="How this workstream's sessions start. Changes apply from the next launch." />
+    <Grid Margin="24,16,24,16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
 
-            <Grid DockPanel.Dock="Bottom" Margin="0,14,0,0">
-                <StackPanel VerticalAlignment="Center">
-                    <TextBlock Text="Not saved" FontSize="11" Foreground="#D68910"
-                               Visibility="{Binding Drawer.IsSetupDirty, Converter={StaticResource BoolToVisibility}}" />
-                    <TextBlock Text="{Binding Drawer.PlanPath}" FontSize="10"
-                               TextTrimming="CharacterEllipsis" MaxWidth="420" HorizontalAlignment="Left"
-                               ToolTip="{Binding Drawer.PlanPath}"
-                               Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+        <TextBlock Style="{DynamicResource ExplanationText}" Margin="0,0,0,4"
+                   Text="How this workstream's sessions start. Changes apply from the next launch." />
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,0,8,0">
+            <StackPanel>
+                <Label x:Name="WorkingDirectoryLabel" Content="_Working directory" Target="{Binding ElementName=WorkingDirectoryBox}" Style="{StaticResource FieldLabelFor}" Margin="0,0,0,8" />
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="WorkingDirectoryBox" AutomationProperties.LabeledBy="{Binding ElementName=WorkingDirectoryLabel}" Text="{Binding Drawer.WorkingDirectory, UpdateSourceTrigger=PropertyChanged}" />
+                    <Button Grid.Column="1" Content="Open folder" Style="{DynamicResource LinkButton}" Margin="12,0,0,0" VerticalAlignment="Center"
+                            ToolTip="Open the working directory in File Explorer." ToolTipService.ShowOnDisabled="True"
+                            Command="{Binding Drawer.OpenWorkingDirectoryCommand}" />
+                </Grid>
+                <TextBlock Margin="0,4,0,0" TextWrapping="Wrap"
+                           Text="This folder does not exist. Choose another, or create it first."
+                           Foreground="{DynamicResource CriticalTextBrush}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock" BasedOn="{StaticResource CaptionText}">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Drawer.WorkingDirectoryExists}" Value="False">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+
+                <Label x:Name="NewDirectoryLabel" Content="_Extra directories" Target="{Binding ElementName=NewDirectoryBox}" Style="{StaticResource FieldLabelFor}" />
+                <ItemsControl ItemsSource="{Binding Drawer.AddDirectories}" Focusable="False">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="0,0,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="{Binding}" Style="{StaticResource CaptionText}" VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis" ToolTip="{Binding}"
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                <Button Grid.Column="1" Content="Remove" Margin="8,0,0,0"
+                                        AutomationProperties.Name="{Binding StringFormat=Remove {0}}"
+                                        Command="{Binding DataContext.Drawer.RemoveDirectoryCommand,
+                                                  RelativeSource={RelativeSource AncestorType=Window}}"
+                                        CommandParameter="{Binding}" />
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <Grid Margin="0,4,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="NewDirectoryBox" AutomationProperties.LabeledBy="{Binding ElementName=NewDirectoryLabel}" Text="{Binding Drawer.NewDirectory, UpdateSourceTrigger=PropertyChanged}">
+                        <TextBox.InputBindings>
+                            <KeyBinding Key="Return" Command="{Binding Drawer.AddDirectoryCommand}" />
+                        </TextBox.InputBindings>
+                    </TextBox>
+                    <Button Grid.Column="1" Content="_Add" Margin="8,0,0,0"
+                            AutomationProperties.Name="Add the extra directory"
+                            Command="{Binding Drawer.AddDirectoryCommand}" />
+                </Grid>
+
+                <TextBlock x:Name="FirstRunLabel" Text="First run only" Style="{StaticResource FieldLabel}" />
+                <controls:MarkdownBox x:Name="FirstRunBox" Text="{Binding Drawer.Prompt}" IsReadOnly="{Binding Drawer.HasRun}"
+                                      ReadOnlyReason="{Binding Drawer.FirstRunHint}"
+                                      AutomationProperties.LabeledBy="{Binding ElementName=FirstRunLabel}"
+                                      EditorMinHeight="140" EditorMaxHeight="320" />
+                <TextBlock Text="{Binding Drawer.FirstRunHint}" Style="{DynamicResource ExplanationText}" Margin="0,4,0,0" />
+
+                <TextBlock x:Name="EveryStartLabel" Text="Every start" Style="{StaticResource FieldLabel}" />
+                <controls:MarkdownBox x:Name="EveryStartBox" Text="{Binding Drawer.EveryStartPrompt}"
+                                      AutomationProperties.LabeledBy="{Binding ElementName=EveryStartLabel}"
+                                      EditorMinHeight="100" EditorMaxHeight="260" />
+                <TextBlock Style="{DynamicResource ExplanationText}" Margin="0,4,0,0"
+                           Text="Told to this workstream's sessions every time they start, after everything the board says. Use {handoff} for its notes." />
+
+                <Button Content="I_nstructions and skills" HorizontalAlignment="Left" Margin="0,12,0,0"
+                        ToolTip="Every CLAUDE.md, rule, skill, command and agent this workstream's sessions get, in the order they are read."
+                        Command="{Binding Instructions.OpenCommand}"
+                        CommandParameter="{Binding Drawer}" />
+
+                <Label x:Name="HandoverNotesLabel" Content="_Handover notes" Target="{Binding ElementName=HandoverNotesBox}" Style="{StaticResource FieldLabelFor}" />
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="HandoverNotesBox" AutomationProperties.LabeledBy="{Binding ElementName=HandoverNotesLabel}" Text="{Binding Drawer.StatusDocumentPath, UpdateSourceTrigger=PropertyChanged}" />
+                    <Button Grid.Column="1" Content="Open in editor" Style="{DynamicResource LinkButton}" Margin="12,0,0,0" VerticalAlignment="Center"
+                            ToolTip="Open the handover notes in their editor." ToolTipService.ShowOnDisabled="True"
+                            Command="{Binding Drawer.OpenStatusDocumentCommand}" />
+                </Grid>
+                <TextBlock Text="{Binding Drawer.HandoffDestination, StringFormat=Leave empty to use {0}}"
+                           Style="{DynamicResource ExplanationText}" Margin="0,4,0,0" />
+
+                <Label x:Name="TerminalWindowLabel" Content="_Terminal window" Target="{Binding ElementName=TerminalWindowBox}" Style="{StaticResource FieldLabelFor}" />
+                <TextBox x:Name="TerminalWindowBox" AutomationProperties.LabeledBy="{Binding ElementName=TerminalWindowLabel}" Text="{Binding Drawer.WindowGroup, UpdateSourceTrigger=PropertyChanged}" />
+                <TextBlock Style="{DynamicResource ExplanationText}" Margin="0,4,0,0"
+                           Text="Leave empty to follow the lane. Name a window to put this workstream beside another one whatever lane it is in. It applies from the next launch." />
+
+                <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                    <Label x:Name="BoardOrderLabel" Content="Order in the _lane:" Target="{Binding ElementName=BoardOrderBox}" Style="{StaticResource FieldLabelFor}"
+                           Margin="0,0,8,0" VerticalAlignment="Center" />
+                    <TextBox x:Name="BoardOrderBox" AutomationProperties.LabeledBy="{Binding ElementName=BoardOrderLabel}" Text="{Binding Drawer.BoardOrder, UpdateSourceTrigger=PropertyChanged}" Width="60" />
                 </StackPanel>
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button Content="Cancel" Padding="18,5" Margin="0,0,8,0"
-                            Command="{Binding Drawer.CancelSetupCommand}" />
-                    <Button Content="Save" Padding="18,5"
-                            Command="{Binding Drawer.SaveCommand}" />
-                </StackPanel>
-            </Grid>
+            </StackPanel>
+        </ScrollViewer>
 
-            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,6,0">
-                <StackPanel>
-                    <TextBlock Text="Working directory" Style="{StaticResource FieldLabel}" Margin="0,0,0,4" />
-                    <Grid>
-                        <TextBox Text="{Binding Drawer.WorkingDirectory, UpdateSourceTrigger=PropertyChanged}"
-                                 Margin="0,0,80,0" />
-                        <Button Content="Open" HorizontalAlignment="Right" Padding="12,3"
-                                Command="{Binding Drawer.OpenWorkingDirectoryCommand}" />
-                    </Grid>
-                    <TextBlock FontSize="11" Margin="0,4,0,0"
-                               Text="This directory is missing."
-                               Foreground="#CF5D61">
-                        <TextBlock.Style>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="Visibility" Value="Collapsed" />
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding Drawer.WorkingDirectoryExists}" Value="False">
-                                        <Setter Property="Visibility" Value="Visible" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </TextBlock.Style>
-                    </TextBlock>
-
-                    <TextBlock Text="Extra directories" Style="{StaticResource FieldLabel}" />
-                    <ItemsControl ItemsSource="{Binding Drawer.AddDirectories}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Grid Margin="0,0,0,4">
-                                    <TextBlock Text="{Binding}" FontSize="12" Margin="0,0,70,0"
-                                               VerticalAlignment="Center"
-                                               TextTrimming="CharacterEllipsis" ToolTip="{Binding}"
-                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                    <Button Content="Remove" FontSize="11" Padding="8,1"
-                                            HorizontalAlignment="Right"
-                                            Command="{Binding DataContext.Drawer.RemoveDirectoryCommand,
-                                                      RelativeSource={RelativeSource AncestorType=Window}}"
-                                            CommandParameter="{Binding}" />
-                                </Grid>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                    <Grid Margin="0,4,0,0">
-                        <TextBox Text="{Binding Drawer.NewDirectory, UpdateSourceTrigger=PropertyChanged}"
-                                 Margin="0,0,60,0" />
-                        <Button Content="Add" HorizontalAlignment="Right" Padding="12,3"
-                                Command="{Binding Drawer.AddDirectoryCommand}" />
-                    </Grid>
-
-                    <TextBlock Text="First run only" Style="{StaticResource FieldLabel}" />
-                    <controls:MarkdownBox x:Name="FirstRunBox" Text="{Binding Drawer.Prompt}" IsReadOnly="{Binding Drawer.HasRun}"
-                                          ReadOnlyReason="{Binding Drawer.FirstRunHint}"
-                                          EditorMinHeight="140" EditorMaxHeight="320" />
-                    <TextBlock Text="{Binding Drawer.FirstRunHint}" FontSize="11" TextWrapping="Wrap"
-                               Margin="0,4,0,0"
-                               Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
-
-                    <TextBlock Text="Every start" Style="{StaticResource FieldLabel}" />
-                    <controls:MarkdownBox x:Name="EveryStartBox" Text="{Binding Drawer.EveryStartPrompt}" EditorMinHeight="100" EditorMaxHeight="260" />
-                    <TextBlock FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"
-                               Foreground="{DynamicResource TextFillColorTertiaryBrush}"
-                               Text="Told to this workstream's sessions every time they start, after everything the board says. Use {handoff} for its notes." />
-
-                    <Button Content="Instructions and skills…" HorizontalAlignment="Left"
-                            Margin="0,10,0,0" Padding="10,3" FontSize="11"
-                            ToolTip="Every CLAUDE.md, rule, skill, command and agent this workstream's sessions get, in the order they are read"
-                            Command="{Binding Instructions.OpenCommand}"
-                            CommandParameter="{Binding Drawer}" />
-
-                    <TextBlock Text="Handover notes" Style="{StaticResource FieldLabel}" />
-                    <Grid>
-                        <TextBox Text="{Binding Drawer.StatusDocumentPath, UpdateSourceTrigger=PropertyChanged}"
-                                 Margin="0,0,70,0" />
-                        <Button Content="Open" FontSize="11" Padding="10,2" HorizontalAlignment="Right"
-                                VerticalAlignment="Center"
-                                Command="{Binding Drawer.OpenStatusDocumentCommand}" />
-                    </Grid>
-                    <TextBlock Text="{Binding Drawer.HandoffDestination, StringFormat=Leave empty to use {0}}"
-                               FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"
-                               Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
-
-                    <TextBlock Text="Terminal window" Style="{StaticResource FieldLabel}" />
-                    <TextBox Text="{Binding Drawer.WindowGroup, UpdateSourceTrigger=PropertyChanged}" />
-                    <TextBlock FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"
-                               Foreground="{DynamicResource TextFillColorTertiaryBrush}"
-                               Text="Leave empty to follow the lane. Name a window to put this workstream beside another one whatever lane it is in. It applies from the next launch." />
-
-                    <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
-                        <TextBlock Text="Order in the lane" VerticalAlignment="Center" FontSize="12" Margin="0,0,8,0"
-                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                        <TextBox Text="{Binding Drawer.BoardOrder, UpdateSourceTrigger=PropertyChanged}"
-                                 Width="60" />
-                    </StackPanel>
-                </StackPanel>
-            </ScrollViewer>
-        </DockPanel>
+        <Grid Grid.Row="2" Margin="0,16,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="Not saved" Style="{StaticResource CaptionText}" Foreground="{DynamicResource CautionTextBrush}"
+                           Visibility="{Binding Drawer.IsSetupDirty, Converter={StaticResource BoolToVisibility}}" />
+                <TextBlock Text="{Binding Drawer.PlanPath}" Style="{StaticResource CaptionText}"
+                           TextTrimming="CharacterEllipsis" MaxWidth="420" HorizontalAlignment="Left"
+                           ToolTip="{Binding Drawer.PlanPath}"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <Button Content="_Save" Style="{DynamicResource AccentButton}" IsDefault="True" Margin="0,0,8,0"
+                        Command="{Binding Drawer.SaveCommand}" />
+                <Button Content="Cancel" Style="{DynamicResource DialogButton}" IsCancel="True"
+                        Command="{Binding Drawer.CancelSetupCommand}" />
+            </StackPanel>
+        </Grid>
     </Grid>
 </Window>

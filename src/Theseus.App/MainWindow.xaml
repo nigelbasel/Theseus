@@ -6,6 +6,7 @@
         xmlns:vm="clr-namespace:Theseus.App.ViewModels"
         xmlns:controls="clr-namespace:Theseus.App.Controls"
         xmlns:converters="clr-namespace:Theseus.App.Converters"
+        xmlns:local="clr-namespace:Theseus.App"
         xmlns:views="clr-namespace:Theseus.App.Views"
         xmlns:settings="clr-namespace:Theseus.Core.Settings;assembly=Theseus.Core"
         xmlns:launching="clr-namespace:Theseus.Core.Launching;assembly=Theseus.Core"
@@ -19,14 +20,35 @@
         Icon="Assets/theseus.ico"
         Title="Theseus" Height="760" Width="1400" MinHeight="480" MinWidth="720">
 
+    <Window.CommandBindings>
+        <CommandBinding Command="{x:Static local:MainWindow.NextPaneCommand}" Executed="OnNextPane" />
+        <CommandBinding Command="{x:Static local:MainWindow.PreviousPaneCommand}" Executed="OnPreviousPane" />
+        <CommandBinding Command="{x:Static local:MainWindow.FindCardsCommand}" Executed="OnFindCards" />
+    </Window.CommandBindings>
+
     <Window.InputBindings>
         <KeyBinding Gesture="Ctrl+N" Command="{Binding NewWorkstream.OpenCommand}" />
-        <KeyBinding Gesture="Ctrl+D" Command="{Binding DayReport.OpenCommand}" />
+        <!-- Ctrl+J, not Ctrl+D, which is Delete's standard key (W27, B6). -->
+        <KeyBinding Gesture="Ctrl+J" Command="{Binding DayReport.OpenCommand}" />
         <KeyBinding Gesture="Ctrl+A" Command="{Binding SelectAllCommand}" />
         <KeyBinding Gesture="Ctrl+I" Command="{Binding InvertSelectionCommand}" />
-        <KeyBinding Gesture="Ctrl+D1" Command="{Binding ToggleSessionsPanelCommand}" />
-        <KeyBinding Gesture="Ctrl+D2" Command="{Binding Locks.ToggleCommand}" />
-        <KeyBinding Gesture="Ctrl+D3" Command="{Binding Chains.ToggleCommand}" />
+        <!-- The panels take F7 to F9, so that Ctrl+1 to Ctrl+9 mean the project tabs only, as in a browser (W27, B7). -->
+        <KeyBinding Gesture="F7" Command="{Binding ToggleSessionsPanelCommand}" />
+        <KeyBinding Gesture="F8" Command="{Binding Locks.ToggleCommand}" />
+        <KeyBinding Gesture="F9" Command="{Binding Chains.ToggleCommand}" />
+        <KeyBinding Gesture="Ctrl+D1" Command="{Binding SelectProjectTabCommand}" CommandParameter="1" />
+        <KeyBinding Gesture="Ctrl+D2" Command="{Binding SelectProjectTabCommand}" CommandParameter="2" />
+        <KeyBinding Gesture="Ctrl+D3" Command="{Binding SelectProjectTabCommand}" CommandParameter="3" />
+        <KeyBinding Gesture="Ctrl+D4" Command="{Binding SelectProjectTabCommand}" CommandParameter="4" />
+        <KeyBinding Gesture="Ctrl+D5" Command="{Binding SelectProjectTabCommand}" CommandParameter="5" />
+        <KeyBinding Gesture="Ctrl+D6" Command="{Binding SelectProjectTabCommand}" CommandParameter="6" />
+        <KeyBinding Gesture="Ctrl+D7" Command="{Binding SelectProjectTabCommand}" CommandParameter="7" />
+        <KeyBinding Gesture="Ctrl+D8" Command="{Binding SelectProjectTabCommand}" CommandParameter="8" />
+        <KeyBinding Gesture="Ctrl+D9" Command="{Binding SelectProjectTabCommand}" CommandParameter="9" />
+        <KeyBinding Gesture="Ctrl+Tab" Command="{Binding NextProjectTabCommand}" />
+        <KeyBinding Gesture="Ctrl+Shift+Tab" Command="{Binding PreviousProjectTabCommand}" />
+        <KeyBinding Gesture="F6" Command="{x:Static local:MainWindow.NextPaneCommand}" />
+        <KeyBinding Gesture="Shift+F6" Command="{x:Static local:MainWindow.PreviousPaneCommand}" />
         <KeyBinding Gesture="F5" Command="{Binding RefreshCommand}" />
         <KeyBinding Key="OemComma" Modifiers="Ctrl" Command="{Binding Settings.OpenCommand}" />
         <KeyBinding Gesture="F1" Command="{Binding Help.OpenCommand}" />
@@ -55,16 +77,65 @@
             FontFamily inherits, so a command bar carrying its icon on the parent turns every label
             below it into a row of empty squares.
         -->
-        <Style x:Key="CommandGlyph" TargetType="TextBlock">
-            <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
-            <Setter Property="FontSize" Value="11" />
-            <Setter Property="Margin" Value="0,1,7,0" />
+        <!-- A menu's icon: 16, the menus' glyph size (W22, G53), in the theme's icon font (W24). -->
+        <Style x:Key="MenuGlyph" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{DynamicResource SymbolThemeFontFamily}" />
+            <Setter Property="FontSize" Value="16" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
 
-        <Style x:Key="MenuGlyph" TargetType="TextBlock">
-            <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
+        <!--
+            A menu item or toolbar button that stays in place when it does not apply, greyed, and says why (W13, W31; G61,
+            G157): its Tag is the tooltip while it is enabled, controls:OffReason.Text while it is not. A local ToolTip
+            would hide the reason, so items with this style carry their tooltip in Tag.
+        -->
+        <Style x:Key="ExplainsWhenOff" TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+            <Setter Property="ToolTipService.ShowOnDisabled" Value="True" />
+            <Setter Property="ToolTip" Value="{Binding Tag, RelativeSource={RelativeSource Self}}" />
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="ToolTip" Value="{Binding (controls:OffReason.Text), RelativeSource={RelativeSource Self}}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- One choice of a set, marked by a bullet while chosen, each set between separators (W32, G54, C12). -->
+        <Style x:Key="RadioMenuItem" TargetType="MenuItem" BasedOn="{StaticResource ExplainsWhenOff}">
+            <Style.Triggers>
+                <Trigger Property="Role" Value="SubmenuItem">
+                    <Setter Property="Template" Value="{StaticResource CompactRadioItem}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- A disabled menu item's reason on a second, dimmer line, for the items whose label never changes (W30). -->
+        <Style x:Key="MenuReasonLine" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="MaxWidth" Value="320" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Margin" Value="0,4,0,0" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+        </Style>
+
+        <Style x:Key="ExplainsWhenOffTool" TargetType="Button" BasedOn="{StaticResource ToolIcon}">
+            <Setter Property="ToolTip" Value="{Binding Tag, RelativeSource={RelativeSource Self}}" />
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="ToolTip" Value="{Binding (controls:OffReason.Text), RelativeSource={RelativeSource Self}}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- A toolbar command a new user looks for, with its name to the right of its icon (W34, G38, C7). -->
+        <Style x:Key="LabelledTool" TargetType="Button" BasedOn="{StaticResource ExplainsWhenOffTool}">
+            <Setter Property="Padding" Value="8,0" />
+        </Style>
+
+        <!-- The name beside a toolbar icon: the UI font, since the button's own font is the icon font. -->
+        <Style x:Key="ToolLabel" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
             <Setter Property="FontSize" Value="14" />
+            <Setter Property="Margin" Value="8,0,0,0" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
 
@@ -100,7 +171,7 @@
 
         <!-- One row of such a drop-down: the id and title, opening it when chosen. -->
         <Style x:Key="ItemRow" TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
-            <Setter Property="Header" Value="{Binding Display}" />
+            <Setter Property="Header" Value="{Binding Display, Converter={StaticResource AccessKeyEscape}}" />
             <Setter Property="Command" Value="{Binding OpenCommand}" />
             <Setter Property="ToolTip" Value="{Binding Tooltip}" />
         </Style>
@@ -136,24 +207,35 @@
             <Setter Property="FontFamily" Value="{x:Static SystemFonts.MessageFontFamily}" />
         </Style>
 
+        <!-- A panel button's glyph: 20, the toolbar's glyph size (W22, G41), in the theme's icon font (W24). -->
         <Style x:Key="ToolGlyph" TargetType="TextBlock">
-            <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
-            <Setter Property="FontSize" Value="14" />
-            <Setter Property="Margin" Value="5,0" />
+            <Setter Property="FontFamily" Value="{DynamicResource SymbolThemeFontFamily}" />
+            <Setter Property="FontSize" Value="20" />
+            <Setter Property="Margin" Value="4,0" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
 
+        <!-- A panel button's count: a pill over the accent, its text in the theme's text-on-accent brush (C5, E1). -->
         <Style x:Key="ToolBadge" TargetType="Border">
-            <Setter Property="MinWidth" Value="18" />
-            <Setter Property="Height" Value="16" />
+            <Setter Property="MinWidth" Value="16" />
+            <Setter Property="MinHeight" Value="16" />
             <Setter Property="Padding" Value="4,0" />
-            <Setter Property="Margin" Value="-2,0,5,0" />
+            <Setter Property="Margin" Value="-4,0,4,0" />
             <Setter Property="CornerRadius" Value="8" />
             <Setter Property="VerticalAlignment" Value="Center" />
             <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
-            <Setter Property="TextElement.Foreground" Value="White" />
-            <Setter Property="TextElement.FontSize" Value="10" />
+            <Setter Property="TextElement.Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+            <Setter Property="TextElement.FontFamily" Value="{StaticResource UiFont}" />
+            <Setter Property="TextElement.FontSize" Value="12" />
             <Setter Property="TextElement.FontWeight" Value="SemiBold" />
+        </Style>
+
+        <!-- An urgent count: the caution wash and text, and a ⚠ before the number, never the colour alone (E5, W46, G161). -->
+        <Style x:Key="UrgentToolBadge" TargetType="Border" BasedOn="{StaticResource ToolBadge}">
+            <Setter Property="Background" Value="{DynamicResource SystemFillColorCautionBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CautionTextBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="TextElement.Foreground" Value="{DynamicResource CautionTextBrush}" />
         </Style>
 
         <Style x:Key="ToolSeparator" TargetType="Border">
@@ -190,11 +272,6 @@
             </Button>
         </DataTemplate>
 
-        <!--
-            A card's menu: the start choices, its marks, and Spawn follow-on. One resource, used by the
-            ▾ beside Start and by a right-click anywhere on the card, which is where a Windows user
-            looks for a thing's options. Not shared, so each card gets its own instance.
-        -->
         <!--
             The font is set here because a context menu is a logical child of the element that owns it
             and inherits its font: owned by the ⋯ icon button, it drew every label in the icon font.
@@ -243,7 +320,10 @@
             </Setter>
         </Style>
 
-        <!-- One item of Tags ›: the tag with its tick and a dot of its colour, or New tag… (item 10). -->
+        <!--
+            One item of Tags ›: the tag with its tick and a dot of its colour, or New tag… (item 10). The header is access
+            text: New tag… has its key, and a tag's own underscores come escaped from BoardTags (C9, B12).
+        -->
         <Style x:Key="TagMenuItem" TargetType="MenuItem">
             <Setter Property="Header" Value="{Binding}" />
             <Setter Property="IsChecked" Value="{Binding IsChecked, Mode=OneWay}" />
@@ -254,65 +334,89 @@
                 <Setter.Value>
                     <DataTemplate>
                         <StackPanel Orientation="Horizontal">
-                            <Ellipse Width="8" Height="8" Margin="0,0,6,0" VerticalAlignment="Center"
+                            <Ellipse Width="8" Height="8" Margin="0,0,8,0" VerticalAlignment="Center"
                                      Fill="{Binding ColourHex, Converter={StaticResource HexToBrush}}"
                                      Visibility="{Binding IsTag, Converter={StaticResource BoolToVisibility}}" />
-                            <TextBlock Text="{Binding Header}" VerticalAlignment="Center" />
+                            <AccessText Text="{Binding Header}" VerticalAlignment="Center" />
                         </StackPanel>
                     </DataTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
 
+        <!--
+            A card's menu: the start choices, its marks, and Spawn follow-on. One resource, used by the
+            ▾ beside Start and by a right-click anywhere on the card, which is where a Windows user
+            looks for a thing's options. Not shared, so each card gets its own instance.
+
+            Its labels never change with the card's state (W30, G62): each pair is two items, and the one that does not
+            apply is removed. The access keys follow W26 and are unique, removed items included (C9, B11). Properties keeps
+            its r, as in the Edit menu, so Resume takes the l of "last".
+        -->
         <ContextMenu x:Key="CardMenu" x:Shared="False" Opened="OnCardMenuOpened"
                      FontFamily="{x:Static SystemFonts.MessageFontFamily}"
                      DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
             <MenuItem Header="P_roperties" InputGestureText="Alt+Enter" FontWeight="SemiBold"
                       Command="{Binding PropertiesCommand}"
-                      ToolTip="Rename it, edit its setup, its Jira keys, its links, or delete it" />
+                      ToolTip="Rename it, edit its setup, its Jira keys, its links, or delete it." />
             <Separator />
-            <MenuItem Header="Resume the last conversation"
+            <MenuItem Header="Resume the _last conversation"
                       Command="{Binding ResumeCommand}"
                       ToolTip="{Binding ResumeTooltip}"
                       ToolTipService.ShowOnDisabled="True"
                       Visibility="{Binding IsLive, Converter={StaticResource NotBoolToVisibility}}" />
-            <MenuItem Header="Start fresh from the handoff"
+            <MenuItem Header="Start _fresh from the handoff"
                       Command="{Binding StartFreshCommand}"
                       ToolTip="{x:Static launching:StartModeChoice.FreshTooltip}"
                       Visibility="{Binding IsLive, Converter={StaticResource NotBoolToVisibility}}" />
             <Separator Visibility="{Binding IsLive, Converter={StaticResource NotBoolToVisibility}}" />
-            <MenuItem Header="{Binding PauseMenuText}" Command="{Binding MenuPauseCommand}"
-                      ToolTip="{Binding PauseTooltip}">
-                <MenuItem.Icon><TextBlock Text="&#xE769;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+            <MenuItem Header="_Pause" Command="{Binding MenuPauseCommand}" ToolTip="{Binding PauseTooltip}"
+                      Visibility="{Binding IsPaused, Converter={StaticResource NotBoolToVisibility}}">
+                <MenuItem.Icon><controls:GlyphText Text="&#xE769;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
             </MenuItem>
-            <MenuItem Header="Close _now" Command="{Binding CloseNowCommand}"
+            <MenuItem Header="_Unpause" Command="{Binding MenuPauseCommand}" ToolTip="{Binding PauseTooltip}"
+                      Visibility="{Binding IsPaused, Converter={StaticResource BoolToVisibility}}">
+                <MenuItem.Icon><controls:GlyphText Text="&#xE768;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+            </MenuItem>
+            <MenuItem Header="E_xit session" Command="{Binding CloseNowCommand}"
                       ToolTip="Type /exit into this session once more. Brings its terminal to the front."
                       Visibility="{Binding CanCloseNow, Converter={StaticResource BoolToVisibility}}" />
-            <MenuItem Header="{Binding BlockMenuText}" Command="{Binding ToggleBlockedCommand}"
-                      ToolTip="Blocked means waiting on something outside your control. A mark on the card: it keeps its stage" />
-            <MenuItem Header="Reopen tomorrow" IsChecked="{Binding ReopenTomorrow, Mode=OneWay}"
+            <MenuItem Header="_Block" Command="{Binding ToggleBlockedCommand}"
+                      ToolTip="Blocked means waiting on something outside your control. A mark on the card: it keeps its stage."
+                      Visibility="{Binding IsBlocked, Converter={StaticResource NotBoolToVisibility}}" />
+            <MenuItem Header="Unbloc_k" Command="{Binding ToggleBlockedCommand}"
+                      ToolTip="Take the blocked mark off. The card keeps its stage."
+                      Visibility="{Binding IsBlocked, Converter={StaticResource BoolToVisibility}}" />
+            <MenuItem Header="Reopen to_morrow" IsChecked="{Binding ReopenTomorrow, Mode=OneWay}"
                       Command="{Binding ToggleReopenTomorrowCommand}"
-                      ToolTip="Include this workstream when the whole board is started" />
+                      ToolTip="Include this workstream when the whole board is started." />
             <Separator />
-            <MenuItem Header="T_ags" ItemsSource="{Binding TagMenu}" ItemContainerStyle="{StaticResource TagMenuItem}"
-                      ToolTip="Put a tag on this card, or the selected cards, or take one off" />
+            <MenuItem Header="_Tags" ItemsSource="{Binding TagMenu}" ItemContainerStyle="{StaticResource TagMenuItem}"
+                      ToolTip="Put a tag on this card, or the selected cards, or take one off." />
             <Separator />
-            <MenuItem Header="Spawn follow-on…"
+            <MenuItem Header="Spa_wn follow-on…"
                       Command="{Binding SpawnFollowOnCommand}"
-                      ToolTip="Create a new card this one hands over to, in the same working directory" />
-            <MenuItem Header="{Binding HandoffRenameMenuText}" Command="{Binding RenameHandoffCommand}"
-                      ToolTip="Rename this card's handover file to match its title. Only while its session is not running"
+                      ToolTip="Create a new card this one hands over to, in the same working directory." />
+            <MenuItem Header="Re_name handover to match title" Command="{Binding RenameHandoffCommand}"
+                      ToolTip="{Binding HandoffRenameToolTip}"
                       Visibility="{Binding HandoffRenameTo, Converter={StaticResource NotEmptyToVisibility}}" />
-            <MenuItem Header="{Binding VerifyMenuText}"
-                      Command="{Binding VerifyWithHoldoutsCommand}" ToolTipService.ShowOnDisabled="True"
-                      ToolTip="{Binding VerifyToolTip}" />
+            <MenuItem Command="{Binding VerifyWithHoldoutsCommand}" ToolTipService.ShowOnDisabled="True"
+                      ToolTip="{Binding VerifyToolTip}">
+                <MenuItem.Header>
+                    <StackPanel>
+                        <AccessText Text="Independent c_heck…" />
+                        <TextBlock Text="{Binding VerifyOffReason}" Style="{StaticResource MenuReasonLine}"
+                                   Visibility="{Binding VerifyOffReason, Converter={StaticResource NotEmptyToVisibility}}" />
+                    </StackPanel>
+                </MenuItem.Header>
+            </MenuItem>
             <Separator />
-            <MenuItem Header="Add to pro_ject…" Command="{Binding AddToProjectCommand}" ToolTipService.ShowOnDisabled="True"
-                      ToolTip="Add this card to a project: a row naming it under one of the project's objectives in its project.md. Needs a projects folder; not for a card already in a project" />
-            <MenuItem Header="Remove from projec_t" Command="{Binding RemoveFromProjectCommand}" ToolTipService.ShowOnDisabled="True"
-                      ToolTip="Take this card's rows out of its project's project.md. Its records in the project's work folder are kept" />
-            <MenuItem Header="Convert to proje_ct…" Command="{Binding ConvertToProjectCommand}" ToolTipService.ShowOnDisabled="True"
-                      ToolTip="Start a new project with this card as its first workstream, and its handoff as the project's first record" />
+            <MenuItem Header="_Add to project…" Command="{Binding AddToProjectCommand}" ToolTipService.ShowOnDisabled="True"
+                      ToolTip="Add this card to a project: a row naming it under one of the project's objectives in its project.md. Needs a projects folder; not for a card already in a project." />
+            <MenuItem Header="R_emove from project" Command="{Binding RemoveFromProjectCommand}" ToolTipService.ShowOnDisabled="True"
+                      ToolTip="Take this card's rows out of its project's project.md. Its records in the project's work folder are kept." />
+            <MenuItem Header="_Convert to project…" Command="{Binding ConvertToProjectCommand}" ToolTipService.ShowOnDisabled="True"
+                      ToolTip="Start a new project with this card as its first workstream, and its handoff as the project's first record." />
         </ContextMenu>
 
         <!--
@@ -1296,7 +1400,7 @@
                                 <ContextMenu ItemsSource="{Binding AdoptTargets}">
                                     <ContextMenu.ItemContainerStyle>
                                         <Style TargetType="MenuItem">
-                                            <Setter Property="Header" Value="{Binding Title}" />
+                                            <Setter Property="Header" Value="{Binding Title, Converter={StaticResource AccessKeyEscape}}" />
                                             <Setter Property="Command" Value="{Binding Command}" />
                                         </Style>
                                     </ContextMenu.ItemContainerStyle>
@@ -1320,16 +1424,22 @@
             Each menu item with a toolbar button carries the same icon, so the toolbar is learned
             from the menus; items without one keep the menu's empty icon column, so labels align.
         -->
-        <Menu DockPanel.Dock="Top" Padding="8,2,8,0" Background="Transparent">
+        <!--
+            Every item has an access key, unique in its menu, items removed or disabled included, by W26's letter rule and
+            its View map (C9, B5, B11). A command that does not apply is disabled with its reason, never hidden (W31, C8).
+            Labels never change with the state (W30). No ellipsis on a command that asks nothing more (W14, C13).
+        -->
+        <Menu DockPanel.Dock="Top" Padding="8,0,8,0" Background="Transparent">
             <MenuItem Header="_File">
-                <MenuItem Header="New pro_ject…" Command="{Binding NewProjectCommand}"
-                          Visibility="{Binding HasProjectsFolder, Converter={StaticResource BoolToVisibility}}" />
+                <MenuItem Header="New _project…" Command="{Binding NewProjectCommand}" Style="{StaticResource ExplainsWhenOff}"
+                          IsEnabled="{Binding HasProjectsFolder}" Tag="Start a new project: a project.md in the projects folder."
+                          controls:OffReason.Text="Choose a projects folder in Tools › Options first." />
                 <MenuItem Header="_New workstream…" InputGestureText="Ctrl+N" Command="{Binding NewWorkstream.OpenCommand}">
-                    <MenuItem.Icon><TextBlock Text="&#xE710;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                    <MenuItem.Icon><controls:GlyphText Text="&#xE710;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
                 </MenuItem>
                 <Separator />
-                <MenuItem Header="_Day report…" InputGestureText="Ctrl+D" Command="{Binding DayReport.OpenCommand}">
-                    <MenuItem.Icon><TextBlock Text="&#xE9F9;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                <MenuItem Header="_Day report" InputGestureText="Ctrl+J" Command="{Binding DayReport.OpenCommand}">
+                    <MenuItem.Icon><controls:GlyphText Text="&#xE9F9;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
                 </MenuItem>
                 <Separator />
                 <MenuItem Header="E_xit" InputGestureText="Alt+F4" Click="OnExit" />
@@ -1337,136 +1447,181 @@
 
             <MenuItem Header="_Edit">
                 <MenuItem Header="Select _all" InputGestureText="Ctrl+A" Command="{Binding SelectAllCommand}" />
-                <MenuItem Header="Select _live" Command="{Binding SelectLiveCommand}"
-                          ToolTip="Tick every card with a session running" />
-                <MenuItem Header="_Invert selection" InputGestureText="Ctrl+I" Command="{Binding InvertSelectionCommand}" />
+                <MenuItem Header="Select _live" Command="{Binding SelectLiveCommand}" Style="{StaticResource ExplainsWhenOff}"
+                          Tag="Tick every card with a session running."
+                          controls:OffReason.Text="{Binding SelectLiveCommand.WhyNot}" />
+                <MenuItem Header="In_vert selection" InputGestureText="Ctrl+I" Command="{Binding InvertSelectionCommand}" />
                 <MenuItem Header="_Unselect all" InputGestureText="Esc" Command="{Binding ClearSelectionCommand}" />
+                <Separator />
+                <!-- The search's keys, listed where a user looks for them (W27, C14, G55). -->
+                <MenuItem Header="_Find cards" InputGestureText="Ctrl+F" Command="{x:Static local:MainWindow.FindCardsCommand}" />
+                <MenuItem Header="Find _next" InputGestureText="F3" Command="{Binding NextMatchCommand}"
+                          Style="{StaticResource ExplainsWhenOff}" Tag="Go to the next card the search finds."
+                          controls:OffReason.Text="Only on the board, with something typed in Find cards." />
+                <MenuItem Header="Find _previous" InputGestureText="Shift+F3" Command="{Binding PreviousMatchCommand}"
+                          Style="{StaticResource ExplainsWhenOff}" Tag="Go to the card the search found before."
+                          controls:OffReason.Text="Only on the board, with something typed in Find cards." />
                 <Separator />
                 <MenuItem Header="P_roperties" InputGestureText="Alt+Enter" Command="{Binding PropertiesCommand}"
                           ToolTipService.ShowOnDisabled="True" ToolTip="{Binding PropertiesToolTip}" />
             </MenuItem>
 
             <MenuItem Header="_View">
-                <MenuItem Header="Live _sessions panel" InputGestureText="Ctrl+1" IsCheckable="True"
+                <MenuItem Header="Live _sessions panel" InputGestureText="F7" IsCheckable="True"
                           IsChecked="{Binding IsSessionsPanelOpen, Mode=TwoWay}">
-                    <MenuItem.Icon><TextBlock Text="&#xE90C;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                    <MenuItem.Icon><controls:GlyphText Text="&#xE90C;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
                 </MenuItem>
-                <MenuItem Header="_Locks panel" InputGestureText="Ctrl+2" IsCheckable="True"
+                <MenuItem Header="_Locks panel" InputGestureText="F8" IsCheckable="True"
                           IsChecked="{Binding Locks.IsOpen, Mode=TwoWay}">
-                    <MenuItem.Icon><TextBlock Text="&#xE72E;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                    <MenuItem.Icon><controls:GlyphText Text="&#xE72E;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
                 </MenuItem>
-                <MenuItem Header="_Chains panel" InputGestureText="Ctrl+3" IsCheckable="True"
+                <MenuItem Header="_Chains panel" InputGestureText="F9" IsCheckable="True"
                           IsChecked="{Binding Chains.IsOpen, Mode=TwoWay}">
-                    <MenuItem.Icon><TextBlock Text="&#xE71B;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                    <MenuItem.Icon><controls:GlyphText Text="&#xE71B;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
                 </MenuItem>
                 <Separator />
-                <MenuItem Header="Columns _by">
-                    <MenuItem Header="_Stage" IsCheckable="True" IsChecked="{Binding Board.ColumnsByStage, Mode=TwoWay}"
-                              ToolTip="How far along the work is. Cards can be dragged between stages." />
-                    <MenuItem Header="Session st_ate" IsCheckable="True" IsChecked="{Binding Board.ColumnsBySessionState, Mode=TwoWay}"
-                              ToolTip="What each session is doing: needs you, working, idle, not running, done" />
-                </MenuItem>
-                <MenuItem Header="Rows b_y">
-                    <MenuItem Header="_Area" IsCheckable="True" IsChecked="{Binding Board.RowsByArea, Mode=TwoWay}"
-                              ToolTip="The kind of work, as set in Options" />
-                    <MenuItem Header="_Folder" IsCheckable="True" IsChecked="{Binding Board.RowsByProject, Mode=TwoWay}"
-                              ToolTip="The folder each workstream works in" />
-                    <MenuItem Header="_Chain" IsCheckable="True" IsChecked="{Binding Board.RowsByChain, Mode=TwoWay}"
-                              ToolTip="The chain of hand-overs each workstream belongs to" />
-                    <MenuItem Header="_None" IsCheckable="True" IsChecked="{Binding Board.RowsByNone, Mode=TwoWay}"
-                              ToolTip="One row holding everything" />
-                </MenuItem>
-                <MenuItem Header="_Group project by" Visibility="{Binding IsProjectOpen, Converter={StaticResource BoolToVisibility}}"
-                          ToolTip="How the open project's view groups its pieces of work, kept for each project">
-                    <MenuItem Header="_Flow" IsCheckable="True" IsChecked="{Binding ProjectView.IsGroupedByFlow, Mode=TwoWay}"
-                              ToolTip="Pieces of work as they hand work on, time running down the page" />
-                    <MenuItem Header="_Objectives" IsCheckable="True" IsChecked="{Binding ProjectView.IsGroupedByObjectives, Mode=TwoWay}"
-                              ToolTip="Pieces of work under the phases and objectives of project.md" />
+                <!-- Columns by, Rows by and Group project by, as three radio sets in one submenu (W32, C12, C23, C25). -->
+                <MenuItem x:Name="GroupByMenu" Header="_Group by">
+                    <MenuItem Header="Columns by s_tage" Style="{StaticResource RadioMenuItem}" IsCheckable="True"
+                              IsChecked="{Binding Board.ColumnsByStage, Mode=TwoWay}"
+                              Tag="How far along the work is. Cards can be dragged between stages." />
+                    <MenuItem Header="Columns by _session state" Style="{StaticResource RadioMenuItem}" IsCheckable="True"
+                              IsChecked="{Binding Board.ColumnsBySessionState, Mode=TwoWay}"
+                              Tag="What each session is doing: needs you, working, idle, not running, done" />
+                    <Separator />
+                    <MenuItem Header="Rows by _area" Style="{StaticResource RadioMenuItem}" IsCheckable="True"
+                              IsChecked="{Binding Board.RowsByArea, Mode=TwoWay}" Tag="The kind of work, as set in Options" />
+                    <MenuItem Header="Rows by _folder" Style="{StaticResource RadioMenuItem}" IsCheckable="True"
+                              IsChecked="{Binding Board.RowsByProject, Mode=TwoWay}" Tag="The folder each workstream works in" />
+                    <MenuItem Header="Rows by _chain" Style="{StaticResource RadioMenuItem}" IsCheckable="True"
+                              IsChecked="{Binding Board.RowsByChain, Mode=TwoWay}" Tag="The chain of hand-overs each workstream belongs to" />
+                    <MenuItem Header="Rows by _none" Style="{StaticResource RadioMenuItem}" IsCheckable="True"
+                              IsChecked="{Binding Board.RowsByNone, Mode=TwoWay}" Tag="One row holding everything" />
+                    <Separator />
+                    <MenuItem Header="Project by _rounds and work" Style="{StaticResource RadioMenuItem}" IsCheckable="True"
+                              IsChecked="{Binding ProjectView.IsGroupedByFlow, Mode=TwoWay}" IsEnabled="{Binding IsProjectOpen}"
+                              Tag="The open project's pieces of work as they hand work on, time running down the page. Kept for each project."
+                              controls:OffReason.Text="No project is open." />
+                    <MenuItem Header="Project by o_bjectives only" Style="{StaticResource RadioMenuItem}" IsCheckable="True"
+                              IsChecked="{Binding ProjectView.IsGroupedByObjectives, Mode=TwoWay}" IsEnabled="{Binding IsProjectOpen}"
+                              Tag="The open project's pieces of work under the phases and objectives of project.md. Kept for each project."
+                              controls:OffReason.Text="No project is open." />
                 </MenuItem>
                 <Separator />
                 <MenuItem Header="_Archive" IsCheckable="True" IsChecked="{Binding Board.ShowArchived, Mode=TwoWay}"
-                          ToolTip="Show what has been put away instead of what is being worked on" />
-                <MenuItem Header="Show a_ll cards" IsCheckable="True" IsChecked="{Binding Board.ShowsAll, Mode=TwoWay}"
-                          ToolTip="Show project cards and workstreams" />
-                <MenuItem Header="Show only _projects" IsCheckable="True" IsChecked="{Binding Board.ShowsProjects, Mode=TwoWay}"
-                          ToolTip="Show only the project cards" />
-                <MenuItem Header="Show only wor_kstreams" IsCheckable="True" IsChecked="{Binding Board.ShowsWorkstreams, Mode=TwoWay}"
-                          ToolTip="Show only the workstreams that are in no project" />
-                <MenuItem Header="Open pro_ject" ItemsSource="{Binding OpenProjectChoices}"
-                          ItemContainerStyle="{StaticResource ProjectChoiceItem}"
-                          Visibility="{Binding HasOpenProjectChoices, Converter={StaticResource BoolToVisibility}}"
-                          ToolTip="Fill the main area with a project: where it is, and its pieces of work as they run down the page" />
-                <MenuItem Header="Back to the boar_d" Command="{Binding CloseProjectCommand}"
-                          Visibility="{Binding IsProjectOpen, Converter={StaticResource BoolToVisibility}}"
-                          ToolTip="Close the project view and show the board again" />
-                <MenuItem Header="Bring project _window forward" Command="{Binding BringProjectWindowForwardCommand}"
-                          Visibility="{Binding IsProjectOpen, Converter={StaticResource BoolToVisibility}}"
-                          ToolTip="{Binding ProjectWindowTooltip}" ToolTipService.ShowOnDisabled="True" />
+                          ToolTip="Show what has been put away instead of what is being worked on." />
                 <Separator />
-                <MenuItem Header="_Fold cards with no session" Command="{Binding CollapseInactiveCommand}">
-                    <MenuItem.Icon><TextBlock Text="&#xF165;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                <MenuItem Header="S_how all cards" Style="{StaticResource RadioMenuItem}" IsCheckable="True"
+                          IsChecked="{Binding Board.ShowsAll, Mode=TwoWay}" />
+                <MenuItem Header="Show only _projects" Style="{StaticResource RadioMenuItem}" IsCheckable="True"
+                          IsChecked="{Binding Board.ShowsProjects, Mode=TwoWay}" />
+                <MenuItem Header="Show only _workstreams" Style="{StaticResource RadioMenuItem}" IsCheckable="True"
+                          IsChecked="{Binding Board.ShowsWorkstreams, Mode=TwoWay}" Tag="Show only the workstreams that are in no project." />
+                <Separator />
+                <!-- O is the one I or O key, a recorded deviation: Open project's other letters are taken or avoided (W4, W26). -->
+                <MenuItem Header="_Open project" ItemsSource="{Binding OpenProjectChoices}"
+                          ItemContainerStyle="{StaticResource ProjectChoiceItem}" Style="{StaticResource ExplainsWhenOff}"
+                          IsEnabled="{Binding HasOpenProjectChoices}"
+                          Tag="Fill the main area with a project: where it is, and its pieces of work as they run down the page."
+                          controls:OffReason.Text="No project can be opened. Projects are read from the projects folder set in Tools › Options." />
+                <MenuItem Header="Back to th_e board" Command="{Binding CloseProjectCommand}" Style="{StaticResource ExplainsWhenOff}"
+                          Tag="Close the project view and show the board again." controls:OffReason.Text="No project is open." />
+                <MenuItem Header="Bac_k" InputGestureText="Alt+Left" Command="{Binding GoBackCommand}" Style="{StaticResource ExplainsWhenOff}"
+                          Tag="Back to the place you were before." controls:OffReason.Text="Nowhere to go back to." />
+                <MenuItem Header="_Forward" InputGestureText="Alt+Right" Command="{Binding GoForwardCommand}" Style="{StaticResource ExplainsWhenOff}"
+                          Tag="Forward again, after going back." controls:OffReason.Text="Nowhere to go forward to." />
+                <Separator />
+                <MenuItem Header="Fold cards with _no session" Command="{Binding CollapseInactiveCommand}" Style="{StaticResource ExplainsWhenOff}"
+                          Tag="Fold every card with no session down to its title."
+                          controls:OffReason.Text="{Binding CollapseInactiveCommand.WhyNot}">
+                    <MenuItem.Icon><controls:GlyphText Text="&#xF165;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
                 </MenuItem>
-                <MenuItem Header="Fold all _cards" Command="{Binding FoldAllCommand}" />
-                <MenuItem Header="_Unfold all cards" Command="{Binding ExpandAllCommand}">
-                    <MenuItem.Icon><TextBlock Text="&#xF164;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                <MenuItem Header="Fol_d all cards" Command="{Binding FoldAllCommand}" Style="{StaticResource ExplainsWhenOff}"
+                          Tag="Fold every card down to its title." controls:OffReason.Text="No card is open to fold." />
+                <MenuItem Header="_Unfold all cards" Command="{Binding ExpandAllCommand}" Style="{StaticResource ExplainsWhenOff}"
+                          Tag="Open every folded card again." controls:OffReason.Text="{Binding ExpandAllCommand.WhyNot}">
+                    <MenuItem.Icon><controls:GlyphText Text="&#xF164;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
                 </MenuItem>
-                <MenuItem Header="Unfold all _rows and columns" Command="{Binding UnfoldGridCommand}" />
+                <MenuItem Header="Unfold all rows and colu_mns" Command="{Binding UnfoldGridCommand}" Style="{StaticResource ExplainsWhenOff}"
+                          Tag="Open every folded row and column again." controls:OffReason.Text="No row or column is folded." />
+                <MenuItem Header="Make lanes e_ven" Command="{Binding MakeLanesEvenCommand}" Style="{StaticResource ExplainsWhenOff}"
+                          Tag="Give every column an even share of the width and let every row fit its cards: the keyboard's way to dragging the lane edges."
+                          controls:OffReason.Text="{Binding MakeLanesEvenCommand.WhyNot}" />
                 <Separator />
                 <MenuItem Header="_Toolbar" IsCheckable="True" IsChecked="{Binding IsToolbarVisible, Mode=TwoWay}" />
                 <MenuItem Header="Status _bar" IsCheckable="True" IsChecked="{Binding IsStatusBarVisible, Mode=TwoWay}" />
                 <Separator />
                 <MenuItem Header="_Refresh" InputGestureText="F5" Command="{Binding RefreshCommand}">
-                    <MenuItem.Icon><TextBlock Text="&#xE72C;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                    <MenuItem.Icon><controls:GlyphText Text="&#xE72C;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
                 </MenuItem>
             </MenuItem>
 
             <MenuItem Header="_Workstream">
-                <MenuItem Header="_Start selected" Command="{Binding StartSelectedCommand}"
-                          ToolTip="Start the ticked cards that are not already running; a ticked project starts as it was when stopped, or its first card">
-                    <MenuItem.Icon><TextBlock Text="&#xE768;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                <MenuItem Header="_Start selected" Command="{Binding StartSelectedCommand}" Style="{StaticResource ExplainsWhenOff}"
+                          Tag="Start the ticked cards that are not already running; a ticked project starts as it was when stopped, or its first card."
+                          controls:OffReason.Text="{Binding StartSelectedCommand.WhyNot}">
+                    <MenuItem.Icon><controls:GlyphText Text="&#xE768;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
                 </MenuItem>
-                <MenuItem Header="St_op selected" Command="{Binding StopSelectedCommand}"
-                          ToolTip="Ask the ticked cards' running sessions, and a ticked project's, to write a handoff and exit">
-                    <MenuItem.Icon><TextBlock Text="&#xE71A;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                <MenuItem Header="S_top selected" Command="{Binding StopSelectedCommand}" Style="{StaticResource ExplainsWhenOff}"
+                          Tag="Ask the ticked cards' running sessions, and a ticked project's, to write a handoff and exit."
+                          controls:OffReason.Text="{Binding StopSelectedCommand.WhyNot}">
+                    <MenuItem.Icon><controls:GlyphText Text="&#xE71A;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
                 </MenuItem>
                 <MenuItem Header="Focus lea_d session" InputGestureText="Ctrl+L" Command="{Binding FocusLeadCommand}"
                           ToolTipService.ShowOnDisabled="True" ToolTip="{Binding FocusLeadToolTip}">
-                    <MenuItem.Icon><TextBlock Text="&#xE8A7;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                    <MenuItem.Icon><controls:GlyphText Text="&#xE8A7;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
                 </MenuItem>
                 <Separator />
                 <MenuItem Header="Mark as _paused" Command="{Binding MarkSelectedPausedCommand}"
-                          ToolTip="Mark the ticked cards paused: set aside on purpose, keeping their stage" />
+                          ToolTip="Mark the ticked cards paused: set aside on purpose, keeping their stage." />
                 <MenuItem Header="Mark as _blocked" Command="{Binding MarkSelectedBlockedCommand}"
-                          ToolTip="Mark the ticked cards blocked: waiting on something outside your control" />
+                          ToolTip="Mark the ticked cards blocked: waiting on something outside your control." />
                 <MenuItem Header="_Clear paused and blocked" Command="{Binding ClearSelectedMarksCommand}"
-                          ToolTip="Take both marks off the ticked cards" />
+                          ToolTip="Take both marks off the ticked cards." />
                 <Separator />
-                <MenuItem Header="{Binding VerifySelectedMenuText}" Command="{Binding VerifySelectedWithHoldoutsCommand}"
-                          ToolTipService.ShowOnDisabled="True" ToolTip="{Binding VerifySelectedToolTip}" />
-                <MenuItem Header="Ope_n spec" ItemsSource="{Binding OpenSpecChoices}"
-                          ItemContainerStyle="{StaticResource ProjectChoiceItem}"
-                          Visibility="{Binding HasSpecChoices, Converter={StaticResource BoolToVisibility}}"
-                          ToolTip="Open a spec waiting on you in the open project, in its window" />
-                <MenuItem Header="Acc_ept spec" ItemsSource="{Binding AcceptSpecChoices}"
-                          ItemContainerStyle="{StaticResource ProjectChoiceItem}"
-                          Visibility="{Binding HasSpecChoices, Converter={StaticResource BoolToVisibility}}"
-                          ToolTip="Accept a spec waiting on you in the open project; asks first, naming the piece of work and the commit" />
-                <Separator />
-                <MenuItem Header="_Archive selected" Command="{Binding ArchiveSelectedCommand}"
-                          ToolTip="Archive the ticked cards with no session running, or restore them when the archive is showing">
-                    <MenuItem.Icon><TextBlock Text="&#xE7B8;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                <MenuItem Command="{Binding VerifySelectedWithHoldoutsCommand}"
+                          ToolTipService.ShowOnDisabled="True" ToolTip="{Binding VerifySelectedToolTip}">
+                    <MenuItem.Header>
+                        <StackPanel>
+                            <AccessText Text="Independent c_heck…" />
+                            <TextBlock Text="{Binding VerifySelectedOffReason}" Style="{StaticResource MenuReasonLine}"
+                                       Visibility="{Binding VerifySelectedOffReason, Converter={StaticResource NotEmptyToVisibility}}" />
+                        </StackPanel>
+                    </MenuItem.Header>
                 </MenuItem>
+                <MenuItem Header="Ope_n spec" ItemsSource="{Binding OpenSpecChoices}"
+                          ItemContainerStyle="{StaticResource ProjectChoiceItem}" Style="{StaticResource ExplainsWhenOff}"
+                          IsEnabled="{Binding HasSpecChoices}" Tag="Open a spec waiting on you in the open project, in its window."
+                          controls:OffReason.Text="No spec is waiting on you in the open project." />
+                <MenuItem Header="Acc_ept spec" ItemsSource="{Binding AcceptSpecChoices}"
+                          ItemContainerStyle="{StaticResource ProjectChoiceItem}" Style="{StaticResource ExplainsWhenOff}"
+                          IsEnabled="{Binding HasSpecChoices}"
+                          Tag="Accept a spec waiting on you in the open project; asks first, naming the piece of work and the commit."
+                          controls:OffReason.Text="No spec is waiting on you in the open project." />
+                <Separator />
+                <!-- Archive and Restore are a fixed pair; the one that does not apply is disabled with its reason (W30, W31). -->
+                <MenuItem Header="_Archive selected" InputGestureText="Del" Command="{Binding ArchiveSelectedCommand}"
+                          Style="{StaticResource ExplainsWhenOff}" Tag="Archive the ticked cards with no session running."
+                          controls:OffReason.Text="{Binding ArchiveSelectedCommand.WhyNot}">
+                    <MenuItem.Icon><controls:GlyphText Text="&#xE7B8;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="_Restore selected" Command="{Binding RestoreSelectedCommand}"
+                          Style="{StaticResource ExplainsWhenOff}" Tag="Put the ticked cards back on the board."
+                          controls:OffReason.Text="{Binding RestoreSelectedCommand.WhyNot}" />
             </MenuItem>
 
             <MenuItem Header="Win_dow">
                 <MenuItem Header="_Arrange windows…" Command="{Binding Arrange.OpenCommand}"
-                          ToolTip="Tile, cascade or stack the terminal windows">
-                    <MenuItem.Icon><TextBlock Text="&#xE8A9;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                          ToolTip="Tile, cascade or stack the terminal windows.">
+                    <MenuItem.Icon><controls:GlyphText Text="&#xE8A9;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
                 </MenuItem>
+                <!-- A window command, so here beside Arrange windows rather than in View (W32). -->
+                <MenuItem Header="_Bring project window forward" Command="{Binding BringProjectWindowForwardCommand}"
+                          ToolTip="{Binding ProjectWindowTooltip}" ToolTipService.ShowOnDisabled="True" />
             </MenuItem>
 
             <MenuItem Header="_Tools">
-                <MenuItem Header="_Options…" InputGestureText="Ctrl+," Command="{Binding Settings.OpenCommand}" />
+                <MenuItem Header="O_ptions" InputGestureText="Ctrl+," Command="{Binding Settings.OpenCommand}" />
                 <Separator />
                 <MenuItem Header="Open _logs folder" Command="{Binding OpenLogsFolderCommand}" />
                 <MenuItem Header="Open _data folder" Command="{Binding OpenDataFolderCommand}" />
@@ -1477,52 +1632,246 @@
                 <MenuItem Header="How your work is _laid out" Command="{Binding Help.OpenCommand}" CommandParameter="project-layout" />
                 <Separator />
                 <MenuItem Header="Check for _updates" Command="{Binding Updates.CheckNowCommand}"
-                          ToolTip="Ask GitHub for a newer release now, including one put aside with Later" />
+                          ToolTip="Ask GitHub for a newer release now, including one you skipped." />
                 <MenuItem Header="_What's new in this version" Command="{Binding OpenReleaseNotesCommand}" />
                 <Separator />
-                <MenuItem Header="_About Theseus…" Click="OnAbout" />
+                <MenuItem Header="_About Theseus" Click="OnAbout" />
             </MenuItem>
         </Menu>
 
         <!--
-            The toolbar: icons only, one size, in groups split by separators. Each tooltip gives the
-            name and its shortcut. Selection commands are greyed until something is ticked, as any
-            toolbar's are.
+            The toolbar row: the toolbar, then Show, then the search, declared in that order so that Tab reads them left to
+            right (B2, G65). The search stays when the toolbar is hidden, since Ctrl+F reaches it from anywhere
+            (card-search-and-tags item 1). Every control in the row is one height, 32, from the shared styles (W56, D19).
+
+            The toolbar holds the frequent commands, in groups split by separators. New, Start, Stop and Archive carry
+            their names (W34, C7); the rest are icons, a recorded deviation, each named for screen readers. A command that
+            does not apply is greyed with its reason, never hidden (W31, C8, C-m1).
         -->
-        <!--
-            The search sits at the toolbar's right, as a find box does (card-search-and-tags item 1), and stays when the
-            toolbar is hidden, since Ctrl+F reaches it from anywhere.
-        -->
-        <DockPanel DockPanel.Dock="Top" Margin="6,0,6,4">
-            <StackPanel x:Name="SearchBar" DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center"
+        <Grid DockPanel.Dock="Top" Margin="8,0,8,4">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <ToolBarTray Grid.Column="0" IsLocked="True" Background="Transparent"
+                         Visibility="{Binding IsToolbarVisible, Converter={StaticResource BoolToVisibility}}">
+                <ToolBar x:Name="MainToolBar" Background="Transparent" Loaded="OnToolBarLoaded">
+                    <Button Style="{StaticResource LabelledTool}" Command="{Binding NewWorkstream.OpenCommand}"
+                            Tag="New workstream (Ctrl+N)" AutomationProperties.Name="New workstream" AutomationProperties.AcceleratorKey="Ctrl+N">
+                        <StackPanel Orientation="Horizontal">
+                            <controls:GlyphText Text="&#xE710;" VerticalAlignment="Center" />
+                            <TextBlock Text="New" Style="{StaticResource ToolLabel}" />
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource ExplainsWhenOffTool}" Content="&#xE8F4;" AutomationProperties.Name="New project"
+                            Command="{Binding NewProjectCommand}" IsEnabled="{Binding HasProjectsFolder}" Tag="New project"
+                            controls:OffReason.Text="New project: choose a projects folder in Tools › Options first." />
+
+                    <Separator />
+
+                    <Button Style="{StaticResource LabelledTool}" Command="{Binding StartSelectedCommand}"
+                            Tag="Start selected" AutomationProperties.Name="Start selected"
+                            controls:OffReason.Text="{Binding StartSelectedCommand.WhyNot}">
+                        <StackPanel Orientation="Horizontal">
+                            <controls:GlyphText Text="&#xE768;" VerticalAlignment="Center" />
+                            <TextBlock Text="Start" Style="{StaticResource ToolLabel}" />
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource LabelledTool}" Command="{Binding StopSelectedCommand}"
+                            Tag="Stop selected" AutomationProperties.Name="Stop selected"
+                            controls:OffReason.Text="{Binding StopSelectedCommand.WhyNot}">
+                        <StackPanel Orientation="Horizontal">
+                            <controls:GlyphText Text="&#xE71A;" VerticalAlignment="Center" />
+                            <TextBlock Text="Stop" Style="{StaticResource ToolLabel}" />
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource LabelledTool}" Command="{Binding ArchiveSelectedCommand}"
+                            Tag="Archive selected (Del)" AutomationProperties.Name="Archive selected" AutomationProperties.AcceleratorKey="Del"
+                            controls:OffReason.Text="{Binding ArchiveSelectedCommand.WhyNot}">
+                        <StackPanel Orientation="Horizontal">
+                            <controls:GlyphText Text="&#xE7B8;" VerticalAlignment="Center" />
+                            <TextBlock Text="Archive" Style="{StaticResource ToolLabel}" />
+                        </StackPanel>
+                    </Button>
+
+                    <Separator />
+
+                    <Button Style="{StaticResource ExplainsWhenOffTool}" Content="&#xF165;" Tag="Fold cards with no session"
+                            AutomationProperties.Name="Fold cards with no session"
+                            Command="{Binding CollapseInactiveCommand}" controls:OffReason.Text="{Binding CollapseInactiveCommand.WhyNot}" />
+                    <Button Style="{StaticResource ExplainsWhenOffTool}" Content="&#xF164;" Tag="Unfold all cards"
+                            AutomationProperties.Name="Unfold all cards"
+                            Command="{Binding ExpandAllCommand}" controls:OffReason.Text="{Binding ExpandAllCommand.WhyNot}" />
+
+                    <Separator />
+
+                    <!--
+                        A panel's button names only the panel and its key; its status and count go to screen readers as help
+                        text, and the count's own text is left out of the tree (W35, C20, E13). An urgent count shows ⚠.
+                    -->
+                    <ToggleButton Style="{StaticResource ToolIconToggle}" IsChecked="{Binding IsSessionsPanelOpen, Mode=TwoWay}"
+                                  ToolTip="Live sessions panel (F7)" AutomationProperties.Name="Live sessions panel"
+                                  AutomationProperties.AcceleratorKey="F7" AutomationProperties.HelpText="{Binding Sessions.Status}">
+                        <StackPanel Orientation="Horizontal">
+                            <controls:GlyphText Text="&#xE90C;" Style="{StaticResource ToolGlyph}" />
+                            <Border Style="{StaticResource ToolBadge}"
+                                    Visibility="{Binding Sessions.Sessions.Count, Converter={StaticResource CountToVisibility}}">
+                                <controls:GlyphText Text="{Binding Sessions.Sessions.Count}" />
+                            </Border>
+                        </StackPanel>
+                    </ToggleButton>
+                    <ToggleButton Style="{StaticResource ToolIconToggle}" IsChecked="{Binding Locks.IsOpen, Mode=TwoWay}"
+                                  ToolTip="Locks panel (F8)" AutomationProperties.Name="Locks panel"
+                                  AutomationProperties.AcceleratorKey="F8" AutomationProperties.HelpText="{Binding Locks.ButtonText}">
+                        <StackPanel Orientation="Horizontal">
+                            <controls:GlyphText Text="&#xE72E;" Style="{StaticResource ToolGlyph}" />
+                            <Border Visibility="{Binding Locks.Busy, Converter={StaticResource CountToVisibility}}">
+                                <Border.Style>
+                                    <Style TargetType="Border" BasedOn="{StaticResource ToolBadge}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Locks.IsUrgent}" Value="True">
+                                                <Setter Property="Background" Value="{DynamicResource SystemFillColorCautionBackgroundBrush}" />
+                                                <Setter Property="BorderBrush" Value="{DynamicResource CautionTextBrush}" />
+                                                <Setter Property="BorderThickness" Value="1" />
+                                                <Setter Property="TextElement.Foreground" Value="{DynamicResource CautionTextBrush}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <StackPanel Orientation="Horizontal">
+                                    <controls:GlyphText Text="⚠ " Visibility="{Binding Locks.IsUrgent, Converter={StaticResource BoolToVisibility}}" />
+                                    <controls:GlyphText Text="{Binding Locks.Busy}" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ToggleButton>
+                    <ToggleButton Style="{StaticResource ToolIconToggle}" IsChecked="{Binding Chains.IsOpen, Mode=TwoWay}"
+                                  ToolTip="Chains panel (F9)" AutomationProperties.Name="Chains panel"
+                                  AutomationProperties.AcceleratorKey="F9" AutomationProperties.HelpText="{Binding Chains.ButtonText}">
+                        <StackPanel Orientation="Horizontal">
+                            <controls:GlyphText Text="&#xE71B;" Style="{StaticResource ToolGlyph}" />
+                            <Border Visibility="{Binding Chains.BadgeCount, Converter={StaticResource CountToVisibility}}">
+                                <Border.Style>
+                                    <Style TargetType="Border" BasedOn="{StaticResource ToolBadge}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Chains.IsUrgent}" Value="True">
+                                                <Setter Property="Background" Value="{DynamicResource SystemFillColorCautionBackgroundBrush}" />
+                                                <Setter Property="BorderBrush" Value="{DynamicResource CautionTextBrush}" />
+                                                <Setter Property="BorderThickness" Value="1" />
+                                                <Setter Property="TextElement.Foreground" Value="{DynamicResource CautionTextBrush}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <StackPanel Orientation="Horizontal">
+                                    <controls:GlyphText Text="⚠ " Visibility="{Binding Chains.IsUrgent, Converter={StaticResource BoolToVisibility}}" />
+                                    <controls:GlyphText Text="{Binding Chains.BadgeCount}" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ToggleButton>
+
+                    <Separator />
+
+                    <Button Style="{StaticResource ToolIcon}" Content="&#xE9F9;" ToolTip="Day report (Ctrl+J)" AutomationProperties.Name="Day report"
+                            AutomationProperties.AcceleratorKey="Ctrl+J" Command="{Binding DayReport.OpenCommand}" />
+                    <Button Style="{StaticResource ToolIcon}" Content="&#xE8A9;" ToolTip="Arrange windows" AutomationProperties.Name="Arrange windows"
+                            Command="{Binding Arrange.OpenCommand}" />
+
+                    <Separator />
+
+                    <Button Style="{StaticResource ToolIcon}" Content="&#xE72C;" ToolTip="Refresh (F5)" AutomationProperties.Name="Refresh"
+                            AutomationProperties.AcceleratorKey="F5" Command="{Binding RefreshCommand}" />
+                </ToolBar>
+            </ToolBarTray>
+
+            <!--
+                What the board shows: all, only project cards, or only workstreams (Nigel, 2026-11-23). Remembered. Three views
+                of the same cards, so a selector bar: one Tab stop, the arrows choose and do not wrap (W15, W42; D7, B16, D8).
+                While it hides any cards it says so with a mark and words beside it, not colour alone (1.5 walkthrough row 3).
+            -->
+            <StackPanel x:Name="BoardShowsChoice" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"
+                        KeyboardNavigation.TabNavigation="Once" KeyboardNavigation.DirectionalNavigation="Contained"
+                        Margin="12,0,12,0" DataContext="{Binding Board}"
+                        Visibility="{Binding DataContext.IsBoardShown, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}">
+                <StackPanel.Resources>
+                    <Style x:Key="ShowItem" TargetType="RadioButton" BasedOn="{StaticResource SelectorBarItem}">
+                        <Setter Property="GroupName" Value="BoardShows" />
+                        <Setter Property="Padding" Value="8,4" />
+                        <Setter Property="MinHeight" Value="32" />
+                        <Setter Property="VerticalContentAlignment" Value="Center" />
+                        <Setter Property="controls:SelectorBar.SelectsOnFocus" Value="True" />
+                    </Style>
+                </StackPanel.Resources>
+                <TextBlock Text="Show" VerticalAlignment="Center" FontSize="12" Margin="0,0,4,0"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                <RadioButton x:Name="ShowAllCards" Content="All" Style="{StaticResource ShowItem}"
+                             IsChecked="{Binding ShowsAll, Mode=TwoWay}" AutomationProperties.Name="Show all cards" />
+                <RadioButton x:Name="ShowProjectCards" Content="Projects" Style="{StaticResource ShowItem}"
+                             IsChecked="{Binding ShowsProjects, Mode=TwoWay}"
+                             AutomationProperties.Name="Show only projects" />
+                <RadioButton x:Name="ShowWorkstreamCards" Content="Workstreams" Style="{StaticResource ShowItem}"
+                             IsChecked="{Binding ShowsWorkstreams, Mode=TwoWay}" ToolTip="Show only the workstreams that are in no project."
+                             AutomationProperties.Name="Show only workstreams" />
+                <StackPanel x:Name="ShowHides" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0"
+                            ToolTip="Show hides some cards. Choose All to see every card."
+                            Visibility="{Binding ShowsAll, Converter={StaticResource NotBoolToVisibility}}">
+                    <controls:GlyphText Text="&#xE7BA;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="16"
+                                        VerticalAlignment="Center" Foreground="{DynamicResource CautionTextBrush}" />
+                    <TextBlock x:Name="ShowHidesText" Margin="4,0,0,0" VerticalAlignment="Center" FontSize="12"
+                               Foreground="{DynamicResource CautionTextBrush}">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Text" Value="Some cards hidden" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ShowsProjects}" Value="True">
+                                        <Setter Property="Text" Value="Workstreams hidden" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding ShowsWorkstreams}" Value="True">
+                                        <Setter Property="Text" Value="Projects hidden" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </StackPanel>
+            </StackPanel>
+
+            <StackPanel x:Name="SearchBar" Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center"
                         DataContext="{Binding Board.Search}">
                 <Grid Width="260" VerticalAlignment="Center">
                     <ComboBox x:Name="SearchBox" IsEditable="True" IsTextSearchEnabled="False" StaysOpenOnEdit="True"
-                              ItemsSource="{Binding History}"
+                              ItemsSource="{Binding History}" MinHeight="32"
                               Text="{Binding Text, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Delay=150}"
-                              ToolTip="Find cards by any part of a title, key, project, area, Jira key, tag, branch or repo. #tag filters by a tag. Enter goes to the next match, Ctrl+Enter opens it, Esc clears"
-                              AutomationProperties.Name="Find cards"
+                              ToolTip="Find cards by any part of a title, key, project, area, Jira key, tag, branch or repo. #tag filters by a tag. Enter goes to the next match, Ctrl+Enter opens it, Esc clears."
+                              AutomationProperties.Name="Find cards" AutomationProperties.AcceleratorKey="Ctrl+F"
                               PreviewKeyDown="OnSearchKeyDown" LostKeyboardFocus="OnSearchLostFocus" />
                     <TextBlock Text="Find cards (Ctrl+F)" IsHitTestVisible="False" Margin="12,0,0,0" VerticalAlignment="Center"
-                               FontSize="13" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                               FontSize="14" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                Visibility="{Binding ShowsPlaceholder, Converter={StaticResource BoolToVisibility}}" />
                 </Grid>
                 <!-- Tags ▾ (card-search-and-tags item 12): every tag with its count; ticking filters, Any | All at the top. -->
-                <ToggleButton x:Name="TagsToggle" Style="{StaticResource ToolIconToggle}" Margin="6,0,0,0" Padding="8,4"
-                              Content="{Binding TagsButtonText}" Checked="OnTagsOpened"
+                <ToggleButton x:Name="TagsToggle" Style="{StaticResource ToolIconToggle}" Margin="8,0,0,0" Padding="8,0"
+                              Content="{Binding TagsButtonText, Converter={StaticResource AccessKeyEscape}}" Checked="OnTagsOpened"
                               ToolTip="Filter the board by tags" AutomationProperties.Name="Tags" />
+                <!-- A flyout: the overlay radius and padding, and a thicker edge under a contrast theme (D12, D-m1, E7). -->
                 <Popup x:Name="TagsPopup" PlacementTarget="{Binding ElementName=TagsToggle}" Placement="Bottom" StaysOpen="False"
                        AllowsTransparency="True" IsOpen="{Binding IsChecked, ElementName=TagsToggle, Mode=TwoWay}">
-                    <Border Padding="10" CornerRadius="6" MinWidth="220" MaxHeight="420"
+                    <Border x:Name="TagsFlyout" Padding="16" CornerRadius="8" MinWidth="220" MaxHeight="420"
                             Background="{DynamicResource SolidBackgroundFillColorBaseBrush}"
-                            BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                            BorderBrush="{DynamicResource FlyoutBorderBrush}" BorderThickness="{DynamicResource FlyoutBorderThickness}"
+                            PreviewKeyDown="OnTagsFlyoutKeyDown">
                         <DockPanel>
-                            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
+                            <StackPanel x:Name="TagMatch" DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8"
+                                        KeyboardNavigation.TabNavigation="Once" KeyboardNavigation.DirectionalNavigation="Contained">
                                 <TextBlock Text="Show cards with" VerticalAlignment="Center" FontSize="12" Margin="0,0,8,0"
                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                                 <RadioButton x:Name="TagsAny" Content="Any" GroupName="TagMatch" IsChecked="{Binding IsAny, Mode=TwoWay}"
+                                             controls:SelectorBar.SelectsOnFocus="True"
                                              ToolTip="Show cards with any of the ticked tags" Margin="0,0,8,0" />
                                 <RadioButton x:Name="TagsAll" Content="All" GroupName="TagMatch" IsChecked="{Binding IsAll, Mode=TwoWay}"
+                                             controls:SelectorBar.SelectsOnFocus="True"
                                              ToolTip="Show only cards with every ticked tag" />
                             </StackPanel>
                             <TextBlock DockPanel.Dock="Top" FontSize="12" TextWrapping="Wrap" MaxWidth="260"
@@ -1533,15 +1882,15 @@
                                 <ItemsControl x:Name="TagRows" ItemsSource="{Binding TagRows}" Focusable="False">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <CheckBox IsChecked="{Binding IsTicked, Mode=TwoWay}" Margin="0,2"
+                                            <CheckBox IsChecked="{Binding IsTicked, Mode=TwoWay}" Margin="0,4"
                                                       ToolTip="{Binding Label, Converter={StaticResource TagToolTip}, ConverterParameter=Show cards tagged {0}}"
                                                       AutomationProperties.Name="{Binding Label}">
                                                 <StackPanel Orientation="Horizontal">
-                                                    <Ellipse Width="8" Height="8" Margin="0,0,6,0" VerticalAlignment="Center"
+                                                    <Ellipse Width="8" Height="8" Margin="0,0,8,0" VerticalAlignment="Center"
                                                              Fill="{Binding ColourHex, Converter={StaticResource HexToBrush}}" />
                                                     <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
                                                     <TextBlock Text="{Binding Count}" Margin="8,0,0,0" VerticalAlignment="Center"
-                                                               Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                                                 </StackPanel>
                                             </CheckBox>
                                         </DataTemplate>
@@ -1551,127 +1900,14 @@
                         </DockPanel>
                     </Border>
                 </Popup>
-                <ToggleButton x:Name="HideRestToggle" Style="{StaticResource ToolIconToggle}" Margin="6,0,0,0" Padding="8,4"
-                              IsChecked="{Binding HideRest, Mode=TwoWay}" Content="Hide the rest"
-                              ToolTip="Hide the cards the search does not match, instead of dimming them"
+                <ToggleButton x:Name="HideRestToggle" Style="{StaticResource ToolIconToggle}" Margin="8,0,0,0" Padding="8,0"
+                              IsChecked="{Binding HideRest, Mode=TwoWay}" Content="Hide the _rest"
+                              ToolTip="Hide the cards the search does not match, instead of dimming them."
                               AutomationProperties.Name="Hide the rest" />
-                <Button x:Name="ClearSearch" Style="{StaticResource CommandButton}" Content="Clear" Margin="6,0,0,0" Padding="10,3"
+                <Button x:Name="ClearSearch" Style="{StaticResource CommandButton}" Content="_Clear" Margin="8,0,0,0"
                         Command="{Binding ClearCommand}" ToolTip="{Binding ClearToolTip}" ToolTipService.ShowOnDisabled="True" />
             </StackPanel>
-            <!-- What the board shows: all, only project cards, or only workstreams (Nigel, 2026-11-23). Remembered. -->
-            <StackPanel x:Name="BoardShowsChoice" DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center"
-                        KeyboardNavigation.TabNavigation="Once" KeyboardNavigation.DirectionalNavigation="Cycle"
-                        Margin="0,0,12,0" DataContext="{Binding Board}"
-                        Visibility="{Binding DataContext.IsBoardShown, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}">
-                <TextBlock Text="Show" VerticalAlignment="Center" FontSize="12" Margin="0,0,6,0"
-                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                <RadioButton x:Name="ShowAllCards" Content="All" GroupName="BoardShows" Style="{StaticResource ToolIconToggle}" Padding="8,4"
-                             IsChecked="{Binding ShowsAll, Mode=TwoWay}" ToolTip="Show project cards and workstreams"
-                             AutomationProperties.Name="Show all cards" />
-                <RadioButton x:Name="ShowProjectCards" Content="Projects" GroupName="BoardShows" Style="{StaticResource ToolIconToggle}" Padding="8,4"
-                             Margin="2,0,0,0" IsChecked="{Binding ShowsProjects, Mode=TwoWay}" ToolTip="Show only the project cards"
-                             AutomationProperties.Name="Show only projects" />
-                <RadioButton x:Name="ShowWorkstreamCards" Content="Workstreams" GroupName="BoardShows" Style="{StaticResource ToolIconToggle}" Padding="8,4"
-                             Margin="2,0,0,0" IsChecked="{Binding ShowsWorkstreams, Mode=TwoWay}"
-                             ToolTip="Show only the workstreams that are in no project" AutomationProperties.Name="Show only workstreams" />
-            </StackPanel>
-        <ToolBarTray IsLocked="True" Background="Transparent"
-                     Visibility="{Binding IsToolbarVisible, Converter={StaticResource BoolToVisibility}}">
-            <ToolBar Background="Transparent">
-                <Button Style="{StaticResource ToolIcon}" Content="&#xE710;" ToolTip="New workstream (Ctrl+N)" AutomationProperties.Name="New workstream"
-                        Command="{Binding NewWorkstream.OpenCommand}" />
-                <Button Style="{StaticResource ToolIcon}" Content="&#xE8F4;" ToolTip="New project" AutomationProperties.Name="New project"
-                        Command="{Binding NewProjectCommand}"
-                        Visibility="{Binding HasProjectsFolder, Converter={StaticResource BoolToVisibility}}" />
-
-                <Separator />
-
-                <Button Style="{StaticResource ToolIcon}" Content="&#xE768;" ToolTip="Start selected" AutomationProperties.Name="Start selected"
-                        Command="{Binding StartSelectedCommand}" />
-                <Button Style="{StaticResource ToolIcon}" Content="&#xE71A;" ToolTip="Stop selected" AutomationProperties.Name="Stop selected"
-                        Command="{Binding StopSelectedCommand}" />
-                <Button Style="{StaticResource ToolIcon}" Content="&#xE7B8;" ToolTip="Archive selected" AutomationProperties.Name="Archive selected"
-                        Command="{Binding ArchiveSelectedCommand}" />
-
-                <Separator />
-
-                <Button Style="{StaticResource ToolIcon}" Content="&#xF165;" ToolTip="Fold cards with no session" AutomationProperties.Name="Fold cards with no session"
-                        Command="{Binding CollapseInactiveCommand}" />
-                <Button Style="{StaticResource ToolIcon}" Content="&#xF164;" ToolTip="Unfold all cards" AutomationProperties.Name="Unfold all cards"
-                        Command="{Binding ExpandAllCommand}" />
-
-                <Separator />
-
-                <ToggleButton Style="{StaticResource ToolIconToggle}" IsChecked="{Binding IsSessionsPanelOpen, Mode=TwoWay}"
-                              AutomationProperties.Name="Live sessions panel">
-                    <ToggleButton.ToolTip>
-                        <TextBlock Text="{Binding Sessions.Status, StringFormat='Live sessions panel (Ctrl+1): {0}'}" />
-                    </ToggleButton.ToolTip>
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="&#xE90C;" Style="{StaticResource ToolGlyph}" />
-                        <Border Style="{StaticResource ToolBadge}"
-                                Visibility="{Binding Sessions.Sessions.Count, Converter={StaticResource CountToVisibility}}">
-                            <TextBlock Text="{Binding Sessions.Sessions.Count}" />
-                        </Border>
-                    </StackPanel>
-                </ToggleButton>
-                <ToggleButton Style="{StaticResource ToolIconToggle}" IsChecked="{Binding Locks.IsOpen, Mode=TwoWay}"
-                              AutomationProperties.Name="Locks panel">
-                    <ToggleButton.ToolTip>
-                        <TextBlock Text="{Binding Locks.ButtonText, StringFormat='Locks panel (Ctrl+2): {0}'}" />
-                    </ToggleButton.ToolTip>
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="&#xE72E;" Style="{StaticResource ToolGlyph}" />
-                        <Border Visibility="{Binding Locks.Busy, Converter={StaticResource CountToVisibility}}">
-                            <Border.Style>
-                                <Style TargetType="Border" BasedOn="{StaticResource ToolBadge}">
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding Locks.IsUrgent}" Value="True">
-                                            <Setter Property="Background" Value="#D68910" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Border.Style>
-                            <TextBlock Text="{Binding Locks.Busy}" />
-                        </Border>
-                    </StackPanel>
-                </ToggleButton>
-                <ToggleButton Style="{StaticResource ToolIconToggle}" IsChecked="{Binding Chains.IsOpen, Mode=TwoWay}"
-                              AutomationProperties.Name="Chains panel">
-                    <ToggleButton.ToolTip>
-                        <TextBlock Text="{Binding Chains.ButtonText, StringFormat='Chains panel (Ctrl+3): {0}'}" />
-                    </ToggleButton.ToolTip>
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="&#xE71B;" Style="{StaticResource ToolGlyph}" />
-                        <Border Visibility="{Binding Chains.BadgeCount, Converter={StaticResource CountToVisibility}}">
-                            <Border.Style>
-                                <Style TargetType="Border" BasedOn="{StaticResource ToolBadge}">
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding Chains.IsUrgent}" Value="True">
-                                            <Setter Property="Background" Value="#D68910" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Border.Style>
-                            <TextBlock Text="{Binding Chains.BadgeCount}" />
-                        </Border>
-                    </StackPanel>
-                </ToggleButton>
-
-                <Separator />
-
-                <Button Style="{StaticResource ToolIcon}" Content="&#xE9F9;" ToolTip="Day report (Ctrl+D)" AutomationProperties.Name="Day report"
-                        Command="{Binding DayReport.OpenCommand}" />
-                <Button Style="{StaticResource ToolIcon}" Content="&#xE8A9;" ToolTip="Arrange windows" AutomationProperties.Name="Arrange windows"
-                        Command="{Binding Arrange.OpenCommand}" />
-
-                <Separator />
-
-                <Button Style="{StaticResource ToolIcon}" Content="&#xE72C;" ToolTip="Refresh (F5)" AutomationProperties.Name="Refresh"
-                        Command="{Binding RefreshCommand}" />
-            </ToolBar>
-        </ToolBarTray>
-        </DockPanel>
+        </Grid>
 
         <!--
             The information bar, as in Visual Studio and Office: shown only while a newer build is
@@ -1700,7 +1936,7 @@
             </DockPanel>
         </Border>
 
-        <Border DockPanel.Dock="Left" Width="280" Margin="16,8,0,16" CornerRadius="10" Padding="10"
+        <Border x:Name="SessionsPane" DockPanel.Dock="Left" Width="280" Margin="16,8,0,16" CornerRadius="10" Padding="10"
                 Visibility="{Binding IsSessionsPanelOpen, Converter={StaticResource BoolToVisibility}}"
                 Background="{DynamicResource LayerFillColorDefaultBrush}"
                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
@@ -1730,7 +1966,7 @@
             a card's details. Ready is listed and never acted on; nothing here starts a session. It shares
             the right-hand side with Locks and the two never sit side by side.
         -->
-        <Border DockPanel.Dock="Right" Width="340" Margin="0,8,16,16" CornerRadius="10" Padding="10"
+        <Border x:Name="ChainsPane" DockPanel.Dock="Right" Width="340" Margin="0,8,16,16" CornerRadius="10" Padding="10"
                 Visibility="{Binding Chains.IsOpen, Converter={StaticResource BoolToVisibility}}"
                 Background="{DynamicResource LayerFillColorDefaultBrush}"
                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
@@ -2011,19 +2247,29 @@
                                             BorderBrush="{Binding ColorHex, Converter={StaticResource HexToBrush}}">
                                         <StackPanel>
                                             <DockPanel>
-                                                <!-- One click to its tab (item 8): four before, through the drawer's Overview. -->
-                                                <Button DockPanel.Dock="Right" Content="⌖ Focus" FontSize="11" Padding="6,0" Margin="6,0,0,0"
-                                                        Command="{Binding Focus}"
-                                                        ToolTip="Bring its terminal tab forward"
-                                                        AutomationProperties.HelpText="Bring its terminal tab forward"
+                                                <!--
+                                                    One click to its tab (item 8): four before, through the drawer's Overview. On every row, greyed with
+                                                    its reason while the card has no session to bring forward, so no row is missing it unexplained
+                                                    (1.5 walkthrough row 12; W31, G157).
+                                                -->
+                                                <Button DockPanel.Dock="Right" Margin="8,0,0,0"
+                                                        Command="{Binding Focus}" IsEnabled="{Binding HasFocus}"
+                                                        ToolTipService.ShowOnDisabled="True"
                                                         AutomationProperties.Name="{Binding Title, StringFormat=Focus {0}}">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="&#xE8A7;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="12"
+                                                                   VerticalAlignment="Center" Margin="0,0,4,0" />
+                                                        <TextBlock Text="Focus" VerticalAlignment="Center" />
+                                                    </StackPanel>
                                                     <Button.Style>
                                                         <Style TargetType="Button">
-                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                            <Setter Property="ToolTip" Value="Focus: bring the session's window forward." />
+                                                            <Setter Property="AutomationProperties.HelpText" Value="Focus: bring the session's window forward." />
                                                             <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding HasFocus}" Value="True">
-                                                                    <Setter Property="Visibility" Value="Visible" />
-                                                                </DataTrigger>
+                                                                <Trigger Property="IsEnabled" Value="False">
+                                                                    <Setter Property="ToolTip" Value="No session to bring forward: it opens when the card is started." />
+                                                                    <Setter Property="AutomationProperties.HelpText" Value="No session to bring forward: it opens when the card is started." />
+                                                                </Trigger>
                                                             </Style.Triggers>
                                                         </Style>
                                                     </Button.Style>
@@ -2082,7 +2328,7 @@
             or not. Reordering, cancelling and releasing happen here and nowhere else; Release asks twice,
             because it does not stop the holder's run and another may then start beside it.
         -->
-        <Border DockPanel.Dock="Right" Width="340" Margin="0,8,16,16" CornerRadius="10" Padding="10"
+        <Border x:Name="LocksPane" DockPanel.Dock="Right" Width="340" Margin="0,8,16,16" CornerRadius="10" Padding="10"
                 Visibility="{Binding Locks.IsOpen, Converter={StaticResource BoolToVisibility}}"
                 Background="{DynamicResource LayerFillColorDefaultBrush}"
                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
@@ -2625,6 +2871,10 @@
                       PreviewMouseLeftButtonDown="OnBoardMouseDown"
                       PreviewMouseMove="OnBoardMouseMove"
                       PreviewMouseLeftButtonUp="OnBoardMouseUp">
+                    <!-- Del archives on the board only, not in the project view or drawer, where the ticks are out of sight (W27, G79). -->
+                    <Grid.InputBindings>
+                        <KeyBinding Key="Delete" Command="{Binding ArchiveSelectedCommand}" />
+                    </Grid.InputBindings>
                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                         <ItemsControl ItemsSource="{Binding Board.Rows}"
                                       ItemTemplate="{StaticResource RowTemplate}" />
@@ -2646,7 +2896,7 @@
                 without a word. Everything here applies as it is made, so there is no Save; a card's setup
                 is edited in its own dialog, further down.
             -->
-            <Border HorizontalAlignment="Right" Width="480" Margin="0,0,0,8"
+            <Border x:Name="DrawerPane" HorizontalAlignment="Right" Width="480" Margin="0,0,0,8"
                     Background="{DynamicResource SolidBackgroundFillColorSecondaryBrush}"
                     BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                     BorderThickness="1,0,0,0"

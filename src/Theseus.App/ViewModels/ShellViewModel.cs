@@ -189,9 +189,11 @@ public sealed partial class ShellViewModel : ObservableObject
         ToggleSessionsPanelCommand = new RelayCommand(_ => IsSessionsPanelOpen = !IsSessionsPanelOpen);
         StopCardCommand = new RelayCommand(StopCard, parameter => CardSteps(parameter).Count > 0);
 
-        StartSelectedCommand = new RelayCommand(_ => StartSelected(),
-            _ => ChosenToStart().Count > 0 || (_launcher.CanLaunch && Board.ChosenProjects.Any(project => project.StartPlan is { CanStart: true })));
-        StopSelectedCommand = new RelayCommand(_ => StopSelected(), _ => ChosenSteps().Count > 0);
+        StartSelectedCommand = new ReasonedCommand(_ => StartSelected(), _ => SelectionReasons.Start(
+            Chosen().Count + Board.ChosenProjects.Count,
+            ChosenToStart().Count + (_launcher.CanLaunch ? Board.ChosenProjects.Count(project => project.StartPlan is { CanStart: true }) : 0)));
+        StopSelectedCommand = new ReasonedCommand(_ => StopSelected(),
+            _ => SelectionReasons.Stop(Chosen().Count + Board.ChosenProjects.Count, ChosenSteps().Count));
         SelectAllCommand = new RelayCommand(_ => ChooseAll(true), _ => Board.ShownItems.Any(item => !item.IsSelected));
         ClearSelectionCommand = new RelayCommand(_ =>
         {
@@ -212,8 +214,10 @@ public sealed partial class ShellViewModel : ObservableObject
                 CarrySearch(ProjectView);
             }
         };
-        SelectLiveCommand = new RelayCommand(_ => SelectLive(), _ => Board.ShownItems.Any(item => item.IsLive));
-        ArchiveSelectedCommand = new RelayCommand(_ => ArchiveSelected(), _ => Chosen().Any(card => !card.IsLive));
+        SelectLiveCommand = new ReasonedCommand(_ => SelectLive(), _ => SelectionReasons.SelectLive(Board.ShownItems.Count(item => item.IsLive)));
+        ArchiveSelectedCommand = new ReasonedCommand(_ => ArchiveSelected(),
+            _ => SelectionReasons.Archive(Board.ShowArchived, Chosen().Count, Chosen().Count(card => !card.IsLive)));
+        RestoreSelectedCommand = new ReasonedCommand(_ => ArchiveSelected(), _ => SelectionReasons.Restore(Board.ShowArchived, Chosen().Count));
         VerifySelectedWithHoldoutsCommand = new RelayCommand(_ =>
             {
                 VerifyWithHoldouts(Chosen()[0]);
@@ -397,10 +401,20 @@ public sealed partial class ShellViewModel : ObservableObject
             Notice = count == 1 ? "Left the waiting card unstarted." : $"Left {count} waiting cards unstarted.";
         });
 
-        CollapseInactiveCommand = new RelayCommand(_ => Collapse(true),
-            _ => Board.Cards.Any(card => !card.IsLive && !card.IsCollapsed));
-        ExpandAllCommand = new RelayCommand(_ => Collapse(false),
-            _ => Board.Cards.Any(card => card.IsCollapsed));
+        CollapseInactiveCommand = new ReasonedCommand(_ => Collapse(true),
+            _ => SelectionReasons.FoldInactive(Board.Cards.Count(card => !card.IsLive && !card.IsCollapsed)));
+        ExpandAllCommand = new ReasonedCommand(_ => Collapse(false), _ => SelectionReasons.UnfoldAll(Board.Cards.Count(card => card.IsCollapsed)));
+
+        SelectProjectTabCommand = new RelayCommand(number => OpenTab(ProjectTabKeys.Numbered(number, TabNames().Count)),
+            number => ProjectTabKeys.Numbered(number, TabNames().Count) is not null);
+        NextProjectTabCommand = new RelayCommand(_ => OpenTab(ProjectTabKeys.Step(OpenTabIndex(), TabNames().Count, forward: true)),
+            _ => ProjectTabKeys.Step(OpenTabIndex(), TabNames().Count, forward: true) is not null);
+        PreviousProjectTabCommand = new RelayCommand(_ => OpenTab(ProjectTabKeys.Step(OpenTabIndex(), TabNames().Count, forward: false)),
+            _ => ProjectTabKeys.Step(OpenTabIndex(), TabNames().Count, forward: false) is not null);
+        MakeLanesEvenCommand = new ReasonedCommand(_ => MakeLanesEven(),
+            _ => Board.StageHeaders.Any(header => Math.Abs(header.Weight - 1) > 0.001) || Board.Rows.Any(row => !double.IsNaN(row.Height))
+                ? null
+                : "The lanes are already even.");
 
         WireLanes();
         Board.LanesChanged += (_, _) => WireLanes();
@@ -480,7 +494,7 @@ public sealed partial class ShellViewModel : ObservableObject
     public RelayCommand StartCardCommand { get; }
 
     /// <summary>Starts the ticked cards that can be started.</summary>
-    public RelayCommand StartSelectedCommand { get; }
+    public ReasonedCommand StartSelectedCommand { get; }
 
     /// <summary>Ticks every card shown: the board's, or the open project view's.</summary>
     public RelayCommand SelectAllCommand { get; }
@@ -551,10 +565,60 @@ public sealed partial class ShellViewModel : ObservableObject
     public RelayCommand InvertSelectionCommand { get; }
 
     /// <summary>Folds every card with no live session down to its title.</summary>
-    public RelayCommand CollapseInactiveCommand { get; }
+    public ReasonedCommand CollapseInactiveCommand { get; }
 
     /// <summary>Opens every card again.</summary>
-    public RelayCommand ExpandAllCommand { get; }
+    public ReasonedCommand ExpandAllCommand { get; }
+
+    /// <summary>Ctrl+1 to Ctrl+9: opens the project tab of that number, Ctrl+9 the last (W27).</summary>
+    public RelayCommand SelectProjectTabCommand { get; }
+
+    /// <summary>
+    /// View › Make lanes even: every column back to an even share and every row fitting its cards, the keyboard's way to
+    /// what dragging the lane edges does (B17, G64).
+    /// </summary>
+    public ReasonedCommand MakeLanesEvenCommand { get; }
+
+    private void MakeLanesEven()
+    {
+        foreach (BoardRowViewModel row in Board.Rows)
+        {
+            Board.ResetRowHeight(row);
+        }
+
+        Board.ResetColumnWidths();
+    }
+
+    /// <summary>Ctrl+Tab: opens the next project tab, while a project is open.</summary>
+    public RelayCommand NextProjectTabCommand { get; }
+
+    /// <summary>Ctrl+Shift+Tab: opens the previous project tab, while a project is open.</summary>
+    public RelayCommand PreviousProjectTabCommand { get; }
+
+    // The tabs' order: the readable projects, as ProjectTabViewModel.For lists them.
+    private List<string> TabNames() => [.. _projectReads.Current.Where(reading => reading.IsReadable).Select(reading => reading.Name)];
+
+    private int? OpenTabIndex()
+    {
+        if (!IsProjectOpen)
+        {
+            return null;
+        }
+
+        int index = TabNames().FindIndex(name => string.Equals(name, _openProjectName, StringComparison.OrdinalIgnoreCase));
+
+        return index < 0 ? null : index;
+    }
+
+    private void OpenTab(int? index)
+    {
+        List<string> names = TabNames();
+
+        if (index is { } at && at < names.Count && at != OpenTabIndex())
+        {
+            OpenProject(names[at]);
+        }
+    }
 
     /// <summary>Goes ahead with the stops that were asked for before the board opened.</summary>
     public RelayCommand ConfirmStopsCommand { get; }
@@ -598,16 +662,19 @@ public sealed partial class ShellViewModel : ObservableObject
         "Create a verifier card for the one ticked card: it runs the holdout scenarios its spec names, and reports only a verdict back. Needs one card ticked and the holdout scenarios folder set in Tools > Options; not offered for a verifier card or an archived one");
 
     /// <summary>
-    /// Independent check's text on the Workstream menu: with one card ticked that cannot be checked, the reason follows
-    /// the label (Nigel, 2026-11-23).
+    /// Why Independent check… on the Workstream menu cannot run for the one ticked card, or null: the item's dimmer second
+    /// line under its fixed label (Nigel, 2026-11-23; W30).
     /// </summary>
-    public string VerifySelectedMenuText => HoldoutChecks.MenuText(Chosen() is [var only] ? WhyCannotVerify(only) : null);
+    public string? VerifySelectedOffReason => Chosen() is [WorkstreamCardViewModel only] ? WhyCannotVerify(only) : null;
 
     /// <summary>Ticks every card with a session running, so the end of the day is Select live, then Stop.</summary>
-    public RelayCommand SelectLiveCommand { get; }
+    public ReasonedCommand SelectLiveCommand { get; }
 
-    /// <summary>Archives the ticked cards that have no session running, or restores them in the archive view.</summary>
-    public RelayCommand ArchiveSelectedCommand { get; }
+    /// <summary>Archives the ticked cards that have no session running; not while the archive is showing (W27, B6).</summary>
+    public ReasonedCommand ArchiveSelectedCommand { get; }
+
+    /// <summary>Restores the ticked cards, while the archive is showing: Archive's fixed pair (W30).</summary>
+    public ReasonedCommand RestoreSelectedCommand { get; }
 
     /// <summary>Opens the properties of the one selected card: Alt+Enter, as everywhere in Windows.</summary>
     public RelayCommand PropertiesCommand { get; }
@@ -1209,7 +1276,7 @@ public sealed partial class ShellViewModel : ObservableObject
     public RelayCommand StopCardCommand { get; }
 
     /// <summary>Asks the ticked cards' running sessions to write a handoff and exit.</summary>
-    public RelayCommand StopSelectedCommand { get; }
+    public ReasonedCommand StopSelectedCommand { get; }
 
     /// <summary>Creates a verifier card for the one ticked card (verifier-card AC 9).</summary>
     public RelayCommand VerifySelectedWithHoldoutsCommand { get; }
@@ -1562,7 +1629,7 @@ public sealed partial class ShellViewModel : ObservableObject
     {
         var why = WhyCannotVerify(card);
         card.VerifyToolTip = why ?? VerifyToolTipWhenItCan;
-        card.VerifyMenuText = HoldoutChecks.MenuText(why);
+        card.VerifyOffReason = why;
     }
 
     /// <summary>The way on from a disabled view button, offered beside it as a link (1.1e AC 6a, 6c).</summary>
@@ -3401,7 +3468,7 @@ public sealed partial class ShellViewModel : ObservableObject
         Raise(nameof(SelectionSummary));
         Raise(nameof(PropertiesToolTip));
         Raise(nameof(VerifySelectedToolTip));
-        Raise(nameof(VerifySelectedMenuText));
+        Raise(nameof(VerifySelectedOffReason));
         System.Windows.Input.CommandManager.InvalidateRequerySuggested();
     }
 
