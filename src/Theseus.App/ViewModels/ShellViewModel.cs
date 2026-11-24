@@ -176,6 +176,7 @@ public sealed partial class ShellViewModel : ObservableObject
         _isToolbarVisible = !settings.Read().ToolbarHidden;
         _isStatusBarVisible = !settings.Read().StatusBarHidden;
         Board.ChainOf = key => Chains?.ChainName(key);
+        Board.WaitsOnOwner = key => Chains?.NeedsYou.Any(row => string.Equals(row.Link.From, key, StringComparison.OrdinalIgnoreCase)) == true;
         _transcripts.Changed += (_, _) => ApplyTranscripts();
 
         RefreshCommand = new RelayCommand(_ => Refresh());
@@ -403,8 +404,10 @@ public sealed partial class ShellViewModel : ObservableObject
         });
 
         CollapseInactiveCommand = new ReasonedCommand(_ => Collapse(true),
-            _ => SelectionReasons.FoldInactive(Board.Cards.Count(card => !card.IsLive && !card.IsCollapsed)));
-        ExpandAllCommand = new ReasonedCommand(_ => Collapse(false), _ => SelectionReasons.UnfoldAll(Board.Cards.Count(card => card.IsCollapsed)));
+            _ => SelectionReasons.FoldInactive(Board.Cards.Count(card => !card.IsLive && !card.IsCollapsed)
+                + Board.ProjectCards.Count(project => Board.FoldsWhenInactive(project) && !project.IsCollapsed)));
+        ExpandAllCommand = new ReasonedCommand(_ => Collapse(false), _ => SelectionReasons.UnfoldAll(Board.Cards.Count(card => card.IsCollapsed)
+            + Board.ProjectCards.Count(project => project.IsCollapsed)));
 
         SelectProjectTabCommand = new RelayCommand(number => OpenTab(ProjectTabKeys.Numbered(number, TabNames().Count)),
             number => ProjectTabKeys.Numbered(number, TabNames().Count) is not null);
@@ -1585,12 +1588,7 @@ public sealed partial class ShellViewModel : ObservableObject
 
     private void FoldEvery()
     {
-        foreach (var card in Board.Cards)
-        {
-            card.IsCollapsed = true;
-        }
-
-        Board.RememberFolds();
+        Board.FoldAll();
         System.Windows.Input.CommandManager.InvalidateRequerySuggested();
     }
 
@@ -4427,12 +4425,14 @@ public sealed partial class ShellViewModel : ObservableObject
     /// </summary>
     private void Collapse(bool inactiveOnly)
     {
-        foreach (var card in Board.Cards)
+        if (inactiveOnly)
         {
-            card.IsCollapsed = inactiveOnly && !card.IsLive;
+            Board.FoldInactive();
         }
-
-        Board.RememberFolds();
+        else
+        {
+            Board.UnfoldAll();
+        }
 
         System.Windows.Input.CommandManager.InvalidateRequerySuggested();
     }

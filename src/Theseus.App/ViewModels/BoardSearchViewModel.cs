@@ -255,7 +255,8 @@ public sealed class BoardSearchViewModel : ObservableObject
     public string StatusText => !IsOn ? string.Empty
         : (_matching > 0 ? $"{_matching} of {_total} {(_total == 1 ? "card" : "cards")} {(_matching == 1 ? "matches" : "match")}"
         : $"No card matches {Describe()}")
-        + (HiddenByShows > 0 ? $" ({HiddenByShows} more hidden by Show: choose All to see {(HiddenByShows == 1 ? "it" : "them")})" : string.Empty);
+        + (HiddenByShows > 0 ? $" ({HiddenByShows} more hidden by Show: choose All to see {(HiddenByShows == 1 ? "it" : "them")})" : string.Empty)
+        + (HiddenByActiveOnly > 0 ? $" ({HiddenByActiveOnly} more hidden by Active only: turn it off to see {(HiddenByActiveOnly == 1 ? "it" : "them")})" : string.Empty);
 
     /// <summary>Whether the status bar shows <see cref="StatusText"/> in place of the board's count.</summary>
     public bool HasStatus => IsOn;
@@ -295,6 +296,9 @@ public sealed class BoardSearchViewModel : ObservableObject
     /// the board does not show (review of the Show choice, finding 1).
     /// </summary>
     internal int HiddenByShows { get; set; }
+
+    /// <summary>How many matches Show active only hides, so the search says so rather than looking short.</summary>
+    internal int HiddenByActiveOnly { get; set; }
 
     /// <summary>The board's counts after applying the filter.</summary>
     internal void Counted(int matching, int total, bool archivedWouldMatch)
