@@ -1,7 +1,7 @@
 namespace Theseus.App.ViewModels;
 
 /// <summary>
-/// Every line of a project's Waits for you, for the dialog "and n more…" opens (project-view-scale, 2026-11-24): the band
+/// Every line of a project's Waits for you, for the dialog "and n more" opens (project-view-scale, 2026-11-24): the band
 /// shows a few, and lists of items go in dialogs (Nigel's rule). Each line keeps its own button.
 /// </summary>
 /// <param name="ProjectTitle">The project's title.</param>

@@ -1,0 +1,44 @@
+using System.Xml.Linq;
+using Theseus.Tests.Conventions;
+
+namespace Theseus.Tests.Windows;
+
+/// <summary>
+/// Wording and keys the 1.9 baseline's re-run found after the fix batches (WB9; checklist G33, G36, G82, G84, G95, G100,
+/// G102, G107): labels before their control end in a colon, a command that only opens a window has no ellipsis, one
+/// command keeps one name, and an access key is not used twice in the main window.
+/// </summary>
+[TestFixture]
+public class BaselineRerunWordingTests
+{
+    private static readonly XNamespace Presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+
+    [TestCase("Show:")]
+    [TestCase("Show cards with:")]
+    public void ALabelBeforeItsControl_EndsInAColon(string label) =>
+        Assert.That(Texts("MainWindow.xaml", "TextBlock", "Text"), Does.Contain(label), "NA-2, W20, G100");
+
+    [Test]
+    public void EditSetup_OnlyOpensAWindow_SoHasNoEllipsis() =>
+        Assert.That(Texts("MainWindow.xaml", "Button", "Content"), Does.Contain("Edit setup").And.No.Contain("Edit setup…"), "NA-3, W14");
+
+    [Test]
+    public void IncludeArchived_TakesN_SinceForwardInTheProjectViewHasA_AndIIsNotUsed() =>
+        Assert.That(Element("MainWindow.xaml", "IncludeArchived").Attribute("Content")!.Value, Is.EqualTo("I_nclude archived"), "NB-3, G84, W26");
+
+    [Test]
+    public void TheRoundsStateWord_IsSemibold_NotMedium() =>
+        Assert.That(Element("Views/ProjectView.xaml", "RoundState").Attribute("FontWeight")!.Value, Is.EqualTo("SemiBold"), "NA-4, G95");
+
+    [Test]
+    public void RemoveFromProject_AsksNothing_SoHasNoEllipsisInTheProjectView() =>
+        Assert.That(File.ReadAllText(LooseXaml.SourceFile("ViewModels", "ShellViewModel.cs")), Does.Not.Contain("\"Remove from project…\""), "C13, W14");
+
+    private static XElement Element(string file, string name) =>
+        Load(file).Descendants().Single(element => (string?)element.Attributes().FirstOrDefault(attribute => attribute.Name.LocalName == "Name") == name);
+
+    private static List<string> Texts(string file, string element, string attribute) =>
+        [.. Load(file).Descendants(Presentation + element).Select(each => (string?)each.Attribute(attribute)).Where(text => text is not null).Select(text => text!)];
+
+    private static XDocument Load(string file) => XDocument.Load(LooseXaml.SourceFile(file));
+}

@@ -768,7 +768,7 @@
                         <TextBlock x:Name="RoundDates" Text="{Binding Dates}" FontSize="14" Margin="0,0,12,0" VerticalAlignment="Center"
                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                         <TextBlock x:Name="RoundState" Text="{Binding StateText}" Style="{StaticResource StateForeground}" FontSize="14"
-                                   FontWeight="Medium" Margin="0,0,12,0" VerticalAlignment="Center" />
+                                   FontWeight="SemiBold" Margin="0,0,12,0" VerticalAlignment="Center" />
                         <TextBlock x:Name="RoundLine" local:LinkedText.Text="{Binding Line}" FontSize="14" TextWrapping="Wrap" VerticalAlignment="Center"
                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                    Visibility="{Binding Line, Converter={StaticResource NotEmpty}}" />
@@ -1179,7 +1179,7 @@
                         <TextBlock x:Name="NothingWaits" Text="Nothing waits for you." FontSize="14" Margin="0,0,0,2"
                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                    Visibility="{Binding HasWaits, Converter={StaticResource NotVisible}}" />
-                        <!-- A few lines, then "and n more…" for the rest in a dialog: lists of items go in dialogs (Nigel's rule). -->
+                        <!-- A few lines, then "and n more" for the rest in a dialog: lists of items go in dialogs (Nigel's rule). -->
                         <ItemsControl x:Name="WaitItems" ItemsSource="{Binding ShownWaits}" ItemTemplate="{StaticResource WaitLine}" Focusable="False"
                                       ItemContainerStyle="{StaticResource ItemNamedByText}" AutomationProperties.Name="Waits for you" />
                         <!-- A button, not a link: it opens a dialog, and links only navigate (W15). -->

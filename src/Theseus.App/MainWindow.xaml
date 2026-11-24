@@ -1626,7 +1626,7 @@
                           controls:OffReason.Text="{Binding StopSelectedCommand.WhyNot}">
                     <MenuItem.Icon><controls:GlyphText Text="&#xE71A;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
                 </MenuItem>
-                <MenuItem Header="Focus lea_d session" InputGestureText="Ctrl+L" Command="{Binding FocusLeadCommand}"
+                <MenuItem Header="_Focus lead session" InputGestureText="Ctrl+L" Command="{Binding FocusLeadCommand}"
                           ToolTipService.ShowOnDisabled="True" ToolTip="{Binding FocusLeadToolTip}">
                     <MenuItem.Icon><controls:GlyphText Text="&#xE8A7;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
                 </MenuItem>
@@ -1863,7 +1863,7 @@
                         <Setter Property="controls:SelectorBar.SelectsOnFocus" Value="True" />
                     </Style>
                 </StackPanel.Resources>
-                <TextBlock Text="Show" VerticalAlignment="Center" FontSize="12" Margin="0,0,4,0"
+                <TextBlock Text="Show:" VerticalAlignment="Center" FontSize="12" Margin="0,0,4,0"
                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                 <RadioButton x:Name="ShowAllCards" Content="All" Style="{StaticResource ShowItem}"
                              IsChecked="{Binding ShowsAll, Mode=TwoWay}" AutomationProperties.Name="Show all cards" />
@@ -1929,7 +1929,7 @@
                         <DockPanel>
                             <StackPanel x:Name="TagMatch" DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8"
                                         KeyboardNavigation.TabNavigation="Once" KeyboardNavigation.DirectionalNavigation="Contained">
-                                <TextBlock Text="Show cards with" VerticalAlignment="Center" FontSize="12" Margin="0,0,8,0"
+                                <TextBlock Text="Show cards with:" VerticalAlignment="Center" FontSize="12" Margin="0,0,8,0"
                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                                 <RadioButton x:Name="TagsAny" Content="Any" GroupName="TagMatch" IsChecked="{Binding IsAny, Mode=TwoWay}"
                                              controls:SelectorBar.SelectsOnFocus="True"
@@ -2749,7 +2749,7 @@
                                Text="{Binding Board.Search.StatusText}"
                                Visibility="{Binding Board.Search.HasStatus, Converter={StaticResource BoolToVisibility}}"
                                Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                    <Button x:Name="IncludeArchived" Style="{StaticResource CommandButton}" Content="Include _archived" FontSize="12"
+                    <Button x:Name="IncludeArchived" Style="{StaticResource CommandButton}" Content="I_nclude archived" FontSize="12"
                             Padding="8,0" Margin="8,4,0,4" VerticalAlignment="Center"
                             ToolTip="Show the archive, keeping the search: an archived card matches it."
                             Command="{Binding IncludeArchivedCommand}"
@@ -3297,7 +3297,7 @@
                                                    TextTrimming="CharacterEllipsis"
                                                    ToolTip="Where this workstream's sessions start"
                                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                        <Button Style="{StaticResource CommandButton}" Content="Edit setup…" HorizontalAlignment="Left" Margin="0,8,0,0"
+                                        <Button Style="{StaticResource CommandButton}" Content="Edit setup" HorizontalAlignment="Left" Margin="0,8,0,0"
                                                 ToolTip="Working directory, prompts, handover notes, terminal window and order"
                                                 Command="{Binding Drawer.EditSetupCommand}" />
                                     </StackPanel>

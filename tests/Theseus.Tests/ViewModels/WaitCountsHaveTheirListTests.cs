@@ -109,7 +109,7 @@ public class WaitCountsHaveTheirListTests
         var line = heading.Waits.Single(wait => wait.Item.Kind == WaitKind.ConfirmReport);
 
         Assert.That(heading.Rollup!.State, Is.EqualTo(RollupState.WaitingForYou));
-        Assert.That(line.Button, Is.EqualTo("Confirm the report…"));
+        Assert.That(line.Button, Is.EqualTo("Confirm report…"));
         Assert.That(line.Text, Does.Contain("reported back"));
         AssertEveryMarkHasItsList(view);
     }

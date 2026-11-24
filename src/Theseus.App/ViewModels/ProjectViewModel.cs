@@ -338,16 +338,16 @@ public sealed class ProjectViewModel : ObservableObject
     /// <summary>The lines the band shows: the first <see cref="ShownWaitsLimit"/>.</summary>
     public IReadOnlyList<WaitItemViewModel> ShownWaits => [.. Waits.Take(ShownWaitsLimit)];
 
-    /// <summary>"and 44 more…" under the band's lines, or empty when it shows them all.</summary>
-    public string MoreWaitsText => HasMoreWaits ? $"and {Waits.Count - ShownWaitsLimit} more…" : string.Empty;
+    /// <summary>"and 44 more" under the band's lines, or empty when it shows them all.</summary>
+    public string MoreWaitsText => HasMoreWaits ? $"and {Waits.Count - ShownWaitsLimit} more" : string.Empty;
 
-    /// <summary>What "and n more…" is called to a screen reader: "Show all 47 lines of Waits for you".</summary>
+    /// <summary>What "and n more" is called to a screen reader: "Show all 47 lines of Waits for you".</summary>
     public string MoreWaitsName => $"Show all {Waits.Count} lines of Waits for you";
 
     /// <summary>Whether the band has more lines than it shows.</summary>
     public bool HasMoreWaits => Waits.Count > ShownWaitsLimit;
 
-    /// <summary>"and n more…": every line in a dialog of its own, since lists of items go in dialogs (Nigel's rule).</summary>
+    /// <summary>"and n more": every line in a dialog of its own, since lists of items go in dialogs (Nigel's rule).</summary>
     public ICommand ShowAllWaitsCommand { get; }
 
     /// <summary>Raised by <see cref="ShowAllWaitsCommand"/> with the dialog's model; the view opens the dialog.</summary>

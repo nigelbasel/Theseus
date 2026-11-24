@@ -4522,7 +4522,7 @@ public sealed partial class ShellViewModel : ObservableObject
 
         if (piece.IsListed && card.RemoveFromProjectCommand is { } remove)
         {
-            actions.Add(new PieceActionViewModel("Remove from project…", () => remove.Execute(null), remove.CanExecute(null),
+            actions.Add(new PieceActionViewModel("Remove from project", () => remove.Execute(null), remove.CanExecute(null),
                 $"Take {card.Title}'s rows out of the project file"));
         }
         else if (!piece.IsListed && piece.ParentTitle is { } parent && piece.ParentCardKey is { } parentCard
