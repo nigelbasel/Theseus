@@ -30,6 +30,9 @@ public static class DialogHost
         window.Left = -30000;
         window.Top = 0;
         window.ShowInTaskbar = false;
+
+        // Not activated, as on a CI runner with no interactive desktop: no test may count on keyboard focus.
+        window.ShowActivated = false;
         window.Show();
         Pump();
 
