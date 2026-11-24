@@ -148,7 +148,7 @@
                         <!-- Folders said not to be projects, from a project card's menu (1.1e AC 20). -->
                         <StackPanel Margin="0,0,0,20" Visibility="{Binding HiddenProjectFolders.Count, Converter={StaticResource CountToVisibility}}">
                             <TextBlock Text="Folders that are not projects" Style="{DynamicResource BodyStrongText}" />
-                            <ItemsControl x:Name="HiddenProjectFolders" ItemsSource="{Binding HiddenProjectFolders}" Margin="0,4,0,0" Focusable="False">
+                            <ItemsControl AutomationProperties.Name="Folders that are not projects" x:Name="HiddenProjectFolders" ItemsSource="{Binding HiddenProjectFolders}" Margin="0,4,0,0" Focusable="False">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <DockPanel Margin="0,0,0,4">
@@ -218,7 +218,7 @@
                         <TextBlock Text="Each project's holdout folder" Style="{DynamicResource BodyStrongText}" Margin="0,4,0,4" />
                         <TextBlock Style="{StaticResource PageNote}" Margin="0,0,0,16"
                                    Text="Found for each project on its own: the folder chosen in its Project properties; the holdout repository its project.md records; &lt;repo&gt;-holdout beside its repo; otherwise Theseus's own." />
-                        <ItemsControl x:Name="HoldoutRows" ItemsSource="{Binding HoldoutRows}" Focusable="False">
+                        <ItemsControl ItemContainerStyle="{DynamicResource ItemNamedByProject}" AutomationProperties.Name="Holdout folders" x:Name="HoldoutRows" ItemsSource="{Binding HoldoutRows}" Focusable="False">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <controls:SettingRow Label="{Binding Project}" Value="{Binding Value}" Explanation="{Binding Explanation}">
@@ -243,7 +243,7 @@
                                    Text="Your tags on cards, kept on this machine. Renaming or deleting one changes every card that has it, straight away." />
                         <TextBlock Style="{StaticResource PageNote}" Text="No card has a tag yet."
                                    Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVisibility}}" />
-                        <ItemsControl ItemsSource="{Binding Rows}" Focusable="False">
+                        <ItemsControl AutomationProperties.Name="Tags" ItemContainerStyle="{DynamicResource ItemNamedByLabel}" ItemsSource="{Binding Rows}" Focusable="False">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <Border Margin="0,8,0,0" Padding="12,8" CornerRadius="4"
@@ -259,7 +259,7 @@
                                             <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                                                 <TextBlock Text="Colour:" VerticalAlignment="Center" Margin="0,0,8,0"
                                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                                <ItemsControl ItemsSource="{Binding Swatches}" Focusable="False">
+                                                <ItemsControl ItemContainerStyle="{DynamicResource ItemNamedByToolTip}" AutomationProperties.Name="Colour" ItemsSource="{Binding Swatches}" Focusable="False">
                                                     <ItemsControl.ItemsPanel>
                                                         <ItemsPanelTemplate>
                                                             <StackPanel Orientation="Horizontal" />

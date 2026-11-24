@@ -80,7 +80,7 @@
                         <!-- Tags (card-search-and-tags item 10): each with ×; the tags in use are offered as you type; Enter adds. -->
                         <StackPanel x:Name="ProjectTagsField" Visibility="{Binding DataContext.HasTagEditor, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource Visible}}" DataContext="{Binding TagEditor}">
                             <TextBlock Text="Tags" FontWeight="SemiBold" Margin="0,20,0,4" />
-                            <ItemsControl ItemsSource="{Binding Tags}" Focusable="False">
+                            <ItemsControl AutomationProperties.Name="Tags" ItemsSource="{Binding Tags}" Focusable="False">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
                                         <WrapPanel />
@@ -114,7 +114,7 @@
                             </StackPanel>
                             <TextBlock Text="{Binding Refusal}" Style="{DynamicResource CaptionText}" Margin="0,4,0,0" TextWrapping="Wrap"
                                        Foreground="{DynamicResource CriticalTextBrush}" />
-                            <ItemsControl ItemsSource="{Binding Suggestions}" Margin="0,4,0,0" Focusable="False">
+                            <ItemsControl AutomationProperties.Name="Suggested tags" ItemsSource="{Binding Suggestions}" Margin="0,4,0,0" Focusable="False">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
                                         <WrapPanel />

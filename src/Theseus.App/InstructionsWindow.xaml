@@ -98,12 +98,12 @@
         <TabControl x:Name="Tabs" Grid.Row="1" Margin="12,12,12,0" Background="Transparent" BorderThickness="0">
             <TabItem x:Name="FilesTab" Header="Instruction files">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="8,4" Focusable="False">
-                    <ItemsControl ItemsSource="{Binding Files}" ItemTemplate="{StaticResource RowTemplate}" Focusable="False" />
+                    <ItemsControl AutomationProperties.Name="Instruction files" ItemContainerStyle="{DynamicResource ItemNamedByTitle}" ItemsSource="{Binding Files}" ItemTemplate="{StaticResource RowTemplate}" Focusable="False" />
                 </ScrollViewer>
             </TabItem>
             <TabItem Header="Skills, commands and agents">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="8,4" Focusable="False">
-                    <ItemsControl ItemsSource="{Binding Commands}" ItemTemplate="{StaticResource RowTemplate}" Focusable="False" />
+                    <ItemsControl AutomationProperties.Name="Skills, commands and agents" ItemContainerStyle="{DynamicResource ItemNamedByTitle}" ItemsSource="{Binding Commands}" ItemTemplate="{StaticResource RowTemplate}" Focusable="False" />
                 </ScrollViewer>
             </TabItem>
         </TabControl>

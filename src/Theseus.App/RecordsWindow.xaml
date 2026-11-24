@@ -76,6 +76,11 @@
             </Grid.ColumnDefinitions>
             <ListBox x:Name="Entries" ItemsSource="{Binding Entries}" SelectedItem="{Binding Selected}" Margin="0,0,12,0"
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="Records by stage">
+                <ListBox.ItemContainerStyle>
+                    <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                        <Setter Property="AutomationProperties.Name" Value="{Binding Stage}" />
+                    </Style>
+                </ListBox.ItemContainerStyle>
                 <ListBox.ItemTemplate>
                     <DataTemplate>
                         <StackPanel Margin="4" Cursor="Hand" AutomationProperties.Name="{Binding Stage}">

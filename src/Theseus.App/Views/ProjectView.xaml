@@ -555,7 +555,7 @@
                                            ToolTip="{Binding BranchRulesToolTip}" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                            Visibility="{Binding BranchRulesMark, Converter={StaticResource NotEmpty}}" />
                                 <!-- Its hand-overs and moves, in both lenses: no line is drawn between boxes (AC 47; git-22, 2026-11-24). -->
-                                <ItemsControl x:Name="CrossMarks" ItemsSource="{Binding CrossMarks}" Focusable="False" Margin="0,2,0,0">
+                                <ItemsControl AutomationProperties.Name="Cross-links" x:Name="CrossMarks" ItemsSource="{Binding CrossMarks}" Focusable="False" Margin="0,2,0,0">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                             <TextBlock x:Name="CrossMark" Text="{Binding}" ToolTip="{Binding}" FontSize="12" TextWrapping="Wrap"
@@ -596,7 +596,7 @@
                                     </ItemsControl.ItemsPanel>
                                 </ItemsControl>
                                 <!-- Why a disabled action cannot run, in plain view under the row (2026-11-23). -->
-                                <ItemsControl x:Name="ActionNotes" ItemsSource="{Binding Actions}" Focusable="False"
+                                <ItemsControl AutomationProperties.Name="Action notes" x:Name="ActionNotes" ItemsSource="{Binding Actions}" Focusable="False"
                                               ItemContainerStyle="{StaticResource ItemNamedBySpokenLabel}"
                                               Visibility="{Binding IsOpen, Converter={StaticResource Visible}}">
                                     <ItemsControl.ItemTemplate>
@@ -959,7 +959,7 @@
                                             <TextBlock Text="{Binding CriteriaToggleText}" VerticalAlignment="Center" />
                                         </StackPanel>
                                     </Button>
-                                    <ItemsControl x:Name="ObjectiveCounts" ItemsSource="{Binding Counts}" Focusable="False"
+                                    <ItemsControl AutomationProperties.Name="Counts" x:Name="ObjectiveCounts" ItemsSource="{Binding Counts}" Focusable="False"
                                                   ItemContainerStyle="{StaticResource ItemNamedByText}">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>

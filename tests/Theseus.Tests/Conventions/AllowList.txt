@@ -11,3 +11,9 @@ Font | Segoe MDL2 Assets | Themes/Interactive.xaml | The fallback of the theme's
 Spacing | -2 | Themes/Interactive.xaml | The keyboard-focus ring sits 2 epx outside its control, as the Fluent focus visual does.
 Spacing | -3 | Themes/Interactive.xaml | A card's focus ring sits 3 epx outside the card's own border.
 FontSize | 11 | Themes/CompactMenu.xaml | The accelerator text in Microsoft's copied MenuItem template (baseline section 5).
+Spacing | 0,0,6,0 | Themes/CompactMenu.xaml | As Microsoft wrote it in the Fluent MenuItem template this file copies (dotnet/wpf, MIT); only the margins Theseus tightened are its own (W5, baseline section 5).
+Spacing | 0,3,0,0 | Themes/CompactMenu.xaml | As Microsoft wrote it in the Fluent MenuItem template this file copies (dotnet/wpf, MIT); only the margins Theseus tightened are its own (W5, baseline section 5).
+Spacing | 0,3,0,3 | Themes/CompactMenu.xaml | As Microsoft wrote it in the Fluent MenuItem template this file copies (dotnet/wpf, MIT); only the margins Theseus tightened are its own (W5, baseline section 5).
+Spacing | 12,0,12,18 | Themes/CompactMenu.xaml | As Microsoft wrote it in the Fluent MenuItem template this file copies (dotnet/wpf, MIT); only the margins Theseus tightened are its own (W5, baseline section 5).
+Spacing | 12,10,12,18 | Themes/CompactMenu.xaml | As Microsoft wrote it in the Fluent MenuItem template this file copies (dotnet/wpf, MIT); only the margins Theseus tightened are its own (W5, baseline section 5).
+Spacing | 25,0,0,0 | Themes/CompactMenu.xaml | As Microsoft wrote it in the Fluent MenuItem template this file copies (dotnet/wpf, MIT); only the margins Theseus tightened are its own (W5, baseline section 5).

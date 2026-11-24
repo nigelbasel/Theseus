@@ -545,7 +545,7 @@
                                    Visibility="{Binding MatchesInsideText, Converter={StaticResource NotEmptyToVisibility}}" />
                         <!-- Its tags, at most three then "+2"; clicking one filters the board by it (card-search-and-tags items 11, 12). -->
                         <WrapPanel x:Name="ProjectTags" Margin="0,4,0,0" Visibility="{Binding HasTags, Converter={StaticResource BoolToVisibility}}">
-                            <ItemsControl ItemsSource="{Binding TagChips}" Focusable="False">
+                            <ItemsControl AutomationProperties.Name="Tags" ItemContainerStyle="{StaticResource ItemNamedByLabel}" ItemsSource="{Binding TagChips}" Focusable="False">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
                                         <WrapPanel />
@@ -579,7 +579,7 @@
                                    ToolTip="Start brings back the cards that were running when it was stopped."
                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                    Visibility="{Binding IsStopped, Converter={StaticResource BoolToVisibility}}" />
-                        <ItemsControl x:Name="ProjectCounts" ItemsSource="{Binding Counts}" Margin="0,8,0,0" Focusable="False"
+                        <ItemsControl AutomationProperties.Name="Counts" ItemContainerStyle="{StaticResource ItemNamedByText}" x:Name="ProjectCounts" ItemsSource="{Binding Counts}" Margin="0,8,0,0" Focusable="False"
                                       Visibility="{Binding HasSentence, Converter={StaticResource BoolToVisibility}}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
@@ -875,7 +875,7 @@
                                    Visibility="{Binding BranchRulesMark, Converter={StaticResource NotEmptyToVisibility}}" />
                         <!-- Its tags, at most three then "+2"; clicking one filters the board by it (card-search-and-tags items 11, 12). -->
                         <WrapPanel x:Name="CardTags" Margin="0,4,0,0" Visibility="{Binding HasTags, Converter={StaticResource BoolToVisibility}}">
-                            <ItemsControl ItemsSource="{Binding TagChips}" Focusable="False">
+                            <ItemsControl AutomationProperties.Name="Tags" ItemContainerStyle="{StaticResource ItemNamedByLabel}" ItemsSource="{Binding TagChips}" Focusable="False">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
                                         <WrapPanel />
@@ -1187,11 +1187,11 @@
                     </Grid>
 
                     <!-- The project cards in this cell, standing for their cards (project-view AC 12, 13). -->
-                    <ItemsControl x:Name="ProjectCards" DockPanel.Dock="Top" ItemsSource="{Binding Projects}"
+                    <ItemsControl AutomationProperties.Name="Projects" ItemContainerStyle="{StaticResource ItemNamedByTitle}" x:Name="ProjectCards" DockPanel.Dock="Top" ItemsSource="{Binding Projects}"
                                   ItemTemplate="{StaticResource ProjectCardTemplate}"
                                   AllowDrop="True" Drop="OnProjectsDrop" DragOver="OnColumnDragOver" />
 
-                    <ItemsControl ItemsSource="{Binding Cards}"
+                    <ItemsControl AutomationProperties.Name="Cards" ItemContainerStyle="{StaticResource ItemNamedByTitle}" ItemsSource="{Binding Cards}"
                                   ItemTemplate="{StaticResource CardTemplate}"
                                   AllowDrop="True"
                                   Drop="OnColumnDrop"
@@ -1348,7 +1348,7 @@
                                 Visibility="{Binding IsCollapsed, Converter={StaticResource BoolToVisibility}}">
                         <TextBlock Text="{Binding Summary}" FontSize="12"
                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                        <ItemsControl x:Name="RowMatchStrip" ItemsSource="{Binding Matched}" Margin="0,4,0,0" Focusable="False"
+                        <ItemsControl AutomationProperties.Name="Matches" ItemContainerStyle="{StaticResource ItemNamedByTitle}" x:Name="RowMatchStrip" ItemsSource="{Binding Matched}" Margin="0,4,0,0" Focusable="False"
                                       Visibility="{Binding MatchText, Converter={StaticResource NotEmptyToVisibility}}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
@@ -1369,7 +1369,7 @@
                     </StackPanel>
 
 
-                    <ItemsControl ItemsSource="{Binding Cells}"
+                    <ItemsControl AutomationProperties.Name="{Binding Area}" ItemsSource="{Binding Cells}"
                                   ItemTemplate="{StaticResource ColumnTemplate}"
                                   Height="{Binding Height}"
                                   Visibility="{Binding IsCollapsed, Converter={StaticResource NotBoolToVisibility}}">
@@ -1379,7 +1379,7 @@
                             </ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemContainerStyle>
-                            <Style TargetType="ContentPresenter">
+                            <Style TargetType="ContentPresenter" BasedOn="{StaticResource ItemNamedByHeading}">
                                 <Setter Property="controls:StageColumnsPanel.IsFolded" Value="{Binding IsCollapsed}" />
                                 <Setter Property="controls:StageColumnsPanel.Weight" Value="{Binding Weight}" />
                             </Style>
@@ -1909,7 +1909,7 @@
                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                        Visibility="{Binding HasNoTags, Converter={StaticResource BoolToVisibility}}" />
                             <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                <ItemsControl x:Name="TagRows" ItemsSource="{Binding TagRows}" Focusable="False">
+                                <ItemsControl AutomationProperties.Name="Tags" ItemContainerStyle="{StaticResource ItemNamedByLabel}" x:Name="TagRows" ItemsSource="{Binding TagRows}" Focusable="False">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                             <CheckBox IsChecked="{Binding IsTicked, Mode=TwoWay}" Margin="0,4"
@@ -2034,7 +2034,7 @@
                 </Grid>
 
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <ItemsControl ItemsSource="{Binding Sessions.Sessions}"
+                    <ItemsControl AutomationProperties.Name="Sessions" ItemContainerStyle="{StaticResource ItemNamedByConsoleTitle}" ItemsSource="{Binding Sessions.Sessions}"
                                   ItemTemplate="{StaticResource LiveSessionTemplate}" />
                 </ScrollViewer>
             </DockPanel>
@@ -2097,7 +2097,7 @@
                         -->
                         <StackPanel Visibility="{Binding Chains.Proposals.Pending.Count, Converter={StaticResource CountToVisibility}, FallbackValue=Collapsed}">
                             <TextBlock Text="Proposed" Style="{StaticResource ListSectionHeader}" Margin="4,0,0,8" />
-                            <ItemsControl ItemsSource="{Binding Chains.Proposals.Pending}">
+                            <ItemsControl AutomationProperties.Name="Proposed" ItemContainerStyle="{StaticResource ItemNamedByHeading}" ItemsSource="{Binding Chains.Proposals.Pending}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <Border Margin="0,0,0,8" Padding="8,8" CornerRadius="4" BorderThickness="4,0,0,0"
@@ -2156,7 +2156,7 @@
                         -->
                         <StackPanel Visibility="{Binding Chains.NeedsYou.Count, Converter={StaticResource CountToVisibility}}">
                             <TextBlock Text="Needs you" Style="{StaticResource ListSectionHeader}" Margin="4,0,0,8" />
-                            <ItemsControl ItemsSource="{Binding Chains.NeedsYou}">
+                            <ItemsControl AutomationProperties.Name="Needs you" ItemContainerStyle="{StaticResource ItemNamedByHeading}" ItemsSource="{Binding Chains.NeedsYou}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <Border Margin="0,0,0,8" Padding="8,8" CornerRadius="4" BorderThickness="4,0,0,0"
@@ -2230,7 +2230,7 @@
 
                         <StackPanel Visibility="{Binding Chains.Ready.Count, Converter={StaticResource CountToVisibility}}">
                             <TextBlock Text="Ready" Style="{StaticResource ListSectionHeader}" Margin="4,0,0,8" />
-                            <ItemsControl ItemsSource="{Binding Chains.Ready}">
+                            <ItemsControl AutomationProperties.Name="Ready" ItemContainerStyle="{StaticResource ItemNamedByTitle}" ItemsSource="{Binding Chains.Ready}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <Border Margin="0,0,0,8" Padding="8,8" CornerRadius="4" BorderThickness="4,0,0,0"
@@ -2459,7 +2459,7 @@
 
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel>
-                        <ItemsControl ItemsSource="{Binding Locks.Rows}">
+                        <ItemsControl AutomationProperties.Name="Locks" ItemContainerStyle="{StaticResource ItemNamedByName}" ItemsSource="{Binding Locks.Rows}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <Border Margin="0,0,0,8" Padding="8" CornerRadius="4"
@@ -2525,7 +2525,7 @@
                                                         Visibility="{Binding Waiting.Count, Converter={StaticResource CountToVisibility}}">
                                                 <TextBlock Text="Waiting, in order" FontSize="12" Margin="0,0,0,4"
                                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                                <ItemsControl ItemsSource="{Binding Waiting}">
+                                                <ItemsControl AutomationProperties.Name="Waiting, in order" ItemContainerStyle="{StaticResource ItemNamedByWho}" ItemsSource="{Binding Waiting}">
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate>
                                                             <Border Margin="0,0,0,8" Padding="8,8" CornerRadius="4"
@@ -2589,7 +2589,7 @@
                                 <TextBlock FontSize="12" Margin="0,4,0,8" TextWrapping="Wrap"
                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                            Text="No lock holder accounts for these. A leftover like this can make the next suite fail as if it were broken. Remove only what you know is not a run in progress." />
-                                <ItemsControl ItemsSource="{Binding Locks.Unowned}">
+                                <ItemsControl AutomationProperties.Name="Leftover containers" ItemContainerStyle="{StaticResource ItemNamedByName}" ItemsSource="{Binding Locks.Unowned}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                             <Border Margin="0,0,0,8" Padding="8,8" CornerRadius="4"
@@ -2695,7 +2695,7 @@
                         <DockPanel>
                             <TextBlock DockPanel.Dock="Top" Text="Recent notices" Style="{StaticResource BodyStrongText}" Margin="0,0,0,8" />
                             <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                <ItemsControl x:Name="NoticeHistory" ItemsSource="{Binding Notices.Entries}" Focusable="False"
+                                <ItemsControl ItemContainerStyle="{StaticResource ItemNamedByDisplay}" x:Name="NoticeHistory" ItemsSource="{Binding Notices.Entries}" Focusable="False"
                                               AutomationProperties.Name="Recent notices">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
@@ -2905,14 +2905,14 @@
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
 
-                    <ItemsControl Grid.Column="1" ItemsSource="{Binding Board.StageHeaders}">
+                    <ItemsControl AutomationProperties.Name="Stages" Grid.Column="1" ItemsSource="{Binding Board.StageHeaders}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <controls:StageColumnsPanel />
                             </ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemContainerStyle>
-                            <Style TargetType="ContentPresenter">
+                            <Style TargetType="ContentPresenter" BasedOn="{StaticResource ItemNamedByStage}">
                                 <Setter Property="controls:StageColumnsPanel.IsFolded" Value="{Binding IsCollapsed}" />
                                 <Setter Property="controls:StageColumnsPanel.Weight" Value="{Binding Weight}" />
                             </Style>
@@ -3017,7 +3017,7 @@
                         <KeyBinding Key="Delete" Command="{Binding ArchiveSelectedCommand}" />
                     </Grid.InputBindings>
                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                        <ItemsControl ItemsSource="{Binding Board.Rows}"
+                        <ItemsControl AutomationProperties.Name="Board" ItemContainerStyle="{StaticResource ItemNamedByArea}" ItemsSource="{Binding Board.Rows}"
                                       ItemTemplate="{StaticResource RowTemplate}" />
                     </ScrollViewer>
                     <Canvas x:Name="BandLayer" IsHitTestVisible="False">
@@ -3173,7 +3173,7 @@
                                         </Button>
 
                                         <TextBlock x:Name="JiraIssuesLabel" Text="Jira issues" Style="{StaticResource FieldLabel}" />
-                                        <ItemsControl ItemsSource="{Binding Drawer.JiraKeys}">
+                                        <ItemsControl AutomationProperties.Name="Jira issues" ItemsSource="{Binding Drawer.JiraKeys}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
                                                     <Grid Margin="0,0,0,4">
@@ -3206,7 +3206,7 @@
                                         <!-- Tags (card-search-and-tags item 10): each with ×; the tags in use are offered as you type; Enter adds. -->
                                         <StackPanel x:Name="DrawerTags" DataContext="{Binding Drawer.TagEditor}">
                                             <TextBlock Text="Tags" Style="{StaticResource FieldLabel}" />
-                                            <ItemsControl ItemsSource="{Binding Tags}" Focusable="False">
+                                            <ItemsControl AutomationProperties.Name="Tags" ItemsSource="{Binding Tags}" Focusable="False">
                                                 <ItemsControl.ItemsPanel>
                                                     <ItemsPanelTemplate>
                                                         <WrapPanel />
@@ -3240,7 +3240,7 @@
                                             </Grid>
                                             <TextBlock Text="{Binding Refusal}" FontSize="12" Margin="0,2,0,0" TextWrapping="Wrap"
                                                        Foreground="{DynamicResource SystemFillColorCriticalBrush}" />
-                                            <ItemsControl ItemsSource="{Binding Suggestions}" Margin="0,4,0,0" Focusable="False">
+                                            <ItemsControl AutomationProperties.Name="Suggested tags" ItemsSource="{Binding Suggestions}" Margin="0,4,0,0" Focusable="False">
                                                 <ItemsControl.ItemsPanel>
                                                     <ItemsPanelTemplate>
                                                         <WrapPanel />
@@ -3338,7 +3338,7 @@
 
                                         <TextBlock Text="Takes over from" Style="{StaticResource ListSectionHeader}" Margin="0,0,0,4"
                                                    Visibility="{Binding Chains.Parents.Count, Converter={StaticResource CountToVisibility}}" />
-                                        <ItemsControl ItemsSource="{Binding Chains.Parents}" ItemTemplate="{StaticResource LinkRowTemplate}" />
+                                        <ItemsControl AutomationProperties.Name="Takes over from" ItemContainerStyle="{StaticResource ItemNamedByOtherTitle}" ItemsSource="{Binding Chains.Parents}" ItemTemplate="{StaticResource LinkRowTemplate}" />
 
                                         <Border Margin="0,4,0,8" Padding="8,4" CornerRadius="4" BorderThickness="4,0,0,0"
                                                 BorderBrush="{Binding Drawer.ColorHex, Converter={StaticResource HexToBrush}}"
@@ -3349,15 +3349,15 @@
 
                                         <TextBlock Text="Hands over to" Style="{StaticResource ListSectionHeader}" Margin="0,0,0,4"
                                                    Visibility="{Binding Chains.Children.Count, Converter={StaticResource CountToVisibility}}" />
-                                        <ItemsControl ItemsSource="{Binding Chains.Children}" ItemTemplate="{StaticResource LinkRowTemplate}" />
+                                        <ItemsControl AutomationProperties.Name="Hands over to" ItemContainerStyle="{StaticResource ItemNamedByOtherTitle}" ItemsSource="{Binding Chains.Children}" ItemTemplate="{StaticResource LinkRowTemplate}" />
 
                                         <TextBlock Text="Reported back to by" Style="{StaticResource ListSectionHeader}" Margin="0,8,0,4"
                                                    Visibility="{Binding Chains.Inputs.Count, Converter={StaticResource CountToVisibility}}" />
-                                        <ItemsControl ItemsSource="{Binding Chains.Inputs}" ItemTemplate="{StaticResource LinkRowTemplate}" />
+                                        <ItemsControl AutomationProperties.Name="Reported back to by" ItemContainerStyle="{StaticResource ItemNamedByOtherTitle}" ItemsSource="{Binding Chains.Inputs}" ItemTemplate="{StaticResource LinkRowTemplate}" />
 
                                         <TextBlock Text="Reports back to" Style="{StaticResource ListSectionHeader}" Margin="0,8,0,4"
                                                    Visibility="{Binding Chains.Outputs.Count, Converter={StaticResource CountToVisibility}}" />
-                                        <ItemsControl ItemsSource="{Binding Chains.Outputs}" ItemTemplate="{StaticResource LinkRowTemplate}" />
+                                        <ItemsControl AutomationProperties.Name="Reports back to" ItemContainerStyle="{StaticResource ItemNamedByOtherTitle}" ItemsSource="{Binding Chains.Outputs}" ItemTemplate="{StaticResource LinkRowTemplate}" />
 
                                         <StackPanel Orientation="Horizontal" Margin="0,12,0,0"
                                                     Visibility="{Binding Chains.IsAddingLink, Converter={StaticResource NotBoolToVisibility}}">
@@ -3417,7 +3417,7 @@
                                         <!-- What a project's session did to this card (1.1e AC 16). -->
                                         <TextBlock Text="Done by sessions" Style="{StaticResource FieldLabel}" Margin="0,0,0,4"
                                                    Visibility="{Binding Drawer.Events.Count, Converter={StaticResource CountToVisibility}}" />
-                                        <ItemsControl ItemsSource="{Binding Drawer.Events}" Margin="0,0,0,8"
+                                        <ItemsControl AutomationProperties.Name="Done by sessions" ItemsSource="{Binding Drawer.Events}" Margin="0,0,0,8"
                                                       Visibility="{Binding Drawer.Events.Count, Converter={StaticResource CountToVisibility}}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
@@ -3427,7 +3427,7 @@
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
                                         <TextBlock Text="Runs" Style="{StaticResource FieldLabel}" Margin="0,0,0,4" />
-                                        <ItemsControl ItemsSource="{Binding Drawer.Runs}">
+                                        <ItemsControl ItemContainerStyle="{StaticResource ItemNamedByStarted}" AutomationProperties.Name="Runs" ItemsSource="{Binding Drawer.Runs}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
                                                     <Border Margin="0,0,0,4" Padding="8,4" CornerRadius="4"
@@ -3458,7 +3458,7 @@
                                         <TextBlock Text="Workflows" Style="{StaticResource FieldLabel}"
                                                    Visibility="{Binding Drawer.Workflows.Count,
                                                                 Converter={StaticResource CountToVisibility}}" />
-                                        <ItemsControl ItemsSource="{Binding Drawer.Workflows}">
+                                        <ItemsControl ItemContainerStyle="{StaticResource ItemNamedByHeadline}" AutomationProperties.Name="Workflow runs" ItemsSource="{Binding Drawer.Workflows}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
                                                     <StackPanel Margin="0,0,0,8" ToolTip="{Binding Summary}">

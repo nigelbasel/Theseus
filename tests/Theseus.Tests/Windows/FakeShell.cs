@@ -73,7 +73,7 @@ internal sealed class FakeShell : System.ComponentModel.INotifyPropertyChanged
     public FakePanel Locks { get; } = new();
 
     /// <summary>The chains panel.</summary>
-    public FakePanel Chains { get; } = new();
+    public FakeChains Chains { get; } = new();
 
     /// <summary>The day report.</summary>
     public FakeOpener DayReport { get; } = new();
