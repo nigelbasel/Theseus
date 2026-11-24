@@ -63,7 +63,7 @@ public class RoundStateGroupTests
 
         Assert.That(done.Text, Is.EqualTo($"▶ ✓ {done.Boxes.Count} done"));
         Assert.That(built.Text, Is.EqualTo($"▼ ◐ {built.Boxes.Count} not yet checked"));
-        Assert.That(groups.Where(group => group.State != StageNodeState.Done).Select(group => group.IsOpen), Has.All.True);
+        Assert.That(groups.Select(group => group.IsOpen), Is.EqualTo(groups.Select(group => RoundStateGroupViewModel.OpensAtFirst(group.State))));
         Assert.That(done.Titles, Is.EqualTo(string.Join(" · ", done.Boxes.Select(box => box.Title))), "folded, it names what it holds (G135)");
     }
 
@@ -105,7 +105,8 @@ public class RoundStateGroupTests
         var folded = Groups(round).Where(group => !group.IsOpen).SelectMany(group => group.Boxes).ToList();
 
         Assert.That(Groups(round).SelectMany(group => group.Boxes).Select(box => box.Title), Has.Some.Contains("(E1)"));
-        Assert.That(folded, Has.All.Matches<PieceNodeViewModel>(box => box.State == StageNodeState.Done));
+        Assert.That(folded, Has.All.Matches<PieceNodeViewModel>(box => !RoundStateGroupViewModel.OpensAtFirst(box.State)),
+            "only what asks nothing of him is folded");
         Assert.That(shown.Count + folded.Count, Is.EqualTo(round.Boxes.Count));
     }
 
@@ -141,5 +142,21 @@ public class RoundStateGroupTests
 
         Assert.That(done.Text, Is.EqualTo("▼ ✓ 1 done"));
         Assert.That(done.IsOpen, Is.True, "the match is not hidden behind its heading");
+    }
+
+    [TestCase(StageNodeState.Done, false)]
+    [TestCase(StageNodeState.HandedOn, false)]
+    [TestCase(StageNodeState.RecordsElsewhere, false)]
+    [TestCase(StageNodeState.Answered, true)]
+    [TestCase(StageNodeState.WaitingOnYou, true)]
+    [TestCase(StageNodeState.Busy, true)]
+    [TestCase(StageNodeState.HoldoutsNotRun, true)]
+    [TestCase(StageNodeState.Stuck, true)]
+    [TestCase(StageNodeState.ToDo, true)]
+    [TestCase(StageNodeState.NotInProject, true)]
+    public void AHeadingStartsFolded_OnlyWhenItsStateAsksNothingOfYou(StageNodeState state, bool open)
+    {
+        // git-22, 2026-11-24: done, handed on and kept elsewhere ask nothing of Nigel; answered waits on his ticks.
+        Assert.That(RoundStateGroupViewModel.OpensAtFirst(state), Is.EqualTo(open));
     }
 }

@@ -26,8 +26,12 @@ public sealed class RoundStateGroupViewModel : ObservableObject, IFoldable
     /// <summary>The fold's entry for a round's state.</summary>
     public static string Entry(int round, StageNodeState state) => $"state:{round}:{state}";
 
-    /// <summary>Finished work starts folded (D22); every other state starts open, as it may need him.</summary>
-    public static bool OpensAtFirst(StageNodeState state) => state != StageNodeState.Done;
+    /// <summary>
+    /// What asks nothing of him starts folded: done, handed on, records kept elsewhere. Every other state starts open,
+    /// answered too, since its criteria wait for his ticks (git-22, 2026-11-24).
+    /// </summary>
+    public static bool OpensAtFirst(StageNodeState state) =>
+        state is not (StageNodeState.Done or StageNodeState.HandedOn or StageNodeState.RecordsElsewhere);
 
     /// <summary>The state its boxes are in.</summary>
     public StageNodeState State { get; }

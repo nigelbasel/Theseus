@@ -777,8 +777,8 @@
         </DataTemplate>
 
         <!--
-            A round's pieces in one state, under a heading in the chip's words that folds (G117, G135): done folded at first,
-            naming what it holds; the rest open.
+            A round's pieces in one state, under a heading in the chip's words that folds (G117, G135): what asks nothing of
+            him folded at first, naming what it holds; the rest open.
         -->
         <DataTemplate DataType="{x:Type vm:RoundStateGroupViewModel}">
             <StackPanel Margin="0,0,0,14" Visibility="{Binding IsShown, Converter={StaticResource Visible}}">
