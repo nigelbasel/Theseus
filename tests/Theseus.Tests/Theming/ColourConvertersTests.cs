@@ -69,6 +69,18 @@ public class ColourConvertersTests
         Assert.That(Colour(new HexToBrushConverter(), ""), Is.EqualTo("#00FFFFFF"));
     }
 
+    [TestCase("HexToBrush", "HexToBrushConverter")]
+    [TestCase("HexToWash", "HexToWashConverter")]
+    [TestCase("HexToSwatch", "HexToSwatchConverter")]
+    public void EachConverter_IsRegisteredInTheApplication_SoAnyWindowCanUseIt(string key, string type)
+    {
+        var registered = ThemeFiles.App().Descendants()
+            .Where(element => (string?)element.Attribute(ThemeFiles.Xaml + "Key") == key)
+            .Select(element => element.Name.LocalName);
+
+        Assert.That(registered, Is.EqualTo(new[] { type }));
+    }
+
     private static string Colour(IValueConverter converter, string hex) =>
         ((SolidColorBrush)converter.Convert(hex, typeof(Brush), null!, CultureInfo.InvariantCulture)).Color.ToString(CultureInfo.InvariantCulture);
 }

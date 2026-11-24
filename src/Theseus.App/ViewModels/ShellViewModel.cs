@@ -28,6 +28,8 @@ public sealed partial class ShellViewModel : ObservableObject
     private readonly Dictionary<string, string> _verifierStartFailures = new(StringComparer.OrdinalIgnoreCase);
     private string _updaterStates = string.Empty;
     private readonly CardEventLog _cardEvents = new(Path.Combine(App.DataDirectory, "card-events.jsonl"));
+    private IReadOnlyDictionary<string, CardEvent> _handIns = new Dictionary<string, CardEvent>();
+    private IReadOnlyDictionary<string, DateTimeOffset> _runStarts = new Dictionary<string, DateTimeOffset>();
     private readonly ReportsOpened _reportsOpened = new(Path.Combine(App.DataDirectory, "reports-opened.json"));
     private IReadOnlyDictionary<string, ProjectBranchGrant> _branchGrants = new Dictionary<string, ProjectBranchGrant>();
     private readonly BackgroundProjectReads _projectReads;
@@ -2369,6 +2371,11 @@ public sealed partial class ShellViewModel : ObservableObject
         // Read once per wiring, not once per project.
         IReadOnlyList<SpecAcceptance> acceptances = readable.Count == 0 ? [] : _acceptances.Load();
         IReadOnlyList<ReportedAcceptance> reportedAcceptances = readable.Count == 0 ? [] : _reported.Load();
+        _handIns = readable.Count == 0 ? new Dictionary<string, CardEvent>() : _cardEvents.LatestHandIns();
+        _runStarts = readable.Count == 0
+            ? new Dictionary<string, DateTimeOffset>()
+            : _runs.Read().GroupBy(run => run.WorkstreamKey, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.Max(run => run.StartedUtc), StringComparer.OrdinalIgnoreCase);
         IReadOnlyList<PieceCard> pieceCards = readable.Count == 0 ? [] : [.. cards.Select(PieceCardOf)];
         var links = Chains?.AllLinks ?? [];
         var dimmed = readings.Where(reading =>
@@ -2674,7 +2681,17 @@ public sealed partial class ShellViewModel : ObservableObject
             StartFailure = _verifierStartFailures.GetValueOrDefault(card.Key),
             IsStarting = _launcher.InFlight.IsInFlight(card.Key),
             IsObsolete = IsObsolete(card),
+            HandIn = HandInOf(card),
+            LastRunStartedUtc = _runStarts.TryGetValue(card.Key, out var started) ? started : null,
         };
+
+    // Read once per wiring (_handIns, _runStarts). Only work given by another card of the same project is a hand-in.
+    private HandIn? HandInOf(WorkstreamCardViewModel card) =>
+        _handIns.GetValueOrDefault(card.Key) is { By: { } by, Instruction: { } instruction } given
+        && Board.Card(by) is { } from && card.Workstream.Project is { } project
+        && string.Equals(from.Workstream.Project, project, StringComparison.OrdinalIgnoreCase)
+            ? new HandIn(given.AtUtc, by, from.Title, instruction)
+            : null;
 
     /// <summary>Open spec and Accept spec on the menu bar, for the open project's waiting specs (R16).</summary>
     private void WireSpecChoices()
@@ -3173,7 +3190,11 @@ public sealed partial class ShellViewModel : ObservableObject
         }
 
         StartRequests.Decide(request.Id, StartRequestStatus.Allowed, null);
-        _cardEvents.Append(new CardEvent(DateTimeOffset.UtcNow, card.Key, $"Started by {by}, allowed by you"));
+        _cardEvents.Append(new CardEvent(DateTimeOffset.UtcNow, card.Key, $"Started by {by}, allowed by you")
+        {
+            By = string.IsNullOrWhiteSpace(request.Instruction) ? null : request.RequesterKey,
+            Instruction = string.IsNullOrWhiteSpace(request.Instruction) ? null : request.Instruction.Trim(),
+        });
         TellKey(request.RequesterKey, OwnerEvents.StartAllowed(card.Title));
     }
 
