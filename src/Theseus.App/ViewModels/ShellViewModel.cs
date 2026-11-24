@@ -90,7 +90,7 @@ public sealed partial class ShellViewModel : ObservableObject
     private readonly ClaudeAccountSource _account = new();
     private readonly TranscriptFacts _transcripts = new();
     private AppTheme _theme;
-    private string _notice = string.Empty;
+    private readonly NoticeLine _notice = new();
     private bool _isSessionsPanelOpen;
     private bool _isToolbarVisible;
     private bool _isStatusBarVisible;
@@ -324,7 +324,7 @@ public sealed partial class ShellViewModel : ObservableObject
 
                 if (Board.Card(created.Key) is not { } card)
                 {
-                    Notice = "The workstream was created but is not on the board yet.";
+                    Warn("The workstream was created but is not on the board yet.");
 
                     return;
                 }
@@ -353,7 +353,7 @@ public sealed partial class ShellViewModel : ObservableObject
 
                     if (joined is not null)
                     {
-                        Notice = string.IsNullOrWhiteSpace(Notice) ? joined : $"{Notice} {joined}";
+                        Extend(string.IsNullOrWhiteSpace(Notice) ? joined : $"{Notice} {joined}");
                     }
 
                     return;
@@ -730,7 +730,7 @@ public sealed partial class ShellViewModel : ObservableObject
     public Func<ProjectPropertiesViewModel, bool>? AskProjectProperties { get; set; }
 
     /// <summary>Says in the status bar why a drag could not be dropped (1.1d AC 42).</summary>
-    public void DropRefused(string reason) => Notice = reason;
+    public void DropRefused(string reason) => Warn(reason);
 
     /// <summary>
     /// What a project's session does to its descendants, through the Theseus tools (1.1e AC 14 to 16), on the board's own
@@ -741,7 +741,7 @@ public sealed partial class ShellViewModel : ObservableObject
         StopForSession,
         HandInForSession,
         _cardEvents,
-        text => Notice = string.IsNullOrWhiteSpace(Notice) ? text : $"{Notice} {text}",
+        text => Extend(string.IsNullOrWhiteSpace(Notice) ? text : $"{Notice} {text}"),
         () => DateTimeOffset.UtcNow,
         Refresh);
 
@@ -756,6 +756,7 @@ public sealed partial class ShellViewModel : ObservableObject
         int Runs() => _runs.Read().Count(run => string.Equals(run.WorkstreamKey, key, StringComparison.OrdinalIgnoreCase));
         var before = Runs();
         var said = Notice;
+        NoticeSeverity saidSeverity = NoticeSeverity;
 
         Notice = string.Empty;
         StartMany(workstreams, startMode: StartMode.Resume, trigger: trigger);
@@ -766,7 +767,10 @@ public sealed partial class ShellViewModel : ObservableObject
         }
 
         var why = string.IsNullOrWhiteSpace(Notice) ? "Theseus could not start it just now" : Notice;
-        Notice = string.IsNullOrWhiteSpace(Notice) ? said : Notice;
+        if (string.IsNullOrWhiteSpace(Notice))
+        {
+            SetNotice(saidSeverity, said);
+        }
 
         return $"{workstreams[0].Title} did not start: {why}";
     }
@@ -816,7 +820,7 @@ public sealed partial class ShellViewModel : ObservableObject
         cards => BeginStop(StepsFor(cards)),
         text =>
         {
-            Notice = _projectStartSaid && !string.IsNullOrWhiteSpace(Notice) ? $"{Notice} {text}" : text;
+            Extend(_projectStartSaid && !string.IsNullOrWhiteSpace(Notice) ? $"{Notice} {text}" : text);
             _projectStartSaid = false;
         },
         Refresh);
@@ -890,7 +894,7 @@ public sealed partial class ShellViewModel : ObservableObject
     {
         if (ProjectsSkipped() is { Length: > 0 } skipped)
         {
-            Notice = string.IsNullOrWhiteSpace(Notice) ? skipped.Trim() : $"{Notice}{skipped}";
+            Extend(string.IsNullOrWhiteSpace(Notice) ? skipped.Trim() : $"{Notice}{skipped}");
         }
     }
 
@@ -1000,9 +1004,9 @@ public sealed partial class ShellViewModel : ObservableObject
 
         _settings.Write(settings with { ProjectColours = colours });
         WireProjectChoices();
-        Notice = string.IsNullOrWhiteSpace(Notice) || !properties.TitleChanged
+        Extend(string.IsNullOrWhiteSpace(Notice) || !properties.TitleChanged
             ? $"{properties.Title.Trim()} has a new colour."
-            : $"{Notice} It has a new colour.";
+            : $"{Notice} It has a new colour.");
     }
 
     private static string ProblemOf(ProjectFileReading reading) => ProjectUpdate.ProblemOf(reading);
@@ -1039,7 +1043,7 @@ public sealed partial class ShellViewModel : ObservableObject
 
         if (ProjectUpdate.Refusal(name, cards, UpdaterOf(reading) is { IsLive: true }) is { } refusal)
         {
-            Notice = refusal;
+            Warn(refusal);
 
             return;
         }
@@ -1077,7 +1081,7 @@ public sealed partial class ShellViewModel : ObservableObject
 
         if (StartForSession([start], "UpdateProjectFile") is { } notStarted)
         {
-            Notice = notStarted;
+            Warn(notStarted);
 
             return;
         }
@@ -1118,7 +1122,7 @@ public sealed partial class ShellViewModel : ObservableObject
 
                 if (StopForSession(updater) is { } cannot)
                 {
-                    Notice = cannot;
+                    Warn(cannot);
                 }
 
                 runs[name] = string.Empty;
@@ -1305,18 +1309,39 @@ public sealed partial class ShellViewModel : ObservableObject
         }
     }
 
-    /// <summary>What the last action did, shown under the title bar.</summary>
+    /// <summary>What the last action did, shown in the status bar. Setting it says a notice of information.</summary>
     public string Notice
     {
-        get => _notice;
-        private set
+        get => _notice.Text;
+        private set => SetNotice(NoticeSeverity.Information, value);
+    }
+
+    /// <summary>How serious the last notice is, which sets its glyph and colour in the status bar (baseline W46, C17).</summary>
+    public NoticeSeverity NoticeSeverity => _notice.Severity;
+
+    private void SetNotice(NoticeSeverity severity, string text)
+    {
+        string before = _notice.Text;
+        NoticeSeverity was = _notice.Severity;
+
+        _notice.Say(severity, text);
+
+        if (!string.Equals(before, text, StringComparison.Ordinal))
         {
-            if (Set(ref _notice, value))
-            {
-                Notices.Add(value);
-            }
+            Raise(nameof(Notice));
+            Notices.Add(text);
+        }
+
+        if (was != severity)
+        {
+            Raise(nameof(NoticeSeverity));
         }
     }
+
+    private void Fail(string text) => SetNotice(NoticeSeverity.Error, text);
+
+    // Text added to the notice keeps the notice's severity, so a warning stays one when more is said after it.
+    private void Extend(string text) => SetNotice(_notice.SeverityToExtend, text);
 
     /// <summary>Which theme is in force. Applied immediately and remembered for next time.</summary>
     public AppTheme Theme
@@ -1341,8 +1366,11 @@ public sealed partial class ShellViewModel : ObservableObject
     /// </summary>
     public string Account => _account.Current.Describe;
 
-    /// <summary>Shows a standing warning about the environment Theseus is running in.</summary>
-    public void Warn(string warning) => Notice = warning;
+    /// <summary>Shows a warning in the status bar: something refused or missing, or the environment Theseus runs in (W46).</summary>
+    public void Warn(string warning) => SetNotice(NoticeSeverity.Warning, warning);
+
+    /// <summary>Shows news in the status bar, such as a report or a proposal arriving: information, not a warning.</summary>
+    public void Say(string news) => Notice = news;
 
     /// <summary>Applies the remembered theme at startup.</summary>
     public void ApplyTheme() => ThemeApplier.Apply(_theme);
@@ -1398,14 +1426,14 @@ public sealed partial class ShellViewModel : ObservableObject
 
         if (Board.Card(proposal.RequesterKey) is not { } parent)
         {
-            Notice = $"{proposal.RequesterKey}, which proposed {proposal.Request.Title}, is no longer on the board.";
+            Warn($"{proposal.RequesterKey}, which proposed {proposal.Request.Title}, is no longer on the board.");
 
             return;
         }
 
         if (!proposal.IsPending)
         {
-            Notice = $"{proposal.Request.Title} is already {proposal.Status.ToString().ToLowerInvariant()}.";
+            Warn($"{proposal.Request.Title} is already {proposal.Status.ToString().ToLowerInvariant()}.");
 
             return;
         }
@@ -1425,7 +1453,7 @@ public sealed partial class ShellViewModel : ObservableObject
         }
         else
         {
-            Notice = $"There is no proposal {proposalId}.";
+            Warn($"There is no proposal {proposalId}.");
         }
     }
 
@@ -1586,7 +1614,7 @@ public sealed partial class ShellViewModel : ObservableObject
         }
         else
         {
-            Notice = text;
+            Warn(text);
         }
     }
 
@@ -1783,7 +1811,7 @@ public sealed partial class ShellViewModel : ObservableObject
 
         if (holdout.IsDefault && !holdout.Ensure())
         {
-            Notice = $"{holdout.Folder} could not be made a git repository (is git installed?); the scenarios there will have no history.";
+            Warn($"{holdout.Folder} could not be made a git repository (is git installed?); the scenarios there will have no history.");
         }
         var project = card.Workstream.Project;
         var writer = WriterFor(project, card.Title, holdout.Folder);
@@ -1797,7 +1825,7 @@ public sealed partial class ShellViewModel : ObservableObject
 
         if (Board.Card(key) is not { } created)
         {
-            Notice = $"{writer.Title} was written but is not on the board; refresh and try again.";
+            Warn($"{writer.Title} was written but is not on the board; refresh and try again.");
 
             return;
         }
@@ -1916,7 +1944,7 @@ public sealed partial class ShellViewModel : ObservableObject
         // (verifier-card attempt 1, C10).
         if (Board.Card(key) is not { } created)
         {
-            Notice = $"{verifier.Title} was written but is not on the board, so it was not made a verifier; refresh and try again.";
+            Warn($"{verifier.Title} was written but is not on the board, so it was not made a verifier; refresh and try again.");
             TheseusLog.Warning("Created {Verifier} but could not find its card to make it a verifier", key);
 
             return null;
@@ -2051,7 +2079,7 @@ public sealed partial class ShellViewModel : ObservableObject
 
         if (ProjectStarter.Refusal(folder, details.Name) is { } refusal)
         {
-            Notice = refusal;
+            Warn(refusal);
 
             return null;
         }
@@ -2068,7 +2096,7 @@ public sealed partial class ShellViewModel : ObservableObject
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            Notice = $"Project {details.Name} could not be started: {exception.Message}";
+            Fail($"Project {details.Name} could not be started: {exception.Message}");
 
             return null;
         }
@@ -2109,7 +2137,7 @@ public sealed partial class ShellViewModel : ObservableObject
     {
         if (Readable(project) is not { } reading)
         {
-            Notice = $"{project} does not read, so Theseus cannot edit it; open its project.md instead.";
+            Warn($"{project} does not read, so Theseus cannot edit it; open its project.md instead.");
 
             return false;
         }
@@ -2124,11 +2152,11 @@ public sealed partial class ShellViewModel : ObservableObject
         }
         catch (ProjectEditRefusedException refused)
         {
-            Notice = $"{project}: {refused.Message}";
+            Warn($"{project}: {refused.Message}");
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            Notice = $"{project}: project.md could not be written: {exception.Message}";
+            Fail($"{project}: project.md could not be written: {exception.Message}");
         }
 
         return false;
@@ -2293,7 +2321,7 @@ public sealed partial class ShellViewModel : ObservableObject
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ProjectEditRefusedException)
         {
-            Notice = $"Project {details.Name} was started, but {card.Title} could not be added to it: {exception.Message}";
+            Fail($"Project {details.Name} was started, but {card.Title} could not be added to it: {exception.Message}");
         }
     }
 
@@ -2607,7 +2635,7 @@ public sealed partial class ShellViewModel : ObservableObject
 
         if (_openProjectName is not null && openView is null)
         {
-            Notice = $"{_openProjectName} can no longer be read, so its cards are back on the board.";
+            Warn($"{_openProjectName} can no longer be read, so its cards are back on the board.");
             CloseProject();
 
             return;
@@ -2672,12 +2700,12 @@ public sealed partial class ShellViewModel : ObservableObject
     {
         if (Sessions.Find(_projectWindow.SessionId) is not { } session)
         {
-            Notice = "The session that would bring the project's window forward is no longer running.";
+            Warn("The session that would bring the project's window forward is no longer running.");
 
             return;
         }
 
-        Notice = Describe(TerminalFocus.FocusSession(session.Pid, session.Name), session.Name);
+        SayFocus(TerminalFocus.FocusSession(session.Pid, session.Name), session.Name);
     }
 
     /// <summary>
@@ -2874,7 +2902,7 @@ public sealed partial class ShellViewModel : ObservableObject
         if (ProjectView is null)
         {
             _openProjectName = null;
-            Notice = $"{name} cannot be read just now.";
+            Warn($"{name} cannot be read just now.");
 
             return;
         }
@@ -3008,7 +3036,7 @@ public sealed partial class ShellViewModel : ObservableObject
         var accepted = $"Accepted the {(spec.IsRule ? "rule" : "spec")} of {spec.Slug}, version {spec.ShortVersion}.";
         Notice = accepted;
         var told = TellAccepted(card, spec);
-        Notice = string.Equals(Notice, accepted, StringComparison.Ordinal) ? $"{accepted} {told}" : $"{accepted} {told} {Notice}";
+        Extend(string.Equals(Notice, accepted, StringComparison.Ordinal) ? $"{accepted} {told}" : $"{accepted} {told} {Notice}");
         WireProjectChoices();
 
         return true;
@@ -3193,7 +3221,7 @@ public sealed partial class ShellViewModel : ObservableObject
             {
                 parent.Workstream = parent.Workstream with { IsPaused = before.IsPaused, PausedBy = before.PausedBy, PauseReason = before.PauseReason };
                 Board.Persist(parent);
-                Notice = notStarted;
+                Warn(notStarted);
             }
             else
             {
@@ -3226,14 +3254,14 @@ public sealed partial class ShellViewModel : ObservableObject
     {
         if (StartRequests.Find(requestId) is not { IsPending: true } request)
         {
-            Notice = "That request is no longer waiting.";
+            Warn("That request is no longer waiting.");
 
             return;
         }
 
         if (Board.Card(request.CardKey) is not { } card)
         {
-            Notice = $"{request.CardKey} is not on the board.";
+            Warn($"{request.CardKey} is not on the board.");
 
             return;
         }
@@ -3268,7 +3296,7 @@ public sealed partial class ShellViewModel : ObservableObject
         {
             card.Workstream = card.Workstream with { IsPaused = paused.IsPaused, PausedBy = paused.PausedBy, PauseReason = paused.PauseReason };
             Board.Persist(card);
-            Notice = $"{notStarted} Your pause stands and the request still waits.";
+            Warn($"{notStarted} Your pause stands and the request still waits.");
 
             return;
         }
@@ -3440,7 +3468,7 @@ public sealed partial class ShellViewModel : ObservableObject
         }
         catch (Exception exception) when (exception is System.ComponentModel.Win32Exception or FileNotFoundException)
         {
-            Notice = $"{path} could not be opened: {exception.Message}";
+            Fail($"{path} could not be opened: {exception.Message}");
         }
     }
 
@@ -3739,7 +3767,7 @@ public sealed partial class ShellViewModel : ObservableObject
 
         if (!ClipboardText.TryCopy(step.Text))
         {
-            Notice = "The stop request could not be put on the clipboard. The log has the reason.";
+            Fail("The stop request could not be put on the clipboard. The log has the reason.");
 
             return;
         }
@@ -4212,7 +4240,7 @@ public sealed partial class ShellViewModel : ObservableObject
 
         if (_closed.TryCloseNow(delivered, () => CloseOne(card, DateTimeOffset.UtcNow)) is { Verdict: not CloseVerdict.Close } decision)
         {
-            Notice = CloseNowText.NotClosed(card.Title, decision.Verdict);
+            Warn(CloseNowText.NotClosed(card.Title, decision.Verdict));
         }
 
         SyncStopStates();
@@ -4333,8 +4361,8 @@ public sealed partial class ShellViewModel : ObservableObject
 
         if (RenameOffer(card, current, handoffs, BusyCards()) is null)
         {
-            Notice = $"{card.Title}'s handover file was not renamed: its session is running or starting, another card uses the file, "
-                     + "the file is missing, or the new name is taken.";
+            Warn($"{card.Title}'s handover file was not renamed: its session is running or starting, another card uses the file, "
+                     + "the file is missing, or the new name is taken.");
 
             return;
         }
@@ -4346,7 +4374,7 @@ public sealed partial class ShellViewModel : ObservableObject
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             TheseusLog.Warning(exception, "Could not rename {Current} to {Target}", current, target);
-            Notice = $"{card.Title}'s handover file could not be renamed: {exception.Message}";
+            Fail($"{card.Title}'s handover file could not be renamed: {exception.Message}");
 
             return;
         }
@@ -4526,7 +4554,7 @@ public sealed partial class ShellViewModel : ObservableObject
             {
                 if (Chains.RemoveHandOver(handOver.From, handOver.To) is { } refused)
                 {
-                    Notice = refused;
+                    Warn(refused);
                 }
             }, toolTip: $"Remove the hand-over that shows {card.Title} under {parent}"));
         }
@@ -4575,7 +4603,7 @@ public sealed partial class ShellViewModel : ObservableObject
 
         if (_launcher.Impediment is { } impediment)
         {
-            Notice = impediment;
+            Warn(impediment);
 
             return;
         }
@@ -4887,13 +4915,13 @@ public sealed partial class ShellViewModel : ObservableObject
             if (card.Workstream.LastSessionId is { } launching && _notYetRegistered.ContainsKey(launching)
                 && _launcher.InFlight.IsInFlight(card.Key))
             {
-                Notice = Describe(TerminalFocus.FocusSession(0, card.Title), card.Title);
+                SayFocus(TerminalFocus.FocusSession(0, card.Title), card.Title);
             }
 
             return;
         }
 
-        Notice = Describe(TerminalFocus.FocusSession(session.Pid, session.Name), card.Title);
+        SayFocus(TerminalFocus.FocusSession(session.Pid, session.Name), card.Title);
     }
 
     /// <summary>
@@ -4901,6 +4929,9 @@ public sealed partial class ShellViewModel : ObservableObject
     /// outcome for a session Theseus did not launch, and saying so beats leaving the operator to
     /// wonder why the wrong tab is showing.
     /// </summary>
+    private void SayFocus(FocusOutcome outcome, string title) =>
+        SetNotice(outcome == FocusOutcome.TabSelected ? NoticeSeverity.Information : NoticeSeverity.Warning, Describe(outcome, title));
+
     private static string Describe(FocusOutcome outcome, string title) => outcome switch
     {
         FocusOutcome.TabSelected => $"Focused {title}.",
@@ -4931,8 +4962,8 @@ public sealed partial class ShellViewModel : ObservableObject
             return;
         }
 
-        Notice = string.IsNullOrWhiteSpace(_settings.Read().JiraBaseUrl)
+        Warn(string.IsNullOrWhiteSpace(_settings.Read().JiraBaseUrl)
             ? $"Set your Jira address in Settings to open {key}."
-            : $"{key} does not look like an issue in the configured Jira.";
+            : $"{key} does not look like an issue in the configured Jira.");
     }
 }

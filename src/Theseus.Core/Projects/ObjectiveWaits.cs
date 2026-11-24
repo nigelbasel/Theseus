@@ -31,7 +31,8 @@ public static class ObjectiveWaits
         var names = serving.Select(piece => piece.Name).ToHashSet(StringComparer.Ordinal);
         var cards = serving.Where(piece => piece.IsCurrentPiece).Select(piece => piece.CardKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        return wait => (number is not null && string.Equals(wait.Objective, number, StringComparison.Ordinal))
+        return wait => (number is not null && (string.Equals(wait.Objective, number, StringComparison.Ordinal)
+                                               || wait.Objectives.Contains(number, StringComparer.Ordinal)))
                        || wait.Pieces.Any(names.Contains)
                        || (wait.Kind == WaitKind.StartRequest && wait.CardKey is { } card && cards.Contains(card));
     }

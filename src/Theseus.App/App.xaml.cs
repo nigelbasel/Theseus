@@ -120,7 +120,7 @@ public partial class App : Application
 
         shell.Chains = chains;
         shell.Snapshots = snapshots;
-        chains.ReportArrived = shell.Warn;
+        chains.ReportArrived = shell.Say;
         chains.FocusCard = key => shell.FocusCardCommand.Execute(shell.Board.Card(key));
         chains.ReportConfirmed = shell.ReportConfirmed;
 
@@ -131,7 +131,7 @@ public partial class App : Application
             new Theseus.Core.Proposals.ProposalStateStore(Path.Combine(DataDirectory, "proposals.json")), new SystemClock());
         var proposed = new ProposalsViewModel(proposals, () => [.. shell.Board.Cards], shell.ReviewProposal)
         {
-            Arrived = shell.Warn,
+            Arrived = shell.Say,
             Rejected = shell.ProposalRejected,
             ShowBrief = brief => new RecordsWindow(new RecordsViewModel($"Brief: {Path.GetFileName(Path.GetDirectoryName(brief))}",
                 new Theseus.Core.Projects.RecordEntry("Brief", "What the proposing session asks the new workstream to do",
@@ -402,7 +402,7 @@ public partial class App : Application
             MainWindow?.Close();
         });
 
-        updates.Said = shell.Warn;
+        updates.Said = shell.Say;
         shell.Updates = updates;
 
         _updateTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };

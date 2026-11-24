@@ -24,7 +24,7 @@ public class ProjectCardMarkupTests
     public void AProjectCard_IsClickedAndRightClickedAsACardIs_AndEnterOpensIt()
     {
         var face = Face();
-        var enter = face.Descendants(Presentation + "KeyBinding").Single();
+        var enter = face.Descendants(Presentation + "KeyBinding").Single(binding => (string?)binding.Attribute("Key") == "Return");
 
         Assert.That(((string?)face.Attribute("MouseLeftButtonUp"), (string?)face.Attribute("PreviewMouseRightButtonDown")),
             Is.EqualTo(("OnProjectCardClicked", "OnProjectCardRightButtonDown")));
@@ -47,7 +47,7 @@ public class ProjectCardMarkupTests
             ("_Not a project", "{Binding HideCommand}"),
             ("_Start", "{Binding StartCommand}"),
             ("S_top", "{Binding StopCommand}"),
-            ("Project p_roperties…", "{Binding PropertiesCommand}"),
+            ("Project p_roperties", "{Binding PropertiesCommand}"),
             ("T_ags", null),
             ("Open project._md", "{Binding OpenFileCommand}"),
             ("Add o_bjective…", "{Binding AddObjectiveCommand}"),

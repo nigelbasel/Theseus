@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Windows;
+using System.Windows.Automation.Peers;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
@@ -70,6 +71,14 @@ public partial class ProjectView : UserControl
         if (e.OldValue is ProjectViewModel previous)
         {
             previous.PropertyChanged -= OnViewChanged;
+            previous.AllWaitsRequested -= OnAllWaitsRequested;
+        }
+
+        // This one control shows every project, and its automation peers keep the children they last gave a client: a UI
+        // Automation read of one project's tab got the previous project's work and counts (project-view-scale, 2026-11-24).
+        if (!string.Equals((e.OldValue as ProjectViewModel)?.Name, (e.NewValue as ProjectViewModel)?.Name, StringComparison.OrdinalIgnoreCase))
+        {
+            Dispatcher.BeginInvoke(DispatcherPriority.Loaded, ForgetAutomationChildren);
         }
 
         if (e.NewValue is not ProjectViewModel view)
@@ -78,6 +87,7 @@ public partial class ProjectView : UserControl
         }
 
         view.PropertyChanged += OnViewChanged;
+        view.AllWaitsRequested += OnAllWaitsRequested;
         _grouping = view.Grouping;
 
         PaneColumn.Width = new GridLength(ProjectPaneWidth.Clamp(view.PaneWidth, ActualWidth > 0 ? ActualWidth : double.PositiveInfinity));
@@ -141,6 +151,7 @@ public partial class ProjectView : UserControl
     private void OnViewSizeChanged(object sender, SizeChangedEventArgs e)
     {
         PaneColumn.MaxWidth = ProjectPaneWidth.Maximum(ActualWidth);
+        WhereScroller.MaxHeight = WhereShare.MaxHeight(ActualHeight);
 
         if (DataContext is ProjectViewModel view)
         {
@@ -189,6 +200,27 @@ public partial class ProjectView : UserControl
     private void OnSplitterKeyUp(object sender, KeyEventArgs e) => OnSplitterDragCompleted(sender, null!);
 
     private void OnTabSelectionChanged(object sender, SelectionChangedEventArgs e) => _tabsHadFocus = Tabs.IsKeyboardFocusWithin;
+
+    private void OnAllWaitsRequested(object? sender, WaitsListViewModel list) =>
+        new WaitsWindow(list) { Owner = Window.GetWindow(this) }.ShowDialog();
+
+    internal void ForgetAutomationChildren()
+    {
+        var pending = new Stack<DependencyObject>([this]);
+
+        while (pending.TryPop(out var element))
+        {
+            if (element is UIElement ui && UIElementAutomationPeer.FromElement(ui) is { } peer)
+            {
+                peer.ResetChildrenCache();
+            }
+
+            for (var index = 0; index < VisualTreeHelper.GetChildrenCount(element); index++)
+            {
+                pending.Push(VisualTreeHelper.GetChild(element, index));
+            }
+        }
+    }
 
     private void OnSplitterDoubleClick(object sender, MouseButtonEventArgs e)
     {

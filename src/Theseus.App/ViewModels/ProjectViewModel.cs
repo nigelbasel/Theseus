@@ -45,6 +45,7 @@ public sealed class ProjectViewModel : ObservableObject
     private HashSet<StageNodeState> _filter = [];
     private IReadOnlySet<string> _waitingPieces = new HashSet<string>();
     private int _waitsWithNoBox;
+    private string? _leadName;
 
     private ProjectViewModel(ProjectFile file, ProjectSummary summary, ISettingsStore settings, ProjectViewActions actions,
         ProjectViewEdits? edits)
@@ -67,6 +68,7 @@ public sealed class ProjectViewModel : ObservableObject
         OpenWhatNeedsAttentionCommand = new RelayCommand(_ => OpenWhatNeedsAttention());
         ClearSelectionCommand = new RelayCommand(_ => Escape(), _ => _selection is not null || _filter.Count > 0);
         CloseOverlayCommand = new RelayCommand(_ => SetOverlay(false), _ => _isOverlayOpen);
+        ShowAllWaitsCommand = new RelayCommand(_ => AllWaitsRequested?.Invoke(this, AllWaits), _ => HasMoreWaits);
     }
 
     /// <summary>The project's name.</summary>
@@ -327,6 +329,41 @@ public sealed class ProjectViewModel : ObservableObject
     /// <summary>Whether anything waits; the block reads "Nothing waits for you." when not, still in place (G36).</summary>
     public bool HasWaits => Waits.Count > 0;
 
+    /// <summary>
+    /// How many lines the band shows before "and n more": the band sits above the page, so 68 lines pushed the work off
+    /// the window and nothing scrolled (project-view-scale, Nigel 2026-11-24).
+    /// </summary>
+    public const int ShownWaitsLimit = 3;
+
+    /// <summary>The lines the band shows: the first <see cref="ShownWaitsLimit"/>.</summary>
+    public IReadOnlyList<WaitItemViewModel> ShownWaits => [.. Waits.Take(ShownWaitsLimit)];
+
+    /// <summary>"and 44 more…" under the band's lines, or empty when it shows them all.</summary>
+    public string MoreWaitsText => HasMoreWaits ? $"and {Waits.Count - ShownWaitsLimit} more…" : string.Empty;
+
+    /// <summary>What "and n more…" is called to a screen reader: "Show all 47 lines of Waits for you".</summary>
+    public string MoreWaitsName => $"Show all {Waits.Count} lines of Waits for you";
+
+    /// <summary>Whether the band has more lines than it shows.</summary>
+    public bool HasMoreWaits => Waits.Count > ShownWaitsLimit;
+
+    /// <summary>"and n more…": every line in a dialog of its own, since lists of items go in dialogs (Nigel's rule).</summary>
+    public ICommand ShowAllWaitsCommand { get; }
+
+    /// <summary>Raised by <see cref="ShowAllWaitsCommand"/> with the dialog's model; the view opens the dialog.</summary>
+    public event EventHandler<WaitsListViewModel>? AllWaitsRequested;
+
+    /// <summary>The dialog of every line of Waits for you, each with its button.</summary>
+    public WaitsListViewModel AllWaits => new(Title, Waits, LeadWaitsText);
+
+    /// <summary>
+    /// "Waits on the lead, Spec lead: 35 objectives have no workstream yet.", or empty: the lead plans an objective's
+    /// work, so it is said under the band and not counted in it (project-view-scale, 2026-11-24).
+    /// </summary>
+    public string LeadWaitsText => Overview.ForTheLead.Count == 0
+        ? string.Empty
+        : $"Waits on the lead{(_leadName is null ? string.Empty : $", {_leadName}")}: {string.Join(" ", Overview.ForTheLead)}";
+
     /// <summary>"Theseus is doing this itself: Checking one build…", or empty: under the band, since it asks nothing.</summary>
     public string UnderwayText => Overview.Underway.Count == 0
         ? string.Empty
@@ -532,7 +569,8 @@ public sealed class ProjectViewModel : ObservableObject
                 { HasSession: true } => "idle",
                 _ => "no session",
             };
-            view.LeadText = $"Lead: {card?.Title ?? leadKey} · {state}";
+            view._leadName = card?.Title ?? leadKey;
+            view.LeadText = $"Lead: {view._leadName} · {state}";
             view.FocusLeadCommand = new RelayCommand(_ => actions.Focus(leadKey), _ => card?.HasSession == true);
             view.FocusLeadToolTip = card?.HasSession == true
                 ? $"Bring {card.Title}'s terminal forward"
@@ -1262,7 +1300,8 @@ public sealed class ProjectViewModel : ObservableObject
                 string.Join(",", objective.Counts.Select(chip => chip.Text)),
                 string.Join(",", objective.Pieces.Select(piece => piece.Name)));
 
-        return string.Join("|", new[] { view.Name, view.Title, view.Sentence, view.ClearUpNotice ?? string.Empty, view.UnderwayText, view._grouping.ToString(),
+        return string.Join("|", new[] { view.Name, view.Title, view.Sentence, view.ClearUpNotice ?? string.Empty, view.UnderwayText, view.LeadWaitsText,
+                view._grouping.ToString(),
                 string.Join(";", view.Waits.Select(wait => $"{wait.Text}:{wait.Button}:{string.Join(",", wait.Item.Pieces)}:{wait.Item.CardKey}")) }
             .Concat(view.Tabs.Select(tab => $"{tab.Name}:{tab.Title}:{tab.IsOpen}:{tab.ColourHex}"))
             .Concat(view.Roots.SelectMany(root => Lines(root, 0)))

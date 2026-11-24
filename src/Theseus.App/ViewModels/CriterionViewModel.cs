@@ -37,7 +37,8 @@ public sealed record CriterionViewModel(string Text, bool IsTicked, ICommand? To
         {
             Waiting = criterion.IsTicked || criterion.Waiting is not { } waiting
                 ? string.Empty
-                : waiting.IsOwner ? $"Waiting for you: {waiting.What}" : $"Waiting on work: {waiting.What}",
+                : string.Join("; ", waiting.Asks.GroupBy(ask => ask.IsOwner)
+                    .Select(group => $"{(group.Key ? "Waiting for you" : "Waiting on work")}: {string.Join("; ", group.Select(ask => ask.What))}")),
         }),
     ];
 }

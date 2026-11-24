@@ -160,6 +160,29 @@ public sealed class GitHubReleaseFeed : IReleaseFeed, IDisposable
         await _http.GetByteArrayAsync(uri, cancellationToken);
 
     /// <inheritdoc />
+    public async Task<byte[]> DownloadAsync(Uri uri, IProgress<double?>? progress, CancellationToken cancellationToken)
+    {
+        using HttpResponseMessage response = await _http.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        response.EnsureSuccessStatusCode();
+
+        long? length = response.Content.Headers.ContentLength is > 0 and var known ? known : null;
+        await using Stream body = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using MemoryStream copy = length is <= int.MaxValue ? new MemoryStream((int)length.Value) : new MemoryStream();
+        byte[] buffer = new byte[81920];
+        int read;
+
+        progress?.Report(length is null ? null : 0);
+
+        while ((read = await body.ReadAsync(buffer, cancellationToken)) > 0)
+        {
+            copy.Write(buffer, 0, read);
+            progress?.Report(length is { } total ? Math.Min(1, (double)copy.Length / total) : null);
+        }
+
+        return copy.ToArray();
+    }
+
+    /// <inheritdoc />
     public void Dispose() => _http.Dispose();
 
     private static string? Text(JsonElement element, string name) =>
