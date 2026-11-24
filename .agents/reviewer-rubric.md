@@ -88,7 +88,7 @@ Source: `src/Theseus.Core/Links/WaitingStarts.cs`, `src/Theseus.App/MainWindow.x
 Source: `src/Theseus.Core/Status/TheseusStatusNotice.cs`, `src/Theseus.App/App.xaml.cs` (Nigel, 2026-10-30).
 
 **R13. Paused and blocked are marks on a card, not places, and starting a marked card asks.**
-Yes clears the mark and starts; No leaves it marked and unstarted.
+Clear marks and start clears the mark and starts; Start only the others, or Cancel, leaves it marked and unstarted.
 *Breaks if* pausing moves a card out of its stage, or a marked card starts without the question.
 Source: `src/Theseus.Core/Domain/WorkstreamSidecar.cs`, `src/Theseus.Core/Launching/FlaggedStart.cs`, `src/Theseus.Core/Domain/BoardTidy.cs` (Nigel, 2026-10-30).
 One exception: `resume_workstream` clears and starts a card paused by the calling session itself, through a tool call

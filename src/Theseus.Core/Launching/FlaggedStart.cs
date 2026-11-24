@@ -4,7 +4,8 @@ namespace Theseus.Core.Launching;
 
 /// <summary>
 /// What Theseus asks before starting a workstream marked paused or blocked (Nigel, 2026-10-30):
-/// whether the mark still holds. Yes clears it and starts; No leaves it marked and unstarted.
+/// whether the mark still holds. Clear marks and start clears it and starts; Start only the others leaves it marked and
+/// unstarted. The buttons say what they do, so the question names the cards and nothing else (baseline A3, G9).
 /// </summary>
 public static class FlaggedStart
 {
@@ -23,17 +24,15 @@ public static class FlaggedStart
     {
         ArgumentNullException.ThrowIfNull(flagged);
 
-        var lines = flagged.Select(workstream => $"  •  {workstream.Title} is marked {Marks(workstream)}.");
-        var one = flagged.Count == 1;
-        var question = one
-            ? "Is it no longer paused or blocked?"
-            : "Are these no longer paused or blocked?";
-        var yes = one ? "Yes clears the mark and starts it." : "Yes clears the marks and starts them.";
-        var no = others == 0
-            ? (one ? "No leaves it marked and does not start it." : "No leaves them marked and starts nothing.")
-            : $"No leaves {(one ? "it" : "them")} marked and starts only the other {others}.";
+        IEnumerable<string> lines = flagged.Select(workstream => $"  •  {workstream.Title} is marked {Marks(workstream)}.");
+        string first = (flagged.Count, others) switch
+        {
+            (1, 0) => "The card you are starting is marked paused or blocked:",
+            (_, 0) => $"The {flagged.Count} cards you are starting are marked paused or blocked:",
+            _ => $"{flagged.Count} of the {flagged.Count + others} cards you are starting {(flagged.Count == 1 ? "is" : "are")} marked paused or blocked:",
+        };
 
-        return string.Join("\n", lines) + $"\n\n{question}\n\n{yes}\n{no}";
+        return $"{first}\n\n{string.Join("\n", lines)}";
     }
 
     private static string Marks(Workstream workstream) => (workstream.IsPaused, workstream.IsBlocked) switch

@@ -31,7 +31,7 @@ public class ProjectFoldersSettingTests
     }
 
     [Test]
-    public void SavingThePanel_KeepsEachFolder_Trimmed()
+    public void ChangingThePanel_KeepsEachFolder_Trimmed()
     {
         var store = new SettingsStore(Path.Combine(_folder, "settings.json"));
         var panel = new SettingsViewModel(store, () => { });
@@ -39,7 +39,6 @@ public class ProjectFoldersSettingTests
         panel.OpenCommand.Execute(null);
         panel.ProjectsFolder = "  C:\\projects  ";
         panel.WorktreesFolder = "C:\\work ";
-        panel.SaveCommand.Execute(null);
 
         Assert.That((store.Read().ProjectsFolder, store.Read().WorktreesFolder), Is.EqualTo(("C:\\projects", "C:\\work")));
 
@@ -50,7 +49,7 @@ public class ProjectFoldersSettingTests
     }
 
     [Test]
-    public void TheIntro_ShowsUntilAProjectsFolderIsSaved_AndStaysWhileOneIsTyped()
+    public void TheIntro_ShowsUntilAProjectsFolderIsSet_AndStaysWhileOneIsTyped()
     {
         var store = new SettingsStore(Path.Combine(_folder, "settings.json"));
         var panel = new SettingsViewModel(store, () => { });
@@ -62,7 +61,6 @@ public class ProjectFoldersSettingTests
         Assert.That(panel.ShowsProjectsIntro, Is.True, "decided when Settings opens, so it does not vanish mid-typing");
 
         panel.ProjectsFolder = "C:\\projects";
-        panel.SaveCommand.Execute(null);
         panel.OpenCommand.Execute(null);
 
         Assert.That(panel.ShowsProjectsIntro, Is.False);

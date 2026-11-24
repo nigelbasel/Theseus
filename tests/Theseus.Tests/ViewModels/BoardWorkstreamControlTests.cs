@@ -74,6 +74,25 @@ public class BoardWorkstreamControlTests
     }
 
     [Test]
+    public void AStartOrResumeWithAnInstruction_IsKeptAsAHandIn_WithWhoGaveItAndAllOfIt()
+    {
+        // git-22, 2026-11-24: work a lead gives an existing card showed only as the card turning busy.
+        Assert.That(Control().Start("child", "more work: the chips\nand the filter", "parent"), Is.Null);
+
+        var handIn = new CardEventLog(_events).LatestHandIns()["child"];
+
+        Assert.That((handIn.By, handIn.Instruction, handIn.AtUtc), Is.EqualTo(((string?)"parent", (string?)"more work: the chips\nand the filter",
+            new DateTimeOffset(2026, 11, 21, 21, 0, 0, TimeSpan.Zero))));
+
+        var child = _board.Card("child")!;
+        child.Workstream = child.Workstream with { IsPaused = true, PausedBy = "parent" };
+        Assert.That(Control().Resume("child", "now the legend", "parent"), Is.Null);
+        Assert.That(new CardEventLog(_events).LatestHandIns()["child"].Instruction, Is.EqualTo("now the legend"), "the latest is the one shown");
+        Assert.That(Control().Start("parent", null, "child"), Is.Null);
+        Assert.That(new CardEventLog(_events).LatestHandIns().ContainsKey("parent"), Is.False, "a start with no instruction hands in nothing");
+    }
+
+    [Test]
     public void AStartThatLaunchedNothing_SaysWhy_AndRecordsNothing()
     {
         _startRefusal = "child did not start: a tab of that name is already open; the user is asked";

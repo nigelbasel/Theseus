@@ -112,7 +112,7 @@ epo", history.CardsOf("bym"), @"<projects>ym"), Is.True, "named before");
     }
 
     [Test]
-    public void AFolderSaidNotToBeAProject_IsListedInOptions_AndShownAgainOnceSaved()
+    public void AFolderSaidNotToBeAProject_IsListedInOptions_AndShownAgainAtOnce()
     {
         var folder = Path.Combine(Path.GetTempPath(), $"theseus-hidden-{Guid.NewGuid():N}");
         Directory.CreateDirectory(folder);
@@ -128,7 +128,6 @@ epo", history.CardsOf("bym"), @"<projects>ym"), Is.True, "named before");
             Assert.That(options.HiddenProjectFolders, Is.EqualTo(new[] { "leadpro-mcp", "notes" }));
 
             options.ShowProjectFolderCommand.Execute("notes");
-            options.SaveCommand.Execute(null);
 
             Assert.That(store.Read().HiddenProjectFolders, Is.EqualTo(new[] { "leadpro-mcp" }));
         }

@@ -68,7 +68,7 @@ public class ProjectDialogsTests
         var window = new ProjectPropertiesWindow(properties);
         var laidOut = LaidOut(window);
         var taken = properties.Colours.Single(swatch => swatch.Colour == "#2F7D32");
-        var marks = Descendants<TextBlock>(laidOut).Where(text => text.Name == "TakenMark").ToList();
+        var marks = Descendants<FrameworkElement>(laidOut).Where(mark => mark.Name == "TakenMark").ToList();
 
         Assert.That((taken.IsTaken, taken.ToolTip), Is.EqualTo((true, "#2F7D32, used by BuildYourMarket MCP server")));
         Assert.That(properties.Colours.Count(swatch => swatch.IsTaken), Is.EqualTo(1));

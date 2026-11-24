@@ -9,12 +9,14 @@ namespace Theseus.App.ViewModels;
 
 /// <summary>
 /// The settings panel. Each path shows what it resolves to right now, because "blank means find it
-/// automatically" is only reassuring if you can see what was found.
+/// automatically" is only reassuring if you can see what was found. Every row writes the settings file the moment its
+/// value changes, and there is no Save: a settings page applies what it shows (W6, checklist G138, 2026-11-24). The board
+/// is told once, when Options closes, so it re-reads stages and areas a single time however many rows changed.
 /// </summary>
 public sealed class SettingsViewModel : ObservableObject
 {
     private readonly ISettingsStore _store;
-    private readonly Action _saved;
+    private readonly Action _changedAndClosed;
 
     private string _planDirectory = string.Empty;
     private string _terminalWindowName = string.Empty;
@@ -34,18 +36,22 @@ public sealed class SettingsViewModel : ObservableObject
     private string _laneList = string.Empty;
     private string _areaList = string.Empty;
     private bool _isOpen;
+    private bool _loading;
+    private bool _changed;
 
     /// <summary>Creates the panel over the settings file.</summary>
-    public SettingsViewModel(ISettingsStore store, Action saved)
+    public SettingsViewModel(ISettingsStore store, Action changedAndClosed)
     {
         _store = store;
-        _saved = saved;
+        _changedAndClosed = changedAndClosed;
 
         OpenCommand = new RelayCommand(_ => Open());
         OpenProjectPropertiesCommand = new RelayCommand(parameter =>
             {
                 if (parameter is HoldoutRowViewModel row)
                 {
+                    // One dialog at a time (W8, G17): Options closes before Project properties opens.
+                    IsOpen = false;
                     OpenProjectHoldouts?.Invoke(row.Project);
                 }
             },
@@ -56,29 +62,25 @@ public sealed class SettingsViewModel : ObservableObject
         ResetHoldoutRemoteCommand = new RelayCommand(_ => HoldoutRemote = string.Empty, _ => !string.IsNullOrWhiteSpace(HoldoutRemote));
         ShowProjectFolderCommand = new RelayCommand(parameter =>
         {
-            if (parameter is string name)
+            if (parameter is string name && HiddenProjectFolders.Remove(name))
             {
-                HiddenProjectFolders.Remove(name);
+                Write(settings => settings with { HiddenProjectFolders = [.. settings.HiddenProjectFolders.Where(folder => folder != name)] });
             }
         });
         CloseCommand = new RelayCommand(_ => IsOpen = false);
-        SaveCommand = new RelayCommand(_ => Save());
         ResetIdentityPromptCommand = new RelayCommand(_ => IdentityPrompt = WorkstreamIdentity.DefaultTemplate,
             _ => IdentityPrompt != WorkstreamIdentity.DefaultTemplate);
 
         Load(store.Read());
     }
 
-    /// <summary>Shows the panel, discarding any half-made edits from last time.</summary>
+    /// <summary>Shows the panel, read afresh from the settings file.</summary>
     public RelayCommand OpenCommand { get; }
 
     /// <summary>The themes to choose between.</summary>
     public IReadOnlyList<AppTheme> Themes { get; } = Enum.GetValues<AppTheme>();
 
-    /// <summary>
-    /// Which theme to paint in. Applied and saved as soon as it is chosen, not on Save, because a
-    /// theme is judged by looking at it.
-    /// </summary>
+    /// <summary>Which theme to paint in, applied as soon as it is chosen, because a theme is judged by looking at it.</summary>
     public AppTheme Theme
     {
         get => _store.Read().Theme;
@@ -95,11 +97,8 @@ public sealed class SettingsViewModel : ObservableObject
         }
     }
 
-    /// <summary>Hides the panel without saving.</summary>
+    /// <summary>Close: every change is already written.</summary>
     public RelayCommand CloseCommand { get; }
-
-    /// <summary>Writes the settings and closes.</summary>
-    public RelayCommand SaveCommand { get; }
 
     /// <summary>Puts the built-in identity wording back.</summary>
     public RelayCommand ResetIdentityPromptCommand { get; }
@@ -108,7 +107,14 @@ public sealed class SettingsViewModel : ObservableObject
     public bool IsOpen
     {
         get => _isOpen;
-        set => Set(ref _isOpen, value);
+        set
+        {
+            if (Set(ref _isOpen, value) && !value && _changed)
+            {
+                _changed = false;
+                _changedAndClosed();
+            }
+        }
     }
 
     /// <summary>Where the Claude Code sessions write their plan files.</summary>
@@ -119,6 +125,7 @@ public sealed class SettingsViewModel : ObservableObject
         {
             if (Set(ref _planDirectory, value))
             {
+                Write(settings => settings with { PlanDirectory = value });
                 Raise(nameof(PlanDirectoryState));
                 Raise(nameof(PlanDirectoryValue));
             }
@@ -141,6 +148,7 @@ public sealed class SettingsViewModel : ObservableObject
         {
             if (Set(ref _terminalWindowName, value))
             {
+                Write(settings => settings with { TerminalWindowName = value });
                 Raise(nameof(AreaListState));
             }
         }
@@ -171,6 +179,7 @@ public sealed class SettingsViewModel : ObservableObject
         {
             if (Set(ref _terminalExecutablePath, value))
             {
+                Write(settings => settings with { TerminalExecutablePath = value });
                 Raise(nameof(TerminalState));
                 Raise(nameof(TerminalValue));
             }
@@ -206,6 +215,7 @@ public sealed class SettingsViewModel : ObservableObject
         {
             if (Set(ref _claudeExecutablePath, value))
             {
+                Write(settings => settings with { ClaudeExecutablePath = value });
                 Raise(nameof(ClaudeState));
                 Raise(nameof(ClaudeValue));
             }
@@ -249,10 +259,10 @@ public sealed class SettingsViewModel : ObservableObject
     /// <summary>Project properties… beside a project's holdout row.</summary>
     public RelayCommand OpenProjectPropertiesCommand { get; }
 
-    /// <summary>The folders said not to be projects (1.1e AC 20), each to be shown again; saved with the rest.</summary>
+    /// <summary>The folders said not to be projects (1.1e AC 20), each to be shown again.</summary>
     public System.Collections.ObjectModel.ObservableCollection<string> HiddenProjectFolders { get; } = [];
 
-    /// <summary>Show again: a folder said not to be a project is shown as a project card again, once saved.</summary>
+    /// <summary>Show again: a folder said not to be a project is shown as a project card again.</summary>
     public RelayCommand ShowProjectFolderCommand { get; }
 
     /// <summary>The holdout's remote address, which the guard also keeps from implementing sessions.</summary>
@@ -263,6 +273,7 @@ public sealed class SettingsViewModel : ObservableObject
         {
             if (Set(ref _holdoutRemote, value))
             {
+                Write(settings => settings with { HoldoutRemote = value.Trim() });
                 Raise(nameof(HoldoutRemoteValue));
             }
         }
@@ -282,6 +293,7 @@ public sealed class SettingsViewModel : ObservableObject
         {
             if (Set(ref _projectsFolder, value))
             {
+                Write(settings => settings with { ProjectsFolder = ProjectsFolderPath.Normalize(value) });
                 Raise(nameof(ProjectsFolderValue));
             }
         }
@@ -308,6 +320,7 @@ public sealed class SettingsViewModel : ObservableObject
         {
             if (Set(ref _worktreesFolder, value))
             {
+                Write(settings => settings with { WorktreesFolder = ProjectsFolderPath.Normalize(value) });
                 Raise(nameof(WorktreesFolderValue));
             }
         }
@@ -324,6 +337,7 @@ public sealed class SettingsViewModel : ObservableObject
         {
             if (Set(ref _includePreReleases, value))
             {
+                Write(settings => settings with { IncludePreReleases = value });
                 Raise(nameof(UpdatesValue));
             }
         }
@@ -340,6 +354,7 @@ public sealed class SettingsViewModel : ObservableObject
         {
             if (Set(ref _jiraBaseUrl, value))
             {
+                Write(settings => settings with { JiraBaseUrl = value });
                 Raise(nameof(JiraState));
                 Raise(nameof(JiraValue));
                 Raise(nameof(JiraExplanation));
@@ -367,6 +382,7 @@ public sealed class SettingsViewModel : ObservableObject
         {
             if (Set(ref _sessionPreamble, value))
             {
+                Write(settings => settings with { SessionPreamble = value });
                 Raise(nameof(SessionPreambleState));
                 Raise(nameof(StandingValue));
             }
@@ -386,6 +402,7 @@ public sealed class SettingsViewModel : ObservableObject
         {
             if (Set(ref _continuePrompt, value))
             {
+                Write(settings => settings with { ContinuePrompt = value });
                 Raise(nameof(ContinuePromptState));
                 Raise(nameof(ContinueValue));
             }
@@ -405,6 +422,7 @@ public sealed class SettingsViewModel : ObservableObject
         {
             if (Set(ref _stopPrompt, value))
             {
+                Write(settings => settings with { StopPrompt = value });
                 Raise(nameof(StopValue));
             }
         }
@@ -421,6 +439,7 @@ public sealed class SettingsViewModel : ObservableObject
         {
             if (Set(ref _identityPrompt, value))
             {
+                Write(settings => settings with { IdentityPrompt = value == WorkstreamIdentity.DefaultTemplate ? string.Empty : value });
                 Raise(nameof(IdentityPromptState));
                 Raise(nameof(IdentityValue));
             }
@@ -469,6 +488,7 @@ public sealed class SettingsViewModel : ObservableObject
         {
             if (Set(ref _laneList, value))
             {
+                Write(settings => settings with { Lanes = Lanes });
                 Raise(nameof(LaneListState));
                 Raise(nameof(LanesValue));
             }
@@ -499,6 +519,7 @@ public sealed class SettingsViewModel : ObservableObject
         {
             if (Set(ref _areaList, value))
             {
+                Write(settings => settings with { Areas = Areas });
                 Raise(nameof(AreaListState));
                 Raise(nameof(AreasValue));
             }
@@ -570,7 +591,12 @@ public sealed class SettingsViewModel : ObservableObject
 
     private void SetStartMode(StartMode mode)
     {
-        _defaultStartMode = mode;
+        if (_defaultStartMode != mode)
+        {
+            _defaultStartMode = mode;
+            Write(settings => settings with { DefaultStartMode = mode });
+        }
+
         Raise(nameof(ResumeByDefault));
         Raise(nameof(FreshByDefault));
         Raise(nameof(StartModeValue));
@@ -586,7 +612,7 @@ public sealed class SettingsViewModel : ObservableObject
         IsOpen = true;
     }
 
-    /// <summary>Options, Tags (card-search-and-tags item 13); its changes apply at once, not at Save. Set by the shell.</summary>
+    /// <summary>Options, Tags (card-search-and-tags item 13); it applies its changes at once. Set by the shell.</summary>
     public TagsViewModel? Tags { get; set; }
 
     /// <summary>Options, Holdouts: the installed holdout guard and its Install button; acts at once. Set by the shell.</summary>
@@ -597,57 +623,51 @@ public sealed class SettingsViewModel : ObservableObject
 
     private void Load(TheseusSettings settings)
     {
-        PlanDirectory = settings.PlanDirectory;
-        TerminalWindowName = settings.TerminalWindowName;
-        TerminalExecutablePath = settings.TerminalExecutablePath;
-        ClaudeExecutablePath = settings.ClaudeExecutablePath;
-        JiraBaseUrl = settings.JiraBaseUrl;
-        HiddenProjectFolders.Clear();
+        _loading = true;
 
-        foreach (var folder in settings.HiddenProjectFolders)
+        try
         {
-            HiddenProjectFolders.Add(folder);
+            PlanDirectory = settings.PlanDirectory;
+            TerminalWindowName = settings.TerminalWindowName;
+            TerminalExecutablePath = settings.TerminalExecutablePath;
+            ClaudeExecutablePath = settings.ClaudeExecutablePath;
+            JiraBaseUrl = settings.JiraBaseUrl;
+            HiddenProjectFolders.Clear();
+
+            foreach (var folder in settings.HiddenProjectFolders)
+            {
+                HiddenProjectFolders.Add(folder);
+            }
+            HoldoutRemote = settings.HoldoutRemote;
+            ProjectsFolder = settings.ProjectsFolder;
+            WorktreesFolder = settings.WorktreesFolder;
+            ShowsProjectsIntro = string.IsNullOrWhiteSpace(settings.ProjectsFolder);
+            IncludePreReleases = settings.IncludePreReleases;
+            SessionPreamble = settings.SessionPreamble;
+            ContinuePrompt = settings.ContinuePrompt;
+            StopPrompt = settings.StopPrompt;
+            SetStartMode(settings.DefaultStartMode);
+            IdentityPrompt = string.IsNullOrWhiteSpace(settings.IdentityPrompt)
+                ? WorkstreamIdentity.DefaultTemplate
+                : settings.IdentityPrompt;
+            LaneList = string.Join(Environment.NewLine, settings.Lanes);
+            AreaList = string.Join(Environment.NewLine, settings.Areas);
         }
-        HoldoutRemote = settings.HoldoutRemote;
-        ProjectsFolder = settings.ProjectsFolder;
-        WorktreesFolder = settings.WorktreesFolder;
-        ShowsProjectsIntro = string.IsNullOrWhiteSpace(settings.ProjectsFolder);
-        IncludePreReleases = settings.IncludePreReleases;
-        SessionPreamble = settings.SessionPreamble;
-        ContinuePrompt = settings.ContinuePrompt;
-        StopPrompt = settings.StopPrompt;
-        SetStartMode(settings.DefaultStartMode);
-        IdentityPrompt = string.IsNullOrWhiteSpace(settings.IdentityPrompt)
-            ? WorkstreamIdentity.DefaultTemplate
-            : settings.IdentityPrompt;
-        LaneList = string.Join(Environment.NewLine, settings.Lanes);
-        AreaList = string.Join(Environment.NewLine, settings.Areas);
+        finally
+        {
+            _loading = false;
+        }
     }
 
-    private void Save()
+    // Reads the file again before each write, so a row never puts back what another part of Theseus wrote meanwhile.
+    private void Write(Func<TheseusSettings, TheseusSettings> change)
     {
-        _store.Write(_store.Read() with
+        if (_loading)
         {
-            PlanDirectory = PlanDirectory,
-            TerminalWindowName = TerminalWindowName,
-            TerminalExecutablePath = TerminalExecutablePath,
-            ClaudeExecutablePath = ClaudeExecutablePath,
-            JiraBaseUrl = JiraBaseUrl,
-            HiddenProjectFolders = [.. HiddenProjectFolders],
-            HoldoutRemote = HoldoutRemote.Trim(),
-            ProjectsFolder = ProjectsFolderPath.Normalize(ProjectsFolder),
-            WorktreesFolder = ProjectsFolderPath.Normalize(WorktreesFolder),
-            IncludePreReleases = IncludePreReleases,
-            SessionPreamble = SessionPreamble,
-            ContinuePrompt = ContinuePrompt,
-            StopPrompt = StopPrompt,
-            DefaultStartMode = _defaultStartMode,
-            IdentityPrompt = IdentityPrompt == WorkstreamIdentity.DefaultTemplate ? string.Empty : IdentityPrompt,
-            Lanes = Lanes,
-            Areas = Areas,
-        });
+            return;
+        }
 
-        IsOpen = false;
-        _saved();
+        _store.Write(change(_store.Read()));
+        _changed = true;
     }
 }

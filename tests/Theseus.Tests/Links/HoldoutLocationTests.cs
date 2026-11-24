@@ -435,7 +435,7 @@ public class HoldoutLocationTests
     }
 
     [Test]
-    public void Options_ListsEachProjectsFolderReadOnly_AndSavingChangesNoProjectsFolder()
+    public void Options_ListsEachProjectsFolderReadOnly_AndChangingARowChangesNoProjectsFolder()
     {
         var store = new Theseus.Core.Settings.SettingsStore(Path.Combine(_root, "settings.json"));
         store.Write(store.Read() with
@@ -460,7 +460,7 @@ public class HoldoutLocationTests
         Assert.That(settings.OpenProjectPropertiesCommand.CanExecute(settings.HoldoutRows[3]), Is.False, "no card to open (review, 7)");
 
         settings.OpenProjectPropertiesCommand.Execute(settings.HoldoutRows[2]);
-        settings.SaveCommand.Execute(null);
+        settings.PlanDirectory = @"C:\plans";
 
         Assert.That(opened, Is.EqualTo(new[] { "theseus" }));
         Assert.That(store.Read().ProjectHoldoutFolders, Is.EqualTo(new Dictionary<string, string> { ["bym"] = @"C:\mine" }),
