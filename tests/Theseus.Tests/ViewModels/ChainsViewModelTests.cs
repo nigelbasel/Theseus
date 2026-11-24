@@ -48,6 +48,30 @@ public class ChainsViewModelTests
     }
 
     [Test]
+    public void FoldAll_FoldsEveryRow_AndUnfoldAll_OpensThemAgain()
+    {
+        // Walkthrough row 11 (project-view-usability): "would benefit from a collapse all, open all"; W17 names them Fold and Unfold.
+        _book.Add(LinkKind.HandsOver, "auth-research", "token-spike");
+        _book.Add(LinkKind.HandsOver, "token-spike", "auth-implementation");
+        _chains.Update();
+        List<ChainNodeViewModel> rows = [.. Flatten(_chains.Roots)];
+
+        Assert.That(rows, Has.Count.EqualTo(3));
+        Assert.That(rows.Select(row => row.IsExpanded), Is.All.True, "a new tree opens unfolded");
+
+        _chains.FoldAllCommand.Execute(null);
+
+        Assert.That(rows.Select(row => row.IsExpanded), Is.All.False);
+
+        _chains.UnfoldAllCommand.Execute(null);
+
+        Assert.That(rows.Select(row => row.IsExpanded), Is.All.True);
+    }
+
+    private static IEnumerable<ChainNodeViewModel> Flatten(IEnumerable<ChainNodeViewModel> nodes) =>
+        nodes.SelectMany(node => new[] { node }.Concat(Flatten(node.Children)));
+
+    [Test]
     public void Update_PutsAChildUnderTheCardThatHandedOverToIt()
     {
         _book.Add(LinkKind.HandsOver, "auth-research", "token-spike");

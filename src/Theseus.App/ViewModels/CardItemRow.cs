@@ -13,12 +13,14 @@ public sealed class CardItemRow
     /// Why it cannot be opened, when there is a reason more specific than a missing Jira address (card-branches pass
     /// 2, F9): for a pull request whose number could be in any of a card's repos.
     /// </param>
-    public CardItemRow(string id, string? title, string? url, string? whyNoLink = null)
+    /// <param name="opensAt">Where it opens, said in words, such as "Open ABC-1 in Jira at example.atlassian.net" (W54).</param>
+    public CardItemRow(string id, string? title, string? url, string? whyNoLink = null, string? opensAt = null)
     {
         Id = id;
         Title = title;
         Url = url;
         _whyNoLink = whyNoLink;
+        _opensAt = opensAt;
         OpenCommand = new RelayCommand(_ => Process.Start(new ProcessStartInfo(url!) { UseShellExecute = true }), _ => url is not null);
     }
 
@@ -38,10 +40,11 @@ public sealed class CardItemRow
     public string Tooltip => string.Join("\n", new[]
     {
         Title ?? "No title yet. A session reports it when it works on this item.",
-        Url ?? _whyNoLink ?? "Set your Jira address in Tools > Options to open it from here.",
+        (Url is null ? null : _opensAt) ?? Url ?? _whyNoLink ?? "Set your Jira address in Tools > Options to open it from here.",
     });
 
     private readonly string? _whyNoLink;
+    private readonly string? _opensAt;
 
     /// <summary>Opens it in the browser.</summary>
     public RelayCommand OpenCommand { get; }

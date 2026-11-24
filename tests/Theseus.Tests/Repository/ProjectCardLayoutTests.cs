@@ -60,7 +60,7 @@ public class ProjectCardLayoutTests
         var stripe = Named<Border>(face, "ProjectStripe");
         var mark = Descendants<StackedCardMark>(face).Single();
 
-        Assert.That(face.CornerRadius, Is.EqualTo(new CornerRadius(8)));
+        Assert.That(face.CornerRadius, Is.EqualTo(new CornerRadius(4)), "an in-page card takes the control radius (W37)");
         Assert.That((stripe.ActualWidth, ((SolidColorBrush)stripe.Background).Color.ToString()), Is.EqualTo((5.0, "#FF8674D6")));
         Assert.That(((SolidColorBrush)mark.Foreground).Color.ToString(), Is.EqualTo("#FF8674D6"));
         Assert.That((mark.Width, mark.Height), Is.EqualTo((20.0, 16.0)), "on the 4 epx grid (baseline W36, D9)");
@@ -147,7 +147,7 @@ public class ProjectCardLayoutTests
         Assert.That(buttons, Is.EqualTo(new[] { "ProjectOpen", "ProjectUpdate", "ProjectFocusLead", "ProjectStart", "ProjectStop" }),
             "Update stands in for ↗ only on a card that needs updating (1.1e AC 18)");
         Assert.That(Named<Button>(face, "ProjectUpdate").Visibility, Is.EqualTo(Visibility.Collapsed));
-        Assert.That((open.ToolTip, open.Content), Is.EqualTo(((object)"Open the project (Enter)", (object)"")));
+        Assert.That((open.ToolTip, open.Content), Is.EqualTo(((object)"Open the project (Enter)", (object)"")));
 
         open.Command.Execute(null);
 

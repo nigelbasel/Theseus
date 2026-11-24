@@ -20,9 +20,15 @@ public static class CardItemRows
         {
             var item = mine.GetValueOrDefault(key);
 
-            return new CardItemRow(key, item?.Title ?? titleOf?.Invoke(key), item?.Url ?? JiraSite.IssueUrl(jiraBaseUrl, key));
+            string? url = item?.Url ?? JiraSite.IssueUrl(jiraBaseUrl, key);
+
+            return new CardItemRow(key, item?.Title ?? titleOf?.Invoke(key), url, opensAt: OpensAt(key, url));
         })];
     }
+
+    // The tooltip names the host the key opens on, never a host written into the product (W54, checklist G156).
+    private static string? OpensAt(string key, string? url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out Uri? address) ? $"Open {key} in Jira at {address.Host}" : null;
 
     /// <summary>The pull requests the card's prompt names, then any a session recorded, with titles.</summary>
     public static IReadOnlyList<CardItemRow> PullRequests(IReadOnlyList<PullRequestLink> mentioned, IReadOnlyList<WorkItem> recorded,

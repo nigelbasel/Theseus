@@ -252,7 +252,7 @@
                         <Border x:Name="Glow" CornerRadius="4" Opacity="0"
                                 Background="{DynamicResource AccentFillColorDefaultBrush}" />
                         <!-- A glyph is drawn by GlyphText, which screen readers skip: the button's name says what it is (W50, E10). -->
-                        <ContentPresenter x:Name="Label" HorizontalAlignment="Center" VerticalAlignment="Center"
+                        <ContentPresenter x:Name="Label" RecognizesAccessKey="True" HorizontalAlignment="Center" VerticalAlignment="Center"
                                           ContentTemplateSelector="{x:Static controls:GlyphTemplateSelector.Instance}"
                                           TextElement.Foreground="{TemplateBinding Foreground}" />
                     </Grid>
@@ -357,7 +357,7 @@
                             BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
                             BorderThickness="1">
                         <Grid>
-                            <ContentPresenter x:Name="Label" VerticalAlignment="Center" TextElement.Foreground="{TemplateBinding Foreground}" />
+                            <ContentPresenter x:Name="Label" RecognizesAccessKey="True" VerticalAlignment="Center" TextElement.Foreground="{TemplateBinding Foreground}" />
                             <Rectangle x:Name="Underline" Height="1" Margin="0,0,0,4" VerticalAlignment="Bottom"
                                        Fill="Transparent" />
                         </Grid>

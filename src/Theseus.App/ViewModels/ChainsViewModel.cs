@@ -50,6 +50,8 @@ public sealed class ChainsViewModel : ObservableObject
 
         ToggleCommand = new RelayCommand(_ => IsOpen = !IsOpen);
         OpenCommand = new RelayCommand(_ => IsOpen = true);
+        FoldAllCommand = new RelayCommand(_ => SetExpanded(Roots, false), _ => Roots.Count > 0);
+        UnfoldAllCommand = new RelayCommand(_ => SetExpanded(Roots, true), _ => Roots.Count > 0);
         AddLinkCommand = new RelayCommand(_ => AddLink(), _ => _focusKey is not null && _target is not null);
         BeginAddLinkCommand = new RelayCommand(_ =>
         {
@@ -61,6 +63,15 @@ public sealed class ChainsViewModel : ObservableObject
             ClearForm();
             IsAddingLink = false;
         });
+    }
+
+    private static void SetExpanded(IEnumerable<ChainNodeViewModel> nodes, bool expanded)
+    {
+        foreach (ChainNodeViewModel node in nodes)
+        {
+            node.IsExpanded = expanded;
+            SetExpanded(node.Children, expanded);
+        }
     }
 
     /// <summary>The links read against the board as of the last update.</summary>
@@ -78,6 +89,12 @@ public sealed class ChainsViewModel : ObservableObject
 
     /// <summary>Opens the Chains tab, from a card's link line.</summary>
     public RelayCommand OpenCommand { get; }
+
+    /// <summary>Folds every row of the tree (walkthrough row 11; W17's Fold, W25's F165).</summary>
+    public RelayCommand FoldAllCommand { get; }
+
+    /// <summary>Unfolds every row of the tree (walkthrough row 11; W17's Unfold, W25's F164).</summary>
+    public RelayCommand UnfoldAllCommand { get; }
 
     /// <summary>One tree per card with links and no parent.</summary>
     public ObservableCollection<ChainNodeViewModel> Roots { get; } = [];

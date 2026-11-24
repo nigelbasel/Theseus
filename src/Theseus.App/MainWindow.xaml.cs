@@ -227,6 +227,18 @@ public partial class MainWindow : Window
 
     // Esc in the Tags flyout closes it and gives the focus back to Tags, leaving the ticks as they were; the window's own
     // Esc would clear the card selection instead (A18, G20).
+    private void OnNoticeFlyoutKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Escape)
+        {
+            return;
+        }
+
+        NoticeButton.IsChecked = false;
+        NoticeButton.Focus();
+        e.Handled = true;
+    }
+
     private void OnTagsFlyoutKeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key != Key.Escape)

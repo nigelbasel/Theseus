@@ -206,6 +206,28 @@
             <Setter Property="FontSize" Value="16" />
         </Style>
 
+        <!-- An item of the side panel's Locks | Chains selector bar: the shared selector bar item, 32 high (W15, W56). -->
+        <Style x:Key="PanelSwitchItem" TargetType="RadioButton" BasedOn="{StaticResource SelectorBarItem}">
+            <Setter Property="Padding" Value="8,4" />
+            <Setter Property="MinHeight" Value="32" />
+            <Setter Property="FontSize" Value="14" />
+        </Style>
+
+        <!-- A pane's resizable edge: an 8 epx hit area with the pane's own 1 px border as the visible line (W38, W39). -->
+        <Style x:Key="PaneEdge" TargetType="controls:PaneResizeThumb">
+            <Setter Property="Width" Value="8" />
+            <Setter Property="Cursor" Value="SizeWE" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="AutomationProperties.Name" Value="Resize" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="controls:PaneResizeThumb">
+                        <Border Background="Transparent" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- A board row's fold chevron: an icon button whose name follows its state (E9, G167). -->
         <Style x:Key="RowFoldButton" TargetType="Button" BasedOn="{StaticResource ToolButton}">
             <Setter Property="FontSize" Value="12" />
@@ -270,25 +292,7 @@
             <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
         </Style>
 
-        <DataTemplate x:Key="JiraKeyTemplate">
-            <Button Style="{StaticResource ChipButton}"
-                    Command="{Binding DataContext.OpenJiraCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                    CommandParameter="{Binding}"
-                    ToolTip="{Binding StringFormat=Open {0} in Jira}">
-                <TextBlock Text="{Binding}" FontSize="12"
-                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-            </Button>
-        </DataTemplate>
 
-        <DataTemplate x:Key="PullRequestTemplate">
-            <Button Style="{StaticResource ChipButton}"
-                    Command="{Binding DataContext.OpenPullRequestCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                    CommandParameter="{Binding}"
-                    ToolTip="{Binding Url}">
-                <TextBlock Text="{Binding Number, StringFormat=PR {0}}" FontSize="12"
-                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-            </Button>
-        </DataTemplate>
 
         <!--
             The font is set here because a context menu is a logical child of the element that owns it
@@ -310,10 +314,10 @@
                     <ControlTemplate TargetType="Button">
                         <Grid x:Name="Face">
                             <Border x:Name="Wash" CornerRadius="8" Opacity="0.16"
-                                    Background="{Binding ColourHex, Converter={StaticResource HexToBrush}}" />
+                                    Background="{Binding ColourHex, Converter={StaticResource HexToWash}}" />
                             <Border CornerRadius="8" BorderThickness="1" Padding="8,0,8,0"
                                     BorderBrush="{Binding ColourHex, Converter={StaticResource HexToBrush}}">
-                                <ContentPresenter x:Name="Label" TextElement.Foreground="{TemplateBinding Foreground}" />
+                                <ContentPresenter x:Name="Label" RecognizesAccessKey="True" TextElement.Foreground="{TemplateBinding Foreground}" />
                             </Border>
                         </Grid>
                         <ControlTemplate.Triggers>
@@ -353,7 +357,7 @@
                     <DataTemplate>
                         <StackPanel Orientation="Horizontal">
                             <Ellipse Width="8" Height="8" Margin="0,0,8,0" VerticalAlignment="Center"
-                                     Fill="{Binding ColourHex, Converter={StaticResource HexToBrush}}"
+                                     Fill="{Binding ColourHex, Converter={StaticResource HexToSwatch}}"
                                      Visibility="{Binding IsTag, Converter={StaticResource BoolToVisibility}}" />
                             <AccessText Text="{Binding Header}" VerticalAlignment="Center" />
                         </StackPanel>
@@ -445,7 +449,7 @@
             project.md does not read) keeps its mark, colour and reason, and has no ▶ or ■.
         -->
         <DataTemplate x:Key="ProjectCardTemplate" DataType="{x:Type vm:ProjectCardViewModel}">
-            <Border x:Name="ProjectFace" Tag="ProjectCard" CornerRadius="8" Margin="0,0,0,8"
+            <Border x:Name="ProjectFace" Tag="ProjectCard" CornerRadius="4" Margin="0,0,0,8"
                     Focusable="True"
                     Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
                     ToolTip="{Binding ToolTipText}" Opacity="{Binding CardOpacity}"
@@ -512,7 +516,7 @@
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
 
-                    <Border x:Name="ProjectStripe" Grid.Column="0" CornerRadius="7,0,0,7"
+                    <Border x:Name="ProjectStripe" Grid.Column="0" CornerRadius="4,0,0,4"
                             Background="{Binding ColourHex, Converter={StaticResource HexToBrush}}" />
 
                     <StackPanel Grid.Column="1" Margin="12,8,12,8">
@@ -549,7 +553,7 @@
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Button Style="{StaticResource TagChipButton}" Content="{Binding Label}" ToolTip="{Binding ToolTip}"
+                                        <Button Style="{StaticResource TagChipButton}" Content="{Binding Label, Converter={StaticResource AccessKeyEscape}}" ToolTip="{Binding ToolTip}"
                                                 AutomationProperties.Name="{Binding ToolTip}"
                                                 Command="{Binding FilterCommand}" CommandParameter="{Binding Tag}" />
                                     </DataTemplate>
@@ -593,21 +597,21 @@
                             stop the whole project, as a card's own ▶ and ■ (1.1d AC 43), not on a dimmed card (AC 44).
                         -->
                         <StackPanel x:Name="ProjectButtons" Orientation="Horizontal" HorizontalAlignment="Left" Margin="-4,4,0,0">
-                            <Button x:Name="ProjectOpen" Style="{StaticResource CardIcon}" Content="&#xE8A7;"
+                            <Button x:Name="ProjectOpen" Style="{StaticResource CardIcon}" Content="&#xE8E5;" Margin="0,0,4,0"
                                     ToolTip="{Binding OpenButtonToolTip}" AutomationProperties.Name="Open project"
                                     Visibility="{Binding IsDimmed, Converter={StaticResource NotBoolToVisibility}}"
                                     Command="{Binding OpenCommand}" />
                             <!-- A file that does not read: its ↗ becomes Update (1.1e AC 18). -->
-                            <Button x:Name="ProjectUpdate" Style="{StaticResource CommandButton}" Content="Update" Padding="8,4" Margin="4,4,0,0"
+                            <Button x:Name="ProjectUpdate" Style="{StaticResource CommandButton}" Content="Update" Margin="0,0,4,0"
                                     ToolTip="{Binding OpenButtonToolTip}" AutomationProperties.Name="Update project file"
                                     Visibility="{Binding IsDimmed, Converter={StaticResource BoolToVisibility}}"
                                     Command="{Binding OpenCommand}" />
                             <!-- The lead's terminal, beside Open (Nigel, 2026-11-22). -->
-                            <Button x:Name="ProjectFocusLead" Style="{StaticResource CardIcon}" Content="⌖"
+                            <Button x:Name="ProjectFocusLead" Style="{StaticResource CardIcon}" Content="&#xE8A7;" Margin="0,0,4,0"
                                     ToolTip="{Binding FocusLeadToolTip}" ToolTipService.ShowOnDisabled="True"
                                     AutomationProperties.Name="Focus lead" Command="{Binding FocusLeadCommand}"
                                     Visibility="{Binding IsDimmed, Converter={StaticResource NotBoolToVisibility}}" />
-                            <Button x:Name="ProjectStart" Style="{StaticResource CardIcon}" Content="&#xE768;"
+                            <Button x:Name="ProjectStart" Style="{StaticResource CardIcon}" Content="&#xE768;" Margin="0,0,4,0"
                                     ToolTip="{Binding StartToolTip}" AutomationProperties.Name="Start project"
                                     Command="{Binding StartCommand}"
                                     Visibility="{Binding ShowsRunButtons, Converter={StaticResource BoolToVisibility}}" />
@@ -637,7 +641,7 @@
                 MinHeight is on the style so a folded card can drop it. Left at 96 the card would
                 keep the height of its full self and fold to nothing worth looking at.
             -->
-            <Border x:Name="CardFace" CornerRadius="8" Margin="0,0,0,8" Tag="Card"
+            <Border x:Name="CardFace" CornerRadius="4" Margin="0,0,0,8" Tag="Card"
                     ToolTip="{Binding FaceTooltip}"
                     ContextMenu="{StaticResource CardMenu}"
                     MouseLeftButtonDown="OnCardMouseDown"
@@ -716,7 +720,7 @@
                         in the template rather than in a shared style: a template gets a name scope
                         per card, so each card sweeps on its own clock.
                     -->
-                    <Border x:Name="Banner" Grid.ColumnSpan="2" CornerRadius="8" ClipToBounds="True"
+                    <Border x:Name="Banner" Grid.ColumnSpan="2" CornerRadius="4" ClipToBounds="True"
                             Visibility="{Binding IsRunning, Converter={StaticResource BoolToVisibility}}">
                         <Grid>
                             <!--
@@ -725,7 +729,7 @@
                                 and the whole effect with it.
                             -->
                             <Rectangle Opacity="0.22"
-                                       Fill="{Binding ColorHex, Converter={StaticResource HexToBrush}}" />
+                                       Fill="{Binding ColorHex, Converter={StaticResource HexToWash}}" />
 
                             <Rectangle x:Name="Sheen" Width="180" HorizontalAlignment="Left" Fill="{DynamicResource SheenBrush}">
                                 <Rectangle.RenderTransform>
@@ -735,7 +739,7 @@
                         </Grid>
                     </Border>
 
-                    <Border x:Name="Stripe" Grid.Column="0" CornerRadius="8,0,0,8"
+                    <Border x:Name="Stripe" Grid.Column="0" CornerRadius="4,0,0,4"
                             Background="{Binding ColorHex, Converter={StaticResource HexToBrush}}">
                         <Border.Style>
                             <Style TargetType="Border">
@@ -881,7 +885,7 @@
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Button Style="{StaticResource TagChipButton}" Content="{Binding Label}" ToolTip="{Binding ToolTip}"
+                                        <Button Style="{StaticResource TagChipButton}" Content="{Binding Label, Converter={StaticResource AccessKeyEscape}}" ToolTip="{Binding ToolTip}"
                                                 AutomationProperties.Name="{Binding ToolTip}"
                                                 Command="{Binding FilterCommand}" CommandParameter="{Binding Tag}" />
                                     </DataTemplate>
@@ -899,13 +903,13 @@
                             pause stops it and marks the card paused. Each tooltip says what it does.
                         -->
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="-4,4,0,0">
-                            <Button Style="{StaticResource CardIcon}" Content="&#xE768;"
+                            <Button Style="{StaticResource CardIcon}" Content="&#xE768;" Margin="0,0,4,0"
                                     ToolTip="{Binding PlayTooltip}" AutomationProperties.Name="{Binding PrimaryAction}"
                                     Visibility="{Binding IsLive, Converter={StaticResource NotBoolToVisibility}}"
                                     Command="{Binding DataContext.StartCardCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                     CommandParameter="{Binding}" />
-                            <Button Style="{StaticResource CardIcon}" Content="&#xE71A;"
-                                    ToolTip="Stop: ask this session to write a handoff and exit when its turn ends"
+                            <Button Style="{StaticResource CardIcon}" Content="&#xE71A;" Margin="0,0,4,0"
+                                    ToolTip="Stop: ask this session to write a handoff and exit when its turn ends."
                                     AutomationProperties.Name="Stop"
                                     Visibility="{Binding ShowStop, Converter={StaticResource BoolToVisibility}}"
                                     Command="{Binding DataContext.StopCardCommand, RelativeSource={RelativeSource AncestorType=Window}}"
@@ -915,14 +919,14 @@
                                 in the board's amber, saying how far the stop has got (close-step AC 5 and 6).
                             -->
                             <TextBlock Text="&#xE71A;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="16" Foreground="{DynamicResource CautionTextBrush}"
-                                       Width="28" Height="24" TextAlignment="Center" Padding="0,4,0,0" Background="Transparent"
+                                       Width="32" Height="32" Margin="0,0,4,0" TextAlignment="Center" Padding="0,8,0,0" Background="Transparent"
                                        ToolTip="{Binding StopTooltip}" AutomationProperties.Name="Stopping"
                                        Visibility="{Binding IsStopping, Converter={StaticResource BoolToVisibility}}" />
-                            <Button Content="Exit session" Style="{StaticResource CommandButton}" Margin="4,0,0,0"
+                            <Button Content="Exit session" Style="{StaticResource CommandButton}" Margin="0,0,4,0"
                                     ToolTip="Type /exit into this session once more. Brings its terminal to the front."
                                     Visibility="{Binding CanCloseNow, Converter={StaticResource BoolToVisibility}}"
                                     Command="{Binding CloseNowCommand}" />
-                            <Button Content="&#xE769;" ToolTip="{Binding PauseTooltip}" AutomationProperties.Name="Pause"
+                            <Button Content="&#xE769;" Margin="0,0,4,0" ToolTip="{Binding PauseTooltip}" AutomationProperties.Name="Pause"
                                     Command="{Binding PauseCommand}">
                                 <Button.Style>
                                     <Style TargetType="Button" BasedOn="{StaticResource CardIcon}">
@@ -934,17 +938,18 @@
                                     </Style>
                                 </Button.Style>
                             </Button>
-                            <Button Style="{StaticResource CardIcon}" Content="&#xE8A7;"
-                                    ToolTip="Focus: bring this session's tab to the front" AutomationProperties.Name="Focus"
+                            <Button Style="{StaticResource CardIcon}" Content="&#xE8A7;" Margin="0,0,8,0"
+                                    ToolTip="Focus: bring the session's window forward." AutomationProperties.Name="Focus"
                                     Command="{Binding DataContext.FocusCardCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                     CommandParameter="{Binding}" />
-                            <Button Style="{StaticResource CardIcon}" Content="&#xE7B8;"
+                            <Button Style="{StaticResource CardIcon}" Content="&#xE7B8;" Margin="0,0,4,0"
                                     ToolTip="{Binding ArchiveTooltip}" AutomationProperties.Name="{Binding ArchiveLabel}"
                                     Command="{Binding DataContext.ArchiveCardCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                     CommandParameter="{Binding}" />
                             <Button Style="{StaticResource CardIcon}" Content="&#xE712;"
-                                    ToolTip="More: properties, start choices, paused, blocked, reopen tomorrow and spawn follow-on. Right-click the card for the same menu."
+                                    ToolTip="More options"
                                     AutomationProperties.Name="More"
+                                    AutomationProperties.HelpText="Properties, start choices, paused, blocked, reopen tomorrow and spawn follow-on. Right-click the card for the same menu."
                                     ContextMenu="{StaticResource CardMenu}"
                                     Click="OnOverflowClick" />
                         </StackPanel>
@@ -987,13 +992,14 @@
                             -->
                             <TextBlock FontSize="12" Margin="4,0,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                        MaxWidth="220" ToolTip="{Binding BranchTooltip}"
-                                       Text="{Binding Branch}"
                                        Visibility="{Binding Branch, Converter={StaticResource NotEmptyToVisibility}}">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
-                                        <Setter Property="Foreground" Value="{DynamicResource TextFillColorTertiaryBrush}" />
+                                        <Setter Property="Text" Value="{Binding Branch}" />
+                                        <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding BranchesDiffer}" Value="True">
+                                                <Setter Property="Text" Value="{Binding Branch, StringFormat=⚠ {0} (branches differ)}" />
                                                 <Setter Property="Foreground" Value="{DynamicResource CautionTextBrush}" />
                                             </DataTrigger>
                                         </Style.Triggers>
@@ -1089,7 +1095,7 @@
 
                         <Button Margin="0,8,0,0" HorizontalAlignment="Left" FontSize="12" Padding="8,4"
                                 Content="Adopt session"
-                                ToolTip="{Binding LostSessionName, StringFormat='Adopt the running &quot;{0}&quot;: its session was restarted outside Theseus, so the board stopped following it.'}"
+                                ToolTip="{Binding LostSessionName, Converter={StaticResource TagToolTip}, ConverterParameter='Adopt the running &quot;{0}&quot;: its session was restarted outside Theseus, so the board stopped following it.'}"
                                 Command="{Binding AdoptLostCommand}"
                                 Visibility="{Binding LostSessionName,
                                              Converter={StaticResource NotEmptyToVisibility}}" />
@@ -1277,7 +1283,7 @@
                     </ControlTemplate>
                 </Thumb.Template>
             </Thumb>
-            <Border CornerRadius="10" Padding="4"
+            <Border CornerRadius="8" Padding="4"
                     Background="{DynamicResource LayerFillColorDefaultBrush}"
                     BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                     BorderThickness="1">
@@ -1389,7 +1395,7 @@
 
 
         <DataTemplate x:Key="LiveSessionTemplate" DataType="{x:Type vm:LiveSessionViewModel}">
-            <Border Margin="0,0,0,8" Padding="8,8" CornerRadius="6"
+            <Border Margin="0,0,0,8" Padding="8,8" CornerRadius="4"
                     Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
                     BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                     BorderThickness="1">
@@ -2008,12 +2014,15 @@
             </DockPanel>
         </Border>
 
-        <Border x:Name="SessionsPane" DockPanel.Dock="Left" Width="280" Margin="16,8,0,16" CornerRadius="10" Padding="8"
+        <Border x:Name="SessionsPane" DockPanel.Dock="Left" Width="280" MinWidth="220" MaxWidth="480" Margin="12,8,0,12"
+                CornerRadius="8" Padding="12"
                 Visibility="{Binding IsSessionsPanelOpen, Converter={StaticResource BoolToVisibility}}"
                 Background="{DynamicResource LayerFillColorDefaultBrush}"
                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                 BorderThickness="1">
             <DockPanel>
+                <controls:PaneResizeThumb DockPanel.Dock="Right" Style="{StaticResource PaneEdge}" Margin="0,-12,-16,-12"
+                                          Pane="{Binding ElementName=SessionsPane}" />
                 <Grid DockPanel.Dock="Top" Margin="4,4,4,8">
                     <TextBlock Text="Live sessions" FontSize="14" FontWeight="SemiBold"
                                Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
@@ -2039,31 +2048,43 @@
             a card's details. Ready is listed and never acted on; nothing here starts a session. It shares
             the right-hand side with Locks and the two never sit side by side.
         -->
-        <Border x:Name="ChainsPane" DockPanel.Dock="Right" Width="340" Margin="0,8,16,16" CornerRadius="10" Padding="8"
+        <Border x:Name="ChainsPane" DockPanel.Dock="Right" Width="340" MinWidth="280" MaxWidth="560" Margin="0,8,12,12"
+                CornerRadius="8" Padding="12"
                 Visibility="{Binding Chains.IsOpen, Converter={StaticResource BoolToVisibility}}"
                 Background="{DynamicResource LayerFillColorDefaultBrush}"
                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                 BorderThickness="1">
             <DockPanel>
+                <controls:PaneResizeThumb DockPanel.Dock="Left" Style="{StaticResource PaneEdge}" Margin="-16,-12,0,-12"
+                                          Pane="{Binding ElementName=ChainsPane}" IsOnTheRight="True" />
                 <Grid DockPanel.Dock="Top" Margin="4,4,4,8">
-                    <StackPanel Orientation="Horizontal">
-                        <Button Content="Locks" FontSize="14" Padding="0" Background="Transparent" BorderThickness="0"
-                                Cursor="Hand" ToolTip="Show the locks instead"
-                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                Command="{Binding Locks.OpenCommand}" />
-                        <TextBlock Text="│" FontSize="14" Margin="8,0"
-                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
-                        <TextBlock Text="Chains" FontSize="14" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                    <!-- Locks and Chains are two views of the side panel: a selector bar (W15, D7, G125). -->
+                    <StackPanel x:Name="ChainsPaneSwitch" Orientation="Horizontal" AutomationProperties.Name="Panel"
+                                KeyboardNavigation.TabNavigation="Once" KeyboardNavigation.DirectionalNavigation="Contained">
+                        <RadioButton Content="Locks" Style="{StaticResource PanelSwitchItem}" GroupName="ChainsPaneSwitch"
+                                     IsChecked="{Binding Locks.IsOpen, Mode=OneWay}" controls:SelectorBar.SelectsOnFocus="True"
+                                     ToolTip="Show the locks panel." Command="{Binding Locks.OpenCommand}" />
+                        <RadioButton Content="Chains" Style="{StaticResource PanelSwitchItem}" GroupName="ChainsPaneSwitch"
+                                     IsChecked="{Binding Chains.IsOpen, Mode=OneWay}" controls:SelectorBar.SelectsOnFocus="True"
+                                     ToolTip="Show the chains panel." Command="{Binding Chains.OpenCommand}" />
                     </StackPanel>
-                    <Button Style="{StaticResource PanelIcon}" Content="&#xE897;" Margin="0,0,36,0" HorizontalAlignment="Right"
-                            ToolTip="Chains help, in your browser" AutomationProperties.Name="Chains help"
-                            AutomationProperties.HelpText="Opens nigelbasel.github.io/Theseus in your browser"
-                            Command="{Binding Help.OpenCommand}" CommandParameter="chains" />
-                    <Button Style="{StaticResource PanelIcon}" Content="&#xE8BB;" HorizontalAlignment="Right"
-                            ToolTip="Hide the chains panel (F9)" AutomationProperties.Name="Hide chains"
-                            AutomationProperties.AcceleratorKey="F9"
-                            Command="{Binding Chains.ToggleCommand}" />
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <!-- Fold all and Unfold all the tree (walkthrough row 11), with the board's fold glyphs (W25). -->
+                        <Button x:Name="ChainsFoldAll" Style="{StaticResource PanelIcon}" Content="&#xF165;" Margin="0,0,4,0"
+                                ToolTip="Fold all: show only the first card of each chain." AutomationProperties.Name="Fold all"
+                                Command="{Binding Chains.FoldAllCommand}" />
+                        <Button x:Name="ChainsUnfoldAll" Style="{StaticResource PanelIcon}" Content="&#xF164;" Margin="0,0,8,0"
+                                ToolTip="Unfold all: show every card of every chain." AutomationProperties.Name="Unfold all"
+                                Command="{Binding Chains.UnfoldAllCommand}" />
+                        <Button Style="{StaticResource PanelIcon}" Content="&#xE897;" Margin="0,0,8,0"
+                                ToolTip="Chains help, in your browser" AutomationProperties.Name="Chains help"
+                                AutomationProperties.HelpText="Opens nigelbasel.github.io/Theseus in your browser"
+                                Command="{Binding Help.OpenCommand}" CommandParameter="chains" />
+                        <Button Style="{StaticResource PanelIcon}" Content="&#xE8BB;"
+                                ToolTip="Hide the chains panel (F9)" AutomationProperties.Name="Hide chains"
+                                AutomationProperties.AcceleratorKey="F9"
+                                Command="{Binding Chains.ToggleCommand}" />
+                    </StackPanel>
                 </Grid>
 
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -2082,7 +2103,7 @@
                             <ItemsControl ItemsSource="{Binding Chains.Proposals.Pending}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Margin="0,0,0,8" Padding="8,8" CornerRadius="6" BorderThickness="4,0,0,0"
+                                        <Border Margin="0,0,0,8" Padding="8,8" CornerRadius="4" BorderThickness="4,0,0,0"
                                                 BorderBrush="{Binding ColorHex, Converter={StaticResource HexToBrush}}"
                                                 Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
                                                 ToolTip="{Binding Evidence}">
@@ -2111,7 +2132,7 @@
                                                     <TextBlock x:Name="RejectNoteLabel" Text="Why you reject it (optional)" Style="{StaticResource CaptionText}"
                                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                                                     <TextBox Text="{Binding Note, UpdateSourceTrigger=PropertyChanged}" FontSize="12"
-                                                             AutomationProperties.LabeledBy="{Binding ElementName=RejectNoteLabel}"
+                                                             AutomationProperties.LabeledBy="{x:Reference RejectNoteLabel}"
                                                              Margin="0,4,0,4" />
                                                     <StackPanel Orientation="Horizontal">
                                                         <Button Content="Reject" FontSize="12" Padding="8,4" Margin="0,0,8,0"
@@ -2141,7 +2162,7 @@
                             <ItemsControl ItemsSource="{Binding Chains.NeedsYou}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Margin="0,0,0,8" Padding="8,8" CornerRadius="6" BorderThickness="4,0,0,0"
+                                        <Border Margin="0,0,0,8" Padding="8,8" CornerRadius="4" BorderThickness="4,0,0,0"
                                                 BorderBrush="{Binding ColorHex, Converter={StaticResource HexToBrush}}"
                                                 Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
                                                 ToolTip="{Binding Evidence}">
@@ -2186,7 +2207,7 @@
                                                     <TextBlock x:Name="ReasonLabel" Text="{Binding ReasonQuestion}" Style="{StaticResource CaptionText}"
                                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                                                     <TextBox Text="{Binding Reason, UpdateSourceTrigger=PropertyChanged}" FontSize="12"
-                                                             AutomationProperties.LabeledBy="{Binding ElementName=ReasonLabel}"
+                                                             AutomationProperties.LabeledBy="{x:Reference ReasonLabel}"
                                                              Margin="0,4,0,4" />
                                                     <StackPanel Orientation="Horizontal">
                                                         <Button Content="Mark satisfied" FontSize="12" Padding="8,4" Margin="0,0,8,0"
@@ -2215,7 +2236,7 @@
                             <ItemsControl ItemsSource="{Binding Chains.Ready}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Margin="0,0,0,8" Padding="8,8" CornerRadius="6" BorderThickness="4,0,0,0"
+                                        <Border Margin="0,0,0,8" Padding="8,8" CornerRadius="4" BorderThickness="4,0,0,0"
                                                 BorderBrush="{Binding ColorHex, Converter={StaticResource HexToBrush}}"
                                                 Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
                                             <StackPanel>
@@ -2260,7 +2281,7 @@
                             -->
                             <TreeView.ItemContainerStyle>
                                 <Style TargetType="TreeViewItem">
-                                    <Setter Property="IsExpanded" Value="True" />
+                                    <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
                                     <!-- The row's title, not the record's ToString (E11, W50, G170). -->
                                     <Setter Property="AutomationProperties.Name" Value="{Binding Title}" />
                                     <Setter Property="Template">
@@ -2407,31 +2428,36 @@
             or not. Reordering, cancelling and releasing happen here and nowhere else; Release asks twice,
             because it does not stop the holder's run and another may then start beside it.
         -->
-        <Border x:Name="LocksPane" DockPanel.Dock="Right" Width="340" Margin="0,8,16,16" CornerRadius="10" Padding="8"
+        <Border x:Name="LocksPane" DockPanel.Dock="Right" Width="340" MinWidth="280" MaxWidth="560" Margin="0,8,12,12"
+                CornerRadius="8" Padding="12"
                 Visibility="{Binding Locks.IsOpen, Converter={StaticResource BoolToVisibility}}"
                 Background="{DynamicResource LayerFillColorDefaultBrush}"
                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                 BorderThickness="1">
             <DockPanel>
+                <controls:PaneResizeThumb DockPanel.Dock="Left" Style="{StaticResource PaneEdge}" Margin="-16,-12,0,-12"
+                                          Pane="{Binding ElementName=LocksPane}" IsOnTheRight="True" />
                 <Grid DockPanel.Dock="Top" Margin="4,4,4,8">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Locks" FontSize="14" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                        <TextBlock Text="│" FontSize="14" Margin="8,0"
-                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
-                        <Button Content="Chains" FontSize="14" Padding="0" Background="Transparent" BorderThickness="0"
-                                Cursor="Hand" ToolTip="Show the chains instead"
-                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                Command="{Binding Chains.OpenCommand}" />
+                    <!-- Locks and Chains are two views of the side panel: a selector bar (W15, D7, G125). -->
+                    <StackPanel x:Name="LocksPaneSwitch" Orientation="Horizontal" AutomationProperties.Name="Panel"
+                                KeyboardNavigation.TabNavigation="Once" KeyboardNavigation.DirectionalNavigation="Contained">
+                        <RadioButton Content="Locks" Style="{StaticResource PanelSwitchItem}" GroupName="LocksPaneSwitch"
+                                     IsChecked="{Binding Locks.IsOpen, Mode=OneWay}" controls:SelectorBar.SelectsOnFocus="True"
+                                     ToolTip="Show the locks panel." Command="{Binding Locks.OpenCommand}" />
+                        <RadioButton Content="Chains" Style="{StaticResource PanelSwitchItem}" GroupName="LocksPaneSwitch"
+                                     IsChecked="{Binding Chains.IsOpen, Mode=OneWay}" controls:SelectorBar.SelectsOnFocus="True"
+                                     ToolTip="Show the chains panel." Command="{Binding Chains.OpenCommand}" />
                     </StackPanel>
-                    <Button Style="{StaticResource PanelIcon}" Content="&#xE897;" Margin="0,0,36,0" HorizontalAlignment="Right"
-                            ToolTip="Locks help, in your browser" AutomationProperties.Name="Locks help"
-                            AutomationProperties.HelpText="Opens nigelbasel.github.io/Theseus in your browser"
-                            Command="{Binding Help.OpenCommand}" CommandParameter="locks" />
-                    <Button Style="{StaticResource PanelIcon}" Content="&#xE8BB;" HorizontalAlignment="Right"
-                            ToolTip="Hide the locks panel (F8)" AutomationProperties.Name="Hide locks"
-                            AutomationProperties.AcceleratorKey="F8"
-                            Command="{Binding Locks.ToggleCommand}" />
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Style="{StaticResource PanelIcon}" Content="&#xE897;" Margin="0,0,8,0"
+                                ToolTip="Locks help, in your browser" AutomationProperties.Name="Locks help"
+                                AutomationProperties.HelpText="Opens nigelbasel.github.io/Theseus in your browser"
+                                Command="{Binding Help.OpenCommand}" CommandParameter="locks" />
+                        <Button Style="{StaticResource PanelIcon}" Content="&#xE8BB;"
+                                ToolTip="Hide the locks panel (F8)" AutomationProperties.Name="Hide locks"
+                                AutomationProperties.AcceleratorKey="F8"
+                                Command="{Binding Locks.ToggleCommand}" />
+                    </StackPanel>
                 </Grid>
 
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -2439,7 +2465,7 @@
                         <ItemsControl ItemsSource="{Binding Locks.Rows}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Margin="0,0,0,8" Padding="8" CornerRadius="8"
+                                    <Border Margin="0,0,0,8" Padding="8" CornerRadius="4"
                                             Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
                                             BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                                             BorderThickness="1">
@@ -2452,10 +2478,11 @@
                                                             <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
                                                             <Style.Triggers>
                                                                 <DataTrigger Binding="{Binding IsHeld}" Value="False">
-                                                                    <Setter Property="Text" Value="free" />
-                                                                    <Setter Property="Foreground" Value="{DynamicResource TextFillColorTertiaryBrush}" />
+                                                                    <Setter Property="Text" Value="Free" />
+                                                                    <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
                                                                 </DataTrigger>
                                                                 <DataTrigger Binding="{Binding IsLong}" Value="True">
+                                                                    <Setter Property="Text" Value="{Binding HeldFor, StringFormat='⚠ {0}, long'}" />
                                                                     <Setter Property="Foreground" Value="{DynamicResource CautionTextBrush}" />
                                                                 </DataTrigger>
                                                             </Style.Triggers>
@@ -2504,7 +2531,7 @@
                                                 <ItemsControl ItemsSource="{Binding Waiting}">
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate>
-                                                            <Border Margin="0,0,0,8" Padding="8,8" CornerRadius="6"
+                                                            <Border Margin="0,0,0,8" Padding="8,8" CornerRadius="4"
                                                                     BorderThickness="4,0,0,0"
                                                                     BorderBrush="{Binding ColorHex, Converter={StaticResource HexToBrush}}"
                                                                     Background="{DynamicResource LayerFillColorDefaultBrush}">
@@ -2555,7 +2582,7 @@
                             cost a workstream a day on 2026-10-02. Shown for Nigel to remove, never removed
                             automatically, because one cannot be told apart from a run outside the lock.
                         -->
-                        <Border Margin="0,0,0,8" Padding="8" CornerRadius="8"
+                        <Border Margin="0,0,0,8" Padding="8" CornerRadius="4"
                                 Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
                                 BorderBrush="{DynamicResource CautionTextBrush}" BorderThickness="1"
                                 Visibility="{Binding Locks.Unowned.Count, Converter={StaticResource CountToVisibility}}">
@@ -2568,7 +2595,7 @@
                                 <ItemsControl ItemsSource="{Binding Locks.Unowned}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Border Margin="0,0,0,8" Padding="8,8" CornerRadius="6"
+                                            <Border Margin="0,0,0,8" Padding="8,8" CornerRadius="4"
                                                     Background="{DynamicResource LayerFillColorDefaultBrush}">
                                                 <StackPanel>
                                                     <DockPanel>
@@ -2613,7 +2640,7 @@
             its left, as most Windows apps put their status message, with the earlier ones a click
             away; the counts, usage, locks, version and account follow on the right.
         -->
-        <Border DockPanel.Dock="Bottom" Height="30" Padding="12,0"
+        <Border DockPanel.Dock="Bottom" MinHeight="32" Padding="12,0"
                 Visibility="{Binding IsStatusBarVisible, Converter={StaticResource BoolToVisibility}}"
                 Background="{DynamicResource LayerFillColorDefaultBrush}"
                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
@@ -2624,10 +2651,12 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <Button Grid.Column="0" HorizontalAlignment="Left" Padding="4,0" Margin="0,4"
+                <!-- The latest notice; pressed, it shows the recent ones in a flyout, not in a menu of disabled items (W33, C11, G49). -->
+                <ToggleButton x:Name="NoticeButton" Grid.Column="0" HorizontalAlignment="Left" Padding="4,0" MinHeight="32"
                         Background="Transparent" BorderThickness="0" Cursor="Hand"
                         HorizontalContentAlignment="Left"
-                        ToolTip="{Binding Notice}" Click="OnOverflowClick" AutomationProperties.Name="{Binding Notice}"
+                        ToolTip="{Binding Notice}" AutomationProperties.Name="{Binding Notice}"
+                        AutomationProperties.HelpText="Shows the recent notices"
                         Visibility="{Binding Notice, Converter={StaticResource NotEmptyToVisibility}}">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="&#xE946;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="12" Margin="0,0,8,0"
@@ -2640,18 +2669,28 @@
                                    VerticalAlignment="Center"
                                    Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
                     </StackPanel>
-                    <Button.ContextMenu>
-                        <ContextMenu ItemsSource="{Binding Notices.Entries}"
-                                     DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
-                            <ContextMenu.ItemContainerStyle>
-                                <Style TargetType="MenuItem">
-                                    <Setter Property="Header" Value="{Binding Display}" />
-                                    <Setter Property="IsHitTestVisible" Value="False" />
-                                </Style>
-                            </ContextMenu.ItemContainerStyle>
-                        </ContextMenu>
-                    </Button.ContextMenu>
-                </Button>
+                </ToggleButton>
+                <Popup x:Name="NoticePopup" PlacementTarget="{Binding ElementName=NoticeButton}" Placement="Top" StaysOpen="False"
+                       AllowsTransparency="True" IsOpen="{Binding IsChecked, ElementName=NoticeButton, Mode=TwoWay}">
+                    <Border x:Name="NoticeFlyout" Padding="16" CornerRadius="8" MinWidth="320" MaxWidth="640" MaxHeight="420"
+                            Background="{DynamicResource SolidBackgroundFillColorBaseBrush}"
+                            BorderBrush="{DynamicResource FlyoutBorderBrush}" BorderThickness="{DynamicResource FlyoutBorderThickness}"
+                            PreviewKeyDown="OnNoticeFlyoutKeyDown">
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Top" Text="Recent notices" Style="{StaticResource BodyStrongText}" Margin="0,0,0,8" />
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <ItemsControl x:Name="NoticeHistory" ItemsSource="{Binding Notices.Entries}" Focusable="False"
+                                              AutomationProperties.Name="Recent notices">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Display}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,0,0,8" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </DockPanel>
+                    </Border>
+                </Popup>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right"
                             VerticalAlignment="Center">
@@ -2683,7 +2722,7 @@
                         Cores held back (parked-cores, Nigel 2026-11-19): shown only while most processors are parked
                         and the rest saturated, in the board's amber, with the likely cause in the tooltip.
                     -->
-                    <TextBlock Text="{Binding Resources.ClampText}" FontSize="12" Margin="12,0,0,0"
+                    <TextBlock Text="{Binding Resources.ClampText, StringFormat=⚠ {0}}" FontSize="12" Margin="12,0,0,0"
                                VerticalAlignment="Center"
                                ToolTip="{Binding Resources.ClampTooltip}"
                                Visibility="{Binding Resources.ClampText, Converter={StaticResource NotEmptyToVisibility}}"
@@ -2700,14 +2739,16 @@
                         <TextBlock Text="  ·  " FontSize="12"
                                    Visibility="{Binding Usage.BindingText, Converter={StaticResource NotEmptyToVisibility}}"
                                    Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
-                        <TextBlock Text="{Binding Usage.BindingText}" FontSize="12"
+                        <TextBlock FontSize="12"
                                    Visibility="{Binding Usage.BindingText, Converter={StaticResource NotEmptyToVisibility}}">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
+                                    <Setter Property="Text" Value="{Binding Usage.BindingText}" />
                                     <Setter Property="Foreground"
                                             Value="{DynamicResource TextFillColorSecondaryBrush}" />
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding Usage.IsWarning}" Value="True">
+                                            <Setter Property="Text" Value="{Binding Usage.BindingText, StringFormat='⚠ {0}, usage high'}" />
                                             <Setter Property="Foreground" Value="{DynamicResource CautionTextBrush}" />
                                         </DataTrigger>
                                     </Style.Triggers>
@@ -2727,15 +2768,17 @@
                     <Button Style="{StaticResource PanelIcon}" Content="&#xE72C;" Margin="4,0,0,0"
                             ToolTip="Read usage now" AutomationProperties.Name="Read usage now" Command="{Binding Usage.RefreshCommand}" />
 
-                    <TextBlock Text="{Binding Locks.Summary}" FontSize="12" Margin="16,0,0,0"
+                    <TextBlock FontSize="12" Margin="16,0,0,0"
                                VerticalAlignment="Center"
                                ToolTip="The machine's shared locks, held by Theseus"
                                Visibility="{Binding Locks.Summary, Converter={StaticResource NotEmptyToVisibility}}">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock">
-                                <Setter Property="Foreground" Value="{DynamicResource TextFillColorTertiaryBrush}" />
+                                <Setter Property="Text" Value="{Binding Locks.Summary}" />
+                                <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding Locks.HasLongHold}" Value="True">
+                                        <Setter Property="Text" Value="{Binding Locks.Summary, StringFormat='⚠ {0}, one held long'}" />
                                         <Setter Property="Foreground" Value="{DynamicResource CautionTextBrush}" />
                                     </DataTrigger>
                                 </Style.Triggers>
@@ -2770,7 +2813,7 @@
                     the same way deleting asks. Nothing happens until one of the two is pressed, so
                     the board stays usable and the question cannot fire before it has been read.
                 -->
-                <Border DockPanel.Dock="Top" Margin="4,0,4,8" Padding="12,8" CornerRadius="6"
+                <Border DockPanel.Dock="Top" Margin="4,0,4,8" Padding="12,8" CornerRadius="4"
                         Background="{DynamicResource LayerFillColorDefaultBrush}"
                         BorderBrush="{DynamicResource AccentFillColorDefaultBrush}"
                         BorderThickness="1"
@@ -2798,7 +2841,7 @@
                     fresh session with nothing to read only goes looking for a document that is not there
                     yet, so these are asked about, whether one card was pressed or a whole selection.
                 -->
-                <Border DockPanel.Dock="Top" Margin="4,0,4,8" Padding="12,8" CornerRadius="6"
+                <Border DockPanel.Dock="Top" Margin="4,0,4,8" Padding="12,8" CornerRadius="4"
                         Background="{DynamicResource LayerFillColorDefaultBrush}"
                         BorderBrush="{DynamicResource AccentFillColorDefaultBrush}"
                         BorderThickness="1"
@@ -2822,7 +2865,7 @@
                 </Border>
 
                 <!-- While a search or tag filter is on, the board says so, so it never looks complete when it is not (item 17). -->
-                <Border x:Name="FilteredLine" DockPanel.Dock="Top" Margin="4,0,4,8" Padding="12,8" CornerRadius="6"
+                <Border x:Name="FilteredLine" DockPanel.Dock="Top" Margin="4,0,4,8" Padding="12,8" CornerRadius="4"
                         Background="{DynamicResource LayerFillColorDefaultBrush}"
                         BorderBrush="{DynamicResource SearchHighlightBrush}" BorderThickness="1"
                         DataContext="{Binding Board.Search}"
@@ -2978,12 +3021,14 @@
                 without a word. Everything here applies as it is made, so there is no Save; a card's setup
                 is edited in its own dialog, further down.
             -->
-            <Border x:Name="DrawerPane" HorizontalAlignment="Right" Width="480" Margin="0,0,0,8"
+            <Border x:Name="DrawerPane" HorizontalAlignment="Right" Width="480" MinWidth="400" MaxWidth="720" Margin="0,0,0,8"
                     Background="{DynamicResource SolidBackgroundFillColorSecondaryBrush}"
                     BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                     BorderThickness="1,0,0,0"
                     Visibility="{Binding Drawer.IsOpen, Converter={StaticResource BoolToVisibility}}">
                 <DockPanel Margin="16,16,16,16">
+                    <controls:PaneResizeThumb DockPanel.Dock="Left" Style="{StaticResource PaneEdge}" Margin="-20,-16,8,-16"
+                                              Pane="{Binding ElementName=DrawerPane}" IsOnTheRight="True" />
                     <Grid DockPanel.Dock="Top" Margin="0,0,0,8">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
@@ -2992,13 +3037,13 @@
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <Border Grid.Column="0" Width="14" Height="14" CornerRadius="3" Margin="0,0,8,0"
+                        <Border Grid.Column="0" Width="14" Height="14" CornerRadius="4" Margin="0,0,8,0"
                                 VerticalAlignment="Center"
-                                Background="{Binding Drawer.ColorHex, Converter={StaticResource HexToBrush}}"
+                                Background="{Binding Drawer.ColorHex, Converter={StaticResource HexToSwatch}}"
                                 ToolTip="Permanent. A change applies from the next launch." />
                         <TextBlock Grid.Column="1" Text="{Binding Drawer.Title}" FontSize="18" FontWeight="SemiBold"
                                    VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-                                   ToolTip="{Binding Drawer.Key, StringFormat=Key: {0}}"
+                                   ToolTip="{Binding Drawer.Key, Converter={StaticResource TagToolTip}, ConverterParameter=Key: {0}}"
                                    Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                         <TextBlock Grid.Column="2" Text="{Binding Drawer.ArchiveWhyNot}" VerticalAlignment="Center" Margin="8,0,0,0"
                                    FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
@@ -3074,21 +3119,22 @@
 
                                         <TextBlock x:Name="DrawerTitleLabel" Text="Title" Style="{StaticResource FieldLabel}" />
                                         <TextBox x:Name="DrawerTitle" Text="{Binding Drawer.Title, UpdateSourceTrigger=LostFocus}"
-                                                 AutomationProperties.LabeledBy="{Binding ElementName=DrawerTitleLabel}" />
+                                                 AutomationProperties.LabeledBy="{x:Reference DrawerTitleLabel}" />
                                         <TextBlock FontSize="12" Margin="0,4,0,0" TextWrapping="Wrap"
                                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                                    Text="Saved when you leave the box. Also the tab title: a running session keeps the name it started with until it is restarted." />
 
-                                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                                            <CheckBox Content="Paused" Margin="0,0,16,0"
-                                                      ToolTip="Set aside on purpose. A flag on the card: it keeps its stage. Saved at once."
-                                                      IsChecked="{Binding Drawer.IsPaused}" />
-                                            <CheckBox Content="Blocked" Margin="0,0,16,0"
-                                                      ToolTip="A flag on the card, not a lane. Saved at once."
-                                                      IsChecked="{Binding Drawer.IsBlocked}" />
-                                            <CheckBox Content="Reopen tomorrow"
-                                                      ToolTip="Include this workstream when the whole board is started. Saved at once."
-                                                      IsChecked="{Binding Drawer.ReopenTomorrow}" />
+                                        <!-- Each applies the moment it is switched, so each is a toggle switch, not a check box (W40, D3, G127). -->
+                                        <StackPanel Margin="0,12,0,0">
+                                            <ToggleButton x:Name="DrawerPaused" Style="{StaticResource ToggleSwitch}" Content="Paused" Margin="0,0,0,8"
+                                                          ToolTip="Set aside on purpose. A flag on the card: it keeps its stage. Saved at once."
+                                                          IsChecked="{Binding Drawer.IsPaused}" />
+                                            <ToggleButton x:Name="DrawerBlocked" Style="{StaticResource ToggleSwitch}" Content="Blocked" Margin="0,0,0,8"
+                                                          ToolTip="A flag on the card, not a lane. Saved at once."
+                                                          IsChecked="{Binding Drawer.IsBlocked}" />
+                                            <ToggleButton x:Name="DrawerReopenTomorrow" Style="{StaticResource ToggleSwitch}" Content="Reopen tomorrow"
+                                                          ToolTip="Include this workstream when the whole board is started. Saved at once."
+                                                          IsChecked="{Binding Drawer.ReopenTomorrow}" />
                                         </StackPanel>
 
                                         <TextBlock Text="Chain" Style="{StaticResource FieldLabel}" />
@@ -3129,13 +3175,13 @@
                                         </ItemsControl>
                                         <Grid Margin="0,4,0,0">
                                             <TextBox Text="{Binding Drawer.NewJiraKey, UpdateSourceTrigger=PropertyChanged}"
-                                                     AutomationProperties.LabeledBy="{Binding ElementName=JiraIssuesLabel}"
+                                                     AutomationProperties.LabeledBy="{x:Reference JiraIssuesLabel}"
                                                      Margin="0,0,60,0" />
                                             <Button Content="Add" HorizontalAlignment="Right" Padding="12,4"
                                                     Command="{Binding Drawer.AddJiraKeyCommand}" />
                                         </Grid>
                                         <Button Content="{Binding Drawer.UnclaimedKeys.Count, StringFormat=Take {0} more}"
-                                                ToolTip="{Binding Drawer.UnclaimedKeys.Count, StringFormat=Take {0} more Jira keys from the prompt.}"
+                                                ToolTip="{Binding Drawer.UnclaimedKeys.Count, Converter={StaticResource TagToolTip}, ConverterParameter=Take {0} more Jira keys from the prompt.}"
                                                 HorizontalAlignment="Left" Margin="0,8,0,0" Padding="8,4" FontSize="12"
                                                 Command="{Binding Drawer.RescanPromptCommand}"
                                                 Visibility="{Binding Drawer.UnclaimedKeys.Count,
@@ -3156,7 +3202,7 @@
                                                                 BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}">
                                                             <StackPanel Orientation="Horizontal">
                                                                 <TextBlock Text="{Binding StringFormat=#{0}}" FontSize="12" VerticalAlignment="Center" />
-                                                                <Button Content="×" Style="{StaticResource CommandButton}" Padding="4,0" Margin="4,0,0,0" FontSize="12"
+                                                                <Button Content="&#xE711;" Style="{StaticResource PanelIcon}" Margin="4,0,0,0"
                                                                         ToolTip="{Binding Converter={StaticResource TagToolTip}, ConverterParameter=Take #{0} off}"
                                                                         AutomationProperties.Name="{Binding StringFormat=Remove tag {0}}"
                                                                         Command="{Binding DataContext.RemoveCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
@@ -3309,7 +3355,7 @@
                                         </StackPanel>
 
                                         <!-- The form for a new link has its own Add and Cancel, and Save has nothing to do with it. -->
-                                        <Border Margin="0,12,0,0" Padding="8" CornerRadius="6"
+                                        <Border Margin="0,12,0,0" Padding="8" CornerRadius="4"
                                                 Background="{DynamicResource LayerFillColorDefaultBrush}"
                                                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1"
                                                 Visibility="{Binding Chains.IsAddingLink, Converter={StaticResource BoolToVisibility}}">
@@ -3318,7 +3364,7 @@
                                                 <TextBlock x:Name="LinkKindLabel" Text="This card" Style="{StaticResource CaptionText}"
                                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                                                 <ComboBox x:Name="LinkKind" ItemsSource="{Binding Chains.Kinds}" SelectedItem="{Binding Chains.Kind}"
-                                                          AutomationProperties.LabeledBy="{Binding ElementName=LinkKindLabel}"
+                                                          AutomationProperties.LabeledBy="{x:Reference LinkKindLabel}"
                                                           Margin="0,4,0,0" />
                                                 <ComboBox x:Name="LinkTarget" ItemsSource="{Binding Chains.Targets}" SelectedItem="{Binding Chains.Target}"
                                                           AutomationProperties.Name="The other card"
@@ -3328,16 +3374,16 @@
                                                            Margin="0,8,0,4" TextWrapping="Wrap"
                                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                                                 <TextBox x:Name="LinkDocument" Text="{Binding Chains.Output, UpdateSourceTrigger=PropertyChanged}" FontSize="12"
-                                                         AutomationProperties.LabeledBy="{Binding ElementName=LinkDocumentLabel}"
+                                                         AutomationProperties.LabeledBy="{x:Reference LinkDocumentLabel}"
                                                          ToolTip="The document one card writes and the other reads. On a hand-over, the next card waits until you accept it." />
                                                 <TextBlock Text="{Binding Chains.LinkRefusal}" FontSize="12" TextWrapping="Wrap"
                                                            Foreground="{DynamicResource CautionTextBrush}" Margin="0,8,0,0"
                                                            Visibility="{Binding Chains.LinkRefusal, Converter={StaticResource NotEmptyToVisibility}}" />
                                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
-                                                    <Button Content="Cancel" Padding="12,4" Margin="0,0,8,0"
-                                                            Command="{Binding Chains.CancelAddLinkCommand}" />
-                                                    <Button Content="Add _link" Padding="12,4"
+                                                    <Button x:Name="AddLinkButton" Content="Add _link" Style="{StaticResource DialogButton}" Margin="0,0,8,0"
                                                             Command="{Binding Chains.AddLinkCommand}" />
+                                                    <Button x:Name="CancelLinkButton" Content="Cancel" Style="{StaticResource DialogButton}"
+                                                            Command="{Binding Chains.CancelAddLinkCommand}" />
                                                 </StackPanel>
                                             </StackPanel>
                                         </Border>

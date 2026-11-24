@@ -27,12 +27,27 @@ public sealed record ChainNodeViewModel(
 {
     private string _session = string.Empty;
     private RelayCommand? _focus;
+    private bool _isExpanded = true;
 
     /// <inheritdoc />
     public event PropertyChangedEventHandler? PropertyChanged;
 
     /// <summary>The cards it hands over to.</summary>
     public ObservableCollection<ChainNodeViewModel> Children { get; } = [];
+
+    /// <summary>Whether its row is unfolded, showing the cards it hands over to; bound both ways to its tree item (walkthrough row 11).</summary>
+    public bool IsExpanded
+    {
+        get => _isExpanded;
+        set
+        {
+            if (_isExpanded != value)
+            {
+                _isExpanded = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsExpanded)));
+            }
+        }
+    }
 
     /// <summary>
     /// "● running", "○ idle" or "◆ waiting" while it has a session; empty otherwise (item 8). Changed in place, so a
