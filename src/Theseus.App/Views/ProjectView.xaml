@@ -381,7 +381,7 @@
                                 <TextBlock x:Name="WhoActs" Text="{Binding WhoActs}" FontSize="12.5" TextWrapping="Wrap" Margin="0,2,0,0"
                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                                 <!-- Work another card of the project gave it, all of it in Properties (git-22, 2026-11-24). -->
-                                <TextBlock x:Name="HandIn" Text="{Binding HandInText}" FontSize="12.5" TextWrapping="Wrap" Margin="0,2,0,0"
+                                <TextBlock x:Name="HandIn" Text="{Binding HandInText}" FontSize="12" TextWrapping="Wrap" Margin="0,2,0,0"
                                            TextTrimming="CharacterEllipsis" MaxHeight="40" ToolTip="{Binding HandInText}"
                                            Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                                            Visibility="{Binding HandInText, Converter={StaticResource NotEmpty}}" />
