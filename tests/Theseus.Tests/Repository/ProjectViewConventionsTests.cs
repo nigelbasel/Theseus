@@ -255,12 +255,46 @@ public class ProjectViewConventionsTests
         Assert.That(((FrameworkElement)control.FindName("WaitsHeading")).GetValue(TextBlock.FontWeightProperty), Is.EqualTo(FontWeights.SemiBold), "A27");
     }
 
+    [TestCase(true)]
+    [TestCase(false)]
+    public void AStateChip_LeavesOnlyItsPiecesOnScreen_InEitherLens(bool objectivesLens)
+    {
+        // Nigel, 2026-11-24, through git-22: in Objectives only, "● 2 busy" changed nothing.
+        ProjectViewModel view = _views.BuildYourMarket();
+        view.IsGroupedByObjectives = objectivesLens;
+        ProjectView control = LaidOut(view);
+        StateCountViewModel built = view.Counts.Single(chip => chip.State == Theseus.Core.Projects.StageNodeState.HoldoutsNotRun);
+
+        built.Command!.Execute(null);
+        control.UpdateLayout();
+
+        List<PieceNodeViewModel> onScreen = [.. Descendants<Border>(control).Where(border => border.Name == "Box" && Shown(border))
+            .Select(border => (PieceNodeViewModel)border.DataContext).Distinct()];
+        Assert.That(onScreen, Is.Not.Empty);
+        Assert.That(onScreen.Select(node => node.Piece.Status.State), Has.All.EqualTo(Theseus.Core.Projects.StageNodeState.HoldoutsNotRun));
+        Assert.That(((TextBlock)control.FindName("FilterText")).Text, Does.StartWith("Showing: built, not yet checked"));
+    }
+
     private ProjectView LaidOut(ProjectViewModel view)
     {
         ProjectView control = new() { DataContext = view, Width = 1400, Height = 900 };
         Lay(control);
 
         return control;
+    }
+
+    // Laid out without a window, so IsVisible is false throughout: shown means nothing above it is collapsed or hidden.
+    private static bool Shown(DependencyObject element)
+    {
+        for (DependencyObject? at = element; at is not null; at = VisualTreeHelper.GetParent(at))
+        {
+            if (at is UIElement { Visibility: not Visibility.Visible })
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static void Lay(ProjectView control)

@@ -15,6 +15,7 @@ public sealed class PhaseHeadingViewModel : ObservableObject, IFoldable
     public const string AddObjectiveToolTip = "Add an objective at the end of this phase in project.md";
 
     private bool _isOpen;
+    private bool _isShown = true;
     private bool _isSelected;
 
     internal PhaseHeadingViewModel(PhaseGroup group, IReadOnlyList<ObjectiveHeadingViewModel> objectives, bool isOpen,
@@ -115,6 +116,16 @@ public sealed class PhaseHeadingViewModel : ObservableObject, IFoldable
 
     /// <summary>What the chevron does.</summary>
     public string ChevronToolTip => _isOpen ? "Fold this phase" : "Show this phase's objectives";
+
+    /// <summary>
+    /// Whether it is shown: always without a filter; with one, only while it holds a piece the filter shows, as a round
+    /// does in Rounds and work (Nigel, 2026-11-24: a chip changed nothing in Objectives only).
+    /// </summary>
+    public bool IsShown
+    {
+        get => _isShown;
+        internal set => Set(ref _isShown, value);
+    }
 
     /// <summary>Whether it is what the Properties pane shows.</summary>
     public bool IsSelected

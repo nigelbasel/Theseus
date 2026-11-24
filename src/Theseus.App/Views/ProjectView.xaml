@@ -915,7 +915,8 @@
 
         <!-- A box under its objective heading: the same box, with no branch, since no connector crosses headings (AC 47). -->
         <DataTemplate x:Key="ObjectivePiece" DataType="{x:Type vm:PieceNodeViewModel}">
-            <ContentPresenter Margin="0,0,0,16" Content="{Binding}" ContentTemplate="{StaticResource PieceBox}" />
+            <ContentPresenter Margin="0,0,0,16" Content="{Binding}" ContentTemplate="{StaticResource PieceBox}"
+                              Visibility="{Binding IsShown, Converter={StaticResource Visible}}" />
         </DataTemplate>
 
         <!--
@@ -923,7 +924,7 @@
             yet", and its pieces under it in a branch that folds.
         -->
         <DataTemplate DataType="{x:Type vm:ObjectiveHeadingViewModel}">
-            <StackPanel Margin="0,0,0,12">
+            <StackPanel Margin="0,0,0,12" Visibility="{Binding IsShown, Converter={StaticResource Visible}}">
                 <Grid>
                     <DockPanel>
                         <Button x:Name="ObjectiveChevron" DockPanel.Dock="Left" Style="{StaticResource HeadingChevron}" Content="{Binding Chevron}"
@@ -1005,7 +1006,7 @@
 
         <!-- A phase heading (AC 46, 49): "Phase n: name", its exit gate and objectives met, then its objectives, folding. -->
         <DataTemplate DataType="{x:Type vm:PhaseHeadingViewModel}">
-            <StackPanel Margin="0,0,0,16">
+            <StackPanel Margin="0,0,0,16" Visibility="{Binding IsShown, Converter={StaticResource Visible}}">
                 <Grid>
                     <DockPanel>
                         <Button x:Name="PhaseChevron" DockPanel.Dock="Left" Style="{StaticResource HeadingChevron}" Content="{Binding Chevron}"

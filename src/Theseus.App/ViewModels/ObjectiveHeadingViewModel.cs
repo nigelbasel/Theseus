@@ -18,6 +18,7 @@ public sealed class ObjectiveHeadingViewModel : ObservableObject, IFoldable
     public const string EditObjectiveToolTip = "Rename objective: change its title in project.md. Its criteria's wording is changed in project.md itself";
 
     private bool _isOpen;
+    private bool _isShown = true;
     private bool _isSelected;
 
     internal ObjectiveHeadingViewModel(ObjectiveGroup group, string? phaseTitle, IReadOnlyList<PieceNodeViewModel> pieces,
@@ -160,6 +161,16 @@ public sealed class ObjectiveHeadingViewModel : ObservableObject, IFoldable
 
     /// <summary>What the chevron does.</summary>
     public string ChevronToolTip => _isOpen ? "Fold this objective" : "Show this objective's criteria and pieces of work";
+
+    /// <summary>
+    /// Whether it is shown: always without a filter; with one, only while it holds a piece the filter shows, as a round
+    /// does in Rounds and work (Nigel, 2026-11-24: a chip changed nothing in Objectives only).
+    /// </summary>
+    public bool IsShown
+    {
+        get => _isShown;
+        internal set => Set(ref _isShown, value);
+    }
 
     /// <summary>Whether it is what the Properties pane shows.</summary>
     public bool IsSelected

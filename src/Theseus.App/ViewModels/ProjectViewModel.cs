@@ -919,7 +919,7 @@ public sealed class ProjectViewModel : ObservableObject
 
     /// <summary>
     /// Shows only the pieces in a state, or adds it with Ctrl; the same chip again, or Esc, shows everything (1.1e item 26).
-    /// A shown piece keeps its round and its state's heading.
+    /// A shown piece keeps its round and its state's heading, or, in Objectives only, its phase and objective.
     /// </summary>
     public void ToggleFilter(StageNodeState state, bool add)
     {
@@ -956,6 +956,19 @@ public sealed class ProjectViewModel : ObservableObject
         foreach (var round in Rounds)
         {
             round.IsShown = round.Boxes.Any(box => box.IsShown);
+        }
+
+        // Objectives only the same way: a heading shows while it holds a match, and opens, unremembered, to show it.
+        foreach (var objective in AllObjectives)
+        {
+            objective.IsShown = _filter.Count == 0 || objective.Pieces.Any(node => node.IsShown);
+            objective.IsOpen |= _filter.Count > 0 && objective.IsShown;
+        }
+
+        foreach (var phase in Phases)
+        {
+            phase.IsShown = _filter.Count == 0 || phase.Objectives.Any(objective => objective.IsShown);
+            phase.IsOpen |= _filter.Count > 0 && phase.IsShown;
         }
 
         Counts = [.. Counts.Select(chip => chip with { IsActive = _filter.Contains(chip.State) })];
