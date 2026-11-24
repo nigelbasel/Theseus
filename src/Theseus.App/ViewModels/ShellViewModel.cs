@@ -804,8 +804,7 @@ public sealed partial class ShellViewModel : ObservableObject
         // closes a session that already has its stop and has answered it.
         CloseFinishedSessions();
 
-        if (_stopRequests.Delivered(step.SessionId) is { } handed && Sessions.Find(step.SessionId) is { } running
-            && !SessionClosing.HandedBefore(handed, running.StartedUtc))
+        if (StillHandingOver(step))
         {
             return null;
         }
@@ -3617,11 +3616,7 @@ public sealed partial class ShellViewModel : ObservableObject
         {
             var alreadyAsked = _stopRequests.Waiting(step.SessionId) is not null;
 
-            // Handed a stop it has not finished, to the session running now: a request handed to an earlier run of
-            // the session belongs to that run, and the close step retires it as such.
-            var alreadyDelivered = _stopRequests.Delivered(step.SessionId) is { } handed
-                                   && Sessions.Find(step.SessionId) is { } running
-                                   && !SessionClosing.HandedBefore(handed, running.StartedUtc);
+            var alreadyDelivered = StillHandingOver(step);
 
             switch (StopRouting.For(step.Lifecycle, installed, alreadyAsked, alreadyDelivered))
             {
@@ -3801,6 +3796,35 @@ public sealed partial class ShellViewModel : ObservableObject
         }, Sessions.Find(step.SessionId)?.StartedUtc);
 
         TheseusLog.Information("Asked {Workstream} ({SessionId}) to stop", step.WorkstreamKey, step.SessionId);
+
+        // Only a stop delivered before the board opened is held back; one asked for now runs its course.
+        if (_unconfirmed.Remove(step.SessionId))
+        {
+            StopsChanged();
+        }
+    }
+
+    private bool StillHandingOver(StopStep step)
+    {
+        if (_stopRequests.Delivered(step.SessionId) is not { } handed
+            || Sessions.Find(step.SessionId) is not { } running
+            || SessionClosing.HandedBefore(handed, running.StartedUtc))
+        {
+            return false;
+        }
+
+        if (!SessionClosing.IsSpent(handed, running.Status, DateTimeOffset.UtcNow))
+        {
+            return true;
+        }
+
+        // Answered long ago and still open: left in place, it would turn away every later stop until it expired.
+        if (_stopRequests.Retire(step.SessionId) && !_closed.IsFinished(handed))
+        {
+            StopTiming.ReportUnfinished(handed, delivered: true, StopRemoval.AskedAgain, DateTimeOffset.UtcNow);
+        }
+
+        return false;
     }
 
     private static string? SettingsFile()

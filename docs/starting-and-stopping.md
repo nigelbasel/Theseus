@@ -48,6 +48,8 @@ own console. Nothing comes to the front and the window you are working in keeps 
 handover is written and the session has gone quiet, Theseus types `/exit` the same way and the tab
 closes. A session whose handover was already up to date, written earlier in the same run, closes once it
 has answered the stop. Until the tab has closed, its card says it was asked to stop and is waiting.
+A session that answered a stop more than ten minutes ago and is still open is asked afresh the next time it
+is stopped, and a stop asked for after Theseus restarts is never held back with the ones it found waiting.
 
 ### Sessions that end by themselves
 
