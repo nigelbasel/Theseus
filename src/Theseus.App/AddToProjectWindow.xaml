@@ -21,13 +21,13 @@
     <StackPanel Margin="24">
         <Label x:Name="ProjectLabel" Content="_Project" Target="{Binding ElementName=ProjectBox}" Style="{StaticResource Field}" Margin="0,0,0,8" />
         <ComboBox x:Name="ProjectBox" DisplayMemberPath="Title" SelectionChanged="OnProjectChanged"
-                  AutomationProperties.LabeledBy="{Binding ElementName=ProjectLabel}" />
+                  AutomationProperties.LabeledBy="{x:Reference ProjectLabel}" />
 
         <Label x:Name="ObjectiveLabel" Content="O_bjective" Target="{Binding ElementName=ObjectiveBox}" Style="{StaticResource Field}" />
-        <ComboBox x:Name="ObjectiveBox" SelectionChanged="OnChanged" AutomationProperties.LabeledBy="{Binding ElementName=ObjectiveLabel}" />
+        <ComboBox x:Name="ObjectiveBox" SelectionChanged="OnChanged" AutomationProperties.LabeledBy="{x:Reference ObjectiveLabel}" />
 
         <Label x:Name="SlugLabel" Content="_Name of its records folder" Target="{Binding ElementName=SlugBox}" Style="{StaticResource Field}" />
-        <TextBox x:Name="SlugBox" TextChanged="OnChanged" AutomationProperties.LabeledBy="{Binding ElementName=SlugLabel}" />
+        <TextBox x:Name="SlugBox" TextChanged="OnChanged" AutomationProperties.LabeledBy="{x:Reference SlugLabel}" />
         <TextBlock Margin="0,4,0,0" Style="{DynamicResource ExplanationText}"
                    Text="Names the folder its records go in, work\&lt;name&gt;, and its branch. Lower-case letters, digits and hyphens." />
 
