@@ -58,6 +58,12 @@ public sealed record PieceCard(
     /// </summary>
     public bool HasRun { get; init; }
 
+    /// <summary>The latest work another card of its project gave it by a start or resume, or null.</summary>
+    public HandIn? HandIn { get; init; }
+
+    /// <summary>When its newest run started, or null with none recorded: a hand-in belongs to the run it launched.</summary>
+    public DateTimeOffset? LastRunStartedUtc { get; init; }
+
     /// <summary>Whether it has a session open now, so Focus and Stop apply and Start does not.</summary>
     public bool HasSession => Lifecycle is SessionLifecycle.Launching or SessionLifecycle.Running
         or SessionLifecycle.Idle or SessionLifecycle.NeedsAttention;

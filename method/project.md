@@ -174,6 +174,13 @@ Needs you until he answers; once the question tool has his answer, it calls `ask
 asks only in prose: prose may explain the question, but a turn that ends with a question written only as text looks
 finished on the board, and is shown only as a guess, "Probably asking you something".
 
+**Giving work to another card.** A session that gives work to a card of its project that already exists, such as a
+lead passing the bugs it found to the workstream that built that part, does it with `start_workstream` (or
+`resume_workstream` for a card it paused) and an `instruction` saying the work, never by a message to that session.
+Messages between sessions do not reach the board. The instruction does: the card's box shows "← <giver>: <first line>,
+<time>", reopens at its build or fix stage while that session is open, and its Properties hold the whole
+instruction. Its first line names the work on its own, because the box shows only that line. (The project lead, 2026-11-24.)
+
 ## The evidence result block
 
 `work/<slug>/evidence.md` carries the verify stage's result as a fenced block tagged `theseus-evidence`, holding

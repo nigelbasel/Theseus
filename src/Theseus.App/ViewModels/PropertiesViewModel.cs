@@ -99,6 +99,9 @@ public sealed class PropertiesViewModel
                 new("Objective", ObjectiveText(piece)),
                 new("Round", $"Round {piece.Round}"),
                 .. piece.ParentTitle is { } parent ? new PropertyRowViewModel[] { new("Handed on from", parent) } : [],
+                .. piece.HandIn is { } handIn
+                    ? new PropertyRowViewModel[] { new("Handed in", $"By {handIn.FromTitle}, {PieceNodeViewModel.When(handIn.AtUtc)}: {handIn.Instruction.Trim()}") }
+                    : [],
                 new("Records", piece.RecordsFolder is null ? "none in the project" : "in the project: Open records below"),
                 new("Branch", piece.Branch ?? "not recorded"),
                 new("Evidence", node.Evidence),

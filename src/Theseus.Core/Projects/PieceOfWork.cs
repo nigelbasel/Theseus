@@ -90,6 +90,9 @@ public sealed record PieceOfWork(
     /// </summary>
     public Theseus.Core.Links.LinkReport? LaterReport { get; init; }
 
+    /// <summary>The latest work another card of the project gave its card, on its current piece only; null otherwise.</summary>
+    public HandIn? HandIn { get; init; }
+
     /// <summary>The link the later report came on, by id, so opening it can be remembered; null with none.</summary>
     public string? LaterReportLink { get; init; }
 

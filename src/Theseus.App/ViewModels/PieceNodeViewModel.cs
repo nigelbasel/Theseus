@@ -229,6 +229,22 @@ public sealed class PieceNodeViewModel : ObservableObject, IFoldable
     public string WhoActs => StartedBy ?? Status.WhoActs;
 
     /// <summary>
+    /// "← The lead: fix the search bugs, 08:41": the latest work another card of the project gave its card (git-22,
+    /// 2026-11-24); empty with none. Properties has all of it.
+    /// </summary>
+    public string HandInText => Piece.HandIn is { } handIn ? $"← {handIn.FromTitle}: {handIn.FirstLine}, {When(handIn.AtUtc)}" : string.Empty;
+
+    /// <summary>"08:41" today, else "23 Nov 08:41", in local time.</summary>
+    internal static string When(DateTimeOffset atUtc)
+    {
+        var local = atUtc.ToLocalTime();
+
+        return local.Date == DateTime.Today
+            ? local.ToString("HH:mm", System.Globalization.CultureInfo.CurrentCulture)
+            : local.ToString("d MMM HH:mm", System.Globalization.CultureInfo.CurrentCulture);
+    }
+
+    /// <summary>
     /// Who starts it while its project is running, and why it is not running yet; null where the owner starts it
     /// (project-view-usability item 5).
     /// </summary>
