@@ -2291,16 +2291,16 @@
                                                             <ColumnDefinition Width="16" />
                                                             <ColumnDefinition Width="*" />
                                                         </Grid.ColumnDefinitions>
-                                                        <ToggleButton x:Name="Expander" Focusable="False" Cursor="Hand"
-                                                                      VerticalAlignment="Top" Margin="0,4,0,0"
+                                                        <ToggleButton x:Name="Expander" Focusable="False" Cursor="Hand" Width="24" Height="24"
+                                                                      VerticalAlignment="Top" Margin="-4,0,0,0"
                                                                       AutomationProperties.Name="Show or hide the cards this one hands over to"
                                                                       IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}}">
                                                             <ToggleButton.Template>
                                                                 <ControlTemplate TargetType="ToggleButton">
                                                                     <Border Background="Transparent">
                                                                         <TextBlock x:Name="Chevron" Text="&#xE76C;" FontFamily="{DynamicResource SymbolThemeFontFamily}"
-                                                                                   FontSize="8" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                                                                   HorizontalAlignment="Center" />
+                                                                                   FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
                                                                     </Border>
                                                                     <ControlTemplate.Triggers>
                                                                         <Trigger Property="IsChecked" Value="True">
