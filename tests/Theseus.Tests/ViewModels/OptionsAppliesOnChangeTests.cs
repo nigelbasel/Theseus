@@ -71,6 +71,19 @@ public class OptionsAppliesOnChangeTests
     }
 
     [Test]
+    public void ARow_KeepsWhatWasWrittenElsewhere_SinceOptionsOpened()
+    {
+        MemorySettingsStore store = new();
+        SettingsViewModel panel = new(store, () => { });
+        panel.OpenCommand.Execute(null);
+        store.Settings = store.Settings with { HiddenProjectFolders = ["notes"], ShowArchived = true };
+
+        panel.PlanDirectory = @"C:\plans";
+
+        Assert.That((store.Settings.HiddenProjectFolders, store.Settings.ShowArchived), Is.EqualTo((new[] { "notes" }, true)));
+    }
+
+    [Test]
     public void Opening_WritesNothing()
     {
         MemorySettingsStore store = new();

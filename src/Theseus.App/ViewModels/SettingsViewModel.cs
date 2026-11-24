@@ -16,7 +16,7 @@ namespace Theseus.App.ViewModels;
 public sealed class SettingsViewModel : ObservableObject
 {
     private readonly ISettingsStore _store;
-    private readonly Action _saved;
+    private readonly Action _changedAndClosed;
 
     private string _planDirectory = string.Empty;
     private string _terminalWindowName = string.Empty;
@@ -40,10 +40,10 @@ public sealed class SettingsViewModel : ObservableObject
     private bool _changed;
 
     /// <summary>Creates the panel over the settings file.</summary>
-    public SettingsViewModel(ISettingsStore store, Action saved)
+    public SettingsViewModel(ISettingsStore store, Action changedAndClosed)
     {
         _store = store;
-        _saved = saved;
+        _changedAndClosed = changedAndClosed;
 
         OpenCommand = new RelayCommand(_ => Open());
         OpenProjectPropertiesCommand = new RelayCommand(parameter =>
@@ -64,7 +64,7 @@ public sealed class SettingsViewModel : ObservableObject
         {
             if (parameter is string name && HiddenProjectFolders.Remove(name))
             {
-                Write(settings => settings with { HiddenProjectFolders = [.. HiddenProjectFolders] });
+                Write(settings => settings with { HiddenProjectFolders = [.. settings.HiddenProjectFolders.Where(folder => folder != name)] });
             }
         });
         CloseCommand = new RelayCommand(_ => IsOpen = false);
@@ -112,7 +112,7 @@ public sealed class SettingsViewModel : ObservableObject
             if (Set(ref _isOpen, value) && !value && _changed)
             {
                 _changed = false;
-                _saved();
+                _changedAndClosed();
             }
         }
     }
@@ -624,32 +624,39 @@ public sealed class SettingsViewModel : ObservableObject
     private void Load(TheseusSettings settings)
     {
         _loading = true;
-        PlanDirectory = settings.PlanDirectory;
-        TerminalWindowName = settings.TerminalWindowName;
-        TerminalExecutablePath = settings.TerminalExecutablePath;
-        ClaudeExecutablePath = settings.ClaudeExecutablePath;
-        JiraBaseUrl = settings.JiraBaseUrl;
-        HiddenProjectFolders.Clear();
 
-        foreach (var folder in settings.HiddenProjectFolders)
+        try
         {
-            HiddenProjectFolders.Add(folder);
+            PlanDirectory = settings.PlanDirectory;
+            TerminalWindowName = settings.TerminalWindowName;
+            TerminalExecutablePath = settings.TerminalExecutablePath;
+            ClaudeExecutablePath = settings.ClaudeExecutablePath;
+            JiraBaseUrl = settings.JiraBaseUrl;
+            HiddenProjectFolders.Clear();
+
+            foreach (var folder in settings.HiddenProjectFolders)
+            {
+                HiddenProjectFolders.Add(folder);
+            }
+            HoldoutRemote = settings.HoldoutRemote;
+            ProjectsFolder = settings.ProjectsFolder;
+            WorktreesFolder = settings.WorktreesFolder;
+            ShowsProjectsIntro = string.IsNullOrWhiteSpace(settings.ProjectsFolder);
+            IncludePreReleases = settings.IncludePreReleases;
+            SessionPreamble = settings.SessionPreamble;
+            ContinuePrompt = settings.ContinuePrompt;
+            StopPrompt = settings.StopPrompt;
+            SetStartMode(settings.DefaultStartMode);
+            IdentityPrompt = string.IsNullOrWhiteSpace(settings.IdentityPrompt)
+                ? WorkstreamIdentity.DefaultTemplate
+                : settings.IdentityPrompt;
+            LaneList = string.Join(Environment.NewLine, settings.Lanes);
+            AreaList = string.Join(Environment.NewLine, settings.Areas);
         }
-        HoldoutRemote = settings.HoldoutRemote;
-        ProjectsFolder = settings.ProjectsFolder;
-        WorktreesFolder = settings.WorktreesFolder;
-        ShowsProjectsIntro = string.IsNullOrWhiteSpace(settings.ProjectsFolder);
-        IncludePreReleases = settings.IncludePreReleases;
-        SessionPreamble = settings.SessionPreamble;
-        ContinuePrompt = settings.ContinuePrompt;
-        StopPrompt = settings.StopPrompt;
-        SetStartMode(settings.DefaultStartMode);
-        IdentityPrompt = string.IsNullOrWhiteSpace(settings.IdentityPrompt)
-            ? WorkstreamIdentity.DefaultTemplate
-            : settings.IdentityPrompt;
-        LaneList = string.Join(Environment.NewLine, settings.Lanes);
-        AreaList = string.Join(Environment.NewLine, settings.Areas);
-        _loading = false;
+        finally
+        {
+            _loading = false;
+        }
     }
 
     // Reads the file again before each write, so a row never puts back what another part of Theseus wrote meanwhile.
