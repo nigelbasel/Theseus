@@ -3,7 +3,7 @@
     <!--
         The project view's state colours, dark theme (1.1d, Words and marks; Nigel accepted the mockup,
         2026-11-20). ThemeApplier swaps this dictionary for its other-theme twin, or for the high-contrast one; all three define the same keys.
-        Every text colour here reaches 4.5:1 on the page and on its own soft fill (W48, G161), which StateColoursTests measures.
+        Every text colour here reaches 4.5:1 on the page and on its own soft fill (W48, G161), which StateColoursContrastTests measures.
     -->
     <SolidColorBrush x:Key="StateDoneBrush" Color="#5cc58c" />
     <SolidColorBrush x:Key="StateDoneSoftBrush" Color="#183026" />
@@ -19,11 +19,11 @@
     <SolidColorBrush x:Key="StateToDoSoftBrush" Color="#222a27" />
     <SolidColorBrush x:Key="ConnectorBrush" Color="#8d9994" />
     <!-- Kind title bars, hand-overs and the change banner (1.1f A2, J49, D16): no kind colour is used for a state. -->
-    <SolidColorBrush x:Key="KindSpecBrush" Color="#5cbfb8" />
-    <SolidColorBrush x:Key="KindBuildBrush" Color="#9db0cc" />
-    <SolidColorBrush x:Key="KindVerifyBrush" Color="#d08cc4" />
-    <SolidColorBrush x:Key="KindBugBrush" Color="#d4a06c" />
-    <SolidColorBrush x:Key="KindFreeformBrush" Color="#b3b87e" />
+    <SolidColorBrush x:Key="KindSpecBrush" Color="#1f7a74" />
+    <SolidColorBrush x:Key="KindBuildBrush" Color="#566a86" />
+    <SolidColorBrush x:Key="KindVerifyBrush" Color="#a8579a" />
+    <SolidColorBrush x:Key="KindBugBrush" Color="#8f6436" />
+    <SolidColorBrush x:Key="KindFreeformBrush" Color="#6b7045" />
     <SolidColorBrush x:Key="StateHandedOnBrush" Color="#93acc4" />
     <SolidColorBrush x:Key="StateHandedOnSoftBrush" Color="#26313c" />
     <SolidColorBrush x:Key="ChangeBrush" Color="#f08a62" />
@@ -32,11 +32,11 @@
     <!-- What a board search found in a title (card-search-and-tags item 3). -->
     <SolidColorBrush x:Key="SearchHighlightBrush" Color="#6b5a12" />
     <SolidColorBrush x:Key="SearchHighlightTextBrush" Color="#fff4c2" />
-    <!-- Status text and the words on a kind bar (W47, W48). The kind bars are light here and carry dark words. -->
+    <!-- Status text and the words on a kind bar (W47, W48). The kind bars are dark enough to carry white words at 4.5:1. -->
     <SolidColorBrush x:Key="CautionTextBrush" Color="#e3aa4f" />
     <SolidColorBrush x:Key="SuccessTextBrush" Color="#5cc58c" />
     <SolidColorBrush x:Key="CriticalTextBrush" Color="#f07a6e" />
-    <SolidColorBrush x:Key="OnKindTextBrush" Color="#1a1a1a" />
-    <SolidColorBrush x:Key="KindWordWashBrush" Color="#38ffffff" />
+    <SolidColorBrush x:Key="OnKindTextBrush" Color="#ffffff" />
+    <SolidColorBrush x:Key="KindWordWashBrush" Color="#38000000" />
     <Thickness x:Key="FlyoutBorderThickness">1</Thickness>
 </ResourceDictionary>

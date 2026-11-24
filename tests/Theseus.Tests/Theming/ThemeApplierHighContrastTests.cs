@@ -48,6 +48,32 @@ public class ThemeApplierHighContrastTests
     }
 
     [Test]
+    public void UnderAContrastTheme_ApplyingAgain_LoadsTheDictionaryAfresh_SoAChangedContrastThemeIsRead()
+    {
+        var resources = new ResourceDictionary();
+        ThemeApplier.IsHighContrast = () => true;
+        ThemeApplier.ApplyStateColours(resources, dark: false);
+        var first = resources.MergedDictionaries.Single();
+
+        ThemeApplier.ApplyStateColours(resources, dark: false);
+
+        Assert.That(resources.MergedDictionaries.Single(), Is.Not.SameAs(first));
+    }
+
+    [Test]
+    public void OutsideAContrastTheme_ApplyingTheSameThemeAgain_KeepsTheMergedDictionary()
+    {
+        var resources = new ResourceDictionary();
+        ThemeApplier.IsHighContrast = () => false;
+        ThemeApplier.ApplyStateColours(resources, dark: true);
+        var first = resources.MergedDictionaries.Single();
+
+        ThemeApplier.ApplyStateColours(resources, dark: true);
+
+        Assert.That(resources.MergedDictionaries.Single(), Is.SameAs(first));
+    }
+
+    [Test]
     public void OutsideAContrastTheme_TheLightColoursAreMergedForTheLightTheme()
     {
         var resources = new ResourceDictionary();

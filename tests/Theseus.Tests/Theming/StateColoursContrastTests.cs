@@ -46,6 +46,7 @@ public class StateColoursContrastTests
             }
 
             yield return Case(file, "ChangeBrush", colours["ChangeBrush"], "ChangeSoftBrush", colours["ChangeSoftBrush"]);
+            yield return Case(file, "LinkBrush", colours["LinkBrush"], "StateWaitingSoftBrush", colours["StateWaitingSoftBrush"]);
             yield return Case(file, "SearchHighlightTextBrush", colours["SearchHighlightTextBrush"], "SearchHighlightBrush",
                 colours["SearchHighlightBrush"]);
 

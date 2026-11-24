@@ -3,7 +3,7 @@
     <!--
         The project view's state colours, light theme (1.1d, Words and marks; Nigel accepted the mockup,
         2026-11-20). ThemeApplier swaps this dictionary for its other-theme twin, or for the high-contrast one; all three define the same keys.
-        Every text colour here reaches 4.5:1 on the page and on its own soft fill (W48, G161), which StateColoursTests measures.
+        Every text colour here reaches 4.5:1 on the page and on its own soft fill (W48, G161), which StateColoursContrastTests measures.
     -->
     <SolidColorBrush x:Key="StateDoneBrush" Color="#1e6b40" />
     <SolidColorBrush x:Key="StateDoneSoftBrush" Color="#e3f3ea" />

@@ -5,7 +5,8 @@ using System.Windows.Media;
 namespace Theseus.Tests.Theming;
 
 /// <summary>
-/// The three state-colour dictionaries define the same keys, and under a contrast theme every brush is one of the
+/// The high-contrast state dictionary defines every key the light one does (light and dark are compared in
+/// ProjectViewRedesignMarkupTests), and under a contrast theme every brush is one of the
 /// user's system colours (W47; G162, G165), so nothing Theseus draws keeps its own hue there.
 /// </summary>
 [TestFixture]
@@ -13,12 +14,6 @@ namespace Theseus.Tests.Theming;
 public class StateColoursKeysTests
 {
     private const string SystemColour = @"^\{x:Static SystemColors\.[A-Za-z]+Color\}$";
-
-    [Test]
-    public void TheLightAndDarkDictionaries_DefineTheSameKeys()
-    {
-        Assert.That(ThemeFiles.Entries("StateColours.Dark.xaml").Keys, Is.EquivalentTo(ThemeFiles.Entries("StateColours.Light.xaml").Keys));
-    }
 
     [Test]
     public void TheHighContrastDictionary_DefinesEveryKeyTheLightOneDoes()

@@ -39,7 +39,7 @@ public class CompactMenuTests
     }
 
     [Test]
-    public void TheTightenedMargins_AreOnTheFourPixelGrid()
+    public void TheMarginsTheseusTightened_NoLongerUseOffGridValues()
     {
         Assert.That(ThemeFiles.Text("CompactMenu.xaml"), Does.Not.Contain("Margin=\"1,2,1,2\"").And.Not.Contain("Margin=\"8,3,8,3\""));
     }
