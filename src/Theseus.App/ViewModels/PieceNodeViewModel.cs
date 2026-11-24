@@ -11,7 +11,7 @@ namespace Theseus.App.ViewModels;
 public sealed class PieceNodeViewModel : ObservableObject, IFoldable
 {
     /// <summary>A folded box's width.</summary>
-    public const double FoldedWidth = 290;
+    public const double FoldedWidth = 380;
 
     /// <summary>An open box's width.</summary>
     public const double OpenWidth = 640;

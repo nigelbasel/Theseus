@@ -394,45 +394,51 @@
                                     </Style.Triggers>
                                 </Style>
                             </Border.Style>
-                            <DockPanel>
-                                <!-- The kind bar's words take the on-kind brushes, which high contrast maps to its own (WB2 decision 10; E1, E4). -->
-                                <Button x:Name="Chevron" DockPanel.Dock="Left" Content="{Binding Chevron}" Command="{Binding ToggleCommand}"
-                                        ToolTip="{Binding ChevronToolTip}" AutomationProperties.Name="{Binding ChevronToolTip}"
-                                        Style="{StaticResource ToolIcon}" FontSize="16" Margin="0,0,4,0" VerticalAlignment="Center"
-                                        Foreground="{DynamicResource OnKindTextBrush}" />
-                                <Border x:Name="KindWord" DockPanel.Dock="Left" CornerRadius="4" Background="{DynamicResource KindWordWashBrush}"
-                                        Padding="4,0" Margin="0,0,8,0" VerticalAlignment="Center" ToolTip="{Binding KindToolTip}"
-                                        AutomationProperties.Name="{Binding KindLabel}">
-                                    <TextBlock Text="{Binding KindLabel}" FontSize="12" Foreground="{DynamicResource OnKindTextBrush}" />
-                                </Border>
-                                <!-- One click to its tab, folded or open, while its session runs (item 8). -->
-                                <!-- Out of the Tab order, so Tab still reaches the title after the chevron; an open box's Focus is in its actions. -->
-                                <Button x:Name="BoxFocus" DockPanel.Dock="Right" Command="{Binding FocusAction.Command}" IsTabStop="False"
-                                        Visibility="{Binding HasSessionMark, Converter={StaticResource Visible}}"
-                                        ToolTip="Focus: bring the session's window forward." AutomationProperties.Name="{Binding Title, StringFormat=Focus {0}}"
-                                        Padding="8,0" Margin="8,0,0,0" FontSize="12" VerticalAlignment="Center" Cursor="Hand"
-                                        Background="{DynamicResource KindWordWashBrush}" Foreground="{DynamicResource OnKindTextBrush}" BorderThickness="0">
-                                    <StackPanel Orientation="Horizontal">
-                                        <controls:GlyphText Text="&#xE8A7;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="12"
-                                                            Margin="0,0,4,0" VerticalAlignment="Center" />
-                                        <TextBlock Text="Focus" VerticalAlignment="Center" />
-                                    </StackPanel>
-                                </Button>
-                                <TextBlock x:Name="BoxSession" DockPanel.Dock="Right" Text="{Binding SessionMark}" FontSize="12"
-                                           Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource OnKindTextBrush}"
-                                           Visibility="{Binding HasSessionMark, Converter={StaticResource Visible}}" />
-                                <Border x:Name="PieceHeader" Background="Transparent" Focusable="True" Cursor="Hand"
-                                        AutomationProperties.Name="{Binding Title}">
-                                    <Border.InputBindings>
-                                        <MouseBinding MouseAction="LeftClick" Command="{Binding SelectCommand}" />
-                                        <KeyBinding Key="Enter" Command="{Binding SelectCommand}" />
-                                        <KeyBinding Key="Space" Command="{Binding SelectCommand}" />
-                                    </Border.InputBindings>
-                                    <TextBlock x:Name="PieceName" Text="{Binding Title}" ToolTip="{Binding Title}" FontSize="14" FontWeight="SemiBold"
-                                               TextWrapping="Wrap" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
-                                               Foreground="{DynamicResource OnKindTextBrush}" />
-                                </Border>
-                            </DockPanel>
+                            <StackPanel>
+                                <DockPanel>
+                                    <!-- The kind bar's words take the on-kind brushes, which high contrast maps to its own (WB2 decision 10; E1, E4). -->
+                                    <Button x:Name="Chevron" DockPanel.Dock="Left" Content="{Binding Chevron}" Command="{Binding ToggleCommand}"
+                                            ToolTip="{Binding ChevronToolTip}" AutomationProperties.Name="{Binding ChevronToolTip}"
+                                            Style="{StaticResource ToolIcon}" FontSize="16" Margin="0,0,4,0" VerticalAlignment="Center"
+                                            Foreground="{DynamicResource OnKindTextBrush}" />
+                                    <Border x:Name="KindWord" DockPanel.Dock="Left" CornerRadius="4" Background="{DynamicResource KindWordWashBrush}"
+                                            Padding="4,0" Margin="0,0,8,0" VerticalAlignment="Center" ToolTip="{Binding KindToolTip}"
+                                            AutomationProperties.Name="{Binding KindLabel}">
+                                        <TextBlock Text="{Binding KindLabel}" FontSize="12" Foreground="{DynamicResource OnKindTextBrush}" />
+                                    </Border>
+                                    <Border x:Name="PieceHeader" Background="Transparent" Focusable="True" Cursor="Hand"
+                                            AutomationProperties.Name="{Binding Title}">
+                                        <Border.InputBindings>
+                                            <MouseBinding MouseAction="LeftClick" Command="{Binding SelectCommand}" />
+                                            <KeyBinding Key="Enter" Command="{Binding SelectCommand}" />
+                                            <KeyBinding Key="Space" Command="{Binding SelectCommand}" />
+                                        </Border.InputBindings>
+                                        <TextBlock x:Name="PieceName" Text="{Binding Title}" ToolTip="{Binding Title}" FontSize="14" FontWeight="SemiBold"
+                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource OnKindTextBrush}" />
+                                    </Border>
+                                </DockPanel>
+                                <!-- Under the title, so a running session never squeezes it (Nigel, 2026-11-24). -->
+                                <StackPanel x:Name="BoxSessionLine" Orientation="Horizontal" HorizontalAlignment="Right"
+                                            Margin="0,4,0,0" Visibility="{Binding HasSessionMark, Converter={StaticResource Visible}}">
+                                    <!-- One click to its tab, folded or open, while its session runs (item 8). -->
+                                    <!-- Out of the Tab order, so Tab still reaches the title after the chevron; an open box's Focus is in its actions. -->
+                                    <TextBlock x:Name="BoxSession" Text="{Binding SessionMark}" FontSize="12"
+                                               Margin="0,0,8,0" VerticalAlignment="Center" Foreground="{DynamicResource OnKindTextBrush}"
+                                               Visibility="{Binding HasSessionMark, Converter={StaticResource Visible}}" />
+                                    <Button x:Name="BoxFocus" Command="{Binding FocusAction.Command}" IsTabStop="False"
+                                            Visibility="{Binding HasSessionMark, Converter={StaticResource Visible}}"
+                                            ToolTip="Focus: bring the session's window forward." AutomationProperties.Name="{Binding Title, StringFormat=Focus {0}}"
+                                            Padding="8,0" FontSize="12" VerticalAlignment="Center" Cursor="Hand"
+                                            Background="{DynamicResource KindWordWashBrush}" Foreground="{DynamicResource OnKindTextBrush}" BorderThickness="0">
+                                        <StackPanel Orientation="Horizontal">
+                                            <controls:GlyphText Text="&#xE8A7;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="12"
+                                                                Margin="0,0,4,0" VerticalAlignment="Center" />
+                                            <TextBlock Text="Focus" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </StackPanel>
                         </Border>
                         <Border Background="Transparent" Padding="12,8" Cursor="Hand">
                             <Border.InputBindings>

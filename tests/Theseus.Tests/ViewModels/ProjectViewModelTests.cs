@@ -243,7 +243,7 @@ public class ProjectViewModelTests
     {
         var box = Box(_views.Theseus(), "readme-runtime");
 
-        Assert.That((box.IsOpen, box.BoxWidth, box.Chevron, box.ChevronToolTip), Is.EqualTo((false, 290.0, FoldGlyph.Folded, "Open into its stages")));
+        Assert.That((box.IsOpen, box.BoxWidth, box.Chevron, box.ChevronToolTip), Is.EqualTo((false, PieceNodeViewModel.FoldedWidth, FoldGlyph.Folded, "Open into its stages")));
         Assert.That((box.Workstream, box.KindWord, box.ObjectiveLabel), Is.EqualTo(("git-22", "bug", "objective 0.3")));
         Assert.That(box.ColourHex, Is.EqualTo("#2f80ed"));
         Assert.That(box.StatusText, Is.EqualTo("– Next: Review."));

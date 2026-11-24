@@ -7,6 +7,7 @@ using System.Windows.Shapes;
 using System.Windows.Automation;
 using Path = System.Windows.Shapes.Path;
 using Theseus.App.ViewModels;
+using Theseus.Core.Domain;
 using Theseus.Core.Projects;
 using Theseus.App.Views;
 using Theseus.Tests.Projects;
@@ -138,13 +139,40 @@ public class ProjectViewLayoutTests
     }
 
     [Test]
-    public void AFoldedBox_Is290Wide_Rounded_WithItsKindsTitleBar_ItsTitle_AndAStripOfSevenChipsAndTheGate()
+    public void ARunningBox_KeepsItsMarkAndFocus_UnderItsTitle_SoTheTitleHasTheBarsWidth()
+    {
+        var control = LaidOut(_views.Theseus(SessionLifecycle.Running));
+        var box = BoxOf(control, "projects-and-method-ui");
+        TextBlock name = Named<TextBlock>(box, "PieceName");
+        FrameworkElement line = Named<StackPanel>(box, "BoxSessionLine");
+
+        Assert.That(line.Visibility, Is.EqualTo(Visibility.Visible));
+        Assert.That(line.TranslatePoint(new Point(0, 0), name).Y, Is.GreaterThanOrEqualTo(name.ActualHeight), "the mark and Focus sit below the title");
+        Assert.That(((FrameworkElement)Named<Border>(box, "PieceHeader")).ActualWidth, Is.GreaterThan(box.ActualWidth / 2),
+            "Nigel, 2026-11-24: a running card's title had three characters' room");
+    }
+
+    [Test]
+    public void ABoxsTitle_StaysOnOneLine_EndingInAnEllipsisWhenLong()
+    {
+        var control = LaidOut(_views.BuildYourMarket());
+        List<TextBlock> names = AllNamed<TextBlock>(control, "PieceName").ToList();
+        double oneLine = names.Min(name => name.ActualHeight);
+
+        Assert.That(names, Is.Not.Empty);
+        Assert.That(names.Select(name => (name.TextWrapping, name.TextTrimming)).Distinct(),
+            Is.EqualTo(new[] { (TextWrapping.NoWrap, TextTrimming.CharacterEllipsis) }));
+        Assert.That(names.Select(name => name.ActualHeight), Is.All.EqualTo(oneLine), "Nigel, 2026-11-24: a long title ran down the box");
+    }
+
+    [Test]
+    public void AFoldedBox_IsItsWidth_Rounded_WithItsKindsTitleBar_ItsTitle_AndAStripOfSevenChipsAndTheGate()
     {
         var control = LaidOut(WithRunsOpen(_views.Theseus()));
         var box = BoxOf(control, "stop-timing");
         var chips = AllNamed<Grid>(box, "Chip").ToList();
 
-        Assert.That((box.ActualWidth, box.CornerRadius.TopLeft), Is.EqualTo((290.0, 4.0)), "a rounded action node (D17), at the in-page radius (W37)");
+        Assert.That((box.ActualWidth, box.CornerRadius.TopLeft), Is.EqualTo((PieceNodeViewModel.FoldedWidth, 4.0)), "a rounded action node (D17), at the in-page radius (W37)");
         Assert.That(((Button)Named<Button>(box, "Chevron")).Content, Is.EqualTo(FoldGlyph.Folded));
         Assert.That(Descendants<TextBlock>(Named<Border>(box, "KindWord")).Single().Text, Is.EqualTo("⚒ Build"));
         Assert.That(Named<TextBlock>(box, "PieceName").Text, Is.EqualTo(((PieceNodeViewModel)box.DataContext).Title));

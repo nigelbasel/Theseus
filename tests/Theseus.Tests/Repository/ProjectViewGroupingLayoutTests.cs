@@ -142,7 +142,7 @@ public class ProjectViewGroupingLayoutTests
         System.Windows.Threading.Dispatcher.CurrentDispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ContextIdle);
 
     [Test]
-    public void FoldedAndOpenBoxes_AreLeftAligned_At290And640_InAWideView()
+    public void FoldedAndOpenBoxes_AreLeftAligned_AtTheirTwoWidths_InAWideView()
     {
         var view = _views.Theseus();
         view.Toggle(view.AllNodes.Single(node => node.Name == "project-view"));
@@ -157,7 +157,7 @@ public class ProjectViewGroupingLayoutTests
         var folded = BoxOf(control, "method-kit");
         var open = BoxOf(control, "project-view");
 
-        Assert.That((folded.ActualWidth, open.ActualWidth), Is.EqualTo((290.0, 640.0)));
+        Assert.That((folded.ActualWidth, open.ActualWidth), Is.EqualTo((PieceNodeViewModel.FoldedWidth, PieceNodeViewModel.OpenWidth)));
         Assert.That(open.TranslatePoint(new Point(0, 0), connectors).X, Is.EqualTo(folded.TranslatePoint(new Point(0, 0), connectors).X));
     }
 
