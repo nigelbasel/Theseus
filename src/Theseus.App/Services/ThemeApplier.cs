@@ -15,8 +15,18 @@ public static class ThemeApplier
 
     private const string DarkStates = "StateColours.Dark.xaml";
 
+    private const string HighContrastStates = "StateColours.HighContrast.xaml";
+
+    private static readonly string[] AllStates = [LightStates, DarkStates, HighContrastStates];
+
     private static AppTheme _theme;
     private static bool _following;
+
+    /// <summary>
+    /// Whether a contrast theme is on. Under one, Theseus's own colours give way to the user's system colours whatever
+    /// theme is chosen in Options (W47, G162-G165); tests replace it, since switching the machine's theme is not safe.
+    /// </summary>
+    public static Func<bool> IsHighContrast { get; set; } = () => SystemParameters.HighContrast;
 
     /// <summary>Applies a theme to the application and every open window.</summary>
     public static void Apply(AppTheme theme)
@@ -36,30 +46,43 @@ public static class ThemeApplier
             window.ThemeMode = mode;
         }
 
-        ApplyStateColours(application, IsDark(theme));
+        ApplyStateColours(application.Resources, IsDark(theme));
 
         // The Fluent theme follows the system by itself; the project view's state colours (1.1d) are Theseus's own,
-        // so they are swapped here when the system's choice changes.
+        // so they are swapped here when the system's light or dark choice, or its contrast theme, changes.
         if (!_following)
         {
             _following = true;
             SystemEvents.UserPreferenceChanged += (_, args) =>
             {
-                if (args.Category == UserPreferenceCategory.General && _theme == AppTheme.System)
+                if (args.Category is UserPreferenceCategory.General or UserPreferenceCategory.Accessibility or UserPreferenceCategory.Color)
                 {
-                    application.Dispatcher.BeginInvoke(() => ApplyStateColours(application, IsDark(AppTheme.System)));
+                    application.Dispatcher.BeginInvoke(() => ApplyStateColours(application.Resources, IsDark(_theme)));
+                }
+            };
+            SystemParameters.StaticPropertyChanged += (_, args) =>
+            {
+                if (args.PropertyName == nameof(SystemParameters.HighContrast))
+                {
+                    application.Dispatcher.BeginInvoke(() => ApplyStateColours(application.Resources, IsDark(_theme)));
                 }
             };
         }
     }
 
-    private static void ApplyStateColours(Application application, bool dark)
+    /// <summary>
+    /// Merges the state colours for a light or dark theme into <paramref name="resources"/>, or the high-contrast ones
+    /// while a contrast theme is on, in place of whichever were there.
+    /// </summary>
+    public static void ApplyStateColours(ResourceDictionary resources, bool dark)
     {
-        var merged = application.Resources.MergedDictionaries;
-        var wanted = dark ? DarkStates : LightStates;
-        var current = merged.FirstOrDefault(dictionary => IsStates(dictionary, LightStates) || IsStates(dictionary, DarkStates));
+        var merged = resources.MergedDictionaries;
+        var wanted = IsHighContrast() ? HighContrastStates : dark ? DarkStates : LightStates;
+        var current = merged.FirstOrDefault(dictionary => AllStates.Any(file => IsStates(dictionary, file)));
 
-        if (current is not null && IsStates(current, wanted))
+        // The contrast dictionary is reloaded even when it is already merged: its brushes are read from the system
+        // colours as it loads, and moving from one contrast theme to another changes those colours.
+        if (current is not null && IsStates(current, wanted) && wanted != HighContrastStates)
         {
             return;
         }

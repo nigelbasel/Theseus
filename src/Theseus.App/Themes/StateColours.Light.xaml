@@ -2,19 +2,20 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <!--
         The project view's state colours, light theme (1.1d, Words and marks; Nigel accepted the mockup,
-        2026-11-20). ThemeApplier swaps this dictionary for its other-theme twin; both define the same keys.
+        2026-11-20). ThemeApplier swaps this dictionary for its other-theme twin, or for the high-contrast one; all three define the same keys.
+        Every text colour here reaches 4.5:1 on the page and on its own soft fill (W48, G161), which StateColoursContrastTests measures.
     -->
-    <SolidColorBrush x:Key="StateDoneBrush" Color="#2e8b57" />
+    <SolidColorBrush x:Key="StateDoneBrush" Color="#1e6b40" />
     <SolidColorBrush x:Key="StateDoneSoftBrush" Color="#e3f3ea" />
-    <SolidColorBrush x:Key="StateWaitingBrush" Color="#b7791f" />
+    <SolidColorBrush x:Key="StateWaitingBrush" Color="#8a5a10" />
     <SolidColorBrush x:Key="StateWaitingSoftBrush" Color="#fbf0dc" />
     <SolidColorBrush x:Key="StateBusyBrush" Color="#2563c9" />
     <SolidColorBrush x:Key="StateBusySoftBrush" Color="#e2ebfa" />
-    <SolidColorBrush x:Key="StateStuckBrush" Color="#c0392b" />
+    <SolidColorBrush x:Key="StateStuckBrush" Color="#b0342a" />
     <SolidColorBrush x:Key="StateStuckSoftBrush" Color="#fae3e0" />
-    <SolidColorBrush x:Key="StateHoldoutsBrush" Color="#8a5cc7" />
+    <SolidColorBrush x:Key="StateHoldoutsBrush" Color="#7a4cb8" />
     <SolidColorBrush x:Key="StateHoldoutsSoftBrush" Color="#efe7fa" />
-    <SolidColorBrush x:Key="StateToDoBrush" Color="#8a9490" />
+    <SolidColorBrush x:Key="StateToDoBrush" Color="#5f6b67" />
     <SolidColorBrush x:Key="StateToDoSoftBrush" Color="#eef1f0" />
     <SolidColorBrush x:Key="ConnectorBrush" Color="#6b7672" />
     <!-- Kind title bars, hand-overs and the change banner (1.1f A2, J49, D16): no kind colour is used for a state. -->
@@ -31,4 +32,11 @@
     <!-- What a board search found in a title (card-search-and-tags item 3). -->
     <SolidColorBrush x:Key="SearchHighlightBrush" Color="#ffe58a" />
     <SolidColorBrush x:Key="SearchHighlightTextBrush" Color="#1a1a1a" />
+    <!-- Status text and the words on a kind bar (W47, W48): the literals they replace measured 2.5:1 to 4.3:1. -->
+    <SolidColorBrush x:Key="CautionTextBrush" Color="#9a5b00" />
+    <SolidColorBrush x:Key="SuccessTextBrush" Color="#1e6b40" />
+    <SolidColorBrush x:Key="CriticalTextBrush" Color="#b3261e" />
+    <SolidColorBrush x:Key="OnKindTextBrush" Color="#ffffff" />
+    <SolidColorBrush x:Key="KindWordWashBrush" Color="#38000000" />
+    <Thickness x:Key="FlyoutBorderThickness">1</Thickness>
 </ResourceDictionary>

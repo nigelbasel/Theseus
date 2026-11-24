@@ -1,0 +1,43 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!--
+        Theseus's own colours under a contrast theme (W47; G162-G165, Nigel delegated 2026-11-23). Every key the light
+        and dark twins define maps to a system colour the user chose, so state is told apart by the words and marks
+        the views already show (a tick, a dot, a diamond, a half circle, a warning sign), never by hue. Fills become
+        the window colour, text, strokes and connectors the window-text colour, links HotTrack, and a search match the
+        selection colours. ThemeApplier reloads this file whenever the contrast theme changes, since each brush is
+        read from the system colours as the file loads.
+    -->
+    <SolidColorBrush x:Key="StateDoneBrush" Color="{x:Static SystemColors.WindowTextColor}" />
+    <SolidColorBrush x:Key="StateDoneSoftBrush" Color="{x:Static SystemColors.WindowColor}" />
+    <SolidColorBrush x:Key="StateWaitingBrush" Color="{x:Static SystemColors.WindowTextColor}" />
+    <SolidColorBrush x:Key="StateWaitingSoftBrush" Color="{x:Static SystemColors.WindowColor}" />
+    <SolidColorBrush x:Key="StateBusyBrush" Color="{x:Static SystemColors.WindowTextColor}" />
+    <SolidColorBrush x:Key="StateBusySoftBrush" Color="{x:Static SystemColors.WindowColor}" />
+    <SolidColorBrush x:Key="StateStuckBrush" Color="{x:Static SystemColors.WindowTextColor}" />
+    <SolidColorBrush x:Key="StateStuckSoftBrush" Color="{x:Static SystemColors.WindowColor}" />
+    <SolidColorBrush x:Key="StateHoldoutsBrush" Color="{x:Static SystemColors.WindowTextColor}" />
+    <SolidColorBrush x:Key="StateHoldoutsSoftBrush" Color="{x:Static SystemColors.WindowColor}" />
+    <SolidColorBrush x:Key="StateToDoBrush" Color="{x:Static SystemColors.WindowTextColor}" />
+    <SolidColorBrush x:Key="StateToDoSoftBrush" Color="{x:Static SystemColors.WindowColor}" />
+    <SolidColorBrush x:Key="ConnectorBrush" Color="{x:Static SystemColors.WindowTextColor}" />
+    <SolidColorBrush x:Key="KindSpecBrush" Color="{x:Static SystemColors.WindowColor}" />
+    <SolidColorBrush x:Key="KindBuildBrush" Color="{x:Static SystemColors.WindowColor}" />
+    <SolidColorBrush x:Key="KindVerifyBrush" Color="{x:Static SystemColors.WindowColor}" />
+    <SolidColorBrush x:Key="KindBugBrush" Color="{x:Static SystemColors.WindowColor}" />
+    <SolidColorBrush x:Key="KindFreeformBrush" Color="{x:Static SystemColors.WindowColor}" />
+    <SolidColorBrush x:Key="StateHandedOnBrush" Color="{x:Static SystemColors.WindowTextColor}" />
+    <SolidColorBrush x:Key="StateHandedOnSoftBrush" Color="{x:Static SystemColors.WindowColor}" />
+    <SolidColorBrush x:Key="ChangeBrush" Color="{x:Static SystemColors.WindowTextColor}" />
+    <SolidColorBrush x:Key="ChangeSoftBrush" Color="{x:Static SystemColors.WindowColor}" />
+    <SolidColorBrush x:Key="LinkBrush" Color="{x:Static SystemColors.HotTrackColor}" />
+    <SolidColorBrush x:Key="SearchHighlightBrush" Color="{x:Static SystemColors.HighlightColor}" />
+    <SolidColorBrush x:Key="SearchHighlightTextBrush" Color="{x:Static SystemColors.HighlightTextColor}" />
+    <SolidColorBrush x:Key="CautionTextBrush" Color="{x:Static SystemColors.WindowTextColor}" />
+    <SolidColorBrush x:Key="SuccessTextBrush" Color="{x:Static SystemColors.WindowTextColor}" />
+    <SolidColorBrush x:Key="CriticalTextBrush" Color="{x:Static SystemColors.WindowTextColor}" />
+    <SolidColorBrush x:Key="OnKindTextBrush" Color="{x:Static SystemColors.WindowTextColor}" />
+    <SolidColorBrush x:Key="KindWordWashBrush" Color="{x:Static SystemColors.WindowColor}" />
+    <!-- A flyout's edge is drawn at 2 so it stands clear of the window behind it (G163). -->
+    <Thickness x:Key="FlyoutBorderThickness">2</Thickness>
+</ResourceDictionary>
