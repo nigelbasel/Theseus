@@ -2653,12 +2653,30 @@
                         Background="Transparent" BorderThickness="0" Cursor="Hand"
                         HorizontalContentAlignment="Left"
                         ToolTip="{Binding Notice}" AutomationProperties.Name="{Binding Notice}"
+                        AutomationProperties.ItemStatus="{Binding NoticeSeverity}"
                         AutomationProperties.HelpText="Shows the recent notices"
                         Visibility="{Binding Notice, Converter={StaticResource NotEmptyToVisibility}}">
                     <StackPanel Orientation="Horizontal">
-                        <controls:GlyphText Text="&#xE946;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="12" Margin="0,0,8,0"
-                                   VerticalAlignment="Center"
-                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        <!-- Information E946, Warning E7BA, Error E783, each in its own colour: the shape says it without the colour (W46, G150). -->
+                        <controls:GlyphText x:Name="NoticeGlyph" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="12" Margin="0,0,8,0"
+                                   VerticalAlignment="Center">
+                            <controls:GlyphText.Style>
+                                <Style TargetType="controls:GlyphText">
+                                    <Setter Property="Text" Value="&#xE946;" />
+                                    <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding NoticeSeverity}" Value="{x:Static vm:NoticeSeverity.Warning}">
+                                            <Setter Property="Text" Value="&#xE7BA;" />
+                                            <Setter Property="Foreground" Value="{DynamicResource CautionTextBrush}" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding NoticeSeverity}" Value="{x:Static vm:NoticeSeverity.Error}">
+                                            <Setter Property="Text" Value="&#xE783;" />
+                                            <Setter Property="Foreground" Value="{DynamicResource CriticalTextBrush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </controls:GlyphText.Style>
+                        </controls:GlyphText>
                         <TextBlock Text="{Binding Notice}" FontSize="12" TextTrimming="CharacterEllipsis"
                                    VerticalAlignment="Center"
                                    Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
