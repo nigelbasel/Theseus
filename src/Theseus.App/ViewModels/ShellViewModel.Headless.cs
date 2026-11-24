@@ -235,7 +235,15 @@ public sealed partial class ShellViewModel : IRunRequests
             workstream = workstream with { StartInstruction = request.Prompt };
         }
 
-        workstream = AimedWriter(Board.Pin(workstream));
+        var refusals = new List<string>();
+        var notes = new List<string>();
+
+        if (WithWorktrees(AimedWriter(Board.Pin(workstream)), refusals, notes) is not { } prepared)
+        {
+            return new RunRefused(RefusalReason.CannotStart, refusals.FirstOrDefault() ?? $"{workstream.Title}'s worktrees could not be made ready.");
+        }
+
+        workstream = prepared;
         TheseusLog.Information("{By} asked for a run of {Workstream} ({Reason})", request.RequestedBy, workstream.Key, request.Reason);
 
         if (_launcher.Launch(workstream, _plans.PathFor(workstream.Key), StartMode.Resume, request.Reason) is not { } sessionId)

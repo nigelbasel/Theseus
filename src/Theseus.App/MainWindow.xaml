@@ -432,6 +432,8 @@
             <MenuItem Header="P_roperties" InputGestureText="Alt+Enter" FontWeight="SemiBold"
                       Command="{Binding PropertiesCommand}"
                       ToolTip="Rename it, edit its setup, its Jira keys, its links, or delete it." />
+            <MenuItem Header="_Duties…" Command="{Binding DutiesCommand}"
+                      ToolTip="The instructions Theseus gives this card on a cadence: run, pause, change or add them." />
             <Separator />
             <MenuItem Header="Resume the _last conversation"
                       Command="{Binding ResumeCommand}"
@@ -577,6 +579,9 @@
                         <MenuItem Header="Add o_bjective…" Command="{Binding AddObjectiveCommand}"
                                   Visibility="{Binding IsDimmed, Converter={StaticResource NotBoolToVisibility}}"
                                   ToolTip="Add an objective at the end of the current phase in project.md." />
+                        <MenuItem Header="_Duties…" Command="{Binding DutiesCommand}"
+                                  Visibility="{Binding IsDimmed, Converter={StaticResource NotBoolToVisibility}}"
+                                  ToolTip="The instructions Theseus gives this project's cards on a cadence: run, pause, change or add them." />
                         <Separator />
                         <MenuItem Header="Project p_roperties" Command="{Binding PropertiesCommand}"
                                   ToolTip="Its title, its colour, its tags and its project.md; the colour can be changed here." />
@@ -951,6 +956,11 @@
                         <TextBlock x:Name="BranchRules" Margin="0,4,0,0" HorizontalAlignment="Left" Text="{Binding BranchRulesMark}" FontSize="12"
                                    ToolTip="{Binding BranchRulesToolTip}" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                    Visibility="{Binding BranchRulesMark, Converter={StaticResource NotEmptyToVisibility}}" />
+                        <!-- Its duties: each one's cadence, next run and last outcome. -->
+                        <TextBlock x:Name="CardDuties" Margin="0,4,0,0" HorizontalAlignment="Left" Text="{Binding DutyText}" FontSize="12" TextWrapping="Wrap"
+                                   ToolTip="{Binding DutyToolTip}" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                   AutomationProperties.Name="Duties"
+                                   Visibility="{Binding DutyText, Converter={StaticResource NotEmptyToVisibility}}" />
                         <!-- Its tags, at most three then "+2"; clicking one filters the board by it (card-search-and-tags items 11, 12). -->
                         <WrapPanel x:Name="CardTags" Margin="0,4,0,0" Visibility="{Binding HasTags, Converter={StaticResource BoolToVisibility}}">
                             <ItemsControl AutomationProperties.Name="Tags" ItemContainerStyle="{StaticResource ItemNamedByLabel}" ItemsSource="{Binding TagChips}" Focusable="False">
@@ -1784,6 +1794,8 @@
 
             <MenuItem Header="_Tools">
                 <MenuItem Header="O_ptions" InputGestureText="Ctrl+," Command="{Binding Settings.OpenCommand}" />
+                <MenuItem Header="D_uties…" Command="{Binding OpenDutiesCommand}"
+                          ToolTip="Every duty on the board: the instructions Theseus gives cards on a cadence." />
                 <Separator />
                 <MenuItem Header="Tripped _breakers…" Command="{Binding TrippedBreakersCommand}"
                           ToolTip="Every card whose circuit breaker tripped, with Reset for those you tick." />

@@ -1,0 +1,100 @@
+<Window x:Class="Theseus.App.DutiesWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="{Binding Title}"
+        Width="880" Height="600" MinWidth="560" MinHeight="360"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        Background="{DynamicResource SolidBackgroundFillColorSecondaryBrush}"
+        Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+    <Window.Resources>
+        <Style x:Key="BarButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Margin" Value="0,0,8,8" />
+            <Setter Property="MinHeight" Value="32" />
+            <Setter Property="Padding" Value="12,0" />
+            <Setter Property="ToolTipService.ShowOnDisabled" Value="True" />
+        </Style>
+    </Window.Resources>
+    <Window.InputBindings>
+        <KeyBinding Key="A" Modifiers="Control" Command="{Binding SelectAllCommand}" />
+    </Window.InputBindings>
+    <!-- A checklist: the command bar acts on the ticked duties, and the count is at the foot. -->
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock x:Name="Intro" Text="{Binding Intro}" Style="{DynamicResource BodyText}" TextWrapping="Wrap" Margin="0,0,0,12" />
+
+        <WrapPanel x:Name="CommandBar" Grid.Row="1" Margin="0,0,0,4" AutomationProperties.Name="Actions on the ticked duties">
+            <Button x:Name="RunNowButton" Style="{StaticResource BarButton}" Command="{Binding RunNowCommand}"
+                    ToolTip="Run the ticked duties now, as each card's state allows; their cadence does not move" AutomationProperties.Name="Run now">
+                <AccessText Text="_Run now" />
+            </Button>
+            <Button x:Name="PauseButton" Style="{StaticResource BarButton}" Command="{Binding PauseCommand}"
+                    ToolTip="Pause the ticked duties: they stay, and do not run until resumed" AutomationProperties.Name="Pause">
+                <AccessText Text="_Pause" />
+            </Button>
+            <Button x:Name="ResumeButton" Style="{StaticResource BarButton}" Command="{Binding ResumeCommand}"
+                    ToolTip="Resume the ticked duties that are paused" AutomationProperties.Name="Resume">
+                <AccessText Text="Res_ume" />
+            </Button>
+            <Button x:Name="EditButton" Style="{StaticResource BarButton}" Command="{Binding EditCommand}" ToolTip="{Binding EditToolTip}"
+                    AutomationProperties.Name="Edit…">
+                <AccessText Text="_Edit…" />
+            </Button>
+            <Button x:Name="DeleteButton" Style="{StaticResource BarButton}" Command="{Binding DeleteCommand}"
+                    ToolTip="Delete the ticked duties, after asking" AutomationProperties.Name="Delete…">
+                <AccessText Text="_Delete…" />
+            </Button>
+            <Button x:Name="AddButton" Style="{StaticResource BarButton}" Command="{Binding AddCommand}" ToolTip="Set a new duty"
+                    AutomationProperties.Name="Add…">
+                <AccessText Text="_Add…" />
+            </Button>
+            <Button x:Name="SelectAllButton" Style="{StaticResource BarButton}" Command="{Binding SelectAllCommand}" ToolTip="Tick every duty (Ctrl+A)"
+                    AutomationProperties.Name="Select all" AutomationProperties.AcceleratorKey="Ctrl+A">
+                <AccessText Text="_Select all" />
+            </Button>
+            <Button x:Name="ClearButton" Style="{StaticResource BarButton}" Command="{Binding ClearCommand}" ToolTip="Untick every duty"
+                    AutomationProperties.Name="Clear">
+                <AccessText Text="Cl_ear" />
+            </Button>
+        </WrapPanel>
+
+        <Border Grid.Row="2" BorderThickness="1" CornerRadius="4" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
+            <ScrollViewer x:Name="RowsScroller" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+                <ItemsControl x:Name="Rows" ItemsSource="{Binding Rows}" Margin="12,8" Focusable="False"
+                              KeyboardNavigation.TabNavigation="Once" KeyboardNavigation.DirectionalNavigation="Contained"
+                              AutomationProperties.Name="Duties">
+                    <ItemsControl.ItemContainerStyle>
+                        <Style TargetType="ContentPresenter">
+                            <Setter Property="AutomationProperties.Name" Value="{Binding Text}" />
+                        </Style>
+                    </ItemsControl.ItemContainerStyle>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <CheckBox x:Name="DutyBox" Margin="0,8" IsChecked="{Binding IsTicked, Mode=TwoWay}" IsThreeState="False"
+                                      AutomationProperties.Name="{Binding Text}" AutomationProperties.HelpText="{Binding Detail}">
+                                <StackPanel>
+                                    <TextBlock x:Name="RowText" Text="{Binding Text}" Style="{DynamicResource BodyStrongText}" TextWrapping="Wrap" />
+                                    <TextBlock x:Name="RowDetail" Text="{Binding Detail}" Style="{DynamicResource CaptionText}" TextWrapping="Wrap"
+                                               Margin="0,4,0,0" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+                            </CheckBox>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Border>
+
+        <DockPanel x:Name="Footer" Grid.Row="3" Margin="0,16,0,0" LastChildFill="False">
+            <TextBlock x:Name="Count" DockPanel.Dock="Left" Text="{Binding CountText}" Style="{DynamicResource BodyStrongText}" VerticalAlignment="Center" />
+            <Button x:Name="CloseButton" DockPanel.Dock="Right" Content="Close" IsCancel="True" IsDefault="True"
+                    Style="{DynamicResource DialogButton}" Click="OnClose" />
+        </DockPanel>
+    </Grid>
+</Window>

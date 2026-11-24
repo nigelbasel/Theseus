@@ -39,6 +39,12 @@ public sealed class ProjectPropertiesViewModel : ObservableObject
             .Order(StringComparer.CurrentCultureIgnoreCase))))];
     }
 
+    /// <summary>
+    /// Whether the overnight queue resumes this project's idle cards: off unless the owner ticks it, since the queue acts on
+    /// nobody's request (Nigel, 2026-11-24). Written at OK.
+    /// </summary>
+    public bool ResumesIdleCards { get; set; }
+
     /// <summary>The project card's Tags field (card-search-and-tags item 10), written at OK.</summary>
     public TagEditorViewModel? TagEditor { get; init; }
 

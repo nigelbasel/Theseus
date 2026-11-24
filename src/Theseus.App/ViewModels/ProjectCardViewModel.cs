@@ -433,6 +433,9 @@ public sealed class ProjectCardViewModel : ObservableObject, IBoardCard
     /// <summary>Open project.md: the project's file in its editor (1.1c AC 8).</summary>
     public ICommand? OpenFileCommand { get; set; }
 
+    /// <summary>Opens the duties of this project's cards.</summary>
+    public ICommand? DutiesCommand { get; set; }
+
     /// <summary>Add objective…, at the end of the current phase (1.1c AC 8); none for a dimmed card.</summary>
     public ICommand? AddObjectiveCommand { get; set; }
 

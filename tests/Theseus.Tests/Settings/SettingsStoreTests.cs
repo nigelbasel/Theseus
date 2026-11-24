@@ -69,6 +69,7 @@ public class SettingsStoreTests
             Breakers = new Theseus.Core.Breakers.BreakerSettings(Crashes: 5),
             MaxHeadlessRuns = 7,
             ProjectRunModes = new Dictionary<string, Theseus.Core.Running.RunMode> { ["bym"] = Theseus.Core.Running.RunMode.Headless },
+            Duties = new DutySettings { DailyRunCap = 12, QuietHoursOn = true, QueueProjects = ["bym"] },
         };
 
         _store.Write(settings);
@@ -101,6 +102,8 @@ public class SettingsStoreTests
         Assert.That(read.ProjectUpdaterRuns, Is.EqualTo(new Dictionary<string, string> { ["bym"] = "Does not read: line 3" }));
         Assert.That(read.ProjectTags["bym"], Is.EqualTo(new[] { "bym", "security" }));
         Assert.That(read.TagColours, Is.EqualTo(new Dictionary<string, string> { ["bym"] = "#208DD7" }));
+        Assert.That((read.Duties.DailyRunCap, read.Duties.QuietHoursOn), Is.EqualTo((12, true)));
+        Assert.That(read.Duties.QueueProjects, Is.EqualTo(new[] { "bym" }));
         Assert.That(read with
             {
                 Lanes = settings.Lanes, Areas = settings.Areas, CollapsedAreas = settings.CollapsedAreas,
@@ -114,6 +117,7 @@ public class SettingsStoreTests
                 ProjectUpdaterRuns = settings.ProjectUpdaterRuns,
                 ProjectTags = settings.ProjectTags, TagColours = settings.TagColours,
                 ProjectBudgets = settings.ProjectBudgets, ProjectRunModes = settings.ProjectRunModes,
+                Duties = read.Duties with { QueueProjects = settings.Duties.QueueProjects },
             }, Is.EqualTo(settings),
             "a record holding a list compares it by reference, so the lists are checked separately");
     }

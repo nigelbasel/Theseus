@@ -50,6 +50,7 @@ public class ProjectCardMarkupTests
             ("T_ags", null),
             ("Open project._md", "{Binding OpenFileCommand}"),
             ("Add o_bjective…", "{Binding AddObjectiveCommand}"),
+            ("_Duties…", "{Binding DutiesCommand}"),
             ("Project p_roperties", "{Binding PropertiesCommand}"),
         }), "Properties last, G51 (baseline re-run NC-7)");
     }

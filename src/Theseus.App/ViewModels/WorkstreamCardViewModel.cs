@@ -547,6 +547,9 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
     /// <summary>Attaches this workstream to the session running unattached for it.</summary>
     public RelayCommand? AdoptLostCommand { get; set; }
 
+    /// <summary>Opens this card's duties.</summary>
+    public RelayCommand? DutiesCommand { get; set; }
+
     /// <summary>Whether a session is running, which is what disables Restart in favour of Focus.</summary>
     public bool IsLive => Lifecycle
         is SessionLifecycle.Launching
@@ -902,6 +905,23 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
 
     /// <summary>Convert to project…: a new project with this card as its first workstream (1.1c AC 7).</summary>
     public RelayCommand? ConvertToProjectCommand { get; set; }
+
+    private string _dutyText = string.Empty;
+    private string? _dutyToolTip;
+
+    /// <summary>Its duties on its face, one line each, such as "↻ Re-triage · every 2 h · next 23:30"; empty when it has none.</summary>
+    public string DutyText
+    {
+        get => _dutyText;
+        set => Set(ref _dutyText, value);
+    }
+
+    /// <summary>Each duty's instruction and who set it.</summary>
+    public string? DutyToolTip
+    {
+        get => _dutyToolTip;
+        set => Set(ref _dutyToolTip, value);
+    }
 
     /// <summary>
     /// Where its project slug's work was read, branch and commit (project-view AC 5); empty for a card in no readable

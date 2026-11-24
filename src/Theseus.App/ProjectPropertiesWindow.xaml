@@ -149,6 +149,12 @@
                                 ToolTipService.ShowOnDisabled="True" />
                     </controls:SettingRow>
 
+                    <controls:SettingRow x:Name="QueueRow" Label="Overnight queue"
+                                         Explanation="When on, an open card of this project left idle with unfinished work and nothing waiting on you is told to carry on, after the idle time set in Options › Board.">
+                        <CheckBox x:Name="QueueBox" IsChecked="{Binding ResumesIdleCards, Mode=TwoWay}" Content="Resume idle cards"
+                                  AutomationProperties.Name="Resume idle cards" />
+                    </controls:SettingRow>
+
                     <!-- Granted by the owner here, never by the file, which sessions write (1.1e AC 12b). -->
                     <controls:SettingRow x:Name="BranchRulesRow" Label="Branch rules" Value="{Binding BranchRulesValue}"
                                          Explanation="{Binding BranchRulesExplanation}">

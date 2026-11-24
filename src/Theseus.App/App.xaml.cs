@@ -261,6 +261,17 @@ public partial class App : Application
             _launcher.LaunchedCard = stageReports.Forget;
         }
 
+        // Duties are kept here, so they survive a restart of Theseus or of the machine.
+        var duties = new Theseus.Core.Duties.DutyBook(
+            new Theseus.Core.Duties.DutyStore(Path.Combine(DataDirectory, "duties.json")), clock);
+        shell.Duties = duties;
+        shell.ShowDutiesWindow = model =>
+            new DutiesWindow(model) { Owner = Windows.OfType<Window>().FirstOrDefault(window => window.IsActive) ?? MainWindow }.ShowDialog();
+        shell.AskDuty = model =>
+            new DutyEditWindow(model) { Owner = Windows.OfType<Window>().FirstOrDefault(window => window.IsActive) ?? MainWindow }.ShowDialog() == true;
+        shell.ConfirmDutyDelete = text =>
+            new QuestionWindow("Delete duties?", text, "_Delete") { Owner = ActiveWindow }.Ask() == true;
+
         var mcpHandler = new Theseus.Core.Mcp.McpHandler(
                 new Theseus.Core.Attention.WorkLog(Path.Combine(DataDirectory, "work.jsonl")),
                 attention.Read,
@@ -288,7 +299,9 @@ public partial class App : Application
                 create: (proposal, startNow) => Dispatcher.Invoke(() => shell.CreateForSession(proposal, startNow)),
                 askOwner: new Theseus.Core.Mcp.AskOwnerTool(shell.Questions, () => DateTimeOffset.UtcNow,
                     () => Dispatcher.BeginInvoke(shell.Refresh)),
-                startRequests: shell.StartRequests);
+                startRequests: shell.StartRequests,
+                duties: new Theseus.Core.Mcp.DutyTools(duties, record: (card, text) =>
+                    Dispatcher.BeginInvoke(() => shell.RecordDutyEvent(card, text))));
 
         WireHeadless(shell, settings, mcpHandler);
 

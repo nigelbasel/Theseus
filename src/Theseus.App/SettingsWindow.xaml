@@ -132,6 +132,37 @@
                             <Button Content="Change…" Style="{StaticResource Action}" Click="OnChangeAreas"
                                     AutomationProperties.Name="Change the board areas" />
                         </controls:SettingRow>
+                        <StackPanel x:Name="DutyOptions" DataContext="{Binding Duties}">
+                        <TextBlock Style="{StaticResource PageNote}" Margin="0,24,0,0"
+                                   Text="A duty is an instruction Theseus gives a card on a cadence. These limits apply to every duty; a duty can set its own daily cap. Theseus sets no cost limit of its own yet: the daily cap is the only limit on what duties spend." />
+
+                        <controls:SettingRow Label="Daily cap" Value="{Binding CapValue}"
+                                             Explanation="The most runs a duty gives in a day, unless it sets its own. Once reached, its runs are skipped until midnight.">
+                            <Button Content="Change…" Style="{StaticResource Action}" Click="OnChangeDutyCap"
+                                    AutomationProperties.Name="Change the daily cap" />
+                        </controls:SettingRow>
+
+                        <controls:SettingRow Label="Pauses itself" Value="{Binding FailureValue}"
+                                             Explanation="A duty whose runs crash or do not reach the card this many times in a row pauses itself, and says why on its card.">
+                            <Button Content="Change…" Style="{StaticResource Action}" Click="OnChangeDutyFailures"
+                                    AutomationProperties.Name="Change when a duty pauses itself" />
+                        </controls:SettingRow>
+
+                        <controls:SettingRow Label="Quiet hours" Value="{Binding QuietValue}"
+                                             Explanation="Duties due in these hours wait and run once when they end, unless a duty runs through them. The overnight queue always runs through them.">
+                            <Button Content="Change…" Style="{StaticResource Action}" Click="OnChangeQuietHours"
+                                    AutomationProperties.Name="Change the quiet hours" />
+                        </controls:SettingRow>
+
+                        <controls:SettingRow Label="Overnight queue" Value="{Binding QueueValue}"
+                                             Explanation="In a project whose queue is on, an open card idle this long, with unfinished work and nothing waiting on you, is told to carry on. Switch it on per project in Project properties.">
+                            <Button Content="Change…" Style="{StaticResource Action}" Click="OnChangeQueue"
+                                    AutomationProperties.Name="Change the overnight queue's limits" />
+                        </controls:SettingRow>
+
+                        <controls:SettingRow Label="Queue is on for" Value="{Binding QueueProjectsValue}"
+                                             Explanation="The projects whose idle cards the queue resumes. It is off in a project until you switch it on there." />
+                        </StackPanel>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

@@ -22,6 +22,8 @@ session can carry on where it left off.
   propose new ones.
 - [Verifying with holdouts](holdouts.md): a verifier card that runs your private holdout scenarios and reports
   only a verdict.
+- [Duties and the overnight queue](duties.md): instructions Theseus gives cards on a cadence, and waking idle cards
+  that still have work to do.
 - [Locks](locks.md): the machine's shared locks for test runs, the docker stack and the local model
   server.
 - [Updates](updates.md): how Theseus finds and installs a newer version.

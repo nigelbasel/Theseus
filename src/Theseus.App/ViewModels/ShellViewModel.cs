@@ -1,3 +1,4 @@
+using Theseus.Core.Duties;
 using Theseus.Core.Mcp;
 using Theseus.Core.Persistence;
 using System.Diagnostics;
@@ -961,6 +962,7 @@ public sealed partial class ShellViewModel : ObservableObject
             GrantsBranchRules = granted,
             GrantedPrimary = grant?.Primary,
             RunsHeadless = _settings.Read().ProjectRunModes.TryGetValue(card.Name, out var projectMode) && projectMode == RunMode.Headless,
+            ResumesIdleCards = _settings.Read().Duties.QueueIsOn(card.Name),
             OpenAt = openAt,
             Holdout = _holdouts.LocationOfProject(card.Name),
             HoldoutByConvention = HoldoutLocation.Find(card.Name, null, HoldoutConventionOf(card.Name)),
@@ -995,6 +997,17 @@ public sealed partial class ShellViewModel : ObservableObject
                 : _holdouts.LocationOfProject(card.Name) is { Folder.Length: > 0 } found
                     ? $"{card.Title}'s holdout folder is found by convention again: {found.Folder}."
                     : $"{card.Title}'s holdout folder is found by convention again, but its recorded repository is not found.";
+        }
+
+        if (properties.ResumesIdleCards != _settings.Read().Duties.QueueIsOn(card.Name))
+        {
+            var current = _settings.Read();
+            IReadOnlyList<string> queued = properties.ResumesIdleCards
+                ? [.. current.Duties.QueueProjects, card.Name]
+                : [.. current.Duties.QueueProjects.Where(name => !string.Equals(name, card.Name, StringComparison.OrdinalIgnoreCase))];
+            _settings.Write(current with { Duties = current.Duties with { QueueProjects = queued } });
+            TheseusLog.Information("Overnight queue switched {State} for {Project} by the owner", properties.ResumesIdleCards ? "on" : "off", card.Name);
+            Notice = $"The overnight queue is {(properties.ResumesIdleCards ? "on" : "off")} for {card.Title}.";
         }
 
         tags.AddPending();
@@ -1460,6 +1473,9 @@ public sealed partial class ShellViewModel : ObservableObject
 
         // Last, once lifecycles and the projects' running state are set, which its words read.
         Drawer.RefreshStart();
+
+        // A turn that ends is what lets a waiting duty go, so it is looked at on every refresh, not only by its timer.
+        TickDuties();
     }
 
     // Start-up has taken anything from 4 seconds to over 2 minutes on the same machine, with nothing
@@ -2567,6 +2583,8 @@ public sealed partial class ShellViewModel : ObservableObject
         }
 
         var projectCards = new List<ProjectCardViewModel>();
+        var queueCandidates = new List<QueueCandidate>();
+        var queueSettings = _settings.Read();
         ProjectViewModel? openView = null;
 
         // Read once per wiring, not once per project.
@@ -2668,8 +2686,11 @@ public sealed partial class ShellViewModel : ObservableObject
             {
                 openView = BuildView(reading, pieces, tabs, overview, lead);
             }
+
+            GatherQueueCandidates(name, pieces, queueSettings, queueCandidates);
         }
 
+        _queueCandidates = queueCandidates;
         var openable = projectCards.ToList();
 
         // A project whose file does not read still gets its card, dimmed and saying why (1.1c AC 5), with its mark and

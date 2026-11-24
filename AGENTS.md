@@ -60,7 +60,10 @@ so it is not part of the generic kit in `method/`.
   first. A report is a claim, never a fact, until confirmed on the board.
 - Nothing starts a session on its own. Ready is shown, never acted on. The one exception (Nigel, 2026-11-20): inside
   a project at autonomy level L1 or above, Theseus starts and stops that project's workstreams for objectives already
-  in its approved project file. Until the levels are built (phase 2), there is no such project.
+  in its approved project file. Until the levels are built (phase 2), there is no such project. Duties are named
+  exceptions too (Nigel, 2026-11-24): a duty the owner set is his instruction, and one a session set is a start that
+  session could make with start_workstream, deferred; the overnight queue, which acts on nobody's request, is off until
+  the owner switches it on for a project, and only ever wakes an open, idle card.
 - Theseus reads trackers and never writes to them. Sessions never report durations.
 - Only the owner reorders, cancels or releases a lock, from the board. Clean-up touches only what can be
   proved to belong to the run being cleaned up.
