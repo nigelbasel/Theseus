@@ -161,15 +161,6 @@ public sealed class HoldoutChecks
         }
     }
 
-    /// <summary>
-    /// A Verify menu item's text: the reason it cannot run follows the label, not only in its tooltip (Nigel, 2026-11-23).
-    /// </summary>
-    /// <param name="why">Why it cannot run, or null when it can.</param>
-    public static string MenuText(string? why) => why is null ? VerifyMenuLabel : $"{VerifyMenuLabel} — {why}";
-
-    /// <summary>The Verify menu item's own label, with its access key.</summary>
-    public const string VerifyMenuLabel = "_Independent check…";
-
     /// <summary>The way on from a disabled Verify: set a missing chosen folder, or write the first scenarios.</summary>
     public HoldoutWayOn WayOn(Workstream card)
     {
