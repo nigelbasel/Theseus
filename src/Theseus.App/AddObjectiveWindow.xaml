@@ -16,6 +16,7 @@
             <Setter Property="Margin" Value="0,0,0,8" />
             <Setter Property="FontSize" Value="14" />
             <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
         </Style>
     </Window.Resources>
     <StackPanel Margin="24">

@@ -15,6 +15,7 @@
             <Setter Property="Margin" Value="0,16,0,8" />
             <Setter Property="FontSize" Value="14" />
             <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
         </Style>
     </Window.Resources>
     <!-- Adds the card's row to the chosen objective's workstreams table in project.md (1.1c AC 7). -->
