@@ -86,16 +86,16 @@ public class ProjectViewLayoutTests
     }
 
     [Test]
-    public void TheStackedCardMark_IsThreeOffsetOutlines_18By14()
+    public void TheStackedCardMark_IsThreeOffsetOutlines_20By16()
     {
         var control = LaidOut(_views.Theseus());
         var mark = Descendants<Canvas>(Named<Border>(control, "Where")).First();
         var outlines = mark.Children.OfType<Rectangle>().ToList();
 
-        Assert.That((mark.Width, mark.Height), Is.EqualTo((18.0, 14.0)));
+        Assert.That((mark.Width, mark.Height), Is.EqualTo((20.0, 16.0)), "on the 4 epx grid (baseline W36, D9)");
         Assert.That(outlines.Select(each => (Canvas.GetLeft(each), Canvas.GetTop(each), each.Width, each.Height)), Is.EqualTo(new[]
         {
-            (4.0, 0.0, 14.0, 10.0), (2.0, 2.0, 14.0, 10.0), (0.0, 4.0, 14.0, 10.0),
+            (5.0, 1.0, 14.0, 10.0), (3.0, 3.0, 14.0, 10.0), (1.0, 5.0, 14.0, 10.0),
         }));
     }
 
