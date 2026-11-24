@@ -157,6 +157,14 @@ public sealed class ProjectPropertiesViewModel : ObservableObject
 
     private string? _lead;
 
+    /// <summary>Whether a lead can be chosen: only once the project has workstreams (baseline C11).</summary>
+    public bool CanChooseLead => Leads.Count > 0;
+
+    /// <summary>What Change does, or why it is off.</summary>
+    public string LeadChangeToolTip => CanChooseLead
+        ? "Choose the project's lead from its workstreams"
+        : "The project has no workstreams yet, so there is no lead to choose";
+
     /// <summary>The lead as the Lead and branches tab shows it.</summary>
     public string LeadValue => Leads.FirstOrDefault(each => string.Equals(each.Key, _lead, StringComparison.OrdinalIgnoreCase)) is { Key: not null } chosen
         ? chosen.Value
@@ -232,11 +240,16 @@ public sealed class ProjectPropertiesViewModel : ObservableObject
     /// <summary>Whether the folder in force is Theseus's own, which can be kept in a private repository.</summary>
     public bool HoldoutIsTheseusOwn => !_holdoutChoiceMade && Holdout is { IsDefault: true };
 
-    /// <summary>Change…: chooses the project's holdout folder, written at OK. Why it cannot be, or null.</summary>
+    /// <summary>
+    /// Change…: chooses the project's holdout folder, written at OK. Why it cannot be, or null; the reason is also shown
+    /// under the holdout row (baseline A19), not in a message box.
+    /// </summary>
     public string? ChooseHoldout(string folder)
     {
         if (WhyNotHoldout(folder) is { } why)
         {
+            HoldoutError = why;
+
             return why;
         }
 
@@ -247,6 +260,68 @@ public sealed class ProjectPropertiesViewModel : ObservableObject
 
     /// <summary>Reset: the folder is found by convention again, at OK.</summary>
     public void ResetHoldout() => SetHoldoutChoice(null);
+
+    /// <summary>
+    /// Adds the private repository's remote to Theseus's own holdout folder, as the shell gives it; the folder's own
+    /// <see cref="Theseus.Core.Links.HoldoutLocation.AddRemote"/> when unset. Why it could not, or null.
+    /// </summary>
+    public Func<string, string?>? AddRemote { get; init; }
+
+    private string? _pendingRemote;
+
+    /// <summary>The private repository's address chosen, which OK adds as the folder's remote; null when none was chosen.</summary>
+    public string? PendingRemote
+    {
+        get => _pendingRemote;
+        private set
+        {
+            if (Set(ref _pendingRemote, value))
+            {
+                Raise(nameof(HasPendingRemote));
+                Raise(nameof(PendingRemoteText));
+            }
+        }
+    }
+
+    /// <summary>Whether an address waits for OK.</summary>
+    public bool HasPendingRemote => _pendingRemote is not null;
+
+    /// <summary>What happens to the chosen address, shown under Use a private repository….</summary>
+    public string PendingRemoteText => _pendingRemote is null ? string.Empty : $"Its remote becomes {_pendingRemote} once you press OK.";
+
+    /// <summary>
+    /// Use a private repository…: keeps the address until OK, so Cancel adds nothing (baseline W6 and A2: a properties
+    /// dialog holds its changes until OK).
+    /// </summary>
+    public void KeepInPrivateRepository(string address)
+    {
+        HoldoutError = null;
+        PendingRemote = address.Trim();
+    }
+
+    /// <summary>Why an address cannot be a repository's, or null: asked in the prompt, before it closes.</summary>
+    public static string? WhyNotRemote(string address) =>
+        string.IsNullOrWhiteSpace(address) || address.Trim().StartsWith('-')
+            ? "Give the repository's address, such as https://host/owner/repo.git."
+            : null;
+
+    private string? _holdoutError;
+
+    /// <summary>Why the holdout folder or its repository was refused, shown under the holdout row; null when nothing was.</summary>
+    public string? HoldoutError
+    {
+        get => _holdoutError;
+        private set
+        {
+            if (Set(ref _holdoutError, value))
+            {
+                Raise(nameof(HasHoldoutError));
+            }
+        }
+    }
+
+    /// <summary>Whether a holdout refusal is shown.</summary>
+    public bool HasHoldoutError => _holdoutError is not null;
 
     /// <summary>
     /// Why a folder cannot be a project's holdout, or null (review of PR 7, finding 9): the guard protects neither a whole
@@ -261,6 +336,9 @@ public sealed class ProjectPropertiesViewModel : ObservableObject
 
     private void SetHoldoutChoice(string? folder)
     {
+        // A staged remote belongs to the folder in force when it was staged, which is no longer the one OK keeps.
+        PendingRemote = null;
+        HoldoutError = null;
         _holdoutChoice = folder;
         _holdoutChoiceMade = true;
         Raise(nameof(HoldoutValue));
@@ -280,16 +358,32 @@ public sealed class ProjectPropertiesViewModel : ObservableObject
     /// <summary>OK: writes a changed title and says whether the dialog may close; a refusal stays, shown under the title.</summary>
     public bool Apply()
     {
-        if (!TitleChanged)
-        {
-            return true;
-        }
-
-        if (_title.Trim().Length == 0)
+        // What can be refused without writing is checked first, so a refusal leaves nothing written. A title the file
+        // refuses after the remote was added leaves that remote in place; Cancel then keeps it.
+        if (TitleChanged && _title.Trim().Length == 0)
         {
             Error = "A project needs a title.";
 
             return false;
+        }
+
+        if (_pendingRemote is { } address)
+        {
+            Func<string, string?>? add = AddRemote ?? (Holdout is { IsDefault: true } own ? own.AddRemote : null);
+
+            if (add?.Invoke(address) is { } why)
+            {
+                HoldoutError = why;
+
+                return false;
+            }
+
+            PendingRemote = null;
+        }
+
+        if (!TitleChanged)
+        {
+            return true;
         }
 
         Error = WriteTitle?.Invoke(_title.Trim());
