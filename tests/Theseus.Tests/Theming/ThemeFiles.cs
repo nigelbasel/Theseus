@@ -15,6 +15,8 @@ internal static class ThemeFiles
 
     public static string Text(string file) => File.ReadAllText(PathOf(file));
 
+    public static XDocument App() => XDocument.Load(Path.Combine(RepositoryRoot(), "src", "Theseus.App", "App.xaml"));
+
     /// <summary>Every keyed entry of a theme dictionary: key to element.</summary>
     public static Dictionary<string, XElement> Entries(string file) =>
         Load(file).Root!.Elements()

@@ -201,4 +201,20 @@ public class ProjectViewPropertiesTests
         Assert.That(criterion.TickGlyph, Is.EqualTo("☑"));
         Assert.That(_views.Edited.Single(), Does.EndWith(":False"));
     }
+
+    [Test]
+    public void AHandIn_IsSaidOnTheBox_AndInFullInProperties()
+    {
+        // git-22, 2026-11-24: a lead gave an existing card work, and the view showed only the card turning busy.
+        var at = new DateTimeOffset(2026, 11, 24, 8, 41, 0, TimeSpan.Zero);
+        var handIn = new Theseus.Core.Projects.HandIn(at, "lead", "The lead", "Fix the search bugs\nget_contact returns 500 on an unknown id.");
+        var view = _views.Of(WriteOne(_folder, "feature", Files("spec.md")), [Card(ACard, SessionLifecycle.Running) with { HandIn = handIn }]);
+        var box = Box(view, APiece);
+        var time = at.ToLocalTime().ToString("HH:mm", System.Globalization.CultureInfo.CurrentCulture);
+
+        Assert.That(box.HandInText, Does.StartWith("← The lead: Fix the search bugs, ").And.EndWith(time));
+        Assert.That(Selected(view, box).Rows.Single(row => row.Label == "Handed in").Value,
+            Does.StartWith("By The lead, ").And.EndWith(": Fix the search bugs\nget_contact returns 500 on an unknown id."));
+        Assert.That(Box(_views.Of(WriteOne(_folder, "feature", Files("spec.md")), [Card(ACard)]), APiece).HandInText, Is.Empty);
+    }
 }

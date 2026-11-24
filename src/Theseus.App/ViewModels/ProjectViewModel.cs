@@ -1211,7 +1211,7 @@ public sealed class ProjectViewModel : ObservableObject
         IEnumerable<string> Lines(PieceNodeViewModel node, int depth) =>
             node.Children.SelectMany(child => Lines(child, depth + 1)).Prepend(string.Join("/",
                 depth.ToString(CultureInfo.InvariantCulture), node.Name, node.Workstream, node.ColourHex, node.KindWord,
-                node.ObjectiveLabel, node.StatusText, node.WhoActs, node.ReportedAgain, node.Title, node.KindLabel, node.Gate?.ToolTip,
+                node.ObjectiveLabel, node.StatusText, node.WhoActs, node.HandInText, node.ReportedAgain, node.Title, node.KindLabel, node.Gate?.ToolTip,
                 node.Piece.Round, node.ReportBackText, node.IsReportLost, node.Piece.RecordsFolder,
                 node.Evidence, node.Spec?.ContentHash, string.Join(";", node.CrossMarks), node.Piece.Card?.StopLine, node.BranchRulesToolTip,
                 node.Objective is { } objective
