@@ -427,6 +427,7 @@
         own style is based on this one, so its selection and link highlights, declared after, win over hover.
     -->
     <Style x:Key="ClickableCard" TargetType="Border">
+        <Setter Property="Focusable" Value="True" />
         <Setter Property="FocusVisualStyle" Value="{StaticResource CardFocusRing}" />
         <Style.Triggers>
             <Trigger Property="IsMouseOver" Value="True">

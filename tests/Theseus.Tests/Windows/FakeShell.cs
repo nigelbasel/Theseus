@@ -1,4 +1,5 @@
 using Theseus.App.ViewModels;
+using Theseus.Core.Abstractions;
 
 namespace Theseus.Tests.Windows;
 
@@ -9,8 +10,15 @@ namespace Theseus.Tests.Windows;
 /// </summary>
 internal sealed class FakeShell
 {
-    /// <summary>Creates a shell over a board.</summary>
-    public FakeShell(BoardViewModel board) => Board = board;
+    /// <summary>Creates a shell over a board, with a drawer over the same plans.</summary>
+    public FakeShell(BoardViewModel board, IPlanStore plans)
+    {
+        Board = board;
+        Drawer = new DetailDrawerViewModel(plans, new NoRunLog(), new NoWorkflowRuns(), board.Persist);
+    }
+
+    /// <summary>The detail drawer, closed until a test shows a card in it.</summary>
+    public DetailDrawerViewModel Drawer { get; }
 
     /// <summary>The board, with the fake cards.</summary>
     public BoardViewModel Board { get; }
