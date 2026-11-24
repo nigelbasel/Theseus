@@ -41,16 +41,14 @@
         line of its name, its value as text, and what it does now, changed through a picker or a small dialog (item 6).
     -->
     <DockPanel>
-        <!-- The footer sits outside the tabs, so Save and Cancel are always reachable. -->
+        <!-- Every row applies as it changes, so the footer is a single Close (W6, G138). It sits outside the tabs, so it is always reachable. -->
         <Border DockPanel.Dock="Bottom" Padding="22,14"
                 Background="{DynamicResource LayerFillColorDefaultBrush}"
                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                 BorderThickness="0,1,0,0">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Content="Cancel" Padding="18,5" Margin="0,0,8,0" IsCancel="True"
+                <Button Content="Close" Style="{DynamicResource DialogButton}" IsCancel="True"
                         Command="{Binding CloseCommand}" />
-                <Button Content="Save" Padding="18,5" IsDefault="True"
-                        Command="{Binding SaveCommand}" />
             </StackPanel>
         </Border>
 
@@ -59,7 +57,7 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Style="{StaticResource Page}">
                         <controls:SettingRow Label="Theme" Value="{Binding Theme}"
-                                             Explanation="Applied as soon as it is chosen; Cancel does not undo it.">
+                                             Explanation="Applied as soon as it is chosen.">
                             <ComboBox ItemsSource="{Binding Themes}" SelectedItem="{Binding Theme, Mode=TwoWay}" Width="120"
                                       AutomationProperties.Name="Theme" />
                         </controls:SettingRow>
@@ -81,8 +79,8 @@
 
                         <controls:SettingRow Label="Updates" Value="{Binding UpdatesValue}"
                                              Explanation="Pre-releases are built from a project's primary branch before it is merged into main, so its work can be tried live first.">
-                            <CheckBox Content="Pre-releases" IsChecked="{Binding IncludePreReleases, Mode=TwoWay}"
-                                      AutomationProperties.Name="Include pre-releases in Check for updates" />
+                            <ToggleButton Content="Pre-releases" Style="{DynamicResource ToggleSwitch}" IsChecked="{Binding IncludePreReleases, Mode=TwoWay}"
+                                          AutomationProperties.Name="Include pre-releases in Check for updates" />
                         </controls:SettingRow>
                     </StackPanel>
                 </ScrollViewer>
@@ -144,7 +142,7 @@
                                         <DockPanel Margin="0,0,0,4">
                                             <Button DockPanel.Dock="Right" Content="Show again" Padding="10,2"
                                                     AutomationProperties.Name="{Binding StringFormat=Show {0} again}"
-                                                    ToolTip="Show this folder's project card again, once saved"
+                                                    ToolTip="Show this folder's project card again"
                                                     Command="{Binding DataContext.ShowProjectFolderCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                     CommandParameter="{Binding}" />
                                             <TextBlock Text="{Binding}" VerticalAlignment="Center" TextWrapping="Wrap" />

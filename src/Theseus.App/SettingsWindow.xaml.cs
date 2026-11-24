@@ -9,7 +9,7 @@ namespace Theseus.App;
 
 /// <summary>
 /// Options, as a window of its own rather than a panel inside the board. Every Change… here opens a picker or a small
-/// dialog and sets the value, which Save then writes; nothing is typed into the page itself (options-made-clear item 6).
+/// dialog and sets the value, which is written at once (W6); nothing is typed into the page itself (options-made-clear item 6).
 /// </summary>
 public partial class SettingsWindow : Window
 {

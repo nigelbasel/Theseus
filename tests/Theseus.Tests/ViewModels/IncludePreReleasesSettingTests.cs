@@ -27,14 +27,13 @@ public class IncludePreReleasesSettingTests
     }
 
     [Test]
-    public void SavingThePanelKeepsTheChoice()
+    public void ChangingThePanelKeepsTheChoice()
     {
         var store = new SettingsStore(Path.Combine(_folder, "settings.json"));
         var panel = new SettingsViewModel(store, () => { });
 
         panel.OpenCommand.Execute(null);
         panel.IncludePreReleases = true;
-        panel.SaveCommand.Execute(null);
 
         Assert.That(store.Read().IncludePreReleases, Is.True);
 

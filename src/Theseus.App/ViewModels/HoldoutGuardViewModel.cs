@@ -5,7 +5,7 @@ namespace Theseus.App.ViewModels;
 
 /// <summary>
 /// Options, Holdouts: the installed holdout guard's state, Install the holdout guard, Undo, and a missing hook entry
-/// added once its exact change is shown (verifier-runs brief step 3, Nigel 2026-11-22). Each acts at once, not at Save.
+/// added once its exact change is shown (verifier-runs brief step 3, Nigel 2026-11-22). Each acts at once.
 /// </summary>
 public sealed class HoldoutGuardViewModel : ObservableObject
 {
