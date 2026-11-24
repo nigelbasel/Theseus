@@ -21,6 +21,7 @@ public static class TheseusMcp
             "gates", "accept_spec", "events",
             "now_at", "record_round", "tick_criterion", "add_objective", "record_decision", "set_waiting",
             AskOwnerTool.Name,
+            DutyTools.SetDuty, DutyTools.ListDuties, DutyTools.PauseDuty, DutyTools.EndDuty,
         ];
 
     /// <summary>
@@ -33,7 +34,8 @@ public static class TheseusMcp
         [.. ToolNames.Where(tool => tool is not ("report_back" or "propose_workstream" or "withdraw_proposal"
                                        or "link_workstream" or "unlink_workstream" or "approve_proposal" or "reject_proposal"
                                        or "start_workstream" or "stop_workstream" or "pause_workstream" or "resume_workstream"
-                                       or "accept_spec" or "add_objective" or "record_round"))];
+                                       or "accept_spec" or "add_objective" or "record_round"
+                                       or DutyTools.SetDuty or DutyTools.PauseDuty or DutyTools.EndDuty))];
 
     /// <summary>
     /// The <c>--allowedTools</c> value that lets a launched session use exactly these tools without being

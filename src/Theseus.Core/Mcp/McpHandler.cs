@@ -79,7 +79,9 @@ public sealed partial class McpHandler
         + "tick_criterion, add an objective with add_objective, record a decision with record_decision and say who a "
         + "criterion waits on with set_waiting. Write prose by hand, never those lines. "
         + "When you need the user's answer before you can go on, ask with the question tool and call ask_owner with the "
-        + "same question, so it shows in Theseus; never ask only in prose, which leaves your card looking finished.";
+        + "same question, so it shows in Theseus; never ask only in prose, which leaves your card looking finished. "
+        + "For work that recurs, such as checking for something new every hour, call set_duty instead of running a loop in "
+        + "your tab: Theseus keeps it across restarts and the user can see, pause and change it.";
 
     private readonly WorkLog _work;
     private readonly LockBook? _locks;
@@ -101,6 +103,7 @@ public sealed partial class McpHandler
     private readonly Func<string, string>? _events;
     private readonly ProjectTools? _projectTools;
     private readonly AskOwnerTool? _askOwner;
+    private readonly DutyTools? _duties;
 
     /// <summary>Creates the handler over the work log, the sampler's intervals and the launched sessions.</summary>
     /// <param name="sessions">Finds the session a request's path names, or null for one Theseus did not launch.</param>
@@ -129,6 +132,7 @@ public sealed partial class McpHandler
     /// Where a project's session's start of a card the owner paused waits for his Allow (sessions-run-the-project item 12),
     /// or null, when such a start is refused.
     /// </param>
+    /// <param name="duties">set_duty, duties, pause_duty and end_duty, or null when Theseus keeps no duties.</param>
     public McpHandler(
         WorkLog work,
         Func<IReadOnlyList<AttentionInterval>> attention,
@@ -149,8 +153,10 @@ public sealed partial class McpHandler
         ProjectTools? projectTools = null,
         Func<WorkstreamProposal, bool, ProposalApproval>? create = null,
         AskOwnerTool? askOwner = null,
-        StartRequestBook? startRequests = null)
+        StartRequestBook? startRequests = null,
+        DutyTools? duties = null)
     {
+        _duties = duties;
         _startRequests = startRequests;
         _create = create;
         _askOwner = askOwner;
@@ -229,7 +235,7 @@ public sealed partial class McpHandler
         };
     }
 
-    private static JsonObject ToolsList() => new()
+    private static JsonObject ToolsList() => new JsonObject
     {
         ["tools"] = new JsonArray(
             Tool("start_work",
@@ -526,7 +532,7 @@ public sealed partial class McpHandler
                 },
                 "objective", "criterion", "text", "who"),
             AskOwnerTool.Definition.DeepClone()),
-    };
+    }.WithDutyTools();
 
     private McpResponse CallTool(JsonNode id, string sessionId, JsonObject? parameters)
     {
@@ -584,8 +590,24 @@ public sealed partial class McpHandler
             "pause_workstream" => ControlWorkstream(session, arguments, WorkstreamCall.Pause),
             "resume_workstream" => ControlWorkstream(session, arguments, WorkstreamCall.Resume),
             AskOwnerTool.Name => AskOwner(session, arguments),
+            DutyTools.SetDuty or DutyTools.ListDuties or DutyTools.PauseDuty or DutyTools.EndDuty => DutyCall(name, session, arguments),
             _ => WhoAmI(session),
         });
+    }
+
+    private JsonObject DutyCall(string name, McpSession session, JsonObject arguments)
+    {
+        if (_duties is null || _proposals is null)
+        {
+            return Result("This Theseus keeps no duties.", isError: true);
+        }
+
+        var board = _board();
+        var (_, controllable) = Controllable(session, board);
+        IReadOnlyList<BoardSnapshotCard> allowed = board.Card(session.WorkstreamKey) is { } own ? [own, .. controllable] : controllable;
+        var (text, isError) = _duties.Call(name, session, arguments, board, allowed);
+
+        return Result(text, isError);
     }
 
     private JsonObject AskOwner(McpSession session, JsonObject arguments)
