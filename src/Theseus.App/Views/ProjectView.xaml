@@ -224,8 +224,6 @@
         <!-- The project's two views as a selector bar's items (walkthrough row 44; checklist G125; baseline W15). -->
         <Style x:Key="GroupByButton" TargetType="RadioButton" BasedOn="{StaticResource SelectorBarItem}">
             <Setter Property="GroupName" Value="GroupBy" />
-            <Setter Property="Padding" Value="12,4" />
-            <Setter Property="Height" Value="32" />
             <Setter Property="controls:SelectorBar.SelectsOnFocus" Value="True" />
         </Style>
 
@@ -1185,7 +1183,7 @@
                         <!-- A button, not a link: it opens a dialog, and links only navigate (W15). -->
                         <Button x:Name="MoreWaits" Command="{Binding ShowAllWaitsCommand}" Style="{StaticResource CommandButton}"
                                 HorizontalAlignment="Left" Margin="0,0,0,4"
-                                ToolTip="Show every line of Waits for you, each with its button" AutomationProperties.Name="{Binding MoreWaitsName}"
+                                ToolTip="Show every line of Waits for you, each with its button." AutomationProperties.Name="{Binding MoreWaitsName}"
                                 Visibility="{Binding HasMoreWaits, Converter={StaticResource Visible}}">
                             <TextBlock Text="{Binding MoreWaitsText}" FontSize="14" />
                         </Button>

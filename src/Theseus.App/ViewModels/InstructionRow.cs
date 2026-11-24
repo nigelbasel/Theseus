@@ -42,7 +42,7 @@ public sealed class InstructionRow
                 InstructionLoad.OnDemand => "On demand",
                 _ => "Not read",
             },
-            Indent = new Thickness(file.ImportDepth * 22, 0, 0, 0),
+            Indent = new Thickness(file.ImportDepth * 24, 0, 0, 0),
             IsDimmed = file.Load == InstructionLoad.NotLoaded,
         };
     }

@@ -16,7 +16,7 @@ namespace Theseus.App.ViewModels;
 public sealed class ProjectViewModel : ObservableObject
 {
     /// <summary>Accept spec's tooltip, on the box and in Properties.</summary>
-    internal const string AcceptSpecToolTip = "Pass this gate: asks first, naming the piece of work and the commit";
+    internal const string AcceptSpecToolTip = "Pass this gate: asks first, naming the piece of work and the commit.";
 
     /// <summary>What the status bar says once when the window becomes too narrow for the pane beside the flow (AC 52).</summary>
     public const string PaneHiddenNotice = "Properties hidden: the window is too narrow";

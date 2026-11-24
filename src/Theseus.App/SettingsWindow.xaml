@@ -6,6 +6,7 @@
         Title="Options"
         Width="680"
         Height="620"
+        MinWidth="600"
         MinHeight="360"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False"
@@ -54,7 +55,7 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <TabControl x:Name="Tabs" Margin="16,12,16,0">
+        <TabControl x:Name="Tabs" Margin="20,12,20,0">
             <TabItem Header="General">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Style="{StaticResource Page}">
@@ -154,7 +155,7 @@
                                         <DockPanel Margin="0,0,0,4">
                                             <Button DockPanel.Dock="Right" Content="Show again" Style="{StaticResource Action}" Margin="8,0,0,0"
                                                     AutomationProperties.Name="{Binding StringFormat=Show {0} again}"
-                                                    ToolTip="Show this folder's project card again"
+                                                    ToolTip="Show this folder's project card again."
                                                     Command="{Binding DataContext.ShowProjectFolderCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                     CommandParameter="{Binding}" />
                                             <TextBlock Text="{Binding}" VerticalAlignment="Center" TextWrapping="Wrap" />
@@ -252,7 +253,7 @@
                                             <DockPanel>
                                                 <TextBlock DockPanel.Dock="Right" Text="{Binding CountText}" VerticalAlignment="Center"
                                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                                <Ellipse Width="10" Height="10" Margin="0,0,8,0" VerticalAlignment="Center"
+                                                <Ellipse Width="12" Height="12" Margin="0,0,8,0" VerticalAlignment="Center"
                                                          Fill="{Binding ColourHex, Converter={StaticResource HexToSwatch}}" />
                                                 <TextBlock Text="{Binding Label}" Style="{DynamicResource BodyStrongText}" VerticalAlignment="Center" />
                                             </DockPanel>
@@ -268,7 +269,7 @@
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate>
                                                             <!-- Its own template, so hover does not paint over the colour; the current one is ringed (review T8). -->
-                                                            <Button Width="24" Height="20" Margin="0,0,4,0" Cursor="Hand"
+                                                            <Button Width="24" Height="24" Margin="0,0,4,0" Cursor="Hand"
                                                                     ToolTip="{Binding ToolTip}" AutomationProperties.Name="{Binding ToolTip}"
                                                                     Command="{Binding Command}">
                                                                 <Button.Template>
@@ -309,7 +310,7 @@
                                                 <Button DockPanel.Dock="Right" Content="Rename" Style="{DynamicResource CommandButton}" Margin="8,0,0,0"
                                                         Command="{Binding RenameCommand}" ToolTip="{Binding RenameToolTip}" ToolTipService.ShowOnDisabled="True" />
                                                 <TextBox Text="{Binding NewName, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="New name" Width="200" HorizontalAlignment="Left"
-                                                         ToolTip="The tag's new name: letters, digits and hyphens" />
+                                                         ToolTip="The tag's new name: letters, digits and hyphens." />
                                             </DockPanel>
                                             <DockPanel Margin="0,8,0,0" Visibility="{Binding IsConfirmingDelete, Converter={StaticResource BoolToVisibility}}">
                                                 <Button DockPanel.Dock="Right" Content="Keep" Style="{DynamicResource CommandButton}" Margin="8,0,0,0"

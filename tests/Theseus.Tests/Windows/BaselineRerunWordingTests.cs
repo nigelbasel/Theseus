@@ -34,6 +34,23 @@ public class BaselineRerunWordingTests
     public void RemoveFromProject_AsksNothing_SoHasNoEllipsisInTheProjectView() =>
         Assert.That(File.ReadAllText(LooseXaml.SourceFile("ViewModels", "ShellViewModel.cs")), Does.Not.Contain("\"Remove from project…\""), "C13, W14");
 
+    [TestCase("ProjectPropertiesWindow.xaml", "The title in its project.md's first line")]
+    [TestCase("ProjectPropertiesWindow.xaml", "A tag: letters, digits and hyphens")]
+    [TestCase("ProjectPropertiesWindow.xaml", "Forget the folder you chose")]
+    [TestCase("ProjectPropertiesWindow.xaml", "Choose this project's holdout folder")]
+    [TestCase("ProjectPropertiesWindow.xaml", "Add your own private repository")]
+    [TestCase("SettingsWindow.xaml", "Show this folder's project card again")]
+    [TestCase("SettingsWindow.xaml", "The tag's new name")]
+    [TestCase("MainWindow.xaml", "Filter the board by tags")]
+    [TestCase("Views/ProjectView.xaml", "Show every line of Waits for you")]
+    public void ASentenceTooltip_EndsWithAFullStop(string file, string start) =>
+        Assert.That(Load(file).Descendants().Select(element => (string?)element.Attribute("ToolTip")).Single(tip => tip?.StartsWith(start, StringComparison.Ordinal) == true),
+            Does.EndWith("."), "A22, G106, G107");
+
+    [Test]
+    public void AcceptSpecsTooltip_EndsWithAFullStop() =>
+        Assert.That(Theseus.App.ViewModels.ProjectViewModel.AcceptSpecToolTip, Does.EndWith("."), "A22");
+
     private static XElement Element(string file, string name) =>
         Load(file).Descendants().Single(element => (string?)element.Attributes().FirstOrDefault(attribute => attribute.Name.LocalName == "Name") == name);
 

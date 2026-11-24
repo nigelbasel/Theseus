@@ -211,7 +211,6 @@
         <!-- An item of the side panel's Locks | Chains selector bar: the shared selector bar item, 32 high (W15, W56). -->
         <Style x:Key="PanelSwitchItem" TargetType="RadioButton" BasedOn="{StaticResource SelectorBarItem}">
             <Setter Property="Padding" Value="8,4" />
-            <Setter Property="MinHeight" Value="32" />
             <Setter Property="FontSize" Value="14" />
         </Style>
 
@@ -542,7 +541,7 @@
                             <!-- Folds the project card to this row, as a card folds (Nigel, 2026-11-24). -->
                             <Button x:Name="ProjectFold" DockPanel.Dock="Right" Style="{StaticResource CardFoldButton}" Margin="8,0,0,0"
                                     Click="OnFoldProjectCard" />
-                            <Border DockPanel.Dock="Right" CornerRadius="9" Padding="8,0" MinWidth="18" Margin="8,0,0,0"
+                            <Border DockPanel.Dock="Right" CornerRadius="10" Padding="8,0" MinWidth="20" Margin="8,0,0,0"
                                     VerticalAlignment="Center"
                                     Background="{DynamicResource StateWaitingSoftBrush}"
                                     ToolTip="{Binding WaitingText}"
@@ -1287,7 +1286,7 @@
             -->
             <DockPanel>
             <!-- Drag to set the row's height; double-click to let it fit its cards again. -->
-            <Thumb DockPanel.Dock="Bottom" Height="6" Cursor="SizeNS"
+            <Thumb DockPanel.Dock="Bottom" Height="8" Cursor="SizeNS"
                    ToolTip="Drag to set this row's height. Double-click to let it fit its cards."
                    DragDelta="OnRowEdgeDrag" DragCompleted="OnSizeDragCompleted"
                    PreviewMouseLeftButtonDown="OnRowEdgeDown">
@@ -1442,7 +1441,7 @@
                                 ToolTip="Focus: bring the session's window forward."
                                 Command="{Binding DataContext.Sessions.FocusCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                 CommandParameter="{Binding}" />
-                        <Button x:Name="AdoptButton" Style="{StaticResource ItemDropDown}"
+                        <Button x:Name="AdoptButton" Style="{StaticResource ItemDropDown}" MinHeight="32"
                                 ToolTip="Make a workstream follow this running session."
                                 Visibility="{Binding IsAdopted, Converter={StaticResource NotBoolToVisibility}}"
                                 Click="OnAdoptClicked">
@@ -1858,7 +1857,6 @@
                     <Style x:Key="ShowItem" TargetType="RadioButton" BasedOn="{StaticResource SelectorBarItem}">
                         <Setter Property="GroupName" Value="BoardShows" />
                         <Setter Property="Padding" Value="8,4" />
-                        <Setter Property="MinHeight" Value="32" />
                         <Setter Property="VerticalContentAlignment" Value="Center" />
                         <Setter Property="controls:SelectorBar.SelectsOnFocus" Value="True" />
                     </Style>
@@ -1918,7 +1916,7 @@
                 <!-- Tags ▾ (card-search-and-tags item 12): every tag with its count; ticking filters, Any | All at the top. -->
                 <ToggleButton x:Name="TagsToggle" Style="{StaticResource ToolIconToggle}" Margin="8,0,0,0" Padding="8,0"
                               Content="{Binding TagsButtonText, Converter={StaticResource AccessKeyEscape}}" Checked="OnTagsOpened"
-                              ToolTip="Filter the board by tags" AutomationProperties.Name="Tags" />
+                              ToolTip="Filter the board by tags." AutomationProperties.Name="Tags" />
                 <!-- A flyout: the overlay radius and padding, and a thicker edge under a contrast theme (D12, D-m1, E7). -->
                 <Popup x:Name="TagsPopup" PlacementTarget="{Binding ElementName=TagsToggle}" Placement="Bottom" StaysOpen="False"
                        AllowsTransparency="True" IsOpen="{Binding IsChecked, ElementName=TagsToggle, Mode=TwoWay}">
@@ -2139,7 +2137,7 @@
                                                 Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
                                                 ToolTip="{Binding Evidence}">
                                             <StackPanel>
-                                                <TextBlock Text="{Binding Heading}" FontSize="12" TextWrapping="Wrap"
+                                                <TextBlock Text="{Binding Heading}" FontSize="14" TextWrapping="Wrap"
                                                            Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                                                 <TextBlock Text="{Binding Detail}" FontSize="12" TextWrapping="Wrap" Margin="0,2,0,0"
                                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
@@ -2198,7 +2196,7 @@
                                                 Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
                                                 ToolTip="{Binding Evidence}">
                                             <StackPanel>
-                                                <TextBlock FontSize="12" TextWrapping="Wrap"
+                                                <TextBlock FontSize="14" TextWrapping="Wrap"
                                                            Foreground="{DynamicResource TextFillColorPrimaryBrush}">
                                                     <Run Text="{Binding Glyph, Mode=OneWay}" FontWeight="SemiBold" />
                                                     <Run Text="{Binding Heading, Mode=OneWay}" />
@@ -3088,7 +3086,7 @@
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <Border Grid.Column="0" Width="14" Height="14" CornerRadius="4" Margin="0,0,8,0"
+                        <Border Grid.Column="0" Width="16" Height="16" CornerRadius="4" Margin="0,0,8,0"
                                 VerticalAlignment="Center"
                                 Background="{Binding Drawer.ColorHex, Converter={StaticResource HexToSwatch}}"
                                 ToolTip="Permanent. A change applies from the next launch." />
