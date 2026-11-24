@@ -81,6 +81,9 @@ public sealed class PhaseHeadingViewModel : ObservableObject, IFoldable
     /// <summary>Its right-click menu: Properties (the default), then Add objective….</summary>
     public IReadOnlyList<PieceActionViewModel> MenuItems { get; }
 
+    /// <summary>Its right-click menu as drawn: each item with the access key the menu gave it (W26, C9).</summary>
+    public IReadOnlyList<MenuEntryViewModel> MenuEntries => MenuAccessKeys.For(MenuItems);
+
     /// <inheritdoc />
     public string FoldName => PieceFolds.PhaseEntry(Group.Phase.Name);
 
@@ -107,8 +110,8 @@ public sealed class PhaseHeadingViewModel : ObservableObject, IFoldable
         set => IsOpen = value;
     }
 
-    /// <summary>▸ folded, ▾ open.</summary>
-    public string Chevron => _isOpen ? "▾" : "▸";
+    /// <summary>The fold chevron, in the icon font (W25).</summary>
+    public string Chevron => FoldGlyph.Of(_isOpen);
 
     /// <summary>What the chevron does.</summary>
     public string ChevronToolTip => _isOpen ? "Fold this phase" : "Show this phase's objectives";

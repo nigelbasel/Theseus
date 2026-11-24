@@ -79,10 +79,10 @@ public sealed class ObjectiveHeadingViewModel : ObservableObject, IFoldable
     public string CriteriaText => Objective is { } objective ? $"{objective.TickedCount} of {objective.Criteria.Count} criteria met" : string.Empty;
 
     /// <summary>
-    /// The count as the button that lists the criteria, its chevron showing whether they are listed: that opening the
-    /// objective listed them "wasn't obvious" (walkthrough row 20). Empty with no criteria.
+    /// The count as the button that lists the criteria, beside <see cref="Chevron"/>, which shows whether they are listed:
+    /// that opening the objective listed them "wasn't obvious" (walkthrough row 20). Empty with no criteria.
     /// </summary>
-    public string CriteriaToggleText => Objective is { Criteria.Count: > 0 } ? $"{(_isOpen ? "▾" : "▸")} {CriteriaText}" : string.Empty;
+    public string CriteriaToggleText => Objective is { Criteria.Count: > 0 } ? CriteriaText : string.Empty;
 
     /// <summary>Whether its criteria are listed under it: while it is open and has any (item 6).</summary>
     public bool ShowsCriteria => _isOpen && Criteria.Count > 0;
@@ -124,6 +124,9 @@ public sealed class ObjectiveHeadingViewModel : ObservableObject, IFoldable
     /// <summary>Its right-click menu: Properties (the default), then Rename objective….</summary>
     public IReadOnlyList<PieceActionViewModel> MenuItems { get; }
 
+    /// <summary>Its right-click menu as drawn: each item with the access key the menu gave it (W26, C9).</summary>
+    public IReadOnlyList<MenuEntryViewModel> MenuEntries => MenuAccessKeys.For(MenuItems);
+
     /// <inheritdoc />
     public string FoldName => Objective is { } objective ? PieceFolds.ObjectiveEntry(objective.Title) : PieceFolds.UnlistedEntry;
 
@@ -139,7 +142,6 @@ public sealed class ObjectiveHeadingViewModel : ObservableObject, IFoldable
             if (Set(ref _isOpen, value))
             {
                 Raise(nameof(Chevron));
-                Raise(nameof(CriteriaToggleText));
                 Raise(nameof(ChevronToolTip));
                 Raise(nameof(ShowsPieces));
                 Raise(nameof(ShowsCriteria));
@@ -153,8 +155,8 @@ public sealed class ObjectiveHeadingViewModel : ObservableObject, IFoldable
         set => IsOpen = value;
     }
 
-    /// <summary>▸ folded, ▾ open.</summary>
-    public string Chevron => _isOpen ? "▾" : "▸";
+    /// <summary>The fold chevron, in the icon font (W25).</summary>
+    public string Chevron => FoldGlyph.Of(_isOpen);
 
     /// <summary>What the chevron does.</summary>
     public string ChevronToolTip => _isOpen ? "Fold this objective" : "Show this objective's criteria and pieces of work";

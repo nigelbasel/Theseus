@@ -87,8 +87,9 @@ public class ProjectViewGroupingLayoutTests
             Is.EqualTo(new[] { ($"← handed on from Specify the BuildYourMarket MCP server", true) }));
         Assert.That(Shown(AllNamed<TextBlock>(readApi, "ReportBack").Single(), control), Is.True);
         var criteria = AllNamed<Button>(objectives, "ObjectiveCriteria").First();
-        Assert.That((criteria.Content as string)?[2..], Is.EqualTo("0 of 1 criteria met"));
-        Assert.That(criteria.Content as string, Does.StartWith("▸").Or.StartWith("▾"), "its chevron says the criteria are listed by opening it (walkthrough row 20)");
+        var words = Descendants<TextBlock>(criteria).Select(text => text.Text).ToList();
+        Assert.That(words, Has.Member("0 of 1 criteria met"));
+        Assert.That(words, Has.Member(FoldGlyph.Folded).Or.Member(FoldGlyph.Open), "its chevron says the criteria are listed by opening it (walkthrough row 20)");
         Assert.That(AllNamed<ItemsControl>(objectives, "ObjectiveCounts").First().Items.Cast<StateCountViewModel>().Single().Text,
             Is.EqualTo("✓ 1 answered"), "W0 reported back and you confirmed it (1.1f E29)");
     }
@@ -116,7 +117,7 @@ public class ProjectViewGroupingLayoutTests
         Relaid(control, 1400);
 
         Assert.That(AllNamed<Border>(control, "PhaseBranch").First().Visibility, Is.EqualTo(Visibility.Collapsed));
-        Assert.That(phase.Content, Is.EqualTo("▸"));
+        Assert.That(phase.Content, Is.EqualTo(FoldGlyph.Folded));
     }
 
     [Test]

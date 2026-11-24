@@ -73,13 +73,13 @@ internal sealed class ProjectViews
 
     /// <summary>Theseus bootstrap, with git-22 in this state, open in its tab beside BuildYourMarket's.</summary>
     public ProjectViewModel Theseus(SessionLifecycle git22 = SessionLifecycle.Idle, ProjectViewModel? previous = null,
-        bool canStart = true, ProjectViewActions? actions = null)
+        bool canStart = true, ProjectViewActions? actions = null, Func<string, System.Windows.Input.ICommand?>? tabCommands = null)
     {
         var reading = WriteTheseus(_folder);
         IReadOnlyList<PieceCard> cards = [Card(Git22, git22) with { CanStart = canStart }];
         var pieces = PiecesOfWork.Build(reading, _ => null, cards, []);
 
-        return ProjectViewModel.Build(reading, pieces, LinksOn([], cards), Tabs(TheseusProject), Settings, actions ?? Actions, null,
+        return ProjectViewModel.Build(reading, pieces, LinksOn([], cards), Tabs(TheseusProject, tabCommands), Settings, actions ?? Actions, null,
             Edits, previous);
     }
 
@@ -136,6 +136,6 @@ internal sealed class ProjectViews
     }
 
     /// <summary>One tab per project in the folder that reads, this one open.</summary>
-    public IReadOnlyList<ProjectTabViewModel> Tabs(string open) =>
-        ProjectTabViewModel.For(ProjectCatalog.Read(_folder.Folder), open, _ => null);
+    public IReadOnlyList<ProjectTabViewModel> Tabs(string open, Func<string, System.Windows.Input.ICommand?>? commands = null) =>
+        ProjectTabViewModel.For(ProjectCatalog.Read(_folder.Folder), open, commands ?? (_ => null));
 }

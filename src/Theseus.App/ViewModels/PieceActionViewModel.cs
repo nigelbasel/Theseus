@@ -41,12 +41,6 @@ public sealed class PieceActionViewModel
     public ICommand Command { get; }
 
     /// <summary>
-    /// Whether it is drawn as a link: the way on offered beside a disabled button, such as Set the holdout folder… (1.1e
-    /// AC 6a).
-    /// </summary>
-    public bool IsLink { get; init; }
-
-    /// <summary>
     /// Why it cannot run, drawn beside the disabled button, not only as its tooltip: Independent check's reason
     /// (Nigel, 2026-11-23: a refusal seen nowhere but the status line read as "nothing happens"). Null otherwise.
     /// </summary>
@@ -64,7 +58,4 @@ public sealed class PieceActionViewModel
     /// </summary>
     public string IconToolTip => string.Join(Environment.NewLine,
         new[] { ActionGlyph.Name(Label), Note ?? ToolTip }.Where(text => !string.IsNullOrWhiteSpace(text)).Distinct());
-
-    /// <summary>Its text in a menu: the label, with the note after it when it has one, since a menu item shows no text beside it.</summary>
-    public string MenuText => Note is null ? Label : $"{Label} — {Note}";
 }

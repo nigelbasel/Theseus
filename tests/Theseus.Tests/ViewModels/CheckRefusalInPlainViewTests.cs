@@ -37,7 +37,7 @@ public class CheckRefusalInPlainViewTests
     {
         WhyNot = (_, action) => action == StageAction.VerifyWithHoldouts ? reason : null,
         WayOn = (_, action) => action == StageAction.VerifyWithHoldouts && wayOn is not null
-            ? new PieceActionViewModel(wayOn, () => ranWayOn?.Invoke(), toolTip: $"{wayOn} does it") { IsLink = true }
+            ? new PieceActionViewModel(wayOn, () => ranWayOn?.Invoke(), toolTip: $"{wayOn} does it")
             : null,
     };
 
@@ -47,10 +47,11 @@ public class CheckRefusalInPlainViewTests
     {
         var box = _views.Theseus(actions: Refusing(NoScenarios, "Write scenarios…")).AllNodes.Single(node => node.Name == "projects-and-method-ui");
         var verify = box.Actions.Single(action => action.Label == "Independent check…");
-        var inMenu = box.Stages.SelectMany(stage => stage.MenuItems).First(item => item.Label == "Independent check…");
+        var inMenu = box.Stages.SelectMany(stage => stage.MenuEntries).First(item => item.Action.Label == "Independent check…");
 
         Assert.That((verify.IsEnabled, verify.Note), Is.EqualTo((false, (string?)NoScenarios)));
-        Assert.That(inMenu.MenuText, Does.Contain(NoScenarios));
+        Assert.That((inMenu.Header, inMenu.Note), Is.EqualTo(("Independent _check…", NoScenarios)),
+            "the reason is the item's second line; its header stays fixed (W30, C10)");
     }
 
     [Test]
@@ -58,8 +59,9 @@ public class CheckRefusalInPlainViewTests
     {
         var box = _views.Theseus(actions: _views.Actions with { WhyNot = (_, _) => null }).AllNodes.Single(node => node.Name == "projects-and-method-ui");
         var verify = box.Actions.Single(action => action.Label == "Independent check…");
+        var inMenu = box.Stages.SelectMany(stage => stage.MenuEntries).First(item => item.Action.Label == verify.Label);
 
-        Assert.That((verify.Note, verify.MenuText), Is.EqualTo(((string?)null, "Independent check…")));
+        Assert.That((verify.Note, inMenu.Note, inMenu.Header), Is.EqualTo(((string?)null, (string?)null, "Independent _check…")));
     }
 
     [Test]
@@ -72,11 +74,13 @@ public class CheckRefusalInPlainViewTests
         };
         var actions = ProjectViewCommands.For(key => key == Git22 ? card : null,
             new RelayCommand(_ => { }), new RelayCommand(_ => { }), new RelayCommand(_ => { }),
-            _ => { }, _ => { }, _ => { }, notices.Add, null, (_, _) => NoScenarios, (_, _) => null, _explained.Add);
+            _ => { }, _ => { }, _ => { }, notices.Add, null, (_, _) => NoScenarios, (_, _) => null,
+            (title, text) => _explained.Add($"{title}: {text}"));
 
         actions.VerifyWithHoldouts(Git22);
 
-        Assert.That(_explained, Is.EqualTo(new[] { $"{NoScenarios}." }));
+        Assert.That(_explained, Is.EqualTo(new[] { $"Can't check {card.Title} yet: {NoScenarios}." }),
+            "a title saying what could not be done, not the general one (WB3's hand-on)");
         Assert.That(notices, Is.Empty);
     }
 

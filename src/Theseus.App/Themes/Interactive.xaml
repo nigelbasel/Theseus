@@ -30,7 +30,7 @@
         <Border Background="Transparent" Padding="{TemplateBinding Padding}">
             <!-- The underline is a hairline under the content, so it works whatever the content is. -->
             <Border x:Name="Underline" BorderThickness="0,0,0,1" BorderBrush="Transparent" VerticalAlignment="Center">
-                <ContentPresenter x:Name="Text" TextElement.Foreground="{TemplateBinding Foreground}" />
+                <ContentPresenter x:Name="Text" RecognizesAccessKey="True" TextElement.Foreground="{TemplateBinding Foreground}" />
             </Border>
         </Border>
         <ControlTemplate.Triggers>

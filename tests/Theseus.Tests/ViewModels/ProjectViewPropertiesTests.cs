@@ -180,7 +180,7 @@ public class ProjectViewPropertiesTests
         var line = box.Objective!.Criteria.Single().Line;
 
         Assert.That(pane.ObjectiveHeading, Is.EqualTo("Objective 1.1: Checks shown on cards"));
-        Assert.That(pane.Criteria.Select(criterion => (criterion.Text, criterion.TickGlyph)), Is.EqualTo(new[] { ("A criterion.", "☐") }));
+        Assert.That(pane.Criteria.Select(criterion => (criterion.Text, criterion.TickGlyph)), Is.EqualTo(new[] { ("A criterion.", "\uE739") }));
 
         pane.Criteria.Single().ToggleCommand!.Execute(null);
         pane.EditObjectiveCommand!.Execute(null);
@@ -198,7 +198,7 @@ public class ProjectViewPropertiesTests
 
         criterion.ToggleCommand!.Execute(null);
 
-        Assert.That(criterion.TickGlyph, Is.EqualTo("☑"));
+        Assert.That(criterion.TickGlyph, Is.EqualTo("\uE73A"), "the icon font's ticked box (W25)");
         Assert.That(_views.Edited.Single(), Does.EndWith(":False"));
     }
 

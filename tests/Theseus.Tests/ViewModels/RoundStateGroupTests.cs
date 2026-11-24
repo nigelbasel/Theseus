@@ -61,8 +61,8 @@ public class RoundStateGroupTests
         var done = groups.First(group => group.State == StageNodeState.Done);
         var built = groups.First(group => group.State == StageNodeState.HoldoutsNotRun);
 
-        Assert.That(done.Text, Is.EqualTo($"▶ ✓ {done.Boxes.Count} done"));
-        Assert.That(built.Text, Is.EqualTo($"▼ ◐ {built.Boxes.Count} not yet checked"));
+        Assert.That((done.Chevron, done.Text), Is.EqualTo((FoldGlyph.Folded, $"✓ {done.Boxes.Count} done")));
+        Assert.That((built.Chevron, built.Text), Is.EqualTo((FoldGlyph.Open, $"◐ {built.Boxes.Count} not yet checked")));
         Assert.That(groups.Select(group => group.IsOpen), Is.EqualTo(groups.Select(group => RoundStateGroupViewModel.OpensAtFirst(group.State))));
         Assert.That(done.Titles, Is.EqualTo(string.Join(" · ", done.Boxes.Select(box => box.Title))), "folded, it names what it holds (G135)");
     }
@@ -140,7 +140,7 @@ public class RoundStateGroupTests
 
         view.ToggleFilter(StageNodeState.WaitingOnYou, add: false);
 
-        Assert.That(done.Text, Is.EqualTo("▼ ✓ 1 done"));
+        Assert.That((done.Chevron, done.Text), Is.EqualTo((FoldGlyph.Open, "✓ 1 done")));
         Assert.That(done.IsOpen, Is.True, "the match is not hidden behind its heading");
     }
 

@@ -22,6 +22,8 @@ public partial class ProjectView : UserControl
     public ProjectView()
     {
         InitializeComponent();
+        InputBindings.Add(new KeyBinding(new OutsideTextBoxCommand(this, () => (DataContext as ProjectViewModel)?.UndoClearUpCommand),
+            Key.Z, ModifierKeys.Control));
         DataContextChanged += OnDataContextChanged;
         PreviewMouseMove += (_, e) => QuickToolTips(e.OriginalSource as DependencyObject);
     }
@@ -123,7 +125,7 @@ public partial class ProjectView : UserControl
 
     private void OnPreviewMouseDown(object sender, MouseButtonEventArgs e) => FocusView();
 
-    // The view's own width, not the split's: the split's column minimums keep it at least 726 px wide however narrow the
+    // The view's own width, not the split's: the split's column minimums keep it at least 728 px wide however narrow the
     // view, so its size would never say the pane no longer fits.
     private void OnViewSizeChanged(object sender, SizeChangedEventArgs e)
     {

@@ -243,7 +243,7 @@ public class ProjectViewModelTests
     {
         var box = Box(_views.Theseus(), "readme-runtime");
 
-        Assert.That((box.IsOpen, box.BoxWidth, box.Chevron, box.ChevronToolTip), Is.EqualTo((false, 290.0, "▸", "Open into its stages")));
+        Assert.That((box.IsOpen, box.BoxWidth, box.Chevron, box.ChevronToolTip), Is.EqualTo((false, 290.0, FoldGlyph.Folded, "Open into its stages")));
         Assert.That((box.Workstream, box.KindWord, box.ObjectiveLabel), Is.EqualTo(("git-22", "bug", "objective 0.3")));
         Assert.That(box.ColourHex, Is.EqualTo("#2f80ed"));
         Assert.That(box.StatusText, Is.EqualTo("– Next: Review."));
@@ -280,7 +280,7 @@ public class ProjectViewModelTests
 
         view.Toggle(box);
 
-        Assert.That((box.IsOpen, box.BoxWidth, box.Chevron, box.ChevronToolTip), Is.EqualTo((true, 640.0, "▾", "Fold this piece of work")));
+        Assert.That((box.IsOpen, box.BoxWidth, box.Chevron, box.ChevronToolTip), Is.EqualTo((true, 640.0, FoldGlyph.Open, "Fold this piece of work")));
         Assert.That(box.Actions.Select(action => action.Label), Is.EqualTo(new[]
         {
             "Open spec", "Accept spec…", "Independent check…", "⧉ Focus git-22", "■ Stop", "Open records",
