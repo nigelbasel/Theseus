@@ -2,6 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:Theseus.App.Controls"
+        xmlns:converters="clr-namespace:Theseus.App.Converters"
         Title="New workstream"
         Width="640"
         MinWidth="520"
@@ -14,112 +15,130 @@
     <!--
         New workstream as a dialog of its own (Nigel, 2026-11-03): it used to be a panel drawn over the
         board, and a long prompt pushed Create off the bottom of the screen with no way to close it.
-        Escape or the close button is Cancel; Ctrl+Enter is Create, since Enter is a new line in the prompt.
+        Escape or the close button is Cancel; Ctrl+Enter is Create, since Enter is a new line in the prompt (W45).
     -->
     <Window.Resources>
+        <converters:BoolToVisibilityConverter x:Key="BoolToVisibility" />
+        <converters:HexToSwatchConverter x:Key="HexToSwatch" />
+        <!-- The label above a field, as FieldLabel draws it, with the access key that moves to its field (W26, W50). -->
+        <Style x:Key="Field" TargetType="Label">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0,12,0,8" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+        </Style>
         <Style x:Key="FieldHint" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontSize" Value="12" />
             <Setter Property="Margin" Value="0,4,0,0" />
             <Setter Property="TextTrimming" Value="CharacterEllipsis" />
-            <Setter Property="Foreground" Value="{DynamicResource TextFillColorTertiaryBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
         </Style>
     </Window.Resources>
     <Window.InputBindings>
-        <KeyBinding Key="Escape" Command="{Binding NewWorkstream.CloseCommand}" />
         <KeyBinding Gesture="Ctrl+Enter" Command="{Binding NewWorkstream.CreateCommand}" />
     </Window.InputBindings>
 
-    <Grid Margin="22,10,22,18">
-        <DockPanel>
-            <Grid DockPanel.Dock="Bottom" Margin="0,14,0,0">
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <CheckBox Content="Open a tab now" VerticalAlignment="Center"
-                              IsChecked="{Binding NewWorkstream.StartNow}" />
-                    <Border Width="14" Height="14" CornerRadius="3" Margin="16,0,0,0"
-                            VerticalAlignment="Center"
-                            ToolTip="The card's colour: allocated automatically, and permanent once created"
-                            Background="{Binding NewWorkstream.ColourHex, Converter={StaticResource HexToBrush}}" />
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button Content="Cancel" Padding="18,5" Margin="0,0,8,0"
-                            Command="{Binding NewWorkstream.CloseCommand}" />
-                    <Button Content="Create" Padding="18,5" ToolTip="Create (Ctrl+Enter)"
-                            Command="{Binding NewWorkstream.CreateCommand}" />
-                </StackPanel>
-            </Grid>
+    <!-- Rows in reading order, so Tab goes through every field before the footer (B2, W43). -->
+    <Grid Margin="24,12,24,16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
 
-            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,6,0">
-                <StackPanel>
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,8,0" Focusable="False">
+            <StackPanel>
 
-                    <!--
-                        A follow-on (Nigel, 2026-10-21): the card it was opened on hands over to it, in its
-                        working directory. Ticking report back asks the follow-on for a report to the parent,
-                        under the parent's working directory; the parent is never held back by it.
-                    -->
-                    <StackPanel Margin="0,10,0,0"
-                                Visibility="{Binding NewWorkstream.IsFollowOn, Converter={StaticResource BoolToVisibility}}">
-                        <TextBlock Text="{Binding NewWorkstream.ParentTitle, StringFormat=Follow-on from {0}}" FontSize="12"
-                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                        <CheckBox Content="Report back: this card reports its output to the parent when done" Margin="0,6,0,0"
-                                  IsChecked="{Binding NewWorkstream.ReportBack}" />
-                        <TextBlock Text="{Binding NewWorkstream.ReportPath}" Style="{StaticResource FieldHint}" TextWrapping="Wrap"
-                                   Visibility="{Binding NewWorkstream.ReportBack, Converter={StaticResource BoolToVisibility}}" />
-                        <TextBlock Style="{StaticResource FieldHint}" TextWrapping="Wrap"
-                                   Text="This creates a card only. No Jira item, branch, worktree, push or PR." />
+                <!--
+                    A follow-on (Nigel, 2026-10-21): the card it was opened on hands over to it, in its
+                    working directory. Ticking report back asks the follow-on for a report to the parent,
+                    under the parent's working directory; the parent is never held back by it.
+                -->
+                <StackPanel Margin="0,12,0,0"
+                            Visibility="{Binding NewWorkstream.IsFollowOn, Converter={StaticResource BoolToVisibility}}">
+                    <TextBlock Text="{Binding NewWorkstream.ParentTitle, StringFormat=Follow-on from {0}}" Style="{DynamicResource CaptionText}"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                    <CheckBox Content="_Report back: this card reports its output to the parent when done" Margin="0,8,0,0"
+                              IsChecked="{Binding NewWorkstream.ReportBack}" />
+                    <TextBlock Text="{Binding NewWorkstream.ReportPath}" Style="{StaticResource FieldHint}" TextWrapping="Wrap"
+                               Visibility="{Binding NewWorkstream.ReportBack, Converter={StaticResource BoolToVisibility}}" />
+                    <TextBlock Style="{StaticResource FieldHint}" TextWrapping="Wrap"
+                               Text="This creates a card only. No Jira item, branch, worktree, push or PR." />
+                </StackPanel>
+
+                <Label x:Name="TitleLabel" Content="_Title" Target="{Binding ElementName=TitleBox}" Style="{StaticResource Field}" />
+                <TextBox x:Name="TitleBox" Text="{Binding NewWorkstream.Title, UpdateSourceTrigger=PropertyChanged}"
+                         AutomationProperties.LabeledBy="{Binding ElementName=TitleLabel}" />
+                <TextBlock Text="{Binding NewWorkstream.Key, StringFormat=Plan file: {0}.json}"
+                           Style="{StaticResource FieldHint}" />
+
+                <Label x:Name="DirectoryLabel" Content="_Working directory" Target="{Binding ElementName=DirectoryBox}" Style="{StaticResource Field}" />
+                <TextBox x:Name="DirectoryBox" Text="{Binding NewWorkstream.WorkingDirectory, UpdateSourceTrigger=PropertyChanged}"
+                         AutomationProperties.LabeledBy="{Binding ElementName=DirectoryLabel}" />
+                <TextBlock Text="This folder does not exist. Choose another, or create it first." FontSize="12" Margin="0,4,0,0"
+                           TextWrapping="Wrap" Foreground="{DynamicResource CriticalTextBrush}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding NewWorkstream.WorkingDirectoryExists}" Value="False">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+
+                <!--
+                    Where the card lands. Every new workstream used to appear in the first
+                    cell whatever it was for, and had to be dragged where it belonged.
+                -->
+                <Grid Margin="0,16,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="16" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0">
+                        <Label x:Name="StageLabel" Content="_Stage" Target="{Binding ElementName=StageBox}" Style="{StaticResource Field}" Margin="0,0,0,8" />
+                        <ComboBox x:Name="StageBox" ItemsSource="{Binding NewWorkstream.Stages}"
+                                  SelectedItem="{Binding NewWorkstream.Stage, Mode=TwoWay}"
+                                  AutomationProperties.LabeledBy="{Binding ElementName=StageLabel}" />
                     </StackPanel>
 
-                    <TextBlock Text="Title" Style="{StaticResource FieldLabel}" />
-                    <TextBox Text="{Binding NewWorkstream.Title, UpdateSourceTrigger=PropertyChanged}" />
-                    <TextBlock Text="{Binding NewWorkstream.Key, StringFormat=plan file: {0}.json}"
-                               Style="{StaticResource FieldHint}" />
+                    <StackPanel Grid.Column="2"
+                                Visibility="{Binding NewWorkstream.HasAreas, Converter={StaticResource BoolToVisibility}}">
+                        <Label x:Name="AreaLabel" Content="_Area" Target="{Binding ElementName=AreaBox}" Style="{StaticResource Field}" Margin="0,0,0,8" />
+                        <ComboBox x:Name="AreaBox" ItemsSource="{Binding NewWorkstream.Areas}"
+                                  SelectedItem="{Binding NewWorkstream.Area, Mode=TwoWay}"
+                                  AutomationProperties.LabeledBy="{Binding ElementName=AreaLabel}" />
+                    </StackPanel>
+                </Grid>
+                <TextBlock Style="{StaticResource FieldHint}"
+                           Text="Which cell of the board the card starts in. It can be dragged anywhere afterwards." />
 
-                    <TextBlock Text="Working directory" Style="{StaticResource FieldLabel}" />
-                    <TextBox Text="{Binding NewWorkstream.WorkingDirectory, UpdateSourceTrigger=PropertyChanged}" />
-                    <TextBlock Text="This directory does not exist." FontSize="11" Margin="0,4,0,0"
-                               Foreground="#CF5D61">
-                        <TextBlock.Style>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="Visibility" Value="Collapsed" />
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding NewWorkstream.WorkingDirectoryExists}" Value="False">
-                                        <Setter Property="Visibility" Value="Visible" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </TextBlock.Style>
-                    </TextBlock>
+                <Label x:Name="PromptLabel" Content="Opening _prompt" Target="{Binding Editor, ElementName=PromptBox}" Style="{StaticResource Field}" />
+                <controls:MarkdownBox x:Name="PromptBox" Text="{Binding NewWorkstream.Prompt}" EditorMinHeight="160" EditorMaxHeight="420"
+                                      AutomationProperties.LabeledBy="{Binding ElementName=PromptLabel}" />
+            </StackPanel>
+        </ScrollViewer>
 
-                    <!--
-                        Where the card lands. Every new workstream used to appear in the first
-                        cell whatever it was for, and had to be dragged where it belonged.
-                    -->
-                    <Grid Margin="0,14,0,0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="16" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-
-                        <StackPanel Grid.Column="0">
-                            <TextBlock Text="Stage" Style="{StaticResource FieldLabel}" Margin="0,0,0,4" />
-                            <ComboBox ItemsSource="{Binding NewWorkstream.Stages}"
-                                      SelectedItem="{Binding NewWorkstream.Stage, Mode=TwoWay}" />
-                        </StackPanel>
-
-                        <StackPanel Grid.Column="2"
-                                    Visibility="{Binding NewWorkstream.HasAreas, Converter={StaticResource BoolToVisibility}}">
-                            <TextBlock Text="Area" Style="{StaticResource FieldLabel}" Margin="0,0,0,4" />
-                            <ComboBox ItemsSource="{Binding NewWorkstream.Areas}"
-                                      SelectedItem="{Binding NewWorkstream.Area, Mode=TwoWay}" />
-                        </StackPanel>
-                    </Grid>
-                    <TextBlock Style="{StaticResource FieldHint}"
-                               Text="Which cell of the board the card starts in. It can be dragged anywhere afterwards." />
-
-                    <TextBlock Text="Opening prompt" Style="{StaticResource FieldLabel}" />
-                    <controls:MarkdownBox x:Name="PromptBox" Text="{Binding NewWorkstream.Prompt}" EditorMinHeight="160" EditorMaxHeight="420" />
-                </StackPanel>
-            </ScrollViewer>
+        <!-- Create is accented but not the default: Enter in the title would otherwise create the card before its prompt is written (W45). -->
+        <DockPanel x:Name="Footer" Grid.Row="1" Margin="0,16,0,0" LastChildFill="False">
+            <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
+                <CheckBox Content="Open a tab _now" VerticalAlignment="Center"
+                          IsChecked="{Binding NewWorkstream.StartNow}" />
+                <Border Width="16" Height="16" CornerRadius="4" Margin="16,0,0,0"
+                        VerticalAlignment="Center"
+                        ToolTip="The card's colour: allocated automatically, and permanent once created."
+                        Background="{Binding NewWorkstream.ColourHex, Converter={StaticResource HexToSwatch}}" />
+            </StackPanel>
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                <Button x:Name="CreateButton" Content="_Create" Style="{DynamicResource AccentButton}" ToolTip="Create (Ctrl+Enter)"
+                        Command="{Binding NewWorkstream.CreateCommand}" />
+                <Button x:Name="CancelButton" Content="Cancel" IsCancel="True" Style="{DynamicResource DialogButton}" Margin="8,0,0,0"
+                        Command="{Binding NewWorkstream.CloseCommand}" />
+            </StackPanel>
         </DockPanel>
     </Grid>
 </Window>

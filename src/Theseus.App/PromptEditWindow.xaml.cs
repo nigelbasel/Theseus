@@ -12,6 +12,7 @@ public partial class PromptEditWindow : Window
         Title = title;
         Explanation.Text = explanation;
         Editor.Text = text;
+        Loaded += (_, _) => Editor.Editor.Focus();
     }
 
     /// <summary>The text, once OK was pressed.</summary>

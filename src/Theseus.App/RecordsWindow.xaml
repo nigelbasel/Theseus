@@ -7,16 +7,39 @@
         Background="{DynamicResource SolidBackgroundFillColorSecondaryBrush}">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="Visible" />
+        <!--
+            A row's second and third lines: secondary while the row is not chosen, and the row's own colour once it is, so a
+            chosen row's text inverts with it, as high contrast needs (E6, G164).
+        -->
+        <Style x:Key="RowCaption" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
+                    <Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
     </Window.Resources>
     <!-- A piece's records (Nigel, 2026-11-22): its documents by stage, the chosen one formatted, the folder last. -->
-    <DockPanel Margin="16,12,16,12">
-        <TextBlock DockPanel.Dock="Top" Text="{Binding Title}" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,6" TextWrapping="Wrap"
+    <Grid Margin="16,12,16,12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="{Binding Title}" Style="{DynamicResource BodyLargeText}" FontWeight="SemiBold" Margin="0,0,0,8" TextWrapping="Wrap"
                    Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
         <!-- One bar at the top: the two views as a selector bar, then the window's commands as a toolbar, icon and word,
              in place of a button at the bottom and a link beside it (walkthrough row 42; checklist G38, G42, G125; baseline W15). -->
-        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8" LastChildFill="False">
-            <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" KeyboardNavigation.TabNavigation="Once"
-                        KeyboardNavigation.DirectionalNavigation="Cycle" AutomationProperties.Name="Views of the document">
+        <DockPanel Grid.Row="1" Margin="0,0,0,8" LastChildFill="False">
+            <!-- One Tab stop; the arrow keys switch the view and stop at either end (B-m4, W42). -->
+            <StackPanel x:Name="ViewChoice" DockPanel.Dock="Left" Orientation="Horizontal" KeyboardNavigation.TabNavigation="Once"
+                        KeyboardNavigation.DirectionalNavigation="Contained" AutomationProperties.Name="Views of the document">
                 <RadioButton x:Name="PreviewTab" Content="Preview" GroupName="RecordView" controls:SelectorBar.SelectsOnFocus="True" Style="{DynamicResource SelectorBarItem}"
                              IsChecked="{Binding IsPreview, Mode=OneWay}" Command="{Binding PreviewCommand}"
                              ToolTip="Preview: the document drawn, as it reads" />
@@ -43,10 +66,10 @@
                 </Button>
             </StackPanel>
         </DockPanel>
-        <TextBlock x:Name="None" DockPanel.Dock="Top" Text="{Binding NoneText}" TextWrapping="Wrap" FontSize="14" Margin="0,0,0,10"
+        <TextBlock x:Name="None" Grid.Row="2" Text="{Binding NoneText}" TextWrapping="Wrap" Style="{DynamicResource BodyText}" Margin="0,0,0,8"
                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                    Visibility="{Binding HasNone, Converter={StaticResource Visible}}" />
-        <Grid>
+        <Grid Grid.Row="3">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="300" />
                 <ColumnDefinition Width="*" />
@@ -55,25 +78,29 @@
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="Records by stage">
                 <ListBox.ItemTemplate>
                     <DataTemplate>
-                        <StackPanel Margin="2,4" Cursor="Hand" AutomationProperties.Name="{Binding Stage}">
+                        <StackPanel Margin="4" Cursor="Hand" AutomationProperties.Name="{Binding Stage}">
                             <DockPanel>
-                                <TextBlock DockPanel.Dock="Right" Text="{Binding StateText}" FontSize="12" Margin="8,0,0,0"
-                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                <TextBlock Text="{Binding Stage}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                <TextBlock DockPanel.Dock="Right" Text="{Binding StateText}" Style="{StaticResource RowCaption}" Margin="8,0,0,0"
+                                           TextWrapping="NoWrap" />
+                                <TextBlock Text="{Binding Stage}" FontWeight="SemiBold" FontSize="14" TextWrapping="Wrap" />
                             </DockPanel>
-                            <TextBlock Text="{Binding Purpose}" FontSize="12.5" TextWrapping="Wrap"
-                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                            <TextBlock Text="{Binding FileName}" FontSize="11" Opacity="0.7" TextWrapping="Wrap"
-                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            <TextBlock Text="{Binding Purpose}" Style="{StaticResource RowCaption}" />
+                            <TextBlock Text="{Binding FileName}" Style="{StaticResource RowCaption}" />
                         </StackPanel>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>
             <FlowDocumentScrollViewer x:Name="Preview" Grid.Column="1" VerticalScrollBarVisibility="Auto" IsToolBarVisible="False"
+                                      AutomationProperties.Name="The document, drawn"
                                       Visibility="{Binding IsPreview, Converter={StaticResource Visible}}" />
             <TextBox x:Name="Source" Grid.Column="1" Text="{Binding Text, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap"
                      FontFamily="Cascadia Mono, Consolas" VerticalScrollBarVisibility="Auto" AutomationProperties.Name="The document's Markdown"
                      Visibility="{Binding IsSource, Converter={StaticResource Visible}}" />
         </Grid>
-    </DockPanel>
+
+        <!-- Close, so the window closes the way every other does, and Esc closes it (A17, B14, G8, G13). -->
+        <StackPanel x:Name="Footer" Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button x:Name="CloseButton" Content="Close" IsCancel="True" IsDefault="True" Style="{DynamicResource DialogButton}" Click="OnClose" />
+        </StackPanel>
+    </Grid>
 </Window>

@@ -14,5 +14,6 @@ public partial class NewWorkstreamWindow : Window
     {
         InitializeComponent();
         SourceInitialized += (_, _) => MaxHeight = SystemParameters.WorkArea.Height - 80;
+        Loaded += (_, _) => TitleBox.Focus();
     }
 }

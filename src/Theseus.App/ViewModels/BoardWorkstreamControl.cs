@@ -59,7 +59,7 @@ public sealed class BoardWorkstreamControl : IWorkstreamControl
             return notStarted;
         }
 
-        Say(card, Said(verb, caller, instruction));
+        Say(card, Said(verb, caller, instruction), caller, Instruction(instruction));
 
         return null;
     }
@@ -134,7 +134,7 @@ public sealed class BoardWorkstreamControl : IWorkstreamControl
             return notStarted;
         }
 
-        Say(card, Said("Resumed", caller, instruction));
+        Say(card, Said("Resumed", caller, instruction), caller, Instruction(instruction));
 
         return null;
     }
@@ -188,9 +188,10 @@ public sealed class BoardWorkstreamControl : IWorkstreamControl
 
     private static string? Instruction(string? instruction) => string.IsNullOrWhiteSpace(instruction) ? null : instruction.Trim();
 
-    private void Say(WorkstreamCardViewModel card, string what)
+    // A start or resume given an instruction keeps all of it, and who gave it: the project view shows it as a hand-in.
+    private void Say(WorkstreamCardViewModel card, string what, string? by = null, string? instruction = null)
     {
-        _events.Append(new CardEvent(_clock(), card.Key, what));
+        _events.Append(new CardEvent(_clock(), card.Key, what) { By = instruction is null ? null : by, Instruction = instruction });
         Theseus.Core.Diagnostics.TheseusLog.Information("{Card}: {What}", card.Key, what);
         _notice($"{card.Title}: {what}.");
     }

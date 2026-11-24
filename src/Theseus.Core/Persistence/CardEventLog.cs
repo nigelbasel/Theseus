@@ -46,6 +46,24 @@ public sealed class CardEventLog
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(cardKey);
 
+        return [.. All().Where(read => string.Equals(read.CardKey, cardKey, StringComparison.OrdinalIgnoreCase))];
+    }
+
+    /// <summary>Each card's latest start or resume given work by another card's session, read once for every card.</summary>
+    public IReadOnlyDictionary<string, CardEvent> LatestHandIns()
+    {
+        var latest = new Dictionary<string, CardEvent>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var read in All().Where(read => read is { By: not null, Instruction: not null }))
+        {
+            latest[read.CardKey] = read;
+        }
+
+        return latest;
+    }
+
+    private List<CardEvent> All()
+    {
         var text = AtomicFile.TryReadAllText(_path);
 
         if (text is null)
@@ -59,8 +77,7 @@ public sealed class CardEventLog
         {
             try
             {
-                if (JsonSerializer.Deserialize<CardEvent>(line, TheseusJson.Compact) is { } read
-                    && string.Equals(read.CardKey, cardKey, StringComparison.OrdinalIgnoreCase))
+                if (JsonSerializer.Deserialize<CardEvent>(line, TheseusJson.Compact) is { } read)
                 {
                     events.Add(read);
                 }
