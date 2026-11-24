@@ -490,4 +490,54 @@ public class PiecesOfWorkTests
         Assert.That(pieces.Select(piece => piece.Name), Does.Not.Contain(ClientFixes));
         Assert.That(pieces.Select(piece => piece.Name), Does.Contain(RedirectAnchoring));
     }
+
+    private static readonly string[] Everything =
+        ["research.md", "spec.md", "plan.md", "implementation.md", "evidence.md", "review.md", "lessons.md"];
+
+    private static HandIn LeadsHandIn => new(new DateTimeOffset(2026, 11, 24, 8, 41, 0, TimeSpan.Zero), "lead", "The lead",
+        "Fix the search bugs I found\nfrom testing the MCP: get_contact returns 500 on an unknown id.");
+
+    [Test]
+    public void AHandIn_ToAWorkingCard_ReopensItsDonePieceAtItsBuildStage()
+    {
+        // git-22, 2026-11-24: the lead gave W7 the bugs it found, and the view showed only the card turning busy.
+        var piece = OnePiece(_folder, "feature", Files(Everything), Card(ACard, SessionLifecycle.Running) with { HandIn = LeadsHandIn },
+            accepted: true);
+        var build = piece.Stages.Single(stage => stage.Stage == PipelineStage.Implement);
+        var after = piece.Stages.SkipWhile(stage => stage.Stage != PipelineStage.Implement).Skip(1).ToList();
+
+        Assert.That((build.State, build.Reason), Is.EqualTo((StageNodeState.Busy, "← The lead: Fix the search bugs I found")));
+        Assert.That(after.Select(stage => stage.State), Has.All.EqualTo(StageNodeState.ToDo));
+        Assert.That(piece.Stages.TakeWhile(stage => stage.Stage != PipelineStage.Implement).Select(stage => stage.State),
+            Has.All.EqualTo(StageNodeState.Done), "its research, spec and plan stand");
+        Assert.That(piece.HandIn, Is.EqualTo(LeadsHandIn));
+    }
+
+    [Test]
+    public void AHandIn_ToACardThatIsAsking_PutsTheQuestionOnItsBuildStage()
+    {
+        var piece = OnePiece(_folder, "feature", Files(Everything),
+            Card(ACard, SessionLifecycle.NeedsAttention) with { HandIn = LeadsHandIn }, accepted: true);
+
+        Assert.That(piece.Stages.Single(stage => stage.Stage == PipelineStage.Implement).State, Is.EqualTo(StageNodeState.WaitingOnYou));
+    }
+
+    [Test]
+    public void OnceItsSessionStopsWorking_AHandInNoLongerReopensThePiece_ButIsStillShown()
+    {
+        // Nothing in the records says the work it was given is done or not, so the records stand again.
+        var piece = OnePiece(_folder, "feature", Files(Everything), Card(ACard, SessionLifecycle.Idle) with { HandIn = LeadsHandIn },
+            accepted: true);
+
+        Assert.That(piece.Stages, Has.All.Matches<StageNode>(stage => stage.State == StageNodeState.Done));
+        Assert.That(piece.HandIn, Is.EqualTo(LeadsHandIn));
+    }
+
+    [Test]
+    public void AHandIn_ReopensAFreeformPiecesOneStage()
+    {
+        var piece = OnePiece(_folder, "freeform", Files("notes.md"), Card(ACard, SessionLifecycle.Running) with { HandIn = LeadsHandIn });
+
+        Assert.That(piece.Stages.Single().State, Is.EqualTo(StageNodeState.Busy));
+    }
 }

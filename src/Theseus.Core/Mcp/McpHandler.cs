@@ -374,7 +374,7 @@ public sealed partial class McpHandler
                 new JsonObject
                 {
                     ["card"] = Property("The card's key or title, from workstreams."),
-                    ["instruction"] = Property("Optional: what this start is for, given to it once."),
+                    ["instruction"] = Property("Optional: what this start is for, given to it once. In a project it is shown on the card's box as work handed in by you, its first line on the box and all of it in Properties: give work to another card this way, not by a message to its session."),
                     ["reason"] = Property("Optional: why you want it started, shown to the user when the card is one they paused."),
                 },
                 "card"),
@@ -395,7 +395,7 @@ public sealed partial class McpHandler
                 new JsonObject
                 {
                     ["card"] = Property("The card's key or title, from workstreams."),
-                    ["instruction"] = Property("Optional: what this start is for, given to it once."),
+                    ["instruction"] = Property("Optional: what this start is for, given to it once. In a project it is shown on the card's box as work handed in by you, its first line on the box and all of it in Properties: give work to another card this way, not by a message to its session."),
                     ["reason"] = Property("Optional: why you want it started, shown to the user when the card is one they paused."),
                 },
                 "card"),

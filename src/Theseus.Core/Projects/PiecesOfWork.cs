@@ -278,6 +278,13 @@ public static class PiecesOfWork
             stages = [stages[0] with { State = StageNodeState.Answered }];
         }
 
+        var handIn = draft.IsCurrent ? draft.Card?.HandIn : null;
+
+        if (handIn is not null && IsHandInOpen(handIn, draft.Card!, backLink))
+        {
+            stages = Reopen(stages, handIn, draft.Card!.IsWorking && nowAt is null);
+        }
+
         stages = LaySessionOver(stages, draft.Card, draft.IsCurrent, draft.Workstream, nowAt);
 
         return new PieceOfWork(draft.Name, draft.CardKey, draft.Workstream, draft.Objective?.Number, draft.Objective?.Title,
@@ -300,9 +307,41 @@ public static class PiecesOfWork
             LaterReport = later,
             LaterReportLink = later is null ? null : backLink!.Id,
             NowAt = nowAt,
+            HandIn = handIn,
             AwaitsSpecAcceptance = draft.AwaitsSpecAcceptance,
             Acceptance = draft.Acceptance,
         };
+    }
+
+    // Work handed in is under way while its session works on it, starts or asks about it, until the piece reports back
+    // after it. Once the session stops, nothing in the records says whether that work is done, so the records stand again.
+    private static bool IsHandInOpen(HandIn handIn, PieceCard card, Link? backLink) =>
+        (card.IsWorking || card.IsStarting || card.Lifecycle == SessionLifecycle.NeedsAttention)
+        && !(backLink?.LatestReport is { } report && report.AtUtc > handIn.AtUtc);
+
+    // A hand-in reopens the piece at its build or fix stage, and every stage after it (git-22, 2026-11-24); a piece of one
+    // stage reopens that one. Busy goes on the build stage when the session has not said where it is.
+    private static List<StageDraft> Reopen(List<StageDraft> stages, HandIn handIn, bool busy)
+    {
+        var at = stages.FindIndex(stage => stage.Stage == PipelineStage.Implement);
+
+        if (at < 0)
+        {
+            at = stages.Count == 1 ? 0 : -1;
+        }
+
+        if (at < 0)
+        {
+            return stages;
+        }
+
+        var why = $"← {handIn.FromTitle}: {handIn.FirstLine}";
+
+        return [.. stages.Select((stage, index) => index < at
+            ? stage
+            : index == at
+                ? stage with { State = busy ? StageNodeState.Busy : StageNodeState.ToDo, Reason = why, IsSessionState = busy }
+                : stage with { State = StageNodeState.ToDo, Reason = null })];
     }
 
     // A spec piece's later stages are done by the pieces it handed work to: every stage after the last it wrote itself, up
