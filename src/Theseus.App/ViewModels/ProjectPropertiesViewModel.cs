@@ -336,6 +336,8 @@ public sealed class ProjectPropertiesViewModel : ObservableObject
 
     private void SetHoldoutChoice(string? folder)
     {
+        // A staged remote belongs to the folder in force when it was staged, which is no longer the one OK keeps.
+        PendingRemote = null;
         HoldoutError = null;
         _holdoutChoice = folder;
         _holdoutChoiceMade = true;
@@ -356,7 +358,15 @@ public sealed class ProjectPropertiesViewModel : ObservableObject
     /// <summary>OK: writes a changed title and says whether the dialog may close; a refusal stays, shown under the title.</summary>
     public bool Apply()
     {
-        // The remote first: a refused address keeps the dialog open before anything else is written.
+        // What can be refused without writing is checked first, so a refusal leaves nothing written. A title the file
+        // refuses after the remote was added leaves that remote in place; Cancel then keeps it.
+        if (TitleChanged && _title.Trim().Length == 0)
+        {
+            Error = "A project needs a title.";
+
+            return false;
+        }
+
         if (_pendingRemote is { } address)
         {
             Func<string, string?>? add = AddRemote ?? (Holdout is { IsDefault: true } own ? own.AddRemote : null);
@@ -374,13 +384,6 @@ public sealed class ProjectPropertiesViewModel : ObservableObject
         if (!TitleChanged)
         {
             return true;
-        }
-
-        if (_title.Trim().Length == 0)
-        {
-            Error = "A project needs a title.";
-
-            return false;
         }
 
         Error = WriteTitle?.Invoke(_title.Trim());

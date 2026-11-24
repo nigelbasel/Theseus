@@ -315,7 +315,7 @@ public partial class App : Application
             new QuestionWindow("Start paused or blocked work?", question, "_Clear marks and start",
                 hasOthers ? "_Start only the others" : null) { Owner = ActiveWindow }.Ask();
         shell.ConfirmProjectCard = (question, action) =>
-            new QuestionWindow($"{action} a card of a running project?", question, $"_{action}") { Owner = MainWindow }.Ask() == true;
+            new QuestionWindow($"{action} a card of a running project?", question, $"_{action}") { Owner = ActiveWindow }.Ask() == true;
         // Owned by the active window, so one opened from Options sits above it rather than behind it.
         shell.AskProjectProperties = properties =>
             new ProjectPropertiesWindow(properties) { Owner = ActiveWindow }.ShowDialog() == true;

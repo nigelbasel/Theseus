@@ -141,7 +141,6 @@
                         <Button x:Name="LeadChange" Content="_Change ▾" Click="OnChooseLead" IsEnabled="{Binding CanChooseLead, Mode=OneWay}"
                                 AutomationProperties.Name="Change the lead" ToolTip="{Binding LeadChangeToolTip}"
                                 ToolTipService.ShowOnDisabled="True" />
-
                     </controls:SettingRow>
 
                     <!-- Granted by the owner here, never by the file, which sessions write (1.1e AC 12b). -->

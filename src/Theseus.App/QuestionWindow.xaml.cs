@@ -76,18 +76,18 @@ public partial class QuestionWindow : Window
     private void Choose(bool answer)
     {
         Answer = answer;
-        Finish(this);
+        Finish(this, answer);
     }
 
     /// <summary>
-    /// Closes a dialog whose action was taken: through DialogResult while it is shown, so ShowDialog gives true to callers
-    /// that still read it, and by Close otherwise, since DialogResult throws on a window never shown, as in tests.
+    /// Closes a dialog whose action was taken: through DialogResult while it is shown, so ShowDialog gives the result to
+    /// callers that still read it, and by Close otherwise, since DialogResult throws on a window never shown, as in tests.
     /// </summary>
-    internal static void Finish(Window window)
+    internal static void Finish(Window window, bool result)
     {
         if (window.IsVisible)
         {
-            window.DialogResult = true;
+            window.DialogResult = result;
         }
         else
         {

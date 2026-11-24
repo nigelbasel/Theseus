@@ -100,6 +100,6 @@ public partial class TextPromptWindow : Window
         }
 
         Accepted = true;
-        QuestionWindow.Finish(this);
+        QuestionWindow.Finish(this, true);
     }
 }

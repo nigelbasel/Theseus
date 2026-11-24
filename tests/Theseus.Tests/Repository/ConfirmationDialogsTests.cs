@@ -46,12 +46,44 @@ public class ConfirmationDialogsTests
     [Test]
     public void AQuestion_UsesNoAccentButton_SinceItsDefaultIsCancel()
     {
+        // The source, not the built window: no Application runs in tests, so every DynamicResource style there is null.
+        System.Xml.Linq.XDocument markup = System.Xml.Linq.XDocument.Load(Theseus.Tests.Conventions.LooseXaml.SourceFile("QuestionWindow.xaml"));
+        List<string?> styles = [.. markup.Descendants().Where(element => element.Name.LocalName == "Button")
+            .Select(button => (string?)button.Attribute("Style"))];
         QuestionWindow window = new("Accept spec?", "Accept the spec of auth?", "_Accept spec");
-        Style? accent = Application.Current?.TryFindResource("AccentButton") as Style;
 
-        Assert.That(Buttons(window).Select(button => button.Style).Where(style => style is not null && style == accent), Is.Empty,
-            "W12: no accent where Cancel is the default on purpose");
+        Assert.That(styles, Has.Count.EqualTo(3));
+        Assert.That(styles, Is.All.EqualTo("{DynamicResource DialogButton}"), "W12: no accent where Cancel is the default on purpose");
         Assert.That(Buttons(window).Select(button => button.Content), Is.EqualTo(new object[] { "_Accept spec", "Cancel" }));
+    }
+
+    [Test]
+    public void ProjectProperties_DropsAStagedRemote_WhenTheHoldoutFolderIsChangedOrReset()
+    {
+        List<string> added = [];
+        ProjectPropertiesViewModel changed = WithRemote(added);
+        ProjectPropertiesViewModel reset = WithRemote(added);
+        changed.KeepInPrivateRepository("https://host/owner/repo.git");
+        reset.KeepInPrivateRepository("https://host/owner/repo.git");
+
+        changed.ChooseHoldout(Path.Combine(Path.GetTempPath(), "x-holdout"));
+        reset.ResetHoldout();
+
+        Assert.That((changed.Apply(), reset.Apply()), Is.EqualTo((true, true)));
+        Assert.That(added, Is.Empty, "the remote was meant for the folder in force when it was staged");
+        Assert.That((changed.HasPendingRemote, reset.HasPendingRemote), Is.EqualTo((false, false)));
+    }
+
+    [Test]
+    public void ProjectProperties_RefusesAnEmptyTitle_BeforeAddingTheRemote_SoCancelLeavesNothingWritten()
+    {
+        List<string> added = [];
+        ProjectPropertiesViewModel properties = WithRemote(added);
+        properties.KeepInPrivateRepository("https://host/owner/repo.git");
+        properties.Title = "  ";
+
+        Assert.That(properties.Apply(), Is.False);
+        Assert.That((added.Count, properties.HasPendingRemote), Is.EqualTo((0, true)));
     }
 
     [Test]

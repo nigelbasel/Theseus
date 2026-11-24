@@ -45,6 +45,18 @@ public partial class ProjectPropertiesWindow : Window
         if (Properties.Apply())
         {
             DialogResult = true;
+
+            return;
+        }
+
+        // The refusal is shown on its own tab, so OK never seems to do nothing.
+        if (Properties.HasHoldoutError)
+        {
+            Tabs.SelectedItem = HoldoutsTab;
+        }
+        else if (Properties.HasError)
+        {
+            Tabs.SelectedItem = GeneralTab;
         }
     }
 
