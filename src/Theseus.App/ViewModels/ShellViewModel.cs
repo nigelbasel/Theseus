@@ -1405,6 +1405,7 @@ public sealed partial class ShellViewModel : ObservableObject
     /// <summary>Re-reads the plans, the board and the live sessions.</summary>
     public void Refresh()
     {
+        _published = null;
         Timed("board", Board.Refresh);
 
         // A refresh replaces every card, so the new ones need telling where to report a tick. Wiring
@@ -1414,6 +1415,14 @@ public sealed partial class ShellViewModel : ObservableObject
         Timed("sessions", Sessions.Refresh);
         Timed("lifecycles", SyncLifecycles);
         Timed("projects", WireProjects);
+
+        // Again, now each card's project is set: sessions read it there, and a card that seemed in no project had its
+        // proposals wait for the owner (Nigel, 2026-11-24).
+        if (_published is { } published)
+        {
+            PublishSnapshot(published);
+        }
+
         Timed("regroup", Board.Regroup);
         Timed("pull requests", SyncPullRequests);
         WireAdoption();
@@ -4115,8 +4124,12 @@ public sealed partial class ShellViewModel : ObservableObject
 
     // The cards shown, as they are, then every other card on disk (archived, or hidden by the archive view) as not
     // running, so the tools can answer about any card (review of 1.1e PR 3, finding 10).
+    private Dictionary<WorkstreamCardViewModel, string>? _published;
+
     private void PublishSnapshot(Dictionary<WorkstreamCardViewModel, string> handoffs)
     {
+        _published = handoffs;
+
         if (Snapshots is null)
         {
             return;
