@@ -267,7 +267,7 @@ public class NoDuplicateVerifierTests
             Assert.That(status.WhoActs, Does.StartWith("You: read the report"));
             Assert.That(lines, Has.Count.EqualTo(1), "one line, not one from the box and one from the link");
             Assert.That(lines[0].Item.CardKey, Is.EqualTo(Verifier));
-            Assert.That(view.Overview.Asking.Select(wait => wait.Text), Has.Some.Contains("reported on"), "the badge counts it");
+            Assert.That(view.Overview.Waits.Select(wait => wait.Text), Has.Some.Contains("reported on"), "the badge counts it");
         });
     }
 

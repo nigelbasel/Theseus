@@ -61,12 +61,11 @@ public class ProjectViewGroupingLayoutTests
         AllNamed<Border>(root, "Box").Single(box => box.DataContext is PieceNodeViewModel node && node.Name == piece);
 
     [Test]
-    public void GroupedByObjectives_PhasesAndObjectivesAreHeadings_OverTheFlowsBoxes_WithNoConnector()
+    public void GroupedByObjectives_PhasesAndObjectivesAreHeadings_OverTheFlowsBoxes()
     {
         var view = _views.BuildYourMarket();
         view.IsGroupedByObjectives = true;
         var control = LaidOut(view);
-        control.DrawConnectors();
         var objectives = (FrameworkElement)control.FindName("ObjectiveList");
 
         Assert.That(AllNamed<TextBlock>(objectives, "PhaseTitle").Select(text => text.Text), Is.EqualTo(new[]
@@ -81,8 +80,6 @@ public class ProjectViewGroupingLayoutTests
         Assert.That(AllNamed<TextBlock>(objectives, "NothingYet").Count(text => Shown(text, control)), Is.EqualTo(2));
         Assert.That(AllNamed<Border>(objectives, "Box").Count(), Is.EqualTo(8), "every piece of the open phases once, under its objective");
         Assert.That(AllNamed<Border>((FrameworkElement)control.FindName("RootList"), "Box"), Is.Empty);
-        Assert.That(((Canvas)control.FindName("Connectors")).Children, Is.Empty, "no connector is drawn across headings");
-        Assert.That(AllNamed<Border>(objectives, "Branch").Where(branch => Shown(branch, control)), Is.Empty, "a box has no branch here");
 
         var readApi = BoxOf(objectives, "bym-mcp-read-api");
 
@@ -97,11 +94,12 @@ public class ProjectViewGroupingLayoutTests
     }
 
     [Test]
-    public void InTheFlow_TheMarksAreNotShown_SinceTheLinesShowThem()
+    public void InTheFlow_TheMarksAreShown_SinceNoLineIsDrawn()
     {
         var control = LaidOut(_views.BuildYourMarket());
 
-        Assert.That(AllNamed<ItemsControl>(control, "CrossMarks").Select(marks => marks.Visibility), Has.All.EqualTo(Visibility.Collapsed));
+        Assert.That(AllNamed<ItemsControl>(control, "CrossMarks").Select(marks => marks.Visibility), Has.All.EqualTo(Visibility.Visible),
+            "a round's pieces sit under their states' headings, so a box says who handed it work (git-22, 2026-11-24)");
         Assert.That(((ItemsControl)control.FindName("PhaseList")).Items, Is.Empty, "no heading is laid out in the Flow");
         Assert.That(AllNamed<Border>((FrameworkElement)control.FindName("ObjectiveList"), "Box"), Is.Empty);
     }
@@ -122,16 +120,12 @@ public class ProjectViewGroupingLayoutTests
     }
 
     [Test]
-    public void SwitchingTheGrouping_DrawsTheConnectorsAgainOrClearsThem_AndStartsAtTheTop()
+    public void SwitchingTheGrouping_StartsAtTheTop()
     {
         var view = _views.BuildYourMarket();
         view.ExpandAllCommand.Execute(null);
         var control = LaidOut(view, 1400, 400);
         var flow = (ScrollViewer)control.FindName("Flow");
-        var connectors = (Canvas)control.FindName("Connectors");
-        Pump();
-
-        Assert.That(connectors.Children, Is.Not.Empty);
 
         flow.ScrollToVerticalOffset(300);
         Relaid(control, 1400, 400);
@@ -139,18 +133,10 @@ public class ProjectViewGroupingLayoutTests
         Relaid(control, 1400, 400);
         Pump();
 
-        Assert.That(connectors.Children, Is.Empty, "no connector is left over the headings");
-        Assert.That(flow.VerticalOffset, Is.Zero);
-
-        view.IsGroupedByFlow = true;
-        Relaid(control, 1400, 400);
-        Pump();
-
-        Assert.That(connectors.Children.Count, Is.EqualTo(2 * 1),
-            "identity's one hand-over again, a line and an arrow; the spec's seven sit between fork and join bars (1.1f D20)");
+        Assert.That(flow.VerticalOffset, Is.Zero, "a switch lays out other boxes entirely (PR 4 review, finding 3)");
     }
 
-    // Runs what the view queued on the dispatcher (its connector drawing and scrolling), as a running window would.
+    // Runs what the view queued on the dispatcher (its scrolling), as a running window would.
     private static void Pump() =>
         System.Windows.Threading.Dispatcher.CurrentDispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ContextIdle);
 
@@ -160,13 +146,13 @@ public class ProjectViewGroupingLayoutTests
         var view = _views.Theseus();
         view.Toggle(view.AllNodes.Single(node => node.Name == "project-view"));
 
-        foreach (var run in view.FinishedRuns.ToList())
+        foreach (var run in view.StateGroups.Where(group => !group.IsOpen).ToList())
         {
             run.ToggleCommand.Execute(null);
         }
 
         var control = LaidOut(view);
-        var connectors = (Canvas)control.FindName("Connectors");
+        var connectors = (FrameworkElement)control.FindName("FlowContent");
         var folded = BoxOf(control, "method-kit");
         var open = BoxOf(control, "project-view");
 

@@ -61,15 +61,15 @@ public partial class ProjectViewRedesignMarkupTests
     }
 
     [Test]
-    public void TheLegend_EndsWithTheTwoLinesAndTheReportBackMark()
+    public void TheLegend_EndsWithTheReportBackMark_AndDrawsNoLines()
     {
+        // A round's pieces sit under their states' headings, so no hand-over line is drawn to explain (git-22, 2026-11-24).
         var legend = Named(View(), "Legend");
         var words = legend.Descendants(Presentation + "TextBlock").Select(text => (string?)text.Attribute("Text"))
             .Where(text => text is not null && !text.StartsWith('{')).ToList();
 
-        Assert.That(words, Is.EqualTo(new[] { "hands work to", "then worked on", "↩ reported back" }));
-        Assert.That((string?)Named(View(), "HandsOverSample").Attribute("X2"), Is.EqualTo("26"));
-        Assert.That((string?)Named(View(), "ThenWorkedOnSample").Attribute("StrokeDashArray"), Is.EqualTo("1 2"));
+        Assert.That(words, Is.EqualTo(new[] { "↩ reported back" }));
+        Assert.That(legend.Descendants(Presentation + "Line"), Is.Empty);
     }
 
     [Test]

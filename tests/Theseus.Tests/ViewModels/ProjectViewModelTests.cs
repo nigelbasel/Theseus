@@ -135,7 +135,7 @@ public class ProjectViewModelTests
         view.ToggleFilter(StageNodeState.HoldoutsNotRun, add: false);
 
         Assert.That(view.AllNodes.Where(node => node.IsShown).Select(node => node.State).Distinct(),
-            Is.EquivalentTo(new[] { StageNodeState.HoldoutsNotRun, StageNodeState.Done }), "a shown piece keeps its parent");
+            Is.EquivalentTo(new[] { StageNodeState.HoldoutsNotRun }), "a piece sits under its own state's heading, not its parent (git-22, 2026-11-24)");
         Assert.That(view.FilterText, Does.StartWith("Showing: built, not yet checked (5 of"));
 
         view.ToggleFilter(StageNodeState.NotInProject, add: true);
