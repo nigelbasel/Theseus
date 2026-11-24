@@ -165,14 +165,15 @@ public partial class App : Application
 
         if (shell.Settings.Guard is { } guard)
         {
-            guard.ConfirmChange = change => MessageBox.Show(MainWindow, change, "Add the holdout guard's hook entry?",
-                MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes;
+            // Owned by the active window: both are asked from Options, and one owned by the main window sat behind it (A6).
+            guard.ConfirmChange = change =>
+                new QuestionWindow("Add the holdout guard's hook entry?", change, "_Add hook entry") { Owner = ActiveWindow }.Ask() == true;
         }
 
         if (shell.Settings.FolderTrust is { } trust)
         {
-            trust.ConfirmChange = change => MessageBox.Show(MainWindow, change, "Trust these folders in Claude Code?",
-                MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes;
+            trust.ConfirmChange = change =>
+                new QuestionWindow("Trust these folders in Claude Code?", change, "_Trust folders") { Owner = ActiveWindow }.Ask() == true;
         }
 
         // Said once for each newer guard an update brings, until it is installed from Options.
@@ -309,40 +310,28 @@ public partial class App : Application
         StartUpdateChecks(shell, settings);
 
         MainWindow = new MainWindow { DataContext = shell };
+        // The buttons say what they do (baseline A3, W17): Start only the others only when there are others; Cancel starts nothing.
         shell.ConfirmFlaggedStart = (question, hasOthers) =>
-        {
-            var answer = MessageBox.Show(MainWindow, question, "Start paused or blocked work?",
-                hasOthers ? MessageBoxButton.YesNoCancel : MessageBoxButton.YesNo, MessageBoxImage.Question,
-                MessageBoxResult.No);
-
-            return answer switch
-            {
-                MessageBoxResult.Yes => true,
-                MessageBoxResult.No => false,
-                _ => null,
-            };
-        };
+            new QuestionWindow("Start paused or blocked work?", question, "_Clear marks and start",
+                hasOthers ? "_Start only the others" : null) { Owner = ActiveWindow }.Ask();
         shell.ConfirmProjectCard = (question, action) =>
-            new QuestionWindow($"{action} a card of a running project?", question, action) { Owner = MainWindow }.ShowDialog() == true;
+            new QuestionWindow($"{action} a card of a running project?", question, $"_{action}") { Owner = MainWindow }.Ask() == true;
         // Owned by the active window, so one opened from Options sits above it rather than behind it.
         shell.AskProjectProperties = properties =>
-            new ProjectPropertiesWindow(properties) { Owner = Windows.OfType<Window>().FirstOrDefault(window => window.IsActive) ?? MainWindow }
-                .ShowDialog() == true;
+            new ProjectPropertiesWindow(properties) { Owner = ActiveWindow }.ShowDialog() == true;
         // Owned by the window it was asked from, so a spec window is blocked behind its question (review of PR 5, 13).
         shell.ConfirmAcceptSpec = question =>
-            MessageBox.Show(Windows.OfType<Window>().FirstOrDefault(window => window.IsActive) ?? MainWindow, question, "Accept spec?",
-                MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes;
-        shell.ExplainRefusal = text =>
-            MessageBox.Show(Windows.OfType<Window>().FirstOrDefault(window => window.IsActive) ?? MainWindow, text, "That cannot be done yet",
-                MessageBoxButton.OK, MessageBoxImage.Information);
-        shell.AskStartRequest = question =>
-            MessageBox.Show(Windows.OfType<Window>().FirstOrDefault(window => window.IsActive) ?? MainWindow, question, "Start a card you paused?",
-                MessageBoxButton.YesNoCancel, MessageBoxImage.Question, MessageBoxResult.Cancel) switch
-            {
-                MessageBoxResult.Yes => true,
-                MessageBoxResult.No => false,
-                _ => null,
-            };
+            new QuestionWindow("Accept spec?", question, "_Accept spec") { Owner = ActiveWindow }.Ask() == true;
+        // Stays modal (Nigel, 2026-11-23): a refusal only in the status line read as "nothing happens".
+        shell.ExplainRefusal = (title, text) =>
+        {
+            QuestionWindow box = QuestionWindow.Information(title, text);
+            box.Owner = ActiveWindow;
+            box.ShowDialog();
+        };
+        // Decide later is Cancel, so Esc chooses it; "(Esc)" is not part of its label (A3).
+        shell.AskStartRequest = (title, question) =>
+            new QuestionWindow(title, question, "_Allow and start", "_Refuse", "Decide later") { Owner = ActiveWindow }.Ask();
         shell.StartRequests.Changed += (_, _) => Dispatcher.BeginInvoke(shell.Refresh);
         shell.AskNewProject = (name, title) =>
         {
@@ -352,9 +341,7 @@ public partial class App : Application
         };
         shell.AskText = (title, label, initial) =>
         {
-            var window = new TextPromptWindow(title, label, initial) { Owner = MainWindow };
-
-            return window.ShowDialog() == true ? window.Text : null;
+            return new TextPromptWindow(title, label, initial) { Owner = ActiveWindow }.Ask();
         };
         shell.ShowRecordsWindow = model => new RecordsWindow(model) { Owner = MainWindow }.Show();
         shell.ShowProposalWindow = model => new ProposalWindow(model) { Owner = MainWindow }.Show();
@@ -393,6 +380,9 @@ public partial class App : Application
         };
         MainWindow.Show();
     }
+
+    /// <summary>The window a dialog is asked from, which owns it (baseline W8, A6); the main window when none is active.</summary>
+    private Window? ActiveWindow => Windows.OfType<Window>().FirstOrDefault(window => window.IsActive) ?? MainWindow;
 
     /// <summary>
     /// Checks the public releases a minute after starting, so the board is up first, and every six
