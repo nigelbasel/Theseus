@@ -229,9 +229,10 @@ public sealed class BoardViewModel : ObservableObject
         var hiddenKind = Kept(BoardShows.Projects) ? cardsOnGrid : Kept(BoardShows.Workstreams) ? [.. _projects] : [];
         var shownKinds = cardsOnGrid.Concat(_projects).Except(hiddenKind).ToList();
         var onBoard = shownKinds.Where(item => !HiddenByActiveOnly(item)).ToList();
+        var onScreen = onBoard.Count(item => !HiddenBySearch(item));
         Search.HiddenByShows = on ? hiddenKind.Count(_matching.Contains) : 0;
         Search.HiddenByActiveOnly = on ? shownKinds.Except(onBoard).Count(_matching.Contains) : 0;
-        ActiveOnlyNote = _activeOnly && !ShowArchived ? $"Showing {onBoard.Count} of {shownKinds.Count} cards · active only" : string.Empty;
+        ActiveOnlyNote = _activeOnly && !ShowArchived ? $"Showing {onScreen} of {shownKinds.Count} cards · active only" : string.Empty;
         var archivedWouldMatch = on && !ShowArchived && _archived.Any(workstream => filter.Admits(new SearchableCard(
             workstream.Key, workstream.Title, workstream.Project ?? string.Empty, workstream.Area ?? string.Empty,
             workstream.JiraKeys, workstream.Tags, [], [])));
@@ -1037,7 +1038,10 @@ public sealed class BoardViewModel : ObservableObject
     public void FoldAll() => SetFolds(_ => true);
 
     /// <summary>Folds every card and project card with no session, and opens the rest, so folded means nothing runs there.</summary>
-    public void FoldInactive() => SetFolds(item => !item.IsLive && !(item is ProjectCardViewModel project && MembersLive(project)));
+    public void FoldInactive() => SetFolds(FoldsWhenInactive);
+
+    /// <summary>Whether Fold cards with no session folds this one: no session on it, nor, for a project, on any of its cards.</summary>
+    public bool FoldsWhenInactive(IBoardCard item) => !item.IsLive && !(item is ProjectCardViewModel project && MembersLive(project));
 
     /// <summary>Opens every card and project card.</summary>
     public void UnfoldAll() => SetFolds(_ => false);

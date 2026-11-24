@@ -404,7 +404,7 @@ public sealed partial class ShellViewModel : ObservableObject
 
         CollapseInactiveCommand = new ReasonedCommand(_ => Collapse(true),
             _ => SelectionReasons.FoldInactive(Board.Cards.Count(card => !card.IsLive && !card.IsCollapsed)
-                + Board.ProjectCards.Count(project => !project.IsLive && !project.IsCollapsed)));
+                + Board.ProjectCards.Count(project => Board.FoldsWhenInactive(project) && !project.IsCollapsed)));
         ExpandAllCommand = new ReasonedCommand(_ => Collapse(false), _ => SelectionReasons.UnfoldAll(Board.Cards.Count(card => card.IsCollapsed)
             + Board.ProjectCards.Count(project => project.IsCollapsed)));
 

@@ -114,6 +114,30 @@ public class BoardActiveOnlyTests
         Assert.That(fixture.Board.Search.StatusText, Does.Contain("1 more hidden by Active only"));
     }
 
+    [Test]
+    public void WithMembersKeptInTheirProject_TheCountIsOfTheCardsOnTheBoard()
+    {
+        BoardFixture fixture = Board();
+        fixture.Board.KeepOutOfGrid = card => card.Workstream.Project is not null;
+
+        fixture.Board.ShowsActiveOnly = true;
+
+        Assert.That(Shown(fixture), Is.EquivalentTo(new[] { "live", "Busy" }));
+        Assert.That(fixture.Board.ActiveOnlyNote, Is.EqualTo("Showing 2 of 4 cards · active only"));
+    }
+
+    [Test]
+    public void ACardWhoseSessionStarts_ComesBack_OnTheNextRegroup()
+    {
+        BoardFixture fixture = Board();
+        fixture.Board.ShowsActiveOnly = true;
+
+        fixture.Card("quiet")!.Lifecycle = SessionLifecycle.Running;
+        fixture.Board.Regroup();
+
+        Assert.That(Shown(fixture), Does.Contain("quiet"));
+    }
+
     private static ProjectCardViewModel Project(BoardFixture fixture, string name) =>
         fixture.Board.ProjectCards.Single(project => project.Name == name);
 }
