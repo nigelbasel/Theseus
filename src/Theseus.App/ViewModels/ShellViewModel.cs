@@ -2218,7 +2218,7 @@ public sealed partial class ShellViewModel : ObservableObject
     private void AddObjective(string project, int phase) => EditsOf(project).AddObjective?.Invoke(phase);
 
     /// <summary>
-    /// The project view's edits on a project's file: ticks, Edit objective… and Add objective…, each asking as it must and
+    /// The project view's edits on a project's file: ticks, Rename objective… and Add objective…, each asking as it must and
     /// written by <see cref="EditProject"/>.
     /// </summary>
     private ProjectViewEdits EditsOf(string project) =>

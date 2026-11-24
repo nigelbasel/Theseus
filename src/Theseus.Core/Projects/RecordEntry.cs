@@ -16,7 +16,7 @@ public sealed record RecordEntry(string Stage, string Purpose, StageNodeState St
     /// </summary>
     public string StateText { get; init; } = string.Empty;
 
-    /// <summary>The file's name, shown small and muted; empty when none is written.</summary>
+    /// <summary>The file's name, the record link's tooltip; empty when none is written.</summary>
     public string FileName => File is null ? string.Empty : Path.GetFileName(File);
 
     /// <summary>Whether there is a document to open.</summary>

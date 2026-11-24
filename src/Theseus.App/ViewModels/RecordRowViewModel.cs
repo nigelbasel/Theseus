@@ -21,8 +21,11 @@ public sealed class RecordRowViewModel
     /// <summary>Its state in words.</summary>
     public string StateText => Entry.StateText;
 
-    /// <summary>The file's name, small and muted.</summary>
+    /// <summary>The file's name.</summary>
     public string FileName => Entry.FileName;
+
+    /// <summary>The link's tooltip: the file's name, or null with no file yet, or for a record whose label is its name (W35).</summary>
+    public string? FileToolTip => Entry.IsOther || Entry.FileName.Length == 0 ? null : Entry.FileName;
 
     /// <summary>Opens the Records window on it.</summary>
     public ICommand OpenCommand { get; }

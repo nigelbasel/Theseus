@@ -104,4 +104,17 @@ public class ProjectViewGroupingMarkupTests
 
     private static string RepositoryRoot([CallerFilePath] string thisFile = "") =>
         Path.GetFullPath(Path.Combine(Path.GetDirectoryName(thisFile)!, "..", "..", ".."));
+
+    [Test]
+    public void PropertiesLabelsAreSemibold_AndARecordIsNamedOnce()
+    {
+        // Walkthrough rows 33 and 34: the labels did not stand out, and BRIEF.md showed as a link and again written under it.
+        var view = View();
+        var rows = Named(view, "PropertyRows").Descendants(Presentation + "TextBlock").First(text => (string?)text.Attribute("Text") == "{Binding Label}");
+        var record = Named(view, "RecordRows");
+
+        Assert.That((string?)rows.Attribute("FontWeight"), Is.EqualTo("SemiBold"));
+        Assert.That(record.Descendants(Presentation + "Run").Select(run => (string?)run.Attribute("Text")), Has.None.Contains("FileName"));
+        Assert.That((string?)Named(view, "RecordRow").Attribute("ToolTip"), Is.EqualTo("{Binding FileToolTip}"));
+    }
 }

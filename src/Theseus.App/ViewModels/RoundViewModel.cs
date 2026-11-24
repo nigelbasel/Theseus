@@ -16,6 +16,7 @@ public sealed class RoundViewModel : ObservableObject, IFoldable
         StageNodeState.NotInProject, StageNodeState.ToDo, StageNodeState.HandedOn, StageNodeState.Answered,
     ];
 
+    private bool _isMeetOpen;
     private bool _isOpen;
     private bool _isShown = true;
 
@@ -84,7 +85,7 @@ public sealed class RoundViewModel : ObservableObject, IFoldable
     /// <summary>Whether a banner shows.</summary>
     public bool HasBanner => Banner is not null;
 
-    /// <summary>The objectives it set out to meet, as chips (C12).</summary>
+    /// <summary>The objectives it set out to meet, as the rows of its table (C12; walkthrough row 37).</summary>
     public IReadOnlyList<RoundObjectiveViewModel> Objectives { get; }
 
     /// <summary>Its top-level items: a box (with its tree under it) or a run of finished boxes folded to one line (D22).</summary>
@@ -123,6 +124,43 @@ public sealed class RoundViewModel : ObservableObject, IFoldable
 
     /// <summary>Folds or opens it.</summary>
     public ICommand ToggleCommand { get; }
+
+    /// <summary>
+    /// "Set out to meet" folded to one line, "3 objectives · 11 of 13 criteria met", over the table of them: the free-flowing
+    /// list of links and bars was "very busy" (walkthrough row 37). Empty with no objectives.
+    /// </summary>
+    public string MeetSummary => Objectives.Count == 0
+        ? string.Empty
+        : $"{Objectives.Count} {(Objectives.Count == 1 ? "objective" : "objectives")} · "
+          + $"{Objectives.Sum(each => each.Objective.TickedCount)} of {Objectives.Sum(each => each.Objective.Criteria.Count)} criteria met";
+
+    /// <summary>Whether the table of objectives is shown; folded to <see cref="MeetSummary"/> at first.</summary>
+    public bool IsMeetOpen
+    {
+        get => _isMeetOpen;
+        set
+        {
+            if (Set(ref _isMeetOpen, value))
+            {
+                Raise(nameof(MeetChevron));
+                Raise(nameof(MeetToolTip));
+            }
+        }
+    }
+
+    /// <summary>▸ folded, ▾ open.</summary>
+    public string MeetChevron => _isMeetOpen ? "▾" : "▸";
+
+    /// <summary>
+    /// Whether one of its objectives is highlighted, as hovering a box highlights the objective it serves (1.1f I45): shown
+    /// on the folded line too, since a folded table hides the row (review of 2e).
+    /// </summary>
+    public bool HasHighlightedObjective => Objectives.Any(objective => objective.IsHighlighted);
+
+    /// <summary>What the toggle does, as its state is now.</summary>
+    public string MeetToolTip => _isMeetOpen ? "Fold the objectives this round set out to meet" : "Show the objectives this round set out to meet";
+
+    internal void RaiseHighlight() => Raise(nameof(HasHighlightedObjective));
 
     private static string Day(DateOnly? date, bool withYear = false) =>
         date?.ToString(withYear ? "d MMM yyyy" : "d MMM", CultureInfo.InvariantCulture) ?? "?";

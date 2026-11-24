@@ -225,6 +225,36 @@ public class ProjectViewLayoutTests
     }
 
     [Test]
+    public void SetOutToMeet_IsOneLineFolded_AndATableOpen_ThatARefreshKeepsOpen()
+    {
+        // Walkthrough row 37: "very busy, a freeform list that just flows"; an expandable table was asked for.
+        var view = _views.BuildYourMarket();
+        var round = view.Rounds.First(each => each.Objectives.Count > 1);
+        var folded = LaidOut(view);
+
+        Assert.That(round.MeetSummary, Does.Match(@"^\d+ objectives · \d+ of \d+ criteria met$"));
+        Assert.That(AllNamed<ItemsControl>(folded, "RoundObjectives").Where(table => table.DataContext == round).Single().IsVisible
+                    || AllNamed<ItemsControl>(folded, "RoundObjectives").Where(table => table.DataContext == round).Single().Visibility == Visibility.Visible,
+            Is.False, "folded at first");
+
+        view.HighlightObjective(round.Objectives[0].Objective.Number);
+
+        Assert.That(round.HasHighlightedObjective, Is.True, "hovering a box still shows its objective, on the folded line (1.1f I45)");
+
+        round.IsMeetOpen = true;
+        var control = LaidOut(view);
+        var bars = AllNamed<Border>(control, "ObjectiveChip")
+            .Where(row => row.DataContext is RoundObjectiveViewModel chip && round.Objectives.Contains(chip))
+            .Select(row => Descendants<Grid>(row).First(grid => Grid.GetColumn(grid) == 1))
+            .ToList();
+
+        Assert.That(bars, Has.Count.EqualTo(round.Objectives.Count));
+        Assert.That(bars.Select(bar => Math.Round(bar.TranslatePoint(new Point(0, 0), control).X)).Distinct().Count(), Is.EqualTo(1),
+            "the bars line up in one column, however long each title");
+        Assert.That(_views.BuildYourMarket(previous: view).Rounds.First(each => each.Round.Number == round.Round.Number).IsMeetOpen, Is.True);
+    }
+
+    [Test]
     public void ThePhaseStrip_IsOneLine_HoweverManyPhases()
     {
         // Walkthrough row 17: the strip wrapped onto a second line at Phase 6.

@@ -46,7 +46,7 @@ public static class ProjectViewFileEdits
             },
             objective =>
             {
-                if (askText("Edit objective", $"Objective {objective.Number}'s title", objective.Title) is { } title && title != objective.Title)
+                if (askText("Rename objective", $"Objective {objective.Number}'s title", objective.Title) is { } title && title != objective.Title)
                 {
                     Write(text => ProjectFileEditor.RenameObjective(text, objective.Number, objective.Title, title),
                         $"Objective {objective.Number} of {project} is now {title}.");

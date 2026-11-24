@@ -310,7 +310,7 @@ public class ProjectViewGroupingTests
 
         Assert.That(heading.MenuItems.Select(item => (item.Label, item.IsDefault)), Is.EqualTo(new[]
         {
-            ("Properties", true), ("Edit objective…", false),
+            ("Properties", true), ("Rename objective…", false),
         }));
 
         heading.MenuItems[0].Command.Execute(null);

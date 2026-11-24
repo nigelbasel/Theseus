@@ -71,10 +71,10 @@ public sealed class PropertiesViewModel
     /// <summary>The objective's criteria, ticked in the project file.</summary>
     public IReadOnlyList<CriterionViewModel> Criteria { get; private init; } = [];
 
-    /// <summary>Edit objective…, or null when the view cannot edit.</summary>
+    /// <summary>Rename objective…, or null when the view cannot edit.</summary>
     public ICommand? EditObjectiveCommand { get; private init; }
 
-    /// <summary>Whether Edit objective… is offered.</summary>
+    /// <summary>Whether Rename objective… is offered.</summary>
     public bool CanEditObjective => EditObjectiveCommand is not null;
 
     /// <summary>The pane for a piece of work.</summary>
@@ -177,7 +177,7 @@ public sealed class PropertiesViewModel
 
     /// <summary>
     /// The pane for an objective heading of the view grouped by objectives (1.1d AC 49): the objective, its pieces of
-    /// work and their counts, then its criteria to tick and Edit objective…. For the heading of pieces no project file
+    /// work and their counts, then its criteria to tick and Rename objective…. For the heading of pieces no project file
     /// lists, what they are.
     /// </summary>
     internal static PropertiesViewModel ForObjective(ObjectiveHeadingViewModel heading)

@@ -34,7 +34,7 @@ board, with the name of the piece of work it does, which is also the name of its
 several rows has worked on several pieces of work, and its last row is its current one. A verifier card goes with the card it checks. To change it, use a card's
 **Add to project…**, **Remove from project** or **Convert to project…**, or edit `project.md`: both change the file,
 and the board follows within a couple of seconds. In the project view, select a piece of work to tick its objective's
-criteria and **Edit objective…** in the Properties pane; use the project card's menu for **Add objective…**.
+criteria and **Rename objective…** in the Properties pane; use the project card's menu for **Add objective…**.
 
 Every project in the folder shows on the board as one **project card**. It is as wide as a card, with a stripe and a
 stacked-card mark in the project's own colour and the word **PROJECT** beside its title, so it is never mistaken for a

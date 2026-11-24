@@ -106,8 +106,8 @@ Headings fold and open with their chevron, like a branch; a phase whose objectiv
 is drawn between headings, so a box says what the lines would: **← handed on from …**, **→ handed on to …**, and,
 where the same workstream moved on to another objective, **┈ worked on after …** and **┈ then worked on …**.
 
-Click an objective heading to show it in Properties: its pieces of work, its criteria to tick with ☐ or ☑, and **Edit
-objective…**. Click a phase heading to see its exit gate and objectives, with **Add objective…**, which adds one at the
+Click an objective heading to show it in Properties: its pieces of work, its criteria to tick with ☐ or ☑, and **Rename
+objective…**, which changes its title. Click a phase heading to see its exit gate and objectives, with **Add objective…**, which adds one at the
 end of that phase. Right-click a heading, or press Shift+F10 or the Menu key on it, for the same.
 
 ## The links
@@ -129,7 +129,7 @@ Click a box's name or status line to select the piece of work, or a stage to sel
 to a box's name or a stage and press Enter. The pane on the right shows its state in words, where its records are, its
 workstream, its links with their state, and what you can do. For a piece of work in an objective, the pane also lists
 the objective's criteria: click the ☐ or ☑ beside a criterion to tick or untick it in the project's file, and
-**Edit objective…** to rename the objective.
+**Rename objective…** to change the objective's title. Its criteria's wording is edited in project.md itself.
 
 Drag the splitter to resize the pane, or double-click it to put it back to its first width. The width is kept across
 restarts and for every project.

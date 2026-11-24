@@ -7,7 +7,7 @@ namespace Theseus.Tests.ViewModels;
 
 /// <summary>
 /// The Properties pane (1.1d AC 34): a hint for nothing selected; a piece's or a stage's state in words, its rows, its
-/// links with their state, its buttons, and its objective's criteria with Edit objective… (Question 3).
+/// links with their state, its buttons, and its objective's criteria with Rename objective… (Question 3).
 /// </summary>
 [TestFixture]
 public class ProjectViewPropertiesTests
