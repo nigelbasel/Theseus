@@ -26,6 +26,14 @@ public class ProjectStarterTests
     }
 
     [Test]
+    public void ANewProjectsFirstPhase_HasAName()
+    {
+        ProjectStarter.Start(_projects.Folder, "my-project");
+
+        Assert.That(ProjectCatalog.Read(_projects.Folder).Single().File!.Phases[0].Name, Is.EqualTo("Specify"));
+    }
+
+    [Test]
     public void ANewProject_IsReadable_WithItsNameAsTitle_AndAnEmptyWorkFolder()
     {
         var home = ProjectStarter.Start(_projects.Folder, "my-project");

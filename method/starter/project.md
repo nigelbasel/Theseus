@@ -17,7 +17,7 @@ One paragraph: the outcome the whole project exists for.
 |---|---|---|
 | <host>/<owner>/<repo> | changed by phase 0 | L0 |
 
-## Phase 0: <name>
+## Phase 0: Specify
 
 **Exit gate:** who decides, on what evidence.
 

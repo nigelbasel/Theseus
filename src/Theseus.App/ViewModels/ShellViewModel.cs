@@ -836,7 +836,18 @@ public sealed partial class ShellViewModel : ObservableObject
             Extend(_projectStartSaid && !string.IsNullOrWhiteSpace(Notice) ? $"{Notice} {text}" : text);
             _projectStartSaid = false;
         },
-        Refresh);
+        Refresh,
+        project =>
+        {
+            if (Readable(project.Name) is { File: { } file, Folder: { } home })
+            {
+                StartLead(project.Name, file.Title, home);
+            }
+            else
+            {
+                Warn($"{project.Title} does not read, so its lead card cannot be made.");
+            }
+        });
 
     /// <summary>A card's and a selection's Start and Stop, with the questions and marks of a project that owns what runs (1.1e AC 10 to 12).</summary>
     private CardRunCommands RunCommands => _runCommands ??= new CardRunCommands(_settings, () => Board.ProjectCards, Runner,
@@ -2074,10 +2085,64 @@ public sealed partial class ShellViewModel : ObservableObject
 
     private void NewProject()
     {
-        if (AskNewProject?.Invoke(string.Empty, string.Empty) is { } details)
+        if (AskNewProject?.Invoke(string.Empty, string.Empty) is { } details && StartProject(details) is { } home)
         {
-            StartProject(details);
+            StartLead(details.Name, details.Title, home);
         }
+    }
+
+    // Theseus starts what it makes (Nigel, 2026-11-23): a project made empty has no card for its Start to start.
+    private void StartLead(string project, string title, string home)
+    {
+        var lead = ProjectLeadCard.For(title.Length > 0 ? title : project, home);
+        var key = WorkstreamKey.Unique(lead.Title, [.. _plans.Keys(), .. Chains?.TakenKeys ?? []]);
+
+        _plans.Write(key, new SessionPlan(_plans.Keys().Count + 1, lead.Title, ProjectCardViewModel.NoColour, lead.WorkingDirectory, [],
+            null, DateTimeOffset.Now.ToString("s"), lead.Prompt));
+        Refresh();
+
+        if (Board.Card(key) is not { } card)
+        {
+            Warn($"Project {project} was started, but its lead card {lead.Title} is not on the board; refresh and try again.");
+
+            return;
+        }
+
+        try
+        {
+            AddFirstRow(home, project, card);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ProjectEditRefusedException)
+        {
+            Fail($"Project {project} was started, but {lead.Title} could not be added to it: {exception.Message}");
+
+            return;
+        }
+
+        TheseusLog.Information("Created {Lead} to lead project {Project}", key, project);
+        Notice = $"Started project {project} in {home}, with {lead.Title} as its lead, starting now.";
+        StartMany([card.Workstream]);
+    }
+
+    /// <summary>Adds a card as the first row of a new project's first objective, and returns its records folder.</summary>
+    private string AddFirstRow(string home, string project, WorkstreamCardViewModel card)
+    {
+        var text = File.ReadAllText(Path.Combine(home, ProjectCatalog.ProjectFileName));
+        var file = ProjectFileReader.Read(project, text).File
+                   ?? throw new ProjectEditRefusedException("the new project.md does not read");
+        var first = file.Objectives.FirstOrDefault()
+                    ?? throw new ProjectEditRefusedException("the new project.md has no objective");
+        var row = new ProjectWorkstreamRow(card.Key, project, BranchFor(file, project), ReposOf(card), 0);
+        var reading = ProjectFileReading.Read(file) with { Folder = home, Text = text };
+
+        ProjectFileWriter.Apply(reading, current => ProjectFileEditor.AddRow(current, first.Number, row));
+
+        var records = Path.Combine(home, WorkstreamArtefactReader.WorkFolder, project);
+        Directory.CreateDirectory(records);
+        _projectReads.MarkStale();
+        WireProjects();
+
+        return records;
     }
 
     /// <summary>Starts a project from the starter and returns its reading-to-be's folder, or null with a notice.</summary>
@@ -2292,23 +2357,9 @@ public sealed partial class ShellViewModel : ObservableObject
             return;
         }
 
-        var slug = details.Name;
-
         try
         {
-            var text = File.ReadAllText(Path.Combine(home, ProjectCatalog.ProjectFileName));
-            var file = ProjectFileReader.Read(details.Name, text).File
-                       ?? throw new ProjectEditRefusedException("the new project.md does not read");
-            var first = file.Objectives.FirstOrDefault()
-                        ?? throw new ProjectEditRefusedException("the new project.md has no objective");
-            var row = new ProjectWorkstreamRow(card.Key, slug, BranchFor(file, slug), ReposOf(card), 0);
-            var reading = ProjectFileReading.Read(file) with { Folder = home, Text = text };
-
-            ProjectFileWriter.Apply(reading, current => ProjectFileEditor.AddRow(current, first.Number, row));
-
-            var records = Path.Combine(home, WorkstreamArtefactReader.WorkFolder, slug);
-            Directory.CreateDirectory(records);
-
+            var records = AddFirstRow(home, details.Name, card);
             var copied = string.Empty;
 
             if (card.Workstream.StatusDocumentPath is { } handoff && File.Exists(handoff))
@@ -2324,8 +2375,6 @@ public sealed partial class ShellViewModel : ObservableObject
             }
 
             Notice = $"{card.Title} is now project {details.Name}, as its first workstream. Fill in its project.md.{copied}";
-            _projectReads.MarkStale();
-            WireProjects();
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ProjectEditRefusedException)
         {

@@ -189,13 +189,29 @@ public class ProjectRunnerTests
     }
 
     [Test]
-    public void AProjectWithNothingToStart_SaysWhyInTheStatusBar()
+    public void AProjectWhoseCardsAreGone_SaysWhyInTheStatusBar()
     {
         var project = new ProjectCardViewModel(BuildYourMarket, "BuildYourMarket MCP server");
-        ProjectCardFace.Fill(project, []);
+        ProjectCardFace.Fill(project, BuildYourMarketPieces(_folder, []));
 
         Runner().Start(project);
 
         Assert.That(_notices, Is.EqualTo(new[] { "No card of BuildYourMarket MCP server is on the board" }));
+    }
+
+    [Test]
+    public void AProjectWithNoWorkstreamRow_MakesItsLead_AndStartsNothingElse()
+    {
+        List<string> leads = [];
+        var project = new ProjectCardViewModel(BuildYourMarket, "BuildYourMarket MCP server");
+        ProjectCardFace.Fill(project, []);
+        ProjectRunner runner = new(_board.Board.Card, _settings, workstreams => _started.AddRange(workstreams.Select(workstream => workstream.Key)),
+            _ => { }, _notices.Add, makeLead: made => leads.Add(made.Name));
+
+        Assert.That((project.StartPlan!.CanStart, project.StartPlan.MakesLead), Is.EqualTo((true, true)));
+
+        runner.Start(project);
+
+        Assert.That((leads.Single(), _started.Count, _notices.Count), Is.EqualTo((BuildYourMarket, 0, 0)));
     }
 }

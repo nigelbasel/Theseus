@@ -9,12 +9,16 @@ namespace Theseus.Core.Projects;
 /// </summary>
 public sealed class ProjectStart
 {
-    private ProjectStart(string title, bool isStopped, IReadOnlyList<ProjectStartEntry> entries)
+    private ProjectStart(string title, bool isStopped, IReadOnlyList<ProjectStartEntry> entries, bool makesLead = false)
     {
         Title = title;
         IsStopped = isStopped;
         Entries = entries;
+        MakesLead = makesLead;
     }
+
+    /// <summary>Whether the project has no workstream row at all, so Start makes its lead card and starts that.</summary>
+    public bool MakesLead { get; }
 
     /// <summary>The project's title.</summary>
     public string Title { get; }
@@ -32,10 +36,12 @@ public sealed class ProjectStart
     public IReadOnlyList<string> Skipped => [.. Entries.Where(entry => !entry.Starts).Select(entry => entry.Line)];
 
     /// <summary>Whether anything would start, so Start is enabled.</summary>
-    public bool CanStart => Entries.Any(entry => entry.Starts);
+    public bool CanStart => MakesLead || Entries.Any(entry => entry.Starts);
 
     /// <summary>What Start does, or why nothing can start.</summary>
-    public string ToolTip => CanStart
+    public string ToolTip => MakesLead
+        ? $"Start {Title}: makes its lead card, as its first workstream, and starts it"
+        : CanStart
         ? $"Start {Title}{(IsStopped ? " as it was when stopped" : string.Empty)}: {string.Join(", ", Entries.Where(entry => entry.Starts).Select(entry => entry.Title))}"
         : Entries.Count == 0
             ? $"No card of {Title} is on the board"
@@ -69,6 +75,11 @@ public sealed class ProjectStart
         if (lead is not null)
         {
             return new ProjectStart(title, false, [Entry(lead, cards.GetValueOrDefault(lead), stoppedByOwner)]);
+        }
+
+        if (!pieces.Any(piece => piece.IsListed))
+        {
+            return new ProjectStart(title, false, [], makesLead: true);
         }
 
         var first = pieces.FirstOrDefault(piece => piece.IsListed && piece.Card is not null && piece.Status.State != StageNodeState.Done)

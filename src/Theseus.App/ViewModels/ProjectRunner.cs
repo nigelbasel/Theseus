@@ -20,6 +20,7 @@ public sealed class ProjectRunner
     private readonly Action<IReadOnlyList<WorkstreamCardViewModel>> _stop;
     private readonly Action<string> _notice;
     private readonly Action? _changed;
+    private readonly Action<ProjectCardViewModel>? _makeLead;
 
     /// <summary>Creates the runner.</summary>
     /// <param name="cardOf">The board card with a key, or null.</param>
@@ -28,10 +29,12 @@ public sealed class ProjectRunner
     /// <param name="stop">Asks cards' sessions to write a handover and stop, as a card's Stop does.</param>
     /// <param name="notice">Says in the status bar which cards a Start skipped, and why.</param>
     /// <param name="changed">Called when a run state changed, so the board shows it at once; null does nothing.</param>
+    /// <param name="makeLead">Makes and starts the lead card of a project with no workstream row; null does nothing.</param>
     public ProjectRunner(Func<string, WorkstreamCardViewModel?> cardOf, ISettingsStore settings,
         Action<IReadOnlyList<Workstream>> start, Action<IReadOnlyList<WorkstreamCardViewModel>> stop, Action<string> notice,
-        Action? changed = null)
+        Action? changed = null, Action<ProjectCardViewModel>? makeLead = null)
     {
+        _makeLead = makeLead;
         _changed = changed;
         _cardOf = cardOf;
         _settings = settings;
@@ -64,6 +67,13 @@ public sealed class ProjectRunner
     {
         ArgumentNullException.ThrowIfNull(cards);
         ArgumentNullException.ThrowIfNull(projects);
+
+        foreach (var leadless in projects.Where(project => project.StartPlan is { MakesLead: true }))
+        {
+            _makeLead?.Invoke(leadless);
+        }
+
+        projects = [.. projects.Where(project => project.StartPlan is not { MakesLead: true })];
 
         var planned = projects.Where(project => project.StartPlan is not null).ToList();
         var chosen = ChooseSelected(cards, projects);
