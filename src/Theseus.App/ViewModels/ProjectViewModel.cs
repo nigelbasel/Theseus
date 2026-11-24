@@ -125,6 +125,13 @@ public sealed class ProjectViewModel : ObservableObject
 
         if (IsGroupedByObjectives && AllObjectives.FirstOrDefault(objective => objective.Objective?.Number == number) is { } heading)
         {
+            // A filter that hides the heading gives way, or the selection would be nowhere on screen.
+            if (!heading.IsShown)
+            {
+                _filter = [];
+                ApplyFilter();
+            }
+
             Select(heading);
         }
         else if (AllNodes.FirstOrDefault(node => node.Piece.ObjectiveNumber == number) is { } first)
@@ -383,6 +390,22 @@ public sealed class ProjectViewModel : ObservableObject
 
     /// <summary>One tab per project that reads (AC 17).</summary>
     public IReadOnlyList<ProjectTabViewModel> Tabs { get; private set; } = [];
+
+    /// <summary>
+    /// The tab strip's selection (W41; B7, D6): the open project's tab. Selecting another opens its project, which builds
+    /// a new view whose open tab is that one, so the selection follows the tab keys too.
+    /// </summary>
+    public ProjectTabViewModel? OpenTab
+    {
+        get => Tabs.FirstOrDefault(tab => tab.IsOpen);
+        set
+        {
+            if (value is { IsOpen: false, OpenCommand: { } open } && open.CanExecute(null))
+            {
+                open.Execute(null);
+            }
+        }
+    }
 
     /// <summary>The specs waiting on the owner, for the menu bar's Open spec and Accept spec (R16).</summary>
     public IReadOnlyList<SpecAtGate> WaitingSpecs { get; private set; } = [];
@@ -830,10 +853,7 @@ public sealed class ProjectViewModel : ObservableObject
         if (offer.Action == StageAction.Start && _actions.WhoStarts?.Invoke(key) is { } run)
         {
             return new PieceActionViewModel(WhoStarts.StartAnywayLabel, what.Run, isEnabled,
-                reason ?? $"{run.Line ?? "Its project is running and decides what runs."} Start it yourself instead: you are asked first.")
-            {
-                IsLink = true,
-            };
+                reason ?? $"{run.Line ?? "Its project is running and decides what runs."} Start it yourself instead: you are asked first.");
         }
 
         return new PieceActionViewModel(offer.Label, what.Run, isEnabled, reason ?? what.ToolTip)
@@ -906,7 +926,7 @@ public sealed class ProjectViewModel : ObservableObject
 
     /// <summary>
     /// Shows only the pieces in a state, or adds it with Ctrl; the same chip again, or Esc, shows everything (1.1e item 26).
-    /// A shown piece keeps its round and its state's heading.
+    /// A shown piece keeps its round and its state's heading, or, in Objectives only, its phase and objective.
     /// </summary>
     public void ToggleFilter(StageNodeState state, bool add)
     {
@@ -943,6 +963,19 @@ public sealed class ProjectViewModel : ObservableObject
         foreach (var round in Rounds)
         {
             round.IsShown = round.Boxes.Any(box => box.IsShown);
+        }
+
+        // Objectives only the same way: a heading shows while it holds a match, and opens, unremembered, to show it.
+        foreach (ObjectiveHeadingViewModel objective in AllObjectives)
+        {
+            objective.IsShown = _filter.Count == 0 || objective.Pieces.Any(node => node.IsShown);
+            objective.IsOpen |= _filter.Count > 0 && objective.IsShown;
+        }
+
+        foreach (PhaseHeadingViewModel phase in Phases)
+        {
+            phase.IsShown = _filter.Count == 0 || phase.Objectives.Any(objective => objective.IsShown);
+            phase.IsOpen |= _filter.Count > 0 && phase.IsShown;
         }
 
         Counts = [.. Counts.Select(chip => chip with { IsActive = _filter.Contains(chip.State) })];
@@ -1172,14 +1205,14 @@ public sealed class ProjectViewModel : ObservableObject
         }
 
         lines.AddRange(node.Children.Select(child =>
-            $"hands work to {child.Piece.Name}{StateWords(HandOver(links, piece, child.Piece), links)}"));
+            $"Hands work to {child.Piece.Name}{StateWords(HandOver(links, piece, child.Piece), links)}"));
 
         if (node.ReportBack is { } mark)
         {
-            lines.Add($"reports back to {mark.ParentPiece}{StateWords(mark.State)}");
+            lines.Add($"Reports back to {mark.ParentPiece}{StateWords(mark.State)}");
         }
 
-        lines.AddRange(tree.ThenWorkedOn.Where(link => link.From == piece).Select(link => $"then worked on {link.To.Name}"));
+        lines.AddRange(tree.ThenWorkedOn.Where(link => link.From == piece).Select(link => $"Then worked on {link.To.Name}"));
 
         return lines;
     }

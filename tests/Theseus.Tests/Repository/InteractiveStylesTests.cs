@@ -117,14 +117,21 @@ public class InteractiveStylesTests
         Assert.That(wash.Select(trigger => (((Binding)trigger.Binding).Path.Path, trigger.Value?.ToString())),
             Is.EqualTo(new[] { ("IsMouseOver", "True"), ("IsPressed", "True"), ("IsEnabled", "False") }));
 
-        foreach (var key in new[] { "ProjectTab", "ChainStage" })
-        {
-            var style = view.Descendants(Presentation + "Style").Single(each => (string?)each.Attribute(Xaml + "Key") == key);
+        XElement chain = view.Descendants(Presentation + "Style").Single(each => (string?)each.Attribute(Xaml + "Key") == "ChainStage");
 
-            Assert.That((string?)style.Attribute("BasedOn"), Is.EqualTo("{StaticResource ClickableSurface}"), key);
-            Assert.That(style.Descendants(Presentation + "Border").Select(border => (string?)border.Attribute("Style")),
-                Has.One.EqualTo("{StaticResource SurfaceWash}"), key);
-        }
+        Assert.That((string?)chain.Attribute("BasedOn"), Is.EqualTo("{StaticResource ClickableSurface}"));
+        Assert.That(chain.Descendants(Presentation + "Border").Select(border => (string?)border.Attribute("Style")),
+            Has.One.EqualTo("{StaticResource SurfaceWash}"));
+
+        // A tab is a selector's item now (W41), so it draws its own ring and hover wash: a ListBoxItem has no IsPressed.
+        XElement tab = view.Descendants(Presentation + "Style").Single(each => (string?)each.Attribute(Xaml + "Key") == "ProjectTab");
+
+        Assert.That((string?)tab.Attribute("TargetType"), Is.EqualTo("ListBoxItem"));
+        Assert.That(tab.Elements(Presentation + "Setter").Single(setter => (string?)setter.Attribute("Property") == "FocusVisualStyle")
+            .Attribute("Value")?.Value, Is.EqualTo("{StaticResource FocusRing}"));
+        Assert.That(tab.Descendants(Presentation + "Trigger").Select(trigger => (string?)trigger.Attribute("Property")), Has.Member("IsMouseOver"));
+        Assert.That(tab.Descendants(Presentation + "DataTrigger").Select(trigger => (string?)trigger.Attribute("Binding")), Has.Member("{Binding IsOpen}"),
+            "the open project is marked, whatever the selection");
     }
 
     [Test]

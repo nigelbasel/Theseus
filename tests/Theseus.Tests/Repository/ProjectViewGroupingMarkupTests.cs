@@ -81,7 +81,7 @@ public class ProjectViewGroupingMarkupTests
             Is.EquivalentTo(new[] { "Enter", "Space" }));
         Assert.That((string?)element.Descendants(Presentation + "MouseBinding").Single().Attribute("Command"), Is.EqualTo("{Binding SelectCommand}"));
         Assert.That(((string?)menu.Attribute("ItemsSource"), (string?)menu.Attribute("ItemContainerStyle")),
-            Is.EqualTo(("{Binding MenuItems}", "{StaticResource StageMenuItem}")));
+            Is.EqualTo(("{Binding MenuEntries}", "{StaticResource StageMenuItem}")));
     }
 
     [Test]
@@ -100,7 +100,7 @@ public class ProjectViewGroupingMarkupTests
         Assert.That(pane.Descendants(Presentation + "Condition").Select(condition => (string?)condition.Attribute("Binding")),
             Is.EqualTo(new[] { "{Binding IsPaneDocked}", "{Binding IsOverlayOpen}" }));
         Assert.That(((string?)close.Attribute("Content"), (string?)close.Attribute("Command"), (string?)close.Attribute("ToolTip")),
-            Is.EqualTo(("×", "{Binding CloseOverlayCommand}", "Close Properties (Esc)")));
+            Is.EqualTo(("\uE8BB", "{Binding CloseOverlayCommand}", "Close Properties (Esc)")), "W25: E8BB closes");
     }
 
     private static string RepositoryRoot([CallerFilePath] string thisFile = "") =>

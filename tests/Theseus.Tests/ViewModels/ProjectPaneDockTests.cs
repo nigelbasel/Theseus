@@ -26,7 +26,7 @@ public class ProjectPaneDockTests
 
     private static PieceNodeViewModel Box(ProjectViewModel view, string piece) => view.AllNodes.Single(node => node.Name == piece);
 
-    [TestCase(666, true, Description = "400 px of flow, the 6 px splitter and the 260 px pane")]
+    [TestCase(668, true, Description = "400 px of flow, the 8 px splitter and the 260 px pane")]
     [TestCase(665, false)]
     [TestCase(384, false, Description = "a 720 px window with the Live sessions panel open")]
     [TestCase(944, true, Description = "a 1280 px window with the Live sessions panel open")]

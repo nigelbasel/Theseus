@@ -35,13 +35,14 @@ public class CheckRefusalMarkupTests
     }
 
     [Test]
-    public void AProjectViewMenuItem_ShowsItsMenuText()
+    public void AProjectViewMenuItem_ShowsItsEntry()
     {
         var style = Load("Views", "ProjectView.xaml").Descendants(Presentation + "Style")
             .Single(each => (string?)each.Attribute(Xaml + "Key") == "StageMenuItem");
         var header = style.Elements(Presentation + "Setter").Single(setter => (string?)setter.Attribute("Property") == "Header");
 
-        Assert.That((string?)header.Attribute("Value"), Is.EqualTo("{Binding MenuText}"));
+        Assert.That((string?)header.Attribute("Value"), Is.EqualTo("{Binding}"),
+            "the entry itself: its header with its access key, and its reason on a second line (W26, W30)");
     }
 
     [Test]

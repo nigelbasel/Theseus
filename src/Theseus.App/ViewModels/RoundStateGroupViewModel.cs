@@ -4,7 +4,7 @@ using Theseus.Core.Projects;
 namespace Theseus.App.ViewModels;
 
 /// <summary>
-/// A round's pieces in one state, under a heading that folds, worded as that state's count chip: "▶ ✓ 8 done". Each
+/// A round's pieces in one state, under a heading that folds, worded as that state's count chip: "✓ 8 done". Each
 /// state has its own, so built pieces not yet checked no longer follow the finished ones as if they were finished, and
 /// no piece sits under the chain of the session that handed it work (git-22, 2026-11-24; G126, G135).
 /// </summary>
@@ -42,8 +42,14 @@ public sealed class RoundStateGroupViewModel : ObservableObject, IFoldable
     /// <inheritdoc />
     public string FoldName { get; }
 
-    /// <summary>"▶ ✓ 8 done" folded, "▼ ✓ 8 done" open: the chip's own words, counting what the filter shows.</summary>
-    public string Text => $"{(_isOpen ? "▼" : "▶")} {StateCountViewModel.TextOf(State, Shown.Count)}";
+    /// <summary>"✓ 8 done": the chip's own words, counting what the filter shows.</summary>
+    public string Text => StateCountViewModel.TextOf(State, Shown.Count);
+
+    /// <summary>The heading's fold chevron, in the icon font (W25).</summary>
+    public string Chevron => FoldGlyph.Of(_isOpen);
+
+    /// <summary>What the heading does.</summary>
+    public string ChevronToolTip => _isOpen ? $"Fold {Text}" : $"Show {Text}";
 
     /// <summary>The titles of what the filter shows, in order, shown while it is folded.</summary>
     public string Titles => string.Join(" · ", Shown.Select(box => box.Title));
@@ -61,6 +67,7 @@ public sealed class RoundStateGroupViewModel : ObservableObject, IFoldable
         }
 
         Raise(nameof(Text));
+        Raise(nameof(ChevronToolTip));
         Raise(nameof(Titles));
     }
 
@@ -72,7 +79,8 @@ public sealed class RoundStateGroupViewModel : ObservableObject, IFoldable
         {
             if (Set(ref _isOpen, value))
             {
-                Raise(nameof(Text));
+                Raise(nameof(Chevron));
+                Raise(nameof(ChevronToolTip));
                 Raise(nameof(IsFolded));
             }
         }
