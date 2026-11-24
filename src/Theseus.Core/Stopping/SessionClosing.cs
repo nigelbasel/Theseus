@@ -156,4 +156,17 @@ public static class SessionClosing
 
         return sessionStartedUtc > (request.DeliveredUtc ?? request.RequestedUtc);
     }
+
+    /// <summary>
+    /// Whether a delivered stop has been answered without the session closing, so a new stop asks again instead of waiting
+    /// on it: the session is idle, and the stop was handed over longer ago than <see cref="AnswerWindow"/>. A working
+    /// session may still be writing its handover, so its stop is never spent.
+    /// </summary>
+    public static bool IsSpent(PendingStopRequest request, string? status, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        return string.Equals(status, "idle", StringComparison.OrdinalIgnoreCase)
+               && now - (request.DeliveredUtc ?? request.RequestedUtc) > AnswerWindow;
+    }
 }

@@ -131,6 +131,7 @@ public class StopTimingTests
     [TestCase(StopRemoval.StartedAgain, "its card was started again")]
     [TestCase(StopRemoval.NewerSession, "a newer session is running")]
     [TestCase(StopRemoval.Declined, "declined when the board opened")]
+    [TestCase(StopRemoval.AskedAgain, "answered without closing, and asked again")]
     [TestCase(StopRemoval.Expired, "it expired")]
     public void AnUnfinishedStop_SaysWhyItWasRemovedAndHowFarItGot(StopRemoval removal, string why)
     {

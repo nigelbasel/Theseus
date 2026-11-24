@@ -14,4 +14,7 @@ public enum StopRemoval
 
     /// <summary>It was four hours old.</summary>
     Expired,
+
+    /// <summary>The session answered it and stayed open, and it was asked to stop again.</summary>
+    AskedAgain,
 }

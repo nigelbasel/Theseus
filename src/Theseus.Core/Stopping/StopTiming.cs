@@ -92,6 +92,7 @@ public static class StopTiming
             StopRemoval.StartedAgain => "its card was started again",
             StopRemoval.NewerSession => "a newer session is running",
             StopRemoval.Declined => "declined when the board opened",
+            StopRemoval.AskedAgain => "answered without closing, and asked again",
             _ => "it expired",
         };
 
