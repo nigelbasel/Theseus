@@ -49,6 +49,53 @@ public class ConsoleTypingTests
         Assert.That(ConsoleTyping.TypeLine(ended.Id, "nothing"), Is.EqualTo(ConsoleTypingOutcome.NotAttached));
     }
 
+    [Test]
+    public void AfterTypingIntoAConsole_AProcessCanStillBeStarted()
+    {
+        IntPtr[] saved = [.. StandardHandles.Select(GetStdHandle)];
+        using Process reader = Process.Start(new ProcessStartInfo("cmd.exe", "/d /c \"set /p line=<CON\"")
+        {
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        })!;
+
+        try
+        {
+            // Theseus is a windowed app: it starts with no standard handles, as this sets up.
+            foreach (int which in StandardHandles)
+            {
+                SetStdHandle(which, IntPtr.Zero);
+            }
+
+            Assert.That(TypeOnceItsConsoleIsUp(reader.Id, "exit"), Is.EqualTo(ConsoleTypingOutcome.Sent));
+            Assert.That(StandardHandles.Select(GetStdHandle), Is.All.EqualTo(IntPtr.Zero), "the standard handles are as they were");
+
+            using Process started = Process.Start(new ProcessStartInfo("cmd.exe", "/d /c exit") { UseShellExecute = false, CreateNoWindow = true })!;
+            Assert.That(started.WaitForExit(TimeSpan.FromSeconds(20)), Is.True);
+        }
+        finally
+        {
+            for (int index = 0; index < StandardHandles.Length; index++)
+            {
+                SetStdHandle(StandardHandles[index], saved[index]);
+            }
+
+            if (!reader.HasExited)
+            {
+                reader.Kill();
+            }
+        }
+    }
+
+    private static readonly int[] StandardHandles = [-10, -11, -12];
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+    private static extern IntPtr GetStdHandle(int which);
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static extern bool SetStdHandle(int which, IntPtr handle);
+
     // A console is made a moment after its process starts; joining it before then fails.
     private static ConsoleTypingOutcome TypeOnceItsConsoleIsUp(int processId, string line)
     {

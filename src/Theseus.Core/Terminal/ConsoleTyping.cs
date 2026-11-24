@@ -25,6 +25,7 @@ public static class ConsoleTyping
     private const uint LeftCtrlPressed = 0x0008;
     private static readonly object Gate = new();
     private static readonly ConsoleCtrlHandler Ignore = _ => true;
+    private static readonly int[] StandardHandles = [-10, -11, -12];
 
     /// <summary>Types <paramref name="line"/> and Enter into the console of process <paramref name="processId"/>.</summary>
     public static ConsoleTypingOutcome TypeLine(int processId, string line)
@@ -34,44 +35,63 @@ public static class ConsoleTyping
 
         lock (Gate)
         {
-            FreeConsole();
-            SetConsoleCtrlHandler(Ignore, true);
+            IntPtr[] saved = [.. StandardHandles.Select(GetStdHandle)];
 
-            if (!AttachConsole((uint)processId))
+            try
             {
-                SetConsoleCtrlHandler(Ignore, false);
-                TheseusLog.Debug("Could not join the console of process {Pid}: error {Error}", processId, Marshal.GetLastWin32Error());
+                return TypeJoined(processId, records);
+            }
+            finally
+            {
+                // Joining a console repoints the standard handles at it and leaving closes them, so every later
+                // Process.Start would pass on dead handles and fail: they are put back as they were.
+                for (int index = 0; index < StandardHandles.Length; index++)
+                {
+                    SetStdHandle(StandardHandles[index], saved[index]);
+                }
+            }
+        }
+    }
 
-                return ConsoleTypingOutcome.NotAttached;
+    private static ConsoleTypingOutcome TypeJoined(int processId, InputRecord[] records)
+    {
+        FreeConsole();
+        SetConsoleCtrlHandler(Ignore, true);
+
+        if (!AttachConsole((uint)processId))
+        {
+            SetConsoleCtrlHandler(Ignore, false);
+            TheseusLog.Debug("Could not join the console of process {Pid}: error {Error}", processId, Marshal.GetLastWin32Error());
+
+            return ConsoleTypingOutcome.NotAttached;
+        }
+
+        try
+        {
+            var input = CreateFileW("CONIN$", GenericReadWrite, ShareReadWrite, IntPtr.Zero, OpenExisting, 0, IntPtr.Zero);
+
+            if (input == InvalidHandle)
+            {
+                TheseusLog.Debug("Could not open the input of process {Pid}'s console: error {Error}", processId, Marshal.GetLastWin32Error());
+
+                return ConsoleTypingOutcome.NoInput;
             }
 
             try
             {
-                var input = CreateFileW("CONIN$", GenericReadWrite, ShareReadWrite, IntPtr.Zero, OpenExisting, 0, IntPtr.Zero);
+                var written = WriteConsoleInputW(input, records, (uint)records.Length, out var count) ? count : 0;
 
-                if (input == InvalidHandle)
-                {
-                    TheseusLog.Debug("Could not open the input of process {Pid}'s console: error {Error}", processId, Marshal.GetLastWin32Error());
-
-                    return ConsoleTypingOutcome.NoInput;
-                }
-
-                try
-                {
-                    var written = WriteConsoleInputW(input, records, (uint)records.Length, out var count) ? count : 0;
-
-                    return written == records.Length ? ConsoleTypingOutcome.Sent : ConsoleTypingOutcome.PartlyWritten;
-                }
-                finally
-                {
-                    CloseHandle(input);
-                }
+                return written == records.Length ? ConsoleTypingOutcome.Sent : ConsoleTypingOutcome.PartlyWritten;
             }
             finally
             {
-                FreeConsole();
-                SetConsoleCtrlHandler(Ignore, false);
+                CloseHandle(input);
             }
+        }
+        finally
+        {
+            FreeConsole();
+            SetConsoleCtrlHandler(Ignore, false);
         }
     }
 
@@ -91,6 +111,13 @@ public static class ConsoleTyping
     [DllImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool FreeConsole();
+
+    [DllImport("kernel32.dll")]
+    private static extern IntPtr GetStdHandle(int which);
+
+    [DllImport("kernel32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetStdHandle(int which, IntPtr handle);
 
     private delegate bool ConsoleCtrlHandler(uint controlType);
 
