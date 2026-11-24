@@ -426,7 +426,7 @@
             <MenuItem Header="P_roperties" InputGestureText="Alt+Enter" FontWeight="SemiBold"
                       Command="{Binding PropertiesCommand}"
                       ToolTip="Rename it, edit its setup, its Jira keys, its links, or delete it." />
-            <MenuItem Header="D_uties…" Command="{Binding DutiesCommand}"
+            <MenuItem Header="_Duties…" Command="{Binding DutiesCommand}"
                       ToolTip="The instructions Theseus gives this card on a cadence: run, pause, change or add them." />
             <Separator />
             <MenuItem Header="Resume the _last conversation"
@@ -1725,7 +1725,7 @@
 
             <MenuItem Header="_Tools">
                 <MenuItem Header="O_ptions" InputGestureText="Ctrl+," Command="{Binding Settings.OpenCommand}" />
-                <MenuItem Header="_Duties…" Command="{Binding OpenDutiesCommand}"
+                <MenuItem Header="D_uties…" Command="{Binding OpenDutiesCommand}"
                           ToolTip="Every duty on the board: the instructions Theseus gives cards on a cadence." />
                 <Separator />
                 <MenuItem Header="Open _logs folder" Command="{Binding OpenLogsFolderCommand}" />

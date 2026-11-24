@@ -31,7 +31,13 @@
                     <Label x:Name="CardLabel" Content="_Card" Target="{Binding ElementName=CardBox}" Style="{StaticResource Field}" Margin="0,0,0,8" />
                     <ComboBox x:Name="CardBox" ItemsSource="{Binding Cards}" DisplayMemberPath="Value" SelectedValuePath="Key"
                               SelectedValue="{Binding Card}" IsEnabled="{Binding CanChooseCard}" HorizontalAlignment="Left" MinWidth="280"
-                              AutomationProperties.LabeledBy="{x:Reference CardLabel}" />
+                              AutomationProperties.LabeledBy="{x:Reference CardLabel}">
+                        <ComboBox.ItemContainerStyle>
+                            <Style TargetType="ComboBoxItem" BasedOn="{StaticResource {x:Type ComboBoxItem}}">
+                                <Setter Property="AutomationProperties.Name" Value="{Binding Value}" />
+                            </Style>
+                        </ComboBox.ItemContainerStyle>
+                    </ComboBox>
 
                     <Label x:Name="NameLabel" Content="_Name" Target="{Binding ElementName=NameBox}" Style="{StaticResource Field}" />
                     <TextBox x:Name="NameBox" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding CanRename}"
@@ -88,7 +94,13 @@
                 </StackPanel>
             </TabItem>
             <TabItem x:Name="HistoryTab" Header="History">
-                <ListBox x:Name="HistoryList" Margin="12" ItemsSource="{Binding History}" AutomationProperties.Name="Runs and skips" />
+                <ListBox x:Name="HistoryList" Margin="12" ItemsSource="{Binding History}" AutomationProperties.Name="Runs and skips">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                            <Setter Property="AutomationProperties.Name" Value="{Binding}" />
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                </ListBox>
             </TabItem>
         </TabControl>
 

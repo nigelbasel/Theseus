@@ -2561,6 +2561,7 @@ public sealed partial class ShellViewModel : ObservableObject
 
         var projectCards = new List<ProjectCardViewModel>();
         var queueCandidates = new List<QueueCandidate>();
+        var queueSettings = _settings.Read();
         ProjectViewModel? openView = null;
 
         // Read once per wiring, not once per project.
@@ -2659,7 +2660,7 @@ public sealed partial class ShellViewModel : ObservableObject
                 openView = BuildView(reading, pieces, tabs, overview, lead);
             }
 
-            GatherQueueCandidates(name, pieces, !_settings.Read().ProjectRunStates.ContainsKey(name), queueCandidates);
+            GatherQueueCandidates(name, pieces, queueSettings, queueCandidates);
         }
 
         _queueCandidates = queueCandidates;

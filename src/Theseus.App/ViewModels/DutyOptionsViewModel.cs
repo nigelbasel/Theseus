@@ -5,7 +5,7 @@ using Theseus.Core.Settings;
 namespace Theseus.App.ViewModels;
 
 /// <summary>
-/// Options › Duties: the board's daily cap, the failures a duty takes before it pauses itself, quiet hours, and the
+/// Options › Board: the board's daily cap, the failures a duty takes before it pauses itself, quiet hours, and the
 /// overnight queue's idle threshold and cap. Each is a line with its value and a Change…; each change is saved at once.
 /// </summary>
 public sealed class DutyOptionsViewModel : ObservableObject

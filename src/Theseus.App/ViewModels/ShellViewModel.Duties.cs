@@ -4,6 +4,7 @@ using Theseus.Core.Diagnostics;
 using Theseus.Core.Domain;
 using Theseus.Core.Duties;
 using Theseus.Core.Projects;
+using Theseus.Core.Settings;
 using Theseus.Core.Terminal;
 
 namespace Theseus.App.ViewModels;
@@ -100,8 +101,9 @@ public sealed partial class ShellViewModel : IDutyDelivery
 
         try
         {
-            var settings = _settings.Read().Duties;
-            var cards = Board.Cards.ToDictionary(card => card.Key, DutyCardOf, StringComparer.OrdinalIgnoreCase);
+            var board = _settings.Read();
+            var settings = board.Duties;
+            var cards = Board.Cards.ToDictionary(card => card.Key, card => DutyCardOf(card, board), StringComparer.OrdinalIgnoreCase);
 
             FollowRuns(book, cards, settings.FailureLimit);
 
@@ -248,8 +250,15 @@ public sealed partial class ShellViewModel : IDutyDelivery
     }
 
     /// <summary>The queue's view of each current piece of a project, gathered as the projects are read.</summary>
-    private void GatherQueueCandidates(string project, IReadOnlyList<PieceOfWork> pieces, bool projectRunning, List<QueueCandidate> into)
+    private void GatherQueueCandidates(string project, IReadOnlyList<PieceOfWork> pieces, TheseusSettings settings, List<QueueCandidate> into)
     {
+        if (!settings.Duties.QueueIsOn(project))
+        {
+            return;
+        }
+
+        var projectRunning = !settings.ProjectRunStates.ContainsKey(project);
+
         foreach (var piece in pieces.Where(piece => piece.IsCurrentPiece && piece.Card is not null))
         {
             if (Board.Card(piece.CardKey) is not { } card)
@@ -259,7 +268,7 @@ public sealed partial class ShellViewModel : IDutyDelivery
 
             var status = piece.Status;
 
-            into.Add(new QueueCandidate(DutyCardOf(card), project)
+            into.Add(new QueueCandidate(DutyCardOf(card, settings), project)
             {
                 ProjectRunning = projectRunning,
                 HasUnfinishedPiece = status.State is StageNodeState.Busy or StageNodeState.ToDo or StageNodeState.DoneNoRecord,
@@ -272,7 +281,7 @@ public sealed partial class ShellViewModel : IDutyDelivery
         }
     }
 
-    private DutyCard DutyCardOf(WorkstreamCardViewModel card)
+    private DutyCard DutyCardOf(WorkstreamCardViewModel card, TheseusSettings settings)
     {
         var workstream = card.Workstream;
         var step = card.IsLive ? StepsFor([card]).FirstOrDefault() : null;
@@ -283,8 +292,8 @@ public sealed partial class ShellViewModel : IDutyDelivery
             PausedByCard = workstream is { IsPaused: true, PausedBy: { } by } ? TitleOf(by) : null,
             IsBlocked = workstream.IsBlocked,
             IsArchived = workstream.IsArchived,
-            StoppedByOwner = _settings.Read().CardsStoppedByOwner.Contains(card.Key, StringComparer.OrdinalIgnoreCase)
-                             || (workstream.Project is { } project && _settings.Read().ProjectRunStates.ContainsKey(project)),
+            StoppedByOwner = settings.CardsStoppedByOwner.Contains(card.Key, StringComparer.OrdinalIgnoreCase)
+                             || (workstream.Project is { } project && settings.ProjectRunStates.ContainsKey(project)),
             IsAsking = card.Question is not null,
             IsStopping = step is not null && _stopRequests.Waiting(step.SessionId) is not null,
         };
@@ -357,6 +366,11 @@ public sealed partial class ShellViewModel : IDutyDelivery
             }
 
             var text = reading.Text!;
+
+            if (byObjective.Count == 0 && !text.Contains(ProjectDutyLines.Prefix, StringComparison.Ordinal))
+            {
+                continue;
+            }
 
             if (string.Equals(ProjectDutyLines.Write(text, byObjective), text, StringComparison.Ordinal))
             {

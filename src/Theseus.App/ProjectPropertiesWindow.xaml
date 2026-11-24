@@ -150,7 +150,7 @@
                     </controls:SettingRow>
 
                     <controls:SettingRow x:Name="QueueRow" Label="Overnight queue"
-                                         Explanation="When on, an open card of this project left idle with unfinished work and nothing waiting on you is told to carry on, after the idle time set in Options › Duties.">
+                                         Explanation="When on, an open card of this project left idle with unfinished work and nothing waiting on you is told to carry on, after the idle time set in Options › Board.">
                         <CheckBox x:Name="QueueBox" IsChecked="{Binding ResumesIdleCards, Mode=TwoWay}" Content="Resume idle cards"
                                   AutomationProperties.Name="Resume idle cards" />
                     </controls:SettingRow>

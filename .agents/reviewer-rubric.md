@@ -29,7 +29,9 @@ Theseus inside a project at autonomy level L1 or above, for an objective in its 
 2026-11-20; none exists until the levels are built in phase 2), and a session starting one of its own descendants with
 `start_workstream` or `resume_workstream`, a tool call that passes the person in the tab (Nigel, 2026-11-21, 1.1e AC 14),
 and a stopped card started by the owner's Yes to Accept spec…, whose question says it will be started (1.1e AC 27,
-Nigel's spec, 2026-11-21).
+Nigel's spec, 2026-11-21), and a duty's run (Nigel, 2026-11-24): one the owner set, or one a session set on a card
+`start_workstream` lets it act on; and the overnight queue waking an open, idle card of a project whose owner switched
+it on, never starting a stopped one.
 Source: `src/Theseus.App/ViewModels/ChainsViewModel.cs` (Nigel, 2026-10-21); `src/Theseus.App/MainWindow.xaml`, chains (Nigel, 2026-10-23).
 Descendants: `src/Theseus.Core/Proposals/WorkstreamDescendants.cs`, `src/Theseus.Core/Mcp/McpHandler.cs` (Nigel, 2026-11-21).
 
