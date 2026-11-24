@@ -23,8 +23,8 @@ public sealed partial class ShellViewModel
     private readonly Dictionary<string, CheckPlan> _checkPlans = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Whether Theseus makes and starts the checks itself. Set by the app alone: a view model built by a test or a tool that
-    /// reads the window never starts a session.
+    /// Whether Theseus makes and starts the checks itself, and ends finished sessions. Set by the app alone: a view model
+    /// built by a test or a tool that reads the window never starts or ends a session.
     /// </summary>
     public bool RunsChecksItself { get; set; }
 

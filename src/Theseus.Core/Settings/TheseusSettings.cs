@@ -262,6 +262,12 @@ public sealed record TheseusSettings(
     /// </summary>
     public IReadOnlyList<string> CollapsedCards { get; init; } = [];
 
+    /// <summary>Which project cards were folded, by project name, as cards are.</summary>
+    public IReadOnlyList<string> CollapsedProjects { get; init; } = [];
+
+    /// <summary>Whether the board shows only what is active: cards with a session or waiting on the owner (Nigel, 2026-11-24).</summary>
+    public bool ShowActiveOnly { get; init; }
+
     /// <summary>
     /// Where the board window was when it last closed, so it opens where it was left. Checked against
     /// the screens actually attached before it is used: a position saved while docked is a position

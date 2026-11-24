@@ -39,6 +39,8 @@ public class SettingsStoreTests
             Areas = ["Research", "Dev"],
             CollapsedStages = ["Paused"],
             CollapsedCards = ["theseus", "tailhawk"],
+            CollapsedProjects = ["bym"],
+            ShowActiveOnly = true,
             ColumnsBy = BoardColumnsBy.SessionState,
             RowsBy = BoardRowsBy.Project,
             ViewFolds = new Dictionary<string, IReadOnlyList<string>> { ["rows:Project"] = ["Theseus"] },
@@ -73,6 +75,8 @@ public class SettingsStoreTests
         Assert.That(read.Areas, Is.EqualTo(settings.Areas));
         Assert.That(read.CollapsedStages, Is.EqualTo(settings.CollapsedStages));
         Assert.That(read.CollapsedCards, Is.EqualTo(settings.CollapsedCards));
+        Assert.That(read.CollapsedProjects, Is.EqualTo(settings.CollapsedProjects));
+        Assert.That(read.ShowActiveOnly, Is.True);
         Assert.That(read.ViewFolds["rows:Project"], Is.EqualTo(new[] { "Theseus" }));
         Assert.That(read.PaneSizes["ProjectView:Pane"], Is.EqualTo(420));
         Assert.That(read.ProjectColours["a-project"], Is.EqualTo("#208DD7"));
@@ -91,7 +95,7 @@ public class SettingsStoreTests
         Assert.That(read with
             {
                 Lanes = settings.Lanes, Areas = settings.Areas, CollapsedAreas = settings.CollapsedAreas,
-                CollapsedStages = settings.CollapsedStages, CollapsedCards = settings.CollapsedCards,
+                CollapsedStages = settings.CollapsedStages, CollapsedCards = settings.CollapsedCards, CollapsedProjects = settings.CollapsedProjects,
                 ViewFolds = settings.ViewFolds, ColumnWeights = settings.ColumnWeights, RowHeights = settings.RowHeights, AreaWindows = settings.AreaWindows,
                 ProjectCardPlaces = settings.ProjectCardPlaces, PaneSizes = settings.PaneSizes, ProjectColours = settings.ProjectColours,
                 ProjectGrouping = settings.ProjectGrouping, ProjectRunStates = settings.ProjectRunStates, ProjectLeads = settings.ProjectLeads,
