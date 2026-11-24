@@ -375,19 +375,21 @@ public class ChainsViewModelTests
     }
 
     [Test]
-    public void ASetAsideReport_SaysSoOnItsGreyedButton()
+    public void ASetAsideReport_SaysSoBesideItsGreyedButton()
     {
         _book.Add(LinkKind.HandsOver, "token-spike", "auth-research", output: @"C:\work\REPORT.md");
         _book.Report("token-spike", "session-1", [], @"C:\work\REPORT.md", "Half of it.", "partial");
         _chains.Update();
         var row = _chains.NeedsYou.Single();
 
-        Assert.That(row.NotYetLabel, Is.EqualTo("Not yet"));
+        Assert.That(row.SetAsideText, Is.Empty);
 
         row.NotYetCommand.Execute(null);
 
-        Assert.That(_chains.NeedsYou.Single().NotYetLabel, Is.EqualTo("Set aside: still unconfirmed"),
+        var setAside = _chains.NeedsYou.Single();
+        Assert.That(setAside.SetAsideText, Is.EqualTo("Set aside: still unconfirmed"),
             "git-22, 2026-11-23: a greyed Not yet said nothing of what had happened");
+        Assert.That(setAside.NotYetCommand.CanExecute(null), Is.False, "the button keeps its label and is greyed (W17, A8)");
     }
 
     [Test]
