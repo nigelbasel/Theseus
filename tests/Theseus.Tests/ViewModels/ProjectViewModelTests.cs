@@ -91,7 +91,7 @@ public class ProjectViewModelTests
             DateTimeOffset.UnixEpoch);
         var wait = _views.OneWith([proposal]).Waits.Single(each => each.Item.Kind == WaitKind.Proposal);
 
-        Assert.That(wait.Button, Is.EqualTo("Review the proposal…"));
+        Assert.That(wait.Button, Is.EqualTo("Review…"));
 
         wait.Command!.Execute(null);
 

@@ -38,7 +38,7 @@
              in place of a button at the bottom and a link beside it (walkthrough row 42; checklist G38, G42, G125; baseline W15). -->
         <DockPanel Grid.Row="1" Margin="0,0,0,8" LastChildFill="False">
             <!-- One Tab stop; the arrow keys switch the view and stop at either end (B-m4, W42). -->
-            <StackPanel x:Name="ViewChoice" DockPanel.Dock="Left" Orientation="Horizontal" KeyboardNavigation.TabNavigation="Once"
+            <controls:SelectorGroup x:Name="ViewChoice" DockPanel.Dock="Left" Orientation="Horizontal" KeyboardNavigation.TabNavigation="Once"
                         KeyboardNavigation.DirectionalNavigation="Contained" AutomationProperties.Name="Views of the document">
                 <RadioButton x:Name="PreviewTab" Content="Preview" GroupName="RecordView" controls:SelectorBar.SelectsOnFocus="True" Style="{DynamicResource SelectorBarItem}"
                              IsChecked="{Binding IsPreview, Mode=OneWay}" Command="{Binding PreviewCommand}"
@@ -46,13 +46,13 @@
                 <RadioButton x:Name="SourceTab" Content="Source" GroupName="RecordView" controls:SelectorBar.SelectsOnFocus="True" Style="{DynamicResource SelectorBarItem}"
                              IsChecked="{Binding IsSource, Mode=OneWay}" Command="{Binding SourceCommand}"
                              ToolTip="Source: the document's Markdown, as written" />
-            </StackPanel>
+            </controls:SelectorGroup>
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                 <Button x:Name="OpenInEditor" Style="{DynamicResource ToolIcon}" FontFamily="{DynamicResource ContentControlThemeFontFamily}"
                         Height="32" Padding="8,0" Margin="0,0,8,0" Command="{Binding OpenInEditorCommand}" ToolTipService.ShowOnDisabled="True"
                         ToolTip="Open in editor: the document shown, in your editor" AutomationProperties.Name="Open in editor">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="&#xE70F;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <controls:GlyphText Text="&#xE70F;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0" />
                         <AccessText Text="Open in _editor" VerticalAlignment="Center" FontSize="14" />
                     </StackPanel>
                 </Button>
@@ -60,7 +60,7 @@
                         Height="32" Padding="8,0" Command="{Binding OpenFolderCommand}"
                         ToolTip="Open folder: the records folder, in Explorer" AutomationProperties.Name="Open folder">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="&#xE838;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <controls:GlyphText Text="&#xE838;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0" />
                         <AccessText Text="Open _folder" VerticalAlignment="Center" FontSize="14" />
                     </StackPanel>
                 </Button>
@@ -76,6 +76,11 @@
             </Grid.ColumnDefinitions>
             <ListBox x:Name="Entries" ItemsSource="{Binding Entries}" SelectedItem="{Binding Selected}" Margin="0,0,12,0"
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="Records by stage">
+                <ListBox.ItemContainerStyle>
+                    <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                        <Setter Property="AutomationProperties.Name" Value="{Binding Stage}" />
+                    </Style>
+                </ListBox.ItemContainerStyle>
                 <ListBox.ItemTemplate>
                     <DataTemplate>
                         <StackPanel Margin="4" Cursor="Hand" AutomationProperties.Name="{Binding Stage}">

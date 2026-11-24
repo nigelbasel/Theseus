@@ -105,7 +105,7 @@
                                         <TextBlock Text="{Binding Line.Button}" />
                                     </Button>
                                 </Grid>
-                                <ItemsControl x:Name="Members" ItemsSource="{Binding Members}" Margin="28,4,0,0" Focusable="False"
+                                <ItemsControl x:Name="Members" ItemsSource="{Binding Members}" ItemContainerStyle="{DynamicResource ItemNamedByLabel}" Margin="28,4,0,0" Focusable="False"
                                               Visibility="{Binding HasMembers, Converter={StaticResource Visible}}"
                                               AutomationProperties.Name="Criteria it covers">
                                     <ItemsControl.ItemTemplate>

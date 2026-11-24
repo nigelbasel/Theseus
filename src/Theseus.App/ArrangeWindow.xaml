@@ -48,7 +48,7 @@
 
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="24,12" Focusable="False">
             <!-- One Tab stop; the arrow keys move between the windows and stop at either end (B-m5, W42). -->
-            <ItemsControl x:Name="Groups" ItemsSource="{Binding Groups}" Focusable="False"
+            <ItemsControl AutomationProperties.Name="Terminal windows" ItemContainerStyle="{DynamicResource ItemNamedByTitle}" x:Name="Groups" ItemsSource="{Binding Groups}" Focusable="False"
                           KeyboardNavigation.TabNavigation="Once" KeyboardNavigation.DirectionalNavigation="Contained">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>

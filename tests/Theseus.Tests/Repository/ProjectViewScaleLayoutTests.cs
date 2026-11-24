@@ -104,7 +104,7 @@ public class ProjectViewScaleLayoutTests
         var more = Named<Button>(control, "MoreWaits");
 
         Assert.That(Named<ItemsControl>(control, "WaitItems").Items, Has.Count.EqualTo(ProjectViewModel.ShownWaitsLimit));
-        Assert.That((more.Visibility, view.MoreWaitsText), Is.EqualTo((Visibility.Visible, $"and {Yours - ProjectViewModel.ShownWaitsLimit} more…")));
+        Assert.That((more.Visibility, view.MoreWaitsText), Is.EqualTo((Visibility.Visible, $"and {Yours - ProjectViewModel.ShownWaitsLimit} more")));
         Assert.That(more.Command.CanExecute(null), Is.True);
     }
 

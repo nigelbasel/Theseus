@@ -24,7 +24,7 @@ public class FocusLeadMarkupTests
         var menu = window.Descendants(Presentation + "MenuItem").Single(item => (string?)item.Attribute("Header") == "_Workstream");
         var item = menu.Descendants(Presentation + "MenuItem").Single(each => (string?)each.Attribute("Command") == "{Binding FocusLeadCommand}");
 
-        Assert.That((string?)item.Attribute("Header"), Is.EqualTo("Focus lea_d session"));
+        Assert.That((string?)item.Attribute("Header"), Is.EqualTo("_Focus lead session"));
         Assert.That((string?)item.Attribute("InputGestureText"), Is.EqualTo("Ctrl+L"));
         Assert.That(window.Descendants(Presentation + "KeyBinding").Where(key => (string?)key.Attribute("Gesture") == "Ctrl+L")
             .Select(key => (string?)key.Attribute("Command")), Is.EqualTo(new[] { "{Binding FocusLeadCommand}" }));

@@ -226,12 +226,12 @@ public sealed partial class ShellViewModel : ObservableObject
                 SaySkipped();
             },
             _ => Chosen() is [var only] && CanVerify(only));
-        MarkSelectedPausedCommand = new RelayCommand(_ => MarkSelected(workstream => workstream with { IsPaused = true }, "paused"),
-            _ => Chosen().Any(card => !card.IsPaused));
-        MarkSelectedBlockedCommand = new RelayCommand(_ => MarkSelected(workstream => workstream with { IsBlocked = true }, "blocked"),
-            _ => Chosen().Any(card => !card.IsBlocked));
-        ClearSelectedMarksCommand = new RelayCommand(_ => MarkSelected(FlaggedStart.Cleared, "unmarked"),
-            _ => Chosen().Any(card => card.IsPaused || card.IsBlocked));
+        MarkSelectedPausedCommand = new ReasonedCommand(_ => MarkSelected(workstream => workstream with { IsPaused = true }, "paused"),
+            _ => SelectionReasons.Mark(Chosen().Count, Chosen().Count(card => !card.IsPaused), "paused"));
+        MarkSelectedBlockedCommand = new ReasonedCommand(_ => MarkSelected(workstream => workstream with { IsBlocked = true }, "blocked"),
+            _ => SelectionReasons.Mark(Chosen().Count, Chosen().Count(card => !card.IsBlocked), "blocked"));
+        ClearSelectedMarksCommand = new ReasonedCommand(_ => MarkSelected(FlaggedStart.Cleared, "unmarked"),
+            _ => SelectionReasons.ClearMarks(Chosen().Count, Chosen().Count(card => card.IsPaused || card.IsBlocked)));
         FoldAllCommand = new RelayCommand(_ => FoldEvery(), _ => Board.Cards.Any(card => !card.IsCollapsed));
         UnfoldGridCommand = new RelayCommand(_ => Board.UnfoldGrid(),
             _ => Board.Rows.Any(row => row.IsCollapsed) || Board.StageHeaders.Any(header => header.IsCollapsed));
@@ -696,13 +696,13 @@ public sealed partial class ShellViewModel : ObservableObject
     }
 
     /// <summary>Marks the ticked cards paused.</summary>
-    public RelayCommand MarkSelectedPausedCommand { get; }
+    public ReasonedCommand MarkSelectedPausedCommand { get; }
 
     /// <summary>Marks the ticked cards blocked.</summary>
-    public RelayCommand MarkSelectedBlockedCommand { get; }
+    public ReasonedCommand MarkSelectedBlockedCommand { get; }
 
     /// <summary>Takes the paused and blocked marks off the ticked cards.</summary>
-    public RelayCommand ClearSelectedMarksCommand { get; }
+    public ReasonedCommand ClearSelectedMarksCommand { get; }
 
     /// <summary>Folds every card down to its title, live or not.</summary>
     public RelayCommand FoldAllCommand { get; }
@@ -4554,7 +4554,7 @@ public sealed partial class ShellViewModel : ObservableObject
 
         if (piece.IsListed && card.RemoveFromProjectCommand is { } remove)
         {
-            actions.Add(new PieceActionViewModel("Remove from project…", () => remove.Execute(null), remove.CanExecute(null),
+            actions.Add(new PieceActionViewModel("Remove from project", () => remove.Execute(null), remove.CanExecute(null),
                 $"Take {card.Title}'s rows out of the project file"));
         }
         else if (!piece.IsListed && piece.ParentTitle is { } parent && piece.ParentCardKey is { } parentCard

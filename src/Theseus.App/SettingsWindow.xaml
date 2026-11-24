@@ -6,6 +6,7 @@
         Title="Options"
         Width="680"
         Height="620"
+        MinWidth="600"
         MinHeight="360"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False"
@@ -54,7 +55,7 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <TabControl x:Name="Tabs" Margin="16,12,16,0">
+        <TabControl x:Name="Tabs" Margin="20,12,20,0">
             <TabItem Header="General">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Style="{StaticResource Page}">
@@ -62,7 +63,13 @@
                                              Explanation="Applied as soon as it is chosen.">
                             <ComboBox x:Name="ThemeBox" ItemsSource="{Binding ThemeChoices}" DisplayMemberPath="Label" SelectedValuePath="Theme"
                                       SelectedValue="{Binding Theme, Mode=TwoWay}" Width="180"
-                                      AutomationProperties.Name="Theme" />
+                                      AutomationProperties.Name="Theme">
+                                <ComboBox.ItemContainerStyle>
+                                    <Style TargetType="ComboBoxItem" BasedOn="{StaticResource {x:Type ComboBoxItem}}">
+                                        <Setter Property="AutomationProperties.Name" Value="{Binding Label}" />
+                                    </Style>
+                                </ComboBox.ItemContainerStyle>
+                            </ComboBox>
                         </controls:SettingRow>
 
                         <controls:SettingRow Label="Jira" Value="{Binding JiraValue}" Explanation="{Binding JiraExplanation}">
@@ -148,13 +155,13 @@
                         <!-- Folders said not to be projects, from a project card's menu (1.1e AC 20). -->
                         <StackPanel Margin="0,0,0,20" Visibility="{Binding HiddenProjectFolders.Count, Converter={StaticResource CountToVisibility}}">
                             <TextBlock Text="Folders that are not projects" Style="{DynamicResource BodyStrongText}" />
-                            <ItemsControl x:Name="HiddenProjectFolders" ItemsSource="{Binding HiddenProjectFolders}" Margin="0,4,0,0" Focusable="False">
+                            <ItemsControl AutomationProperties.Name="Folders that are not projects" x:Name="HiddenProjectFolders" ItemsSource="{Binding HiddenProjectFolders}" Margin="0,4,0,0" Focusable="False">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <DockPanel Margin="0,0,0,4">
                                             <Button DockPanel.Dock="Right" Content="Show again" Style="{StaticResource Action}" Margin="8,0,0,0"
                                                     AutomationProperties.Name="{Binding StringFormat=Show {0} again}"
-                                                    ToolTip="Show this folder's project card again"
+                                                    ToolTip="Show this folder's project card again."
                                                     Command="{Binding DataContext.ShowProjectFolderCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                     CommandParameter="{Binding}" />
                                             <TextBlock Text="{Binding}" VerticalAlignment="Center" TextWrapping="Wrap" />
@@ -218,7 +225,7 @@
                         <TextBlock Text="Each project's holdout folder" Style="{DynamicResource BodyStrongText}" Margin="0,4,0,4" />
                         <TextBlock Style="{StaticResource PageNote}" Margin="0,0,0,16"
                                    Text="Found for each project on its own: the folder chosen in its Project properties; the holdout repository its project.md records; &lt;repo&gt;-holdout beside its repo; otherwise Theseus's own." />
-                        <ItemsControl x:Name="HoldoutRows" ItemsSource="{Binding HoldoutRows}" Focusable="False">
+                        <ItemsControl ItemContainerStyle="{DynamicResource ItemNamedByProject}" AutomationProperties.Name="Holdout folders" x:Name="HoldoutRows" ItemsSource="{Binding HoldoutRows}" Focusable="False">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <controls:SettingRow Label="{Binding Project}" Value="{Binding Value}" Explanation="{Binding Explanation}">
@@ -243,7 +250,7 @@
                                    Text="Your tags on cards, kept on this machine. Renaming or deleting one changes every card that has it, straight away." />
                         <TextBlock Style="{StaticResource PageNote}" Text="No card has a tag yet."
                                    Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVisibility}}" />
-                        <ItemsControl ItemsSource="{Binding Rows}" Focusable="False">
+                        <ItemsControl AutomationProperties.Name="Tags" ItemContainerStyle="{DynamicResource ItemNamedByLabel}" ItemsSource="{Binding Rows}" Focusable="False">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <Border Margin="0,8,0,0" Padding="12,8" CornerRadius="4"
@@ -252,14 +259,14 @@
                                             <DockPanel>
                                                 <TextBlock DockPanel.Dock="Right" Text="{Binding CountText}" VerticalAlignment="Center"
                                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                                <Ellipse Width="10" Height="10" Margin="0,0,8,0" VerticalAlignment="Center"
+                                                <Ellipse Width="12" Height="12" Margin="0,0,8,0" VerticalAlignment="Center"
                                                          Fill="{Binding ColourHex, Converter={StaticResource HexToSwatch}}" />
                                                 <TextBlock Text="{Binding Label}" Style="{DynamicResource BodyStrongText}" VerticalAlignment="Center" />
                                             </DockPanel>
                                             <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                                                 <TextBlock Text="Colour:" VerticalAlignment="Center" Margin="0,0,8,0"
                                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                                <ItemsControl ItemsSource="{Binding Swatches}" Focusable="False">
+                                                <ItemsControl ItemContainerStyle="{DynamicResource ItemNamedByToolTip}" AutomationProperties.Name="Colour" ItemsSource="{Binding Swatches}" Focusable="False">
                                                     <ItemsControl.ItemsPanel>
                                                         <ItemsPanelTemplate>
                                                             <StackPanel Orientation="Horizontal" />
@@ -268,7 +275,7 @@
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate>
                                                             <!-- Its own template, so hover does not paint over the colour; the current one is ringed (review T8). -->
-                                                            <Button Width="24" Height="20" Margin="0,0,4,0" Cursor="Hand"
+                                                            <Button Width="24" Height="24" Margin="0,0,4,0" Cursor="Hand"
                                                                     ToolTip="{Binding ToolTip}" AutomationProperties.Name="{Binding ToolTip}"
                                                                     Command="{Binding Command}">
                                                                 <Button.Template>
@@ -309,7 +316,7 @@
                                                 <Button DockPanel.Dock="Right" Content="Rename" Style="{DynamicResource CommandButton}" Margin="8,0,0,0"
                                                         Command="{Binding RenameCommand}" ToolTip="{Binding RenameToolTip}" ToolTipService.ShowOnDisabled="True" />
                                                 <TextBox Text="{Binding NewName, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="New name" Width="200" HorizontalAlignment="Left"
-                                                         ToolTip="The tag's new name: letters, digits and hyphens" />
+                                                         ToolTip="The tag's new name: letters, digits and hyphens." />
                                             </DockPanel>
                                             <DockPanel Margin="0,8,0,0" Visibility="{Binding IsConfirmingDelete, Converter={StaticResource BoolToVisibility}}">
                                                 <Button DockPanel.Dock="Right" Content="Keep" Style="{DynamicResource CommandButton}" Margin="8,0,0,0"

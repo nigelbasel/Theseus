@@ -21,6 +21,7 @@ public class ChainsTreeAccessibilityTests
 {
     private static readonly XNamespace Presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
     private const double PanelContentWidth = 318;
+    private const string AppControls = "clr-namespace:Theseus.App.Controls";
 
     [Test]
     public void TheSelectedRow_IsHighlighted()
@@ -111,6 +112,7 @@ public class ChainsTreeAccessibilityTests
 
         return new XElement(Presentation + "Border",
             new XAttribute(XNamespace.Xmlns + "converters", converters),
+            new XAttribute(XNamespace.Xmlns + "controls", AppControls),
             new XAttribute(XNamespace.Xmlns + "x", "http://schemas.microsoft.com/winfx/2006/xaml"),
             new XElement(Presentation + "Border.Resources",
                 new XElement(Presentation + "ResourceDictionary",
@@ -124,7 +126,8 @@ public class ChainsTreeAccessibilityTests
                     Converter(converters, "NotEmptyToVisibilityConverter", "NotEmptyToVisibility"))),
             new XElement(Presentation + "ScrollViewer",
                 panelScroller.Attributes().Where(attribute => !attribute.IsNamespaceDeclaration),
-                new XElement(Presentation + "StackPanel", new XElement(tree)))).ToString();
+                new XElement(Presentation + "StackPanel", new XElement(tree)))).ToString()
+            .Replace($"\"{AppControls}\"", $"\"{AppControls};assembly=Theseus\"", StringComparison.Ordinal);
     }
 
     private static XElement Converter(string ns, string type, string key) =>

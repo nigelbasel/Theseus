@@ -14,7 +14,10 @@ namespace Theseus.App.ViewModels;
 public sealed record ProjectTabViewModel(string Name, string Title, bool IsOpen, ICommand? OpenCommand)
 {
     /// <summary>What it does.</summary>
-    public string ToolTip => IsOpen ? $"{Title} is open" : $"Open {Title}";
+    public string ToolTip => IsOpen ? $"{Title} is open" : Key is { } key ? $"Open {Title} ({key})" : $"Open {Title}";
+
+    /// <summary>The key that opens it (Ctrl+1 to Ctrl+9), or null when no number key reaches it.</summary>
+    public string? Key { get; init; }
 
     /// <summary>The project's own colour, for the tab's mark (1.1d AC 40), or null, when the mark takes the accent colour.</summary>
     public string? ColourHex { get; init; }
@@ -33,12 +36,15 @@ public sealed record ProjectTabViewModel(string Name, string Title, bool IsOpen,
         ArgumentNullException.ThrowIfNull(readings);
         ArgumentNullException.ThrowIfNull(commandFor);
 
+        List<ProjectFileReading> readable = [.. readings.Where(reading => reading.IsReadable)];
+
         return
         [
-            .. readings.Where(reading => reading.IsReadable).Select(reading => new ProjectTabViewModel(reading.Name,
+            .. readable.Select((reading, index) => new ProjectTabViewModel(reading.Name,
                 reading.File!.Title, string.Equals(reading.Name, open, StringComparison.OrdinalIgnoreCase), commandFor(reading.Name))
             {
                 ColourHex = colourOf?.Invoke(reading.Name),
+                Key = ProjectTabKeys.KeyFor(index, readable.Count),
             }),
         ];
     }

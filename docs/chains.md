@@ -89,7 +89,7 @@ their specs; the cards are the sessions'.
 
 **On the ordinary board** nothing exists yet: no card, no link and no tab. You decide in either place:
 
-- **On the board**: **Review…** in the Chains panel, **Review the proposal…** in Waits for you, or **Approve…** in the
+- **On the board**: **Review…** in the Chains panel, **Review…** in Waits for you, or **Approve…** in the
   project view opens the **proposal window**: what is proposed, under which objective, its brief drawn, what "done"
   means and its warnings. Nothing in it is editable; the session answers for the brief. **Approve** makes the card,
   **Reject…** takes an optional note, **Cancel** decides nothing.
