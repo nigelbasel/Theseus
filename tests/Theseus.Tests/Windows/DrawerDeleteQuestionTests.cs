@@ -29,7 +29,10 @@ public class DrawerDeleteQuestionTests
             {
                 Ask(window, shell);
 
-                Assert.That(FocusManager.GetFocusedElement(window), Is.SameAs(window.FindName("KeepCard")));
+                object keep = window.FindName("KeepCard");
+
+                Assert.That(keep, Is.InstanceOf<Button>(), "the question has its Keep button");
+                Assert.That(FocusManager.GetFocusedElement(window), Is.SameAs(keep));
             },
             board => board.With("alpha"));
 
