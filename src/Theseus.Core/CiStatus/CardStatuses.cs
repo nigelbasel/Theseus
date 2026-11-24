@@ -61,35 +61,41 @@ public static class CardStatuses
 
         var reading = readingOf(github);
 
-        switch (reading?.Kind)
+        // While GitHub refuses calls, no reading can be renewed, so an earlier one is not shown as current (review must-fix 1).
+        if (limitedUntil is not null || reading?.Kind == RepoReadingKind.Limited)
         {
-            case null when limitedUntil is not null:
-            case RepoReadingKind.Limited:
-                var resets = reading?.LimitResetsAt ?? limitedUntil;
-                var when = resets is { } at ? $" until {Time(at, now, zone)}" : string.Empty;
+            var resets = limitedUntil ?? reading?.LimitResetsAt;
+            var when = resets is { } at ? $" until {Time(at, now, zone)}" : string.Empty;
 
-                return Unknown(repo, CiState.Unknown, "CI unknown", $"GitHub's limit for calls without a token is used up{when}",
-                    $"GitHub allows 60 calls an hour without a token, and they are used up{when}. Theseus reads again then; until it does, {github.FullName}'s status is unknown.");
+            return Unknown(repo, CiState.Unknown, "CI unknown", $"GitHub's limit for calls without a token is used up{when}",
+                $"GitHub allows 60 calls an hour without a token, and they are used up{when}. Theseus reads again then; until it does, {github.FullName}'s status is unknown.");
+        }
 
-            case null:
-                return Unknown(repo, CiState.Unknown, "CI unknown", "Not read from GitHub yet",
-                    $"{github.FullName} has not been read from GitHub yet. Its status is unknown until it is.");
+        if (reading is null)
+        {
+            return Unknown(repo, CiState.Unknown, "CI unknown", "Not read from GitHub yet",
+                $"{github.FullName} has not been read from GitHub yet. Its status is unknown until it is.");
+        }
 
-            case RepoReadingKind.NotShown:
-                return Unknown(repo, CiState.Unknown, "CI unknown", $"GitHub does not show {github.FullName} without a token",
-                    $"GitHub answered not found at {Time(reading.At, now, zone)}: the repository is private or missing, and without a token the two look the same.");
+        if (reading.Kind == RepoReadingKind.NotShown)
+        {
+            return Unknown(repo, CiState.Unknown, "CI unknown", $"GitHub does not show {github.FullName} without a token",
+                $"GitHub answered not found at {Time(reading.At, now, zone)}: the repository is private or missing, and without a token the two look the same.");
+        }
 
-            case RepoReadingKind.Failed:
-                return Unknown(repo, CiState.Unknown, "CI unknown", $"GitHub could not be read at {Time(reading.At, now, zone)}",
-                    $"The last read of {github.FullName} failed, so its status is unknown. Theseus tries again on its next poll.");
+        if (reading.Kind == RepoReadingKind.Failed)
+        {
+            return Unknown(repo, CiState.Unknown, "CI unknown", $"GitHub could not be read at {Time(reading.At, now, zone)}",
+                $"The last read of {github.FullName} failed, so its status is unknown. Theseus tries again on its next poll.");
         }
 
         var branch = repo.Branch;
         var readAt = $"Read from GitHub at {Time(reading.At, now, zone)}.";
+
+        // A pull request whose head repository is gone or another one (a fork) is not this card's branch (review nit).
         var pull = reading.PullRequests
             .Where(candidate => string.Equals(candidate.HeadBranch, branch, StringComparison.Ordinal)
-                                && (candidate.HeadRepository is null
-                                    || string.Equals(candidate.HeadRepository, github.FullName, StringComparison.OrdinalIgnoreCase)))
+                                && string.Equals(candidate.HeadRepository, github.FullName, StringComparison.OrdinalIgnoreCase))
             .MaxBy(candidate => candidate.Number);
         var pullRow = pull is null
             ? new CardStatusRow($"No open pull request from {branch}", null, null, $"{readAt} GitHub lists no open pull request from this branch.")

@@ -1055,6 +1055,9 @@
                                 <Button.Style>
                                     <Style TargetType="Button" BasedOn="{StaticResource ItemDropDown}">
                                         <Style.Triggers>
+                                            <DataTrigger Binding="{Binding StatusState}" Value="{x:Static ci:CiState.Passed}">
+                                                <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+                                            </DataTrigger>
                                             <DataTrigger Binding="{Binding StatusState}" Value="{x:Static ci:CiState.Failed}">
                                                 <Setter Property="Foreground" Value="{DynamicResource CriticalTextBrush}" />
                                             </DataTrigger>

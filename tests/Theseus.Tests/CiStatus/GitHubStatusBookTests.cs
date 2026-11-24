@@ -13,22 +13,52 @@ public class GitHubStatusBookTests
     [TestCase(2, 5)]
     [TestCase(3, 7.5)]
     [TestCase(4, 10)]
-    public void Interval_IsFiveMinutes_OrLongerSoPollingKeepsTo48CallsAnHour(int repositories, double minutes)
+    public void Interval_IsFiveMinutes_OrLongerAsRepositoriesGrow(int repositories, double minutes)
     {
         Assert.That(GitHubStatusBook.Interval(repositories), Is.EqualTo(TimeSpan.FromMinutes(minutes)));
-        Assert.That(60 / GitHubStatusBook.Interval(repositories).TotalMinutes * 2 * repositories, Is.LessThanOrEqualTo(48));
+    }
+
+    [TestCase(1)]
+    [TestCase(4)]
+    [TestCase(10)]
+    [TestCase(40)]
+    public void ScheduledPolling_MakesAtMost48CallsInAnyHour_HoweverManyRepositories(int repositories)
+    {
+        var book = new GitHubStatusBook();
+        var repos = Enumerable.Range(0, repositories).Select(index => new GitHubRepoRef("owner", $"r{index}")).ToList();
+        var reads = new List<DateTimeOffset>();
+
+        // A timer ticking every minute for three hours, every read answered with plenty left.
+        for (var minute = 0; minute < 180; minute++)
+        {
+            var now = Now.AddMinutes(minute);
+
+            foreach (var repo in book.Due(repos, now, refresh: false))
+            {
+                book.Record(repo, Read(now, remaining: 50), now);
+                reads.Add(now);
+            }
+        }
+
+        var worstHour = reads.Max(start => reads.Count(at => at >= start && at < start.AddHours(1)));
+
+        Assert.That(worstHour * GitHubStatusBook.CallsPerRead, Is.LessThanOrEqualTo(GitHubStatusBook.PollingCallsPerHour));
     }
 
     [Test]
-    public void Due_IsEveryRepositoryNotYetRead_EachOnce()
+    public void OnSchedule_OneRepositoryIsReadAtATime_TheOneWaitingLongest()
     {
         var book = new GitHubStatusBook();
 
-        Assert.That(book.Due([One, Two, new GitHubRepoRef("Owner", "One")], Now, refresh: false), Is.EqualTo(new[] { One, Two }));
+        Assert.That(book.Due([One, Two, new GitHubRepoRef("Owner", "One")], Now, refresh: false), Is.EqualTo(new[] { One }));
+        book.Record(One, Read(Now, remaining: 50), Now);
+
+        Assert.That(book.Due([One, Two], Now.AddMinutes(1), refresh: false), Is.Empty);
+        Assert.That(book.Due([One, Two], Now.Add(GitHubStatusBook.Spacing), refresh: false), Is.EqualTo(new[] { Two }));
     }
 
     [Test]
-    public void ARepositoryRead_IsNotDueAgain_UntilItsIntervalHasPassed()
+    public void ARepositoryRead_IsNotDueAgain_UntilFiveMinutesHavePassed()
     {
         var book = new GitHubStatusBook();
         book.Record(One, Read(Now, remaining: 50), Now);
@@ -38,19 +68,28 @@ public class GitHubStatusBookTests
     }
 
     [Test]
-    public void Refresh_ReadsAtOnce_WhileMoreThanTheReserveIsLeft()
+    public void Refresh_ReadsEveryRepositoryAtOnce_WhileTheCallsLeftAllowItAboveTheReserve()
     {
         var book = new GitHubStatusBook();
-        book.Record(One, Read(Now, remaining: GitHubStatusBook.Reserve + 1), Now);
+        book.Record(One, Read(Now, remaining: GitHubStatusBook.Reserve + 4), Now);
 
-        Assert.That(book.Due([One], Now.AddMinutes(1), refresh: true), Is.EqualTo(new[] { One }));
+        Assert.That(book.Due([One, Two], Now.AddMinutes(1), refresh: true), Is.EquivalentTo(new[] { One, Two }));
     }
 
     [Test]
-    public void Refresh_WaitsForTheSchedule_OnceTheReserveIsReached()
+    public void Refresh_ReadsOnlyAsManyAsKeepTheReserve()
     {
         var book = new GitHubStatusBook();
-        book.Record(One, Read(Now, remaining: GitHubStatusBook.Reserve), Now);
+        book.Record(One, Read(Now, remaining: GitHubStatusBook.Reserve + 3), Now);
+
+        Assert.That(book.Due([One, Two], Now.AddMinutes(1), refresh: true), Is.EqualTo(new[] { Two }));
+    }
+
+    [Test]
+    public void Refresh_ReadsNothing_OnceTheReserveIsReached()
+    {
+        var book = new GitHubStatusBook();
+        book.Record(One, Read(Now, remaining: GitHubStatusBook.Reserve + 1), Now);
 
         Assert.That(book.Due([One], Now.AddMinutes(1), refresh: true), Is.Empty);
     }
@@ -67,7 +106,7 @@ public class GitHubStatusBookTests
         Assert.That(book.Due([One, Two], Now.AddMinutes(10), refresh: true), Is.Empty);
         Assert.That(book.Due([One, Two], Now.AddMinutes(10), refresh: false), Is.Empty);
         Assert.That(book.LimitedUntil(reset), Is.Null);
-        Assert.That(book.Due([One, Two], reset, refresh: false), Is.EqualTo(new[] { One, Two }));
+        Assert.That(book.Due([One, Two], reset, refresh: false), Is.EqualTo(new[] { Two }));
     }
 
     [Test]
@@ -77,7 +116,7 @@ public class GitHubStatusBookTests
         book.Record(One, Read(Now, remaining: 1), Now);
 
         Assert.That(book.LimitedUntil(Now), Is.Not.Null);
-        Assert.That(book.Due([Two], Now, refresh: false), Is.Empty);
+        Assert.That(book.Due([Two], Now.AddMinutes(5), refresh: false), Is.Empty);
     }
 
     [Test]

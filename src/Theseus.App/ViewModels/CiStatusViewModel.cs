@@ -1,5 +1,6 @@
 using System.Windows.Threading;
 using Theseus.Core.CiStatus;
+using Theseus.Core.Diagnostics;
 
 namespace Theseus.App.ViewModels;
 
@@ -8,7 +9,7 @@ namespace Theseus.App.ViewModels;
 /// cards work in it, within the budget GitHub allows without a token (pr-ci-status spec AC 2, 14 to 16), and words
 /// each card's status from the latest readings. Only reads: nothing is written to GitHub, and no token is held.
 /// </summary>
-public sealed class CiStatusViewModel : ObservableObject
+public sealed class CiStatusViewModel : ObservableObject, IDisposable
 {
     private readonly IGitHubStatusClient _client;
     private readonly GitHubStatusBook _book = new();
@@ -27,7 +28,17 @@ public sealed class CiStatusViewModel : ObservableObject
         if (tick)
         {
             _timer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMinutes(1) };
-            _timer.Tick += async (_, _) => await PollAsync(refresh: false);
+            _timer.Tick += async (_, _) =>
+            {
+                try
+                {
+                    await PollAsync(refresh: false);
+                }
+                catch (Exception exception) when (exception is not OutOfMemoryException)
+                {
+                    TheseusLog.Warning("The pull request and CI poll failed: {Reason}", exception.Message);
+                }
+            };
             _timer.Start();
         }
     }
@@ -81,7 +92,19 @@ public sealed class CiStatusViewModel : ObservableObject
         {
             foreach (var repo in due)
             {
-                var read = await _client.ReadAsync(repo, CancellationToken.None);
+                GitHubRead read;
+
+                // Nothing may escape: this runs from a timer tick, where an exception would end the app (review should-fix 4).
+                try
+                {
+                    read = await _client.ReadAsync(repo, CancellationToken.None);
+                }
+                catch (Exception exception) when (exception is not OutOfMemoryException)
+                {
+                    TheseusLog.Information("Reading {Repo} from GitHub failed: {Reason}", repo.FullName, exception.Message);
+                    read = new GitHubRead(RepoReading.Unknown(RepoReadingKind.Failed, _now()), null);
+                }
+
                 _book.Record(repo, read, _now());
 
                 if (read.Reading.Kind == RepoReadingKind.Limited)
@@ -106,4 +129,7 @@ public sealed class CiStatusViewModel : ObservableObject
         Raise(nameof(Tooltip));
         Raise(nameof(IsCaution));
     }
+
+    /// <summary>Stops the timer, so no tick reads after the client is gone.</summary>
+    public void Dispose() => _timer?.Stop();
 }

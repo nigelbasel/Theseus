@@ -22,6 +22,7 @@ public sealed class GitHubStatusBook
 
     private readonly Dictionary<string, RepoReading> _readings = new(StringComparer.Ordinal);
     private readonly Dictionary<string, DateTimeOffset> _attempted = new(StringComparer.Ordinal);
+    private DateTimeOffset? _lastRead;
 
     /// <summary>The budget GitHub last reported, or null before any answer.</summary>
     public GitHubBudget? Budget { get; private set; }
@@ -61,8 +62,15 @@ public sealed class GitHubStatusBook
     }
 
     /// <summary>
-    /// The repositories to read now: each whose interval has passed, or every one on Refresh unless the calls left are
-    /// down to the reserve. None while GitHub is refusing.
+    /// The shortest time between two scheduled reads of any repositories, so scheduled polling makes at most 48 calls in
+    /// any hour, however GitHub's window falls: reads are spread, never made in a burst (review should-fix 2).
+    /// </summary>
+    public static readonly TimeSpan Spacing = TimeSpan.FromMinutes(60.0 * CallsPerRead / PollingCallsPerHour);
+
+    /// <summary>
+    /// The repositories to read now. On schedule, at most one: the one waiting longest of those not read for
+    /// <see cref="MinimumInterval"/>, once <see cref="Spacing"/> has passed since the last read. On Refresh, every one,
+    /// as many as the calls left above the reserve allow. None while GitHub is refusing.
     /// </summary>
     public IReadOnlyList<GitHubRepoRef> Due(IReadOnlyList<GitHubRepoRef> repos, DateTimeOffset now, bool refresh)
     {
@@ -78,15 +86,23 @@ public sealed class GitHubStatusBook
 
         if (refresh)
         {
-            var known = Budget is { } budget && budget.ResetsAt > now;
+            // Refresh never takes the calls left below the reserve (review should-fix 3).
+            var affordable = Budget is { } budget && budget.ResetsAt > now
+                ? Math.Max(0, (budget.Remaining - Reserve) / CallsPerRead)
+                : distinct.Count;
 
-            return known && Budget!.Remaining <= Reserve ? [] : distinct;
+            return [.. distinct.OrderBy(Attempted).Take(affordable)];
         }
 
-        var interval = Interval(distinct.Count);
+        if (_lastRead is { } last && now - last < Spacing)
+        {
+            return [];
+        }
 
-        return [.. distinct.Where(repo => !_attempted.TryGetValue(repo.Key, out var at) || now - at >= interval)];
+        return [.. distinct.Where(repo => now - Attempted(repo) >= MinimumInterval).OrderBy(Attempted).Take(1)];
     }
+
+    private DateTimeOffset Attempted(GitHubRepoRef repo) => _attempted.GetValueOrDefault(repo.Key, DateTimeOffset.MinValue);
 
     /// <summary>Records a read of a repository.</summary>
     public void Record(GitHubRepoRef repo, GitHubRead read, DateTimeOffset now)
@@ -96,6 +112,7 @@ public sealed class GitHubStatusBook
 
         _readings[repo.Key] = read.Reading;
         _attempted[repo.Key] = now;
+        _lastRead = now;
 
         if (read.Budget is { } budget)
         {

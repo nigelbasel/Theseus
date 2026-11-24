@@ -29,6 +29,7 @@ public partial class App : Application
     private AttentionSampler? _attention;
     private GitHubReleaseFeed? _releases;
     private Theseus.Core.CiStatus.GitHubStatusClient? _gitHubStatus;
+    private CiStatusViewModel? _ciStatus;
     private System.Windows.Threading.DispatcherTimer? _updateTimer;
     private McpHttpServer? _mcp;
     private Timer? _lockSweep;
@@ -316,7 +317,8 @@ public partial class App : Application
         // Pull request and CI status on cards, read from GitHub with no token (pr-ci-status). The first poll waits for the
         // timer's first tick, a minute in, as the update check does, so the board is up first.
         _gitHubStatus = new Theseus.Core.CiStatus.GitHubStatusClient(AppVersion.Current);
-        shell.CiStatus = new CiStatusViewModel(_gitHubStatus);
+        _ciStatus = new CiStatusViewModel(_gitHubStatus);
+        shell.CiStatus = _ciStatus;
         shell.SyncPullRequests();
 
         MainWindow = new MainWindow { DataContext = shell };
@@ -462,6 +464,7 @@ public partial class App : Application
         _attention?.Dispose();
         _updateTimer?.Stop();
         _releases?.Dispose();
+        _ciStatus?.Dispose();
         _gitHubStatus?.Dispose();
 
         _locks?.Dispose();

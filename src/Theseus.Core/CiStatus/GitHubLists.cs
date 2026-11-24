@@ -23,7 +23,7 @@ public static class GitHubLists
             if (pull.ValueKind == JsonValueKind.Object
                 && pull.TryGetProperty("number", out var number) && number.ValueKind == JsonValueKind.Number
                 && number.TryGetInt32(out var value)
-                && Text(pull, "html_url") is { } url
+                && Page(pull) is { } url
                 && pull.TryGetProperty("head", out var head) && head.ValueKind == JsonValueKind.Object
                 && Text(head, "ref") is { } branch)
             {
@@ -56,7 +56,7 @@ public static class GitHubLists
         {
             if (run.ValueKind == JsonValueKind.Object
                 && Text(run, "head_branch") is { } branch && Text(run, "status") is { } status
-                && Text(run, "html_url") is { } url && Time(run, "created_at") is { } created)
+                && Page(run) is { } url && Time(run, "created_at") is { } created)
             {
                 found.Add(new CiRun(branch, status, Text(run, "conclusion"), url, created, Time(run, "run_started_at"),
                     Time(run, "updated_at") ?? created));
@@ -65,6 +65,10 @@ public static class GitHubLists
 
         return found;
     }
+
+    // A row opens its address in the browser, so only a github.com page is taken (review nit).
+    private static string? Page(JsonElement element) =>
+        Text(element, "html_url") is { } url && url.StartsWith("https://github.com/", StringComparison.OrdinalIgnoreCase) ? url : null;
 
     private static string? Text(JsonElement element, string name) =>
         element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;

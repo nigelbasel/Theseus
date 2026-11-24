@@ -58,6 +58,26 @@ public class CardStatusesTests
     }
 
     [Test]
+    public void AnEarlierPass_IsNotShownAsCurrent_WhileTheLimitIsUsedUp()
+    {
+        var status = CardStatuses.For([Repo("feature")], _ => Reading([], [Run("feature", "completed", "success")]),
+            Now.AddMinutes(13), Now, TimeZoneInfo.Utc);
+
+        Assert.That(status.State, Is.EqualTo(CiState.Unknown));
+        Assert.That(status.Rows.Single().Text, Is.EqualTo("GitHub's limit for calls without a token is used up until 22:13"));
+    }
+
+    [Test]
+    public void APullRequestWhoseHeadRepositoryIsGone_IsNotTheCards()
+    {
+        var gone = new OpenPullRequest(9, "A change", "feature", null, false, "https://github.com/owner/repo/pull/9");
+
+        var status = For([Repo("feature")], Reading([gone], []));
+
+        Assert.That(status.Rows[0].Text, Is.EqualTo("No open pull request from feature"));
+    }
+
+    [Test]
     public void ARepoGitHubDoesNotShow_SaysSo()
     {
         var status = For([Repo("feature")], RepoReading.Unknown(RepoReadingKind.NotShown, Now));

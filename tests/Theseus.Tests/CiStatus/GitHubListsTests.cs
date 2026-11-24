@@ -36,6 +36,14 @@ public class GitHubListsTests
     }
 
     [Test]
+    public void AnEntryWhosePageIsNotOnGitHub_IsSkipped_SoNothingElseIsOpened()
+    {
+        var json = GitHubJson.Pulls(GitHubJson.Pull(41, "feature")).Replace("https://github.com/", "file:///C:/", StringComparison.Ordinal);
+
+        Assert.That(GitHubLists.PullRequests(json), Is.Empty);
+    }
+
+    [Test]
     public void Runs_IsEmpty_ForAnAnswerThatIsNotARunList()
     {
         Assert.That(GitHubLists.Runs("[]"), Is.Empty);

@@ -75,6 +75,36 @@ public class GitHubStatusClientTests
     }
 
     [Test]
+    public async Task ATooManyRequestsWithoutHeaders_WaitsAMinute()
+    {
+        var handler = new ScriptedHandler(_ => new HttpResponseMessage(HttpStatusCode.TooManyRequests));
+        using var client = Client(handler);
+
+        var read = await client.ReadAsync(Repo, CancellationToken.None);
+
+        Assert.That(read.Reading.Kind, Is.EqualTo(RepoReadingKind.Limited));
+        Assert.That(read.Reading.LimitResetsAt, Is.EqualTo(Now.AddMinutes(1)));
+    }
+
+    [Test]
+    public async Task ASecondaryLimit_WaitsAsLongAsRetryAfterSays()
+    {
+        var handler = new ScriptedHandler(_ =>
+        {
+            var response = WithBudget(new HttpResponseMessage(HttpStatusCode.Forbidden), 30);
+            response.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(TimeSpan.FromSeconds(90));
+
+            return response;
+        });
+        using var client = Client(handler);
+
+        var read = await client.ReadAsync(Repo, CancellationToken.None);
+
+        Assert.That(read.Reading.Kind, Is.EqualTo(RepoReadingKind.Limited));
+        Assert.That(read.Reading.LimitResetsAt, Is.EqualTo(Now.AddSeconds(90)));
+    }
+
+    [Test]
     public async Task AForbiddenWithCallsLeft_IsAFailure_NotTheLimit()
     {
         var handler = new ScriptedHandler(_ => WithBudget(new HttpResponseMessage(HttpStatusCode.Forbidden), 30));

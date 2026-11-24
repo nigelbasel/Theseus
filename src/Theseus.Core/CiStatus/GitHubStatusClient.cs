@@ -51,14 +51,14 @@ public sealed class GitHubStatusClient : IGitHubStatusClient, IDisposable
     {
         ArgumentNullException.ThrowIfNull(repo);
 
-        var pulls = await GetAsync(PullRequestsAddress(repo), cancellationToken);
+        var pulls = await GetAsync(PullRequestsAddress(repo), cancellationToken).ConfigureAwait(false);
 
         if (pulls.Body is null)
         {
             return new GitHubRead(pulls.Failure!, pulls.Budget);
         }
 
-        var runs = await GetAsync(RunsAddress(repo), cancellationToken);
+        var runs = await GetAsync(RunsAddress(repo), cancellationToken).ConfigureAwait(false);
 
         if (runs.Body is null)
         {
@@ -92,7 +92,7 @@ public sealed class GitHubStatusClient : IGitHubStatusClient, IDisposable
                 request.Headers.TryAddWithoutValidation("If-None-Match", cached.ETag);
             }
 
-            using var response = await _http.SendAsync(request, cancellationToken);
+            using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
             var budget = GitHubBudget.FromHeaders(response.Headers);
 
             if (response.StatusCode == HttpStatusCode.NotModified && _cache.TryGetValue(key, out var unchanged))
@@ -102,7 +102,7 @@ public sealed class GitHubStatusClient : IGitHubStatusClient, IDisposable
 
             if (response.IsSuccessStatusCode)
             {
-                var body = await response.Content.ReadAsStringAsync(cancellationToken);
+                var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
 
                 if (response.Headers.ETag is { } etag)
                 {
@@ -112,13 +112,19 @@ public sealed class GitHubStatusClient : IGitHubStatusClient, IDisposable
                 return (body, null, budget);
             }
 
-            if (response.StatusCode == HttpStatusCode.TooManyRequests
-                || (response.StatusCode == HttpStatusCode.Forbidden && budget is { Remaining: 0 }))
-            {
-                TheseusLog.Information("GitHub's limit for calls without a token is used up until {Reset}", budget?.ResetsAt);
+            // The hourly limit (403 or 429 with none remaining) waits for its reset; a secondary limit (429, or 403 with
+            // Retry-After) waits as long as GitHub says, or a minute when it says nothing (review nit).
+            var retryAfter = response.Headers.RetryAfter?.Delta;
 
-                return (null, RepoReading.Unknown(RepoReadingKind.Limited, _now()) with { LimitResetsAt = budget?.ResetsAt },
-                    budget);
+            if (response.StatusCode == HttpStatusCode.TooManyRequests
+                || (response.StatusCode == HttpStatusCode.Forbidden && (budget is { Remaining: 0 } || retryAfter is not null)))
+            {
+                var resets = budget is { Remaining: 0 } && retryAfter is null
+                    ? budget.ResetsAt
+                    : _now() + (retryAfter ?? TimeSpan.FromMinutes(1));
+                TheseusLog.Information("GitHub refuses calls without a token until {Reset}", resets);
+
+                return (null, RepoReading.Unknown(RepoReadingKind.Limited, _now()) with { LimitResetsAt = resets }, budget);
             }
 
             if (response.StatusCode == HttpStatusCode.NotFound)
