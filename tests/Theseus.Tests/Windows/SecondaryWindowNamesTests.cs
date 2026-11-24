@@ -25,10 +25,14 @@ public class SecondaryWindowNamesTests
         {
             foreach (Control control in controls)
             {
-                string spoken = UIElementAutomationPeer.CreatePeerForElement(control).GetName();
+                string own = UIElementAutomationPeer.CreatePeerForElement(control).GetName();
+
+                // A screen reader gets the field's own name or its LabeledBy label's. The label is read separately because,
+                // with no UI Automation client listening, as on the CI runner, the field's peer does not take its name from it.
+                string spoken = own.Length > 0 ? own : LabelText(control);
 
                 Assert.That(spoken, Is.Not.Empty, $"{Describe(control)} has a name (labelled by {Label(control)})");
-                Assert.That(spoken, Is.Not.EqualTo("Markdown text"), $"{Describe(control)} is named from its label (E12)");
+                Assert.That(own, Is.Not.EqualTo("Markdown text"), $"{Describe(control)} is named from its label (E12)");
             }
         });
     }
@@ -101,6 +105,11 @@ public class SecondaryWindowNamesTests
 
         return null;
     }
+
+    private static string LabelText(Control control) =>
+        System.Windows.Automation.AutomationProperties.GetLabeledBy(control) is { } label
+            ? UIElementAutomationPeer.CreatePeerForElement(label)?.GetName() ?? string.Empty
+            : string.Empty;
 
     // What a field is labelled by, for a failure's message: which element, and what its own peer says.
     private static string Label(Control control) =>
