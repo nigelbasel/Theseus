@@ -119,6 +119,13 @@ public sealed record TheseusSettings(
     public string WorktreesFolder { get; init; } = string.Empty;
 
     /// <summary>
+    /// Where the primary clones are, by the layout rule: a repository's remote gives its clone's place in it,
+    /// <c>&lt;folder&gt;\&lt;host&gt;\&lt;owner&gt;\&lt;repo&gt;</c> (worktree-per-repo AC 18). Empty by default, and with it
+    /// or the worktrees folder empty a start makes no worktrees (AC 1).
+    /// </summary>
+    public string ClonesFolder { get; init; } = string.Empty;
+
+    /// <summary>
     /// Where each project's card was dragged to, by project name. A project not listed sits in the first column and row
     /// (project-view AC 12).
     /// </summary>

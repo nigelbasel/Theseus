@@ -34,6 +34,8 @@ covers every worktree of it. **Undo** takes back only what Theseus set.
 | Start does nothing | Claude Code or Windows Terminal could not be found (the status bar says which), or the card is already following a live session. Set the paths in **Tools > Options**. |
 | Claude Code asks you to trust a folder in the tab | The folder has no trust record yet. The card says it needs you to trust the folder, and **Focus** brings the tab forward. Answer it there, or trust it once for every start in **Tools > Options > Folder trust**. |
 | A tab says Claude Code exited with a code | The session failed, and the tab is held open for 15 minutes so you can read why. Press Enter to close it sooner. A held tab that is never closed is cleared up the next time Theseus starts. |
+| "did not start: No clone of … was found" | The card's row names a repo with no clone in the clones folder. Clone it there yourself, or correct the row's Repos. See [Worktrees made at the start](project-layout.md#worktrees-made-at-the-start). |
+| "did not start: … is on …, not …" | A worktree already at the card's place is on another branch. Put it on the row's branch, or correct the row. |
 | A question about paused or blocked work | The card is marked. See [the board](board.md#paused-and-blocked). |
 
 ## Stopping a session

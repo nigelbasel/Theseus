@@ -46,6 +46,7 @@ public class SettingsStoreTests
             ViewFolds = new Dictionary<string, IReadOnlyList<string>> { ["rows:Project"] = ["Theseus"] },
             ProjectsFolder = @"C:\projects",
             WorktreesFolder = @"C:\work",
+            ClonesFolder = @"C:\src",
             ProjectCardPlaces = new Dictionary<string, ProjectCardPlace> { ["a-project"] = new("In progress", "Dev") },
             PaneSizes = new Dictionary<string, double> { ["ProjectView:Pane"] = 420 },
             ProjectColours = new Dictionary<string, string> { ["a-project"] = "#208DD7" },
@@ -71,6 +72,7 @@ public class SettingsStoreTests
         var read = _store.Read();
 
         Assert.That((read.ProjectsFolder, read.WorktreesFolder), Is.EqualTo((@"C:\projects", @"C:\work")));
+        Assert.That(read.ClonesFolder, Is.EqualTo(@"C:\src"));
         Assert.That(read.ProjectCardPlaces["a-project"], Is.EqualTo(new ProjectCardPlace("In progress", "Dev")));
         Assert.That(read.Lanes, Is.EqualTo(settings.Lanes));
         Assert.That(read.Areas, Is.EqualTo(settings.Areas));

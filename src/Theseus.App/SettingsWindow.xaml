@@ -208,6 +208,12 @@
                                     AutomationProperties.Name="Change the worktrees folder" />
                         </controls:SettingRow>
 
+                        <controls:SettingRow Label="Clones folder" Value="{Binding ClonesFolderValue}"
+                                             Explanation="Where your primary clones are: a repository's remote gives its place in it, host, owner, then repo. A card's repos are found here, and a worktree is made for each when it starts. Theseus never clones.">
+                            <Button Content="Change…" Style="{StaticResource Action}" Click="OnChooseClonesFolder"
+                                    AutomationProperties.Name="Change the clones folder" />
+                        </controls:SettingRow>
+
                         <!-- Claude Code's trust of the folders sessions start in, set from here and never by a session (project-view-usability item 7). -->
                         <StackPanel x:Name="FolderTrustSection" DataContext="{Binding FolderTrust}">
                             <controls:SettingRow Label="Folder trust" Value="{Binding Line}"
