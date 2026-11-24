@@ -18,8 +18,8 @@ public static class ProjectPaneWidth
     /// <summary>The narrowest the flow beside it goes.</summary>
     public const double MinimumFlow = 400;
 
-    /// <summary>The splitter's width.</summary>
-    public const double Splitter = 6;
+    /// <summary>The splitter's width: an 8 epx hit area round its 1 px line (baseline W38, finding B17).</summary>
+    public const double Splitter = 8;
 
     /// <summary>
     /// The narrowest view the pane docks in: the flow's minimum, the splitter and the pane's own (1.1d AC 52). In a

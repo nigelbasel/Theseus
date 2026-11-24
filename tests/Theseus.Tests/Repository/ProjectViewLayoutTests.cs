@@ -73,11 +73,11 @@ public class ProjectViewLayoutTests
         WriteBuildYourMarket(_folder);
         var control = LaidOut(_views.Theseus());
         var back = (Button)control.FindName("BackButton");
-        var tabs = Descendants<Button>(control).Where(button => button.DataContext is ProjectTabViewModel).ToList();
+        var tabs = Descendants<ListBoxItem>(control).Where(item => item.DataContext is ProjectTabViewModel).ToList();
 
         Assert.That(Descendants<Button>(control).Take(3).Select(button => button.Name), Is.EqualTo(new[] { "GoBackButton", "GoForwardButton", "BackButton" }),
             "Back, Forward, then the board, then the tabs (1.1f I46)");
-        Assert.That((back.Content, back.ToolTip), Is.EqualTo(("⊞ Board", "Leave the project for the board")));
+        Assert.That((Descendants<AccessText>(back).Single().Text, back.ToolTip), Is.EqualTo(("_Board", "Leave the project for the board.")));
         Assert.That(tabs.Select(tab => ((ProjectTabViewModel)tab.DataContext).Title), Is.EquivalentTo(new[]
         {
             "Theseus bootstrap", "BuildYourMarket MCP server",
@@ -111,7 +111,7 @@ public class ProjectViewLayoutTests
         var band = (Border)control.FindName("WaitingBand");
 
         Assert.That((title.Text, title.FontSize, title.FontWeight), Is.EqualTo(("Theseus bootstrap", 20.0, FontWeights.SemiBold)));
-        Assert.That((tag.Text, tag.FontSize), Is.EqualTo(("PROJECT", 11.0)));
+        Assert.That((tag.Text, tag.FontSize), Is.EqualTo(("Project", 12.0)), "a tag in sentence case (A20, W17)");
         Assert.That(((TextBlock)control.FindName("Sentence")).Text, Is.EqualTo(view.Sentence));
         Assert.That(chips, Is.EqualTo(view.Counts.Select(chip => chip.Text)));
         Assert.That(band.Visibility, Is.EqualTo(Visibility.Visible));
@@ -133,7 +133,7 @@ public class ProjectViewLayoutTests
         Assert.That((flow.HorizontalScrollBarVisibility, flow.VerticalScrollBarVisibility),
             Is.EqualTo((ScrollBarVisibility.Auto, ScrollBarVisibility.Auto)));
         Assert.That(content.Children[0], Is.SameAs(control.FindName("RootList")));
-        Assert.That(frame.Padding, Is.EqualTo(new Thickness(20)));
+        Assert.That(frame.Padding, Is.EqualTo(new Thickness(24)), "the project view's gutter (W36, D11)");
         Assert.That(frame.MaxWidth, Is.EqualTo(flow.ViewportWidth), "the flow is never wider than what shows of it");
     }
 
@@ -144,15 +144,16 @@ public class ProjectViewLayoutTests
         var box = BoxOf(control, "stop-timing");
         var chips = AllNamed<Grid>(box, "Chip").ToList();
 
-        Assert.That((box.ActualWidth, box.CornerRadius.TopLeft), Is.EqualTo((290.0, 8.0)), "a rounded action node (D17)");
-        Assert.That(((Button)Named<Button>(box, "Chevron")).Content, Is.EqualTo("▸"));
+        Assert.That((box.ActualWidth, box.CornerRadius.TopLeft), Is.EqualTo((290.0, 4.0)), "a rounded action node (D17), at the in-page radius (W37)");
+        Assert.That(((Button)Named<Button>(box, "Chevron")).Content, Is.EqualTo(FoldGlyph.Folded));
         Assert.That(Descendants<TextBlock>(Named<Border>(box, "KindWord")).Single().Text, Is.EqualTo("⚒ Build"));
         Assert.That(Named<TextBlock>(box, "PieceName").Text, Is.EqualTo(((PieceNodeViewModel)box.DataContext).Title));
         Assert.That(Named<TextBlock>(box, "WhoActs").Text, Is.EqualTo("No action needed."));
         Assert.That(Descendants<TextBlock>(Named<Button>(box, "Serves")).Single().Text, Is.EqualTo("serves Objective 0.3"));
         Assert.That(AllNamed<TextBlock>(box, "Gate").Single().Text, Is.EqualTo("◆"), "done before the gates were kept");
-        Assert.That(chips.Select(chip => Descendants<TextBlock>(chip).Single().Text), Is.EqualTo(new[] { "Res", "Spe", "Pla", "Imp", "Ver", "Rev", "Com" }));
-        Assert.That(chips.Select(chip => chip.ActualHeight), Has.All.EqualTo(18));
+        Assert.That(chips.Select(chip => Descendants<TextBlock>(chip).Single().Text), Is.EqualTo(new[] { "✓Res", "✓Spe", "✓Pla", "✓Imp", "✓Ver", "✓Rev", "✓Com" }),
+            "each chip's state mark before its stage (E5)");
+        Assert.That(chips.Select(chip => chip.ActualHeight), Has.All.EqualTo(24), "a chip in a line of text (WB1 D-1)");
         Assert.That(chips[0].ToolTip, Is.EqualTo("Research: Done"));
         Assert.That(Named<ItemsControl>(box, "Chain").Visibility, Is.EqualTo(Visibility.Collapsed));
     }
@@ -307,7 +308,7 @@ public class ProjectViewLayoutTests
         // everything else in that row". Their names, keys and tooltips stay; only their size and face change.
         var control = LaidOut(_views.Theseus());
 
-        foreach (var (name, spoken) in new[] { ("CollapseAll", "Collapse all"), ("ExpandAll", "Expand all"), ("OpenWhatNeedsAttention", "Open what needs attention") })
+        foreach (var (name, spoken) in new[] { ("FoldAll", "Fold all"), ("UnfoldAll", "Unfold all"), ("OpenWhatNeedsAttention", "Open what needs attention") })
         {
             var button = Named<Button>(control, name);
 
@@ -372,7 +373,7 @@ public class ProjectViewLayoutTests
         var control = LaidOut(_views.Theseus());
 
         Assert.That(((Border)control.FindName("Pane")).ActualWidth, Is.EqualTo(320));
-        Assert.That(((GridSplitter)control.FindName("Splitter")).ActualWidth, Is.EqualTo(6));
+        Assert.That(((GridSplitter)control.FindName("Splitter")).ActualWidth, Is.EqualTo(8));
         Assert.That(((TextBlock)control.FindName("PropertiesHeading")).Text, Is.EqualTo("Properties"));
     }
 
@@ -387,7 +388,7 @@ public class ProjectViewLayoutTests
         Assert.That(((TextBlock)control.FindName("PropertiesHeading")).Text, Is.EqualTo("Checks shown on cards"));
         Assert.That(rows.Where(text => Grid.GetColumn(text) == 1).Select(text => text.TextWrapping), Has.All.EqualTo(TextWrapping.Wrap));
         Assert.That(((StackPanel)control.FindName("ObjectiveSection")).Visibility, Is.EqualTo(Visibility.Visible));
-        Assert.That(Descendants<Button>((ItemsControl)control.FindName("Criteria")).Single().Content, Is.EqualTo("☐"));
+        Assert.That(Descendants<Button>((ItemsControl)control.FindName("Criteria")).Single().Content, Is.EqualTo("\uE739"));
     }
 
     // The width MainWindow leaves the view in a window this wide: the window's frame (about 16 px), the Live sessions

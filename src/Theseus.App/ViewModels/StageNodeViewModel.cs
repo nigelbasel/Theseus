@@ -45,6 +45,15 @@ public sealed class StageNodeViewModel : ObservableObject
     /// <summary>"Implement: Done", the chip's and the button's tooltip.</summary>
     public string ToolTip => $"{Name}: {Word}";
 
+    /// <summary>
+    /// A folded strip's chip: the state's mark before the abbreviation, so state is not shown by colour alone (baseline
+    /// E5; checklist G161).
+    /// </summary>
+    public string ChipText => $"{Mark}{Abbreviation}";
+
+    /// <summary>What UI Automation reads for its chip or button, the name a gate mark beside it has too (W50, E11).</summary>
+    public string AutomationName => ToolTip;
+
     /// <summary>Whether it is the first in its chain, which has no ▶ before it.</summary>
     public bool IsFirst { get; }
 
@@ -60,6 +69,9 @@ public sealed class StageNodeViewModel : ObservableObject
 
     /// <summary>Its right-click menu: Properties (the default), then its actions.</summary>
     public IReadOnlyList<PieceActionViewModel> MenuItems { get; }
+
+    /// <summary>Its right-click menu as drawn: each item with the access key the menu gave it (W26, C9).</summary>
+    public IReadOnlyList<MenuEntryViewModel> MenuEntries => MenuAccessKeys.For(MenuItems);
 
     /// <summary>The piece of work it belongs to; set as the box is built.</summary>
     public PieceNodeViewModel Piece { get; internal set; } = null!;

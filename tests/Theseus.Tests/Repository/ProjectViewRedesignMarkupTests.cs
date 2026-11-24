@@ -70,7 +70,7 @@ public partial class ProjectViewRedesignMarkupTests
         var words = legend.Descendants(Presentation + "TextBlock").Select(text => (string?)text.Attribute("Text"))
             .Where(text => text is not null && !text.StartsWith('{')).ToList();
 
-        Assert.That(words, Is.EqualTo(new[] { "↩ reported back" }));
+        Assert.That(words, Is.EqualTo(new[] { "↩ Reported back" }), "sentence case (A21)");
         Assert.That(legend.Descendants(Presentation + "Line"), Is.Empty);
     }
 
@@ -81,18 +81,18 @@ public partial class ProjectViewRedesignMarkupTests
         var menu = stage.Descendants(Presentation + "ContextMenu").Single();
         var style = View().Descendants(Presentation + "Style").Single(each => (string?)each.Attribute(Xaml + "Key") == "StageMenuItem");
 
-        Assert.That((string?)menu.Attribute("ItemsSource"), Is.EqualTo("{Binding MenuItems}"));
+        Assert.That((string?)menu.Attribute("ItemsSource"), Is.EqualTo("{Binding MenuEntries}"));
         Assert.That(style.Descendants(Presentation + "DataTrigger").Single().Attribute("Binding")!.Value, Is.EqualTo("{Binding IsDefault}"));
     }
 
     [Test]
-    public void TheSplitter_IsSixPixels_WithItsCursorTooltipAndHandlers()
+    public void TheSplitter_IsEightPixels_WithItsCursorTooltipAndHandlers()
     {
         var splitter = Named(View(), "Splitter");
 
-        Assert.That((string?)splitter.Attribute("Width"), Is.EqualTo("6"));
+        Assert.That((string?)splitter.Attribute("Width"), Is.EqualTo("8"), "an 8 epx hit area (W38)");
         Assert.That((string?)splitter.Attribute("Cursor"), Is.EqualTo("SizeWE"));
-        Assert.That((string?)splitter.Attribute("ToolTip"), Is.EqualTo("Drag to resize; double-click to reset"));
+        Assert.That((string?)splitter.Attribute("ToolTip"), Is.EqualTo("Drag to resize; double-click to reset."), "a sentence ends with a full stop (W20)");
         Assert.That((string?)splitter.Attribute("DragCompleted"), Is.EqualTo("OnSplitterDragCompleted"));
         Assert.That((string?)splitter.Attribute("MouseDoubleClick"), Is.EqualTo("OnSplitterDoubleClick"));
         Assert.That((string?)Named(View(), "PaneColumn").Attribute("MinWidth"), Is.EqualTo("260"));

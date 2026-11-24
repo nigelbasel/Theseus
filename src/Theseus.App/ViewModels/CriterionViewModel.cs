@@ -13,9 +13,9 @@ public sealed record CriterionViewModel(string Text, bool IsTicked, ICommand? To
 {
     /// <summary>
     /// The criterion's box as the file has it. A glyph on a button, not a check box, so a refused tick never shows a
-    /// state the file does not hold (1.1c review, item 7).
+    /// state the file does not hold (1.1c review, item 7). Drawn in the icon font: E73A ticked, E739 not (baseline W25).
     /// </summary>
-    public string TickGlyph => IsTicked ? "☑" : "☐";
+    public string TickGlyph => IsTicked ? "" : "";
 
     /// <summary>On whom an unticked criterion waits, from its Waiting line: "Waiting for you: …"; empty otherwise (item 6).</summary>
     public string Waiting { get; init; } = string.Empty;

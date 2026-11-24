@@ -167,8 +167,8 @@ public sealed class PieceNodeViewModel : ObservableObject, IFoldable
     /// <summary>Whether it shows the strip rather than the chain.</summary>
     public bool IsFolded => !_isOpen;
 
-    /// <summary>▸ folded, ▾ open.</summary>
-    public string Chevron => _isOpen ? "▾" : "▸";
+    /// <summary>The fold chevron, in the icon font (W25).</summary>
+    public string Chevron => FoldGlyph.Of(_isOpen);
 
     /// <summary>What the chevron does.</summary>
     public string ChevronToolTip => _isOpen ? "Fold this piece of work" : "Open into its stages";
