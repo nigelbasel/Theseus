@@ -2506,7 +2506,7 @@ public sealed partial class ShellViewModel : ObservableObject
             var overview = ProjectOverview.For(reading.File!, pieces, links, Chains?.Proposals?.Pending.Select(row => row.Proposal) ?? [],
                 acceptances.Count(acceptance => string.Equals(acceptance.Project, reading.Name, StringComparison.OrdinalIgnoreCase)),
                 StartRequests.Pending, key => Board.Card(key)?.Title ?? key, WrongVerifiersOf(reading.Name), ClearUpNoticeOf(reading),
-                checkPlan.Underway, others, ChecksThatCannotRun(reading, pieces, checkPlan));
+                checkPlan.Underway, others, ChecksThatCannotRun(reading, pieces, checkPlan), OwnerAccount.Names);
             TakeCheckSteps(reading, pieces, checkPlan);
             var file = reading.File!;
 
@@ -2717,6 +2717,7 @@ public sealed partial class ShellViewModel : ObservableObject
                 GoBack = GoBackCommand,
                 GoForward = GoForwardCommand,
                 ReviewProposal = ReviewProposal,
+                TellCard = (key, text) => Tell(Board.Card(key), text),
                 AnswerStartRequest = AnswerStartRequest,
                 ClearVerifiers = ClearUpVerifiers,
                 StartVerifier = key =>

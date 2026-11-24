@@ -330,6 +330,23 @@ public class ProjectToolsTests
     }
 
     [Test]
+    public void SetWaiting_OnSomeoneByName_WritesTheOnForm_AndRefusesANameWithAColon()
+    {
+        JsonObject Args(string who) => new()
+        {
+            ["objective"] = "0.1", ["criterion"] = 1, ["text"] = "One.", ["who"] = who, ["what"] = "the EC answers",
+        };
+
+        Call("set_waiting", Args("the gateway team"));
+        Assert.That(System.IO.File.ReadAllText(_folder.Home(Project) + "/project.md"), Does.Contain("- [ ] One.\n      Waiting: on the gateway team: the EC answers\n"));
+        Assert.That(File().Objectives[0].Criteria[0].Waiting!.Asks.Single(), Is.EqualTo(new WaitingAsk(false, "the EC answers") { On = "the gateway team" }));
+
+        Call("set_waiting", Args("Owner: team"));
+        Call("set_waiting", Args(new string('a', WaitingAsk.LongestWho + 1)));
+        Assert.That(File().Objectives[0].Criteria[0].Waiting!.On, Is.EqualTo("the gateway team"), "both refused, so unchanged");
+    }
+
+    [Test]
     public void TheReader_KeepsWaitingAndEvidenceLinesOutOfTheCriterionsText()
     {
         var file = ProjectFileReader.Read("x", TestProjectsFolder.ProjectText("X", body: "## Phase 0: S\n\n### Objective 0.1: O\n"

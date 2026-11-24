@@ -30,15 +30,17 @@ public sealed record CriterionViewModel(string Text, bool IsTicked, ICommand? To
     public string ToolTip => IsTicked ? "Untick this criterion in project.md" : "Tick this criterion in project.md";
 
     /// <summary>An objective's criteria, each ticked or unticked in the file through the view's edits when it has them.</summary>
-    internal static IReadOnlyList<CriterionViewModel> Of(ProjectObjective objective, ProjectViewEdits? edits) =>
+    internal static IReadOnlyList<CriterionViewModel> Of(ProjectObjective objective, ProjectViewEdits? edits,
+        IReadOnlyCollection<string>? ownerNames = null) =>
     [
         .. objective.Criteria.Select(criterion => new CriterionViewModel(criterion.Text, criterion.IsTicked,
             edits is null ? null : new RelayCommand(_ => edits.TickCriterion(objective, criterion, !criterion.IsTicked)))
         {
             Waiting = criterion.IsTicked || criterion.Waiting is not { } waiting
                 ? string.Empty
-                : string.Join("; ", waiting.Asks.GroupBy(ask => ask.IsOwner)
-                    .Select(group => $"{(group.Key ? "Waiting for you" : "Waiting on work")}: {string.Join("; ", group.Select(ask => ask.What))}")),
+                : string.Join("; ", waiting.Asks
+                    .GroupBy(ask => ask.IsWork ? "Waiting on work" : ask.Who(ownerNames ?? []) is { } who ? $"Waiting on {who}" : "Waiting for you")
+                    .Select(group => $"{group.Key}: {string.Join("; ", group.Select(ask => ask.Asked(ownerNames ?? [])))}")),
         }),
     ];
 }

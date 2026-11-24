@@ -67,7 +67,7 @@ What this part of the work must achieve.
 | `## Rounds` | Optional, after Acceptance criteria. One row per round, numbered from 1: when the owner changed the requirements and work went back to research, its name, the date it began, why in one sentence, and who. No table: the file reads as one round, "Round 1" |
 | `**Round:** <n>` | Optional, directly under an objective's heading: the round that added or reopened it. No line: round 1. A round not in the table makes the file need updating |
 | `- [ ]` and `- [x]` | Under an objective: its criteria, ticked when met. A criterion may run onto indented lines below it |
-| `Waiting: owner: <what>`, `Waiting: work: <what>` | Optional, an indented line under an unticked criterion: who it waits on, in plain words. An owner line puts it in the owner's "Waits for you"; no line means it waits on work |
+| `Waiting: owner: <what>`, `Waiting: work: <what>`, `Waiting: on <who>: <what>` | Optional, an indented line under an unticked criterion: who it waits on, in plain words. An owner line puts it in the owner's "Waits for you"; `on <who>` names anyone else, such as the lead or another team, and is shown as theirs; no line means it waits on work. One line may list several, separated by `; `, as `Waiting: owner: A; work: B` |
 | `Evidence: <pointer>` | Optional, an indented line under a ticked criterion: a one-line pointer to what shows it is met |
 | `**Pipeline:** <name>` | Under every objective, once: `feature`, `bug` or `freeform`. An objective whose workstreams run different pipelines names them, `feature or bug`; each workstream's is then read from its artefacts (`reproduction.md` or `fix.md` means bug). `[to be chosen]` while no workstream serves the objective yet |
 | `\| Workstream \| Slug \| Branch \| Repos \|` | Under every objective, once, after its pipeline: one row per workstream slug, and no rows while no workstream serves it. An optional fifth column, `What`, says in a few words what each piece achieves; it is the title its box shows. A What cell may be empty |
@@ -141,7 +141,7 @@ so a session cannot leave the file unreadable:
 | `record_round(name, why, objectives)` | A row of the Rounds table (making the table, with round 1, when there is none) and a Round line on each objective the round adds or reopens. It asks the owner in the tab first |
 | `add_objective(phase, title, criteria, pipeline, waiting)` | An objective at the end of a phase, with its criteria, its pipeline line and an empty workstreams table. It asks the owner in the tab first |
 | `tick_criterion(objective, criterion, text, ticked, evidence)` | A tick, with its Evidence line; unticking removes the Evidence line |
-| `set_waiting(objective, criterion, text, who, what)` | A criterion's `Waiting: owner:` or `Waiting: work:` line, or removes it |
+| `set_waiting(objective, criterion, text, who, what)` | A criterion's `Waiting:` line: `who` is `owner`, `work`, a name (written `on <who>:`), or `none` to remove it |
 | `record_decision(decision, by)` | A dated row of the Decisions table |
 
 Each is refused, with its reason, when the file changed since Theseus read it or the edit would not read. Prose

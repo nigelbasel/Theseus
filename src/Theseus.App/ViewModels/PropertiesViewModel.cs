@@ -78,7 +78,8 @@ public sealed class PropertiesViewModel
     public bool CanEditObjective => EditObjectiveCommand is not null;
 
     /// <summary>The pane for a piece of work.</summary>
-    internal static PropertiesViewModel ForPiece(PieceNodeViewModel node, ProjectViewActions actions, ProjectViewEdits? edits)
+    internal static PropertiesViewModel ForPiece(PieceNodeViewModel node, ProjectViewActions actions, ProjectViewEdits? edits,
+        IReadOnlyCollection<string>? ownerNames = null)
     {
         var piece = node.Piece;
         var status = node.Status;
@@ -124,7 +125,7 @@ public sealed class PropertiesViewModel
             RecordsNone = PieceRecords.NoneText(piece),
             Buttons = [.. ButtonsOf(node, null, actions)],
             ObjectiveHeading = ObjectiveHeadingOf(node),
-            Criteria = CriteriaOf(node, edits),
+            Criteria = CriteriaOf(node, edits, ownerNames),
             EditObjectiveCommand = EditOf(node, edits),
         };
     }
@@ -140,7 +141,8 @@ public sealed class PropertiesViewModel
     };
 
     /// <summary>The pane for one stage of a piece of work.</summary>
-    internal static PropertiesViewModel ForStage(StageNodeViewModel stage, ProjectViewActions actions, ProjectViewEdits? edits)
+    internal static PropertiesViewModel ForStage(StageNodeViewModel stage, ProjectViewActions actions, ProjectViewEdits? edits,
+        IReadOnlyCollection<string>? ownerNames = null)
     {
         var node = stage.Piece;
         var piece = node.Piece;
@@ -173,7 +175,7 @@ public sealed class PropertiesViewModel
             Links = node.LinkLines,
             Buttons = [.. ButtonsOf(node, stage, actions)],
             ObjectiveHeading = ObjectiveHeadingOf(node),
-            Criteria = CriteriaOf(node, edits),
+            Criteria = CriteriaOf(node, edits, ownerNames),
             EditObjectiveCommand = EditOf(node, edits),
         };
     }
@@ -279,8 +281,9 @@ public sealed class PropertiesViewModel
     private static string ObjectiveHeadingOf(PieceNodeViewModel node) =>
         node.Objective is { } objective ? $"Objective {objective.Number}: {objective.Title}" : string.Empty;
 
-    private static IReadOnlyList<CriterionViewModel> CriteriaOf(PieceNodeViewModel node, ProjectViewEdits? edits) =>
-        node.Objective is { } objective ? CriterionViewModel.Of(objective, edits) : [];
+    private static IReadOnlyList<CriterionViewModel> CriteriaOf(PieceNodeViewModel node, ProjectViewEdits? edits,
+        IReadOnlyCollection<string>? ownerNames) =>
+        node.Objective is { } objective ? CriterionViewModel.Of(objective, edits, ownerNames) : [];
 
     private static ICommand? EditOf(PieceNodeViewModel node, ProjectViewEdits? edits) =>
         node.Objective is { } objective && edits is not null

@@ -992,9 +992,17 @@
                 <Border x:Name="ObjectiveWaits" Margin="36,8,0,0" Padding="12,8,12,0" CornerRadius="4" BorderThickness="1"
                         BorderBrush="{DynamicResource StateWaitingBrush}" Background="{DynamicResource StateWaitingSoftBrush}"
                         Visibility="{Binding HasWaits, Converter={StaticResource Visible}}">
-                    <ItemsControl ItemsSource="{Binding Waits}" ItemTemplate="{StaticResource WaitLine}" Focusable="False"
-                                  ItemContainerStyle="{StaticResource ItemNamedByText}"
-                                  AutomationProperties.Name="Waits for you under this objective" />
+                    <StackPanel>
+                        <ItemsControl ItemsSource="{Binding Waits}" ItemTemplate="{StaticResource WaitLine}" Focusable="False"
+                                      ItemContainerStyle="{StaticResource ItemNamedByText}"
+                                      AutomationProperties.Name="Waits for you under this objective" />
+                        <!-- The objective's waits in the checklist, ticked: the same actions as the band and the dialog. -->
+                        <Button x:Name="RespondToObjective" Command="{Binding RespondCommand}" Style="{StaticResource CommandButton}"
+                                HorizontalAlignment="Left" Margin="0,0,0,8" FontSize="14"
+                                ToolTip="Open the waits checklist with this objective's waits ticked" AutomationProperties.Name="Respond to this objective's waits">
+                            <TextBlock Text="Respond to these…" />
+                        </Button>
+                    </StackPanel>
                 </Border>
                 <Border x:Name="ObjectiveBranch" Margin="16,12,0,0" Padding="16,0,0,0" BorderThickness="2,0,0,0"
                         BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
@@ -1034,6 +1042,16 @@
                                            Visibility="{Binding HasExitGate, Converter={StaticResource Visible}}" />
                                 <TextBlock x:Name="PhaseDone" Text="{Binding DoneText}" FontSize="12" TextWrapping="Wrap" Margin="0,2,0,0"
                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                <!-- A phase not yet started holds its criteria's asks here, out of the band (git-22 for Nigel, 2026-11-24). -->
+                                <WrapPanel x:Name="PhaseHeld" Margin="0,4,0,0" Visibility="{Binding HasHeld, Converter={StaticResource Visible}}">
+                                    <TextBlock x:Name="PhaseHeldText" Text="{Binding HeldText}" FontSize="12" TextWrapping="Wrap" Margin="0,0,8,0"
+                                               VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                    <Button x:Name="RespondToHeld" Command="{Binding RespondCommand}" Style="{StaticResource CommandButton}" FontSize="12"
+                                            ToolTip="Open the waits checklist with this phase's waits ticked"
+                                            AutomationProperties.Name="Respond to this phase's waits">
+                                        <TextBlock Text="Respond…" />
+                                    </Button>
+                                </WrapPanel>
                             </StackPanel>
                         </Border>
                     </DockPanel>
@@ -1191,6 +1209,16 @@
                         </Button>
                     </StackPanel>
                 </Border>
+                <!-- What waits on others: said, with Respond…, never counted as his (git-22 for Nigel, 2026-11-24). -->
+                <DockPanel x:Name="OthersLine" Margin="0,8,0,0" Visibility="{Binding OthersText, Converter={StaticResource NotEmpty}}">
+                    <Button x:Name="RespondToOthers" DockPanel.Dock="Right" Command="{Binding RespondToOthersCommand}" Style="{StaticResource CommandButton}"
+                            Margin="12,0,0,0" FontSize="14" ToolTip="Open the waits checklist with the waits on others ticked"
+                            AutomationProperties.Name="Respond to the waits on others">
+                        <TextBlock Text="Respond…" />
+                    </Button>
+                    <TextBlock x:Name="OthersText" Text="{Binding OthersText}" FontSize="14" TextWrapping="Wrap" VerticalAlignment="Center"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                </DockPanel>
                 <!-- What waits on the lead, such as objectives with no workstream: said beside the band, not counted in it. -->
                 <TextBlock x:Name="LeadWaitsLine" Text="{Binding LeadWaitsText}" FontSize="14" TextWrapping="Wrap" Margin="0,8,0,0"
                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
@@ -1332,7 +1360,21 @@
 
             <ScrollViewer x:Name="Flow" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Focusable="False">
                 <Border x:Name="FlowFrame" Padding="24" VerticalAlignment="Top" MaxWidth="{Binding ViewportWidth, ElementName=Flow}">
-                    <Grid x:Name="FlowContent">
+                    <StackPanel>
+                        <!-- While "waiting on you" filters, the waits on no piece of work show here, so the chip's count is what
+                             the filter shows, in either lens (git-22 for Nigel, 2026-11-24). -->
+                        <Border x:Name="NoPieceWaits" Margin="0,0,0,16" Padding="12,8,12,0" CornerRadius="4" BorderThickness="1"
+                                BorderBrush="{DynamicResource StateWaitingBrush}" Background="{DynamicResource StateWaitingSoftBrush}"
+                                Visibility="{Binding HasNoPieceWaits, Converter={StaticResource Visible}}">
+                            <StackPanel>
+                                <TextBlock Text="Waits on you with no piece of work yet" FontWeight="SemiBold" FontSize="14" Margin="0,0,0,8"
+                                           Foreground="{DynamicResource StateWaitingBrush}" />
+                                <ItemsControl x:Name="NoPieceWaitItems" ItemsSource="{Binding NoPieceWaits}" ItemTemplate="{StaticResource WaitLine}"
+                                              Focusable="False" ItemContainerStyle="{StaticResource ItemNamedByText}"
+                                              AutomationProperties.Name="Waits on you with no piece of work yet" />
+                            </StackPanel>
+                        </Border>
+                        <Grid x:Name="FlowContent">
                         <ItemsControl x:Name="RootList" ItemsSource="{Binding ShownRounds}" Focusable="False"
                                       ItemContainerStyle="{StaticResource ItemNamedByTitle}" AutomationProperties.Name="Rounds" />
                         <StackPanel x:Name="ObjectiveList">
@@ -1342,6 +1384,7 @@
                                           ItemContainerStyle="{StaticResource ItemNamedByTitle}" AutomationProperties.Name="Not in an objective" />
                         </StackPanel>
                     </Grid>
+                    </StackPanel>
                 </Border>
             </ScrollViewer>
 

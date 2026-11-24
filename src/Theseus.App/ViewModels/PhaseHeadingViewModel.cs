@@ -47,6 +47,32 @@ public sealed class PhaseHeadingViewModel : ObservableObject, IFoldable
     /// <summary>The phase and its objectives.</summary>
     public PhaseGroup Group { get; }
 
+    /// <summary>
+    /// The criteria's asks of this phase, held here while it has not started, each with Respond… (git-22 for Nigel,
+    /// 2026-11-24: "the band shows what blocks the current phase").
+    /// </summary>
+    public IReadOnlyList<WaitItemViewModel> Held { get; init; } = [];
+
+    /// <summary>"When this phase starts, 12 things wait: 8 for you and 4 on others.", or empty.</summary>
+    public string HeldText
+    {
+        get
+        {
+            var others = Held.Count(line => line.Item.Who is not null);
+            var yours = Held.Count - others;
+
+            return Held.Count == 0
+                ? string.Empty
+                : $"When this phase starts, {Held.Count} {(Held.Count == 1 ? "thing waits" : "things wait")}: {yours} for you and {others} on others.";
+        }
+    }
+
+    /// <summary>Whether anything is held here.</summary>
+    public bool HasHeld => Held.Count > 0;
+
+    /// <summary>Respond… on the held line: the waits checklist with these ticked.</summary>
+    public System.Windows.Input.ICommand? RespondCommand { get; init; }
+
     /// <summary>Its number, from 0.</summary>
     public int Number => Group.Phase.Number;
 

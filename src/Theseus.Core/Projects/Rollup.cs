@@ -31,7 +31,9 @@ public sealed record Rollup(RollupState State, string Text, IReadOnlyList<string
 
         // Waiting for you wins over met: a ticked objective can still have a check to start or a report to confirm, and the
         // items under it must never sit beside a mark that says nothing is wanted (review of item 6, finding 1).
-        if (objective.Criteria.Any(criterion => criterion.WaitsOnOwner) || ObjectiveWaits.For(objective.Number, serving, waits).Count > 0)
+        // Only what Waits for you counts: an ask on someone else, or in a phase not yet started, is not his (git-22 for
+        // Nigel, 2026-11-24).
+        if (ObjectiveWaits.For(objective.Number, serving, waits).Count > 0)
         {
             return new Rollup(RollupState.WaitingForYou, "◆ Waiting for you", [.. asking.Union(working)],
                 "Waiting for you: a criterion waits on you, or a piece of work serving it does. You act. See the items under it.");
