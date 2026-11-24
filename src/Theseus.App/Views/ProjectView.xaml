@@ -301,7 +301,7 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" MaxWidth="{Binding BoxWidth}" />
                 </Grid.ColumnDefinitions>
-                <Border x:Name="Box" CornerRadius="8" BorderThickness="1" SizeChanged="OnBoxSizeChanged"
+                <Border x:Name="Box" CornerRadius="8" BorderThickness="1"
                         MouseEnter="OnBoxEnter" MouseLeave="OnHoverLeave">
                     <Border.Style>
                         <Style TargetType="Border">
@@ -544,64 +544,12 @@
         </DataTemplate>
 
         <!--
-            A box, then the pieces it hands work to (1.1f D17 to D20). Two or more sit between a fork bar and a join bar
-            (UML activity notation), each labelled to its right; the children's line runs from below the fork to above the
-            join, so nothing is drawn across a line. One alone has no bars: "↳ handed on" above it. Implicit, so the
-            children's ItemsControl uses it again.
+            A box under its round's heading of its state, with any proposal it raised under it. A piece it handed work to
+            sits under its own state's heading, not beneath it (git-22, 2026-11-24): Properties names the hand-over.
         -->
         <DataTemplate DataType="{x:Type vm:PieceNodeViewModel}">
-            <StackPanel Margin="{Binding Gap}" Visibility="{Binding IsShown, Converter={StaticResource Visible}}">
+            <StackPanel Margin="0,0,0,14" Visibility="{Binding IsShown, Converter={StaticResource Visible}}">
                 <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource PieceBox}" />
-                <Grid x:Name="BranchRow" Margin="0,10,0,0" Visibility="{Binding HasChildren, Converter={StaticResource Visible}}">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="{Binding BranchIndent}" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <StackPanel Grid.Column="1">
-                        <!-- The boxes beneath fold together (item 1): the chevron, and while folded one line naming them. -->
-                        <DockPanel x:Name="BranchFold" Margin="0,0,0,4">
-                            <Button x:Name="BranchChevron" DockPanel.Dock="Left" Style="{StaticResource HeadingChevron}"
-                                    Content="{Binding Branch.Chevron}" Command="{Binding Branch.ToggleCommand}"
-                                    ToolTip="{Binding Branch.ToolTip}" AutomationProperties.Name="{Binding Branch.ToolTip}" />
-                            <TextBlock x:Name="BranchSummary" Text="{Binding Branch.Summary}" FontSize="12" TextWrapping="Wrap"
-                                       VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                       Visibility="{Binding Branch.IsFolded, Converter={StaticResource Visible}}" />
-                        </DockPanel>
-                        <StackPanel x:Name="BranchBody" Visibility="{Binding Branch.IsOpen, Converter={StaticResource Visible}}">
-                        <TextBlock x:Name="HandedOn" Text="↳ handed on" FontSize="12" Margin="0,0,0,6"
-                                   Foreground="{DynamicResource StateHandedOnBrush}"
-                                   Visibility="{Binding IsSingleHandOver, Converter={StaticResource Visible}}" />
-                        <DockPanel x:Name="Fork" Margin="0,0,0,8" Visibility="{Binding IsParallel, Converter={StaticResource Visible}}"
-                                   AutomationProperties.Name="{Binding ForkText}">
-                            <Rectangle x:Name="ForkBar" DockPanel.Dock="Left" Width="140" Height="5" RadiusX="1" RadiusY="1"
-                                       VerticalAlignment="Center" Fill="{DynamicResource TextFillColorPrimaryBrush}" />
-                            <TextBlock x:Name="ForkLabel" Text="{Binding ForkText}" FontSize="12" Margin="10,0,0,0" TextWrapping="Wrap"
-                                       VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                        </DockPanel>
-                        <Border x:Name="Branch" Margin="9,0,0,0" Padding="16,0,0,0">
-                            <Border.Style>
-                                <Style TargetType="Border">
-                                    <Setter Property="BorderThickness" Value="0" />
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsParallel}" Value="True">
-                                            <Setter Property="BorderThickness" Value="2,0,0,0" />
-                                            <Setter Property="BorderBrush" Value="{DynamicResource StateHandedOnBrush}" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Border.Style>
-                            <ItemsControl x:Name="Children" ItemsSource="{Binding Children}" Focusable="False" />
-                        </Border>
-                        <DockPanel x:Name="Join" Margin="0,0,0,4" Visibility="{Binding IsParallel, Converter={StaticResource Visible}}"
-                                   AutomationProperties.Name="{Binding JoinText}">
-                            <Rectangle x:Name="JoinBar" DockPanel.Dock="Left" Width="140" Height="5" RadiusX="1" RadiusY="1"
-                                       VerticalAlignment="Center" Fill="{DynamicResource TextFillColorPrimaryBrush}" />
-                            <TextBlock x:Name="JoinLabel" Text="{Binding JoinText}" FontSize="12" Margin="10,0,0,0" TextWrapping="Wrap"
-                                       VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                        </DockPanel>
-                        </StackPanel>
-                    </StackPanel>
-                </Grid>
                 <!-- A proposal it raised, waiting for you: a dashed node under it (1.1e item 30). -->
                 <ItemsControl x:Name="Proposals" ItemsSource="{Binding Proposals}" Margin="34,4,0,0" Focusable="False"
                               Visibility="{Binding HasProposals, Converter={StaticResource Visible}}">
@@ -829,18 +777,21 @@
             </StackPanel>
         </DataTemplate>
 
-        <!-- Finished pieces one session worked through in turn, folded to one line (1.1f D22). -->
-        <DataTemplate DataType="{x:Type vm:FinishedRunViewModel}">
+        <!--
+            A round's pieces in one state, under a heading in the chip's words that folds (G117, G135): done folded at first,
+            naming what it holds; the rest open.
+        -->
+        <DataTemplate DataType="{x:Type vm:RoundStateGroupViewModel}">
             <StackPanel Margin="0,0,0,14" Visibility="{Binding IsShown, Converter={StaticResource Visible}}">
                 <WrapPanel>
-                    <Button x:Name="RunToggle" Content="{Binding Text}" Command="{Binding ToggleCommand}" Template="{StaticResource LinkTemplate}"
-                            Cursor="Hand" FontSize="13" Margin="0,0,10,0" Foreground="{DynamicResource LinkBrush}"
-                            AutomationProperties.Name="{Binding Text}" />
-                    <TextBlock x:Name="RunTitles" Text="{Binding Titles}" FontSize="12.5" TextWrapping="Wrap" VerticalAlignment="Center"
+                    <Button x:Name="StateHeading" Content="{Binding Text}" Command="{Binding ToggleCommand}" Template="{StaticResource LinkTemplate}"
+                            Cursor="Hand" FontSize="14" FontWeight="SemiBold" Margin="0,0,10,0" FocusVisualStyle="{StaticResource FocusRing}"
+                            Foreground="{DynamicResource TextFillColorPrimaryBrush}" AutomationProperties.Name="{Binding Text}" />
+                    <TextBlock x:Name="StateTitles" Text="{Binding Titles}" FontSize="12.5" TextWrapping="Wrap" VerticalAlignment="Center"
                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                Visibility="{Binding IsFolded, Converter={StaticResource Visible}}" />
                 </WrapPanel>
-                <ItemsControl x:Name="RunBoxes" ItemsSource="{Binding Boxes}" Margin="0,10,0,0" Focusable="False"
+                <ItemsControl x:Name="StateBoxes" ItemsSource="{Binding Boxes}" Margin="0,10,0,0" Focusable="False"
                               Visibility="{Binding IsOpen, Converter={StaticResource Visible}}" />
             </StackPanel>
         </DataTemplate>
@@ -1189,16 +1140,6 @@
                     <TextBlock x:Name="FilterText" Text="{Binding FilterText}" FontSize="12.5" FontWeight="SemiBold" Margin="4,2,10,2"
                                VerticalAlignment="Center" Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"
                                Visibility="{Binding IsFiltered, Converter={StaticResource Visible}}" />
-                    <StackPanel Orientation="Horizontal" Margin="0,2,10,2">
-                        <Line x:Name="HandsOverSample" X1="0" X2="26" Y1="4" Y2="4" StrokeThickness="2" Margin="0,0,4,0"
-                              VerticalAlignment="Center" Stroke="{DynamicResource ConnectorBrush}" />
-                        <TextBlock Text="hands work to" FontSize="12.5" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                    </StackPanel>
-                    <StackPanel Orientation="Horizontal" Margin="0,2,10,2">
-                        <Line x:Name="ThenWorkedOnSample" X1="0" X2="26" Y1="4" Y2="4" StrokeThickness="2" StrokeDashArray="1 2"
-                              Margin="0,0,4,0" VerticalAlignment="Center" Stroke="{DynamicResource ConnectorBrush}" />
-                        <TextBlock Text="then worked on" FontSize="12.5" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                    </StackPanel>
                     <TextBlock Text="↩ reported back" FontSize="12.5" Margin="0,2,10,2" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                 </WrapPanel>
             </WrapPanel>
@@ -1209,7 +1150,7 @@
             both, the flow takes the whole width and Properties opens over it on the right when something is selected
             (AC 52, 53).
         -->
-        <Grid x:Name="Split" SizeChanged="OnSplitSizeChanged">
+        <Grid x:Name="Split">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition x:Name="FlowColumn" Width="*" MinWidth="400" />
                 <ColumnDefinition x:Name="SplitterColumn" Width="6" />
@@ -1218,8 +1159,7 @@
 
             <ScrollViewer x:Name="Flow" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Focusable="False">
                 <Border x:Name="FlowFrame" Padding="20" VerticalAlignment="Top" MaxWidth="{Binding ViewportWidth, ElementName=Flow}">
-                    <Grid x:Name="FlowContent" SizeChanged="OnFlowSizeChanged">
-                        <Canvas x:Name="Connectors" IsHitTestVisible="False" />
+                    <Grid x:Name="FlowContent">
                         <ItemsControl x:Name="RootList" ItemsSource="{Binding ShownRounds}" Focusable="False" />
                         <StackPanel x:Name="ObjectiveList">
                             <ItemsControl x:Name="PhaseList" ItemsSource="{Binding ShownPhases}" Focusable="False" />

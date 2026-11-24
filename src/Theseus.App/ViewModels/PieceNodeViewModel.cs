@@ -106,12 +106,6 @@ public sealed class PieceNodeViewModel : ObservableObject, IFoldable
     /// <summary>The pieces it hands work to, in file order.</summary>
     public IReadOnlyList<PieceNodeViewModel> Children { get; }
 
-    /// <summary>Whether it has a branch under it.</summary>
-    public bool HasChildren => Children.Count > 0;
-
-    /// <summary>The fold of its branch, when it has one (project-view-usability item 1); null with none.</summary>
-    public ChildrenFold? Branch { get; init; }
-
     /// <summary>
     /// "● running", "○ idle" or "◆ waiting" while its card's session works this piece; empty otherwise (item 8).
     /// </summary>
@@ -144,22 +138,6 @@ public sealed class PieceNodeViewModel : ObservableObject, IFoldable
 
     /// <summary>Every box beneath it, at any depth.</summary>
     public IEnumerable<PieceNodeViewModel> Descendants => Children.SelectMany(child => child.Descendants.Prepend(child));
-
-    /// <summary>Whether it hands work to more than one piece at once.</summary>
-    public bool IsParallel => Node.IsParallel;
-
-    /// <summary>
-    /// How far in its branch starts: further when parallel, so the brace and its label sit left of the hand-over line
-    /// (1.1e AC 6d).
-    /// </summary>
-    public System.Windows.GridLength BranchIndent =>
-        new(IsParallel ? Views.ConnectorGeometry.ParallelBranchIndent : Views.ConnectorGeometry.BranchIndent);
-
-    /// <summary>How far in from its left edge its hand-overs drop: right of the parallel brace when it has one (1.1e AC 6d).</summary>
-    public double HandOverInset => IsParallel ? Views.ConnectorGeometry.ParallelHandOverInset : Views.ConnectorGeometry.HandOverInset;
-
-    /// <summary>"7 in parallel", written beside the brace.</summary>
-    public string ParallelText => $"{Node.ChildCount} in parallel";
 
     /// <summary>Whether it is open into its stages; folded by default.</summary>
     public bool IsOpen
@@ -306,31 +284,6 @@ public sealed class PieceNodeViewModel : ObservableObject, IFoldable
     /// <summary>Whether its folded box shows a button.</summary>
     public bool HasPrimaryAction => PrimaryAction is not null;
 
-    /// <summary>Whether it hands work to exactly one piece, shown "↳ handed on" with no bars (D19).</summary>
-    public bool IsSingleHandOver => Children.Count == 1;
-
-    /// <summary>The fork bar's label: "3 in parallel · 1 busy, 1 waiting for you, 1 answered, criteria not ticked" (D18).</summary>
-    public string ForkText => $"{Children.Count} in parallel · " + string.Join(", ", Children
-        .GroupBy(child => child.State)
-        .Select(group => $"{group.Count()} {StageNodeStates.Word(group.Key).ToLowerInvariant()}"));
-
-    /// <summary>
-    /// The join bar's label: waiting for some to report back, or all back, then what happens next, which defaults to the
-    /// parent's session taking their reports (D18, D7). A Reported or Satisfied report-back counts as back.
-    /// </summary>
-    public string JoinText
-    {
-        get
-        {
-            var back = Children.Count(child => child.Piece.HasReportedBack);
-            var next = $"then the {Title} session takes their reports";
-
-            return back == Children.Count
-                ? $"All {Children.Count} reported back, {next}"
-                : $"Waiting for {Children.Count - back} of {Children.Count} to report back, {next}";
-        }
-    }
-
     /// <summary>
     /// The proposals its card raised that wait for the owner, drawn as dashed nodes under it with Approve and Reject
     /// (1.1e item 30, placed by 1.1f's "What this replaces"); only on the card's current piece.
@@ -339,27 +292,6 @@ public sealed class PieceNodeViewModel : ObservableObject, IFoldable
 
     /// <summary>Whether it has a proposal waiting.</summary>
     public bool HasProposals => Proposals.Count > 0;
-
-    /// <summary>
-    /// Whether its card moved on from it to a next piece, drawn as a "then worked on" arrow below it: it then keeps room
-    /// under it for the arrow and its label, so neither sits under a box (Nigel, 2026-11-22).
-    /// </summary>
-    public bool MovesOn
-    {
-        get => _movesOn;
-        internal set
-        {
-            if (Set(ref _movesOn, value))
-            {
-                Raise(nameof(Gap));
-            }
-        }
-    }
-
-    private bool _movesOn;
-
-    /// <summary>The room under it: enough for the arrow and two lines of label when its card moved on, else 14 px.</summary>
-    public System.Windows.Thickness Gap => new(0, 0, 0, MovesOn ? 48 : 14);
 
     /// <summary>Whether it is highlighted, as a box of the objective hovered or followed (I44, I45).</summary>
     public bool IsHighlighted

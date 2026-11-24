@@ -33,6 +33,13 @@ public sealed record StateCountViewModel(StageNodeState State, int Count, string
     /// <summary>The chip's text: mark, number and words.</summary>
     public string Text => $"{StageNodeStates.Mark(State)} {Count} {Words}";
 
+    /// <summary>Every state in the chips' order: AC 19's six, then those 1.1f added.</summary>
+    public static IReadOnlyList<StageNodeState> States { get; } = [.. Order.Concat(Added).Select(entry => entry.State)];
+
+    /// <summary>What a chip for this many in this state says, such as "◐ 4 not yet checked".</summary>
+    public static string TextOf(StageNodeState state, int count) =>
+        new StateCountViewModel(state, count, Order.Concat(Added).Single(entry => entry.State == state).Words).Text;
+
     /// <summary>
     /// A summary's chips in AC 19's order, from <see cref="ProjectSummary"/> (AC 10): all six in the project view, the ones
     /// that are not zero on the project card (AC 39).

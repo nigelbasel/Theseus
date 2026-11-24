@@ -48,8 +48,8 @@ public class PieceTreeTests
         var root = tree.Roots.Single();
 
         Assert.That(root.Piece.Name, Is.EqualTo(ServerSpec));
-        Assert.That(root.IsParallel, Is.True);
-        Assert.That(root.ChildCount, Is.EqualTo(7));
+        Assert.That(root.Children, Has.Count.GreaterThan(1));
+        Assert.That(root.Children.Count, Is.EqualTo(7));
         Assert.That(root.Children.Select(child => child.Piece.Name), Is.EqualTo(new[]
         {
             "bym-mcp-preconditions", "bym-mcp-identity", "bym-mcp-config", "bym-mcp-read-api", "bym-mcp-host", "bym-mcp-infra",
@@ -63,7 +63,7 @@ public class PieceTreeTests
         var identity = Node(BuildYourMarketTree(), "bym-mcp-identity");
 
         Assert.That(identity.Children.Select(child => child.Piece.Name), Is.EqualTo(new[] { RedirectAnchoring }));
-        Assert.That(identity.IsParallel, Is.False);
+        Assert.That(identity.Children, Has.Count.LessThanOrEqualTo(1));
     }
 
     [Test]
@@ -142,7 +142,7 @@ public class PieceTreeTests
 
         Assert.That(tree.Roots.Select(root => root.Piece.Name), Is.EqualTo(new[] { ServerSpec, "bym-mcp-config" }));
         Assert.That(tree.Roots[0].Children.Select(child => child.Piece.Name), Does.Not.Contain("bym-mcp-config"));
-        Assert.That(tree.Roots[0].ChildCount, Is.EqualTo(6));
+        Assert.That(tree.Roots[0].Children.Count, Is.EqualTo(6));
     }
 
     [Test]
@@ -194,7 +194,7 @@ public class PieceTreeTests
         var cards = BuildYourMarketBoard().Select(card => card with { Lifecycle = SessionLifecycle.Running }).ToList();
         var links = BuildYourMarketLinks();
 
-        Assert.That(PieceTree.Build(BuildYourMarketPieces(_folder, cards, links), LinksOn(links, cards)).Roots.Single().ChildCount,
+        Assert.That(PieceTree.Build(BuildYourMarketPieces(_folder, cards, links), LinksOn(links, cards)).Roots.Single().Children.Count,
             Is.EqualTo(7));
     }
 }

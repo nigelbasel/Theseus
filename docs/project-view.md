@@ -55,7 +55,7 @@ workstream that works it, its kind (feature, bug or freeform), its objective, an
 Right-click a stage, or press Shift+F10 or the Menu key on it, for **Properties** and that stage's own actions.
 
 Three small icons right of **Group by**, each named in its tooltip: **Collapse all** folds every box, **Expand all**
-opens them all, and **Open what needs attention** opens what is busy,
+opens them all (with the headings of a round's states), and **Open what needs attention** opens what is busy,
 waiting on you, stuck or waiting for its holdout check, and folds the rest. Grouped by objectives, they fold and open
 the headings too, and Open what needs attention opens the headings on the way to what needs you. Each project keeps
 its boxes and headings as you leave them, across restarts. Nothing opens or folds by itself: a folded box that starts
@@ -95,7 +95,11 @@ The two tabs over the page, **Rounds and work | Objectives only** (the arrow key
 how the boxes are laid out.
 Each project keeps its own choice, across restarts.
 
-- **Rounds and work** shows the pieces of work as they hand work on, time running down the page, with the links below.
+- **Rounds and work** shows each round, and in it the pieces of work under a heading for each state, named as the counts
+  name them: **✓ done**, **● busy**, **◆ waiting on you**, **◐ not yet checked**, **⚠ stuck** and **– to do**, then any
+  answered, handed on, kept elsewhere or not in project.md. Done starts folded, naming what it holds; the rest start
+  open. A piece another handed work to sits under its own state, not beneath the piece that handed it on; its Properties
+  say who handed it work and what it handed on.
 - **Objectives only** shows every phase of the project's file as a heading, in file order, with its exit gate and how many
   of its objectives are done. Under each phase, every objective is a heading: its number and title, how many of its
   criteria are ticked (such as 0/6), and the counts of its pieces of work; one that nothing works on yet says
@@ -104,8 +108,8 @@ Each project keeps its own choice, across restarts.
   each of their boxes, and its Properties, offers **Add to project…**, which opens the board's window with this project
   chosen, and once added the box moves under its objective.
 
-Headings fold and open with their chevron, like a branch; a phase whose objectives are all done starts folded. No line
-is drawn between headings, so a box says what the lines would: **← handed on from …**, **→ handed on to …**, and,
+Headings fold and open with their chevron; a phase whose objectives are all done starts folded. No line is drawn
+between boxes, so a box says what lines would: **← handed on from …**, **→ handed on to …**, and,
 where the same workstream moved on to another objective, **┈ worked on after …** and **┈ then worked on …**.
 
 Click an objective heading to show it in Properties: its pieces of work, its criteria to tick with ☐ or ☑, and **Rename
@@ -114,10 +118,8 @@ end of that phase. Right-click a heading, or press Shift+F10 or the Menu key on 
 
 ## The links
 
-- A solid line with an arrow: one piece of work **hands work to** another, which sits indented under it. When it handed
-  work to several at once, a brace to the left of the line groups them all, from the first to the last, with how many ran
-  in parallel beside it; no line crosses it.
-- A dotted line with an arrow: the same workstream **then worked on** its next piece of work.
+- A piece's Properties list its links: the piece that handed it work, the pieces it handed work to, and the piece its
+  workstream then worked on.
 - **↩ reported back to …** on a box: that workstream reported back to the piece it came from. A report that was lost is
   shown in the Stuck colour.
 

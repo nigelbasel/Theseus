@@ -31,7 +31,7 @@ public class ProjectOverviewTests
         var overview = Bym();
 
         Assert.That(overview.Sentence, Does.StartWith("Round 2 of 2, GUI parity: one build is under way and "));
-        Assert.That(overview.Sentence, Does.Contain($"{Words(Asking(overview).Count)} things wait for you."));
+        Assert.That(overview.Sentence, Does.Contain($"{Words(overview.Waits.Count)} things wait for you."));
         Assert.That(overview.Sentence, Does.EndWith("Round 1 has one piece of work still open and five independent checks to run."), "E1 is not in project.md, so round 1 is not finished");
     }
 
@@ -40,12 +40,10 @@ public class ProjectOverviewTests
     {
         var overview = Bym();
 
-        Assert.That(Asking(overview), Has.Count.GreaterThan(1));
-        Assert.That(overview.Sentence, Does.Contain($"{Words(Asking(overview).Count)} things wait for you"),
+        Assert.That(overview.Waits, Has.Count.GreaterThan(1));
+        Assert.That(overview.Sentence, Does.Contain($"{Words(overview.Waits.Count)} things wait for you"),
             "the round's checks, run by Theseus, and lines saying what is under way ask nothing of him");
     }
-
-    private static IReadOnlyList<WaitItem> Asking(ProjectOverview overview) => overview.Waits;
 
     [Test]
     public void NoLineAsksYouToStartTheChecks_TheseusStartsThemItself()

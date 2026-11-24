@@ -22,7 +22,7 @@ public class ProjectsInUseDocsTests
     [TestCase("holdouts.md", "found by convention, in this order")]
     [TestCase("holdouts.md", "holdout-folders.json")]
     [TestCase("holdouts.md", "**Write scenarios…** beside it creates a card")]
-    [TestCase("project-view.md", "a brace to the left of the line groups them all")]
+    [TestCase("project-view.md", "under a heading for each state, named as the counts")]
     [TestCase("project-view.md", "A button that cannot act now is shown disabled")]
     [TestCase("cards.md", "is kept by Theseus, never in `project.md`. It covers the primary branch")]
     [TestCase("cards.md", "shows **project branch rules**")]
