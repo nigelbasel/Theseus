@@ -549,6 +549,12 @@ public sealed class ProjectViewModel : ObservableObject
             view.Select(view.Find(previous._selection));
 
             // The view is rebuilt whenever a session or a file changes, so the owner's filter stays on (review of PR 4, 1).
+            // A round's "Set out to meet" table stays as the owner left it across refreshes.
+            foreach (var round in view.Rounds)
+            {
+                round.IsMeetOpen = previous.Rounds.FirstOrDefault(old => old.Round.Number == round.Round.Number)?.IsMeetOpen ?? false;
+            }
+
             if (previous._filter.Count > 0)
             {
                 view._filter = [.. previous._filter];

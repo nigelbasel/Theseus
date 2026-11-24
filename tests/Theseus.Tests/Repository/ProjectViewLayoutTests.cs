@@ -225,6 +225,26 @@ public class ProjectViewLayoutTests
     }
 
     [Test]
+    public void SetOutToMeet_IsOneLineFolded_AndATableOpen_ThatARefreshKeepsOpen()
+    {
+        // Walkthrough row 37: "very busy, a freeform list that just flows"; an expandable table was asked for.
+        var view = _views.BuildYourMarket();
+        var round = view.Rounds.First(each => each.Objectives.Count > 1);
+
+        Assert.That(round.MeetSummary, Does.Match(@"^\d+ objectives · \d+ of \d+ criteria met$"));
+        Assert.That(round.IsMeetOpen, Is.False);
+
+        round.MeetToggleCommand.Execute(null);
+        var control = LaidOut(view);
+        var rows = AllNamed<Border>(control, "ObjectiveChip").Where(row => row.DataContext is RoundObjectiveViewModel chip && round.Objectives.Contains(chip)).ToList();
+        var lefts = rows.Select(row => Math.Round(row.TranslatePoint(new Point(0, 0), control).X)).Distinct();
+        var tops = rows.Select(row => Math.Round(row.TranslatePoint(new Point(0, 0), control).Y)).Distinct();
+
+        Assert.That((lefts.Count(), tops.Count()), Is.EqualTo((1, rows.Count)), "one row per objective, aligned");
+        Assert.That(_views.BuildYourMarket(previous: view).Rounds.First(each => each.Round.Number == round.Round.Number).IsMeetOpen, Is.True);
+    }
+
+    [Test]
     public void ThePhaseStrip_IsOneLine_HoweverManyPhases()
     {
         // Walkthrough row 17: the strip wrapped onto a second line at Phase 6.

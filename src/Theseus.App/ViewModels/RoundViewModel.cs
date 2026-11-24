@@ -16,6 +16,7 @@ public sealed class RoundViewModel : ObservableObject, IFoldable
         StageNodeState.NotInProject, StageNodeState.ToDo, StageNodeState.HandedOn, StageNodeState.Answered,
     ];
 
+    private bool _isMeetOpen;
     private bool _isOpen;
     private bool _isShown = true;
 
@@ -123,6 +124,34 @@ public sealed class RoundViewModel : ObservableObject, IFoldable
 
     /// <summary>Folds or opens it.</summary>
     public ICommand ToggleCommand { get; }
+
+    /// <summary>
+    /// "Set out to meet" folded to one line, "3 objectives · 11 of 13 criteria met", over the table of them: the free-flowing
+    /// list of links and bars was "very busy" (walkthrough row 37). Empty with no objectives.
+    /// </summary>
+    public string MeetSummary => Objectives.Count == 0
+        ? string.Empty
+        : $"{Objectives.Count} {(Objectives.Count == 1 ? "objective" : "objectives")} · "
+          + $"{Objectives.Sum(each => each.Objective.TickedCount)} of {Objectives.Sum(each => each.Objective.Criteria.Count)} criteria met";
+
+    /// <summary>Whether the table of objectives is shown; folded to <see cref="MeetSummary"/> at first.</summary>
+    public bool IsMeetOpen
+    {
+        get => _isMeetOpen;
+        set
+        {
+            if (Set(ref _isMeetOpen, value))
+            {
+                Raise(nameof(MeetChevron));
+            }
+        }
+    }
+
+    /// <summary>▸ folded, ▾ open.</summary>
+    public string MeetChevron => _isMeetOpen ? "▾" : "▸";
+
+    /// <summary>Folds or opens the table.</summary>
+    public ICommand MeetToggleCommand => new RelayCommand(_ => IsMeetOpen = !IsMeetOpen);
 
     private static string Day(DateOnly? date, bool withYear = false) =>
         date?.ToString(withYear ? "d MMM yyyy" : "d MMM", CultureInfo.InvariantCulture) ?? "?";
