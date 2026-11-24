@@ -45,4 +45,7 @@
         <GradientStop Color="#66ffffff" Offset="0.5" />
         <GradientStop Color="#00ffffff" Offset="1" />
     </LinearGradientBrush>
+    <!-- The new-release bar: the system accent, as Fluent's light accent fill, with white on it (Nigel, 2026-11-24). -->
+    <SolidColorBrush x:Key="UpdateOfferBrush" Color="{x:Static SystemColors.AccentColorDark1}" />
+    <SolidColorBrush x:Key="UpdateOfferTextBrush" Color="#ffffff" />
 </ResourceDictionary>
