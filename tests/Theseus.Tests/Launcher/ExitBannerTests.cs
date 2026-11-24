@@ -21,4 +21,12 @@ public class ExitBannerTests
         Assert.That(banner, Has.Some.Contains("137"));
         Assert.That(banner, Has.Some.Contains("s-1"));
     }
+
+    [Test]
+    public void Build_SaysHowLongTheTabIsHeld_SoItsLauncherEnds()
+    {
+        var banner = ExitBanner.Build(new ClaudeRunResult("s-1", 137, HoldTab: true));
+
+        Assert.That(banner, Has.Some.Contains("held open for 15 minutes").And.Some.Contains("Press Enter to close it now"));
+    }
 }

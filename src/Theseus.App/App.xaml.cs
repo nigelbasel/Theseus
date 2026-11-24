@@ -65,6 +65,9 @@ public partial class App : Application
             args.Handled = false;
         };
 
+        var launcherPath = LauncherPath;
+        LauncherClearUp.Run(Path.Combine(DataDirectory, "launcher"), launcherPath, DateTimeOffset.UtcNow);
+
         var settings = new SettingsStore(Path.Combine(DataDirectory, "settings.json"));
         var current = settings.Read();
 
@@ -93,7 +96,7 @@ public partial class App : Application
             runs,
             new SystemClock(),
             ShimProtocol.DefaultPipeName,
-            LauncherPath,
+            launcherPath,
             settings,
             sink.Expect);
 

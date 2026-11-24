@@ -17,6 +17,7 @@ public sealed class BoardWorkstreamControl : IWorkstreamControl
     private readonly BoardViewModel _board;
     private readonly Func<IReadOnlyList<Workstream>, string, string?> _start;
     private readonly Func<WorkstreamCardViewModel, string?> _stop;
+    private readonly Func<WorkstreamCardViewModel, string, string, string?> _handIn;
     private readonly CardEventLog _events;
     private readonly Action<string> _notice;
     private readonly Func<DateTimeOffset> _clock;
@@ -26,17 +27,19 @@ public sealed class BoardWorkstreamControl : IWorkstreamControl
     /// <param name="board">The board.</param>
     /// <param name="start">Starts workstreams, resuming their conversations; why nothing launched, or null once it did.</param>
     /// <param name="stop">Sends a card's session the stop request; why it could not, or null.</param>
+    /// <param name="handIn">Gives an open, idle session an instruction as its next turn, from the calling card; why it could not, or null.</param>
     /// <param name="events">Where each call is kept for the card's History.</param>
     /// <param name="notice">The status bar.</param>
     /// <param name="clock">The time now.</param>
     /// <param name="refresh">Draws the board again after a mark changes.</param>
     public BoardWorkstreamControl(BoardViewModel board, Func<IReadOnlyList<Workstream>, string, string?> start,
-        Func<WorkstreamCardViewModel, string?> stop, CardEventLog events, Action<string> notice, Func<DateTimeOffset> clock,
-        Action refresh)
+        Func<WorkstreamCardViewModel, string?> stop, Func<WorkstreamCardViewModel, string, string, string?> handIn,
+        CardEventLog events, Action<string> notice, Func<DateTimeOffset> clock, Action refresh)
     {
         _board = board;
         _start = start;
         _stop = stop;
+        _handIn = handIn;
         _events = events;
         _notice = notice;
         _clock = clock;
@@ -46,12 +49,18 @@ public sealed class BoardWorkstreamControl : IWorkstreamControl
     /// <inheritdoc />
     public string? Start(string key, string? instruction, string caller)
     {
-        if (Refusal(key, WorkstreamCall.Start, caller) is { } refusal)
+        if (Refusal(key, WorkstreamCall.Start, caller, instruction) is { } refusal)
         {
             return refusal;
         }
 
         var card = _board.Card(key)!;
+
+        if (card.IsLive)
+        {
+            return HandIn(card, instruction!, caller);
+        }
+
         var verb = string.IsNullOrWhiteSpace(card.Workstream.LastSessionId) ? "Started" : "Restarted";
 
         if (_start([card.Workstream with { StartInstruction = Instruction(instruction) }], "StartedBySession") is { } notStarted)
@@ -114,7 +123,7 @@ public sealed class BoardWorkstreamControl : IWorkstreamControl
     /// <inheritdoc />
     public string? Resume(string key, string? instruction, string caller)
     {
-        if (Refusal(key, WorkstreamCall.Resume, caller) is { } refusal)
+        if (Refusal(key, WorkstreamCall.Resume, caller, instruction) is { } refusal)
         {
             return refusal;
         }
@@ -123,6 +132,22 @@ public sealed class BoardWorkstreamControl : IWorkstreamControl
         var paused = card.Workstream;
         card.Workstream = paused with { IsPaused = false, PausedBy = null, PauseReason = null };
         _board.Persist(card);
+
+        if (card.IsLive)
+        {
+            if (HandIn(card, instruction!, caller) is { } notHanded)
+            {
+                card.Workstream = card.Workstream with { IsPaused = true, PausedBy = paused.PausedBy, PauseReason = paused.PauseReason };
+                _board.Persist(card);
+                _refresh();
+
+                return notHanded;
+            }
+
+            _refresh();
+
+            return null;
+        }
 
         if (_start([card.Workstream with { StartInstruction = Instruction(instruction) }], "ResumedBySession") is { } notStarted)
         {
@@ -140,7 +165,7 @@ public sealed class BoardWorkstreamControl : IWorkstreamControl
     }
 
     /// <summary>The card's state as the board has it now, against what the call needs; null when it may go ahead.</summary>
-    private string? Refusal(string key, WorkstreamCall call, string caller)
+    private string? Refusal(string key, WorkstreamCall call, string caller, string? instruction = null)
     {
         if (_board.Card(key) is not { } card)
         {
@@ -163,7 +188,8 @@ public sealed class BoardWorkstreamControl : IWorkstreamControl
         return call switch
         {
             _ when workstream.IsArchived => $"{card.Title} is archived.",
-            WorkstreamCall.Start or WorkstreamCall.Resume when card.IsLive => $"{card.Title} is running.",
+            WorkstreamCall.Start or WorkstreamCall.Resume
+                when LiveStart.Refusal(card.Title, card.IsLive, card.Lifecycle, instruction) is { } open => open,
             WorkstreamCall.Start or WorkstreamCall.Resume when workstream.IsBlocked => $"{card.Title} is blocked: the user marked it so.",
             WorkstreamCall.Start or WorkstreamCall.Resume or WorkstreamCall.Pause when workstream is { IsPaused: true, PausedBy: null }
                 => $"{card.Title} is paused by the user.",
@@ -174,6 +200,19 @@ public sealed class BoardWorkstreamControl : IWorkstreamControl
             WorkstreamCall.Stop when !card.IsLive => $"{card.Title} has no session to stop.",
             _ => null,
         };
+    }
+
+    // An open, idle session takes the instruction as its next turn, kept as a hand-in like a start's.
+    private string? HandIn(WorkstreamCardViewModel card, string instruction, string caller)
+    {
+        if (_handIn(card, instruction.Trim(), caller) is { } notHanded)
+        {
+            return notHanded;
+        }
+
+        Say(card, Said("Handed in", caller, instruction), caller, Instruction(instruction));
+
+        return null;
     }
 
     private static bool Same(string? one, string? other) => string.Equals(one, other, StringComparison.OrdinalIgnoreCase);

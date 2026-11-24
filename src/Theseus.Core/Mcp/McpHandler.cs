@@ -370,7 +370,7 @@ public sealed partial class McpHandler
                 "The cards you may start, stop, pause and resume, each with its state, why it is stopped, who made it and who paused it: in a project, every card of the project but your own; on the ordinary board, your descendants (cards made from proposals your card raised, and theirs in turn). Read-only.",
                 new JsonObject()),
             Tool("start_workstream",
-                "Start a card workstreams lists, resuming its conversation. An instruction, if given, is its opening prompt for this start only, such as \"more work: ...\". Refused if it is running, archived or blocked. In a project, a card the user paused is not started: your start waits for the user's Allow, and events() tells you their answer.",
+                "Start a card workstreams lists, resuming its conversation. An instruction, if given, is its opening prompt for this start only, such as \"more work: ...\". A card whose session is open and idle takes the instruction as its next turn instead. Refused if it is mid-turn, archived or blocked. In a project, a card the user paused is not started: your start waits for the user's Allow, and events() tells you their answer.",
                 new JsonObject
                 {
                     ["card"] = Property("The card's key or title, from workstreams."),
@@ -379,7 +379,7 @@ public sealed partial class McpHandler
                 },
                 "card"),
             Tool("stop_workstream",
-                "Ask the session of a card workstreams lists to write its handover and stop; it ends after its current turn.",
+                "Ask the session of a card workstreams lists to write its handover and stop: an idle one at once, a working one when its current turn ends. Its tab closes once the handover is written.",
                 new JsonObject { ["card"] = Property("The card's key or title, from workstreams.") },
                 "card"),
             Tool("pause_workstream",
@@ -391,7 +391,7 @@ public sealed partial class McpHandler
                 },
                 "card"),
             Tool("resume_workstream",
-                "Clear a session's pause on a card workstreams lists (in a project, any session's; otherwise yours) and start it, with an instruction for this start if given. In a project, the user's own pause is not cleared: the resume waits for their Allow, and events() tells you their answer.",
+                "Clear a session's pause on a card workstreams lists (in a project, any session's; otherwise yours) and start it, with an instruction for this start if given; a card whose session is open and idle takes the instruction as its next turn. In a project, the user's own pause is not cleared: the resume waits for their Allow, and events() tells you their answer.",
                 new JsonObject
                 {
                     ["card"] = Property("The card's key or title, from workstreams."),
@@ -673,15 +673,16 @@ public sealed partial class McpHandler
     }
 
     /// <summary>
-    /// The cards a session may act on (sessions-run-the-project items 8, 11): in a project, every card of it but the
-    /// caller's own, by membership alone; on the ordinary board, its descendants (1.1e AC 14). The project is null then.
+    /// The cards a session may act on: in a project, every card of it but the caller's own, by membership, with the
+    /// scenario writers that work for it; on the ordinary board, its descendants. The project is null then.
     /// </summary>
     private (string? Project, IReadOnlyList<BoardSnapshotCard> Cards) Controllable(McpSession session, BoardSnapshot board)
     {
         if (board.Card(session.WorkstreamKey)?.Workstream.Project is { } project)
         {
             return (project, [.. board.Cards.Where(card =>
-                string.Equals(card.Workstream.Project, project, StringComparison.OrdinalIgnoreCase)
+                (string.Equals(card.Workstream.Project, project, StringComparison.OrdinalIgnoreCase)
+                 || string.Equals(card.ProjectOfRole, project, StringComparison.OrdinalIgnoreCase))
                 && !string.Equals(card.Key, session.WorkstreamKey, StringComparison.OrdinalIgnoreCase))]);
         }
 
@@ -770,7 +771,8 @@ public sealed partial class McpHandler
         var refusal = call switch
         {
             WorkstreamCall.Start or WorkstreamCall.Resume when card.Workstream.IsArchived => $"{card.Title} is archived.",
-            WorkstreamCall.Start or WorkstreamCall.Resume when card.IsLive => $"{card.Title} is running.",
+            WorkstreamCall.Start or WorkstreamCall.Resume
+                when LiveStart.Refusal(card.Title, card.IsLive, card.Lifecycle, instruction) is { } open => open,
             WorkstreamCall.Start or WorkstreamCall.Resume when card.Workstream.IsBlocked => $"{card.Title} is blocked: the user marked it so.",
             WorkstreamCall.Start or WorkstreamCall.Resume or WorkstreamCall.Pause when card.Workstream is { IsPaused: true, PausedBy: null }
                 => $"{card.Title} is paused by the user.",

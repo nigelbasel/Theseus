@@ -32,7 +32,19 @@ public sealed class SessionTells
         ArgumentException.ThrowIfNullOrWhiteSpace(text);
         _log.Add(new OwnerEvent(cardKey, text, now));
 
-        if (!isRunning || string.IsNullOrWhiteSpace(sessionId) || StopRequestPath.For(_waiting.Root, sessionId) is null)
+        return isRunning && Queue(cardKey, cardTitle, sessionId, text, now);
+    }
+
+    /// <summary>
+    /// Queues it for the session's next turn, joined to anything still waiting, without logging it as the owner's: work a
+    /// session hands to another card is that session's. Whether it was queued.
+    /// </summary>
+    public bool Queue(string cardKey, string cardTitle, string? sessionId, string text, DateTimeOffset now)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(cardKey);
+        ArgumentException.ThrowIfNullOrWhiteSpace(text);
+
+        if (string.IsNullOrWhiteSpace(sessionId) || StopRequestPath.For(_waiting.Root, sessionId) is null)
         {
             return false;
         }
