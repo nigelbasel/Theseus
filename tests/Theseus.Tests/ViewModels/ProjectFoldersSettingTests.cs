@@ -28,6 +28,7 @@ public class ProjectFoldersSettingTests
 
         Assert.That((read.ProjectsFolder, read.WorktreesFolder), Is.EqualTo((string.Empty, string.Empty)));
         Assert.That((TheseusSettings.Default.ProjectsFolder, TheseusSettings.Default.WorktreesFolder), Is.EqualTo((string.Empty, string.Empty)));
+        Assert.That(TheseusSettings.Default.ClonesFolder, Is.Empty, "no machine path is built in");
     }
 
     [Test]

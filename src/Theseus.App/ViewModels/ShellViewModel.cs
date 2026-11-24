@@ -3439,7 +3439,8 @@ public sealed partial class ShellViewModel : ObservableObject
         var skipped = chosen.Count - quiet.Count;
         var done = restoring ? $"Restored {quiet.Count}." : $"Archived {quiet.Count}.";
 
-        Notice = (skipped == 0 ? done : $"{done} Left {skipped} alone because a session is running.") + ProjectsSkipped();
+        Notice = (skipped == 0 ? done : $"{done} Left {skipped} alone because a session is running.") + ProjectsSkipped()
+                 + (restoring ? string.Empty : OfferWorktreeRemoval(quiet));
     }
 
     /// <summary>
@@ -4370,6 +4371,7 @@ public sealed partial class ShellViewModel : ObservableObject
 
         Notice = archived
             ? $"Archived {title}. It is under Archived until you restore it."
+              + (card.IsLive ? string.Empty : OfferWorktreeRemoval([card]))
             : $"Restored {title}.";
     }
 
@@ -4774,10 +4776,14 @@ public sealed partial class ShellViewModel : ObservableObject
         var startedKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var startedFolders = new List<string>();
         var refusals = new List<string>();
+        var worktreeNotes = new List<string>();
 
         foreach (var candidate in workstreams)
         {
-            var workstream = AimedWriter(Board.Pin(candidate));
+            if (WithWorktrees(AimedWriter(Board.Pin(candidate)), refusals, worktreeNotes) is not { } workstream)
+            {
+                continue;
+            }
 
             // What the owner's board actions told its last session, still waiting, is given with this start instead, so it
             // is neither lost nor told twice (review of PR 6, finding 3).
@@ -4848,7 +4854,8 @@ public sealed partial class ShellViewModel : ObservableObject
         var oldTabs = withOldTabs.Where(workstream => startedKeys.Contains(workstream.Key)).Select(workstream => workstream.Title).ToList();
         Notice = string.Join(" ", new[]
         {
-            StartNotice.For(started, refusals), StartNotice.OldTabLine(oldTabs), StartNotice.TrustLine(untrusted),
+            StartNotice.For(started, refusals), worktreeNotes.Count == 0 ? null : string.Join(" ", worktreeNotes),
+            StartNotice.OldTabLine(oldTabs), StartNotice.TrustLine(untrusted),
         }.OfType<string>());
 
         Refresh();

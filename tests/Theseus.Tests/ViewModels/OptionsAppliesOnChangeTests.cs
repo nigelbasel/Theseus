@@ -21,6 +21,7 @@ public class OptionsAppliesOnChangeTests
         yield return Row("holdout remote", panel => panel.HoldoutRemote = " host/owner/repo ", settings => settings.HoldoutRemote, "host/owner/repo");
         yield return Row("projects folder", panel => panel.ProjectsFolder = @"  C:\projects  ", settings => settings.ProjectsFolder, @"C:\projects");
         yield return Row("worktrees folder", panel => panel.WorktreesFolder = @"C:\work ", settings => settings.WorktreesFolder, @"C:\work");
+        yield return Row("clones folder", panel => panel.ClonesFolder = @"C:\src ", settings => settings.ClonesFolder, @"C:\src");
         yield return Row("pre-releases", panel => panel.IncludePreReleases = true, settings => settings.IncludePreReleases, true);
         yield return Row("standing prompt", panel => panel.SessionPreamble = "Be brief.", settings => settings.SessionPreamble, "Be brief.");
         yield return Row("continue prompt", panel => panel.ContinuePrompt = "Carry on.", settings => settings.ContinuePrompt, "Carry on.");

@@ -1,10 +1,10 @@
 # How your work is laid out
 
-Theseus keeps three kinds of thing apart, each in a place of its own. You choose the two folders in **Tools >
-Options**; Theseus suggests `Documents\Theseus\projects` and `Documents\Theseus\work` but sets neither for you.
+Theseus keeps three kinds of thing apart, each in a place of its own. You choose the folders in **Tools >
+Options**; Theseus suggests `Documents\Theseus\projects` and `Documents\Theseus\work` but sets none for you.
 
-Theseus reads the projects folder. It does not make worktrees yet: the worktrees folder records where yours go, and
-the layout below is the one to follow when you make them.
+Theseus reads the projects folder. With the worktrees folder and the clones folder both chosen, it also makes each
+workstream's worktrees when its card starts: see [Worktrees made at the start](#worktrees-made-at-the-start).
 
 ```
 <projects folder>\
@@ -13,7 +13,8 @@ the layout below is the one to follow when you make them.
         └── work\<slug>\             one folder per workstream: research, spec, plan, implementation,
                                      evidence, review, lessons
 
-<your source clones>\<repo>\         wherever you keep them; Theseus never moves them
+<clones folder>\<host>\<owner>\<repo>\  your source clones, placed by their remote; Theseus never moves
+                                     or makes them
 
 <worktrees folder>\<slug>\<repo>\    one worktree per workstream per repo, on branch <you>/<slug>,
                                      made off the project's primary branch
@@ -44,6 +45,7 @@ A developer keeps everything on a `D:` drive:
 |---|---|
 | Projects folder | `D:\projects` |
 | Worktrees folder | `D:\work` |
+| Clones folder | `D:\src` |
 | Source clones | `D:\src\github\acme\shop-api`, `D:\src\github\acme\shop-web` |
 
 Their project `checkout-redesign` changes both repos. Its primary branch is `dana/checkout-redesign`, and one of its
@@ -55,6 +57,37 @@ D:\projects\checkout-redesign\work\payment-step\spec.md
 D:\work\payment-step\shop-api\        worktree on dana/payment-step
 D:\work\payment-step\shop-web\        worktree on dana/payment-step
 ```
+
+## Worktrees made at the start
+
+When a card in a project starts, Theseus reads its row in `project.md`. If the row's Branch is a branch of its own (not
+`none`, and not a trunk such as `main`), Theseus gets a worktree ready for each repo in the row's Repos before the
+session opens:
+
+- **The clone is found by the layout rule.** `github/acme/shop-api` is `<clones folder>\github\acme\shop-api`. A short
+  name such as `shop-api` is found through the project's Repos table, or by searching the clones folder for the one
+  clone with that name or remote. If there is no clone, or more than one, the card does not start and the status bar
+  says why. **Theseus never clones.**
+- **The worktree is `<worktrees folder>\<slug>\<repo>`, on the row's Branch.** A branch you already have is used as it
+  is. One that is only on the remote is checked out tracking it. A new one is made off the project's primary branch
+  where the repo has it, and otherwise off the repo's default branch. Theseus does not fetch, push or change any branch.
+- **One already there is used.** A worktree at that place on the right branch is taken as it is. One on another
+  branch, a folder in the way, or the branch checked out somewhere else stops the start, saying which.
+- **Every repo is checked before anything is made**, so a refused start leaves nothing half made.
+- **Worked in place.** A repo whose Role in the Repos table says "worked in place" gets no worktree. Its clone is
+  given to the session as it is, and the status bar says if it is on another branch.
+- An entry that names the project's home (a Repos row whose Role begins with "home") is left alone. So is prose such
+  as "read-only", and anything in parentheses.
+
+The folders are added to the card's extra directories. The status bar says how many were made and how many were
+already there, and the session is told each folder and its branch when it opens.
+
+### When the card is archived
+
+Archiving a card whose slug folder holds its worktrees asks, as a checklist, which to remove. Only clean worktrees on
+the card's branch are listed. One with uncommitted changes or untracked files is named and kept, and so is one another
+card still uses. Removing a worktree never deletes its branch: every commit stays. Cancel removes nothing; the card is
+archived either way.
 
 ## Starting a project
 

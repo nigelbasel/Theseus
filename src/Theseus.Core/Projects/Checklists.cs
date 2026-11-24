@@ -34,6 +34,36 @@ public static class Checklists
             });
     }
 
+    /// <summary>
+    /// Remove worktrees… on archive (worktree-per-repo AC 14, 15): one row per clean worktree, each ticked to begin with. A
+    /// worktree with changes is no row, since it is never removed, and the intro names it as kept.
+    /// </summary>
+    /// <param name="clean">The worktrees that may be removed; each row's key is its folder.</param>
+    /// <param name="kept">The worktrees kept for their changes.</param>
+    public static Checklist RemoveWorktrees(IReadOnlyList<Theseus.Core.Worktrees.RemovableWorktree> clean,
+        IReadOnlyList<Theseus.Core.Worktrees.RemovableWorktree> kept)
+    {
+        ArgumentNullException.ThrowIfNull(clean);
+        ArgumentNullException.ThrowIfNull(kept);
+
+        return new Checklist("Remove worktrees",
+            "The card is archived. Each worktree ticked is removed from its clone; its branch and every commit on it are kept, "
+            + "and nothing with uncommitted changes is touched."
+            + (kept.Count == 0 ? string.Empty : $" Kept for their uncommitted changes: {Folders(kept)}."),
+            "Remove",
+            [.. clean.Select(worktree => new ChecklistRow(worktree.Folder, worktree.Repo, $"{worktree.Folder} · on {worktree.Branch} · clean"))],
+            ticked => ticked.Count switch
+            {
+                0 => "Nothing ticked",
+                1 => "Remove 1 worktree",
+                _ => $"Remove {ticked.Count} worktrees",
+            });
+    }
+
+    /// <summary>Worktrees' folders, for a sentence.</summary>
+    public static string Folders(IEnumerable<Theseus.Core.Worktrees.RemovableWorktree> worktrees) =>
+        string.Join(", ", worktrees.Select(worktree => worktree.Folder));
+
     private static string Sentence(string text) =>
         text.Length == 0 ? text : char.ToUpperInvariant(text[0]) + text[1..].TrimEnd('.') + ".";
 }
