@@ -460,7 +460,6 @@ public class HoldoutLocationTests
         Assert.That(settings.OpenProjectPropertiesCommand.CanExecute(settings.HoldoutRows[3]), Is.False, "no card to open (review, 7)");
 
         settings.OpenProjectPropertiesCommand.Execute(settings.HoldoutRows[2]);
-        settings.SaveCommand.Execute(null);
 
         Assert.That(opened, Is.EqualTo(new[] { "theseus" }));
         Assert.That(store.Read().ProjectHoldoutFolders, Is.EqualTo(new Dictionary<string, string> { ["bym"] = @"C:\mine" }),
