@@ -15,23 +15,29 @@
         <!-- Its own converters, so a test draws it without the application's resources. -->
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibility" />
         <converters:CountToVisibilityConverter x:Key="CountToVisibility" />
-        <converters:HexToBrushConverter x:Key="HexToBrush" />
+        <converters:HexToSwatchConverter x:Key="HexToSwatch" />
 
+        <!-- A page's column stops widening on a maximised window (W7, G139). -->
         <Style x:Key="Page" TargetType="StackPanel">
-            <Setter Property="Margin" Value="6,18,6,8" />
+            <Setter Property="Margin" Value="4,16,4,8" />
+            <Setter Property="MaxWidth" Value="1000" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
         </Style>
 
         <Style x:Key="PageNote" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="FontSize" Value="12" />
             <Setter Property="Margin" Value="0,0,0,20" />
+            <Setter Property="MaxWidth" Value="480" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
             <Setter Property="TextWrapping" Value="Wrap" />
             <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
         </Style>
 
-        <!-- Based on the theme's own button, or dark mode draws a light button. -->
+        <!-- Based on the theme's own button, or dark mode draws a light button. One height for every control in a row (W56). -->
         <Style x:Key="Action" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-            <Setter Property="Padding" Value="10,2" />
-            <Setter Property="MinWidth" Value="76" />
+            <Setter Property="Padding" Value="12,4" />
+            <Setter Property="MinHeight" Value="32" />
+            <Setter Property="MinWidth" Value="80" />
         </Style>
     </Window.Resources>
 
@@ -39,47 +45,52 @@
         Machine-wide settings only (options-made-clear item 1): a project's own lead, branch rules and holdout folder are in
         its Project properties. One tab per section, so every section is seen at once (item 5), and each setting is one
         line of its name, its value as text, and what it does now, changed through a picker or a small dialog (item 6).
+        Access keys go on a command whose label is unique on its tab; the repeated Change…, Edit… and Reset of a tab's
+        rows get none, since one key shared by several buttons only moves focus between them (W26).
     -->
-    <DockPanel>
-        <!-- Every row applies as it changes, so the footer is a single Close (W6, G138). It sits outside the tabs, so it is always reachable. -->
-        <Border DockPanel.Dock="Bottom" Padding="22,14"
-                Background="{DynamicResource LayerFillColorDefaultBrush}"
-                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
-                BorderThickness="0,1,0,0">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Content="Close" Style="{DynamicResource DialogButton}" IsCancel="True"
-                        Command="{Binding CloseCommand}" />
-            </StackPanel>
-        </Border>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
 
         <TabControl x:Name="Tabs" Margin="16,12,16,0">
             <TabItem Header="General">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Style="{StaticResource Page}">
-                        <controls:SettingRow Label="Theme" Value="{Binding Theme}"
+                        <controls:SettingRow Label="Theme" Value="{Binding ThemeValue}"
                                              Explanation="Applied as soon as it is chosen.">
-                            <ComboBox ItemsSource="{Binding Themes}" SelectedItem="{Binding Theme, Mode=TwoWay}" Width="120"
+                            <ComboBox x:Name="ThemeBox" ItemsSource="{Binding ThemeChoices}" DisplayMemberPath="Label" SelectedValuePath="Theme"
+                                      SelectedValue="{Binding Theme, Mode=TwoWay}" Width="180"
                                       AutomationProperties.Name="Theme" />
                         </controls:SettingRow>
 
                         <controls:SettingRow Label="Jira" Value="{Binding JiraValue}" Explanation="{Binding JiraExplanation}">
-                            <Button Content="Change…" Style="{StaticResource Action}" Click="OnChangeJira"
+                            <Button x:Name="JiraChange" Content="_Change…" Style="{StaticResource Action}" Click="OnChangeJira"
                                     AutomationProperties.Name="Change the Jira address" />
                         </controls:SettingRow>
 
-                        <controls:SettingRow Label="When a workstream has run before" Value="{Binding StartModeValue}"
+                        <controls:SettingRow Label="Start mode" Value="{Binding StartModeValue}"
                                              Explanation="{Binding StartModeExplanation}">
-                            <StackPanel>
-                                <RadioButton GroupName="StartMode" Content="Resume" IsChecked="{Binding ResumeByDefault, Mode=TwoWay}"
+                            <!--
+                                One Tab stop, the choice in force, arrows inside that do not wrap, and the focused choice is the one
+                                taken (W42, G67, G72, G133). TabNavigation Once would land Tab on the first radio and so change the setting.
+                            -->
+                            <StackPanel KeyboardNavigation.DirectionalNavigation="Contained">
+                                <RadioButton x:Name="ResumeChoice" GroupName="StartMode" Content="_Resume" IsChecked="{Binding ResumeByDefault, Mode=TwoWay}"
+                                             IsTabStop="{Binding IsChecked, RelativeSource={RelativeSource Self}}"
+                                             controls:SelectorBar.SelectsOnFocus="True"
                                              AutomationProperties.Name="Resume its last conversation" />
-                                <RadioButton GroupName="StartMode" Content="Start fresh" Margin="0,4,0,0" IsChecked="{Binding FreshByDefault, Mode=TwoWay}"
+                                <RadioButton x:Name="FreshChoice" GroupName="StartMode" Content="_Start fresh" Margin="0,4,0,0" IsChecked="{Binding FreshByDefault, Mode=TwoWay}"
+                                             IsTabStop="{Binding IsChecked, RelativeSource={RelativeSource Self}}"
+                                             controls:SelectorBar.SelectsOnFocus="True"
                                              AutomationProperties.Name="Start fresh from its handoff" />
                             </StackPanel>
                         </controls:SettingRow>
 
                         <controls:SettingRow Label="Updates" Value="{Binding UpdatesValue}"
                                              Explanation="Pre-releases are built from a project's primary branch before it is merged into main, so its work can be tried live first.">
-                            <ToggleButton Content="Pre-releases" Style="{DynamicResource ToggleSwitch}" IsChecked="{Binding IncludePreReleases, Mode=TwoWay}"
+                            <ToggleButton x:Name="PreReleases" Content="_Pre-releases" Style="{DynamicResource ToggleSwitch}" IsChecked="{Binding IncludePreReleases, Mode=TwoWay}"
                                           AutomationProperties.Name="Include pre-releases in Check for updates" />
                         </controls:SettingRow>
                     </StackPanel>
@@ -106,23 +117,24 @@
             <TabItem Header="Folders">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Style="{StaticResource Page}">
-                        <!-- Shown until a projects folder is saved: how Theseus lays out your work (1.1b AC 11). -->
-                        <Border Margin="0,0,0,20" Padding="12" CornerRadius="4" BorderThickness="1"
+                        <!-- Shown until a projects folder is set: how Theseus lays out your work (1.1b AC 11). -->
+                        <Border Margin="0,0,0,20" Padding="16" CornerRadius="4" BorderThickness="1"
                                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                                 Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
                                 Visibility="{Binding ShowsProjectsIntro, Converter={StaticResource BoolToVisibility}}">
                             <StackPanel>
-                                <TextBlock FontWeight="SemiBold" Text="How Theseus lays out your work" />
-                                <TextBlock Margin="0,6,0,0" TextWrapping="Wrap"
+                                <TextBlock Style="{DynamicResource BodyStrongText}" Text="How Theseus lays out your work" />
+                                <TextBlock Margin="0,8,0,0" TextWrapping="Wrap" MaxWidth="480" HorizontalAlignment="Left"
                                            Text="A project home says what the work is and where it has got to; your source clones are the code as it is upstream; worktrees are the code each workstream is changing. Records never go in a code repo." />
-                                <TextBlock Margin="0,8,0,0" TextWrapping="Wrap"
+                                <TextBlock Margin="0,8,0,0" TextWrapping="Wrap" MaxWidth="480" HorizontalAlignment="Left"
                                            Text="Nothing is set for you. Documents\Theseus\projects and Documents\Theseus\work are a good start." />
-                                <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                                    <Button Content="Choose _projects folder…" Click="OnChooseProjectsFolder" />
-                                    <Button Content="Choose _worktrees folder…" Margin="8,0,0,0" Click="OnChooseWorktreesFolder" />
+                                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                    <Button Content="Choose projects folder…" Style="{StaticResource Action}" Click="OnChooseProjectsFolder" />
+                                    <Button Content="Choose worktrees folder…" Style="{StaticResource Action}" Margin="8,0,0,0" Click="OnChooseWorktreesFolder" />
                                 </StackPanel>
                                 <TextBlock Margin="0,8,0,0">
-                                    <Hyperlink NavigateUri="https://nigelbasel.github.io/Theseus/project-layout.html" RequestNavigate="OnLink">How your work is laid out</Hyperlink>
+                                    <Hyperlink NavigateUri="https://nigelbasel.github.io/Theseus/project-layout.html" RequestNavigate="OnLink"
+                                               ToolTip="https://nigelbasel.github.io/Theseus/project-layout.html">How your work is laid out</Hyperlink>
                                 </TextBlock>
                             </StackPanel>
                         </Border>
@@ -135,12 +147,12 @@
 
                         <!-- Folders said not to be projects, from a project card's menu (1.1e AC 20). -->
                         <StackPanel Margin="0,0,0,20" Visibility="{Binding HiddenProjectFolders.Count, Converter={StaticResource CountToVisibility}}">
-                            <TextBlock Text="Folders that are not projects" FontWeight="SemiBold" />
-                            <ItemsControl x:Name="HiddenProjectFolders" ItemsSource="{Binding HiddenProjectFolders}" Margin="0,4,0,0">
+                            <TextBlock Text="Folders that are not projects" Style="{DynamicResource BodyStrongText}" />
+                            <ItemsControl x:Name="HiddenProjectFolders" ItemsSource="{Binding HiddenProjectFolders}" Margin="0,4,0,0" Focusable="False">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <DockPanel Margin="0,0,0,4">
-                                            <Button DockPanel.Dock="Right" Content="Show again" Padding="10,2"
+                                            <Button DockPanel.Dock="Right" Content="Show again" Style="{StaticResource Action}" Margin="8,0,0,0"
                                                     AutomationProperties.Name="{Binding StringFormat=Show {0} again}"
                                                     ToolTip="Show this folder's project card again"
                                                     Command="{Binding DataContext.ShowProjectFolderCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
@@ -162,16 +174,16 @@
                         <StackPanel x:Name="FolderTrustSection" DataContext="{Binding FolderTrust}">
                             <controls:SettingRow Label="Folder trust" Value="{Binding Line}"
                                                  Explanation="Claude Code asks to trust each folder a session starts in or adds, and its answer for an added folder lasts one session. Trusting a repository covers every worktree of it.">
-                                <Button Content="U_ndo" Style="{StaticResource Action}" Command="{Binding UndoCommand}"
+                                <Button Content="_Undo" Style="{StaticResource Action}" Command="{Binding UndoCommand}"
                                         AutomationProperties.Name="Undo folder trust" ToolTipService.ShowOnDisabled="True"
-                                        ToolTip="Take back the trust records Theseus set; offered only after Theseus has set some" />
+                                        ToolTip="Take back the trust records Theseus set. Offered only after Theseus has set some." />
                                 <Button Content="_Trust these…" Style="{StaticResource Action}" Command="{Binding TrustCommand}"
                                         AutomationProperties.Name="Trust these folders" ToolTipService.ShowOnDisabled="True"
-                                        ToolTip="Shows the exact change to Claude Code's configuration first, and makes it only if you agree" />
+                                        ToolTip="Shows the exact change to Claude Code's configuration first, and makes it only if you agree." />
                             </controls:SettingRow>
-                            <TextBlock x:Name="FolderTrustFolders" Text="{Binding Folders}" Style="{StaticResource PageNote}" Margin="0,-14,0,8"
+                            <TextBlock x:Name="FolderTrustFolders" Text="{Binding Folders}" Style="{StaticResource PageNote}" Margin="0,-12,0,8"
                                        Visibility="{Binding HasNeeds, Converter={StaticResource BoolToVisibility}}" />
-                            <TextBlock Text="{Binding Result}" Style="{StaticResource PageNote}" Margin="0,-6,0,8" />
+                            <TextBlock Text="{Binding Result}" Style="{StaticResource PageNote}" Margin="0,-8,0,8" />
                         </StackPanel>
                     </StackPanel>
                 </ScrollViewer>
@@ -185,16 +197,17 @@
                             <controls:SettingRow x:Name="HoldoutGuardRow" Label="Holdout guard" Value="{Binding Line}"
                                                  Explanation="Keeps implementing sessions out of every project's holdout folder. It runs from Claude Code's settings, so it covers every session on this machine.">
                                 <Button Content="_Undo" Style="{StaticResource Action}" Command="{Binding UndoCommand}"
-                                        ToolTipService.ShowOnDisabled="True"
-                                        ToolTip="Put back the holdout guard the last install replaced; offered only when an earlier copy is kept" />
-                                <Button Content="_Install" Style="{StaticResource Action}" Command="{Binding InstallCommand}"
+                                        AutomationProperties.Name="Undo the holdout guard install" ToolTipService.ShowOnDisabled="True"
+                                        ToolTip="Put back the holdout guard the last install replaced. Offered only when an earlier copy is kept." />
+                                <Button Content="I_nstall" Style="{StaticResource Action}" Command="{Binding InstallCommand}"
                                         AutomationProperties.Name="Install the holdout guard"
-                                        ToolTip="Copy this Theseus's holdout guard to where the Claude Code hook runs it, keeping the old copy, and check it on a fixture folder" />
+                                        ToolTip="Copy this Theseus's holdout guard to where the Claude Code hook runs it, keeping the old copy, and check it on a fixture folder." />
                             </controls:SettingRow>
-                            <TextBlock Text="{Binding GuardPath}" Style="{StaticResource PageNote}" Margin="0,-14,0,8" />
+                            <TextBlock Text="{Binding GuardPath}" Style="{StaticResource PageNote}" Margin="0,-12,0,8" />
                             <DockPanel Margin="0,0,0,12" Visibility="{Binding HookIsMissing, Converter={StaticResource BoolToVisibility}}">
-                                <Button DockPanel.Dock="Right" Content="Add the hook entry…" Padding="10,2" Command="{Binding AddHookCommand}"
-                                        ToolTip="Shows the exact change to Claude Code's settings first, and makes it only if you agree" />
+                                <Button DockPanel.Dock="Right" Content="_Add the hook entry…" Style="{StaticResource Action}" Margin="8,0,0,0"
+                                        Command="{Binding AddHookCommand}"
+                                        ToolTip="Shows the exact change to Claude Code's settings first, and makes it only if you agree." />
                                 <TextBlock VerticalAlignment="Center" TextWrapping="Wrap"
                                            Text="Claude Code's settings do not run the holdout guard, so no session is guarded." />
                             </DockPanel>
@@ -202,18 +215,18 @@
                         </StackPanel>
 
                         <!-- Each project's holdout folder, read-only: it is changed in that project's Project properties (options-made-clear item 1). -->
-                        <TextBlock Text="Each project's holdout folder" FontWeight="SemiBold" FontSize="13" Margin="0,4,0,4" />
-                        <TextBlock Style="{StaticResource PageNote}" Margin="0,0,0,14"
+                        <TextBlock Text="Each project's holdout folder" Style="{DynamicResource BodyStrongText}" Margin="0,4,0,4" />
+                        <TextBlock Style="{StaticResource PageNote}" Margin="0,0,0,16"
                                    Text="Found for each project on its own: the folder chosen in its Project properties; the holdout repository its project.md records; &lt;repo&gt;-holdout beside its repo; otherwise Theseus's own." />
                         <ItemsControl x:Name="HoldoutRows" ItemsSource="{Binding HoldoutRows}" Focusable="False">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <controls:SettingRow Label="{Binding Project}" Value="{Binding Value}" Explanation="{Binding Explanation}">
-                                        <Button Content="Project properties…" Padding="10,2"
+                                        <Button Content="Project properties" Style="{StaticResource Action}"
                                                 Command="{Binding DataContext.OpenProjectPropertiesCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                 CommandParameter="{Binding}" ToolTipService.ShowOnDisabled="True"
                                                 AutomationProperties.Name="{Binding Project, StringFormat=Project properties of {0}}"
-                                                ToolTip="Open this project's Project properties at its holdout folder" />
+                                                ToolTip="Close Options and open this project's Project properties at its holdout folder." />
                                     </controls:SettingRow>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
@@ -224,8 +237,8 @@
 
             <TabItem Header="Tags">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <!-- Tags (card-search-and-tags items 11, 13): each with its count and colour; renamed or deleted on every card, at once. -->
-                <StackPanel x:Name="TagsSection" Style="{StaticResource Page}" DataContext="{Binding Tags}">
+                    <!-- Tags (card-search-and-tags items 11, 13): each with its count and colour; renamed or deleted on every card, at once. -->
+                    <StackPanel x:Name="TagsSection" Style="{StaticResource Page}" DataContext="{Binding Tags}">
                         <TextBlock Style="{StaticResource PageNote}"
                                    Text="Your tags on cards, kept on this machine. Renaming or deleting one changes every card that has it, straight away." />
                         <TextBlock Style="{StaticResource PageNote}" Text="No card has a tag yet."
@@ -233,18 +246,18 @@
                         <ItemsControl ItemsSource="{Binding Rows}" Focusable="False">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Margin="0,6,0,0" Padding="8,6" CornerRadius="4"
+                                    <Border Margin="0,8,0,0" Padding="12,8" CornerRadius="4"
                                             BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1">
                                         <StackPanel>
                                             <DockPanel>
                                                 <TextBlock DockPanel.Dock="Right" Text="{Binding CountText}" VerticalAlignment="Center"
                                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                                                 <Ellipse Width="10" Height="10" Margin="0,0,8,0" VerticalAlignment="Center"
-                                                         Fill="{Binding ColourHex, Converter={StaticResource HexToBrush}}" />
-                                                <TextBlock Text="{Binding Label}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                         Fill="{Binding ColourHex, Converter={StaticResource HexToSwatch}}" />
+                                                <TextBlock Text="{Binding Label}" Style="{DynamicResource BodyStrongText}" VerticalAlignment="Center" />
                                             </DockPanel>
-                                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                                                <TextBlock Text="Colour" VerticalAlignment="Center" Margin="0,0,8,0"
+                                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                                <TextBlock Text="Colour:" VerticalAlignment="Center" Margin="0,0,8,0"
                                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                                                 <ItemsControl ItemsSource="{Binding Swatches}" Focusable="False">
                                                     <ItemsControl.ItemsPanel>
@@ -255,15 +268,15 @@
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate>
                                                             <!-- Its own template, so hover does not paint over the colour; the current one is ringed (review T8). -->
-                                                            <Button Width="22" Height="18" Margin="0,0,4,0" Cursor="Hand"
+                                                            <Button Width="24" Height="20" Margin="0,0,4,0" Cursor="Hand"
                                                                     ToolTip="{Binding ToolTip}" AutomationProperties.Name="{Binding ToolTip}"
                                                                     Command="{Binding Command}">
                                                                 <Button.Template>
                                                                     <ControlTemplate TargetType="Button">
                                                                         <Grid x:Name="Face">
                                                                             <Border x:Name="Ring" CornerRadius="4" BorderThickness="2" BorderBrush="Transparent" />
-                                                                            <Border Margin="3" CornerRadius="2"
-                                                                                    Background="{Binding ColourHex, Converter={StaticResource HexToBrush}}" />
+                                                                            <Border Margin="4" CornerRadius="0"
+                                                                                    Background="{Binding ColourHex, Converter={StaticResource HexToSwatch}}" />
                                                                         </Grid>
                                                                         <ControlTemplate.Triggers>
                                                                             <DataTrigger Binding="{Binding IsCurrent}" Value="True">
@@ -290,18 +303,18 @@
                                                     </ItemsControl.ItemTemplate>
                                                 </ItemsControl>
                                             </StackPanel>
-                                            <DockPanel Margin="0,6,0,0">
-                                                <Button DockPanel.Dock="Right" Content="Delete…" Style="{DynamicResource CommandButton}" Padding="10,2" Margin="6,0,0,0"
-                                                        Command="{Binding DeleteCommand}" ToolTip="Take this tag off every card, after asking" />
-                                                <Button DockPanel.Dock="Right" Content="Rename" Style="{DynamicResource CommandButton}" Padding="10,2" Margin="6,0,0,0"
+                                            <DockPanel Margin="0,8,0,0">
+                                                <Button DockPanel.Dock="Right" Content="Delete…" Style="{DynamicResource CommandButton}" Margin="8,0,0,0"
+                                                        Command="{Binding DeleteCommand}" ToolTip="Take this tag off every card, after asking." />
+                                                <Button DockPanel.Dock="Right" Content="Rename" Style="{DynamicResource CommandButton}" Margin="8,0,0,0"
                                                         Command="{Binding RenameCommand}" ToolTip="{Binding RenameToolTip}" ToolTipService.ShowOnDisabled="True" />
                                                 <TextBox Text="{Binding NewName, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="New name" Width="200" HorizontalAlignment="Left"
                                                          ToolTip="The tag's new name: letters, digits and hyphens" />
                                             </DockPanel>
-                                            <DockPanel Margin="0,6,0,0" Visibility="{Binding IsConfirmingDelete, Converter={StaticResource BoolToVisibility}}">
-                                                <Button DockPanel.Dock="Right" Content="Keep it" Style="{DynamicResource CommandButton}" Padding="10,2" Margin="6,0,0,0"
-                                                        Command="{Binding CancelDeleteCommand}" ToolTip="Leave the tag where it is" />
-                                                <Button DockPanel.Dock="Right" Content="Delete" Style="{DynamicResource CommandButton}" Padding="10,2" Margin="6,0,0,0"
+                                            <DockPanel Margin="0,8,0,0" Visibility="{Binding IsConfirmingDelete, Converter={StaticResource BoolToVisibility}}">
+                                                <Button DockPanel.Dock="Right" Content="Keep" Style="{DynamicResource CommandButton}" Margin="8,0,0,0"
+                                                        Command="{Binding CancelDeleteCommand}" ToolTip="Leave the tag where it is." />
+                                                <Button DockPanel.Dock="Right" Content="Delete" Style="{DynamicResource CommandButton}" Margin="8,0,0,0"
                                                         Command="{Binding ConfirmDeleteCommand}" ToolTip="{Binding DeleteQuestion}" />
                                                 <TextBlock Text="{Binding DeleteQuestion}" TextWrapping="Wrap" VerticalAlignment="Center" />
                                             </DockPanel>
@@ -310,7 +323,7 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
-                </StackPanel>
+                    </StackPanel>
                 </ScrollViewer>
             </TabItem>
 
@@ -320,14 +333,14 @@
                         <TextBlock Style="{StaticResource PageNote}"
                                    Text="What sessions are told. {title}, {key}, {handoff} and {plan} are filled in." />
 
-                        <controls:SettingRow x:Name="IdentityRow" Label="Who the session is" Value="{Binding IdentityValue}"
-                                             Explanation="Opens every first run and fresh start; a resume opens with one line instead. A line naming {plan} is left out when a session has no plan file.">
-                            <Button Content="Built-in" Style="{StaticResource Action}" Command="{Binding ResetIdentityPromptCommand}"
-                                    AutomationProperties.Name="Use the built-in wording" ToolTip="Put the built-in wording back" />
+                        <controls:SettingRow x:Name="IdentityRow" Label="Identity prompt" Value="{Binding IdentityValue}"
+                                             Explanation="Who the session is. Opens every first run and fresh start; a resume opens with one line instead. A line naming {plan} is left out when a session has no plan file.">
+                            <Button Content="_Reset" Style="{StaticResource Action}" Command="{Binding ResetIdentityPromptCommand}"
+                                    AutomationProperties.Name="Use the built-in wording" ToolTip="Use the built-in wording." />
                             <Button Content="Edit…" Style="{StaticResource Action}" Click="OnEditIdentity"
-                                    AutomationProperties.Name="Edit who the session is" />
+                                    AutomationProperties.Name="Edit the identity prompt" />
                         </controls:SettingRow>
-                        <TextBlock Text="{Binding IdentityPromptState}" Style="{StaticResource PageNote}" Margin="0,-14,0,20" />
+                        <TextBlock Text="{Binding IdentityPromptState}" Style="{StaticResource PageNote}" Margin="0,-12,0,20" />
 
                         <controls:SettingRow Label="Standing prompt" Value="{Binding StandingValue}"
                                              Explanation="Put in front of every workstream's own opening prompt, so changing it changes every future session.">
@@ -335,16 +348,16 @@
                                     AutomationProperties.Name="Edit the standing prompt" />
                         </controls:SettingRow>
 
-                        <controls:SettingRow Label="Continuing a workstream" Value="{Binding ContinueValue}"
+                        <controls:SettingRow Label="Continue prompt" Value="{Binding ContinueValue}"
                                              Explanation="Replaces the workstream's own prompt on a fresh start once it has run before. Use {handoff} for its notes. A resume is not given it.">
                             <Button Content="Edit…" Style="{StaticResource Action}" Click="OnEditContinue"
-                                    AutomationProperties.Name="Edit the continuing prompt" />
+                                    AutomationProperties.Name="Edit the continue prompt" />
                         </controls:SettingRow>
 
-                        <controls:SettingRow Label="Stopping a session" Value="{Binding StopValue}"
+                        <controls:SettingRow Label="Stop prompt" Value="{Binding StopValue}"
                                              Explanation="Put on the clipboard when you press Stop, for you to paste into the session. Use {handoff} for the file it should write.">
                             <Button Content="Edit…" Style="{StaticResource Action}" Click="OnEditStop"
-                                    AutomationProperties.Name="Edit the stopping prompt" />
+                                    AutomationProperties.Name="Edit the stop prompt" />
                         </controls:SettingRow>
                     </StackPanel>
                 </ScrollViewer>
@@ -371,7 +384,7 @@
                         <controls:SettingRow Label="Windows Terminal" Value="{Binding TerminalValue}"
                                              Explanation="Found from whatever terminal is running, which is almost always right and the only way to be sure a named window can be joined.">
                             <Button Content="Reset" Style="{StaticResource Action}" Command="{Binding ResetTerminalCommand}"
-                                    AutomationProperties.Name="Find Windows Terminal automatically" ToolTip="Find it automatically again" />
+                                    AutomationProperties.Name="Find Windows Terminal automatically" ToolTip="Find it automatically again." />
                             <Button Content="Change…" Style="{StaticResource Action}" Click="OnChooseTerminal"
                                     AutomationProperties.Name="Choose Windows Terminal" />
                         </controls:SettingRow>
@@ -379,21 +392,41 @@
                         <controls:SettingRow Label="Claude Code" Value="{Binding ClaudeValue}"
                                              Explanation="Found in the usual place or on the path.">
                             <Button Content="Reset" Style="{StaticResource Action}" Command="{Binding ResetClaudeCommand}"
-                                    AutomationProperties.Name="Find Claude Code automatically" ToolTip="Find it automatically again" />
+                                    AutomationProperties.Name="Find Claude Code automatically" ToolTip="Find it automatically again." />
                             <Button Content="Change…" Style="{StaticResource Action}" Click="OnChooseClaude"
                                     AutomationProperties.Name="Choose Claude Code" />
                         </controls:SettingRow>
 
                         <controls:SettingRow Label="Holdout remote address" Value="{Binding HoldoutRemoteValue}"
                                              Explanation="The address of a private repository of holdout scenarios, such as host/owner/repo. The holdout guard also keeps implementing sessions away from it.">
-                            <Button Content="Reset" Style="{StaticResource Action}" Command="{Binding ResetHoldoutRemoteCommand}"
-                                    AutomationProperties.Name="Clear the holdout remote address" ToolTip="No address" />
+                            <Button Content="_Clear" Style="{StaticResource Action}" Command="{Binding ResetHoldoutRemoteCommand}"
+                                    AutomationProperties.Name="Clear the holdout remote address" ToolTip="Remove the address." />
                             <Button Content="Change…" Style="{StaticResource Action}" Click="OnChangeHoldoutRemote"
                                     AutomationProperties.Name="Change the holdout remote address" />
                         </controls:SettingRow>
+
+                        <!-- About, at the foot of the last tab rather than an eighth one (W7, W53, G143). -->
+                        <StackPanel x:Name="AboutSection" Margin="0,8,0,0">
+                            <TextBlock Text="About" Style="{DynamicResource BodyStrongText}" />
+                            <TextBlock Text="{Binding VersionDescribed, StringFormat=Theseus {0}}" Margin="0,4,0,0" TextWrapping="Wrap" />
+                            <TextBlock Margin="0,4,0,0">
+                                <Hyperlink Click="OnAbout" ToolTip="Close Options and open About Theseus.">About Theseus</Hyperlink>
+                            </TextBlock>
+                        </StackPanel>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
         </TabControl>
-    </DockPanel>
+
+        <!-- Every row applies as it changes, so the footer is a single Close (W6, G138). It sits outside the tabs, so it is always reachable. -->
+        <Border Grid.Row="1" Padding="24,16"
+                Background="{DynamicResource LayerFillColorDefaultBrush}"
+                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                BorderThickness="0,1,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="Close" Style="{DynamicResource DialogButton}" IsCancel="True"
+                        Command="{Binding CloseCommand}" />
+            </StackPanel>
+        </Border>
+    </Grid>
 </Window>
