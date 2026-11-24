@@ -81,13 +81,6 @@ public class CheckRefusalInPlainViewTests
     }
 
     [Test]
-    public void TheCardMenusVerify_NamesWhyItCannotRun_InItsOwnText()
-    {
-        Assert.That(HoldoutChecks.MenuText(NoScenarios), Is.EqualTo($"_Independent check… — {NoScenarios}"));
-        Assert.That(HoldoutChecks.MenuText(null), Is.EqualTo("_Independent check…"));
-    }
-
-    [Test]
     public void ACheckThatCannotRun_IsALineInWaitsForYou_WithItsWayOnAsTheButton_AndCounts()
     {
         // Review of P1, blocker 1: with Start the checks… gone, a build whose check could not start said nothing at all.

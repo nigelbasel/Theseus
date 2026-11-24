@@ -92,6 +92,64 @@ public partial class MainWindow : Window
 
     private BoardViewModel? Board => (DataContext as ShellViewModel)?.Board;
 
+    /// <summary>F6: the focus to the next pane (G71, B8).</summary>
+    public static readonly RoutedCommand NextPaneCommand = new(nameof(NextPaneCommand), typeof(MainWindow));
+
+    /// <summary>Shift+F6: the focus to the previous pane.</summary>
+    public static readonly RoutedCommand PreviousPaneCommand = new(nameof(PreviousPaneCommand), typeof(MainWindow));
+
+    /// <summary>Edit › Find cards: the focus to the search box. Its key, Ctrl+F, is handled in OnWindowPreviewKeyDown.</summary>
+    public static readonly RoutedCommand FindCardsCommand = new(nameof(FindCardsCommand), typeof(MainWindow));
+
+    // The panes in reading order: the top bar, the sessions panel, the board or the project, the locks and chains panels,
+    // and the drawer over them.
+    private FrameworkElement[] Panes => [SearchBar, SessionsPane, BoardSurface, ProjectPane, LocksPane, ChainsPane, DrawerPane];
+
+    private void OnNextPane(object sender, ExecutedRoutedEventArgs e) => MovePane(forward: true);
+
+    private void OnPreviousPane(object sender, ExecutedRoutedEventArgs e) => MovePane(forward: false);
+
+    private void OnFindCards(object sender, ExecutedRoutedEventArgs e) => FocusSearch();
+
+    private void MovePane(bool forward)
+    {
+        FrameworkElement[] panes = Panes;
+        int found = Array.FindIndex(panes, pane => ReferenceEquals(Keyboard.FocusedElement, pane)
+            || (Keyboard.FocusedElement is DependencyObject focused && pane.IsAncestorOf(focused)));
+
+        if (PaneCycle.Next([.. panes.Select(pane => pane.IsVisible)], found < 0 ? null : found, forward) is not { } next)
+        {
+            return;
+        }
+
+        FirstFocusable(panes[next])?.Focus();
+    }
+
+    /// <summary>The element itself when it takes the focus, or else its first shown descendant in tree order that does.</summary>
+    internal static UIElement? FirstFocusable(DependencyObject element)
+    {
+        if (element is UIElement { Visibility: not Visibility.Visible })
+        {
+            return null;
+        }
+
+        if (element is UIElement { Focusable: true, IsEnabled: true } candidate
+            && (candidate is not Control control || control.IsTabStop))
+        {
+            return candidate;
+        }
+
+        for (int index = 0; index < VisualTreeHelper.GetChildrenCount(element); index++)
+        {
+            if (FirstFocusable(VisualTreeHelper.GetChild(element, index)) is { } found)
+            {
+                return found;
+            }
+        }
+
+        return null;
+    }
+
     // Ctrl+F, or / anywhere but a text field, goes to the search box (card-search-and-tags item 1).
     private void OnWindowPreviewKeyDown(object sender, KeyEventArgs e)
     {
@@ -160,6 +218,59 @@ public partial class MainWindow : Window
     }
 
     private void OnSearchLostFocus(object sender, KeyboardFocusChangedEventArgs e) => Board?.Search.Remember();
+
+    // Esc in the Tags flyout closes it and gives the focus back to Tags, leaving the ticks as they were; the window's own
+    // Esc would clear the card selection instead (A18, G20).
+    private void OnTagsFlyoutKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Escape)
+        {
+            return;
+        }
+
+        TagsToggle.IsChecked = false;
+        TagsToggle.Focus();
+        e.Handled = true;
+    }
+
+    // Two buttons come from theme templates with no name, so a screen reader announced them as empty buttons (E9, G167):
+    // the toolbar's overflow button, held to the row's height of 32 (W56), and the search box's history drop-down.
+    private void OnToolBarLoaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is ToolBar toolBar && TemplatePart<System.Windows.Controls.Primitives.ToggleButton>(toolBar) is { } overflow)
+        {
+            System.Windows.Automation.AutomationProperties.SetName(overflow, "More tools");
+            overflow.MaxHeight = 32;
+        }
+
+        if (TemplatePart<System.Windows.Controls.Primitives.ToggleButton>(SearchBox) is { } history)
+        {
+            System.Windows.Automation.AutomationProperties.SetName(history, "Recent searches");
+        }
+    }
+
+    private static T? TemplatePart<T>(Control owner)
+        where T : FrameworkElement
+    {
+        owner.ApplyTemplate();
+
+        return Descendants(owner).OfType<T>().FirstOrDefault(part => ReferenceEquals(part.TemplatedParent, owner));
+
+        static IEnumerable<DependencyObject> Descendants(DependencyObject parent)
+        {
+            for (int index = 0; index < VisualTreeHelper.GetChildrenCount(parent); index++)
+            {
+                DependencyObject child = VisualTreeHelper.GetChild(parent, index);
+
+                yield return child;
+
+                foreach (DependencyObject inner in Descendants(child))
+                {
+                    yield return inner;
+                }
+            }
+        }
+    }
 
     // Tags › is built as its menu opens, by right-click, the ⋯ button or Shift+F10 alike, from what is selected then (review T2).
     private void OnCardMenuOpened(object sender, RoutedEventArgs e)

@@ -27,14 +27,15 @@ public class ProjectWindowMarkupTests
     }
 
     [Test]
-    public void TheViewMenu_HasBringProjectWindowForward_ShownWhileAProjectIsOpen()
+    public void TheWindowMenu_HasBringProjectWindowForward_DisabledWithItsReasonWhenItCannot()
     {
+        // A window command, so in Window beside Arrange windows (W32); disabled, not hidden, its tooltip saying why (W31).
         var item = Load("MainWindow.xaml").Descendants(Presentation + "MenuItem")
-            .Single(element => (string?)element.Attribute("Header") == "_View")
+            .Single(element => (string?)element.Attribute("Header") == "Win_dow")
             .Descendants(Presentation + "MenuItem")
             .Single(element => (string?)element.Attribute("Command") == "{Binding BringProjectWindowForwardCommand}");
 
-        Assert.That((string?)item.Attribute("Visibility"), Is.EqualTo("{Binding IsProjectOpen, Converter={StaticResource BoolToVisibility}}"));
+        Assert.That(item.Attribute("Visibility"), Is.Null);
         Assert.That((string?)item.Attribute("ToolTip"), Is.EqualTo("{Binding ProjectWindowTooltip}"));
         Assert.That((string?)item.Attribute(ShowOnDisabled), Is.EqualTo("True"));
     }

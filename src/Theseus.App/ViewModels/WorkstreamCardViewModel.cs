@@ -12,7 +12,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
     private Theseus.Core.Questions.PermissionPrompt? _prompt;
     private Theseus.Core.Projects.WhyStopped? _stopReason;
     private string _verifyToolTip = string.Empty;
-    private string _verifyMenuText = HoldoutChecks.VerifyMenuLabel;
+    private string? _verifyOffReason;
     private DateTimeOffset? _branchRulesSince;
     private DateTimeOffset? _lastExitedUtc;
     private DateTimeOffset? _lastStartedUtc;
@@ -81,8 +81,6 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
                 Raise(nameof(IsPaused));
                 Raise(nameof(FlagText));
                 Raise(nameof(PauseTooltip));
-                Raise(nameof(PauseMenuText));
-                Raise(nameof(BlockMenuText));
                 Raise(nameof(ArchiveTooltip));
                 Raise(nameof(ReopenTomorrow));
                 Raise(nameof(Column));
@@ -369,6 +367,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
                 Raise(nameof(PlayTooltip));
                 Raise(nameof(PauseTooltip));
                 Raise(nameof(IsLive));
+                Raise(nameof(ArchiveTooltip));
                 Raise(nameof(ShowStop));
                 Raise(nameof(IsWorking));
                 Raise(nameof(IsRunning));
@@ -785,16 +784,12 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
             ? "Paused. Click to clear the mark"
             : "Mark as paused: set aside on purpose, keeping its stage";
 
-    /// <summary>What the card's menu offers for pausing: an action, so it says what clicking does.</summary>
-    public string PauseMenuText => IsPaused ? "Un_pause" : "_Pause";
-
-    /// <summary>What the card's menu offers for blocking.</summary>
-    public string BlockMenuText => IsBlocked ? "Un_block" : "_Block";
-
-    /// <summary>The archive button's tooltip.</summary>
+    /// <summary>The archive button's tooltip, which says why while it is disabled (W13, C-m1).</summary>
     public string ArchiveTooltip => IsArchived
         ? "Restore this workstream to the board"
-        : "Archive: take this workstream off the board without losing anything";
+        : IsLive
+            ? "Archive: stop its session first. A workstream with a session running cannot be archived."
+            : "Archive: take this workstream off the board without losing anything";
 
     /// <summary>Pauses the card: stops a running session with a handoff and marks it paused.</summary>
     public RelayCommand? PauseCommand { get; set; }
@@ -819,13 +814,13 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
     }
 
     /// <summary>
-    /// Independent check…'s text on the card's menu: while it is off, the reason follows the label, since a disabled
-    /// menu item's tooltip alone is not plain view (Nigel, 2026-11-23).
+    /// Why Independent check… cannot run on this card, or null when it can: the dimmer second line of the card menu's item,
+    /// since a disabled menu item's tooltip alone is not plain view (Nigel, 2026-11-23; W30).
     /// </summary>
-    public string VerifyMenuText
+    public string? VerifyOffReason
     {
-        get => _verifyMenuText;
-        set => Set(ref _verifyMenuText, value);
+        get => _verifyOffReason;
+        set => Set(ref _verifyOffReason, value);
     }
 
     /// <summary>When its project was granted branch rules, while they apply, or null (1.1e AC 12b).</summary>
@@ -891,13 +886,14 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
         {
             if (Set(ref _handoffRenameTo, value))
             {
-                Raise(nameof(HandoffRenameMenuText));
+                Raise(nameof(HandoffRenameToolTip));
             }
         }
     }
 
-    /// <summary>What the menu item says.</summary>
-    public string HandoffRenameMenuText => $"Rename handover to {System.IO.Path.GetFileName(_handoffRenameTo)}";
+    /// <summary>The rename item's tooltip, naming the file; its label is fixed (W30, G62).</summary>
+    public string HandoffRenameToolTip =>
+        $"Rename this card's handover file to {System.IO.Path.GetFileName(_handoffRenameTo)}, to match its title. Only while its session is not running.";
 
     /// <summary>Renames the card's handover file to match its title (handoff-names AC 6).</summary>
     public RelayCommand? RenameHandoffCommand { get; set; }
