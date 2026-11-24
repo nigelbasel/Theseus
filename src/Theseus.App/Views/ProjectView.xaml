@@ -757,13 +757,22 @@
                 <StackPanel x:Name="RoundBody" Margin="10,10,0,0" Visibility="{Binding IsOpen, Converter={StaticResource Visible}}">
                     <!-- What the round set out to meet: one line folded, a table open (walkthrough row 37). -->
                     <StackPanel x:Name="SetOutToMeet" Margin="0,0,0,12" Visibility="{Binding MeetSummary, Converter={StaticResource NotEmpty}}">
-                        <Button x:Name="MeetToggle" Command="{Binding MeetToggleCommand}" Style="{StaticResource ChipButton}" HorizontalAlignment="Left"
-                                Margin="0,0,0,4" ToolTip="Show or fold the objectives this round set out to meet"
-                                AutomationProperties.Name="Set out to meet" AutomationProperties.HelpText="{Binding MeetSummary}">
+                        <ToggleButton x:Name="MeetToggle" IsChecked="{Binding IsMeetOpen}" HorizontalAlignment="Left" Margin="0,0,0,4"
+                                      Cursor="Hand" Padding="4,2" ToolTip="{Binding MeetToolTip}" AutomationProperties.Name="Set out to meet"
+                                      AutomationProperties.HelpText="{Binding MeetSummary}">
+                            <ToggleButton.Style>
+                                <Style TargetType="ToggleButton" BasedOn="{StaticResource ToolIconToggle}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasHighlightedObjective}" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource StateWaitingSoftBrush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ToggleButton.Style>
                             <TextBlock FontSize="13">
                                 <Run Text="{Binding MeetChevron, Mode=OneWay}" /> <Run Text="Set out to meet:" FontWeight="SemiBold" /> <Run Text="{Binding MeetSummary, Mode=OneWay}" />
                             </TextBlock>
-                        </Button>
+                        </ToggleButton>
                         <ItemsControl x:Name="RoundObjectives" ItemsSource="{Binding Objectives}" Focusable="False" Margin="16,0,0,0"
                                       Grid.IsSharedSizeScope="True" Visibility="{Binding IsMeetOpen, Converter={StaticResource Visible}}">
                             <ItemsControl.ItemTemplate>
@@ -1275,7 +1284,7 @@
                                             <StackPanel Margin="0,4,0,0">
                                                 <Button x:Name="RecordRow" Command="{Binding OpenCommand}" Template="{StaticResource LinkTemplate}"
                                                         Cursor="Hand" HorizontalAlignment="Left" AutomationProperties.Name="{Binding Text}"
-                                                        ToolTip="{Binding FileName}" Foreground="{DynamicResource LinkBrush}">
+                                                        ToolTip="{Binding FileToolTip}" Foreground="{DynamicResource LinkBrush}">
                                                     <TextBlock Text="{Binding Text}" FontSize="12.5" TextWrapping="Wrap" />
                                                 </Button>
                                                 <TextBlock FontSize="11.5" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}">
@@ -1340,7 +1349,7 @@
                                 <TextBlock Text="{Binding ObjectiveHeading}" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,6"
                                            Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                                 <ItemsControl x:Name="Criteria" ItemsSource="{Binding Criteria}" ItemTemplate="{StaticResource CriterionLine}" Focusable="False" />
-                            <Button x:Name="EditObjective" Content="Rename objective…" Command="{Binding EditObjectiveCommand}" HorizontalAlignment="Left"
+                            <Button x:Name="EditObjective" Content="_Rename objective…" Command="{Binding EditObjectiveCommand}" HorizontalAlignment="Left"
                                     Padding="9,3" Margin="0,4,0,0" FontSize="13" ToolTip="{x:Static vm:ObjectiveHeadingViewModel.EditObjectiveToolTip}"
                                     Visibility="{Binding CanEditObjective, Converter={StaticResource Visible}}" />
                         </StackPanel>

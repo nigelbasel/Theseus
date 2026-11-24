@@ -129,7 +129,7 @@ Click a box's name or status line to select the piece of work, or a stage to sel
 to a box's name or a stage and press Enter. The pane on the right shows its state in words, where its records are, its
 workstream, its links with their state, and what you can do. For a piece of work in an objective, the pane also lists
 the objective's criteria: click the ☐ or ☑ beside a criterion to tick or untick it in the project's file, and
-**Rename objective…** to change the objective's title. Its criteria are edited in project.md itself.
+**Rename objective…** to change the objective's title. Its criteria's wording is edited in project.md itself.
 
 Drag the splitter to resize the pane, or double-click it to put it back to its first width. The width is kept across
 restarts and for every project.

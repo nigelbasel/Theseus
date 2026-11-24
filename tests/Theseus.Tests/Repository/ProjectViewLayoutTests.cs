@@ -230,17 +230,27 @@ public class ProjectViewLayoutTests
         // Walkthrough row 37: "very busy, a freeform list that just flows"; an expandable table was asked for.
         var view = _views.BuildYourMarket();
         var round = view.Rounds.First(each => each.Objectives.Count > 1);
+        var folded = LaidOut(view);
 
         Assert.That(round.MeetSummary, Does.Match(@"^\d+ objectives · \d+ of \d+ criteria met$"));
-        Assert.That(round.IsMeetOpen, Is.False);
+        Assert.That(AllNamed<ItemsControl>(folded, "RoundObjectives").Where(table => table.DataContext == round).Single().IsVisible
+                    || AllNamed<ItemsControl>(folded, "RoundObjectives").Where(table => table.DataContext == round).Single().Visibility == Visibility.Visible,
+            Is.False, "folded at first");
 
-        round.MeetToggleCommand.Execute(null);
+        view.HighlightObjective(round.Objectives[0].Objective.Number);
+
+        Assert.That(round.HasHighlightedObjective, Is.True, "hovering a box still shows its objective, on the folded line (1.1f I45)");
+
+        round.IsMeetOpen = true;
         var control = LaidOut(view);
-        var rows = AllNamed<Border>(control, "ObjectiveChip").Where(row => row.DataContext is RoundObjectiveViewModel chip && round.Objectives.Contains(chip)).ToList();
-        var lefts = rows.Select(row => Math.Round(row.TranslatePoint(new Point(0, 0), control).X)).Distinct();
-        var tops = rows.Select(row => Math.Round(row.TranslatePoint(new Point(0, 0), control).Y)).Distinct();
+        var bars = AllNamed<Border>(control, "ObjectiveChip")
+            .Where(row => row.DataContext is RoundObjectiveViewModel chip && round.Objectives.Contains(chip))
+            .Select(row => Descendants<Grid>(row).First(grid => Grid.GetColumn(grid) == 1))
+            .ToList();
 
-        Assert.That((lefts.Count(), tops.Count()), Is.EqualTo((1, rows.Count)), "one row per objective, aligned");
+        Assert.That(bars, Has.Count.EqualTo(round.Objectives.Count));
+        Assert.That(bars.Select(bar => Math.Round(bar.TranslatePoint(new Point(0, 0), control).X)).Distinct().Count(), Is.EqualTo(1),
+            "the bars line up in one column, however long each title");
         Assert.That(_views.BuildYourMarket(previous: view).Rounds.First(each => each.Round.Number == round.Round.Number).IsMeetOpen, Is.True);
     }
 

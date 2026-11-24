@@ -115,6 +115,6 @@ public class ProjectViewGroupingMarkupTests
 
         Assert.That((string?)rows.Attribute("FontWeight"), Is.EqualTo("SemiBold"));
         Assert.That(record.Descendants(Presentation + "Run").Select(run => (string?)run.Attribute("Text")), Has.None.Contains("FileName"));
-        Assert.That((string?)Named(view, "RecordRow").Attribute("ToolTip"), Is.EqualTo("{Binding FileName}"));
+        Assert.That((string?)Named(view, "RecordRow").Attribute("ToolTip"), Is.EqualTo("{Binding FileToolTip}"));
     }
 }

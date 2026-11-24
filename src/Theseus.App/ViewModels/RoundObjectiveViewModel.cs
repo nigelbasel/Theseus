@@ -4,7 +4,7 @@ using Theseus.Core.Projects;
 namespace Theseus.App.ViewModels;
 
 /// <summary>
-/// One chip of a round's "Set out to meet:" line: an objective's number and title as a link, and a bar of its criteria
+/// One row of a round's "Set out to meet" table: an objective's number and title as a link, and a bar of its criteria
 /// ticked of total (1.1f C12).
 /// </summary>
 public sealed class RoundObjectiveViewModel : ObservableObject

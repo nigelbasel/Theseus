@@ -266,6 +266,11 @@ public sealed class ProjectViewModel : ObservableObject
         {
             chip.IsHighlighted = number is not null && chip.Objective.Number == number;
         }
+
+        foreach (var round in Rounds)
+        {
+            round.RaiseHighlight();
+        }
     }
 
     // Opens what hides a box: its round, the run of finished pieces it sits in, and the branches above it.
@@ -548,13 +553,13 @@ public sealed class ProjectViewModel : ObservableObject
         {
             view.Select(view.Find(previous._selection));
 
-            // The view is rebuilt whenever a session or a file changes, so the owner's filter stays on (review of PR 4, 1).
             // A round's "Set out to meet" table stays as the owner left it across refreshes.
             foreach (var round in view.Rounds)
             {
                 round.IsMeetOpen = previous.Rounds.FirstOrDefault(old => old.Round.Number == round.Round.Number)?.IsMeetOpen ?? false;
             }
 
+            // The view is rebuilt whenever a session or a file changes, so the owner's filter stays on (review of PR 4, 1).
             if (previous._filter.Count > 0)
             {
                 view._filter = [.. previous._filter];

@@ -15,7 +15,7 @@ public sealed class ObjectiveHeadingViewModel : ObservableObject, IFoldable
     public const string UnlistedTitle = "Not in project.md";
 
     /// <summary>Rename objective…'s tooltip, on the heading's menu and in Properties.</summary>
-    public const string EditObjectiveToolTip = "Rename objective: change its title in project.md. Its criteria are changed in project.md itself";
+    public const string EditObjectiveToolTip = "Rename objective: change its title in project.md. Its criteria's wording is changed in project.md itself";
 
     private bool _isOpen;
     private bool _isSelected;

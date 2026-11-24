@@ -85,7 +85,7 @@ public sealed class RoundViewModel : ObservableObject, IFoldable
     /// <summary>Whether a banner shows.</summary>
     public bool HasBanner => Banner is not null;
 
-    /// <summary>The objectives it set out to meet, as chips (C12).</summary>
+    /// <summary>The objectives it set out to meet, as the rows of its table (C12; walkthrough row 37).</summary>
     public IReadOnlyList<RoundObjectiveViewModel> Objectives { get; }
 
     /// <summary>Its top-level items: a box (with its tree under it) or a run of finished boxes folded to one line (D22).</summary>
@@ -143,6 +143,7 @@ public sealed class RoundViewModel : ObservableObject, IFoldable
             if (Set(ref _isMeetOpen, value))
             {
                 Raise(nameof(MeetChevron));
+                Raise(nameof(MeetToolTip));
             }
         }
     }
@@ -150,8 +151,16 @@ public sealed class RoundViewModel : ObservableObject, IFoldable
     /// <summary>▸ folded, ▾ open.</summary>
     public string MeetChevron => _isMeetOpen ? "▾" : "▸";
 
-    /// <summary>Folds or opens the table.</summary>
-    public ICommand MeetToggleCommand => new RelayCommand(_ => IsMeetOpen = !IsMeetOpen);
+    /// <summary>
+    /// Whether one of its objectives is highlighted, as hovering a box highlights the objective it serves (1.1f I45): shown
+    /// on the folded line too, since a folded table hides the row (review of 2e).
+    /// </summary>
+    public bool HasHighlightedObjective => Objectives.Any(objective => objective.IsHighlighted);
+
+    /// <summary>What the toggle does, as its state is now.</summary>
+    public string MeetToolTip => _isMeetOpen ? "Fold the objectives this round set out to meet" : "Show the objectives this round set out to meet";
+
+    internal void RaiseHighlight() => Raise(nameof(HasHighlightedObjective));
 
     private static string Day(DateOnly? date, bool withYear = false) =>
         date?.ToString(withYear ? "d MMM yyyy" : "d MMM", CultureInfo.InvariantCulture) ?? "?";
