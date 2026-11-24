@@ -43,6 +43,7 @@ public sealed class UpdateViewModel : ObservableObject
             _putAside = _offer?.Version;
             Offer = null;
             Status = string.Empty;
+            Severity = NoticeSeverity.Information;
         }, _ => _offer is not null && !_isBusy);
         CheckNowCommand = new RelayCommand(async _ => await CheckNowAsync(), _ => !_isBusy);
         CancelDownloadCommand = new RelayCommand(_ => _download?.Cancel(), _ => _download is { IsCancellationRequested: false });
@@ -95,6 +96,7 @@ public sealed class UpdateViewModel : ObservableObject
         {
             if (Set(ref _offer, value))
             {
+                Severity = NoticeSeverity.Information;
                 Raise(nameof(IsOffered));
                 Raise(nameof(OfferText));
             }
@@ -218,7 +220,6 @@ public sealed class UpdateViewModel : ObservableObject
         }
         catch (OperationCanceledException) when (download.IsCancellationRequested)
         {
-            EndDownload();
             TheseusLog.Information("The update to {Version} was cancelled", release.Version);
             Status = "The update was cancelled. Nothing was installed.";
             SetBusy(false);
@@ -226,11 +227,15 @@ public sealed class UpdateViewModel : ObservableObject
         catch (Exception exception) when (exception is InvalidDataException or HttpRequestException
                                               or TaskCanceledException or IOException or UnauthorizedAccessException)
         {
-            EndDownload();
             TheseusLog.Warning(exception, "The update to {Version} stopped", release.Version);
             Severity = NoticeSeverity.Error;
             Status = $"The update stopped: {exception.Message}";
             SetBusy(false);
+        }
+        finally
+        {
+            // Whatever ended it, Cancel must not reach a disposed source.
+            EndDownload();
         }
     }
 

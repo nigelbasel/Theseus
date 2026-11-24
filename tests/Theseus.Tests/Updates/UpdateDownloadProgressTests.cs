@@ -64,6 +64,12 @@ public class UpdateDownloadProgressTests
         await Until(() => updates.Status.StartsWith("The update stopped", StringComparison.Ordinal));
 
         Assert.That(updates.Severity, Is.EqualTo(NoticeSeverity.Error));
+        Assert.That(updates.IsDownloading, Is.False, "the download ended, so Cancel has nothing to reach");
+
+        updates.LaterCommand.Execute(null);
+        await updates.CheckNowAsync();
+
+        Assert.That(updates.Severity, Is.EqualTo(NoticeSeverity.Information), "a new offer is not the old failure");
     }
 
     private static async Task Until(Func<bool> condition)

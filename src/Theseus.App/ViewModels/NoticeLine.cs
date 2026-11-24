@@ -12,6 +12,9 @@ public sealed class NoticeLine
     /// <summary>How serious it is.</summary>
     public NoticeSeverity Severity { get; private set; }
 
+    /// <summary>The severity of more said after this notice: the notice's own, or Information when there is none.</summary>
+    public NoticeSeverity SeverityToExtend => string.IsNullOrWhiteSpace(Text) ? NoticeSeverity.Information : Severity;
+
     /// <summary>Says a notice of information.</summary>
     public void Say(string text) => Say(NoticeSeverity.Information, text);
 

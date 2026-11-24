@@ -352,7 +352,7 @@ public sealed partial class ShellViewModel : ObservableObject
 
                     if (joined is not null)
                     {
-                        Notice = string.IsNullOrWhiteSpace(Notice) ? joined : $"{Notice} {joined}";
+                        Extend(string.IsNullOrWhiteSpace(Notice) ? joined : $"{Notice} {joined}");
                     }
 
                     return;
@@ -739,7 +739,7 @@ public sealed partial class ShellViewModel : ObservableObject
         StartForSession,
         StopForSession,
         _cardEvents,
-        text => Notice = string.IsNullOrWhiteSpace(Notice) ? text : $"{Notice} {text}",
+        text => Extend(string.IsNullOrWhiteSpace(Notice) ? text : $"{Notice} {text}"),
         () => DateTimeOffset.UtcNow,
         Refresh);
 
@@ -754,6 +754,7 @@ public sealed partial class ShellViewModel : ObservableObject
         int Runs() => _runs.Read().Count(run => string.Equals(run.WorkstreamKey, key, StringComparison.OrdinalIgnoreCase));
         var before = Runs();
         var said = Notice;
+        NoticeSeverity saidSeverity = NoticeSeverity;
 
         Notice = string.Empty;
         StartMany(workstreams, startMode: StartMode.Resume, trigger: trigger);
@@ -764,7 +765,10 @@ public sealed partial class ShellViewModel : ObservableObject
         }
 
         var why = string.IsNullOrWhiteSpace(Notice) ? "Theseus could not start it just now" : Notice;
-        Notice = string.IsNullOrWhiteSpace(Notice) ? said : Notice;
+        if (string.IsNullOrWhiteSpace(Notice))
+        {
+            SetNotice(saidSeverity, said);
+        }
 
         return $"{workstreams[0].Title} did not start: {why}";
     }
@@ -808,7 +812,7 @@ public sealed partial class ShellViewModel : ObservableObject
         cards => BeginStop(StepsFor(cards)),
         text =>
         {
-            Notice = _projectStartSaid && !string.IsNullOrWhiteSpace(Notice) ? $"{Notice} {text}" : text;
+            Extend(_projectStartSaid && !string.IsNullOrWhiteSpace(Notice) ? $"{Notice} {text}" : text);
             _projectStartSaid = false;
         },
         Refresh);
@@ -882,7 +886,7 @@ public sealed partial class ShellViewModel : ObservableObject
     {
         if (ProjectsSkipped() is { Length: > 0 } skipped)
         {
-            Notice = string.IsNullOrWhiteSpace(Notice) ? skipped.Trim() : $"{Notice}{skipped}";
+            Extend(string.IsNullOrWhiteSpace(Notice) ? skipped.Trim() : $"{Notice}{skipped}");
         }
     }
 
@@ -992,9 +996,9 @@ public sealed partial class ShellViewModel : ObservableObject
 
         _settings.Write(settings with { ProjectColours = colours });
         WireProjectChoices();
-        Notice = string.IsNullOrWhiteSpace(Notice) || !properties.TitleChanged
+        Extend(string.IsNullOrWhiteSpace(Notice) || !properties.TitleChanged
             ? $"{properties.Title.Trim()} has a new colour."
-            : $"{Notice} It has a new colour.";
+            : $"{Notice} It has a new colour.");
     }
 
     private static string ProblemOf(ProjectFileReading reading) => ProjectUpdate.ProblemOf(reading);
@@ -1307,7 +1311,6 @@ public sealed partial class ShellViewModel : ObservableObject
     /// <summary>How serious the last notice is, which sets its glyph and colour in the status bar (baseline W46, C17).</summary>
     public NoticeSeverity NoticeSeverity => _notice.Severity;
 
-    /// <summary>Says a notice of the severity given: a warning for something refused or missing, an error for a failure.</summary>
     private void SetNotice(NoticeSeverity severity, string text)
     {
         string before = _notice.Text;
@@ -1328,6 +1331,9 @@ public sealed partial class ShellViewModel : ObservableObject
     }
 
     private void Fail(string text) => SetNotice(NoticeSeverity.Error, text);
+
+    // Text added to the notice keeps the notice's severity, so a warning stays one when more is said after it.
+    private void Extend(string text) => SetNotice(_notice.SeverityToExtend, text);
 
     /// <summary>Which theme is in force. Applied immediately and remembered for next time.</summary>
     public AppTheme Theme
@@ -1354,6 +1360,9 @@ public sealed partial class ShellViewModel : ObservableObject
 
     /// <summary>Shows a warning in the status bar: something refused or missing, or the environment Theseus runs in (W46).</summary>
     public void Warn(string warning) => SetNotice(NoticeSeverity.Warning, warning);
+
+    /// <summary>Shows news in the status bar, such as a report or a proposal arriving: information, not a warning.</summary>
+    public void Say(string news) => Notice = news;
 
     /// <summary>Applies the remembered theme at startup.</summary>
     public void ApplyTheme() => ThemeApplier.Apply(_theme);
@@ -3019,7 +3028,7 @@ public sealed partial class ShellViewModel : ObservableObject
         var accepted = $"Accepted the {(spec.IsRule ? "rule" : "spec")} of {spec.Slug}, version {spec.ShortVersion}.";
         Notice = accepted;
         var told = TellAccepted(card, spec);
-        Notice = string.Equals(Notice, accepted, StringComparison.Ordinal) ? $"{accepted} {told}" : $"{accepted} {told} {Notice}";
+        Extend(string.Equals(Notice, accepted, StringComparison.Ordinal) ? $"{accepted} {told}" : $"{accepted} {told} {Notice}");
         WireProjectChoices();
 
         return true;

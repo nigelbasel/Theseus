@@ -229,7 +229,7 @@ public partial class MainWindow : Window
     // Esc would clear the card selection instead (A18, G20).
     private void OnNoticeFlyoutKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key != Key.Escape)
+        if (e.Key != Key.Escape || NoticeButton.IsChecked != true)
         {
             return;
         }

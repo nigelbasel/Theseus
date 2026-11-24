@@ -2018,7 +2018,7 @@
                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                 BorderThickness="1">
             <DockPanel>
-                <controls:PaneResizeThumb DockPanel.Dock="Right" Style="{StaticResource PaneEdge}" Margin="0,-12,-16,-12"
+                <controls:PaneResizeThumb DockPanel.Dock="Right" Style="{StaticResource PaneEdge}" Margin="0,-12,-16,-12" HorizontalAlignment="Right"
                                           Pane="{Binding ElementName=SessionsPane}" />
                 <Grid DockPanel.Dock="Top" Margin="4,4,4,8">
                     <TextBlock Text="Live sessions" FontSize="14" FontWeight="SemiBold"
@@ -2052,7 +2052,7 @@
                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                 BorderThickness="1">
             <DockPanel>
-                <controls:PaneResizeThumb DockPanel.Dock="Left" Style="{StaticResource PaneEdge}" Margin="-16,-12,0,-12"
+                <controls:PaneResizeThumb DockPanel.Dock="Left" Style="{StaticResource PaneEdge}" Margin="-16,-12,0,-12" HorizontalAlignment="Left"
                                           Pane="{Binding ElementName=ChainsPane}" IsOnTheRight="True" />
                 <Grid DockPanel.Dock="Top" Margin="4,4,4,8">
                     <!-- Locks and Chains are two views of the side panel: a selector bar (W15, D7, G125). -->
@@ -2432,7 +2432,7 @@
                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                 BorderThickness="1">
             <DockPanel>
-                <controls:PaneResizeThumb DockPanel.Dock="Left" Style="{StaticResource PaneEdge}" Margin="-16,-12,0,-12"
+                <controls:PaneResizeThumb DockPanel.Dock="Left" Style="{StaticResource PaneEdge}" Margin="-16,-12,0,-12" HorizontalAlignment="Left"
                                           Pane="{Binding ElementName=LocksPane}" IsOnTheRight="True" />
                 <Grid DockPanel.Dock="Top" Margin="4,4,4,8">
                     <!-- Locks and Chains are two views of the side panel: a selector bar (W15, D7, G125). -->
@@ -2655,6 +2655,7 @@
                         ToolTip="{Binding Notice}" AutomationProperties.Name="{Binding Notice}"
                         AutomationProperties.ItemStatus="{Binding NoticeSeverity}"
                         AutomationProperties.HelpText="Shows the recent notices"
+                        PreviewKeyDown="OnNoticeFlyoutKeyDown"
                         Visibility="{Binding Notice, Converter={StaticResource NotEmptyToVisibility}}">
                     <StackPanel Orientation="Horizontal">
                         <!-- Information E946, Warning E7BA, Error E783, each in its own colour: the shape says it without the colour (W46, G150). -->
@@ -3195,7 +3196,7 @@
                                             <Button Style="{StaticResource CommandButton}" Content="Add" HorizontalAlignment="Right"
                                                     Command="{Binding Drawer.AddJiraKeyCommand}" />
                                         </Grid>
-                                        <Button Style="{StaticResource CommandButton}" Content="{Binding Drawer.UnclaimedKeys.Count, StringFormat=Take {0} more}"
+                                        <Button Style="{StaticResource CommandButton}" Content="{Binding Drawer.UnclaimedKeys.Count}" ContentStringFormat="Take {0} more"
                                                 ToolTip="{Binding Drawer.UnclaimedKeys.Count, Converter={StaticResource TagToolTip}, ConverterParameter=Take {0} more Jira keys from the prompt.}"
                                                 HorizontalAlignment="Left" Margin="0,8,0,0" Padding="8,4" FontSize="12"
                                                 Command="{Binding Drawer.RescanPromptCommand}"

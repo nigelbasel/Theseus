@@ -20,6 +20,18 @@ public class NoticeLineTests
     }
 
     [Test]
+    public void MoreSaidAfterAWarning_StaysAWarning_AndAfterNothing_IsInformation()
+    {
+        NoticeLine line = new();
+
+        Assert.That(line.SeverityToExtend, Is.EqualTo(NoticeSeverity.Information));
+
+        line.Say(NoticeSeverity.Warning, "alpha did not start.");
+
+        Assert.That(line.SeverityToExtend, Is.EqualTo(NoticeSeverity.Warning));
+    }
+
+    [Test]
     public void APlainNotice_AfterAnError_IsInformationAgain()
     {
         NoticeLine line = new();
