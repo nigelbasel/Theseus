@@ -48,6 +48,30 @@ public class ChainsViewModelTests
     }
 
     [Test]
+    public void FoldAll_FoldsEveryRow_AndUnfoldAll_OpensThemAgain()
+    {
+        // Walkthrough row 11 (project-view-usability): "would benefit from a collapse all, open all"; W17 names them Fold and Unfold.
+        _book.Add(LinkKind.HandsOver, "auth-research", "token-spike");
+        _book.Add(LinkKind.HandsOver, "token-spike", "auth-implementation");
+        _chains.Update();
+        List<ChainNodeViewModel> rows = [.. Flatten(_chains.Roots)];
+
+        Assert.That(rows, Has.Count.EqualTo(3));
+        Assert.That(rows.Select(row => row.IsExpanded), Is.All.True, "a new tree opens unfolded");
+
+        _chains.FoldAllCommand.Execute(null);
+
+        Assert.That(rows.Select(row => row.IsExpanded), Is.All.False);
+
+        _chains.UnfoldAllCommand.Execute(null);
+
+        Assert.That(rows.Select(row => row.IsExpanded), Is.All.True);
+    }
+
+    private static IEnumerable<ChainNodeViewModel> Flatten(IEnumerable<ChainNodeViewModel> nodes) =>
+        nodes.SelectMany(node => new[] { node }.Concat(Flatten(node.Children)));
+
+    [Test]
     public void Update_PutsAChildUnderTheCardThatHandedOverToIt()
     {
         _book.Add(LinkKind.HandsOver, "auth-research", "token-spike");
@@ -375,19 +399,21 @@ public class ChainsViewModelTests
     }
 
     [Test]
-    public void ASetAsideReport_SaysSoOnItsGreyedButton()
+    public void ASetAsideReport_SaysSoBesideItsGreyedButton()
     {
         _book.Add(LinkKind.HandsOver, "token-spike", "auth-research", output: @"C:\work\REPORT.md");
         _book.Report("token-spike", "session-1", [], @"C:\work\REPORT.md", "Half of it.", "partial");
         _chains.Update();
         var row = _chains.NeedsYou.Single();
 
-        Assert.That(row.NotYetLabel, Is.EqualTo("Not yet"));
+        Assert.That(row.SetAsideText, Is.Empty);
 
         row.NotYetCommand.Execute(null);
 
-        Assert.That(_chains.NeedsYou.Single().NotYetLabel, Is.EqualTo("Set aside: still unconfirmed"),
+        var setAside = _chains.NeedsYou.Single();
+        Assert.That(setAside.SetAsideText, Is.EqualTo("Set aside: still unconfirmed"),
             "git-22, 2026-11-23: a greyed Not yet said nothing of what had happened");
+        Assert.That(setAside.NotYetCommand.CanExecute(null), Is.False, "the button keeps its label and is greyed (W17, A8)");
     }
 
     [Test]

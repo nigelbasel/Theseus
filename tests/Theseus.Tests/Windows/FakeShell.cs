@@ -1,4 +1,5 @@
 using Theseus.App.ViewModels;
+using Theseus.Core.Abstractions;
 
 namespace Theseus.Tests.Windows;
 
@@ -7,10 +8,45 @@ namespace Theseus.Tests.Windows;
 /// commands for the keys and menus under test. A member MainWindow binds that is not here leaves its binding empty;
 /// add one when a test needs it.
 /// </summary>
-internal sealed class FakeShell
+internal sealed class FakeShell : System.ComponentModel.INotifyPropertyChanged
 {
-    /// <summary>Creates a shell over a board.</summary>
-    public FakeShell(BoardViewModel board) => Board = board;
+    private string _notice = string.Empty;
+    private NoticeSeverity _noticeSeverity;
+
+    /// <inheritdoc />
+    public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+
+    /// <summary>The status bar's notice.</summary>
+    public string Notice
+    {
+        get => _notice;
+        set
+        {
+            _notice = value;
+            PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(Notice)));
+        }
+    }
+
+    /// <summary>How serious the notice is.</summary>
+    public NoticeSeverity NoticeSeverity
+    {
+        get => _noticeSeverity;
+        set
+        {
+            _noticeSeverity = value;
+            PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(NoticeSeverity)));
+        }
+    }
+
+    /// <summary>Creates a shell over a board, with a drawer over the same plans.</summary>
+    public FakeShell(BoardViewModel board, IPlanStore plans)
+    {
+        Board = board;
+        Drawer = new DetailDrawerViewModel(plans, new NoRunLog(), new NoWorkflowRuns(), board.Persist);
+    }
+
+    /// <summary>The detail drawer, closed until a test shows a card in it.</summary>
+    public DetailDrawerViewModel Drawer { get; }
 
     /// <summary>The board, with the fake cards.</summary>
     public BoardViewModel Board { get; }
