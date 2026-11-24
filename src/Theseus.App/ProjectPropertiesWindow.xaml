@@ -50,6 +50,12 @@
                                  SelectedValue="{Binding ColourHex, Mode=TwoWay}" Margin="0,8,0,0"
                                  BorderThickness="0" Background="Transparent" AutomationProperties.Name="Colour"
                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <!-- Each swatch's name is its colour and who holds it, not the view model's record text (E11, W50). -->
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                                    <Setter Property="AutomationProperties.Name" Value="{Binding ToolTip}" />
+                                </Style>
+                            </ListBox.ItemContainerStyle>
                             <ListBox.ItemsPanel>
                                 <ItemsPanelTemplate>
                                     <WrapPanel />

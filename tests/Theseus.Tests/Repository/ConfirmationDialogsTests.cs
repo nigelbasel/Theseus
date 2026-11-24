@@ -206,6 +206,23 @@ public class ConfirmationDialogsTests
     }
 
     [Test]
+    public void ProjectProperties_NamesEachColourSwatch_ByItsColourAndHolder_NotByItsRecord()
+    {
+        ProjectPropertiesWindow window = new(new ProjectPropertiesViewModel("p", "P", "#5E4BB0", "project.md",
+            new Dictionary<string, string> { ["Other"] = "#2F7D32" }));
+        FrameworkElement content = (FrameworkElement)window.Content;
+        content.Measure(new Size(520, 900));
+        content.Arrange(new Rect(0, 0, 520, 900));
+        content.UpdateLayout();
+        ListBox colours = (ListBox)window.FindName("ColourBox");
+        List<string> names = [.. colours.Items.Cast<object>()
+            .Select(item => System.Windows.Automation.AutomationProperties.GetName((DependencyObject)colours.ItemContainerGenerator.ContainerFromItem(item)))];
+
+        Assert.That(names, Has.Member("#2F7D32, used by Other"));
+        Assert.That(names, Has.None.Contains("{"), "E11: no record dumps");
+    }
+
+    [Test]
     public void AFlaggedStartWithNoOtherCards_OffersTwoButtons()
     {
         QuestionWindow window = new("Start paused or blocked work?", "The card you are starting is marked paused or blocked:",

@@ -35,6 +35,7 @@ public partial class QuestionWindow : Window
         CancelButton.Content = cancel;
         // The default button has the focus when it opens, never the action (baseline B3, W43).
         FocusManager.SetFocusedElement(this, CancelButton);
+        Loaded += (_, _) => CancelButton.Focus();
 
         if (secondAction is null)
         {
