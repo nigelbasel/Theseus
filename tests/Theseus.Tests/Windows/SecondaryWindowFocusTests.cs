@@ -40,9 +40,9 @@ public class SecondaryWindowFocusTests
     public void OnceLoaded_TheFocusIsOnTheFirstControl(string name, string first)
     {
         using OpenedWindow opened = OpenedWindow.Of(name);
-        DependencyObject? focused = Keyboard.FocusedElement as DependencyObject;
+        DependencyObject? focused = FocusManager.GetFocusedElement(opened.Window) as DependencyObject;
 
-        Assert.That(focused, Is.Not.Null, "the keyboard is somewhere when the window opens (B3)");
+        Assert.That(focused, Is.Not.Null, "something has the focus when the window opens (B3)");
         Assert.That(focused, Is.SameAs(Expected(opened, first)), $"{name} starts at {first} (W43)");
     }
 
@@ -58,7 +58,7 @@ public class SecondaryWindowFocusTests
             ListBox entries = (ListBox)window.FindName("Entries");
 
             Assert.That(entries.SelectedIndex, Is.GreaterThan(0), "the stage asked for is not the first row");
-            Assert.That(Keyboard.FocusedElement, Is.SameAs(entries.ItemContainerGenerator.ContainerFromIndex(entries.SelectedIndex)),
+            Assert.That(FocusManager.GetFocusedElement(window), Is.SameAs(entries.ItemContainerGenerator.ContainerFromIndex(entries.SelectedIndex)),
                 "the keyboard starts where the shown document is, so an arrow moves from there (W43)");
         }
         finally
@@ -116,27 +116,23 @@ public class SecondaryWindowFocusTests
         return opened.Named<DependencyObject>(first);
     }
 
-    // Tab from the start, as the keyboard does, until it comes round again.
-    private static List<DependencyObject> TabOrder(Window window)
+    // The order Tab takes, worked out as WPF does: the drawn tab stops by TabIndex, then in tree order. Moving the
+    // keyboard for real needs an interactive desktop, which a CI runner does not have.
+    // A link inside text, such as About's, is a content element: it takes its turn where its text block stands.
+    private static List<DependencyObject> TabOrder(Window window) =>
+        [.. DialogHost.Descendants(window)
+            .SelectMany(element => element is TextBlock text ? [text, .. text.Inlines.OfType<System.Windows.Documents.Hyperlink>()] : new[] { element })
+            .Where(IsTabStop)
+            .Select((element, index) => (Element: element, Index: index))
+            .OrderBy(each => KeyboardNavigation.GetTabIndex(each.Element)).ThenBy(each => each.Index)
+            .Select(each => each.Element)];
+
+    private static bool IsTabStop(DependencyObject element) => element switch
     {
-        window.Activate();
-        Keyboard.ClearFocus();
-        window.MoveFocus(new TraversalRequest(FocusNavigationDirection.First));
-        DialogHost.Pump();
-        List<DependencyObject> order = [];
-
-        while (Keyboard.FocusedElement is DependencyObject current && !order.Contains(current) && order.Count < 200)
-        {
-            order.Add(current);
-            TraversalRequest next = new(FocusNavigationDirection.Next);
-
-            // A link inside text, such as About's, is a content element, not a UIElement.
-            _ = current is UIElement element ? element.MoveFocus(next) : ((ContentElement)current).MoveFocus(next);
-            DialogHost.Pump();
-        }
-
-        return order;
-    }
+        UIElement { IsVisible: true, IsEnabled: true, Focusable: true } => KeyboardNavigation.GetIsTabStop(element),
+        ContentElement { IsEnabled: true, Focusable: true } => KeyboardNavigation.GetIsTabStop(element),
+        _ => false,
+    };
 
     private static bool IsIn(DependencyObject element, DependencyObject ancestor)
     {
