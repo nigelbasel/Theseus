@@ -18,15 +18,15 @@ public class FlaggedStartTests
     }
 
     [Test]
-    public void Question_NamesEachMarkAndWhatNoDoesWhenOthersStartToo()
+    public void Question_NamesEachMarkAndHowManyOfTheCardsStartingAreMarked()
     {
         var question = FlaggedStart.Question([Card("auth", paused: true, blocked: true)], others: 2);
 
         Assert.Multiple(() =>
         {
+            Assert.That(question, Does.StartWith("1 of the 3 cards you are starting is marked paused or blocked:"));
             Assert.That(question, Does.Contain("Auth is marked paused and blocked."));
-            Assert.That(question, Does.Contain("Is it no longer paused or blocked?"));
-            Assert.That(question, Does.Contain("No leaves it marked and starts only the other 2."));
+            Assert.That(question, Does.Not.Contain("Yes").And.Not.Contain("No "), "the buttons say what they do (baseline A3)");
         });
     }
 
@@ -35,8 +35,8 @@ public class FlaggedStartTests
     {
         var question = FlaggedStart.Question([Card("auth", paused: true), Card("cache", blocked: true)], others: 0);
 
+        Assert.That(question, Does.StartWith("The 2 cards you are starting are marked paused or blocked:"));
         Assert.That(question, Does.Contain("Cache is marked blocked."));
-        Assert.That(question, Does.Contain("No leaves them marked and starts nothing."));
     }
 
     [Test]

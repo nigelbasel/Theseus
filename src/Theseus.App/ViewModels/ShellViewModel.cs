@@ -1496,21 +1496,27 @@ public sealed partial class ShellViewModel : ObservableObject
     private IReadOnlyDictionary<string, IReadOnlyList<PieceCard>> _standingVerifiers =
         new Dictionary<string, IReadOnlyList<PieceCard>>(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>Says in a dialog why something pressed cannot be done, or in the status bar when no dialog is set. Set by the app.</summary>
-    public Action<string>? ExplainRefusal { get; set; }
+    /// <summary>
+    /// Says in a dialog why something pressed cannot be done, with a title that names what could not be done (baseline
+    /// A5), or in the status bar when no dialog is set. Set by the app.
+    /// </summary>
+    public Action<string, string>? ExplainRefusal { get; set; }
 
     // A refusal only in the status line read as "nothing happens" (Nigel, 2026-11-23).
-    private void Refuse(string text)
+    private void Refuse(string title, string text)
     {
         if (ExplainRefusal is { } explain)
         {
-            explain(text);
+            explain(title, text);
         }
         else
         {
             Notice = text;
         }
     }
+
+    // The project view's refusals come through ProjectViewCommands without a title, so they get a general one.
+    private void Refuse(string text) => Refuse("Can't do that yet", text);
 
     /// <summary>The card menu's Verify tooltip when it can run.</summary>
     private const string VerifyToolTipWhenItCan =
@@ -1814,7 +1820,7 @@ public sealed partial class ShellViewModel : ObservableObject
             }
             else
             {
-                Refuse($"{reason}.");
+                Refuse($"Can't make a verifier for {card.Title} yet", $"{reason}.");
             }
 
             return null;
@@ -3131,8 +3137,11 @@ public sealed partial class ShellViewModel : ObservableObject
         BeginStop(CardSteps(card));
     }
 
-    /// <summary>Asks the owner whether to allow a start request: true allows, false refuses, null leaves it waiting. Set by the App.</summary>
-    public Func<string, bool?>? AskStartRequest { get; set; }
+    /// <summary>
+    /// Asks the owner whether to allow a start request, given its title and question: true allows, false refuses, null
+    /// leaves it waiting. Set by the App.
+    /// </summary>
+    public Func<string, string, bool?>? AskStartRequest { get; set; }
 
     /// <summary>
     /// The owner's answer to a session's request to start a card he paused (sessions-run-the-project items 13, 14): Allow
@@ -3157,10 +3166,10 @@ public sealed partial class ShellViewModel : ObservableObject
         var by = Board.Card(request.RequesterKey)?.Title ?? request.RequesterKey;
         var question = $"{by} wants to start {card.Title}, which you paused"
                        + (string.IsNullOrWhiteSpace(request.Reason) ? "." : $": {request.Reason.Trim()}")
-                       + (string.IsNullOrWhiteSpace(request.Instruction) ? string.Empty : $"\n\nIts instruction: {request.Instruction.Trim()}")
-                       + "\n\nYes allows it and starts the card. No refuses it and keeps your pause. Cancel decides later.";
+                       + (string.IsNullOrWhiteSpace(request.Instruction) ? string.Empty : $"\n\nIts instruction: {request.Instruction.Trim()}");
 
-        if (AskStartRequest?.Invoke(question) is not { } allow)
+        // The buttons say what they do, so the question does not explain Yes and No (baseline A3, G9).
+        if (AskStartRequest?.Invoke($"Start {card.Title}, which you paused?", question) is not { } allow)
         {
             return;
         }

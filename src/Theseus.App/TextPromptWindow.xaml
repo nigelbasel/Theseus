@@ -7,12 +7,17 @@
         ShowInTaskbar="False"
         ResizeMode="NoResize"
         Background="{DynamicResource SolidBackgroundFillColorSecondaryBrush}">
-    <StackPanel Margin="20">
-        <TextBlock x:Name="Label" FontWeight="SemiBold" />
-        <TextBox x:Name="Answer" Margin="0,6,0,0" TextChanged="OnChanged" />
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-            <Button x:Name="OkButton" Content="_OK" IsDefault="True" MinWidth="88" Click="OnOk" />
-            <Button Content="Cancel" IsCancel="True" MinWidth="88" Margin="8,0,0,0" />
+    <StackPanel Margin="{DynamicResource DialogGutter}">
+        <TextBlock x:Name="Label" Style="{DynamicResource BodyStrongText}" TextWrapping="Wrap" />
+        <TextBox x:Name="Answer" Margin="0,8,0,0" TextChanged="OnChanged"
+                 AutomationProperties.LabeledBy="{Binding ElementName=Label}" />
+        <!-- Why the answer was refused, under the box it is about (A19, G4); the prompt stays open. -->
+        <TextBlock x:Name="Refusal" Style="{DynamicResource CaptionText}" Margin="0,4,0,0" TextWrapping="Wrap"
+                   Foreground="{DynamicResource CriticalTextBrush}" Visibility="Collapsed" />
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,24,0,0">
+            <Button x:Name="OkButton" Content="OK" IsDefault="True" Style="{DynamicResource AccentButton}" Click="OnOk"
+                    ToolTipService.ShowOnDisabled="True" />
+            <Button Content="Cancel" IsCancel="True" Style="{DynamicResource DialogButton}" Margin="8,0,0,0" />
         </StackPanel>
     </StackPanel>
 </Window>

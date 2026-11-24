@@ -7,8 +7,9 @@ using Theseus.App.ViewModels;
 namespace Theseus.App;
 
 /// <summary>
-/// Project properties… (1.1d AC 40; 1.1e AC 12a; options-made-clear): OK writes a changed title and keeps the colour, lead,
-/// branch rules and holdout folder chosen; a title the file refuses keeps the dialog open with the reason.
+/// Project properties (1.1d AC 40; 1.1e AC 12a; options-made-clear): OK writes a changed title and keeps the colour, lead,
+/// branch rules, holdout folder and private repository chosen; Cancel keeps none of them (baseline W6). A refusal keeps the
+/// dialog open with the reason under the field it is about (A19).
 /// </summary>
 public partial class ProjectPropertiesWindow : Window
 {
@@ -23,11 +24,16 @@ public partial class ProjectPropertiesWindow : Window
             Tabs.SelectedItem = HoldoutsTab;
         }
 
+        // The first control of the tab it opens at (baseline B3, W43).
         Loaded += (_, _) =>
         {
             if (Tabs.SelectedItem == GeneralTab)
             {
                 ColourBox.Focus();
+            }
+            else if (Tabs.SelectedItem == HoldoutsTab)
+            {
+                (ResetHoldoutButton.IsEnabled ? ResetHoldoutButton : ChangeHoldoutButton).Focus();
             }
         };
     }
@@ -39,10 +45,22 @@ public partial class ProjectPropertiesWindow : Window
         if (Properties.Apply())
         {
             DialogResult = true;
+
+            return;
+        }
+
+        // The refusal is shown on its own tab, so OK never seems to do nothing.
+        if (Properties.HasHoldoutError)
+        {
+            Tabs.SelectedItem = HoldoutsTab;
+        }
+        else if (Properties.HasError)
+        {
+            Tabs.SelectedItem = GeneralTab;
         }
     }
 
-    // Change… beside the lead: a menu of the project's workstreams, the lead ticked.
+    // Change beside the lead: a menu of the project's workstreams, the lead ticked. With none, the button is off and says why.
     private void OnChooseLead(object sender, RoutedEventArgs e)
     {
         var menu = new ContextMenu { PlacementTarget = LeadChange };
@@ -59,12 +77,10 @@ public partial class ProjectPropertiesWindow : Window
             menu.Items.Add(item);
         }
 
-        if (menu.Items.Count == 0)
+        if (menu.Items.Count > 0)
         {
-            menu.Items.Add(new MenuItem { Header = "The project has no workstreams yet", IsEnabled = false });
+            menu.IsOpen = true;
         }
-
-        menu.IsOpen = true;
     }
 
     private void OnChooseHoldout(object sender, RoutedEventArgs e)
@@ -76,9 +92,10 @@ public partial class ProjectPropertiesWindow : Window
             InitialDirectory = Directory.Exists(current) ? current : Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
         };
 
-        if (dialog.ShowDialog(this) == true && Properties.ChooseHoldout(dialog.FolderName) is { } why)
+        // A refusal is shown under the holdout row by the view model (A19).
+        if (dialog.ShowDialog(this) == true)
         {
-            MessageBox.Show(this, why, "Holdout folder", MessageBoxButton.OK, MessageBoxImage.Warning);
+            Properties.ChooseHoldout(dialog.FolderName);
         }
     }
 
@@ -86,20 +103,23 @@ public partial class ProjectPropertiesWindow : Window
 
     private void OnKeepInPrivateRepository(object sender, RoutedEventArgs e)
     {
-        if (Properties.Holdout is not { IsDefault: true } own)
+        if (Properties.Holdout is not { IsDefault: true })
         {
             return;
         }
 
-        var ask = new TextPromptWindow("Keep these in a private repository",
+        // Held until OK, so Cancel adds no remote (A2); a refusal at OK shows under the holdout row (A19).
+        TextPromptWindow ask = new("Use a private repository",
             $"The address of a private repository for {Properties.ShownTitle}'s holdout scenarios", string.Empty)
         {
             Owner = this,
+            ActionLabel = "_Add",
+            Validator = ProjectPropertiesViewModel.WhyNotRemote,
         };
 
-        if (ask.ShowDialog() == true && own.AddRemote(ask.Text) is { } why)
+        if (ask.Ask() is { } address)
         {
-            MessageBox.Show(this, why, "Keep these in a private repository", MessageBoxButton.OK, MessageBoxImage.Warning);
+            Properties.KeepInPrivateRepository(address);
         }
     }
 }
