@@ -74,4 +74,13 @@ public sealed record WorkstreamSidecar(
     /// plan file or a repo: sessions rewrite plan files, and tags are the owner's alone (decisions 3 and 4, 2026-11-21).
     /// </summary>
     public IReadOnlyList<string> Tags { get; init; } = [];
+
+    /// <summary>The card's own run mode, tab or headless; null to take its project's default, then its role's (Nigel, 2026-11-24).</summary>
+    public Running.RunMode? RunMode { get; init; }
+
+    /// <summary>The circuit breaker that tripped on this card, kept until the owner resets it; null when none has.</summary>
+    public Breakers.BreakerTrip? Breaker { get; init; }
+
+    /// <summary>When the owner last reset the card's breaker: its breakers count only the runs since.</summary>
+    public DateTimeOffset? BreakerResetUtc { get; init; }
 }

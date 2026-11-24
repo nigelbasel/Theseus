@@ -3623,6 +3623,23 @@ public sealed partial class ShellViewModel : ObservableObject
 
         foreach (var step in steps)
         {
+            // A headless run has no console to type into: its stop is written into the run itself (Nigel, 2026-11-24).
+            if (Headless is { } runner && runner.Holds(step.WorkstreamKey))
+            {
+                TheseusLog.Information("Asked the headless run of {Workstream} to hand over and stop", step.WorkstreamKey);
+
+                if (runner.AskToStop(step.WorkstreamKey))
+                {
+                    asked++;
+                }
+                else
+                {
+                    underway++;
+                }
+
+                continue;
+            }
+
             var alreadyAsked = _stopRequests.Waiting(step.SessionId) is not null;
 
             var alreadyDelivered = StillHandingOver(step);
@@ -4186,7 +4203,8 @@ public sealed partial class ShellViewModel : ObservableObject
     {
         if (card.Workstream.LastSessionId is not { } sessionId
             || Sessions.Find(sessionId) is not { } session
-            || _unconfirmed.Contains(sessionId))
+            || _unconfirmed.Contains(sessionId)
+            || Headless?.Holds(card.Key) == true)
         {
             return new CloseDecision(CloseVerdict.Skip);
         }

@@ -114,4 +114,30 @@ public class ClaudeArgumentBuilderTests
 
         Assert.That(argv.IndexOf("--permission-mode"), Is.GreaterThan(-1).And.LessThan(argv.IndexOf("--add-dir")));
     }
+
+    [Test]
+    public void AHeadlessRun_SpeaksStreamJsonBothWays_AndKeepsItsPromptOffTheCommandLine()
+    {
+        var argv = ClaudeArgumentBuilder.Build(Spec() with { Headless = true }).ToList();
+
+        Assert.That(argv.Take(6), Is.EqualTo(new[] { "-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose" }));
+        Assert.That(argv, Does.Not.Contain("Pick up where we left off."));
+        Assert.That(argv, Does.Contain("--session-id").And.Contain("auto"));
+    }
+
+    [Test]
+    public void AHeadlessRun_CarriesClaudeCodesOwnCostCap()
+    {
+        var argv = ClaudeArgumentBuilder.Build(Spec() with { Headless = true, MaxBudgetUsd = 2.5m }).ToList();
+
+        Assert.That(argv[argv.IndexOf("--max-budget-usd") + 1], Is.EqualTo("2.50"));
+    }
+
+    [Test]
+    public void ATab_NeverGetsTheHeadlessFlags()
+    {
+        var argv = ClaudeArgumentBuilder.Build(Spec() with { MaxBudgetUsd = 2.5m }).ToList();
+
+        Assert.That(argv, Does.Not.Contain("-p").And.Not.Contain("--max-budget-usd"));
+    }
 }

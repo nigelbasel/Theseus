@@ -1587,6 +1587,9 @@ public sealed class BoardViewModel : ObservableObject
                   EveryStartPrompt = card.Workstream.EveryStartPrompt,
                   Role = card.Workstream.Role,
                   Tags = card.Workstream.Tags,
+                  RunMode = card.Workstream.RunMode,
+                  Breaker = card.Workstream.Breaker,
+                  BreakerResetUtc = card.Workstream.BreakerResetUtc,
                   UpdatedUtc = now,
               }
             : new WorkstreamSidecar(card.Key, card.Column, card.Workstream.IsBlocked, IsArchived: false,
@@ -1602,6 +1605,9 @@ public sealed class BoardViewModel : ObservableObject
                   PauseReason = card.Workstream.IsPaused ? card.Workstream.PauseReason : null,
                   Role = card.Workstream.Role,
                   Tags = card.Workstream.Tags,
+                  RunMode = card.Workstream.RunMode,
+                  Breaker = card.Workstream.Breaker,
+                  BreakerResetUtc = card.Workstream.BreakerResetUtc,
               };
 
         if (index >= 0)

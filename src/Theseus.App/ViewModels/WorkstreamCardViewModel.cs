@@ -17,6 +17,8 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
     private DateTimeOffset? _lastExitedUtc;
     private DateTimeOffset? _lastStartedUtc;
     private string _todoSummary = string.Empty;
+    private string _headlessLine = string.Empty;
+    private string _headlessDetail = string.Empty;
     private string _resources = string.Empty;
     private string _resourcesTooltip = string.Empty;
     private bool _stopPending;
@@ -70,6 +72,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
             if (Set(ref _workstream, value))
             {
                 Raise(nameof(Key));
+                Raise(nameof(IsBreakerTripped));
                 Raise(nameof(FaceTooltip));
                 Raise(nameof(Title));
                 Raise(nameof(ColorHex));
@@ -942,4 +945,30 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
 
         return string.IsNullOrEmpty(elapsed) ? verb : $"{verb} {elapsed}";
     }
+
+    /// <summary>The card's headless run: going, queued or ended, with its measured tokens and cost; empty for none (Nigel, 2026-11-24).</summary>
+    public string HeadlessLine
+    {
+        get => _headlessLine;
+        set
+        {
+            if (Set(ref _headlessLine, value))
+            {
+                Raise(nameof(HasHeadlessLine));
+            }
+        }
+    }
+
+    /// <summary>Whether the card shows a headless line.</summary>
+    public bool HasHeadlessLine => _headlessLine.Length > 0;
+
+    /// <summary>The headless run's latest line of text or tool call, while it goes.</summary>
+    public string HeadlessDetail
+    {
+        get => _headlessDetail;
+        set => Set(ref _headlessDetail, value);
+    }
+
+    /// <summary>Whether the card's breaker has tripped, so its menu offers Reset.</summary>
+    public bool IsBreakerTripped => Workstream.Breaker is not null;
 }

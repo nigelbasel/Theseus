@@ -173,6 +173,12 @@ public sealed partial class McpHandler
         _zone = zone ?? TimeZoneInfo.Local;
     }
 
+    /// <summary>
+    /// Told the session and tool of every call from a session Theseus launched, before it is answered: how a headless
+    /// run's progress is seen (Nigel, 2026-11-24). Null for no one.
+    /// </summary>
+    public Action<string, string>? ToolCalled { get; set; }
+
     /// <summary>Answers one POSTed JSON-RPC message for the session its path names.</summary>
     public McpResponse Handle(string sessionId, string body, string? protocolVersionHeader)
     {
@@ -543,6 +549,8 @@ public sealed partial class McpHandler
         {
             return Ok(id, Result($"Session {sessionId} was not launched by Theseus, so it has no workstream to record time against.", isError: true));
         }
+
+        ToolCalled?.Invoke(sessionId, name);
 
         if (ProjectTools.Names.Contains(name))
         {
