@@ -18,7 +18,7 @@
 
         <DockPanel Margin="0,0,0,8" LastChildFill="False">
             <!-- Two views of one spec are a selector bar: one Tab stop, the arrows switch, and they stop at either end (W15, W42; B-m4, D7, E8). -->
-            <StackPanel x:Name="ViewChoice" Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center"
+            <controls:SelectorGroup x:Name="ViewChoice" Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center"
                         KeyboardNavigation.TabNavigation="Once" KeyboardNavigation.DirectionalNavigation="Contained"
                         AutomationProperties.Name="Views of the spec">
                 <RadioButton x:Name="PreviewTab" Content="Preview" GroupName="SpecView" controls:SelectorBar.SelectsOnFocus="True"
@@ -27,7 +27,7 @@
                 <RadioButton x:Name="SourceTab" Content="Source" GroupName="SpecView" controls:SelectorBar.SelectsOnFocus="True"
                              Style="{DynamicResource SelectorBarItem}" IsChecked="{Binding IsSource, Mode=OneWay}"
                              ToolTip="Source: the spec's Markdown, as written" Command="{Binding SourceCommand}" />
-            </StackPanel>
+            </controls:SelectorGroup>
             <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
                 <TextBlock x:Name="FindResult" VerticalAlignment="Center" Margin="0,0,8,0" Style="{DynamicResource CaptionText}"
                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />

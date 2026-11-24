@@ -131,10 +131,13 @@ public partial class MainWindow : Window
         FirstFocusable(panes[next])?.Focus();
     }
 
-    /// <summary>The element itself when it takes the focus, or else its first shown descendant in tree order that does.</summary>
+    /// <summary>
+    /// The element itself when it takes the focus, or else its first shown descendant in tree order that does. A pane's
+    /// resize edge is passed over: F6 and an opening pane go to its content, and the edge is reached by Tab.
+    /// </summary>
     internal static UIElement? FirstFocusable(DependencyObject element)
     {
-        if (element is UIElement { Visibility: not Visibility.Visible })
+        if (element is UIElement { Visibility: not Visibility.Visible } or Controls.PaneResizeThumb)
         {
             return null;
         }
@@ -315,6 +318,19 @@ public partial class MainWindow : Window
         if (Board is { } board)
         {
             board.Search.LoadTagRows(board.Tags.InUse(), board.Tags.ColourOf);
+        }
+    }
+
+    // A flyout opened from the keyboard takes the focus to its first choice, or a keyboard user cannot enter it (G66).
+    private void OnTagsPopupOpened(object? sender, EventArgs e) =>
+        Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input, () => (TagsAll.IsChecked == true ? TagsAll : TagsAny).Focus());
+
+    // The drawer's first control takes the focus when it opens (W43, G66).
+    private void OnDrawerShown(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (e.NewValue is true)
+        {
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input, () => FirstFocusable(DrawerPane)?.Focus());
         }
     }
 

@@ -42,7 +42,7 @@
                                Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
 
                     <StackPanel Grid.Column="1">
-                        <TextBlock Text="{Binding Title}" FontSize="12"
+                        <TextBlock Text="{Binding Title}" FontSize="14"
                                    FontFamily="Cascadia Mono, Consolas, monospace"
                                    TextTrimming="CharacterEllipsis" ToolTip="{Binding Path}" />
                         <TextBlock Text="{Binding Detail}" Style="{DynamicResource CaptionText}" Margin="0,4,0,0" TextWrapping="Wrap"
@@ -80,7 +80,7 @@
                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                 <TextBlock Style="{DynamicResource ExplanationText}" Margin="0,8,0,0"
                            Text="Instruction files never override one another: every one is read, broadest first, so a file nearer the work is read later. Skills, commands and agents do override by name. Worked out from Claude Code's documentation; /context in a session shows what actually loaded." />
-                <ProgressBar IsIndeterminate="True" Height="3" Margin="0,12,0,0">
+                <ProgressBar IsIndeterminate="True" Height="3" Margin="0,12,0,0" AutomationProperties.Name="Reading the instruction files">
                     <ProgressBar.Style>
                         <Style TargetType="ProgressBar">
                             <Setter Property="Visibility" Value="Collapsed" />
@@ -98,12 +98,12 @@
         <TabControl x:Name="Tabs" Grid.Row="1" Margin="12,12,12,0" Background="Transparent" BorderThickness="0">
             <TabItem x:Name="FilesTab" Header="Instruction files">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="8,4" Focusable="False">
-                    <ItemsControl ItemsSource="{Binding Files}" ItemTemplate="{StaticResource RowTemplate}" Focusable="False" />
+                    <ItemsControl AutomationProperties.Name="Instruction files" ItemContainerStyle="{DynamicResource ItemNamedByTitle}" ItemsSource="{Binding Files}" ItemTemplate="{StaticResource RowTemplate}" Focusable="False" />
                 </ScrollViewer>
             </TabItem>
             <TabItem Header="Skills, commands and agents">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="8,4" Focusable="False">
-                    <ItemsControl ItemsSource="{Binding Commands}" ItemTemplate="{StaticResource RowTemplate}" Focusable="False" />
+                    <ItemsControl AutomationProperties.Name="Skills, commands and agents" ItemContainerStyle="{DynamicResource ItemNamedByTitle}" ItemsSource="{Binding Commands}" ItemTemplate="{StaticResource RowTemplate}" Focusable="False" />
                 </ScrollViewer>
             </TabItem>
         </TabControl>

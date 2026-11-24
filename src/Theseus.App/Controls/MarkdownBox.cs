@@ -91,14 +91,14 @@ public sealed class MarkdownBox : DockPanel
         bar.Children.Add(tabs);
 
         var tools = new StackPanel { Orientation = Orientation.Horizontal };
-        tools.Children.Add(Tool(MarkdownAction.Bold, "B", "Bold (Ctrl+B)", text: true, weight: FontWeights.Bold));
-        tools.Children.Add(Tool(MarkdownAction.Italic, "I", "Italic (Ctrl+I)", text: true, style: FontStyles.Italic));
+        tools.Children.Add(Tool(MarkdownAction.Bold, "B", "Bold", "Ctrl+B", text: true, weight: FontWeights.Bold));
+        tools.Children.Add(Tool(MarkdownAction.Italic, "I", "Italic", "Ctrl+I", text: true, style: FontStyles.Italic));
         tools.Children.Add(Tool(MarkdownAction.Heading, "H", "Heading", text: true));
         tools.Children.Add(Tool(MarkdownAction.BulletedList, "", "Bulleted list"));
         tools.Children.Add(Tool(MarkdownAction.NumberedList, "1.", "Numbered list", text: true));
         tools.Children.Add(Tool(MarkdownAction.CheckBox, "", "Check box"));
-        tools.Children.Add(Tool(MarkdownAction.Code, "", "Code: inline on one line, a block over several"));
-        tools.Children.Add(Tool(MarkdownAction.Link, "", "Link (Ctrl+K)"));
+        tools.Children.Add(Tool(MarkdownAction.Code, "", "Code", explanation: "inline on one line, a block over several"));
+        tools.Children.Add(Tool(MarkdownAction.Link, "", "Link", "Ctrl+K"));
         SetDock(tools, Dock.Left);
         bar.Children.Add(tools);
 
@@ -220,9 +220,11 @@ public sealed class MarkdownBox : DockPanel
         }
     }
 
-    private ButtonBase Tool(MarkdownAction action, string glyph, string toolTip, bool text = false, FontWeight? weight = null,
-        FontStyle? style = null)
+    // The name is what the button is; its key and its explanation go to the tooltip and are read separately (G169, W50).
+    private ButtonBase Tool(MarkdownAction action, string glyph, string name, string? key = null, string? explanation = null, bool text = false,
+        FontWeight? weight = null, FontStyle? style = null)
     {
+        string toolTip = key is not null ? $"{name} ({key})" : explanation is not null ? $"{name}: {explanation}" : name;
         var button = new Button { Content = glyph, ToolTip = toolTip, Tag = toolTip, Focusable = false };
         button.SetResourceReference(StyleProperty, "ToolButton");
 
@@ -233,7 +235,18 @@ public sealed class MarkdownBox : DockPanel
             button.FontStyle = style ?? FontStyles.Normal;
         }
 
-        AutomationProperties.SetName(button, toolTip);
+        AutomationProperties.SetName(button, name);
+
+        if (key is not null)
+        {
+            AutomationProperties.SetAcceleratorKey(button, key);
+        }
+
+        if (explanation is not null)
+        {
+            AutomationProperties.SetHelpText(button, explanation);
+        }
+
         button.Click += (_, _) => Format(action);
         _tools.Add(button);
 

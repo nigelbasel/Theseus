@@ -67,7 +67,7 @@
                 </TextBlock>
 
                 <Label x:Name="NewDirectoryLabel" Content="_Extra directories" Target="{Binding ElementName=NewDirectoryBox}" Style="{StaticResource FieldLabelFor}" />
-                <ItemsControl ItemsSource="{Binding Drawer.AddDirectories}" Focusable="False">
+                <ItemsControl AutomationProperties.Name="Extra directories" ItemsSource="{Binding Drawer.AddDirectories}" Focusable="False">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <Grid Margin="0,0,0,4">

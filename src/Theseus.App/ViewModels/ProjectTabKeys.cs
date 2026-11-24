@@ -34,6 +34,12 @@ public static class ProjectTabKeys
         return n <= count ? n - 1 : null;
     }
 
+    /// <summary>The key that opens the tab at <paramref name="index"/>, for its tooltip, or null when no number key reaches it.</summary>
+    /// <param name="index">The tab's index.</param>
+    /// <param name="count">How many tabs there are.</param>
+    public static string? KeyFor(int index, int count) =>
+        index < Last - 1 ? $"Ctrl+{index + 1}" : index == count - 1 ? $"Ctrl+{Last}" : null;
+
     /// <summary>The tab one step on from the open one, or null when there is nowhere to step to.</summary>
     /// <param name="open">The open tab's index, or null when no project is open.</param>
     /// <param name="count">How many tabs there are.</param>

@@ -96,6 +96,7 @@ public class ChainsTreeRowTemplateTests
 
         return new XElement(Presentation + "Border",
             new XAttribute(XNamespace.Xmlns + "converters", converters),
+            new XAttribute(XNamespace.Xmlns + "controls", "clr-namespace:Theseus.App.Controls"),
             new XAttribute(XNamespace.Xmlns + "x", "http://schemas.microsoft.com/winfx/2006/xaml"),
             new XElement(Presentation + "Border.Resources",
                 new XElement(Presentation + "ResourceDictionary",
@@ -107,7 +108,8 @@ public class ChainsTreeRowTemplateTests
                     Converter(converters, "NotEmptyToVisibilityConverter", "NotEmptyToVisibility"))),
             new XElement(Presentation + "ScrollViewer",
                 panelScroller.Attributes().Where(attribute => !attribute.IsNamespaceDeclaration),
-                new XElement(Presentation + "StackPanel", new XElement(tree)))).ToString();
+                new XElement(Presentation + "StackPanel", new XElement(tree)))).ToString()
+            .Replace("\"clr-namespace:Theseus.App.Controls\"", "\"clr-namespace:Theseus.App.Controls;assembly=Theseus\"", StringComparison.Ordinal);
     }
 
     private static XElement Converter(string ns, string type, string key) =>

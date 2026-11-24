@@ -22,7 +22,13 @@
     <StackPanel Margin="24">
         <Label x:Name="ProjectLabel" Content="_Project" Target="{Binding ElementName=ProjectBox}" Style="{StaticResource Field}" Margin="0,0,0,8" />
         <ComboBox x:Name="ProjectBox" DisplayMemberPath="Title" SelectionChanged="OnProjectChanged"
-                  AutomationProperties.LabeledBy="{x:Reference ProjectLabel}" />
+                  AutomationProperties.LabeledBy="{x:Reference ProjectLabel}">
+            <ComboBox.ItemContainerStyle>
+                <Style TargetType="ComboBoxItem" BasedOn="{StaticResource {x:Type ComboBoxItem}}">
+                    <Setter Property="AutomationProperties.Name" Value="{Binding Title}" />
+                </Style>
+            </ComboBox.ItemContainerStyle>
+        </ComboBox>
 
         <Label x:Name="ObjectiveLabel" Content="O_bjective" Target="{Binding ElementName=ObjectiveBox}" Style="{StaticResource Field}" />
         <ComboBox x:Name="ObjectiveBox" SelectionChanged="OnChanged" AutomationProperties.LabeledBy="{x:Reference ObjectiveLabel}" />

@@ -446,7 +446,8 @@
     -->
     <Style x:Key="SelectorBarItem" TargetType="RadioButton">
         <Setter Property="IsTabStop" Value="False" />
-        <Setter Property="Padding" Value="12,8" />
+        <Setter Property="Padding" Value="12,4" />
+        <Setter Property="MinHeight" Value="32" />
         <Setter Property="FontSize" Value="14" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
@@ -456,7 +457,7 @@
                 <ControlTemplate TargetType="RadioButton">
                     <Grid Background="Transparent">
                         <Border x:Name="Wash" CornerRadius="4" Margin="0,0,0,4" Background="Transparent" />
-                        <ContentPresenter Margin="{TemplateBinding Padding}" RecognizesAccessKey="True"
+                        <ContentPresenter Margin="{TemplateBinding Padding}" RecognizesAccessKey="True" VerticalAlignment="Center"
                                           TextElement.Foreground="{TemplateBinding Foreground}" />
                         <Rectangle x:Name="Underline" Height="3" RadiusX="1.5" RadiusY="1.5" Margin="12,0" VerticalAlignment="Bottom"
                                    Fill="{DynamicResource AccentFillColorDefaultBrush}" Visibility="Hidden" />
@@ -533,5 +534,48 @@
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
+    </Style>
+    <!-- A list item says what it shows, not its view model's type or record dump (W50, E11, G170). -->
+    <Style x:Key="ItemNamedByTitle" TargetType="ContentPresenter">
+        <Setter Property="AutomationProperties.Name" Value="{Binding Title}" />
+    </Style>
+    <Style x:Key="ItemNamedByLabel" TargetType="ContentPresenter">
+        <Setter Property="AutomationProperties.Name" Value="{Binding Label}" />
+    </Style>
+    <Style x:Key="ItemNamedByText" TargetType="ContentPresenter">
+        <Setter Property="AutomationProperties.Name" Value="{Binding Text}" />
+    </Style>
+    <Style x:Key="ItemNamedByHeading" TargetType="ContentPresenter">
+        <Setter Property="AutomationProperties.Name" Value="{Binding Heading}" />
+    </Style>
+    <Style x:Key="ItemNamedByName" TargetType="ContentPresenter">
+        <Setter Property="AutomationProperties.Name" Value="{Binding Name}" />
+    </Style>
+    <Style x:Key="ItemNamedByOtherTitle" TargetType="ContentPresenter">
+        <Setter Property="AutomationProperties.Name" Value="{Binding OtherTitle}" />
+    </Style>
+    <Style x:Key="ItemNamedByArea" TargetType="ContentPresenter">
+        <Setter Property="AutomationProperties.Name" Value="{Binding Area}" />
+    </Style>
+    <Style x:Key="ItemNamedByStage" TargetType="ContentPresenter">
+        <Setter Property="AutomationProperties.Name" Value="{Binding Stage}" />
+    </Style>
+    <Style x:Key="ItemNamedByWho" TargetType="ContentPresenter">
+        <Setter Property="AutomationProperties.Name" Value="{Binding Who}" />
+    </Style>
+    <Style x:Key="ItemNamedByDisplay" TargetType="ContentPresenter">
+        <Setter Property="AutomationProperties.Name" Value="{Binding Display}" />
+    </Style>
+    <Style x:Key="ItemNamedByStarted" TargetType="ContentPresenter">
+        <Setter Property="AutomationProperties.Name" Value="{Binding Started}" />
+    </Style>
+    <Style x:Key="ItemNamedByHeadline" TargetType="ContentPresenter">
+        <Setter Property="AutomationProperties.Name" Value="{Binding Headline}" />
+    </Style>
+    <Style x:Key="ItemNamedByProject" TargetType="ContentPresenter">
+        <Setter Property="AutomationProperties.Name" Value="{Binding Project}" />
+    </Style>
+    <Style x:Key="ItemNamedByToolTip" TargetType="ContentPresenter">
+        <Setter Property="AutomationProperties.Name" Value="{Binding ToolTip}" />
     </Style>
 </ResourceDictionary>
