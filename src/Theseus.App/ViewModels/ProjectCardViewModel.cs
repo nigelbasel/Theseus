@@ -14,6 +14,7 @@ public sealed class ProjectCardViewModel : ObservableObject, IBoardCard
     public const string NoColour = "#8A9490";
 
     private string _title;
+    private bool _isCollapsed;
     private string _phaseText = string.Empty;
     private string _objectivesText = string.Empty;
     private IReadOnlyList<string> _waiting = [];
@@ -346,6 +347,13 @@ public sealed class ProjectCardViewModel : ObservableObject, IBoardCard
 
     /// <summary>Raised when it is selected or unselected, so the selection commands look again.</summary>
     public Action? SelectionChanged { get; set; }
+
+    /// <summary>Whether it is folded down to its title, as a card folds.</summary>
+    public bool IsCollapsed
+    {
+        get => _isCollapsed;
+        set => Set(ref _isCollapsed, value);
+    }
 
     /// <summary>Whether any of its cards has a session open, so Select live chooses it.</summary>
     public bool IsLive

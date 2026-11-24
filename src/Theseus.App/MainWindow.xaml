@@ -63,6 +63,8 @@
         <KeyBinding Gesture="Alt+Right" Command="{Binding GoForwardCommand}" />
         <!-- Ctrl+L: a free Ctrl+letter key for a wide-scope command (G77), "lead" (git-22, 2026-11-24). -->
         <KeyBinding Gesture="Ctrl+L" Command="{Binding FocusLeadCommand}" />
+        <!-- Ctrl+K: a free Ctrl+letter key for a wide-scope command (G77), Show active only (Nigel, 2026-11-24). -->
+        <KeyBinding Gesture="Ctrl+K" Command="{Binding Board.ToggleActiveOnlyCommand}" />
     </Window.InputBindings>
 
     <Window.Resources>
@@ -226,6 +228,22 @@
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+        </Style>
+
+        <!-- A project card's fold chevron: up folds it to its title, down opens it; named for what it does (E9, W25). -->
+        <Style x:Key="CardFoldButton" TargetType="Button" BasedOn="{StaticResource ToolButton}">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Content" Value="&#xE70E;" />
+            <Setter Property="ToolTip" Value="Fold card: fold this project card down to its title." />
+            <Setter Property="AutomationProperties.Name" Value="Fold card" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsCollapsed}" Value="True">
+                    <Setter Property="Content" Value="&#xE70D;" />
+                    <Setter Property="ToolTip" Value="Unfold card: open this project card again." />
+                    <Setter Property="AutomationProperties.Name" Value="Unfold card" />
+                </DataTrigger>
+            </Style.Triggers>
         </Style>
 
         <!-- A board row's fold chevron: an icon button whose name follows its state (E9, G167). -->
@@ -521,6 +539,9 @@
 
                     <StackPanel Grid.Column="1" Margin="12,8,12,8">
                         <DockPanel>
+                            <!-- Folds the project card to this row, as a card folds (Nigel, 2026-11-24). -->
+                            <Button x:Name="ProjectFold" DockPanel.Dock="Right" Style="{StaticResource CardFoldButton}" Margin="8,0,0,0"
+                                    Click="OnFoldProjectCard" />
                             <Border DockPanel.Dock="Right" CornerRadius="9" Padding="8,0" MinWidth="18" Margin="8,0,0,0"
                                     VerticalAlignment="Center"
                                     Background="{DynamicResource StateWaitingSoftBrush}"
@@ -538,88 +559,91 @@
                                        TextTrimming="CharacterEllipsis" ToolTip="{Binding Title}" behaviors:TrimmedToolTip.IsEnabled="True"
                                        Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                         </DockPanel>
-                        <!-- A search that matches its cards says so, since they are not on the board (card-search-and-tags item 7). -->
-                        <TextBlock x:Name="ProjectMatchesInside" Text="{Binding MatchesInsideText}" FontSize="14" FontWeight="SemiBold" Margin="0,4,0,0"
-                                   ToolTip="Open the project to see its matching pieces of work highlighted."
-                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                   Visibility="{Binding MatchesInsideText, Converter={StaticResource NotEmptyToVisibility}}" />
-                        <!-- Its tags, at most three then "+2"; clicking one filters the board by it (card-search-and-tags items 11, 12). -->
-                        <WrapPanel x:Name="ProjectTags" Margin="0,4,0,0" Visibility="{Binding HasTags, Converter={StaticResource BoolToVisibility}}">
-                            <ItemsControl ItemsSource="{Binding TagChips}" Focusable="False">
+                        <StackPanel x:Name="ProjectBody"
+                                    Visibility="{Binding IsCollapsed, Converter={StaticResource NotBoolToVisibility}}">
+                            <!-- A search that matches its cards says so, since they are not on the board (card-search-and-tags item 7). -->
+                            <TextBlock x:Name="ProjectMatchesInside" Text="{Binding MatchesInsideText}" FontSize="14" FontWeight="SemiBold" Margin="0,4,0,0"
+                                       ToolTip="Open the project to see its matching pieces of work highlighted."
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                       Visibility="{Binding MatchesInsideText, Converter={StaticResource NotEmptyToVisibility}}" />
+                            <!-- Its tags, at most three then "+2"; clicking one filters the board by it (card-search-and-tags items 11, 12). -->
+                            <WrapPanel x:Name="ProjectTags" Margin="0,4,0,0" Visibility="{Binding HasTags, Converter={StaticResource BoolToVisibility}}">
+                                <ItemsControl ItemsSource="{Binding TagChips}" Focusable="False">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button Style="{StaticResource TagChipButton}" Content="{Binding Label, Converter={StaticResource AccessKeyEscape}}" ToolTip="{Binding ToolTip}"
+                                                    AutomationProperties.Name="{Binding ToolTip}"
+                                                    Command="{Binding FilterCommand}" CommandParameter="{Binding Tag}" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <TextBlock Text="{Binding MoreTags}" FontSize="12" Margin="4,0,0,0" VerticalAlignment="Center"
+                                           ToolTip="{Binding MoreTagsToolTip}"
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                           Visibility="{Binding MoreTags, Converter={StaticResource NotEmptyToVisibility}}" />
+                            </WrapPanel>
+                            <TextBlock Text="{Binding PhaseText}" FontSize="12" Margin="0,4,0,0" TextTrimming="CharacterEllipsis"
+                                       ToolTip="{Binding PhaseText}" behaviors:TrimmedToolTip.IsEnabled="True"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            <TextBlock Text="{Binding ObjectivesText}" FontSize="12" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            <!-- Where it is, on one line: the view's sentence, whole in its tooltip (1.1d AC 39). -->
+                            <TextBlock x:Name="ProjectSentence" Text="{Binding Sentence}" FontSize="12" Margin="0,4,0,0"
+                                       TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTip="{Binding Sentence}" behaviors:TrimmedToolTip.IsEnabled="True"
+                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                       Visibility="{Binding HasSentence, Converter={StaticResource BoolToVisibility}}" />
+                            <!-- A stopped project keeps its run state and says so (1.1e AC 8). -->
+                            <TextBlock x:Name="ProjectStopped" Text="⏸ Project stopped" FontSize="12" Margin="0,4,0,0"
+                                       ToolTip="Start brings back the cards that were running when it was stopped."
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                       Visibility="{Binding IsStopped, Converter={StaticResource BoolToVisibility}}" />
+                            <ItemsControl x:Name="ProjectCounts" ItemsSource="{Binding Counts}" Margin="0,8,0,0" Focusable="False"
+                                          Visibility="{Binding HasSentence, Converter={StaticResource BoolToVisibility}}">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
                                         <WrapPanel />
                                     </ItemsPanelTemplate>
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Button Style="{StaticResource TagChipButton}" Content="{Binding Label, Converter={StaticResource AccessKeyEscape}}" ToolTip="{Binding ToolTip}"
-                                                AutomationProperties.Name="{Binding ToolTip}"
-                                                Command="{Binding FilterCommand}" CommandParameter="{Binding Tag}" />
+                                    <DataTemplate DataType="{x:Type vm:StateCountViewModel}">
+                                        <controls:StateCountChip />
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
-                            <TextBlock Text="{Binding MoreTags}" FontSize="12" Margin="4,0,0,0" VerticalAlignment="Center"
-                                       ToolTip="{Binding MoreTagsToolTip}"
-                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                       Visibility="{Binding MoreTags, Converter={StaticResource NotEmptyToVisibility}}" />
-                        </WrapPanel>
-                        <TextBlock Text="{Binding PhaseText}" FontSize="12" Margin="0,4,0,0" TextTrimming="CharacterEllipsis"
-                                   ToolTip="{Binding PhaseText}" behaviors:TrimmedToolTip.IsEnabled="True"
-                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                        <TextBlock Text="{Binding ObjectivesText}" FontSize="12" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"
-                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                        <!-- Where it is, on one line: the view's sentence, whole in its tooltip (1.1d AC 39). -->
-                        <TextBlock x:Name="ProjectSentence" Text="{Binding Sentence}" FontSize="12" Margin="0,4,0,0"
-                                   TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTip="{Binding Sentence}" behaviors:TrimmedToolTip.IsEnabled="True"
-                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}"
-                                   Visibility="{Binding HasSentence, Converter={StaticResource BoolToVisibility}}" />
-                        <!-- A stopped project keeps its run state and says so (1.1e AC 8). -->
-                        <TextBlock x:Name="ProjectStopped" Text="⏸ Project stopped" FontSize="12" Margin="0,4,0,0"
-                                   ToolTip="Start brings back the cards that were running when it was stopped."
-                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                   Visibility="{Binding IsStopped, Converter={StaticResource BoolToVisibility}}" />
-                        <ItemsControl x:Name="ProjectCounts" ItemsSource="{Binding Counts}" Margin="0,8,0,0" Focusable="False"
-                                      Visibility="{Binding HasSentence, Converter={StaticResource BoolToVisibility}}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <WrapPanel />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate DataType="{x:Type vm:StateCountViewModel}">
-                                    <controls:StateCountChip />
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                        <!--
-                            Open first, always shown, as opening is a project card's main action (1.1e AC 5); then start and
-                            stop the whole project, as a card's own ▶ and ■ (1.1d AC 43), not on a dimmed card (AC 44).
-                        -->
-                        <StackPanel x:Name="ProjectButtons" Orientation="Horizontal" HorizontalAlignment="Left" Margin="-4,4,0,0">
-                            <Button x:Name="ProjectOpen" Style="{StaticResource CardIcon}" Content="&#xE8E5;" Margin="0,0,4,0"
-                                    ToolTip="{Binding OpenButtonToolTip}" AutomationProperties.Name="Open project"
-                                    Visibility="{Binding IsDimmed, Converter={StaticResource NotBoolToVisibility}}"
-                                    Command="{Binding OpenCommand}" />
-                            <!-- A file that does not read: its ↗ becomes Update (1.1e AC 18). -->
-                            <Button x:Name="ProjectUpdate" Style="{StaticResource CommandButton}" Content="Update" Margin="0,0,4,0"
-                                    ToolTip="{Binding OpenButtonToolTip}" AutomationProperties.Name="Update project file"
-                                    Visibility="{Binding IsDimmed, Converter={StaticResource BoolToVisibility}}"
-                                    Command="{Binding OpenCommand}" />
-                            <!-- The lead's terminal, beside Open (Nigel, 2026-11-22). -->
-                            <Button x:Name="ProjectFocusLead" Style="{StaticResource CardIcon}" Content="&#xE8A7;" Margin="0,0,4,0"
-                                    ToolTip="{Binding FocusLeadToolTip}" ToolTipService.ShowOnDisabled="True"
-                                    AutomationProperties.Name="Focus lead" Command="{Binding FocusLeadCommand}"
-                                    Visibility="{Binding IsDimmed, Converter={StaticResource NotBoolToVisibility}}" />
-                            <Button x:Name="ProjectStart" Style="{StaticResource CardIcon}" Content="&#xE768;" Margin="0,0,4,0"
-                                    ToolTip="{Binding StartToolTip}" AutomationProperties.Name="Start project"
-                                    Command="{Binding StartCommand}"
-                                    Visibility="{Binding ShowsRunButtons, Converter={StaticResource BoolToVisibility}}" />
-                            <Button x:Name="ProjectStop" Style="{StaticResource CardIcon}" Content="&#xE71A;"
-                                    ToolTip="{Binding StopToolTip}" AutomationProperties.Name="Stop project"
-                                    Command="{Binding StopCommand}"
-                                    Visibility="{Binding ShowsRunButtons, Converter={StaticResource BoolToVisibility}}" />
-                        </StackPanel>
+                            <!--
+                                Open first, always shown, as opening is a project card's main action (1.1e AC 5); then start and
+                                stop the whole project, as a card's own ▶ and ■ (1.1d AC 43), not on a dimmed card (AC 44).
+                            -->
+                            <StackPanel x:Name="ProjectButtons" Orientation="Horizontal" HorizontalAlignment="Left" Margin="-4,4,0,0">
+                                <Button x:Name="ProjectOpen" Style="{StaticResource CardIcon}" Content="&#xE8E5;" Margin="0,0,4,0"
+                                        ToolTip="{Binding OpenButtonToolTip}" AutomationProperties.Name="Open project"
+                                        Visibility="{Binding IsDimmed, Converter={StaticResource NotBoolToVisibility}}"
+                                        Command="{Binding OpenCommand}" />
+                                <!-- A file that does not read: its ↗ becomes Update (1.1e AC 18). -->
+                                <Button x:Name="ProjectUpdate" Style="{StaticResource CommandButton}" Content="Update" Margin="0,0,4,0"
+                                        ToolTip="{Binding OpenButtonToolTip}" AutomationProperties.Name="Update project file"
+                                        Visibility="{Binding IsDimmed, Converter={StaticResource BoolToVisibility}}"
+                                        Command="{Binding OpenCommand}" />
+                                <!-- The lead's terminal, beside Open (Nigel, 2026-11-22). -->
+                                <Button x:Name="ProjectFocusLead" Style="{StaticResource CardIcon}" Content="&#xE8A7;" Margin="0,0,4,0"
+                                        ToolTip="{Binding FocusLeadToolTip}" ToolTipService.ShowOnDisabled="True"
+                                        AutomationProperties.Name="Focus lead" Command="{Binding FocusLeadCommand}"
+                                        Visibility="{Binding IsDimmed, Converter={StaticResource NotBoolToVisibility}}" />
+                                <Button x:Name="ProjectStart" Style="{StaticResource CardIcon}" Content="&#xE768;" Margin="0,0,4,0"
+                                        ToolTip="{Binding StartToolTip}" AutomationProperties.Name="Start project"
+                                        Command="{Binding StartCommand}"
+                                        Visibility="{Binding ShowsRunButtons, Converter={StaticResource BoolToVisibility}}" />
+                                <Button x:Name="ProjectStop" Style="{StaticResource CardIcon}" Content="&#xE71A;"
+                                        ToolTip="{Binding StopToolTip}" AutomationProperties.Name="Stop project"
+                                        Command="{Binding StopCommand}"
+                                        Visibility="{Binding ShowsRunButtons, Converter={StaticResource BoolToVisibility}}" />
+                            </StackPanel>
+                    </StackPanel>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -1548,6 +1572,11 @@
                 <MenuItem Header="Show only _workstreams" Style="{StaticResource RadioMenuItem}" IsCheckable="True"
                           IsChecked="{Binding Board.ShowsWorkstreams, Mode=TwoWay}" Tag="Show only the workstreams that are in no project." />
                 <Separator />
+                <!-- J: every other letter of the label is taken in View or avoided (W26); "just" is a word's first letter. -->
+                <MenuItem x:Name="ActiveOnlyMenu" Header="Show _just active cards" IsCheckable="True" InputGestureText="Ctrl+K"
+                          IsChecked="{Binding Board.ShowsActiveOnly, Mode=TwoWay}"
+                          ToolTip="Hide every card that has no session and nothing waiting on you. A project stays while any of its cards is active." />
+                <Separator />
                 <!-- O is the one I or O key, a recorded deviation: Open project's other letters are taken or avoided (W4, W26). -->
                 <MenuItem Header="_Open project" ItemsSource="{Binding OpenProjectChoices}"
                           ItemContainerStyle="{StaticResource ProjectChoiceItem}" Style="{StaticResource ExplainsWhenOff}"
@@ -1844,6 +1873,11 @@
                 <RadioButton x:Name="ShowWorkstreamCards" Content="Workstreams" Style="{StaticResource ShowItem}"
                              IsChecked="{Binding ShowsWorkstreams, Mode=TwoWay}" ToolTip="Show only the workstreams that are in no project."
                              AutomationProperties.Name="Show only workstreams" />
+                <ToggleButton x:Name="ActiveOnlyToggle" Style="{StaticResource ToolIconToggle}" Margin="8,0,0,0" Padding="8,0"
+                              Content="Active only" IsChecked="{Binding ShowsActiveOnly, Mode=TwoWay}"
+                              ToolTip="Show active only (Ctrl+K)" AutomationProperties.Name="Show active only"
+                              AutomationProperties.AcceleratorKey="Ctrl+K"
+                              AutomationProperties.HelpText="Hides every card that has no session and nothing waiting on you." />
                 <StackPanel x:Name="ShowHides" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0"
                             ToolTip="Show hides some cards. Choose All to see every card."
                             Visibility="{Binding ShowsAll, Converter={StaticResource NotBoolToVisibility}}">
@@ -2724,6 +2758,7 @@
                                Foreground="{DynamicResource TextFillColorSecondaryBrush}">
                         <Run Text="{Binding Board.Status, Mode=OneWay}" />
                         <Run Text="{Binding Board.ShowsNoteInStatus, Mode=OneWay}" />
+                        <Run Text="{Binding Board.ActiveOnlyNoteInStatus, Mode=OneWay}" />
                         <Run Text="  ·  " />
                         <Run Text="{Binding SelectionSummary, Mode=OneWay}" />
                     </TextBlock>
