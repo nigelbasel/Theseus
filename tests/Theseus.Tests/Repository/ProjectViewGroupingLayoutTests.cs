@@ -94,11 +94,12 @@ public class ProjectViewGroupingLayoutTests
     }
 
     [Test]
-    public void InTheFlow_TheMarksAreNotShown_SinceTheLinesShowThem()
+    public void InTheFlow_TheMarksAreShown_SinceNoLineIsDrawn()
     {
         var control = LaidOut(_views.BuildYourMarket());
 
-        Assert.That(AllNamed<ItemsControl>(control, "CrossMarks").Select(marks => marks.Visibility), Has.All.EqualTo(Visibility.Collapsed));
+        Assert.That(AllNamed<ItemsControl>(control, "CrossMarks").Select(marks => marks.Visibility), Has.All.EqualTo(Visibility.Visible),
+            "a round's pieces sit under their states' headings, so a box says who handed it work (git-22, 2026-11-24)");
         Assert.That(((ItemsControl)control.FindName("PhaseList")).Items, Is.Empty, "no heading is laid out in the Flow");
         Assert.That(AllNamed<Border>((FrameworkElement)control.FindName("ObjectiveList"), "Box"), Is.Empty);
     }

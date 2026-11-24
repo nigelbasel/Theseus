@@ -94,4 +94,52 @@ public class RoundStateGroupTests
 
         Assert.That(done.IsOpen, Is.True, "Properties never shows a box that is not on screen");
     }
+
+    [Test]
+    public void NoPieceOfARound_IsHiddenBehindAHandOver_OnlyDoneWorkStartsFolded()
+    {
+        // git-22, 2026-11-24, on BuildYourMarket: Round 1 showed two boxes, ten folded under "Specify the GUI-parity tools"
+        // and E1 lost, which Nigel read as "no other work".
+        var round = Bym().Rounds[0];
+        var shown = Groups(round).Where(group => group.IsOpen).SelectMany(group => group.Boxes).ToList();
+        var folded = Groups(round).Where(group => !group.IsOpen).SelectMany(group => group.Boxes).ToList();
+
+        Assert.That(Groups(round).SelectMany(group => group.Boxes).Select(box => box.Title), Has.Some.Contains("(E1)"));
+        Assert.That(folded, Has.All.Matches<PieceNodeViewModel>(box => box.State == StageNodeState.Done));
+        Assert.That(shown.Count + folded.Count, Is.EqualTo(round.Boxes.Count));
+    }
+
+    [Test]
+    public void ARebuild_KeepsTheSelection_WithoutOpeningAHeadingByItself()
+    {
+        // Review of the state headings, 1: a selected piece that finished moved under the folded done heading, which the
+        // rebuild opened and remembered.
+        var view = _views.BuildYourMarket();
+        var done = view.StateGroups.First(group => group.State == StageNodeState.Done);
+        view.Select(done.Boxes[0]);
+        done.ToggleCommand.Execute(null);
+
+        var again = _views.BuildYourMarket(previous: view);
+
+        Assert.That(again.StateGroups.First(group => group.State == StageNodeState.Done).IsOpen, Is.False);
+        Assert.That(again.Selection, Is.Not.Null);
+    }
+
+    [Test]
+    public void UnderAFilter_AHeadingCountsAndNamesWhatShows_AndOpensToShowIt()
+    {
+        string? named = null;
+        var view = _views.BuildYourMarket(otherWaits: pieces =>
+        {
+            named = pieces.First(piece => piece.Status.State == StageNodeState.Done).Name;
+
+            return [new WaitItem(WaitKind.ConfirmReport, "A check reported: confirm it.", [named])];
+        });
+        var done = view.StateGroups.First(group => group.Boxes.Any(box => box.Name == named));
+
+        view.ToggleFilter(StageNodeState.WaitingOnYou, add: false);
+
+        Assert.That(done.Text, Is.EqualTo("▼ ✓ 1 done"));
+        Assert.That(done.IsOpen, Is.True, "the match is not hidden behind its heading");
+    }
 }

@@ -38,6 +38,8 @@
         <!-- Back and Forward through the places visited in project views (I46). -->
         <KeyBinding Gesture="Alt+Left" Command="{Binding GoBackCommand}" />
         <KeyBinding Gesture="Alt+Right" Command="{Binding GoForwardCommand}" />
+        <!-- Ctrl+L: a free Ctrl+letter key for a wide-scope command (G77), "lead" (git-22, 2026-11-24). -->
+        <KeyBinding Gesture="Ctrl+L" Command="{Binding FocusLeadCommand}" />
     </Window.InputBindings>
 
     <Window.Resources>
@@ -1426,6 +1428,10 @@
                 <MenuItem Header="St_op selected" Command="{Binding StopSelectedCommand}"
                           ToolTip="Ask the ticked cards' running sessions, and a ticked project's, to write a handoff and exit">
                     <MenuItem.Icon><TextBlock Text="&#xE71A;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Focus lea_d session" InputGestureText="Ctrl+L" Command="{Binding FocusLeadCommand}"
+                          ToolTipService.ShowOnDisabled="True" ToolTip="{Binding FocusLeadToolTip}">
+                    <MenuItem.Icon><TextBlock Text="&#xE8A7;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
                 </MenuItem>
                 <Separator />
                 <MenuItem Header="Mark as _paused" Command="{Binding MarkSelectedPausedCommand}"

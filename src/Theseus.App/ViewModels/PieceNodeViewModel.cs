@@ -4,8 +4,8 @@ using Theseus.Core.Projects;
 namespace Theseus.App.ViewModels;
 
 /// <summary>
-/// One box of the project view's tree (1.1d AC 24 to 28): a piece of work, folded to a strip of its stages or open into
-/// its chain and actions, with the pieces it hands work to in a branch under it. What it shows comes from the model
+/// One box of the project view (1.1d AC 24 to 28): a piece of work, folded to a strip of its stages or open into its
+/// chain and actions; the pieces it hands work to are its children, though each box is drawn under its own state. What it shows comes from the model
 /// (<see cref="PieceOfWork"/>, <see cref="PieceNode"/>); nothing here works state out again.
 /// </summary>
 public sealed class PieceNodeViewModel : ObservableObject, IFoldable
@@ -136,9 +136,6 @@ public sealed class PieceNodeViewModel : ObservableObject, IFoldable
     /// <summary>Opens the later report; null with none. Set by the view.</summary>
     public System.Windows.Input.ICommand? OpenLaterReport { get; init; }
 
-    /// <summary>Every box beneath it, at any depth.</summary>
-    public IEnumerable<PieceNodeViewModel> Descendants => Children.SelectMany(child => child.Descendants.Prepend(child));
-
     /// <summary>Whether it is open into its stages; folded by default.</summary>
     public bool IsOpen
     {
@@ -202,7 +199,7 @@ public sealed class PieceNodeViewModel : ObservableObject, IFoldable
     public ProjectObjective? Objective { get; init; }
 
     /// <summary>
-    /// The marks it carries in the view grouped by objectives, where no connector is drawn (1.1d AC 47): "← handed on
+    /// The marks it carries in both lenses, since no line is drawn between boxes (1.1d AC 47): "← handed on
     /// from …", "→ handed on to …", "┈ worked on after …" and "┈ then worked on …".
     /// </summary>
     public IReadOnlyList<string> CrossMarks { get; init; } = [];

@@ -54,7 +54,11 @@ workstream that works it, its kind (feature, bug or freeform), its objective, an
 
 Right-click a stage, or press Shift+F10 or the Menu key on it, for **Properties** and that stage's own actions.
 
-Three small icons right of **Group by**, each named in its tooltip: **Collapse all** folds every box, **Expand all**
+The project's lead session is named at the top, **Lead: … · idle**, with **⧉ Focus** beside it. **Focus lead session**
+on the **Workstream** menu, **Ctrl+L**, and the first icon in the toolbar do the same: they bring the lead's terminal
+forward, and are disabled, saying why, while it has no session.
+
+Three small icons follow, each named in its tooltip: **Collapse all** folds every box, **Expand all**
 opens them all (with the headings of a round's states), and **Open what needs attention** opens what is busy,
 waiting on you, stuck or waiting for its holdout check, and folds the rest. Grouped by objectives, they fold and open
 the headings too, and Open what needs attention opens the headings on the way to what needs you. Each project keeps

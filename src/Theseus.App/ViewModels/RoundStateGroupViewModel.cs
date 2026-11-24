@@ -38,11 +38,27 @@ public sealed class RoundStateGroupViewModel : ObservableObject, IFoldable
     /// <inheritdoc />
     public string FoldName { get; }
 
-    /// <summary>"▶ ✓ 8 done" folded, "▼ ✓ 8 done" open: the chip's own words.</summary>
-    public string Text => $"{(_isOpen ? "▼" : "▶")} {StateCountViewModel.TextOf(State, Boxes.Count)}";
+    /// <summary>"▶ ✓ 8 done" folded, "▼ ✓ 8 done" open: the chip's own words, counting what the filter shows.</summary>
+    public string Text => $"{(_isOpen ? "▼" : "▶")} {StateCountViewModel.TextOf(State, Shown.Count)}";
 
-    /// <summary>Their titles, in order, shown while it is folded.</summary>
-    public string Titles => string.Join(" · ", Boxes.Select(box => box.Title));
+    /// <summary>The titles of what the filter shows, in order, shown while it is folded.</summary>
+    public string Titles => string.Join(" · ", Shown.Select(box => box.Title));
+
+    private List<PieceNodeViewModel> Shown => [.. Boxes.Where(box => box.IsShown)];
+
+    /// <summary>Follows the filter: shown while any box is, counting those; opened when asked, which is not remembered.</summary>
+    internal void ShowFiltered(bool opens)
+    {
+        IsShown = Boxes.Any(box => box.IsShown);
+
+        if (opens && IsShown)
+        {
+            IsOpen = true;
+        }
+
+        Raise(nameof(Text));
+        Raise(nameof(Titles));
+    }
 
     /// <summary>Whether its boxes are shown.</summary>
     public bool IsOpen

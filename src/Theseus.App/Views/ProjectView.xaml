@@ -479,9 +479,8 @@
                                 <TextBlock x:Name="BranchRules" Text="{Binding BranchRulesMark}" FontSize="11" Margin="0,2,0,0"
                                            ToolTip="{Binding BranchRulesToolTip}" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                            Visibility="{Binding BranchRulesMark, Converter={StaticResource NotEmpty}}" />
-                                <!-- Grouped by objectives, the hand-overs and moves that rounds and work draw as lines (AC 47). -->
-                                <ItemsControl x:Name="CrossMarks" ItemsSource="{Binding CrossMarks}" Focusable="False" Margin="0,2,0,0"
-                                              Visibility="{Binding DataContext.IsGroupedByObjectives, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource Visible}}">
+                                <!-- Its hand-overs and moves, in both lenses: no line is drawn between boxes (AC 47; git-22, 2026-11-24). -->
+                                <ItemsControl x:Name="CrossMarks" ItemsSource="{Binding CrossMarks}" Focusable="False" Margin="0,2,0,0">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                             <TextBlock x:Name="CrossMark" Text="{Binding}" ToolTip="{Binding}" FontSize="12" TextWrapping="Wrap"
@@ -1103,12 +1102,15 @@
                     One size in the row (Nigel, 2026-11-23: "large buttons much larger than everything else in that row"):
                     small icons 32 high, each named for UI Automation as its words were, and saying what it does on hover.
                 -->
+                <Button x:Name="FocusLeadIcon" Content="&#xE8A7;" Command="{Binding FocusLeadCommand}" Style="{StaticResource ToolbarIcon}"
+                        Height="32" Margin="0,0,12,6" ToolTipService.ShowOnDisabled="True"
+                        AutomationProperties.Name="Focus lead session" ToolTip="{Binding FocusLeadIconToolTip}" />
                 <Button x:Name="CollapseAll" Content="&#xE73F;" Command="{Binding CollapseAllCommand}" Style="{StaticResource ToolbarIcon}"
                         Height="32" Margin="0,0,4,6"
-                        AutomationProperties.Name="Collapse all" ToolTip="Collapse all: fold every piece of work, its children and every heading" />
+                        AutomationProperties.Name="Collapse all" ToolTip="Collapse all: fold every piece of work and every heading" />
                 <Button x:Name="ExpandAll" Content="&#xE740;" Command="{Binding ExpandAllCommand}" Style="{StaticResource ToolbarIcon}"
                         Height="32" Margin="0,0,4,6"
-                        AutomationProperties.Name="Expand all" ToolTip="Expand all: open every piece of work into its stages, with its children, and every heading" />
+                        AutomationProperties.Name="Expand all" ToolTip="Expand all: open every piece of work into its stages, and every heading" />
                 <Button x:Name="OpenWhatNeedsAttention" Content="&#xE7C1;" Command="{Binding OpenWhatNeedsAttentionCommand}"
                         Style="{StaticResource ToolbarIcon}" Height="32" Margin="0,0,12,6"
                         AutomationProperties.Name="Open what needs attention"

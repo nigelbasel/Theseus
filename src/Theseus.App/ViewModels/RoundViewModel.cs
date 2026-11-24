@@ -6,7 +6,7 @@ namespace Theseus.App.ViewModels;
 
 /// <summary>
 /// One round of the project view's main area (1.1f C10 to C14): its heading, the change banner before it when the
-/// requirements changed, "Set out to meet:" its objectives, and its pieces as a tree, a run of finished ones folded.
+/// requirements changed, "Set out to meet:" its objectives, and its pieces under a heading for each state.
 /// </summary>
 public sealed class RoundViewModel : ObservableObject, IFoldable
 {
@@ -31,7 +31,7 @@ public sealed class RoundViewModel : ObservableObject, IFoldable
             : isLatest;
 
     internal RoundViewModel(ProjectRound round, ProjectRound? next, bool isLatest, IReadOnlyList<RoundObjectiveViewModel> objectives,
-        IReadOnlyList<object> items, IReadOnlyList<PieceNodeViewModel> boxes, bool isOpen, Action<RoundViewModel> toggle)
+        IReadOnlyList<RoundStateGroupViewModel> items, IReadOnlyList<PieceNodeViewModel> boxes, bool isOpen, Action<RoundViewModel> toggle)
     {
         Round = round;
         IsLatest = isLatest;
@@ -88,8 +88,8 @@ public sealed class RoundViewModel : ObservableObject, IFoldable
     /// <summary>The objectives it set out to meet, as the rows of its table (C12; walkthrough row 37).</summary>
     public IReadOnlyList<RoundObjectiveViewModel> Objectives { get; }
 
-    /// <summary>Its top-level items: a box (with its tree under it) or a run of finished boxes folded to one line (D22).</summary>
-    public IReadOnlyList<object> Items { get; }
+    /// <summary>Its pieces under a heading for each state, in the chips' order (git-22, 2026-11-24).</summary>
+    public IReadOnlyList<RoundStateGroupViewModel> Items { get; }
 
     /// <summary>Every box in it, depth first.</summary>
     public IReadOnlyList<PieceNodeViewModel> Boxes { get; }

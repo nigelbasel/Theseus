@@ -2700,6 +2700,20 @@ public sealed partial class ShellViewModel : ObservableObject
     public ViewHistory History { get; } = new();
 
     /// <summary>◀ Back, Alt+Left and the mouse's back button: where the owner was before; from a project's first view, the board.</summary>
+    /// <summary>
+    /// Focus lead session, on the Workstream menu and Ctrl+L: brings the open project's lead terminal forward, as the
+    /// header's Focus does (git-22, 2026-11-24: it was easy to miss). Disabled with no project open or no lead session.
+    /// </summary>
+    public System.Windows.Input.ICommand FocusLeadCommand => _focusLead ??= new RelayCommand(
+        _ => ProjectView?.FocusLeadCommand?.Execute(null), _ => ProjectView?.FocusLeadCommand?.CanExecute(null) == true);
+
+    /// <summary>The menu item's tooltip: what it would focus, or why it cannot.</summary>
+    public string FocusLeadToolTip => ProjectView is { } view
+        ? view.FocusLeadToolTip.Length == 0 ? "This project has no lead card" : view.FocusLeadToolTip
+        : "Open a project to focus its lead session";
+
+    private System.Windows.Input.ICommand? _focusLead;
+
     public System.Windows.Input.ICommand GoBackCommand => _goBack ??= new RelayCommand(_ => GoTo(History.Back()), _ => History.CanGoBack);
 
     /// <summary>Forward ▶, Alt+Right and the mouse's forward button.</summary>
@@ -2808,6 +2822,7 @@ public sealed partial class ShellViewModel : ObservableObject
             if (Set(ref _projectView, value))
             {
                 CarrySearch(value);
+                Raise(nameof(FocusLeadToolTip));
                 Raise(nameof(IsProjectOpen));
                 Raise(nameof(IsBoardShown));
             }

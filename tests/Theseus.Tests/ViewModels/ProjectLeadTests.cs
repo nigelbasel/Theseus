@@ -67,6 +67,14 @@ public class ProjectLeadTests
     }
 
     [Test]
+    public void TheToolbarsFocusLeadIcon_SaysItsKeyAndWhatItDoes()
+    {
+        // G78: a hand-written tooltip includes the accelerator (git-22, 2026-11-24: the header's Focus was easy to miss).
+        Assert.That(_views.Theseus().FocusLeadIconToolTip, Is.EqualTo("Focus lead session (Ctrl+L): bring git-22's terminal forward"));
+        Assert.That(_views.One("feature").FocusLeadIconToolTip, Is.EqualTo("Focus lead session (Ctrl+L): a-card has no session: start it first"));
+    }
+
+    [Test]
     public void APendingProposal_IsANodeUnderItsProposersCurrentPiece()
     {
         var proposal = new WorkstreamProposal("p1", ProposalStatus.Pending, Git22, "s",
