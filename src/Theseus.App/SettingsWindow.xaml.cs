@@ -93,6 +93,14 @@ public partial class SettingsWindow : Window
         }
     }
 
+    private void OnChooseClonesFolder(object sender, RoutedEventArgs e)
+    {
+        if (Settings is { } settings && ChooseFolder("Choose the clones folder", settings.ClonesFolder) is { } folder)
+        {
+            settings.ClonesFolder = folder;
+        }
+    }
+
     private void OnChoosePlanDirectory(object sender, RoutedEventArgs e)
     {
         if (Settings is { } settings && ChooseFolder("Choose the plan directory", settings.PlanDirectory) is { } folder)

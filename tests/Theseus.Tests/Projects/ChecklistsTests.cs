@@ -40,4 +40,18 @@ public class ChecklistsTests
         Assert.That(list.Foot([]), Is.EqualTo("Nothing ticked"));
     }
 
+    [Test]
+    public void RemoveWorktrees_ListsOnlyCleanOnes_AndNamesTheKeptInItsIntro()
+    {
+        var clean = new Theseus.Core.Worktrees.RemovableWorktree(@"C:\work\feature\app", "app", @"C:\src\app", "user/feature");
+        var dirty = new Theseus.Core.Worktrees.RemovableWorktree(@"C:\work\feature\api", "api", @"C:\src\api", "user/feature");
+
+        var list = Checklists.RemoveWorktrees([clean], [dirty]);
+
+        Assert.That(list.Rows.Select(row => row.Key), Is.EqualTo(new[] { @"C:\work\feature\app" }));
+        Assert.That(list.Intro, Does.Contain("branch and every commit on it are kept").And.Contain(@"C:\work\feature\api"));
+        Assert.That(list.Foot([@"C:\work\feature\app"]), Is.EqualTo("Remove 1 worktree"));
+        Assert.That(list.Foot([]), Is.EqualTo("Nothing ticked"));
+    }
+
 }

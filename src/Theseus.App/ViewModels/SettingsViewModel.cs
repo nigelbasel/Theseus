@@ -26,6 +26,7 @@ public sealed class SettingsViewModel : ObservableObject
     private string _holdoutRemote = string.Empty;
     private string _projectsFolder = string.Empty;
     private string _worktreesFolder = string.Empty;
+    private string _clonesFolder = string.Empty;
     private bool _showsProjectsIntro;
     private bool _includePreReleases;
     private string _sessionPreamble = string.Empty;
@@ -342,6 +343,23 @@ public sealed class SettingsViewModel : ObservableObject
 
     /// <summary>The worktrees folder as Options shows it.</summary>
     public string WorktreesFolderValue => string.IsNullOrWhiteSpace(_worktreesFolder) ? "None chosen" : _worktreesFolder.Trim();
+
+    /// <summary>The folder the primary clones are in, by the layout rule, as typed (worktree-per-repo AC 18).</summary>
+    public string ClonesFolder
+    {
+        get => _clonesFolder;
+        set
+        {
+            if (Set(ref _clonesFolder, value))
+            {
+                Write(settings => settings with { ClonesFolder = ProjectsFolderPath.Normalize(value) });
+                Raise(nameof(ClonesFolderValue));
+            }
+        }
+    }
+
+    /// <summary>The clones folder as Options shows it.</summary>
+    public string ClonesFolderValue => string.IsNullOrWhiteSpace(_clonesFolder) ? "None chosen" : _clonesFolder.Trim();
 
     /// <summary>Whether Check for updates also offers the pre-releases built from a project's primary branch.</summary>
     public bool IncludePreReleases
@@ -671,6 +689,7 @@ public sealed class SettingsViewModel : ObservableObject
             HoldoutRemote = settings.HoldoutRemote;
             ProjectsFolder = settings.ProjectsFolder;
             WorktreesFolder = settings.WorktreesFolder;
+            ClonesFolder = settings.ClonesFolder;
             ShowsProjectsIntro = string.IsNullOrWhiteSpace(settings.ProjectsFolder);
             IncludePreReleases = settings.IncludePreReleases;
             SessionPreamble = settings.SessionPreamble;
