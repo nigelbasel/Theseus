@@ -78,11 +78,11 @@ public sealed class MarkdownBox : DockPanel
         _viewer.SetBinding(MaxHeightProperty, new Binding(nameof(EditorMaxHeight)) { Source = this });
         AutomationProperties.SetName(_viewer, "Markdown preview");
 
-        var bar = new DockPanel { Margin = new Thickness(0, 0, 0, 4), LastChildFill = false };
+        DockPanel bar = new() { Margin = new Thickness(0, 0, 0, 4), LastChildFill = false };
         string group = "MarkdownView" + Guid.NewGuid().ToString("N");
         _write = Tab("Write", "Write: the Markdown, as typed", group, () => IsPreviewing = false);
         _preview = Tab("Preview", "Preview: as it will read", group, () => IsPreviewing = true);
-        var tabs = new StackPanel { Orientation = Orientation.Horizontal };
+        StackPanel tabs = new() { Orientation = Orientation.Horizontal };
         KeyboardNavigation.SetTabNavigation(tabs, KeyboardNavigationMode.Once);
         KeyboardNavigation.SetDirectionalNavigation(tabs, KeyboardNavigationMode.Contained);
         tabs.Children.Add(_write);
@@ -155,6 +155,11 @@ public sealed class MarkdownBox : DockPanel
         get => _isPreviewing;
         set
         {
+            if (_isPreviewing == value)
+            {
+                return;
+            }
+
             _isPreviewing = value;
             ShowMode();
         }
@@ -237,7 +242,7 @@ public sealed class MarkdownBox : DockPanel
 
     private static RadioButton Tab(string label, string toolTip, string group, Action choose)
     {
-        RadioButton item = new RadioButton { Content = label, ToolTip = toolTip, GroupName = group };
+        RadioButton item = new() { Content = label, ToolTip = toolTip, GroupName = group };
         item.SetResourceReference(StyleProperty, "SelectorBarItem");
         SelectorBar.SetSelectsOnFocus(item, true);
         item.Checked += (_, _) => choose();

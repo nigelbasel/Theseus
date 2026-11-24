@@ -59,6 +59,34 @@ public class SharedStylesTests
         }
     }
 
+    [Test]
+    public void TheBareLinkTemplate_IsUnderlinedOnlyOnHover_SoTheProjectViewsChipsAndRowsAreNotDrawnAsLinks()
+    {
+        Button chip = new() { Content = "3 waiting on you", Template = (ControlTemplate)Shared()["LinkTemplate"] };
+        Window window = Host(chip);
+
+        try
+        {
+            Border underline = (Border)chip.Template.FindName("Underline", chip);
+
+            Assert.That(underline.BorderBrush, Is.EqualTo(Brushes.Transparent));
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [Test]
+    public void ALinksHover_ThickensItsUnderline_AndKeepsTheLinksOwnColour()
+    {
+        ControlTemplate template = (ControlTemplate)StyleSetter((Style)Shared()["LinkButton"], "Template")!;
+        Trigger hover = template.Triggers.OfType<Trigger>().Single(trigger => trigger.Property.Name == "IsMouseOver");
+
+        Assert.That(hover.Setters.OfType<Setter>().Select(setter => (setter.TargetName, setter.Property.Name, setter.Value)),
+            Is.EqualTo(new[] { ("Underline", "BorderThickness", (object)new Thickness(0, 0, 0, 2)) }), "W16: weight on hover, no colour of its own");
+    }
+
     [TestCase("CaptionText", 12)]
     [TestCase("BodyText", 14)]
     [TestCase("BodyStrongText", 14)]
@@ -172,9 +200,10 @@ public class SharedStylesTests
     [Test]
     public void TheDialogButton_IsACommandButtonAtLeast120Wide()
     {
-        Style dialog = (Style)Shared()["DialogButton"];
+        ResourceDictionary shared = Shared();
+        Style dialog = (Style)shared["DialogButton"];
 
-        Assert.That(dialog.BasedOn, Is.SameAs(Shared()["CommandButton"]).Or.Property("TargetType").EqualTo(typeof(Button)));
+        Assert.That(dialog.BasedOn, Is.SameAs(shared["CommandButton"]));
         Assert.That(StyleSetter(dialog, "MinWidth"), Is.EqualTo(120.0));
     }
 

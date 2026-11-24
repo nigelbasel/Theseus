@@ -91,14 +91,15 @@ public class InteractiveStylesTests
     }
 
     [Test]
-    public void ALink_HasTheHandCursor_IsUnderlinedOnHover_AnswersPressAndFocus_AndLooksDisabled()
+    public void ALink_HasTheHandCursor_IsUnderlinedAndThickerOnHover_AnswersPressAndFocus_AndLooksDisabled()
     {
         var style = StyleOf("LinkButton");
         var triggers = Triggers(style);
 
         Assert.That(Setter(style, "Cursor")?.Value?.ToString(), Is.EqualTo("Hand"));
         Assert.That(FocusVisual(style), Is.Not.Null, "a keyboard-focus ring");
-        Assert.That(Sets(PropertyTrigger(triggers, "IsMouseOver", true), "Underline", "BorderBrush"), Is.Not.Null);
+        Assert.That(Sets(PropertyTrigger(triggers, "IsMouseOver", true), "Underline", "BorderThickness"), Is.EqualTo(new Thickness(0, 0, 0, 2)),
+            "underlined at rest, thicker on hover (baseline W16)");
         Assert.That(PropertyTrigger(triggers, "IsPressed", true), Is.Not.Null);
         Assert.That(ResourceKey(Sets(PropertyTrigger(triggers, "IsEnabled", false), "Text", "Foreground")), Is.EqualTo("TextFillColorDisabledBrush"));
     }

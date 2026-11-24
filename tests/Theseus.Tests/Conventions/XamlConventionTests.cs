@@ -90,6 +90,8 @@ public class XamlConventionTests
     [TestCase("Spacing", "0,2", true)]
     [TestCase("Spacing", "1,0,0,0", false)]
     [TestCase("Spacing", "6,4", false)]
+    [TestCase("Spacing", "8,2", false)]
+    [TestCase("Spacing", "0,1,4,0", false)]
     [TestCase("Colour", "Transparent", true)]
     [TestCase("Colour", "#D68910", false)]
     public void TheAllowList_KeepsOnlyWhatADecisionKeeps(string rule, string value, bool kept)
@@ -111,6 +113,8 @@ public class XamlConventionTests
               </Grid.Resources>
               <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="8" Text="x" Foreground="White" Padding="6,4" Margin="0,1,0,0" />
               <TextBlock FontSize="{Binding Size}" Margin="{StaticResource DialogGutter}" Background="Transparent" />
+              <Border BorderThickness="1"><Border.Padding><Thickness>6,3</Thickness></Border.Padding></Border>
+              <SolidColorBrush x:Key="Odd"><SolidColorBrush.Color><Color>#123456</Color></SolidColorBrush.Color></SolidColorBrush>
             </Grid>
             """);
 
@@ -120,7 +124,7 @@ public class XamlConventionTests
         {
             ("FontSize", "11", false), ("Spacing", "0,14,0,4", false), ("Colour", "#D68910", false),
             ("Font", "Segoe MDL2 Assets", false), ("FontSize", "8", true), ("Colour", "White", false), ("Spacing", "6,4", false),
-            ("Spacing", "0,1,0,0", false), ("Colour", "Transparent", false),
+            ("Spacing", "0,1,0,0", false), ("Colour", "Transparent", false), ("Spacing", "6,3", false), ("Colour", "#123456", false),
         }));
     }
 
@@ -174,8 +178,7 @@ public class XamlConventionTests
             if (element.Name.LocalName == "Setter")
             {
                 string property = Local((string?)element.Attribute("Property") ?? string.Empty);
-                string? value = (string?)element.Attribute("Value")
-                    ?? element.Elements().FirstOrDefault(child => child.Name.LocalName == "Setter.Value")?.Elements().FirstOrDefault(child => child.Name.LocalName == "Thickness")?.Value;
+                string? value = (string?)element.Attribute("Value");
 
                 if (value is not null)
                 {
@@ -186,6 +189,14 @@ public class XamlConventionTests
                 }
 
                 continue;
+            }
+
+            if (!element.HasElements && ContentProperty(element) is { } content)
+            {
+                foreach (Finding finding in Check(content, element.Value, false, stateColours))
+                {
+                    yield return finding;
+                }
             }
 
             bool glyph = IsGlyphElement(element, glyphStyles);
@@ -231,6 +242,24 @@ public class XamlConventionTests
         }
     }
 
+    // A value written as element content: a Thickness for a margin or padding (property element, setter value or a keyed
+    // spacing token, not a border's), a Color, or a FontFamily. Other content, such as a BorderThickness, is not a convention this test checks.
+    private static string? ContentProperty(XElement element)
+    {
+        string parent = element.Parent?.Name.LocalName ?? string.Empty;
+        string setterProperty = parent == "Setter.Value" ? Local((string?)element.Parent!.Parent?.Attribute("Property") ?? string.Empty) : string.Empty;
+
+        return element.Name.LocalName switch
+        {
+            "Thickness" when Key(element) is { } key && !key.Contains("Border", StringComparison.Ordinal) => "Margin",
+            "Thickness" when parent.EndsWith(".Margin", StringComparison.Ordinal) || parent.EndsWith(".Padding", StringComparison.Ordinal) => "Margin",
+            "Thickness" when setterProperty is "Margin" or "Padding" => setterProperty,
+            "Color" => "Color",
+            "FontFamily" => "FontFamily",
+            _ => null,
+        };
+    }
+
     private static double[]? Thickness(string text)
     {
         string[] parts = text.Split([',', ' '], StringSplitOptions.RemoveEmptyEntries);
@@ -253,14 +282,15 @@ public class XamlConventionTests
     private static HashSet<string> GlyphStyles(IEnumerable<XDocument> documents)
     {
         List<XElement> styles = [.. documents.SelectMany(document => document.Descendants()).Where(element => element.Name.LocalName == "Style" && Key(element) is not null)];
-        HashSet<string> glyph = new(styles.Where(style => style.Elements().Any(setter => setter.Name.LocalName == "Setter"
-            && Local((string?)setter.Attribute("Property") ?? string.Empty) == "FontFamily" && IsIconFont((string?)setter.Attribute("Value")))).Select(style => Key(style)!), StringComparer.Ordinal);
+        HashSet<string> glyph = new(styles.Where(style => FontOf(style) is { } font && IsIconFont(font)).Select(style => Key(style)!), StringComparer.Ordinal);
 
         for (bool grew = true; grew;)
         {
             grew = false;
 
-            foreach (XElement style in styles.Where(style => !glyph.Contains(Key(style)!) && Referenced((string?)style.Attribute("BasedOn")) is { } basis && glyph.Contains(basis)))
+            // A style based on a glyph's that sets a text font of its own, such as a toolbar toggle with a count, is not a glyph's.
+            foreach (XElement style in styles.Where(style => !glyph.Contains(Key(style)!) && FontOf(style) is null
+                && Referenced((string?)style.Attribute("BasedOn")) is { } basis && glyph.Contains(basis)))
             {
                 grew |= glyph.Add(Key(style)!);
             }
@@ -272,12 +302,16 @@ public class XamlConventionTests
     private static bool IsGlyphElement(XElement element, HashSet<string> glyphStyles) =>
         IsIconFont((string?)element.Attribute("FontFamily")) || (Referenced((string?)element.Attribute("Style")) is { } style && glyphStyles.Contains(style));
 
+    // A setter in a style, or in one of its triggers, belongs to a glyph when the style is a glyph's or sets the icon font.
     private static bool IsGlyphSetter(XElement setter, HashSet<string> glyphStyles) =>
-        setter.Parent is { } style && style.Name.LocalName == "Style"
+        setter.Ancestors().FirstOrDefault(each => each.Name.LocalName == "Style") is { } style
         && ((Key(style) is { } key && glyphStyles.Contains(key))
-            || (Referenced((string?)style.Attribute("BasedOn")) is { } basis && glyphStyles.Contains(basis))
-            || style.Elements().Any(each => each.Name.LocalName == "Setter" && Local((string?)each.Attribute("Property") ?? string.Empty) == "FontFamily"
-                && IsIconFont((string?)each.Attribute("Value"))));
+            || (FontOf(style) is { } font ? IsIconFont(font)
+                : Referenced((string?)style.Attribute("BasedOn")) is { } basis && glyphStyles.Contains(basis)));
+
+    private static string? FontOf(XElement style) =>
+        (string?)style.Elements().FirstOrDefault(setter => setter.Name.LocalName == "Setter"
+            && Local((string?)setter.Attribute("Property") ?? string.Empty) == "FontFamily")?.Attribute("Value");
 
     private static bool IsIconFont(string? value) =>
         value is not null && (value.Contains("SymbolThemeFontFamily", StringComparison.Ordinal) || value.Contains("Icons", StringComparison.Ordinal)

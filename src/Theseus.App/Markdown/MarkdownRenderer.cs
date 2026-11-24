@@ -67,7 +67,7 @@ public static class MarkdownRenderer
                 document.Blocks.Add(list);
             }
 
-            var paragraph = new Paragraph { Margin = new Thickness(0, 0, 0, 4) };
+            Paragraph paragraph = new() { Margin = new Thickness(0, 0, 0, 4) };
 
             if (block.Kind == MarkdownBlockKind.Task)
             {
@@ -96,7 +96,7 @@ public static class MarkdownRenderer
         {
             case MarkdownBlockKind.Heading:
             {
-                var heading = new Paragraph
+                Paragraph heading = new()
                 {
                     FontSize = block.Level switch { 1 => TypeRamp.Subtitle, 2 => TypeRamp.BodyLarge, _ => TypeRamp.Body },
                     FontWeight = FontWeights.SemiBold,
@@ -109,7 +109,7 @@ public static class MarkdownRenderer
 
             case MarkdownBlockKind.Code:
             {
-                var code = new Paragraph(new Run(block.Text))
+                Paragraph code = new(new Run(block.Text))
                 {
                     FontFamily = Mono,
                     FontSize = TypeRamp.Caption,
@@ -125,7 +125,7 @@ public static class MarkdownRenderer
 
             case MarkdownBlockKind.Quote:
             {
-                var quote = new Paragraph
+                Paragraph quote = new()
                 {
                     Padding = new Thickness(12, 4, 0, 4),
                     Margin = new Thickness(0, 4, 0, 8),
@@ -140,7 +140,7 @@ public static class MarkdownRenderer
 
             case MarkdownBlockKind.Rule:
             {
-                var rule = new Paragraph { Margin = new Thickness(0, 8, 0, 8), BorderThickness = new Thickness(0, 0, 0, 1), FontSize = 2 };
+                Paragraph rule = new() { Margin = new Thickness(0, 8, 0, 8), BorderThickness = new Thickness(0, 0, 0, 1), FontSize = 2 };
                 rule.SetResourceReference(Block.BorderBrushProperty, "CardStrokeColorDefaultBrush");
 
                 return rule;
@@ -151,7 +151,7 @@ public static class MarkdownRenderer
 
             default:
             {
-                var paragraph = new Paragraph { Margin = new Thickness(0, 4, 0, 8) };
+                Paragraph paragraph = new() { Margin = new Thickness(0, 4, 0, 8) };
                 AddInlines(paragraph.Inlines, block.Text);
 
                 return paragraph;
@@ -181,7 +181,7 @@ public static class MarkdownRenderer
             {
                 var paragraph = new Paragraph { Margin = new Thickness(0) };
                 AddInlines(paragraph.Inlines, column < cells.Count ? cells[column] : string.Empty);
-                var cell = new TableCell(paragraph) { Padding = new Thickness(8, 4, 8, 4), BorderThickness = new Thickness(0, 0, 1, 1) };
+                TableCell cell = new(paragraph) { Padding = new Thickness(8, 4, 8, 4), BorderThickness = new Thickness(0, 0, 1, 1) };
                 cell.SetResourceReference(TableCell.BorderBrushProperty, "CardStrokeColorDefaultBrush");
 
                 if (index == 0)
@@ -225,7 +225,7 @@ public static class MarkdownRenderer
                 }
                 case MarkdownInlineKind.Code:
                 {
-                    var code = new Run(span.Text) { FontFamily = Mono, FontSize = TypeRamp.Caption };
+                    Run code = new(span.Text) { FontFamily = Mono, FontSize = TypeRamp.Caption };
                     code.SetResourceReference(TextElement.BackgroundProperty, "ControlFillColorSecondaryBrush");
                     inlines.Add(code);
 

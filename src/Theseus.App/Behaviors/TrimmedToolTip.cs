@@ -9,7 +9,8 @@ namespace Theseus.App.Behaviors;
 /// <summary>
 /// A tooltip that shows a TextBlock's whole text only when the text is cut short (baseline W35, checklist G154): a
 /// tooltip that repeats what is already on the screen is noise. Set <c>behaviors:TrimmedToolTip.IsEnabled="True"</c> on a
-/// TextBlock with TextTrimming; its ToolTip, if it has none of its own, becomes its text.
+/// TextBlock with TextTrimming; its ToolTip, if it has none of its own, becomes its text. The text is measured as one run
+/// in the block's own font, so it suits a plain line, not one whose runs differ in size or weight.
 /// </summary>
 public static class TrimmedToolTip
 {
@@ -62,7 +63,7 @@ public static class TrimmedToolTip
 
         block.ToolTipOpening += OnToolTipOpening;
 
-        if (block.ReadLocalValue(FrameworkElement.ToolTipProperty) == DependencyProperty.UnsetValue)
+        if (block.ToolTip is null)
         {
             block.SetBinding(FrameworkElement.ToolTipProperty, new Binding(nameof(TextBlock.Text)) { Source = block });
         }

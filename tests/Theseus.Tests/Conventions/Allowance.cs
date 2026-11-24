@@ -4,8 +4,8 @@ namespace Theseus.Tests.Conventions;
 
 /// <summary>
 /// One line of AllowList.txt: <c>Rule | value | scope | reason</c>. The scope is <c>*</c> for every file, <c>glyph</c> for
-/// a glyph anywhere, or a path under src/Theseus.App. The value <c>nudge</c> matches spacing whose only off-grid parts are
-/// a top or bottom of 1 or 2, the text-baseline nudge baseline W36 allows.
+/// a glyph anywhere, or a path under src/Theseus.App. The value <c>nudge</c> matches the text-baseline nudge baseline W36
+/// allows: nothing to the sides, and only 1 or 2 above or below.
 /// </summary>
 public sealed record Allowance(string Rule, string Value, string Scope, string Reason)
 {
@@ -42,8 +42,6 @@ public sealed record Allowance(string Rule, string Value, string Scope, string R
             _ => parts,
         };
 
-        return sides[0] % 4 == 0 && sides[2] % 4 == 0 && OnGridOrNudge(sides[1]) && OnGridOrNudge(sides[3]);
+        return sides[0] == 0 && sides[2] == 0 && Math.Abs(sides[1]) is 0 or 1 or 2 && Math.Abs(sides[3]) is 0 or 1 or 2;
     }
-
-    private static bool OnGridOrNudge(double side) => side % 4 == 0 || Math.Abs(side) is 1 or 2;
 }

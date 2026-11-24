@@ -127,6 +127,41 @@ public class SharedTextTests
         }
     }
 
+    [Test]
+    public void AToolbarToggleWithWords_DrawsThemAsText_WithItsAccessKey()
+    {
+        ResourceDictionary shared = LooseXaml.Dictionary("Themes", "Interactive.xaml");
+        System.Windows.Controls.Primitives.ToggleButton toggle = new() { Content = "_Projects", Style = (Style)shared["ToolIconToggle"] };
+        Window window = new()
+        {
+            Content = toggle, Left = -30000, Top = 0, Width = 200, Height = 100, ShowActivated = false, ShowInTaskbar = false,
+            WindowStartupLocation = WindowStartupLocation.Manual,
+        };
+
+        try
+        {
+            window.Show();
+            window.UpdateLayout();
+
+            Assert.That(Descendants(toggle).OfType<GlyphText>(), Is.Empty, "words are not a glyph");
+            Assert.That(Descendants(toggle).OfType<AccessText>().Select(text => text.AccessKey), Is.EqualTo(new[] { 'P' }));
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [TestCase("", true)]
+    [TestCase("", true)]
+    [TestCase("All", false)]
+    [TestCase(" New", false)]
+    [TestCase("", false)]
+    public void AGlyph_IsTextInTheIconFontsPrivateUseArea(string text, bool glyph)
+    {
+        Assert.That(GlyphTemplateSelector.IsGlyph(text), Is.EqualTo(glyph));
+    }
+
     private static IEnumerable<DependencyObject> Descendants(DependencyObject root)
     {
         for (int index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)

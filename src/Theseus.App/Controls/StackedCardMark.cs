@@ -24,9 +24,9 @@ public sealed class StackedCardMark : Canvas
         Focusable = false;
         IsHitTestVisible = false;
 
-        foreach (var (left, top) in new[] { (5.0, 1.0), (3.0, 3.0), (1.0, 5.0) })
+        foreach ((double left, double top) in new[] { (5.0, 1.0), (3.0, 3.0), (1.0, 5.0) })
         {
-            var outline = new Rectangle { Width = 14, Height = 10, RadiusX = 2, RadiusY = 2, StrokeThickness = 1.5 };
+            Rectangle outline = new() { Width = 14, Height = 10, RadiusX = 2, RadiusY = 2, StrokeThickness = 1.5 };
 
             outline.SetResourceReference(Shape.FillProperty, "CardBackgroundFillColorDefaultBrush");
             SetLeft(outline, left);
