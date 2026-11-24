@@ -1114,9 +1114,12 @@
         </Border>
 
         <!-- Where the project is: its title, one sentence, six counts, and what waits on you (AC 19, 20). -->
-        <Border x:Name="Where" DockPanel.Dock="Top" Padding="24,16" BorderThickness="0,0,0,1"
+        <!-- It scrolls within a bounded share of the view's height, set as the view is sized, so the work below always has
+             room and the page can always be acted on (project-view-scale, 2026-11-24). -->
+        <Border x:Name="Where" DockPanel.Dock="Top" BorderThickness="0,0,0,1"
                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
-            <StackPanel>
+            <ScrollViewer x:Name="WhereScroller" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+            <StackPanel Margin="24,16">
                 <WrapPanel>
                     <controls:StackedCardMark x:Name="SummaryMark" Style="{StaticResource ProjectMark}" Margin="0,0,12,0" />
                     <TextBlock x:Name="ProjectTitle" Text="{Binding Title}" FontSize="20" FontWeight="SemiBold" VerticalAlignment="Center"
@@ -1176,10 +1179,22 @@
                         <TextBlock x:Name="NothingWaits" Text="Nothing waits for you." FontSize="14" Margin="0,0,0,2"
                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                    Visibility="{Binding HasWaits, Converter={StaticResource NotVisible}}" />
-                        <ItemsControl x:Name="WaitItems" ItemsSource="{Binding Waits}" ItemTemplate="{StaticResource WaitLine}" Focusable="False"
+                        <!-- A few lines, then "and n more…" for the rest in a dialog: lists of items go in dialogs (Nigel's rule). -->
+                        <ItemsControl x:Name="WaitItems" ItemsSource="{Binding ShownWaits}" ItemTemplate="{StaticResource WaitLine}" Focusable="False"
                                       ItemContainerStyle="{StaticResource ItemNamedByText}" AutomationProperties.Name="Waits for you" />
+                        <!-- A button, not a link: it opens a dialog, and links only navigate (W15). -->
+                        <Button x:Name="MoreWaits" Command="{Binding ShowAllWaitsCommand}" Style="{StaticResource CommandButton}"
+                                HorizontalAlignment="Left" Margin="0,0,0,4"
+                                ToolTip="Show every line of Waits for you, each with its button" AutomationProperties.Name="{Binding MoreWaitsName}"
+                                Visibility="{Binding HasMoreWaits, Converter={StaticResource Visible}}">
+                            <TextBlock Text="{Binding MoreWaitsText}" FontSize="14" />
+                        </Button>
                     </StackPanel>
                 </Border>
+                <!-- What waits on the lead, such as objectives with no workstream: said beside the band, not counted in it. -->
+                <TextBlock x:Name="LeadWaitsLine" Text="{Binding LeadWaitsText}" FontSize="14" TextWrapping="Wrap" Margin="0,8,0,0"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                           Visibility="{Binding LeadWaitsText, Converter={StaticResource NotEmpty}}" />
                 <!-- What Theseus is doing itself asks nothing of him, so it is said under the band and not counted in it (git-22, 2026-11-24). -->
                 <TextBlock x:Name="UnderwayLine" Text="{Binding UnderwayText}" FontSize="14" TextWrapping="Wrap" Margin="0,8,0,0"
                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
@@ -1229,6 +1244,7 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </StackPanel>
+            </ScrollViewer>
         </Border>
 
         <!-- The two views of the project, as a selector bar over the page: one Tab stop, arrow keys select (G124, G125). No

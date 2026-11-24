@@ -15,6 +15,12 @@ public sealed record WaitItem(WaitKind Kind, string Text, IReadOnlyList<string> 
     /// <summary>The objective it concerns, for a criterion waiting on the owner; null otherwise.</summary>
     public string? Objective { get; init; }
 
+    /// <summary>
+    /// Every objective it concerns: an ask several criteria share is one line for all their objectives
+    /// (project-view-scale, 2026-11-24). Empty unless <see cref="Objective"/> is set; its first is that one.
+    /// </summary>
+    public IReadOnlyList<string> Objectives { get; init; } = [];
+
     /// <summary>The proposal it concerns, for a proposal; null otherwise.</summary>
     public string? ProposalId { get; init; }
 

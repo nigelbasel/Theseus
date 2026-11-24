@@ -7,6 +7,6 @@ public static class SecondaryWindowNames
     public static IEnumerable<string> Every() =>
     [
         "About", "AddObjective", "AddToProject", "Arrange", "Checklist", "DayReport", "Instructions", "NewProject", "NewWorkstream",
-        "PromptEdit", "Proposal", "Records", "Spec",
+        "PromptEdit", "Proposal", "Records", "Spec", "Waits",
     ];
 }
