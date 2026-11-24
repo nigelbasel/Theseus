@@ -1,0 +1,10 @@
+Colour | White | 1
+FontSize | 11 | 4
+FontSize | 11.5 | 1
+FontSize | 9 | 1
+Spacing | 0,6,0,0 | 2
+Spacing | 10,2 | 3
+Spacing | 12,3 | 1
+Spacing | 5,0 | 1
+Spacing | 8,1 | 1
+Spacing | 8,1,2,1 | 1

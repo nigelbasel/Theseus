@@ -25,7 +25,7 @@ public class InteractiveStylesTests
          "ClickableSurface", "SurfaceWash", "ClickableCard", "FocusRing", "CardFocusRing"];
 
     private static ResourceDictionary Shared() =>
-        (ResourceDictionary)XamlReader.Parse(File.ReadAllText(SourceFile("Themes", "Interactive.xaml")));
+        Theseus.Tests.Conventions.LooseXaml.Dictionary("Themes", "Interactive.xaml");
 
     private static Style StyleOf(string key) => (Style)Shared()[key];
 
@@ -83,21 +83,23 @@ public class InteractiveStylesTests
 
         Assert.That(Setter(style, "Cursor")?.Value?.ToString(), Is.EqualTo("Hand"));
         Assert.That(FocusVisual(style), Is.Not.Null, "a keyboard-focus ring");
-        Assert.That(ResourceKey(Sets(PropertyTrigger(triggers, "IsMouseOver", true), "Underline", "Fill")), Is.EqualTo("TextFillColorPrimaryBrush"));
+        Assert.That(ResourceKey(Sets(PropertyTrigger(triggers, "IsMouseOver", true), "Underline", "Fill")), Is.EqualTo("TextOnAccentFillColorPrimaryBrush"),
+            "on the accent, in the text-on-accent brush (baseline E3)");
         Assert.That(PropertyTrigger(triggers, "IsPressed", true), Is.Not.Null);
         Assert.That((ResourceKey(Sets(disabled, "Chip", "Background")), ResourceKey(Sets(disabled, "Label", "Foreground"))),
             Is.EqualTo(("ControlFillColorDisabledBrush", "TextFillColorDisabledBrush")));
     }
 
     [Test]
-    public void ALink_HasTheHandCursor_IsUnderlinedOnHover_AnswersPressAndFocus_AndLooksDisabled()
+    public void ALink_HasTheHandCursor_IsUnderlinedAndThickerOnHover_AnswersPressAndFocus_AndLooksDisabled()
     {
         var style = StyleOf("LinkButton");
         var triggers = Triggers(style);
 
         Assert.That(Setter(style, "Cursor")?.Value?.ToString(), Is.EqualTo("Hand"));
         Assert.That(FocusVisual(style), Is.Not.Null, "a keyboard-focus ring");
-        Assert.That(Sets(PropertyTrigger(triggers, "IsMouseOver", true), "Underline", "BorderBrush"), Is.Not.Null);
+        Assert.That(Sets(PropertyTrigger(triggers, "IsMouseOver", true), "Underline", "BorderThickness"), Is.EqualTo(new Thickness(0, 0, 0, 2)),
+            "underlined at rest, thicker on hover (baseline W16)");
         Assert.That(PropertyTrigger(triggers, "IsPressed", true), Is.Not.Null);
         Assert.That(ResourceKey(Sets(PropertyTrigger(triggers, "IsEnabled", false), "Text", "Foreground")), Is.EqualTo("TextFillColorDisabledBrush"));
     }

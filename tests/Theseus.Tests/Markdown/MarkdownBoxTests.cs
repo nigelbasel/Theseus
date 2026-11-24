@@ -154,7 +154,7 @@ public class MarkdownBoxTests
         {
             "Paragraph", "Paragraph", "List", "List", "List", "Paragraph", "Paragraph", "Table", "Paragraph",
         }));
-        Assert.That(((Paragraph)blocks[0]).FontSize, Is.EqualTo(22));
+        Assert.That(((Paragraph)blocks[0]).FontSize, Is.EqualTo(20), "Subtitle on the type ramp (baseline W18)");
         var inlines = ((Paragraph)blocks[1]).Inlines.ToList();
         Assert.That(inlines.Select(inline => inline.GetType().Name), Is.EqualTo(new[] { "Run", "Bold", "Run", "Italic", "Run", "Run", "Run", "Hyperlink", "Run" }));
         Assert.That(((Hyperlink)inlines[7]).NavigateUri, Is.EqualTo(new Uri("https://example.com")));
