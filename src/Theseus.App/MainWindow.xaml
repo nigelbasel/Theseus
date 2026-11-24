@@ -308,6 +308,13 @@
             <Setter Property="TextElement.FontWeight" Value="SemiBold" />
         </Style>
 
+        <!-- A count over its icon's top-right corner, so the button keeps the icon's width with or without one (Nigel, 2026-11-24). -->
+        <Style x:Key="OverlayToolBadge" TargetType="Border" BasedOn="{StaticResource ToolBadge}">
+            <Setter Property="HorizontalAlignment" Value="Right" />
+            <Setter Property="VerticalAlignment" Value="Top" />
+            <Setter Property="Margin" Value="0,-4,-8,0" />
+        </Style>
+
         <!-- An urgent count: the caution wash and text, and a ⚠ before the number, never the colour alone (E5, W46, G161). -->
         <Style x:Key="UrgentToolBadge" TargetType="Border" BasedOn="{StaticResource ToolBadge}">
             <Setter Property="Background" Value="{DynamicResource SystemFillColorCautionBackgroundBrush}" />
@@ -1799,22 +1806,22 @@
                     <ToggleButton Style="{StaticResource ToolIconToggle}" IsChecked="{Binding IsSessionsPanelOpen, Mode=TwoWay}"
                                   ToolTip="Live sessions panel (F7)" AutomationProperties.Name="Live sessions panel"
                                   AutomationProperties.AcceleratorKey="F7" AutomationProperties.HelpText="{Binding Sessions.Status}">
-                        <StackPanel Orientation="Horizontal">
+                        <Grid>
                             <controls:GlyphText Text="&#xE90C;" Style="{StaticResource ToolGlyph}" />
-                            <Border Style="{StaticResource ToolBadge}"
+                            <Border Style="{StaticResource OverlayToolBadge}"
                                     Visibility="{Binding Sessions.Sessions.Count, Converter={StaticResource CountToVisibility}}">
                                 <controls:GlyphText Text="{Binding Sessions.Sessions.Count}" />
                             </Border>
-                        </StackPanel>
+                        </Grid>
                     </ToggleButton>
                     <ToggleButton Style="{StaticResource ToolIconToggle}" IsChecked="{Binding Locks.IsOpen, Mode=TwoWay}"
                                   ToolTip="Locks panel (F8)" AutomationProperties.Name="Locks panel"
                                   AutomationProperties.AcceleratorKey="F8" AutomationProperties.HelpText="{Binding Locks.ButtonText}">
-                        <StackPanel Orientation="Horizontal">
+                        <Grid>
                             <controls:GlyphText Text="&#xE72E;" Style="{StaticResource ToolGlyph}" />
                             <Border Visibility="{Binding Locks.Busy, Converter={StaticResource CountToVisibility}}">
                                 <Border.Style>
-                                    <Style TargetType="Border" BasedOn="{StaticResource ToolBadge}">
+                                    <Style TargetType="Border" BasedOn="{StaticResource OverlayToolBadge}">
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding Locks.IsUrgent}" Value="True">
                                                 <Setter Property="Background" Value="{DynamicResource SystemFillColorCautionBackgroundBrush}" />
@@ -1830,16 +1837,16 @@
                                     <controls:GlyphText Text="{Binding Locks.Busy}" />
                                 </StackPanel>
                             </Border>
-                        </StackPanel>
+                        </Grid>
                     </ToggleButton>
                     <ToggleButton Style="{StaticResource ToolIconToggle}" IsChecked="{Binding Chains.IsOpen, Mode=TwoWay}"
                                   ToolTip="Chains panel (F9)" AutomationProperties.Name="Chains panel"
                                   AutomationProperties.AcceleratorKey="F9" AutomationProperties.HelpText="{Binding Chains.ButtonText}">
-                        <StackPanel Orientation="Horizontal">
+                        <Grid>
                             <controls:GlyphText Text="&#xE71B;" Style="{StaticResource ToolGlyph}" />
                             <Border Visibility="{Binding Chains.BadgeCount, Converter={StaticResource CountToVisibility}}">
                                 <Border.Style>
-                                    <Style TargetType="Border" BasedOn="{StaticResource ToolBadge}">
+                                    <Style TargetType="Border" BasedOn="{StaticResource OverlayToolBadge}">
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding Chains.IsUrgent}" Value="True">
                                                 <Setter Property="Background" Value="{DynamicResource SystemFillColorCautionBackgroundBrush}" />
@@ -1855,7 +1862,7 @@
                                     <controls:GlyphText Text="{Binding Chains.BadgeCount}" />
                                 </StackPanel>
                             </Border>
-                        </StackPanel>
+                        </Grid>
                     </ToggleButton>
 
                     <Separator />
