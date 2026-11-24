@@ -6,7 +6,7 @@ namespace Theseus.App.ViewModels;
 /// <summary>
 /// An objective as a heading of the view grouped by objectives (1.1d AC 46, 47, 49; Nigel's decision 5, 2026-11-21): its
 /// number and title, how many criteria are ticked, the state counts of its pieces of work, and those pieces as the same
-/// boxes the Flow shows. It folds like a branch; selecting it puts the objective, its criteria and Edit objective… in
+/// boxes the Flow shows. It folds like a branch; selecting it puts the objective, its criteria and Rename objective… in
 /// Properties. The pieces no project file lists have a heading of their own, with no objective.
 /// </summary>
 public sealed class ObjectiveHeadingViewModel : ObservableObject, IFoldable
@@ -14,8 +14,8 @@ public sealed class ObjectiveHeadingViewModel : ObservableObject, IFoldable
     /// <summary>The heading of the pieces no project file lists.</summary>
     public const string UnlistedTitle = "Not in project.md";
 
-    /// <summary>Edit objective…'s tooltip, on the heading's menu and in Properties.</summary>
-    public const string EditObjectiveToolTip = "Change this objective's title in project.md";
+    /// <summary>Rename objective…'s tooltip, on the heading's menu and in Properties.</summary>
+    public const string EditObjectiveToolTip = "Rename objective: change its title in project.md. Its criteria are changed in project.md itself";
 
     private bool _isOpen;
     private bool _isSelected;
@@ -45,7 +45,7 @@ public sealed class ObjectiveHeadingViewModel : ObservableObject, IFoldable
 
         if (EditObjectiveCommand is { } edit)
         {
-            menu.Add(new PieceActionViewModel("Edit objective…", () => edit.Execute(null), toolTip: EditObjectiveToolTip));
+            menu.Add(new PieceActionViewModel("Rename objective…", () => edit.Execute(null), toolTip: EditObjectiveToolTip));
         }
 
         MenuItems = menu;
@@ -116,10 +116,10 @@ public sealed class ObjectiveHeadingViewModel : ObservableObject, IFoldable
     /// <summary>Its criteria, ticked in the project file, for Properties.</summary>
     public IReadOnlyList<CriterionViewModel> Criteria { get; }
 
-    /// <summary>Edit objective…, or null when the view cannot edit or there is no objective.</summary>
+    /// <summary>Rename objective…, or null when the view cannot edit or there is no objective.</summary>
     public ICommand? EditObjectiveCommand { get; }
 
-    /// <summary>Its right-click menu: Properties (the default), then Edit objective….</summary>
+    /// <summary>Its right-click menu: Properties (the default), then Rename objective….</summary>
     public IReadOnlyList<PieceActionViewModel> MenuItems { get; }
 
     /// <inheritdoc />

@@ -4,7 +4,7 @@ namespace Theseus.App.ViewModels;
 
 /// <summary>
 /// The edits the project view offers on its project's file (1.1c AC 8), each made by the shell through
-/// <see cref="Theseus.Core.Projects.ProjectFileWriter"/>: ticks and Edit objective… from a piece's Objective section or
+/// <see cref="Theseus.Core.Projects.ProjectFileWriter"/>: ticks and Rename objective… from a piece's Objective section or
 /// an objective heading in Properties (1.1d AC 34, 49), and Add objective… from a phase heading (1.1d AC 49).
 /// </summary>
 /// <param name="TickCriterion">

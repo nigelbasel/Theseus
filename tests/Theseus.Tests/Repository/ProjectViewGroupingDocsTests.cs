@@ -18,7 +18,7 @@ public class ProjectViewGroupingDocsTests
     [TestCase("**Not in project.md**")]
     [TestCase("**← handed on from …**")]
     [TestCase("**Add objective…**")]
-    [TestCase("**Edit\nobjective…**")]
+    [TestCase("**Rename\nobjective…**")]
     [TestCase("**Properties\nhidden: the window is too narrow**")]
     [TestCase("**×** or Esc")]
     public void TheProjectViewPage_Covers(string part)
