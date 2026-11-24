@@ -101,8 +101,8 @@ Each project keeps its own choice, across restarts.
 
 - **Rounds and work** shows each round, and in it the pieces of work under a heading for each state, named as the counts
   name them: **✓ done**, **● busy**, **◆ waiting on you**, **◐ not yet checked**, **⚠ stuck** and **– to do**, then any
-  answered, handed on, kept elsewhere or not in project.md. Done starts folded, naming what it holds; the rest start
-  open. A piece another handed work to sits under its own state, not beneath the piece that handed it on; its Properties
+  answered, handed on, kept elsewhere or not in project.md. What asks nothing of you starts folded, naming what it
+  holds: done, handed on and kept elsewhere; the rest start open. A piece another handed work to sits under its own state, not beneath the piece that handed it on; its Properties
   say who handed it work and what it handed on.
 - **Objectives only** shows every phase of the project's file as a heading, in file order, with its exit gate and how many
   of its objectives are done. Under each phase, every objective is a heading: its number and title, how many of its
