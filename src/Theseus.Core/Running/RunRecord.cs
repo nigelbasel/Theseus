@@ -4,7 +4,7 @@ namespace Theseus.Core.Running;
 
 /// <summary>
 /// One ended headless run, as the run ledger keeps it: what it cost, measured from its own output and never estimated,
-/// how it ended, and whether it made progress, which is what the budgets and the circuit breakers read (objective 2.2).
+/// how it ended, and whether it made progress, which is what the budgets and the circuit breakers read (Nigel, 2026-11-24).
 /// </summary>
 /// <param name="RunId">The run's identifier.</param>
 /// <param name="Workstream">The card's key.</param>

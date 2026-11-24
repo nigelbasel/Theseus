@@ -49,7 +49,7 @@ public sealed record LaunchSpec(
 
     /// <summary>
     /// Whether the session runs headless, in print mode with stream-json in and out, started and read by Theseus rather
-    /// than a tab (objective 2.2). Its prompt is then written to stdin, not passed on the command line.
+    /// than a tab (Nigel, 2026-11-24). Its prompt is then written to stdin, not passed on the command line.
     /// </summary>
     public bool Headless { get; init; }
 

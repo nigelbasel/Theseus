@@ -30,6 +30,11 @@ public sealed class HeadlessRunner
     private readonly Dictionary<string, HeadlessSubmission> _waiting = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, RunRecord> _last = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> _lastLogs = new(StringComparer.OrdinalIgnoreCase);
+
+    // Cards between leaving the queue (or ending a run that is resumed for its handoff) and their process starting: a
+    // stop or an Open in a tab in that window cancels the start instead of being lost.
+    private readonly HashSet<string> _starting = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _cancelled = new(StringComparer.OrdinalIgnoreCase);
     private readonly HeadlessQueue _queue;
 
     /// <summary>Creates the runner.</summary>
@@ -55,7 +60,7 @@ public sealed class HeadlessRunner
         _zone = zone ?? TimeZoneInfo.Local;
         _queue = new HeadlessQueue(settings().MaxHeadlessRuns);
 
-        foreach (var record in ledger.Read())
+        foreach (var record in ledger.Read().Where(record => !record.IsHandoffRun))
         {
             _last[record.Workstream] = record;
         }
@@ -125,6 +130,10 @@ public sealed class HeadlessRunner
         else
         {
             TheseusLog.Information("Queued the headless run of {Workstream}: place {Position}", key, position);
+
+            // A cap raised since the queue formed leaves slots free that no run's end would fill.
+            Pump();
+            position = _queue.PositionOf(key);
         }
 
         Raise();
@@ -182,6 +191,13 @@ public sealed class HeadlessRunner
                 return true;
             }
 
+            if (_starting.Contains(workstream))
+            {
+                _cancelled.Add(workstream);
+
+                return true;
+            }
+
             if (!_active.TryGetValue(workstream, out var active))
             {
                 return false;
@@ -203,6 +219,13 @@ public sealed class HeadlessRunner
             {
                 _queue.Leave(workstream);
                 Raise();
+
+                return Task.CompletedTask;
+            }
+
+            if (_starting.Contains(workstream))
+            {
+                _cancelled.Add(workstream);
 
                 return Task.CompletedTask;
             }
@@ -280,6 +303,83 @@ public sealed class HeadlessRunner
 
     private void Begin(HeadlessSubmission submission, bool isHandoffRun, string? handoffPrompt = null)
     {
+        var key = submission.Workstream.Key;
+
+        lock (_gate)
+        {
+            _starting.Add(key);
+        }
+
+        Active? active;
+        ProcessStartRequest? request;
+
+        try
+        {
+            (active, request) = Prepare(submission, isHandoffRun, handoffPrompt);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException)
+        {
+            TheseusLog.Warning(exception, "The headless run of {Workstream} could not be prepared", key);
+            Refused?.Invoke(key, $"{submission.Workstream.Title} could not start headless: {exception.Message}");
+            (active, request) = (null, null);
+        }
+
+        bool cancelled;
+
+        lock (_gate)
+        {
+            _starting.Remove(key);
+            cancelled = _cancelled.Remove(key);
+
+            if (active is not null && !cancelled)
+            {
+                _active[key] = active;
+                _lastLogs[key] = active.LogPath;
+            }
+        }
+
+        if (active is null || request is null || cancelled)
+        {
+            if (cancelled)
+            {
+                TheseusLog.Information("Did not start the headless run of {Workstream}: it was stopped or opened in a tab as it was starting", key);
+            }
+
+            Release(key);
+
+            return;
+        }
+
+        try
+        {
+            var process = _start(request, line => Line(active, line), code => Exited(active, code));
+            active.Process = process;
+            active.Input.Attach(process);
+
+            TheseusLog.Information(
+                "Started {Workstream} headless as {Mode}: run {Run}, session {Session}, process {Process}, cost cap {Cap}, log {Log}",
+                key, active.Mode, active.Run.Start.RunId, active.Run.Start.SessionId, process.ProcessId,
+                Money.Usd(active.Run.Start.Limits.CostUsd), active.LogPath);
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception or IOException)
+        {
+            TheseusLog.Warning(exception, "The headless run of {Workstream} would not start", key);
+            active.StartError = exception.Message;
+            Exited(active, -1);
+
+            return;
+        }
+
+        lock (active)
+        {
+            active.Run.Begin(active.Prompt);
+        }
+    }
+
+    // Everything a run needs before its process starts; null when its budget refuses it. Nothing here is visible to the
+    // board until Begin publishes it, with its run already made.
+    private (Active?, ProcessStartRequest?) Prepare(HeadlessSubmission submission, bool isHandoffRun, string? handoffPrompt)
+    {
         var workstream = submission.Workstream;
         var settings = _settings();
         RunLimits limits;
@@ -296,12 +396,10 @@ public sealed class HeadlessRunner
         else
         {
             var detail = Refusal(workstream) ?? "its budget is spent";
-            _queue.Leave(workstream.Key);
             TheseusLog.Information("Did not start the headless run of {Workstream}: {Detail}", workstream.Key, detail);
             Refused?.Invoke(workstream.Key, detail);
-            Raise();
 
-            return;
+            return (null, null);
         }
 
         var spec = submission.Spec with { Headless = true, MaxBudgetUsd = Math.Max(0.01m, limits.CostUsd) };
@@ -320,45 +418,17 @@ public sealed class HeadlessRunner
         };
 
         Directory.CreateDirectory(_logFolder);
-        var logPath = Path.Combine(_logFolder, $"{start.RunId:N}.jsonl");
         var folders = new[] { workstream.WorkingDirectory }.Concat(workstream.AddDirectories).ToList();
-        var active = new Active(submission, logPath, Heads(folders), folders);
+        var input = new BufferedInput();
+        var active = new Active(submission, Path.Combine(_logFolder, $"{start.RunId:N}.jsonl"), Heads(folders), folders,
+            new HeadlessRun(start, input, _clock.UtcNow), input, spec.Prompt, spec.Mode);
 
         var request = new ProcessStartRequest(spec.ClaudeExecutablePath, ClaudeArgumentBuilder.Build(spec), spec.WorkingDirectory)
         {
             Environment = spec.Environment,
         };
 
-        lock (_gate)
-        {
-            _active[workstream.Key] = active;
-            _lastLogs[workstream.Key] = logPath;
-        }
-
-        IHeadlessProcess process;
-
-        try
-        {
-            var buffer = new BufferedInput();
-            active.Run = new HeadlessRun(start, buffer, _clock.UtcNow);
-            process = _start(request, line => Line(active, line), code => Exited(active, code));
-            active.Process = process;
-            buffer.Attach(process);
-        }
-        catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception)
-        {
-            TheseusLog.Warning(exception, "The headless run of {Workstream} would not start", workstream.Key);
-            active.StartError = exception.Message;
-            Exited(active, -1);
-
-            return;
-        }
-
-        TheseusLog.Information(
-            "Started {Workstream} headless as {Mode}: run {Run}, session {Session}, process {Process}, cost cap {Cap}, log {Log}",
-            workstream.Key, spec.Mode, start.RunId, spec.SessionId, process.ProcessId, Money.Usd(limits.CostUsd), logPath);
-
-        active.Run.Begin(spec.Prompt);
+        return (active, request);
     }
 
     private void Line(Active active, string line)
@@ -383,34 +453,74 @@ public sealed class HeadlessRunner
     private void Exited(Active active, int exitCode)
     {
         var now = _clock.UtcNow;
-        var progress = RunProgress.Made(active.HeadsBefore, Heads(active.Folders), active.RecordCalls);
-        RunRecord record;
-
-        lock (active)
-        {
-            record = active.Run.Ended(exitCode, now, progress, active.StartError ?? active.Process?.LastError);
-        }
-
-        _ledger.Append(record);
-
         var key = active.Submission.Workstream.Key;
+        RunRecord? record = null;
+        var handoff = false;
 
-        lock (_gate)
+        // Whatever goes wrong here, the slot is freed and Open in a tab is released: a card left holding a slot would be
+        // refused every start until Theseus restarts.
+        try
         {
-            _active.Remove(key);
-            _last[key] = record;
+            var progress = RunProgress.Made(active.HeadsBefore, Heads(active.Folders), active.RecordCalls);
+
+            lock (active)
+            {
+                record = active.Run.Ended(exitCode, now, progress, active.StartError ?? active.Process?.LastError);
+            }
+
+            try
+            {
+                _ledger.Append(record);
+            }
+            catch (IOException exception)
+            {
+                TheseusLog.Error(exception, "Could not record the headless run {Run} of {Workstream} in the ledger", record.RunId, key);
+            }
+
+            // Claude Code's own cap ends a run between calls without its handoff, so it is resumed once to write it.
+            handoff = active.Run.HitCostCap && !active.Run.Start.IsHandoffRun && !active.OwnerTookOver;
+
+            lock (_gate)
+            {
+                _active.Remove(key);
+
+                if (!record.IsHandoffRun)
+                {
+                    _last[key] = record;
+                }
+
+                if (handoff)
+                {
+                    _starting.Add(key);
+                }
+            }
+
+            TheseusLog.Information(
+                "The headless run of {Workstream} ended {Outcome} (exit {Exit}): cost {Cost}, {Tokens} tokens, progress {Progress}{Detail}",
+                key, record.Outcome, exitCode, record.CostUsd is { } cost ? Money.Usd(cost) : "not reported", record.Tokens.Counted,
+                progress, record.LimitDetail is { } detail ? $", {detail}" : record.Error is { } error ? $", {error}" : string.Empty);
+
+            Ended?.Invoke(record);
+        }
+        catch (Exception exception) when (exception is IOException or InvalidOperationException or UnauthorizedAccessException)
+        {
+            TheseusLog.Error(exception, "Could not finish recording the headless run of {Workstream}", key);
+
+            lock (_gate)
+            {
+                _active.Remove(key);
+                _starting.Remove(key);
+            }
+
+            handoff = false;
+        }
+        finally
+        {
+            active.Exited.TrySetResult();
+            (active.Process as IDisposable)?.Dispose();
         }
 
-        TheseusLog.Information(
-            "The headless run of {Workstream} ended {Outcome} (exit {Exit}): cost {Cost}, {Tokens} tokens, progress {Progress}{Detail}",
-            key, record.Outcome, exitCode, record.CostUsd is { } cost ? Money.Usd(cost) : "not reported", record.Tokens.Counted,
-            progress, record.LimitDetail is { } detail ? $", {detail}" : record.Error is { } error ? $", {error}" : string.Empty);
-
-        Ended?.Invoke(record);
-        active.Exited.TrySetResult();
-
-        // Claude Code's own cap ends a run between calls without its handoff, so it is resumed once to write it.
-        if (active.Run.HitCostCap && !active.Run.Start.IsHandoffRun && !active.OwnerTookOver)
+        if (handoff && record is not null)
         {
             Begin(active.Submission, isHandoffRun: true,
                 $"Theseus: this run reached its cost limit ({record.LimitDetail?.Replace("Stopped at its limit: ", string.Empty, StringComparison.Ordinal)}). Do no more work. {active.Submission.StopText}");
@@ -419,7 +529,7 @@ public sealed class HeadlessRunner
             return;
         }
 
-        if (!active.OwnerTookOver)
+        if (!active.OwnerTookOver && record is not null)
         {
             Judge(active.Submission.Workstream, now);
         }
@@ -442,6 +552,12 @@ public sealed class HeadlessRunner
     private void Release(string key)
     {
         _queue.Leave(key);
+        Pump();
+        Raise();
+    }
+
+    private void Pump()
+    {
         _queue.Cap = _settings().MaxHeadlessRuns;
 
         while (_queue.TakeNext() is { } next)
@@ -450,7 +566,10 @@ public sealed class HeadlessRunner
 
             lock (_gate)
             {
-                _waiting.Remove(next, out submission);
+                if (_waiting.Remove(next, out submission))
+                {
+                    _starting.Add(next);
+                }
             }
 
             if (submission is not null)
@@ -462,13 +581,19 @@ public sealed class HeadlessRunner
                 _queue.Leave(next);
             }
         }
-
-        Raise();
     }
 
     private void Raise() => Changed?.Invoke();
 
-    private sealed class Active(HeadlessSubmission submission, string logPath, IReadOnlyDictionary<string, string> headsBefore, IReadOnlyList<string> folders)
+    private sealed class Active(
+        HeadlessSubmission submission,
+        string logPath,
+        IReadOnlyDictionary<string, string> headsBefore,
+        IReadOnlyList<string> folders,
+        HeadlessRun run,
+        BufferedInput input,
+        string prompt,
+        LaunchMode mode)
     {
         public HeadlessSubmission Submission { get; } = submission;
 
@@ -478,7 +603,13 @@ public sealed class HeadlessRunner
 
         public IReadOnlyList<string> Folders { get; } = folders;
 
-        public HeadlessRun Run { get; set; } = null!;
+        public HeadlessRun Run { get; } = run;
+
+        public BufferedInput Input { get; } = input;
+
+        public string Prompt { get; } = prompt;
+
+        public LaunchMode Mode { get; } = mode;
 
         public IHeadlessProcess? Process { get; set; }
 

@@ -2,7 +2,7 @@ namespace Theseus.Core.Budgets;
 
 /// <summary>
 /// The limits a headless run works inside. Each is a setting with a stated default, and a project can replace them with
-/// its own (objective 2.2). The figures are starting values, to be revised from the run ledger.
+/// its own (Nigel, 2026-11-24). The figures are starting values, to be revised from the run ledger.
 /// </summary>
 /// <param name="RunCostLimitUsd">Cost per run, in US dollars.</param>
 /// <param name="RunTokenLimit">Tokens per run: input, output and cache creation. Cache reads are shown but not counted.</param>

@@ -51,6 +51,8 @@ public sealed record WaitItem(WaitKind Kind, string Text, IReadOnlyList<string> 
         WaitKind.ClearVerifiers => "Clear up verifiers…",
         WaitKind.CheckCannotRun => "Independent check…",
         WaitKind.Decide or WaitKind.Outside => "Respond…",
+        WaitKind.ResetBreaker => "Reset breaker",
+        WaitKind.RaiseBudget => "Options…",
         _ => null,
     };
 }

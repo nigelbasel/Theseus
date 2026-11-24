@@ -16,7 +16,7 @@ public static class ClaudeArgumentBuilder
 
         var argv = new List<string>();
 
-        // Headless runs speak stream-json both ways (objective 2.2, measured 2026-11-24): the prompt goes in on stdin
+        // Headless runs speak stream-json both ways (Nigel, 2026-11-24, measured that day): the prompt goes in on stdin
         // as the first user message, so it is not positional.
         if (spec.Headless)
         {
@@ -36,7 +36,8 @@ public static class ClaudeArgumentBuilder
         if (spec.Headless && spec.MaxBudgetUsd is { } cap)
         {
             argv.Add("--max-budget-usd");
-            argv.Add(cap.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture));
+            // Down to the cent, so the cap never sits above what is left of a day.
+            argv.Add((Math.Floor(cap * 100) / 100).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture));
         }
 
         if (!string.IsNullOrWhiteSpace(spec.SessionName))

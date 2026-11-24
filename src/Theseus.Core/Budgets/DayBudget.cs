@@ -4,7 +4,7 @@ namespace Theseus.Core.Budgets;
 
 /// <summary>
 /// Decides whether a headless run may start, from what the ledger says its card and project have spent today, and
-/// gives it the least of the per-run limits and what is left of each day (objective 2.2). Runs still going are not
+/// gives it the least of the per-run limits and what is left of each day (Nigel, 2026-11-24). Runs still going are not
 /// counted: their cost is only known when they end.
 /// </summary>
 public static class DayBudget

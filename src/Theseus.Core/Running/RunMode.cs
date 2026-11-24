@@ -2,7 +2,7 @@ namespace Theseus.Core.Running;
 
 /// <summary>
 /// How a card's session runs: in a Windows Terminal tab, or headless, with no tab, in Claude Code's print mode
-/// (objective 2.2; measured choice in the headless-runner spec, 2026-11-24).
+/// (Nigel, 2026-11-24).
 /// </summary>
 public enum RunMode
 {

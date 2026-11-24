@@ -1,6 +1,6 @@
 namespace Theseus.Core.Breakers;
 
-/// <summary>The thresholds at which a card's circuit breakers trip; each a setting with a stated default (objective 2.2).</summary>
+/// <summary>The thresholds at which a card's circuit breakers trip; each a setting with a stated default (Nigel, 2026-11-24).</summary>
 /// <param name="Crashes">Runs in a row that crashed or failed to start.</param>
 /// <param name="NoProgress">Runs in a row that ended with no commit and no record written.</param>
 /// <param name="SameError">Runs in a row that failed with the same first error line.</param>

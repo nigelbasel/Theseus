@@ -224,6 +224,104 @@ public class HeadlessRunnerTests
         Assert.That(File.ReadAllLines(log), Has.Length.EqualTo(2));
     }
 
+    [Test]
+    public void AStopThatArrivesWhileAQueuedRunIsStarting_CancelsTheStart_AndFreesTheSlot()
+    {
+        _runner.Submit(Submission("a"));
+        _runner.Submit(Submission("b"));
+        var stopped = false;
+        _runner.Heads = folders =>
+        {
+            // Prepare reads the repositories' HEADs before the process starts: the stop lands then.
+            if (_processes.Count == 1 && !stopped)
+            {
+                stopped = _runner.AskToStop("b");
+            }
+
+            return new Dictionary<string, string>();
+        };
+
+        _processes[0].Completes(0.1m);
+
+        Assert.That(stopped, Is.True);
+        Assert.That(_processes, Has.Count.EqualTo(1));
+        Assert.That((_runner.Running, _runner.Queued), Is.EqualTo((0, 0)));
+    }
+
+    [Test]
+    public void AnOpenInATabWhileTheHandoffResumeIsStarting_CancelsTheResume()
+    {
+        _runner.Submit(Submission());
+        _processes[0].Writes(StreamLines.Init);
+        _processes[0].Writes(StreamLines.BudgetResult);
+        Task? opened = null;
+        _runner.Heads = folders =>
+        {
+            opened ??= _runner.InterruptAsync("card");
+
+            return new Dictionary<string, string>();
+        };
+
+        _processes[0].Exits(1);
+
+        Assert.That(opened!.IsCompleted, Is.True);
+        Assert.That(_processes, Has.Count.EqualTo(1));
+        Assert.That(_runner.Holds("card"), Is.False);
+    }
+
+    [Test]
+    public void ALedgerThatCannotBeWritten_StillFreesTheSlot_AndReleasesOpenInATab()
+    {
+        _runner = new HeadlessRunner(new FailingLedger(), () => _settings, _clock, (request, line, exited) =>
+            {
+                var process = new FakeHeadlessProcess(request, line, exited);
+                _processes.Add(process);
+
+                return process;
+            }, Path.Combine(_folder, "runs"), TimeZoneInfo.Utc)
+        {
+            Heads = _ => new Dictionary<string, string>(),
+        };
+        _runner.Submit(Submission());
+
+        _processes[0].Completes(0.1m);
+
+        Assert.That(_runner.Holds("card"), Is.False);
+        Assert.That(_runner.Running, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void AfterACostCapAndItsHandoff_TheCardShowsTheRunThatHitTheLimit()
+    {
+        _runner.Submit(Submission());
+        _processes[0].Writes(StreamLines.Init);
+        _processes[0].Writes(StreamLines.BudgetResult);
+        _processes[0].Exits(1);
+        _processes[1].Completes(0.3m);
+
+        var last = _runner.StateOf("card")!.Last!;
+        Assert.That(last.Outcome, Is.EqualTo(RunOutcome.StoppedAtLimit));
+        Assert.That(last.IsHandoffRun, Is.False);
+    }
+
+    [Test]
+    public void ARaisedCap_StartsTheQueuedRunsAtTheNextSubmission()
+    {
+        _runner.Submit(Submission("a"));
+        _runner.Submit(Submission("b"));
+        _settings = _settings with { MaxHeadlessRuns = 3 };
+
+        Assert.That(_runner.Submit(Submission("c")), Is.Null);
+        Assert.That(_processes, Has.Count.EqualTo(3));
+    }
+
+    private sealed class FailingLedger : IRunLedger
+    {
+        public void Append(RunRecord record) => throw new IOException("The ledger is locked by another process.");
+
+        public IReadOnlyList<RunRecord> Read() => [];
+    }
+
     private sealed class MovingClock(DateTimeOffset start) : ISystemClock
     {
         public DateTimeOffset UtcNow { get; private set; } = start;

@@ -259,8 +259,7 @@ public partial class App : Application
             _launcher.LaunchedCard = stageReports.Forget;
         }
 
-        _mcp = new McpHttpServer(
-            new Theseus.Core.Mcp.McpHandler(
+        var mcpHandler = new Theseus.Core.Mcp.McpHandler(
                 new Theseus.Core.Attention.WorkLog(Path.Combine(DataDirectory, "work.jsonl")),
                 attention.Read,
                 sessionId => runs.Read()
@@ -287,7 +286,12 @@ public partial class App : Application
                 create: (proposal, startNow) => Dispatcher.Invoke(() => shell.CreateForSession(proposal, startNow)),
                 askOwner: new Theseus.Core.Mcp.AskOwnerTool(shell.Questions, () => DateTimeOffset.UtcNow,
                     () => Dispatcher.BeginInvoke(shell.Refresh)),
-                startRequests: shell.StartRequests),
+                startRequests: shell.StartRequests);
+
+        WireHeadless(shell, settings, mcpHandler);
+
+        _mcp = new McpHttpServer(
+            mcpHandler,
             Theseus.Core.Mcp.TheseusMcp.DefaultPort,
             new LockHttpApi(locks, () => DateTimeOffset.UtcNow));
 
@@ -511,4 +515,42 @@ public partial class App : Application
     private static string LauncherPath => LauncherKit.Prepare(
         Path.Combine(AppContext.BaseDirectory, "Theseus.Launcher.exe"),
         Path.Combine(DataDirectory, "launcher"));
+
+    // Headless runs (Nigel, 2026-11-24): the runner, its ledger and logs, the faces it keeps current, and what a run's
+    // end, a breaker's trip or a refused queued start tells the board.
+    private void WireHeadless(ShellViewModel shell, ISettingsStore settings, Theseus.Core.Mcp.McpHandler mcp)
+    {
+        if (_launcher is null)
+        {
+            return;
+        }
+
+        var runner = new Theseus.Core.Running.HeadlessRunner(
+            new Theseus.Core.Running.RunLedger(Path.Combine(DataDirectory, "run-ledger.jsonl")),
+            settings.Read,
+            new SystemClock(),
+            (request, line, exited) => Theseus.Core.Running.HeadlessProcess.Start(request, line, exited),
+            Path.Combine(DataDirectory, "runs"))
+        {
+            Tripped = (key, trip) => Dispatcher.BeginInvoke(() => shell.BreakerTripped(key, trip)),
+            Refused = (_, detail) => Dispatcher.BeginInvoke(() => shell.Say(detail)),
+            Ended = _ => Dispatcher.BeginInvoke(shell.Refresh),
+        };
+
+        _launcher.Headless = runner;
+        _launcher.PieceFor = workstream => shell.CurrentPieceOf(workstream.Key);
+        shell.Headless = runner;
+        mcp.ToolCalled = runner.ToolCalled;
+        shell.ShowRunOutput = (title, log) => new RunOutputWindow(title, log) { Owner = ActiveWindow }.Show();
+
+        // The dispatcher keeps a running timer alive.
+        _ = new System.Windows.Threading.DispatcherTimer(TimeSpan.FromSeconds(2),
+            System.Windows.Threading.DispatcherPriority.Background,
+            (_, _) =>
+            {
+                runner.Tick();
+                shell.SyncHeadless();
+            },
+            Dispatcher);
+    }
 }

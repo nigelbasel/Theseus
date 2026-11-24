@@ -458,6 +458,26 @@
                       Command="{Binding ToggleReopenTomorrowCommand}"
                       ToolTip="Include this workstream when the whole board is started." />
             <Separator />
+            <!-- Headless runs (Nigel, 2026-11-24): how the card runs, its output, a tab on its conversation, and its breaker. -->
+            <MenuItem Header="Hea_dless" ToolTip="How this card runs, its headless run's output, a tab on its conversation, and its breaker.">
+                <MenuItem Header="Run _mode" ToolTip="Whether this card's session opens in a tab or runs headless, with no tab.">
+                    <MenuItem Header="_Tab" IsChecked="{Binding RunsInTabByChoice, Mode=OneWay}"
+                              Command="{Binding RunInTabCommand}" ToolTip="Open its session in a Windows Terminal tab, for work you are watching." />
+                    <MenuItem Header="_Headless" IsChecked="{Binding RunsHeadlessByChoice, Mode=OneWay}"
+                              Command="{Binding RunHeadlessCommand}"
+                              ToolTip="Run its session with no tab, inside its budget; its output is on the card and under Output…." />
+                    <MenuItem Header="_Project default" IsChecked="{Binding RunsByDefault, Mode=OneWay}"
+                              Command="{Binding RunByDefaultCommand}"
+                              ToolTip="Take its project's run mode; with none, verifiers and scenario writers run headless and the rest in a tab." />
+                </MenuItem>
+                <MenuItem Header="Outp_ut…" Command="{Binding ShowOutputCommand}" ToolTipService.ShowOnDisabled="True"
+                          ToolTip="What its headless run has written, followed while it goes." />
+                <MenuItem Header="Open in a _tab" Command="{Binding OpenInTabCommand}" ToolTipService.ShowOnDisabled="True"
+                          ToolTip="End its headless run now and resume the same conversation in a tab. The card runs in a tab from then on." />
+                <MenuItem Header="Reset _breaker" Command="{Binding ResetBreakerCommand}" ToolTipService.ShowOnDisabled="True"
+                          ToolTip="Clear its tripped breaker: it is unpaused if the breaker paused it, and its count of failed runs starts again." />
+            </MenuItem>
+            <Separator />
             <MenuItem Header="_Tags" ItemsSource="{Binding TagMenu}" ItemContainerStyle="{StaticResource TagMenuItem}"
                       ToolTip="Put a tag on this card, or the selected cards, or take one off." />
             <Separator />
@@ -1065,6 +1085,18 @@
                                    ToolTip="{Binding TodoSummary}" behaviors:TrimmedToolTip.IsEnabled="True"
                                    Text="{Binding TodoSummary}"
                                    Visibility="{Binding TodoSummary, Converter={StaticResource NotEmptyToVisibility}}" />
+
+                        <!-- A headless run: going, queued or ended, with its measured tokens and cost; its latest line under it (Nigel, 2026-11-24). -->
+                        <TextBlock FontSize="12" TextTrimming="CharacterEllipsis"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                   ToolTip="{Binding HeadlessLine}" behaviors:TrimmedToolTip.IsEnabled="True"
+                                   Text="{Binding HeadlessLine}"
+                                   Visibility="{Binding HeadlessLine, Converter={StaticResource NotEmptyToVisibility}}" />
+                        <TextBlock FontSize="12" TextTrimming="CharacterEllipsis"
+                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                   ToolTip="{Binding HeadlessDetail}" behaviors:TrimmedToolTip.IsEnabled="True"
+                                   Text="{Binding HeadlessDetail}"
+                                   Visibility="{Binding HeadlessDetail, Converter={StaticResource NotEmptyToVisibility}}" />
 
                         <TextBlock FontSize="12" TextTrimming="CharacterEllipsis"
                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
@@ -1715,6 +1747,9 @@
 
             <MenuItem Header="_Tools">
                 <MenuItem Header="O_ptions" InputGestureText="Ctrl+," Command="{Binding Settings.OpenCommand}" />
+                <Separator />
+                <MenuItem Header="Tripped _breakers…" Command="{Binding TrippedBreakersCommand}"
+                          ToolTip="Every card whose circuit breaker tripped, with Reset for those you tick." />
                 <Separator />
                 <MenuItem Header="Open _logs folder" Command="{Binding OpenLogsFolderCommand}" />
                 <MenuItem Header="Open _data folder" Command="{Binding OpenDataFolderCommand}" />
@@ -2803,6 +2838,11 @@
                             ToolTip="Show the archive, keeping the search: an archived card matches it."
                             Command="{Binding IncludeArchivedCommand}"
                             Visibility="{Binding Board.Search.ShowsIncludeArchived, Converter={StaticResource BoolToVisibility}}" />
+                    <TextBlock x:Name="HeadlessStatus" FontSize="12" Margin="12,0,0,0" VerticalAlignment="Center"
+                               Text="{Binding HeadlessCounts}"
+                               ToolTip="Headless runs going now, and those waiting for a slot under the machine-wide cap."
+                               Visibility="{Binding HeadlessCounts, Converter={StaticResource NotEmptyToVisibility}}"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                     <TextBlock FontSize="12" Margin="12,0,0,0" VerticalAlignment="Center"
                                Foreground="{DynamicResource TextFillColorSecondaryBrush}">
                         <Run Text="{Binding Board.Status, Mode=OneWay}" />

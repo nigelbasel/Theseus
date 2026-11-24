@@ -67,6 +67,28 @@ public class HeadlessRunTests
     }
 
     [Test]
+    public void ARunEndedByTheCostCap_KeepsTheTokensItsCallsReported_SinceThatResultReportsNone()
+    {
+        var run = Run();
+        run.Observe(StreamLines.Init);
+        run.Observe(StreamLines.Text("m1", "1 2 3", output: 50, creation: 40_000));
+        run.Observe("""{"type":"result","subtype":"error_max_budget_usd","is_error":true,"total_cost_usd":0.35,"usage":{"input_tokens":0,"output_tokens":0,"cache_creation_input_tokens":0,"cache_read_input_tokens":0}}""");
+
+        Assert.That(run.Ended(1, Start, false).Tokens.Counted, Is.EqualTo(40_052));
+    }
+
+    [Test]
+    public void ATurnCutShortAfterAnEarlierResult_KeepsBothTurnsTokens()
+    {
+        var run = Run();
+        run.Observe(StreamLines.Init);
+        run.Observe(StreamLines.Result(0.1m, output: 4));
+        run.Observe(StreamLines.Text("m9", "more", output: 30));
+
+        Assert.That(run.Ended(0, Start, false).Tokens.Output, Is.EqualTo(34));
+    }
+
+    [Test]
     public void NearingItsTokenLimit_TheRunIsAskedToHandOverOnce_NamingTheLimit()
     {
         var run = Run();

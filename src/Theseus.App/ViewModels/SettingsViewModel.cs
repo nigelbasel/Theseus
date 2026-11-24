@@ -39,6 +39,8 @@ public sealed class SettingsViewModel : ObservableObject
     private bool _loading;
     private bool _changed;
 
+    private IReadOnlyList<LimitSettingViewModel>? _headlessLimits;
+
     /// <summary>Creates the panel over the settings file.</summary>
     public SettingsViewModel(ISettingsStore store, Action changedAndClosed)
     {
@@ -615,9 +617,25 @@ public sealed class SettingsViewModel : ObservableObject
         Raise(nameof(StartModeExplanation));
     }
 
+    /// <summary>
+    /// Asks for a typed value: title, label and current value in, the value or null out. Set by the Options window, which
+    /// owns the prompt.
+    /// </summary>
+    public Func<string, string, string, string?>? AskValue { get; set; }
+
+    /// <summary>Options, Headless: the limits headless runs work inside, and the thresholds of the breakers (Nigel, 2026-11-24).</summary>
+    public IReadOnlyList<LimitSettingViewModel> HeadlessLimits => _headlessLimits ??= [.. HeadlessLimitSettings.All.Select(setting =>
+        new LimitSettingViewModel(setting, _store, (title, label, current) => AskValue?.Invoke(title, label, current)))];
+
     private void Open()
     {
         Load(_store.Read());
+
+        foreach (var limit in HeadlessLimits)
+        {
+            limit.Reload();
+        }
+
         Tags?.Load();
         Guard?.Load();
         FolderTrust?.Load();

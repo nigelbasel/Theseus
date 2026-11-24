@@ -2,7 +2,7 @@ namespace Theseus.Core.Running;
 
 /// <summary>
 /// The machine-wide cap on headless runs at once, and the queue behind it: runs beyond the cap wait, and start in the
-/// order they were asked for as runs end (objective 2.2). A card is never in it twice.
+/// order they were asked for as runs end (Nigel, 2026-11-24). A card is never in it twice.
 /// </summary>
 public sealed class HeadlessQueue
 {

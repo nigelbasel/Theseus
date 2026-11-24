@@ -6,7 +6,7 @@ namespace Theseus.Core.Running;
 /// <summary>
 /// One headless run, from its first line on stdin to its process's exit: it reads the run's stream, counts its tokens,
 /// watches its limits, and asks it to hand over and stop through stdin, so it ends at its next tool boundary and never
-/// in the middle of a write (objective 2.2; measured 2026-11-24). A <c>result</c> ends a turn, not the run: a session
+/// in the middle of a write (Nigel, 2026-11-24). A <c>result</c> ends a turn, not the run: a session
 /// with a background task takes another turn when it finishes, so the run is over only when its process exits.
 /// </summary>
 public sealed class HeadlessRun
@@ -16,6 +16,7 @@ public sealed class HeadlessRun
     private readonly IHeadlessInput _input;
     private readonly HashSet<string> _messages = new(StringComparer.Ordinal);
     private RunTokens _resultTokens = RunTokens.None;
+    private RunTokens _turnTokens = RunTokens.None;
     private RunResultEvent? _lastResult;
     private RunOutcome? _interruptedAs;
     private DateTimeOffset? _interruptedUtc;
@@ -84,14 +85,18 @@ public sealed class HeadlessRun
 
                 if (assistant.MessageId is null || _messages.Add(assistant.MessageId))
                 {
-                    Tokens = Tokens.Plus(assistant.Usage);
+                    _turnTokens = _turnTokens.Plus(assistant.Usage);
+                    Tokens = _resultTokens.Plus(_turnTokens);
                 }
 
                 break;
 
             case RunResultEvent result:
                 _lastResult = result;
-                _resultTokens = _resultTokens.Plus(result.Usage);
+
+                // A turn ended by Claude Code's cost cap reports no usage (measured 2026-11-24), so its calls' own counts stand.
+                _resultTokens = _resultTokens.Plus(result.Usage.Counted + result.Usage.CacheRead == 0 ? _turnTokens : result.Usage);
+                _turnTokens = RunTokens.None;
                 Tokens = _resultTokens;
                 _messages.Clear();
 
@@ -185,7 +190,7 @@ public sealed class HeadlessRun
         };
 
         return new RunRecord(Start.RunId, Start.Workstream, Start.Project, Start.SessionId, Start.Reason, StartedUtc, now,
-            outcome, CostUsd, _lastResult is null ? Tokens : _resultTokens)
+            outcome, CostUsd, Tokens)
         {
             Piece = Start.Piece,
             Limit = outcome == RunOutcome.StoppedAtLimit ? StoppedAt : null,
@@ -224,8 +229,10 @@ public sealed class HeadlessRun
 
     private void AskToStop(BudgetLimit limit, string detail)
     {
-        StopAt(limit, detail);
-        Write($"Theseus: this run has reached {Start.Limits.StopAtPercent}% of a limit ({detail.Replace("Stopped at its limit: ", string.Empty, StringComparison.Ordinal)}). {Start.StopText}");
+        if (Write($"Theseus: this run has reached {Start.Limits.StopAtPercent}% of a limit ({detail.Replace("Stopped at its limit: ", string.Empty, StringComparison.Ordinal)}). {Start.StopText}"))
+        {
+            StopAt(limit, detail);
+        }
     }
 
     private void StopAt(BudgetLimit limit, string detail)

@@ -92,7 +92,22 @@
                                              IsTabStop="{Binding IsChecked, RelativeSource={RelativeSource Self}}"
                                              controls:SelectorBar.SelectsOnFocus="True"
                                              AutomationProperties.Name="Start fresh from its handoff" />
-                            </StackPanel>
+        
+                        <!-- Headless runs (Nigel, 2026-11-24): a section here, not a tab of its own, so Options keeps its seven tabs (W7). -->
+                        <TextBlock Text="Headless runs" Style="{DynamicResource BodyStrongText}" Margin="0,24,0,8" />
+                        <TextBlock Style="{StaticResource PageNote}"
+                                   Text="The limits headless runs work inside, measured from each run's own output, and when a card's breaker trips. A project's own limits replace these for its cards." />
+                        <ItemsControl ItemsSource="{Binding HeadlessLimits}" ItemContainerStyle="{DynamicResource ItemNamedByLabel}" Focusable="False" AutomationProperties.Name="Headless limits">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <controls:SettingRow Label="{Binding Label}" Value="{Binding Value}" Explanation="{Binding Explanation}">
+                                        <Button Content="Change…" Style="{StaticResource Action}" Command="{Binding ChangeCommand}"
+                                                AutomationProperties.Name="{Binding ChangeName}" />
+                                    </controls:SettingRow>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
                         </controls:SettingRow>
 
                         <controls:SettingRow Label="Updates" Value="{Binding UpdatesValue}"
