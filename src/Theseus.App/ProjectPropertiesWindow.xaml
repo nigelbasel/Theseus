@@ -141,7 +141,7 @@
                 <StackPanel Margin="4,16,4,0">
                     <!-- The lead card, kept by project folder name; by default the first row's card (Nigel, 2026-11-22). -->
                     <controls:SettingRow x:Name="LeadRow" Label="Lead" Value="{Binding LeadValue}"
-                                         Explanation="The project's main card: ⌖ Focus lead brings its terminal forward, and a project's Start starts it.">
+                                         Explanation="The project's main card: Focus lead brings its terminal forward, and a project's Start starts it.">
                         <!-- It opens a menu, so a chevron, not an ellipsis (A-m1, W14); off with a reason when there is nothing to choose (C11). -->
                         <!-- Plain text, so the theme greys it when it is off; a template of its own would keep the enabled colour. -->
                         <Button x:Name="LeadChange" Content="_Change ▾" Click="OnChooseLead" IsEnabled="{Binding CanChooseLead, Mode=OneWay}"

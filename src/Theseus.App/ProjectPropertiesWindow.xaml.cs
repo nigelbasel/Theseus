@@ -65,15 +65,8 @@ public partial class ProjectPropertiesWindow : Window
     {
         var menu = new ContextMenu { PlacementTarget = LeadChange };
 
-        foreach (var (key, shown) in Properties.Leads)
+        foreach (MenuItem item in LeadMenu.Items(Properties.Leads, Properties.Lead, key => Properties.Lead = key))
         {
-            var item = new MenuItem
-            {
-                Header = shown,
-                IsCheckable = true,
-                IsChecked = string.Equals(key, Properties.Lead, StringComparison.OrdinalIgnoreCase),
-            };
-            item.Click += (_, _) => Properties.Lead = key;
             menu.Items.Add(item);
         }
 

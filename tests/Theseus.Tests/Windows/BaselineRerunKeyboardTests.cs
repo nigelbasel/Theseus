@@ -55,6 +55,16 @@ public class BaselineRerunKeyboardTests
         Assert.That(left.Step(Key.Up), Is.False);
     }
 
+    [Test]
+    public void TheDrawer_TakesFocusWhenItOpens() =>
+        Assert.That(Element("MainWindow.xaml", "DrawerPane").Attribute("IsVisibleChanged")?.Value, Is.EqualTo("OnDrawerShown"),
+            "B3, W43: the first control of the drawer when it opens");
+
+    [Test]
+    public void TheTagsFlyout_TakesFocusWhenItOpens() =>
+        Assert.That(Element("MainWindow.xaml", "TagsPopup").Attribute("Opened")?.Value, Is.EqualTo("OnTagsPopupOpened"),
+            "NB-5, G66: focus moves to the chosen Any or All");
+
     private static XElement Element(string file, string name) =>
         XDocument.Load(LooseXaml.SourceFile(file)).Descendants()
             .Single(element => (string?)element.Attributes().FirstOrDefault(attribute => attribute.Name.LocalName == "Name") == name);

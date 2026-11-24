@@ -1943,7 +1943,7 @@
                               Content="{Binding TagsButtonText, Converter={StaticResource AccessKeyEscape}}" Checked="OnTagsOpened"
                               ToolTip="Filter the board by tags." AutomationProperties.Name="Tags" />
                 <!-- A flyout: the overlay radius and padding, and a thicker edge under a contrast theme (D12, D-m1, E7). -->
-                <Popup x:Name="TagsPopup" PlacementTarget="{Binding ElementName=TagsToggle}" Placement="Bottom" StaysOpen="False"
+                <Popup x:Name="TagsPopup" PlacementTarget="{Binding ElementName=TagsToggle}" Placement="Bottom" StaysOpen="False" Opened="OnTagsPopupOpened"
                        AllowsTransparency="True" IsOpen="{Binding IsChecked, ElementName=TagsToggle, Mode=TwoWay}">
                     <Border x:Name="TagsFlyout" Padding="16" CornerRadius="8" MinWidth="220" MaxHeight="420"
                             Background="{DynamicResource SolidBackgroundFillColorBaseBrush}"
@@ -3097,7 +3097,7 @@
                 without a word. Everything here applies as it is made, so there is no Save; a card's setup
                 is edited in its own dialog, further down.
             -->
-            <Border x:Name="DrawerPane" HorizontalAlignment="Right" Width="480" MinWidth="400" MaxWidth="720" Margin="0,0,0,8"
+            <Border x:Name="DrawerPane" HorizontalAlignment="Right" Width="480" MinWidth="400" MaxWidth="720" Margin="0,0,0,8" IsVisibleChanged="OnDrawerShown"
                     Background="{DynamicResource SolidBackgroundFillColorSecondaryBrush}"
                     BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                     BorderThickness="1,0,0,0"

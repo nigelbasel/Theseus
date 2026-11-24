@@ -318,6 +318,20 @@ public partial class MainWindow : Window
         }
     }
 
+    // A flyout opened from the keyboard takes the focus to its first choice, or a keyboard user cannot enter it (G66).
+    private void OnTagsPopupOpened(object? sender, EventArgs e) =>
+        Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input, () => (TagsAll.IsChecked == true ? TagsAll : TagsAny).Focus());
+
+    // The drawer's first control takes the focus when it opens (W43, G66).
+    private void OnDrawerShown(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (e.NewValue is true)
+        {
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input,
+                () => DrawerPane.MoveFocus(new TraversalRequest(FocusNavigationDirection.First)));
+        }
+    }
+
     private void OnMatchShown(IBoardCard item)
     {
         var row = Board?.Rows.FirstOrDefault(candidate =>
