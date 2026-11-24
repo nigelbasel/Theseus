@@ -367,7 +367,7 @@
                                     <Setter Property="BorderBrush" Value="{DynamicResource TextFillColorSecondaryBrush}" />
                                 </Trigger>
                                 <DataTrigger Binding="{Binding IsHighlighted}" Value="True">
-                                    <Setter Property="BorderBrush" Value="{DynamicResource LinkBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
                                     <Setter Property="BorderThickness" Value="2" />
                                 </DataTrigger>
                             </Style.Triggers>
@@ -813,7 +813,7 @@
                                                 <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
                                                 <Style.Triggers>
                                                     <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter Property="BorderBrush" Value="{DynamicResource LinkBrush}" />
+                                                        <Setter Property="BorderBrush" Value="{DynamicResource TextFillColorSecondaryBrush}" />
                                                     </Trigger>
                                                     <Trigger Property="IsKeyboardFocused" Value="True">
                                                         <Setter Property="BorderThickness" Value="2" />
@@ -821,7 +821,7 @@
                                                     </Trigger>
                                                     <DataTrigger Binding="{Binding IsHighlighted}" Value="True">
                                                         <Setter Property="Background" Value="{DynamicResource StateWaitingSoftBrush}" />
-                                                        <Setter Property="BorderBrush" Value="{DynamicResource LinkBrush}" />
+                                                        <Setter Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
                                                     </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>

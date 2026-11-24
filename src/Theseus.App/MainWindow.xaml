@@ -219,7 +219,6 @@
             <Setter Property="Width" Value="8" />
             <Setter Property="Cursor" Value="SizeWE" />
             <Setter Property="Focusable" Value="False" />
-            <Setter Property="AutomationProperties.Name" Value="Resize" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="controls:PaneResizeThumb">
@@ -546,7 +545,7 @@
                                     Background="{DynamicResource StateWaitingSoftBrush}"
                                     ToolTip="{Binding WaitingText}"
                                     Visibility="{Binding HasBadge, Converter={StaticResource BoolToVisibility}}">
-                                <TextBlock Text="{Binding CountText}" FontSize="12" HorizontalAlignment="Center"
+                                <TextBlock Text="{Binding CountText}" AutomationProperties.Name="{Binding WaitingText}" FontSize="12" HorizontalAlignment="Center"
                                            Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                             </Border>
                             <controls:StackedCardMark x:Name="ProjectMark" Margin="0,0,8,0" VerticalAlignment="Center"
@@ -983,7 +982,7 @@
                         -->
                         <WrapPanel Margin="-4,8,0,4">
                             <Button Style="{StaticResource ItemDropDown}" Click="OnOverflowClick"
-                                    ToolTip="This card's Jira issues. Choose one to open it."
+                                    ToolTip="This card's Jira issues. Choose one to open it." AutomationProperties.Name="{Binding JiraButtonText}"
                                     Visibility="{Binding JiraItems.Count, Converter={StaticResource CountToVisibility}}">
                                 <TextBlock>
                                     <Run Text="{Binding JiraButtonText, Mode=OneWay}" />
@@ -995,7 +994,7 @@
                                 </Button.ContextMenu>
                             </Button>
                             <Button Style="{StaticResource ItemDropDown}" Click="OnOverflowClick"
-                                    ToolTip="This card's pull requests. Choose one to open it."
+                                    ToolTip="This card's pull requests. Choose one to open it." AutomationProperties.Name="{Binding PullRequestButtonText}"
                                     Visibility="{Binding PullRequestItems.Count, Converter={StaticResource CountToVisibility}}">
                                 <TextBlock>
                                     <Run Text="{Binding PullRequestButtonText, Mode=OneWay}" />
@@ -1250,7 +1249,7 @@
                 </DockPanel>
                 </Grid>
             </Border>
-            <Thumb HorizontalAlignment="Right" Width="8" Cursor="SizeWE"
+            <Thumb AutomationProperties.Name="Resize columns" HorizontalAlignment="Right" Width="8" Cursor="SizeWE"
                    ToolTip="Drag to resize the columns either side. Double-click to make them all even."
                    DragDelta="OnCellEdgeDrag" DragCompleted="OnSizeDragCompleted"
                    PreviewMouseLeftButtonDown="OnColumnEdgeDown"
@@ -1286,7 +1285,7 @@
             -->
             <DockPanel>
             <!-- Drag to set the row's height; double-click to let it fit its cards again. -->
-            <Thumb DockPanel.Dock="Bottom" Height="8" Cursor="SizeNS"
+            <Thumb AutomationProperties.Name="Resize row" DockPanel.Dock="Bottom" Height="8" Cursor="SizeNS"
                    ToolTip="Drag to set this row's height. Double-click to let it fit its cards."
                    DragDelta="OnRowEdgeDrag" DragCompleted="OnSizeDragCompleted"
                    PreviewMouseLeftButtonDown="OnRowEdgeDown">
@@ -1441,7 +1440,7 @@
                                 ToolTip="Focus: bring the session's window forward."
                                 Command="{Binding DataContext.Sessions.FocusCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                 CommandParameter="{Binding}" />
-                        <Button x:Name="AdoptButton" Style="{StaticResource ItemDropDown}" MinHeight="32"
+                        <Button x:Name="AdoptButton" Style="{StaticResource ItemDropDown}" MinHeight="32" AutomationProperties.Name="Adopt into"
                                 ToolTip="Make a workstream follow this running session."
                                 Visibility="{Binding IsAdopted, Converter={StaticResource NotBoolToVisibility}}"
                                 Click="OnAdoptClicked">
@@ -1849,7 +1848,7 @@
                 of the same cards, so a selector bar: one Tab stop, the arrows choose and do not wrap (W15, W42; D7, B16, D8).
                 While it hides any cards it says so with a mark and words beside it, not colour alone (1.5 walkthrough row 3).
             -->
-            <StackPanel x:Name="BoardShowsChoice" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"
+            <StackPanel x:Name="BoardShowsChoice" AutomationProperties.Name="Show" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"
                         KeyboardNavigation.TabNavigation="Once" KeyboardNavigation.DirectionalNavigation="Contained"
                         Margin="12,0,12,0" DataContext="{Binding Board}"
                         Visibility="{Binding DataContext.IsBoardShown, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}">
@@ -1925,7 +1924,7 @@
                             BorderBrush="{DynamicResource FlyoutBorderBrush}" BorderThickness="{DynamicResource FlyoutBorderThickness}"
                             PreviewKeyDown="OnTagsFlyoutKeyDown">
                         <DockPanel>
-                            <StackPanel x:Name="TagMatch" DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8"
+                            <StackPanel x:Name="TagMatch" AutomationProperties.Name="Show cards with" DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8"
                                         KeyboardNavigation.TabNavigation="Once" KeyboardNavigation.DirectionalNavigation="Contained">
                                 <TextBlock Text="Show cards with:" VerticalAlignment="Center" FontSize="12" Margin="0,0,8,0"
                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
@@ -2050,7 +2049,7 @@
                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                 BorderThickness="1">
             <DockPanel>
-                <controls:PaneResizeThumb DockPanel.Dock="Right" Style="{StaticResource PaneEdge}" Margin="0,-12,-16,-12" HorizontalAlignment="Right"
+                <controls:PaneResizeThumb AutomationProperties.Name="Resize the sessions panel" DockPanel.Dock="Right" Style="{StaticResource PaneEdge}" Margin="0,-12,-16,-12" HorizontalAlignment="Right"
                                           Pane="{Binding ElementName=SessionsPane}" />
                 <Grid DockPanel.Dock="Top" Margin="4,4,4,8">
                     <TextBlock Text="Live sessions" FontSize="14" FontWeight="SemiBold"
@@ -2084,11 +2083,11 @@
                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                 BorderThickness="1">
             <DockPanel>
-                <controls:PaneResizeThumb DockPanel.Dock="Left" Style="{StaticResource PaneEdge}" Margin="-16,-12,0,-12" HorizontalAlignment="Left"
+                <controls:PaneResizeThumb AutomationProperties.Name="Resize the chains panel" DockPanel.Dock="Left" Style="{StaticResource PaneEdge}" Margin="-16,-12,0,-12" HorizontalAlignment="Left"
                                           Pane="{Binding ElementName=ChainsPane}" IsOnTheRight="True" />
                 <Grid DockPanel.Dock="Top" Margin="4,4,4,8">
                     <!-- Locks and Chains are two views of the side panel: a selector bar (W15, D7, G125). -->
-                    <StackPanel x:Name="ChainsPaneSwitch" Orientation="Horizontal" AutomationProperties.Name="Panel"
+                    <StackPanel x:Name="ChainsPaneSwitch" Orientation="Horizontal" AutomationProperties.Name="Views of the side panel"
                                 KeyboardNavigation.TabNavigation="Once" KeyboardNavigation.DirectionalNavigation="Contained">
                         <RadioButton Content="Locks" Style="{StaticResource PanelSwitchItem}" GroupName="ChainsPaneSwitch"
                                      IsChecked="{Binding Locks.IsOpen, Mode=OneWay}" controls:SelectorBar.SelectsOnFocus="True"
@@ -2409,7 +2408,7 @@
                                                 <TextBlock DockPanel.Dock="Right" Text="{Binding State}" FontSize="12" Margin="8,0,0,0">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
-                                                            <Setter Property="Foreground" Value="{DynamicResource TextFillColorTertiaryBrush}" />
+                                                            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
                                                             <Style.Triggers>
                                                                 <DataTrigger Binding="{Binding IsReady}" Value="True">
                                                                     <Setter Property="Foreground" Value="{DynamicResource SuccessTextBrush}" />
@@ -2464,11 +2463,11 @@
                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                 BorderThickness="1">
             <DockPanel>
-                <controls:PaneResizeThumb DockPanel.Dock="Left" Style="{StaticResource PaneEdge}" Margin="-16,-12,0,-12" HorizontalAlignment="Left"
+                <controls:PaneResizeThumb AutomationProperties.Name="Resize the locks panel" DockPanel.Dock="Left" Style="{StaticResource PaneEdge}" Margin="-16,-12,0,-12" HorizontalAlignment="Left"
                                           Pane="{Binding ElementName=LocksPane}" IsOnTheRight="True" />
                 <Grid DockPanel.Dock="Top" Margin="4,4,4,8">
                     <!-- Locks and Chains are two views of the side panel: a selector bar (W15, D7, G125). -->
-                    <StackPanel x:Name="LocksPaneSwitch" Orientation="Horizontal" AutomationProperties.Name="Panel"
+                    <StackPanel x:Name="LocksPaneSwitch" Orientation="Horizontal" AutomationProperties.Name="Views of the side panel"
                                 KeyboardNavigation.TabNavigation="Once" KeyboardNavigation.DirectionalNavigation="Contained">
                         <RadioButton Content="Locks" Style="{StaticResource PanelSwitchItem}" GroupName="LocksPaneSwitch"
                                      IsChecked="{Binding Locks.IsOpen, Mode=OneWay}" controls:SelectorBar.SelectsOnFocus="True"
@@ -2954,7 +2953,7 @@
                             <DataTemplate DataType="{x:Type vm:StageHeaderViewModel}">
                                 <Grid>
                                 <!-- Drag to move the edge between this column and the next; double-click to make them all even. -->
-                                <Thumb HorizontalAlignment="Right" Width="8" Cursor="SizeWE"
+                                <Thumb AutomationProperties.Name="Resize stage columns" HorizontalAlignment="Right" Width="8" Cursor="SizeWE"
                                        ToolTip="Drag to resize the columns either side. Double-click to make them all even."
                                        DragDelta="OnColumnEdgeDrag" DragCompleted="OnSizeDragCompleted"
                                        PreviewMouseLeftButtonDown="OnColumnEdgeDown"
@@ -3002,7 +3001,7 @@
                                     </TextBlock>
                                     <!-- Folded, the heading is too narrow for "2 match", so the count sits in a pill and the words in its tooltip (review R5). -->
                                     <TextBlock x:Name="HeaderMatchCount" DockPanel.Dock="Right" FontSize="14" FontWeight="SemiBold" Margin="0,0,8,0" Padding="4,0"
-                                               VerticalAlignment="Center" Text="{Binding MatchCount}" ToolTip="{Binding MatchText}"
+                                               VerticalAlignment="Center" Text="{Binding MatchCount}" ToolTip="{Binding MatchText}" AutomationProperties.Name="{Binding MatchText}"
                                                Background="{DynamicResource SearchHighlightBrush}"
                                                Foreground="{DynamicResource SearchHighlightTextBrush}">
                                         <TextBlock.Style>
@@ -3076,7 +3075,7 @@
                     BorderThickness="1,0,0,0"
                     Visibility="{Binding Drawer.IsOpen, Converter={StaticResource BoolToVisibility}}">
                 <DockPanel Margin="16,16,16,16">
-                    <controls:PaneResizeThumb DockPanel.Dock="Left" Style="{StaticResource PaneEdge}" Margin="-20,-16,8,-16"
+                    <controls:PaneResizeThumb AutomationProperties.Name="Resize the details" DockPanel.Dock="Left" Style="{StaticResource PaneEdge}" Margin="-20,-16,8,-16"
                                               Pane="{Binding ElementName=DrawerPane}" IsOnTheRight="True" />
                     <Grid DockPanel.Dock="Top" Margin="0,0,0,8">
                         <Grid.ColumnDefinitions>
@@ -3187,11 +3186,10 @@
                                         </StackPanel>
 
                                         <TextBlock Text="Chain" Style="{StaticResource FieldLabel}" />
-                                        <Button Padding="0" HorizontalAlignment="Left" Background="Transparent"
-                                                BorderThickness="0" Cursor="Hand" ToolTip="Show this card's links."
+                                        <Button Style="{StaticResource LinkButton}" Padding="0" HorizontalAlignment="Left"
+                                                ToolTip="Show this card's links."
                                                 Command="{Binding Drawer.ShowLinksCommand}">
-                                            <TextBlock FontSize="12" TextWrapping="Wrap"
-                                                       Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}">
+                                            <TextBlock FontSize="12" TextWrapping="Wrap">
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock">
                                                         <Setter Property="Text" Value="{Binding Drawer.Card.LinkLine}" />
@@ -3316,13 +3314,11 @@
                                                                        Margin="8,0,0,0" VerticalAlignment="Center"
                                                                        ToolTip="{Binding ReportSummary}"
                                                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                                            <Button Padding="0" HorizontalAlignment="Left" Background="Transparent"
-                                                                    BorderThickness="0" Cursor="Hand"
+                                                            <Button Style="{StaticResource LinkButton}" Padding="0" HorizontalAlignment="Left"
                                                                     ToolTip="Open this card's details."
                                                                     Command="{Binding ShowOtherCommand}">
                                                                 <TextBlock Text="{Binding OtherTitle}" FontSize="14"
-                                                                           TextTrimming="CharacterEllipsis"
-                                                                           Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                                                           TextTrimming="CharacterEllipsis" />
                                                             </Button>
                                                         </DockPanel>
                                                         <TextBlock Text="{Binding Document}" FontSize="12" TextTrimming="CharacterEllipsis"

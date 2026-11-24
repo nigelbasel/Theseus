@@ -52,7 +52,7 @@
                         Height="32" Padding="8,0" Margin="0,0,8,0" Command="{Binding OpenInEditorCommand}" ToolTipService.ShowOnDisabled="True"
                         ToolTip="Open in editor: the document shown, in your editor" AutomationProperties.Name="Open in editor">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="&#xE70F;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <controls:GlyphText Text="&#xE70F;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0" />
                         <AccessText Text="Open in _editor" VerticalAlignment="Center" FontSize="14" />
                     </StackPanel>
                 </Button>
@@ -60,7 +60,7 @@
                         Height="32" Padding="8,0" Command="{Binding OpenFolderCommand}"
                         ToolTip="Open folder: the records folder, in Explorer" AutomationProperties.Name="Open folder">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="&#xE838;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <controls:GlyphText Text="&#xE838;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0" />
                         <AccessText Text="Open _folder" VerticalAlignment="Center" FontSize="14" />
                     </StackPanel>
                 </Button>

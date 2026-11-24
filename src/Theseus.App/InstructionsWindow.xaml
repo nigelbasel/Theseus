@@ -80,7 +80,7 @@
                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                 <TextBlock Style="{DynamicResource ExplanationText}" Margin="0,8,0,0"
                            Text="Instruction files never override one another: every one is read, broadest first, so a file nearer the work is read later. Skills, commands and agents do override by name. Worked out from Claude Code's documentation; /context in a session shows what actually loaded." />
-                <ProgressBar IsIndeterminate="True" Height="3" Margin="0,12,0,0">
+                <ProgressBar IsIndeterminate="True" Height="3" Margin="0,12,0,0" AutomationProperties.Name="Reading the instruction files">
                     <ProgressBar.Style>
                         <Style TargetType="ProgressBar">
                             <Setter Property="Visibility" Value="Collapsed" />

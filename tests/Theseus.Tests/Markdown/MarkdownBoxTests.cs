@@ -22,9 +22,11 @@ public class MarkdownBoxTests
 
         Assert.That(box.Tools.Select(tool => System.Windows.Automation.AutomationProperties.GetName(tool)), Is.EqualTo(new[]
         {
-            "Bold (Ctrl+B)", "Italic (Ctrl+I)", "Heading", "Bulleted list", "Numbered list", "Check box",
-            "Code: inline on one line, a block over several", "Link (Ctrl+K)",
-        }));
+            "Bold", "Italic", "Heading", "Bulleted list", "Numbered list", "Check box", "Code", "Link",
+        }), "NE-3, G169, W50: the name is what the button is; its key and explanation are read separately");
+        Assert.That(box.Tools.Select(tool => System.Windows.Automation.AutomationProperties.GetAcceleratorKey(tool)).Where(key => key.Length > 0),
+            Is.EqualTo(new[] { "Ctrl+B", "Ctrl+I", "Ctrl+K" }));
+        Assert.That(box.Tools.Select(tool => tool.ToolTip as string), Does.Contain("Bold (Ctrl+B)").And.Contain("Code: inline on one line, a block over several"));
     }
 
     [Test]

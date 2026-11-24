@@ -12,7 +12,7 @@ namespace Theseus.Tests.Accessibility;
 /// <summary>
 /// The whole UI Automation tree of the main window, the project view and every dialog, as a screen reader gets it
 /// (baseline WB9, W51, E16; checklist G165, G167, G170, G172). Each test fails on a Button, list or tree item, list,
-/// tree, check box, radio button, link or tab with no name, and on any name that is a .NET type name or a record's
+/// tree, check box, radio button, link, tab, resize thumb or progress bar with no name, and on any name that is a .NET type name or a record's
 /// ToString, such as "ChainNodeViewModel { Key = … }". Built off screen; no test moves keyboard focus.
 /// </summary>
 [TestFixture]
