@@ -51,6 +51,9 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
     private bool _branchesDiffer;
     private DateTimeOffset? _lifecycleSinceUtc;
     private IReadOnlyList<CardRepo> _repos = [];
+    private IReadOnlyList<CardItemRow> _statusItems = [];
+    private string _statusButtonText = string.Empty;
+    private Theseus.Core.CiStatus.CiState _statusState = Theseus.Core.CiStatus.CiState.NotRead;
     private bool _isSearchDimmed;
     private IReadOnlyList<Theseus.Core.Finding.TextSpan> _titleHighlights = [];
     private IReadOnlyList<TagChipViewModel> _tagChips = [];
@@ -99,6 +102,46 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
     {
         get => _repos;
         set => Set(ref _repos, value);
+    }
+
+    /// <summary>The card's repos as its pull request and CI status needs them: name, branch and origin (pr-ci-status).</summary>
+    public IReadOnlyList<Theseus.Core.CiStatus.CardStatusRepo> StatusRepos { get; set; } = [];
+
+    /// <summary>The status drop-down's rows: each repo's open pull request and newest CI run, or why they are unknown.</summary>
+    public IReadOnlyList<CardItemRow> StatusItems
+    {
+        get => _statusItems;
+        private set => Set(ref _statusItems, value);
+    }
+
+    /// <summary>What the status drop-down's button says, such as "PR 41 · ✓ CI passed"; empty when there is no status.</summary>
+    public string StatusButtonText
+    {
+        get => _statusButtonText;
+        private set => Set(ref _statusButtonText, value);
+    }
+
+    /// <summary>The worst CI state among the card's repos, which colours the button.</summary>
+    public Theseus.Core.CiStatus.CiState StatusState
+    {
+        get => _statusState;
+        private set => Set(ref _statusState, value);
+    }
+
+    /// <summary>Replaces the status, only when it has changed so an open menu is left alone.</summary>
+    public void SetStatus(Theseus.Core.CiStatus.CardStatus status)
+    {
+        ArgumentNullException.ThrowIfNull(status);
+
+        StatusButtonText = status.ButtonText;
+        StatusState = status.State;
+
+        var rows = status.Rows.Select(row => new CardItemRow(row.Text, null, row.Url, tooltip: row.Tooltip)).ToList();
+
+        if (!rows.Select(row => row.Display + row.Url + row.Tooltip).SequenceEqual(StatusItems.Select(row => row.Display + row.Url + row.Tooltip)))
+        {
+            StatusItems = rows;
+        }
     }
 
     /// <summary>What the search reads of the card (item 2): title, key, project, area, Jira keys, tags, branches, repos.</summary>
