@@ -23,7 +23,7 @@ public class SecondaryWindowFocusTests
         ["Arrange", "KindBox"],
         ["Checklist", "row:Rows"],
         ["DayReport", "CloseButton"],
-        ["Instructions", "Tabs"],
+        ["Instructions", "FilesTab"],
         ["NewProject", "NameBox"],
         ["NewWorkstream", "TitleBox"],
         ["PromptEdit", "editor:Editor"],
@@ -103,7 +103,10 @@ public class SecondaryWindowFocusTests
         while (Keyboard.FocusedElement is DependencyObject current && !order.Contains(current) && order.Count < 200)
         {
             order.Add(current);
-            ((UIElement)current).MoveFocus(new TraversalRequest(FocusNavigationDirection.Next));
+            TraversalRequest next = new(FocusNavigationDirection.Next);
+
+            // A link inside text, such as About's, is a content element, not a UIElement.
+            _ = current is UIElement element ? element.MoveFocus(next) : ((ContentElement)current).MoveFocus(next);
             DialogHost.Pump();
         }
 
@@ -124,7 +127,7 @@ public class SecondaryWindowFocusTests
     }
 
     private static DependencyObject? Parent(DependencyObject element) =>
-        System.Windows.Media.VisualTreeHelper.GetParent(element) ?? LogicalTreeHelper.GetParent(element);
+        (element is System.Windows.Media.Visual ? System.Windows.Media.VisualTreeHelper.GetParent(element) : null) ?? LogicalTreeHelper.GetParent(element);
 
     private static string Describe(List<DependencyObject> order) => string.Join(" > ", order.Select(Describe));
 

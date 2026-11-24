@@ -19,7 +19,12 @@ public partial class AddObjectiveWindow : Window
     public NewObjective Objective =>
         new(TitleBox.Text.Trim(), [.. CriteriaBox.Text.Split('\n').Select(MarkdownFormat.WithoutListMark).Where(line => line.Length > 0)]);
 
-    private void OnChanged(object sender, TextChangedEventArgs e) => AddButton.IsEnabled = TitleBox.Text.Trim().Length > 0;
+    // A disabled Add says why on hover (W13); an enabled one needs no tooltip.
+    private void OnChanged(object sender, TextChangedEventArgs e)
+    {
+        AddButton.IsEnabled = TitleBox.Text.Trim().Length > 0;
+        AddButton.ToolTip = AddButton.IsEnabled ? null : "Give the objective a title first.";
+    }
 
     private void OnAdd(object sender, RoutedEventArgs e) => DialogResult = true;
 }

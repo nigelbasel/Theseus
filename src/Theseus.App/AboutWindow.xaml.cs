@@ -8,7 +8,11 @@ namespace Theseus.App;
 public partial class AboutWindow : Window
 {
     /// <summary>Creates the window.</summary>
-    public AboutWindow() => InitializeComponent();
+    public AboutWindow()
+    {
+        InitializeComponent();
+        Loaded += (_, _) => CloseButton.Focus();
+    }
 
     private void OnClose(object sender, RoutedEventArgs e) => Close();
 

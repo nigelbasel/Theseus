@@ -102,6 +102,19 @@ public class SecondaryWindowSpecificsTests
         });
     }
 
+    [Test]
+    public void TheChecklistCommit_DrawsItsAccessKey_NotAnUnderscore()
+    {
+        using OpenedWindow opened = OpenedWindow.Of("Checklist");
+        Button commit = opened.Named<Button>("ConfirmButton");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(DialogHost.Descendants(commit).OfType<TextBlock>().Select(text => text.Text), Has.None.Contains("_"), "B9");
+            Assert.That(DialogHost.Descendants(commit).OfType<AccessText>().Select(text => text.Text), Is.EqualTo(new[] { "_Stop and archive" }));
+        });
+    }
+
     [TestCase("AddObjective", "AddButton")]
     [TestCase("AddToProject", "AddButton")]
     [TestCase("NewProject", "CreateButton")]

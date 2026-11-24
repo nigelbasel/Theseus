@@ -8,22 +8,33 @@
         ShowInTaskbar="False"
         ResizeMode="NoResize"
         Background="{DynamicResource SolidBackgroundFillColorSecondaryBrush}">
+    <Window.Resources>
+        <!-- A field's label, with the access key that moves to its field (W26, W50). -->
+        <Style x:Key="Field" TargetType="Label">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0,16,0,8" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+    </Window.Resources>
     <!-- Adds the card's row to the chosen objective's workstreams table in project.md (1.1c AC 7). -->
-    <StackPanel Margin="20">
-        <TextBlock Text="Project" FontWeight="SemiBold" />
-        <ComboBox x:Name="ProjectBox" Margin="0,6,0,0" DisplayMemberPath="Title" SelectionChanged="OnProjectChanged" />
+    <StackPanel Margin="24">
+        <Label x:Name="ProjectLabel" Content="_Project" Target="{Binding ElementName=ProjectBox}" Style="{StaticResource Field}" Margin="0,0,0,8" />
+        <ComboBox x:Name="ProjectBox" DisplayMemberPath="Title" SelectionChanged="OnProjectChanged"
+                  AutomationProperties.LabeledBy="{Binding ElementName=ProjectLabel}" />
 
-        <TextBlock Text="Objective" FontWeight="SemiBold" Margin="0,12,0,0" />
-        <ComboBox x:Name="ObjectiveBox" Margin="0,6,0,0" SelectionChanged="OnChanged" />
+        <Label x:Name="ObjectiveLabel" Content="O_bjective" Target="{Binding ElementName=ObjectiveBox}" Style="{StaticResource Field}" />
+        <ComboBox x:Name="ObjectiveBox" SelectionChanged="OnChanged" AutomationProperties.LabeledBy="{Binding ElementName=ObjectiveLabel}" />
 
-        <TextBlock Text="Name of its records folder" FontWeight="SemiBold" Margin="0,12,0,0" />
-        <TextBox x:Name="SlugBox" Margin="0,6,0,0" TextChanged="OnChanged" />
-        <TextBlock Margin="0,4,0,0" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+        <Label x:Name="SlugLabel" Content="_Name of its records folder" Target="{Binding ElementName=SlugBox}" Style="{StaticResource Field}" />
+        <TextBox x:Name="SlugBox" TextChanged="OnChanged" AutomationProperties.LabeledBy="{Binding ElementName=SlugLabel}" />
+        <TextBlock Margin="0,4,0,0" Style="{DynamicResource ExplanationText}"
                    Text="Names the folder its records go in, work\&lt;name&gt;, and its branch. Lower-case letters, digits and hyphens." />
 
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-            <Button x:Name="AddButton" Content="_Add" IsDefault="True" MinWidth="88" Click="OnAdd" IsEnabled="False" />
-            <Button Content="Cancel" IsCancel="True" MinWidth="88" Margin="8,0,0,0" />
+        <StackPanel x:Name="Footer" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,24,0,0">
+            <Button x:Name="AddButton" Content="_Add" IsDefault="True" Style="{DynamicResource AccentButton}" Click="OnAdd" IsEnabled="False"
+                    ToolTipService.ShowOnDisabled="True" />
+            <Button x:Name="CancelButton" Content="Cancel" IsCancel="True" Style="{DynamicResource DialogButton}" Margin="8,0,0,0" />
         </StackPanel>
     </StackPanel>
 </Window>

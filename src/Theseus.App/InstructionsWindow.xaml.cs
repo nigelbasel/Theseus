@@ -10,5 +10,8 @@ public partial class InstructionsWindow : Window
     {
         InitializeComponent();
         SourceInitialized += (_, _) => Height = Math.Min(Height, SystemParameters.WorkArea.Height - 80);
+
+        // The lists fill in as they are read, so the keyboard starts on the tab that holds them (W43).
+        Loaded += (_, _) => FilesTab.Focus();
     }
 }

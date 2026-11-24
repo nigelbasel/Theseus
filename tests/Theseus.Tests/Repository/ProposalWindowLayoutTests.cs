@@ -8,7 +8,7 @@ namespace Theseus.Tests.Repository;
 
 /// <summary>
 /// The proposal dialog's buttons as WPF lays them out: no access-key underscore drawn as text, and Windows order, together
-/// at the bottom right with the default first and Cancel last (walkthrough row 46).
+/// at the bottom right with the default first and Close last (walkthrough row 46; A7).
 /// </summary>
 [TestFixture]
 [Apartment(ApartmentState.STA)]
@@ -87,20 +87,20 @@ public class ProposalWindowLayoutTests
     }
 
     [Test]
-    public void TheButtons_AreTogetherAtTheRight_DefaultFirst_CancelLast()
+    public void TheButtons_AreTogetherAtTheRight_DefaultFirst_CloseLast()
     {
         var window = Window();
         var content = (FrameworkElement)window.Content;
-        var buttons = new[] { "ApproveButton", "RejectButton", "CancelButton" }.Select(name => (Button)window.FindName(name)).ToList();
+        var buttons = new[] { "ApproveButton", "RejectButton", "CloseButton" }.Select(name => (Button)window.FindName(name)).ToList();
         var lefts = buttons.Select(button => button.TranslatePoint(new Point(0, 0), content).X).ToList();
-        var cancelRight = lefts[2] + buttons[2].ActualWidth;
+        var closeRight = lefts[2] + buttons[2].ActualWidth;
 
         Assert.Multiple(() =>
         {
-            Assert.That(lefts, Is.Ordered, "Approve, Reject…, Cancel, left to right");
+            Assert.That(lefts, Is.Ordered, "Approve, Reject…, Close, left to right");
             Assert.That(buttons[0].IsDefault, Is.True, "Approve is the default");
             Assert.That(buttons[2].IsCancel, Is.True);
-            Assert.That(content.ActualWidth - 16 - cancelRight, Is.LessThan(1), "Cancel ends at the right margin");
+            Assert.That(content.ActualWidth - 16 - closeRight, Is.LessThan(1), "Close ends at the right margin");
             Assert.That(lefts[2] - lefts[0], Is.LessThan(400), "together, not spread across the width");
         });
     }

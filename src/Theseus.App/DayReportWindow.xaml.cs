@@ -10,5 +10,6 @@ public partial class DayReportWindow : Window
     {
         InitializeComponent();
         SourceInitialized += (_, _) => Height = Math.Min(Height, SystemParameters.WorkArea.Height - 80);
+        Loaded += (_, _) => CloseButton.Focus();
     }
 }
