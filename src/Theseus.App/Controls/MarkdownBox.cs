@@ -6,13 +6,15 @@ using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using Theseus.App.Markdown;
+using Theseus.App.Text;
 using Theseus.Core.Markdown;
 
 namespace Theseus.App.Controls;
 
 /// <summary>
-/// A text box for Markdown (1.1e AC 22): a toolbar that only inserts Markdown, Ctrl+B, Ctrl+I and Ctrl+K, and Write |
-/// Preview above it, the preview drawn natively (AC 23). The text saved is exactly what is typed.
+/// A text box for Markdown (1.1e AC 22): a toolbar that only inserts Markdown, Ctrl+B, Ctrl+I and Ctrl+K, and Write and
+/// Preview above it as a selector bar (baseline W15, D7), the preview drawn natively (AC 23). The text saved is exactly
+/// what is typed. Give the box AutomationProperties.LabeledBy (or Name) and its editor is named from it (E12).
 /// </summary>
 public sealed class MarkdownBox : DockPanel
 {
@@ -41,8 +43,8 @@ public sealed class MarkdownBox : DockPanel
 
     private readonly List<ButtonBase> _tools = [];
     private bool _isPreviewing;
-    private readonly Button _write;
-    private readonly Button _preview;
+    private readonly RadioButton _write;
+    private readonly RadioButton _preview;
     private readonly FlowDocumentScrollViewer _viewer;
 
     /// <summary>Builds the box, its toolbar and its preview.</summary>
@@ -61,7 +63,7 @@ public sealed class MarkdownBox : DockPanel
         Editor.SetBinding(MinHeightProperty, new Binding(nameof(EditorMinHeight)) { Source = this });
         Editor.SetBinding(MaxHeightProperty, new Binding(nameof(EditorMaxHeight)) { Source = this });
         Editor.PreviewKeyDown += (_, e) => e.Handled = HandleShortcut(e.Key == Key.System ? e.SystemKey : e.Key, Keyboard.Modifiers);
-        AutomationProperties.SetName(Editor, "Markdown text");
+        NameEditor();
 
         _viewer = new FlowDocumentScrollViewer
         {
@@ -77,11 +79,13 @@ public sealed class MarkdownBox : DockPanel
         AutomationProperties.SetName(_viewer, "Markdown preview");
 
         var bar = new DockPanel { Margin = new Thickness(0, 0, 0, 4), LastChildFill = false };
-        _write = Tab("Write", "Write the Markdown", () => IsPreviewing = false);
-        _preview = Tab("Preview", "See it drawn, as it will read", () => IsPreviewing = true);
+        string group = "MarkdownView" + Guid.NewGuid().ToString("N");
+        _write = Tab("Write", "Write: the Markdown, as typed", group, () => IsPreviewing = false);
+        _preview = Tab("Preview", "Preview: as it will read", group, () => IsPreviewing = true);
         var tabs = new StackPanel { Orientation = Orientation.Horizontal };
+        KeyboardNavigation.SetTabNavigation(tabs, KeyboardNavigationMode.Once);
+        KeyboardNavigation.SetDirectionalNavigation(tabs, KeyboardNavigationMode.Contained);
         tabs.Children.Add(_write);
-        tabs.Children.Add(new TextBlock { Text = "|", Margin = new Thickness(4, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center, Opacity = 0.6 });
         tabs.Children.Add(_preview);
         SetDock(tabs, Dock.Right);
         bar.Children.Add(tabs);
@@ -219,7 +223,7 @@ public sealed class MarkdownBox : DockPanel
 
         if (text)
         {
-            button.FontFamily = new FontFamily("Segoe UI");
+            button.FontFamily = TypeRamp.UiFont;
             button.FontWeight = weight ?? FontWeights.SemiBold;
             button.FontStyle = style ?? FontStyles.Normal;
         }
@@ -231,13 +235,35 @@ public sealed class MarkdownBox : DockPanel
         return button;
     }
 
-    private static Button Tab(string label, string toolTip, Action choose)
+    private static RadioButton Tab(string label, string toolTip, string group, Action choose)
     {
-        var button = new Button { Content = label, ToolTip = toolTip, Padding = new Thickness(6, 1, 6, 1) };
-        button.SetResourceReference(StyleProperty, "LinkButton");
-        button.Click += (_, _) => choose();
+        RadioButton item = new RadioButton { Content = label, ToolTip = toolTip, GroupName = group };
+        item.SetResourceReference(StyleProperty, "SelectorBarItem");
+        SelectorBar.SetSelectsOnFocus(item, true);
+        item.Checked += (_, _) => choose();
 
-        return button;
+        return item;
+    }
+
+    /// <inheritdoc />
+    protected override void OnPropertyChanged(DependencyPropertyChangedEventArgs e)
+    {
+        base.OnPropertyChanged(e);
+
+        if (e.Property == AutomationProperties.LabeledByProperty || e.Property == AutomationProperties.NameProperty)
+        {
+            NameEditor();
+        }
+    }
+
+    // The editor is what a screen reader lands on, so it carries the box's label; "Markdown text" only when there is none.
+    private void NameEditor()
+    {
+        UIElement? label = AutomationProperties.GetLabeledBy(this);
+        string name = AutomationProperties.GetName(this);
+
+        AutomationProperties.SetLabeledBy(Editor, label);
+        AutomationProperties.SetName(Editor, label is null && string.IsNullOrEmpty(name) ? "Markdown text" : name);
     }
 
     private void ShowMode()
@@ -249,8 +275,8 @@ public sealed class MarkdownBox : DockPanel
 
         Editor.Visibility = _isPreviewing ? Visibility.Collapsed : Visibility.Visible;
         _viewer.Visibility = _isPreviewing ? Visibility.Visible : Visibility.Collapsed;
-        _write.FontWeight = _isPreviewing ? FontWeights.Normal : FontWeights.SemiBold;
-        _preview.FontWeight = _isPreviewing ? FontWeights.SemiBold : FontWeights.Normal;
+        _write.IsChecked = !_isPreviewing;
+        _preview.IsChecked = _isPreviewing;
         ApplyReadOnly();
     }
 

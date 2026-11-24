@@ -1,0 +1,2 @@
+FontSize | 11 | 1
+Spacing | 0,6,0,0 | 2
