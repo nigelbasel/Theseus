@@ -21,13 +21,13 @@
     <!-- New project, as New workstream is a dialog of its own (1.1c AC 6). Only the name is needed; the rest fills in
          the starter project.md, and what is left empty keeps the starter's prompt to fill in later. -->
     <StackPanel Margin="24">
-        <Label x:Name="NameLabel" Content="_Name" Target="{Binding ElementName=NameBox}" Style="{StaticResource Field}" Margin="0,0,0,8" />
+        <Label x:Name="TitleLabel" Content="_Title" Target="{Binding ElementName=TitleBox}" Style="{StaticResource Field}" Margin="0,0,0,8" />
+        <TextBox x:Name="TitleBox" TextChanged="OnTitleChanged" AutomationProperties.LabeledBy="{x:Reference TitleLabel}" />
+
+        <Label x:Name="NameLabel" Content="_Name" Target="{Binding ElementName=NameBox}" Style="{StaticResource Field}" />
         <TextBox x:Name="NameBox" TextChanged="OnNameChanged" AutomationProperties.LabeledBy="{x:Reference NameLabel}" />
         <TextBlock x:Name="NameHint" Margin="0,4,0,0" Style="{DynamicResource ExplanationText}"
-                   Text="Lower-case letters, digits and hyphens, such as my-project. It names the project's folder in the projects folder." />
-
-        <Label x:Name="TitleLabel" Content="_Title" Target="{Binding ElementName=TitleBox}" Style="{StaticResource Field}" />
-        <TextBox x:Name="TitleBox" AutomationProperties.LabeledBy="{x:Reference TitleLabel}" />
+                   Text="Made from the title; change it if you like. Lower-case letters, digits and hyphens, such as my-project. It names the project's folder in the projects folder." />
 
         <Label x:Name="ObjectiveLabel" Content="O_bjective" Target="{Binding ElementName=ObjectiveBox}" Style="{StaticResource Field}" />
         <TextBox x:Name="ObjectiveBox" MinHeight="60" TextWrapping="Wrap" AcceptsReturn="False"
@@ -41,7 +41,7 @@
 
         <StackPanel x:Name="Footer" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,24,0,0">
             <Button x:Name="CreateButton" Content="_Create" IsDefault="True" Style="{DynamicResource AccentButton}" Click="OnCreate" IsEnabled="False"
-                    ToolTipService.ShowOnDisabled="True" ToolTip="Give the project a name first." />
+                    ToolTipService.ShowOnDisabled="True" ToolTip="Give the project a title or a name first." />
             <Button x:Name="CancelButton" Content="Cancel" IsCancel="True" Style="{DynamicResource DialogButton}" Margin="8,0,0,0" />
         </StackPanel>
     </StackPanel>

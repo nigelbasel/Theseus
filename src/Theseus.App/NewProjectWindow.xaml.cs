@@ -6,20 +6,23 @@ namespace Theseus.App;
 
 /// <summary>
 /// New project (1.1c AC 6), and Convert to project… with its name and title filled in from the card (AC 7). Create
-/// stays off until the name has a slug's shape.
+/// stays off until the name has a slug's shape. The name follows the title until it is changed by hand, and follows it
+/// again once it is cleared.
 /// </summary>
 public partial class NewProjectWindow : Window
 {
+    private bool _nameFollowsTitle = true;
+
     /// <summary>Creates the window, optionally filled in.</summary>
     public NewProjectWindow(string name = "", string title = "")
     {
         InitializeComponent();
-        NameBox.Text = name;
         TitleBox.Text = title;
+        NameBox.Text = name.Length == 0 ? ProjectMembership.SlugFrom(title) : name;
         Loaded += (_, _) =>
         {
-            NameBox.Focus();
-            NameBox.SelectAll();
+            TitleBox.Focus();
+            TitleBox.SelectAll();
         };
     }
 
@@ -32,12 +35,21 @@ public partial class NewProjectWindow : Window
     private void OnNameChanged(object sender, TextChangedEventArgs e)
     {
         string name = NameBox.Text.Trim();
+        _nameFollowsTitle = name.Length == 0 || name == ProjectMembership.SlugFrom(TitleBox.Text);
         CreateButton.IsEnabled = ProjectMembership.IsSlug(name);
         CreateButton.ToolTip = CreateButton.IsEnabled ? null
-            : name.Length == 0 ? "Give the project a name first."
+            : name.Length == 0 ? "Give the project a title or a name first."
             : "Use only lower-case letters, digits and hyphens in the name.";
         NameHint.SetResourceReference(TextBlock.ForegroundProperty,
             CreateButton.IsEnabled || name.Length == 0 ? "TextFillColorSecondaryBrush" : "CriticalTextBrush");
+    }
+
+    private void OnTitleChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_nameFollowsTitle)
+        {
+            NameBox.Text = ProjectMembership.SlugFrom(TitleBox.Text);
+        }
     }
 
     private void OnCreate(object sender, RoutedEventArgs e) => DialogResult = true;

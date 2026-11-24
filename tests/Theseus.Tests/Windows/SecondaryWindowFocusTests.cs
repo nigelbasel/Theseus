@@ -28,7 +28,7 @@ public class SecondaryWindowFocusTests
         ["Checklist", "row:Rows"],
         ["DayReport", "CloseButton"],
         ["Instructions", "FilesTab"],
-        ["NewProject", "NameBox"],
+        ["NewProject", "TitleBox"],
         ["NewWorkstream", "TitleBox"],
         ["PromptEdit", "editor:Editor"],
         ["Proposal", "BriefView"],
