@@ -467,7 +467,7 @@
                       ToolTip="Include this workstream when the whole board is started." />
             <Separator />
             <!-- Headless runs (Nigel, 2026-11-24): how the card runs, its output, a tab on its conversation, and its breaker. -->
-            <MenuItem Header="Hea_dless" ToolTip="How this card runs, its headless run's output, a tab on its conversation, and its breaker.">
+            <MenuItem Header="Headle_ss" ToolTip="How this card runs, its headless run's output, a tab on its conversation, and its breaker.">
                 <MenuItem Header="Run _mode" ToolTip="Whether this card's session opens in a tab or runs headless, with no tab.">
                     <MenuItem Header="_Tab" IsChecked="{Binding RunsInTabByChoice, Mode=OneWay}"
                               Command="{Binding RunInTabCommand}" ToolTip="Open its session in a Windows Terminal tab, for work you are watching." />
