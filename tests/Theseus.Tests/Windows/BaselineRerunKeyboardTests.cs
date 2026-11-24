@@ -33,6 +33,11 @@ public class BaselineRerunKeyboardTests
         Assert.That(Element("MainWindow.xaml", "BoardShowsChoice").Attribute("KeyboardNavigation.TabNavigation")?.Value, Is.Not.EqualTo("Once"),
             "NB-2, G64: the chosen item is the group's stop (SelectorBarItem), and Active only is a stop of its own");
 
+    [Test]
+    public void TheShowGroupsArrows_StayAmongItsChoices_SoActiveOnlyIsOutsideIt() =>
+        Assert.That(Element("MainWindow.xaml", "BoardShowsChoice").Descendants().Select(element => (string?)element.Attributes().FirstOrDefault(attribute => attribute.Name.LocalName == "Name")),
+            Is.EquivalentTo(new[] { "ShowAllCards", "ShowProjectCards", "ShowWorkstreamCards" }), "S4, W42: an arrow from Workstreams must not change the view");
+
     [TestCase("TagsAny")]
     [TestCase("TagsAll")]
     public void ATagMatchRadio_IsATabStopOnlyWhileChosen(string radio) =>
@@ -54,6 +59,30 @@ public class BaselineRerunKeyboardTests
         Assert.That(pane.Width, Is.EqualTo(300), "a right-hand pane shrinks as its left edge moves right");
         Assert.That(left.Step(Key.Up), Is.False);
     }
+
+    [Test]
+    [NonParallelizable]
+    public void APanesFirstStop_IsItsContent_NotItsResizeEdge() =>
+        MainWindowFixture.Run(
+            (window, shell) =>
+            {
+                shell.IsSessionsPanelOpen = true;
+                shell.Chains.IsOpen = true;
+                shell.Drawer.Show(shell.Board.Cards.Single(card => card.Key == "alpha"));
+                window.DataContext = null;
+                window.DataContext = shell;
+                FrameworkElement content = (FrameworkElement)window.Content;
+                content.Measure(new Size(1400, 760));
+                content.Arrange(new Rect(0, 0, 1400, 760));
+                content.UpdateLayout();
+
+                foreach (string pane in new[] { "SessionsPane", "ChainsPane", "DrawerPane" })
+                {
+                    Assert.That(Theseus.App.MainWindow.FirstFocusable((DependencyObject)window.FindName(pane)), Is.Not.Null.And.Not.InstanceOf<PaneResizeThumb>(),
+                        $"M1: F6 and the drawer's opening focus go to {pane}'s content (B8, W43); its edge is reached by Tab");
+                }
+            },
+            board => board.With("alpha"));
 
     [Test]
     public void TheDrawer_TakesFocusWhenItOpens() =>

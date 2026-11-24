@@ -19,15 +19,18 @@ public sealed class PaneResizeThumb : Thumb
     public static readonly DependencyProperty IsOnTheRightProperty = DependencyProperty.Register(
         nameof(IsOnTheRight), typeof(bool), typeof(PaneResizeThumb));
 
+    /// <summary>How far one arrow key moves the edge.</summary>
+    public const double KeyStep = 16;
+
+    private IInputElement? _focusedBeforeDrag;
+
     /// <summary>Creates the edge.</summary>
     public PaneResizeThumb()
     {
         Focusable = true;
         DragDelta += OnDragDelta;
+        DragCompleted += OnDragCompleted;
     }
-
-    /// <summary>How far one arrow key moves the edge.</summary>
-    public const double KeyStep = 16;
 
     /// <summary>The pane whose width the edge sets.</summary>
     public FrameworkElement? Pane
@@ -65,6 +68,13 @@ public sealed class PaneResizeThumb : Thumb
     }
 
     /// <inheritdoc />
+    protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
+    {
+        _focusedBeforeDrag = Keyboard.FocusedElement;
+        base.OnMouseLeftButtonDown(e);
+    }
+
+    /// <inheritdoc />
     protected override void OnKeyDown(KeyEventArgs e)
     {
         ArgumentNullException.ThrowIfNull(e);
@@ -82,6 +92,17 @@ public sealed class PaneResizeThumb : Thumb
     {
         Resize(e.HorizontalChange);
         e.Handled = true;
+    }
+
+    // A drag with the mouse gives the focus back, so the arrow keys keep moving between cards rather than resizing.
+    private void OnDragCompleted(object sender, DragCompletedEventArgs e)
+    {
+        if (_focusedBeforeDrag is { } before && !ReferenceEquals(before, this))
+        {
+            before.Focus();
+        }
+
+        _focusedBeforeDrag = null;
     }
 
     private void Resize(double towardsTheRight)

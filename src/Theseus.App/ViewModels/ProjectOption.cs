@@ -6,9 +6,6 @@ namespace Theseus.App.ViewModels;
 /// <param name="Objectives">Its objectives: number and title.</param>
 public sealed record ProjectOption(string Name, string Title, IReadOnlyList<(string Number, string Title)> Objectives)
 {
-    /// <summary>What a screen reader says for the item: the title the box shows, not the record (W50, G170).</summary>
-    public override string ToString() => Title;
-
     /// <summary>
     /// Which to choose when the window opens: the project it was asked from (1.1e AC 6), else the only one, else none.
     /// </summary>

@@ -13,9 +13,10 @@ public class ListNamesMarkupTests
 {
     private static readonly XNamespace Presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
 
-    private static readonly HashSet<string> Lists = new(StringComparer.Ordinal) { "ItemsControl", "ListBox", "ListView", "TreeView" };
+    private static readonly HashSet<string> Lists = new(StringComparer.Ordinal) { "ItemsControl", "ListBox", "ListView", "TreeView", "ComboBox" };
 
-    // Lists whose items are strings, by file and binding: a string item is read as itself, so it needs no container style.
+    // Lists whose items are strings or enum values, by file and binding: each is read as what the list shows, so it needs no
+    // container style. Add to project's objective box is filled in code, with strings.
     private static readonly HashSet<(string File, string Source)> StringItems =
     [
         ("MainWindow.xaml", "{Binding Tags}"), ("MainWindow.xaml", "{Binding Suggestions}"), ("MainWindow.xaml", "{Binding Drawer.JiraKeys}"),
@@ -23,6 +24,9 @@ public class ListNamesMarkupTests
         ("ProjectPropertiesWindow.xaml", "{Binding Suggestions}"), ("SetupWindow.xaml", "{Binding Drawer.AddDirectories}"),
         ("SettingsWindow.xaml", "{Binding HiddenProjectFolders}"), ("Views/ProjectView.xaml", "{Binding CrossMarks}"),
         ("Views/ProjectView.xaml", "{Binding Tallies}"), ("Views/ProjectView.xaml", "{Binding Links}"),
+        ("MainWindow.xaml", "{Binding History}"), ("NewWorkstreamWindow.xaml", "{Binding NewWorkstream.Stages}"),
+        ("NewWorkstreamWindow.xaml", "{Binding NewWorkstream.Areas}"), ("AddToProjectWindow.xaml", string.Empty),
+        ("ArrangeWindow.xaml", "{Binding Kinds}"),
     ];
 
     // Where a list's naming style may come from: its own file, or the app's shared dictionary.

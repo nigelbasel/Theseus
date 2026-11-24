@@ -1007,10 +1007,11 @@
                             <Button Style="{StaticResource ItemDropDown}" Click="OnOverflowClick"
                                     ToolTip="This card's Jira issues. Choose one to open it." AutomationProperties.Name="{Binding JiraButtonText}"
                                     Visibility="{Binding JiraItems.Count, Converter={StaticResource CountToVisibility}}">
-                                <TextBlock>
-                                    <Run Text="{Binding JiraButtonText, Mode=OneWay}" />
-                                    <Run Text="&#xE70D;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="8" />
-                                </TextBlock>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding JiraButtonText, Mode=OneWay}" VerticalAlignment="Center" />
+                                    <controls:GlyphText Text="&#xE70D;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="8"
+                                                        Margin="4,0,0,0" VerticalAlignment="Center" />
+                                </StackPanel>
                                 <Button.ContextMenu>
                                     <ContextMenu ItemsSource="{Binding JiraItems}" ItemContainerStyle="{StaticResource ItemRow}"
                                                  DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}" />
@@ -1019,10 +1020,11 @@
                             <Button Style="{StaticResource ItemDropDown}" Click="OnOverflowClick"
                                     ToolTip="This card's pull requests. Choose one to open it." AutomationProperties.Name="{Binding PullRequestButtonText}"
                                     Visibility="{Binding PullRequestItems.Count, Converter={StaticResource CountToVisibility}}">
-                                <TextBlock>
-                                    <Run Text="{Binding PullRequestButtonText, Mode=OneWay}" />
-                                    <Run Text="&#xE70D;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="8" />
-                                </TextBlock>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding PullRequestButtonText, Mode=OneWay}" VerticalAlignment="Center" />
+                                    <controls:GlyphText Text="&#xE70D;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="8"
+                                                        Margin="4,0,0,0" VerticalAlignment="Center" />
+                                </StackPanel>
                                 <Button.ContextMenu>
                                     <ContextMenu ItemsSource="{Binding PullRequestItems}" ItemContainerStyle="{StaticResource ItemRow}"
                                                  DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}" />
@@ -1467,10 +1469,11 @@
                                 ToolTip="Make a workstream follow this running session."
                                 Visibility="{Binding IsAdopted, Converter={StaticResource NotBoolToVisibility}}"
                                 Click="OnAdoptClicked">
-                            <TextBlock>
-                                <Run Text="Adopt into" />
-                                <Run Text="&#xE70D;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="8" />
-                            </TextBlock>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Adopt into" VerticalAlignment="Center" />
+                                <controls:GlyphText Text="&#xE70D;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="8"
+                                                    Margin="4,0,0,0" VerticalAlignment="Center" />
+                            </StackPanel>
                             <Button.ContextMenu>
                                 <ContextMenu ItemsSource="{Binding AdoptTargets}">
                                     <ContextMenu.ItemContainerStyle>
@@ -1874,8 +1877,7 @@
                 of the same cards, so a selector bar: one Tab stop, the arrows choose and do not wrap (W15, W42; D7, B16, D8).
                 While it hides any cards it says so with a mark and words beside it, not colour alone (1.5 walkthrough row 3).
             -->
-            <StackPanel x:Name="BoardShowsChoice" AutomationProperties.Name="Show" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"
-                        KeyboardNavigation.DirectionalNavigation="Contained"
+            <StackPanel x:Name="BoardShowBar" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"
                         Margin="12,0,12,0" DataContext="{Binding Board}"
                         Visibility="{Binding DataContext.IsBoardShown, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}">
                 <StackPanel.Resources>
@@ -1888,6 +1890,9 @@
                 </StackPanel.Resources>
                 <TextBlock Text="Show:" VerticalAlignment="Center" FontSize="12" Margin="0,0,4,0"
                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                <!-- The group's arrows stay among its three choices; Active only and the note sit beside it (W42, G67). -->
+                <controls:SelectorGroup x:Name="BoardShowsChoice" AutomationProperties.Name="Show" Orientation="Horizontal"
+                                        KeyboardNavigation.DirectionalNavigation="Contained">
                 <RadioButton x:Name="ShowAllCards" Content="All" Style="{StaticResource ShowItem}"
                              IsChecked="{Binding ShowsAll, Mode=TwoWay}" AutomationProperties.Name="Show all cards" />
                 <RadioButton x:Name="ShowProjectCards" Content="Projects" Style="{StaticResource ShowItem}"
@@ -1896,6 +1901,7 @@
                 <RadioButton x:Name="ShowWorkstreamCards" Content="Workstreams" Style="{StaticResource ShowItem}"
                              IsChecked="{Binding ShowsWorkstreams, Mode=TwoWay}" ToolTip="Show only the workstreams that are in no project."
                              AutomationProperties.Name="Show only workstreams" />
+                </controls:SelectorGroup>
                 <ToggleButton x:Name="ActiveOnlyToggle" Style="{StaticResource ToolIconToggle}" Margin="8,0,0,0" Padding="8,0"
                               Content="Active only" IsChecked="{Binding ShowsActiveOnly, Mode=TwoWay}"
                               ToolTip="Show active only (Ctrl+K)" AutomationProperties.Name="Show active only"
@@ -1950,7 +1956,7 @@
                             BorderBrush="{DynamicResource FlyoutBorderBrush}" BorderThickness="{DynamicResource FlyoutBorderThickness}"
                             PreviewKeyDown="OnTagsFlyoutKeyDown">
                         <DockPanel>
-                            <StackPanel x:Name="TagMatch" AutomationProperties.Name="Show cards with" DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8"
+                            <controls:SelectorGroup x:Name="TagMatch" AutomationProperties.Name="Show cards with" DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8"
                                         KeyboardNavigation.TabNavigation="Once" KeyboardNavigation.DirectionalNavigation="Contained">
                                 <TextBlock Text="Show cards with:" VerticalAlignment="Center" FontSize="12" Margin="0,0,8,0"
                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
@@ -1962,7 +1968,7 @@
                                              IsTabStop="{Binding IsChecked, RelativeSource={RelativeSource Self}}"
                                              controls:SelectorBar.SelectsOnFocus="True"
                                              ToolTip="Show only cards with every ticked tag." />
-                            </StackPanel>
+                            </controls:SelectorGroup>
                             <TextBlock DockPanel.Dock="Top" FontSize="12" TextWrapping="Wrap" MaxWidth="260"
                                        Text="No card has a tag yet. Add one from a card's menu, Tags, or its Properties."
                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
@@ -2126,7 +2132,7 @@
                                           Pane="{Binding ElementName=ChainsPane}" IsOnTheRight="True" />
                 <Grid DockPanel.Dock="Top" Margin="4,4,4,8">
                     <!-- Locks and Chains are two views of the side panel: a selector bar (W15, D7, G125). -->
-                    <StackPanel x:Name="ChainsPaneSwitch" Orientation="Horizontal" AutomationProperties.Name="Views of the side panel"
+                    <controls:SelectorGroup x:Name="ChainsPaneSwitch" Orientation="Horizontal" AutomationProperties.Name="Views of the side panel"
                                 KeyboardNavigation.TabNavigation="Once" KeyboardNavigation.DirectionalNavigation="Contained">
                         <RadioButton Content="Locks" Style="{StaticResource PanelSwitchItem}" GroupName="ChainsPaneSwitch"
                                      IsChecked="{Binding Locks.IsOpen, Mode=OneWay}" controls:SelectorBar.SelectsOnFocus="True"
@@ -2134,7 +2140,7 @@
                         <RadioButton Content="Chains" Style="{StaticResource PanelSwitchItem}" GroupName="ChainsPaneSwitch"
                                      IsChecked="{Binding Chains.IsOpen, Mode=OneWay}" controls:SelectorBar.SelectsOnFocus="True"
                                      ToolTip="Show the chains panel." Command="{Binding Chains.OpenCommand}" />
-                    </StackPanel>
+                    </controls:SelectorGroup>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                         <!-- Fold all and Unfold all the tree (walkthrough row 11), with the board's fold glyphs (W25). -->
                         <Button x:Name="ChainsFoldAll" Style="{StaticResource PanelIcon}" Content="&#xF165;" Margin="0,0,4,0"
@@ -2424,7 +2430,7 @@
                                                         ToolTipService.ShowOnDisabled="True"
                                                         AutomationProperties.Name="{Binding Title, StringFormat=Focus {0}}">
                                                     <StackPanel Orientation="Horizontal">
-                                                        <TextBlock Text="&#xE8A7;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="12"
+                                                        <controls:GlyphText Text="&#xE8A7;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="12"
                                                                    VerticalAlignment="Center" Margin="0,0,4,0" />
                                                         <TextBlock Text="Focus" VerticalAlignment="Center" />
                                                     </StackPanel>
@@ -2506,7 +2512,7 @@
                                           Pane="{Binding ElementName=LocksPane}" IsOnTheRight="True" />
                 <Grid DockPanel.Dock="Top" Margin="4,4,4,8">
                     <!-- Locks and Chains are two views of the side panel: a selector bar (W15, D7, G125). -->
-                    <StackPanel x:Name="LocksPaneSwitch" Orientation="Horizontal" AutomationProperties.Name="Views of the side panel"
+                    <controls:SelectorGroup x:Name="LocksPaneSwitch" Orientation="Horizontal" AutomationProperties.Name="Views of the side panel"
                                 KeyboardNavigation.TabNavigation="Once" KeyboardNavigation.DirectionalNavigation="Contained">
                         <RadioButton Content="Locks" Style="{StaticResource PanelSwitchItem}" GroupName="LocksPaneSwitch"
                                      IsChecked="{Binding Locks.IsOpen, Mode=OneWay}" controls:SelectorBar.SelectsOnFocus="True"
@@ -2514,7 +2520,7 @@
                         <RadioButton Content="Chains" Style="{StaticResource PanelSwitchItem}" GroupName="LocksPaneSwitch"
                                      IsChecked="{Binding Chains.IsOpen, Mode=OneWay}" controls:SelectorBar.SelectsOnFocus="True"
                                      ToolTip="Show the chains panel." Command="{Binding Chains.OpenCommand}" />
-                    </StackPanel>
+                    </controls:SelectorGroup>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                         <Button Style="{StaticResource PanelIcon}" Content="&#xE897;" Margin="0,0,8,0"
                                 ToolTip="Locks help, in your browser" AutomationProperties.Name="Locks help"
@@ -2785,7 +2791,7 @@
                                Text="{Binding Board.Search.StatusText}"
                                Visibility="{Binding Board.Search.HasStatus, Converter={StaticResource BoolToVisibility}}"
                                Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                    <Button x:Name="IncludeArchived" Style="{StaticResource CommandButton}" Content="I_nclude archived" FontSize="12"
+                    <Button x:Name="IncludeArchived" Style="{StaticResource CommandButton}" Content="Include archived" FontSize="12"
                             Padding="8,0" Margin="8,4,0,4" VerticalAlignment="Center"
                             ToolTip="Show the archive, keeping the search: an archived card matches it."
                             Command="{Binding IncludeArchivedCommand}"
@@ -3013,11 +3019,13 @@
                                 </Thumb>
                                 <DockPanel Margin="4,0,8,0">
                                     <Button DockPanel.Dock="Right" Style="{StaticResource CommandButton}"
-                                            Content="{Binding Glyph}" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="12"
+                                            FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="12"
                                             Padding="4,0" VerticalAlignment="Center"
                                             ToolTip="{Binding ToggleTooltip}"
                                             AutomationProperties.Name="{Binding ToggleTooltip}"
-                                            Command="{Binding ToggleCommand}" />
+                                            Command="{Binding ToggleCommand}">
+                                        <controls:GlyphText Text="{Binding Glyph}" />
+                                    </Button>
                                     <TextBlock DockPanel.Dock="Right" FontSize="12" Margin="0,0,8,0" VerticalAlignment="Center"
                                                Text="{Binding LiveCount, StringFormat='&#x25CF; {0}'}"
                                                ToolTip="Cards in this stage with a session running"
@@ -3448,11 +3456,23 @@
                                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                                                 <ComboBox x:Name="LinkKind" ItemsSource="{Binding Chains.Kinds}" SelectedItem="{Binding Chains.Kind}"
                                                           AutomationProperties.LabeledBy="{x:Reference LinkKindLabel}"
-                                                          Margin="0,4,0,0" />
+                                                          Margin="0,4,0,0">
+                                                    <ComboBox.ItemContainerStyle>
+                                                        <Style TargetType="ComboBoxItem" BasedOn="{StaticResource {x:Type ComboBoxItem}}">
+                                                            <Setter Property="AutomationProperties.Name" Value="{Binding Label}" />
+                                                        </Style>
+                                                    </ComboBox.ItemContainerStyle>
+                                                </ComboBox>
                                                 <ComboBox x:Name="LinkTarget" ItemsSource="{Binding Chains.Targets}" SelectedItem="{Binding Chains.Target}"
                                                           AutomationProperties.Name="The other card"
                                                           DisplayMemberPath="Title" IsTextSearchEnabled="True" Margin="0,4,0,0"
-                                                          ToolTip="The other card. Type its first letters to jump to it." />
+                                                          ToolTip="The other card. Type its first letters to jump to it.">
+                                                    <ComboBox.ItemContainerStyle>
+                                                        <Style TargetType="ComboBoxItem" BasedOn="{StaticResource {x:Type ComboBoxItem}}">
+                                                            <Setter Property="AutomationProperties.Name" Value="{Binding Title}" />
+                                                        </Style>
+                                                    </ComboBox.ItemContainerStyle>
+                                                </ComboBox>
                                                 <TextBlock x:Name="LinkDocumentLabel" Text="Document (leave empty if nothing needs to wait for one)" Style="{StaticResource CaptionText}"
                                                            Margin="0,8,0,4" TextWrapping="Wrap"
                                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />

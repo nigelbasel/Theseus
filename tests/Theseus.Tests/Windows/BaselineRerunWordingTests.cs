@@ -23,8 +23,9 @@ public class BaselineRerunWordingTests
         Assert.That(Texts("MainWindow.xaml", "Button", "Content"), Does.Contain("Edit setup").And.No.Contain("Edit setup…"), "NA-3, W14");
 
     [Test]
-    public void IncludeArchived_TakesN_SinceForwardInTheProjectViewHasA_AndIIsNotUsed() =>
-        Assert.That(Element("MainWindow.xaml", "IncludeArchived").Attribute("Content")!.Value, Is.EqualTo("I_nclude archived"), "NB-3, G84, W26");
+    public void IncludeArchived_HasNoKey_SinceEveryLetterOfItIsTakenWhereItShows() =>
+        Assert.That(Element("MainWindow.xaml", "IncludeArchived").Attribute("Content")!.Value, Is.EqualTo("Include archived"),
+            "NB-3, G84: A is Forward's, N is Start without their inputs' and Rename objective's, I and O are not used (W26)");
 
     [Test]
     public void TheRoundsStateWord_IsSemibold_NotMedium() =>

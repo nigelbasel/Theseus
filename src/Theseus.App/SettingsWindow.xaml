@@ -63,7 +63,13 @@
                                              Explanation="Applied as soon as it is chosen.">
                             <ComboBox x:Name="ThemeBox" ItemsSource="{Binding ThemeChoices}" DisplayMemberPath="Label" SelectedValuePath="Theme"
                                       SelectedValue="{Binding Theme, Mode=TwoWay}" Width="180"
-                                      AutomationProperties.Name="Theme" />
+                                      AutomationProperties.Name="Theme">
+                                <ComboBox.ItemContainerStyle>
+                                    <Style TargetType="ComboBoxItem" BasedOn="{StaticResource {x:Type ComboBoxItem}}">
+                                        <Setter Property="AutomationProperties.Name" Value="{Binding Label}" />
+                                    </Style>
+                                </ComboBox.ItemContainerStyle>
+                            </ComboBox>
                         </controls:SettingRow>
 
                         <controls:SettingRow Label="Jira" Value="{Binding JiraValue}" Explanation="{Binding JiraExplanation}">

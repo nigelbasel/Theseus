@@ -82,6 +82,7 @@ public class ChainsTreeLayoutTests
         // without it.
         var host = new XElement(Presentation + "Border",
             new XAttribute(XNamespace.Xmlns + "converters", "clr-namespace:Theseus.App.Converters;assembly=Theseus"),
+            new XAttribute(XNamespace.Xmlns + "controls", "clr-namespace:Theseus.App.Controls"),
             new XAttribute(XNamespace.Xmlns + "x", "http://schemas.microsoft.com/winfx/2006/xaml"),
             new XElement(Presentation + "Border.Resources",
                 new XElement(Presentation + "ResourceDictionary",
@@ -95,7 +96,8 @@ public class ChainsTreeLayoutTests
                 panelScroller.Attributes().Where(attribute => !attribute.IsNamespaceDeclaration),
                 new XElement(Presentation + "StackPanel", new XElement(tree))));
 
-        return host.ToString();
+        // The app's controls namespace on a prefix, then given its assembly, as a parsed fragment needs.
+        return host.ToString().Replace("\"clr-namespace:Theseus.App.Controls\"", "\"clr-namespace:Theseus.App.Controls;assembly=Theseus\"", StringComparison.Ordinal);
     }
 
     private static XElement Converter(string type, string key) =>

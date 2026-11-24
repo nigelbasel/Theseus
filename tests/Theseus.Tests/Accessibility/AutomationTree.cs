@@ -94,7 +94,6 @@ internal static class AutomationTree
         found.Add((type, peer.GetName() ?? string.Empty, where, IsControlElement(peer)));
 
         // A scroll bar's line and page buttons are the framework's, read by their role, as in every WPF app.
-
         if (type == AutomationControlType.ScrollBar)
         {
             return;
@@ -113,7 +112,7 @@ internal static class AutomationTree
     {
         UIElement { IsVisible: true } => peer.IsControlElement(),
         _ when peer is Theseus.App.Controls.GlyphTextAutomationPeer => false,
-        FrameworkElement { TemplatedParent: not null } when peer is TextBlockAutomationPeer => false,
+        FrameworkElement { TemplatedParent: not null and not System.Windows.Controls.ContentPresenter } when peer is TextBlockAutomationPeer => false,
         _ => true,
     };
 

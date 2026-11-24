@@ -30,7 +30,7 @@ public class AutomationTreeTests
                 shell.Chains.IsOpen = true;
                 shell.IsSessionsPanelOpen = true;
 
-                // A session whose console title cannot be read: its row must still be named (review must-fix 1).
+                // A session whose console title cannot be read: its row must still be named.
                 shell.Sessions.Sessions.Add(new LiveSessionViewModel(new Theseus.Core.Sessions.LiveSession(
                     42, "0123456789abcdef", @"C:\work", null, "idle", "cli", DateTimeOffset.UnixEpoch)));
                 shell.Drawer.Show(shell.Board.Cards.Single(card => card.Key == "alpha"));

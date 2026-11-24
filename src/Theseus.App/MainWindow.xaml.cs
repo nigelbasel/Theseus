@@ -131,10 +131,13 @@ public partial class MainWindow : Window
         FirstFocusable(panes[next])?.Focus();
     }
 
-    /// <summary>The element itself when it takes the focus, or else its first shown descendant in tree order that does.</summary>
+    /// <summary>
+    /// The element itself when it takes the focus, or else its first shown descendant in tree order that does. A pane's
+    /// resize edge is passed over: F6 and an opening pane go to its content, and the edge is reached by Tab.
+    /// </summary>
     internal static UIElement? FirstFocusable(DependencyObject element)
     {
-        if (element is UIElement { Visibility: not Visibility.Visible })
+        if (element is UIElement { Visibility: not Visibility.Visible } or Controls.PaneResizeThumb)
         {
             return null;
         }
@@ -327,8 +330,7 @@ public partial class MainWindow : Window
     {
         if (e.NewValue is true)
         {
-            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input,
-                () => DrawerPane.MoveFocus(new TraversalRequest(FocusNavigationDirection.First)));
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input, () => FirstFocusable(DrawerPane)?.Focus());
         }
     }
 

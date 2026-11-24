@@ -1277,7 +1277,7 @@
              access keys: WPF fires one on a bare letter when focus is on a button, which would switch the view (P2 review). -->
         <Border DockPanel.Dock="Top" Padding="12,4,12,0" BorderThickness="0,0,0,1"
                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
-            <StackPanel x:Name="GroupBy" Orientation="Horizontal" KeyboardNavigation.TabNavigation="Once"
+            <controls:SelectorGroup x:Name="GroupBy" Orientation="Horizontal" KeyboardNavigation.TabNavigation="Once"
                         KeyboardNavigation.DirectionalNavigation="Contained" AutomationProperties.Name="Views of the project">
                 <RadioButton x:Name="GroupByFlow" Content="Rounds and work" Style="{StaticResource GroupByButton}" Margin="0,0,4,0"
                              IsChecked="{Binding IsGroupedByFlow, Mode=TwoWay}" AutomationProperties.Name="Rounds and work"
@@ -1285,7 +1285,7 @@
                 <RadioButton x:Name="GroupByObjectives" Content="Objectives only" Style="{StaticResource GroupByButton}"
                              IsChecked="{Binding IsGroupedByObjectives, Mode=TwoWay}" AutomationProperties.Name="Objectives only"
                              ToolTip="Objectives only: pieces of work under the phases and objectives of project.md" />
-            </StackPanel>
+            </controls:SelectorGroup>
         </Border>
         <!-- The page's toolbar, then the legend, wrapping, so a narrow window cuts nothing off (AC 21, 22, 45, 54). -->
         <Border DockPanel.Dock="Top" Padding="24,8,24,0" BorderThickness="0,0,0,1"
