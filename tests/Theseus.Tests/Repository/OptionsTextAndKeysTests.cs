@@ -53,7 +53,7 @@ public class OptionsTextAndKeysTests
         XElement clear = Options().Descendants(Presentation + "Button")
             .Single(button => (string?)button.Attribute("Command") == "{Binding ResetHoldoutRemoteCommand}");
 
-        Assert.That(((string?)clear.Attribute("Content"), (string?)clear.Attribute("ToolTip")), Is.EqualTo(("C_lear", "Remove the address.")));
+        Assert.That(((string?)clear.Attribute("Content"), (string?)clear.Attribute("ToolTip")), Is.EqualTo(("_Clear", "Remove the address.")));
     }
 
     [Test]
@@ -67,8 +67,9 @@ public class OptionsTextAndKeysTests
     {
         XElement group = Options().Descendants(Presentation + "RadioButton").First().Parent!;
 
-        Assert.That(((string?)group.Attribute("KeyboardNavigation.TabNavigation"), (string?)group.Attribute("KeyboardNavigation.DirectionalNavigation")),
-            Is.EqualTo(("Once", "Contained")), "W42, G67, G72");
+        Assert.That((string?)group.Attribute("KeyboardNavigation.DirectionalNavigation"), Is.EqualTo("Contained"), "W42, G72");
+        Assert.That(group.Elements(Presentation + "RadioButton").Select(radio => (string?)radio.Attribute("IsTabStop")),
+            Is.All.EqualTo("{Binding IsChecked, RelativeSource={RelativeSource Self}}"), "one Tab stop, the choice in force (W42, G67)");
         Assert.That(group.Elements(Presentation + "RadioButton").Select(radio => (string?)radio.Attribute(Controls + "SelectorBar.SelectsOnFocus")),
             Is.All.EqualTo("True"), "a radio button is checked when it receives keyboard focus");
     }
@@ -136,7 +137,7 @@ public class OptionsTextAndKeysTests
     [TestCase("Holdouts", 'N')]
     [TestCase("Holdouts", 'A')]
     [TestCase("Prompts", 'R')]
-    [TestCase("Advanced", 'L')]
+    [TestCase("Advanced", 'C')]
     public void CommonCommands_HaveAnAccessKey(string tab, char key)
     {
         Assert.That(AccessKeys(Tab(tab)), Does.Contain(key), "W26, G34");
@@ -153,9 +154,27 @@ public class OptionsTextAndKeysTests
     }
 
     [Test]
+    public void EachAccessKey_FollowsTheLetterRule()
+    {
+        IEnumerable<string> labels = Options().Descendants().Select(element => (string?)element.Attribute("Content") ?? string.Empty)
+            .Where(label => label.Contains('_') && !label.StartsWith('{'));
+
+        Assert.That(labels.Where(label => !FollowsTheLetterRule(label)), Is.Empty, "W26, B11");
+    }
+
+    [Test]
     public void AValuePrompt_SaysSave_NotOK()
     {
         Assert.That(File.ReadAllText(Path.Combine(AppFolder(), "SettingsWindow.xaml.cs")), Does.Contain("ActionLabel = \"_Save\""), "A-m2, G9");
+    }
+
+    // W26 (G82 over G83): the first letter of a word in the label, or else a letter that is not on G83's avoid list.
+    private static bool FollowsTheLetterRule(string label)
+    {
+        int at = label.IndexOf('_');
+        bool startsAWord = at == 0 || label[at - 1] == ' ';
+
+        return startsAWord || !"ilgjpqy".Contains(char.ToLowerInvariant(label[at + 1]));
     }
 
     private static IEnumerable<char> AccessKeys(XElement root) =>

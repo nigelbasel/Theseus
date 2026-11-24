@@ -10,7 +10,6 @@
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False"
         ResizeMode="CanResize"
-        FocusManager.FocusedElement="{Binding ElementName=Tabs}"
         Background="{DynamicResource SolidBackgroundFillColorSecondaryBrush}">
     <Window.Resources>
         <!-- Its own converters, so a test draws it without the application's resources. -->
@@ -67,18 +66,23 @@
                         </controls:SettingRow>
 
                         <controls:SettingRow Label="Jira" Value="{Binding JiraValue}" Explanation="{Binding JiraExplanation}">
-                            <Button Content="_Change…" Style="{StaticResource Action}" Click="OnChangeJira"
+                            <Button x:Name="JiraChange" Content="_Change…" Style="{StaticResource Action}" Click="OnChangeJira"
                                     AutomationProperties.Name="Change the Jira address" />
                         </controls:SettingRow>
 
                         <controls:SettingRow Label="Start mode" Value="{Binding StartModeValue}"
                                              Explanation="{Binding StartModeExplanation}">
-                            <!-- One Tab stop, arrows inside that do not wrap, and the focused choice is the one taken (W42, G67, G72, G133). -->
-                            <StackPanel KeyboardNavigation.TabNavigation="Once" KeyboardNavigation.DirectionalNavigation="Contained">
-                                <RadioButton GroupName="StartMode" Content="_Resume" IsChecked="{Binding ResumeByDefault, Mode=TwoWay}"
+                            <!--
+                                One Tab stop, the choice in force, arrows inside that do not wrap, and the focused choice is the one
+                                taken (W42, G67, G72, G133). TabNavigation Once would land Tab on the first radio and so change the setting.
+                            -->
+                            <StackPanel KeyboardNavigation.DirectionalNavigation="Contained">
+                                <RadioButton x:Name="ResumeChoice" GroupName="StartMode" Content="_Resume" IsChecked="{Binding ResumeByDefault, Mode=TwoWay}"
+                                             IsTabStop="{Binding IsChecked, RelativeSource={RelativeSource Self}}"
                                              controls:SelectorBar.SelectsOnFocus="True"
                                              AutomationProperties.Name="Resume its last conversation" />
-                                <RadioButton GroupName="StartMode" Content="Start _fresh" Margin="0,4,0,0" IsChecked="{Binding FreshByDefault, Mode=TwoWay}"
+                                <RadioButton x:Name="FreshChoice" GroupName="StartMode" Content="_Start fresh" Margin="0,4,0,0" IsChecked="{Binding FreshByDefault, Mode=TwoWay}"
+                                             IsTabStop="{Binding IsChecked, RelativeSource={RelativeSource Self}}"
                                              controls:SelectorBar.SelectsOnFocus="True"
                                              AutomationProperties.Name="Start fresh from its handoff" />
                             </StackPanel>
@@ -86,7 +90,7 @@
 
                         <controls:SettingRow Label="Updates" Value="{Binding UpdatesValue}"
                                              Explanation="Pre-releases are built from a project's primary branch before it is merged into main, so its work can be tried live first.">
-                            <ToggleButton Content="_Pre-releases" Style="{DynamicResource ToggleSwitch}" IsChecked="{Binding IncludePreReleases, Mode=TwoWay}"
+                            <ToggleButton x:Name="PreReleases" Content="_Pre-releases" Style="{DynamicResource ToggleSwitch}" IsChecked="{Binding IncludePreReleases, Mode=TwoWay}"
                                           AutomationProperties.Name="Include pre-releases in Check for updates" />
                         </controls:SettingRow>
                     </StackPanel>
@@ -170,7 +174,7 @@
                         <StackPanel x:Name="FolderTrustSection" DataContext="{Binding FolderTrust}">
                             <controls:SettingRow Label="Folder trust" Value="{Binding Line}"
                                                  Explanation="Claude Code asks to trust each folder a session starts in or adds, and its answer for an added folder lasts one session. Trusting a repository covers every worktree of it.">
-                                <Button Content="U_ndo" Style="{StaticResource Action}" Command="{Binding UndoCommand}"
+                                <Button Content="_Undo" Style="{StaticResource Action}" Command="{Binding UndoCommand}"
                                         AutomationProperties.Name="Undo folder trust" ToolTipService.ShowOnDisabled="True"
                                         ToolTip="Take back the trust records Theseus set. Offered only after Theseus has set some." />
                                 <Button Content="_Trust these…" Style="{StaticResource Action}" Command="{Binding TrustCommand}"
@@ -395,7 +399,7 @@
 
                         <controls:SettingRow Label="Holdout remote address" Value="{Binding HoldoutRemoteValue}"
                                              Explanation="The address of a private repository of holdout scenarios, such as host/owner/repo. The holdout guard also keeps implementing sessions away from it.">
-                            <Button Content="C_lear" Style="{StaticResource Action}" Command="{Binding ResetHoldoutRemoteCommand}"
+                            <Button Content="_Clear" Style="{StaticResource Action}" Command="{Binding ResetHoldoutRemoteCommand}"
                                     AutomationProperties.Name="Clear the holdout remote address" ToolTip="Remove the address." />
                             <Button Content="Change…" Style="{StaticResource Action}" Click="OnChangeHoldoutRemote"
                                     AutomationProperties.Name="Change the holdout remote address" />

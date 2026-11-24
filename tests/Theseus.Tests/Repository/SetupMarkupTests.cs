@@ -109,6 +109,15 @@ public class SetupMarkupTests
         Assert.That(keys, Has.None.EqualTo('I').And.None.EqualTo('O'), "I and O read as 1 and 0 (W26, G82)");
     }
 
+    [Test]
+    public void EachAccessKey_FollowsTheLetterRule()
+    {
+        IEnumerable<string> labels = Setup().Descendants().Select(element => (string?)element.Attribute("Content") ?? string.Empty)
+            .Where(label => label.Contains('_') && !label.StartsWith('{'));
+
+        Assert.That(labels.Where(label => !FollowsTheLetterRule(label)), Is.Empty, "W26, B11");
+    }
+
     [TestCase("Instructions and skills…")]
     [TestCase("This directory is missing.")]
     [TestCase("Order in the lane\"")]
@@ -122,6 +131,15 @@ public class SetupMarkupTests
     public void NewWording_IsThere(string words)
     {
         Assert.That(File.ReadAllText(Path.Combine(AppFolder(), "SetupWindow.xaml")), Does.Contain(words));
+    }
+
+    // W26 (G82 over G83): the first letter of a word in the label, or else a letter that is not on G83's avoid list.
+    private static bool FollowsTheLetterRule(string label)
+    {
+        int at = label.IndexOf('_');
+        bool startsAWord = at == 0 || label[at - 1] == ' ';
+
+        return startsAWord || !"ilgjpqy".Contains(char.ToLowerInvariant(label[at + 1]));
     }
 
     private static IEnumerable<char> AccessKeys(XElement root) =>

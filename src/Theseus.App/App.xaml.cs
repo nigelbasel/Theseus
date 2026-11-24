@@ -316,7 +316,7 @@ public partial class App : Application
                 hasOthers ? "_Start only the others" : null) { Owner = ActiveWindow }.Ask();
         shell.ConfirmProjectCard = (question, action) =>
             new QuestionWindow($"{action} a card of a running project?", question, $"_{action}") { Owner = ActiveWindow }.Ask() == true;
-        // Owned by the active window, which is the board: Options closes itself before Project properties opens (W8).
+        // Owned by the active window, or the board when none is: Options closes itself before Project properties opens (W8).
         shell.AskProjectProperties = properties =>
             new ProjectPropertiesWindow(properties) { Owner = ActiveWindow }.ShowDialog() == true;
         // Owned by the window it was asked from, so a spec window is blocked behind its question (review of PR 5, 13).
