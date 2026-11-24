@@ -67,13 +67,13 @@
 
                 <Label x:Name="TitleLabel" Content="_Title" Target="{Binding ElementName=TitleBox}" Style="{StaticResource Field}" />
                 <TextBox x:Name="TitleBox" Text="{Binding NewWorkstream.Title, UpdateSourceTrigger=PropertyChanged}"
-                         AutomationProperties.LabeledBy="{Binding ElementName=TitleLabel}" />
+                         AutomationProperties.LabeledBy="{x:Reference TitleLabel}" />
                 <TextBlock Text="{Binding NewWorkstream.Key, StringFormat=Plan file: {0}.json}"
                            Style="{StaticResource FieldHint}" />
 
                 <Label x:Name="DirectoryLabel" Content="_Working directory" Target="{Binding ElementName=DirectoryBox}" Style="{StaticResource Field}" />
                 <TextBox x:Name="DirectoryBox" Text="{Binding NewWorkstream.WorkingDirectory, UpdateSourceTrigger=PropertyChanged}"
-                         AutomationProperties.LabeledBy="{Binding ElementName=DirectoryLabel}" />
+                         AutomationProperties.LabeledBy="{x:Reference DirectoryLabel}" />
                 <TextBlock Text="This folder does not exist. Choose another, or create it first." FontSize="12" Margin="0,4,0,0"
                            TextWrapping="Wrap" Foreground="{DynamicResource CriticalTextBrush}">
                     <TextBlock.Style>
@@ -103,7 +103,7 @@
                         <Label x:Name="StageLabel" Content="_Stage" Target="{Binding ElementName=StageBox}" Style="{StaticResource Field}" Margin="0,0,0,8" />
                         <ComboBox x:Name="StageBox" ItemsSource="{Binding NewWorkstream.Stages}"
                                   SelectedItem="{Binding NewWorkstream.Stage, Mode=TwoWay}"
-                                  AutomationProperties.LabeledBy="{Binding ElementName=StageLabel}" />
+                                  AutomationProperties.LabeledBy="{x:Reference StageLabel}" />
                     </StackPanel>
 
                     <StackPanel Grid.Column="2"
@@ -111,7 +111,7 @@
                         <Label x:Name="AreaLabel" Content="_Area" Target="{Binding ElementName=AreaBox}" Style="{StaticResource Field}" Margin="0,0,0,8" />
                         <ComboBox x:Name="AreaBox" ItemsSource="{Binding NewWorkstream.Areas}"
                                   SelectedItem="{Binding NewWorkstream.Area, Mode=TwoWay}"
-                                  AutomationProperties.LabeledBy="{Binding ElementName=AreaLabel}" />
+                                  AutomationProperties.LabeledBy="{x:Reference AreaLabel}" />
                     </StackPanel>
                 </Grid>
                 <TextBlock Style="{StaticResource FieldHint}"
@@ -119,7 +119,7 @@
 
                 <Label x:Name="PromptLabel" Content="Opening _prompt" Target="{Binding Editor, ElementName=PromptBox}" Style="{StaticResource Field}" />
                 <controls:MarkdownBox x:Name="PromptBox" Text="{Binding NewWorkstream.Prompt}" EditorMinHeight="160" EditorMaxHeight="420"
-                                      AutomationProperties.LabeledBy="{Binding ElementName=PromptLabel}" />
+                                      AutomationProperties.LabeledBy="{x:Reference PromptLabel}" />
             </StackPanel>
         </ScrollViewer>
 

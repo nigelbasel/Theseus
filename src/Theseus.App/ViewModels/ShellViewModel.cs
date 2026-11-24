@@ -1632,7 +1632,10 @@ public sealed partial class ShellViewModel : ObservableObject
         card.VerifyOffReason = why;
     }
 
-    /// <summary>The way on from a disabled view button, offered beside it as a link (1.1e AC 6a, 6c).</summary>
+    /// <summary>
+    /// The way on from a disabled view button, offered beside it (1.1e AC 6a, 6c) as a button, since it acts: a link only
+    /// navigates (baseline W15, finding A10).
+    /// </summary>
     private PieceActionViewModel? WayOn(WorkstreamCardViewModel card, StageAction action) =>
         action != StageAction.VerifyWithHoldouts || PendingVerifiersOf(card).Count > 0
             ? null
@@ -1640,12 +1643,9 @@ public sealed partial class ShellViewModel : ObservableObject
             {
                 HoldoutWayOn.SetFolder => new PieceActionViewModel("Set the holdout folder…",
                     () => OpenProjectHoldouts(card.Workstream.Project ?? string.Empty),
-                    toolTip: "Open the project's Project properties at its holdout folder") { IsLink = true },
+                    toolTip: "Open the project's Project properties at its holdout folder."),
                 HoldoutWayOn.WriteScenarios => new PieceActionViewModel("Write scenarios…", () => WriteScenarios(card),
-                    toolTip: $"Create a card that writes the holdout scenarios in {HoldoutOf(card).Folder}; it starts when you start it")
-                {
-                    IsLink = true,
-                },
+                    toolTip: $"Create a card that writes the holdout scenarios in {HoldoutOf(card).Folder}; it starts when you start it."),
                 _ => null,
             };
 

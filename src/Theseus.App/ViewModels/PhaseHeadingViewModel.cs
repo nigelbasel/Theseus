@@ -15,6 +15,7 @@ public sealed class PhaseHeadingViewModel : ObservableObject, IFoldable
     public const string AddObjectiveToolTip = "Add an objective at the end of this phase in project.md";
 
     private bool _isOpen;
+    private bool _isShown = true;
     private bool _isSelected;
 
     internal PhaseHeadingViewModel(PhaseGroup group, IReadOnlyList<ObjectiveHeadingViewModel> objectives, bool isOpen,
@@ -81,6 +82,9 @@ public sealed class PhaseHeadingViewModel : ObservableObject, IFoldable
     /// <summary>Its right-click menu: Properties (the default), then Add objective….</summary>
     public IReadOnlyList<PieceActionViewModel> MenuItems { get; }
 
+    /// <summary>Its right-click menu as drawn: each item with the access key the menu gave it (W26, C9).</summary>
+    public IReadOnlyList<MenuEntryViewModel> MenuEntries => MenuAccessKeys.For(MenuItems);
+
     /// <inheritdoc />
     public string FoldName => PieceFolds.PhaseEntry(Group.Phase.Name);
 
@@ -107,11 +111,21 @@ public sealed class PhaseHeadingViewModel : ObservableObject, IFoldable
         set => IsOpen = value;
     }
 
-    /// <summary>▸ folded, ▾ open.</summary>
-    public string Chevron => _isOpen ? "▾" : "▸";
+    /// <summary>The fold chevron, in the icon font (W25).</summary>
+    public string Chevron => FoldGlyph.Of(_isOpen);
 
     /// <summary>What the chevron does.</summary>
     public string ChevronToolTip => _isOpen ? "Fold this phase" : "Show this phase's objectives";
+
+    /// <summary>
+    /// Whether it is shown: always without a filter; with one, only while it holds a piece the filter shows, as a round
+    /// does in Rounds and work (Nigel, 2026-11-24: a chip changed nothing in Objectives only).
+    /// </summary>
+    public bool IsShown
+    {
+        get => _isShown;
+        internal set => Set(ref _isShown, value);
+    }
 
     /// <summary>Whether it is what the Properties pane shows.</summary>
     public bool IsSelected

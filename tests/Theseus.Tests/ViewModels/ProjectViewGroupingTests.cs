@@ -275,7 +275,7 @@ public class ProjectViewGroupingTests
 
         Assert.That((Phase(restarted, 1).IsOpen, Objective(restarted, "0.3").IsOpen, Objective(restarted, "0.1").IsOpen),
             Is.EqualTo((false, false, true)));
-        Assert.That((Phase(restarted, 1).Chevron, Phase(restarted, 1).ChevronToolTip), Is.EqualTo(("▸", "Show this phase's objectives")));
+        Assert.That((Phase(restarted, 1).Chevron, Phase(restarted, 1).ChevronToolTip), Is.EqualTo((FoldGlyph.Folded, "Show this phase's objectives")));
     }
 
     [Test]
@@ -294,7 +294,7 @@ public class ProjectViewGroupingTests
             ("Phase", "Phase 1: Evidence"), ("Pieces", "project-view, project-home-folders, projects-and-method-ui"),
             ("Where", "◆ 3 waiting on you"),
         }));
-        Assert.That(pane.Criteria.Select(criterion => (criterion.TickGlyph, criterion.Text)), Is.EqualTo(new[] { ("☐", "A criterion.") }));
+        Assert.That(pane.Criteria.Select(criterion => (criterion.TickGlyph, criterion.Text)), Is.EqualTo(new[] { ("\uE739", "A criterion.") }));
 
         pane.Criteria.Single().ToggleCommand!.Execute(null);
         pane.EditObjectiveCommand!.Execute(null);

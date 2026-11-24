@@ -119,8 +119,8 @@ public sealed class RoundViewModel : ObservableObject, IFoldable
     /// <summary>The latest round starts open, earlier ones folded (C13).</summary>
     public bool StartsOpen => IsLatest;
 
-    /// <summary>▸ folded, ▾ open.</summary>
-    public string Chevron => _isOpen ? "▾" : "▸";
+    /// <summary>The fold chevron, in the icon font (W25).</summary>
+    public string Chevron => FoldGlyph.Of(_isOpen);
 
     /// <summary>Folds or opens it.</summary>
     public ICommand ToggleCommand { get; }
@@ -148,8 +148,8 @@ public sealed class RoundViewModel : ObservableObject, IFoldable
         }
     }
 
-    /// <summary>▸ folded, ▾ open.</summary>
-    public string MeetChevron => _isMeetOpen ? "▾" : "▸";
+    /// <summary>The table's fold chevron, in the icon font (W25).</summary>
+    public string MeetChevron => FoldGlyph.Of(_isMeetOpen);
 
     /// <summary>
     /// Whether one of its objectives is highlighted, as hovering a box highlights the objective it serves (1.1f I45): shown

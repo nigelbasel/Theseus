@@ -154,12 +154,12 @@ public class ProjectViewPropertiesTests
         Assert.That(Selected(view, Box(view, "bym-mcp-identity")).Links, Is.EqualTo(new[]
         {
             "buildyourmarket-mcp-server-spec hands work to this",
-            "hands work to identityserver-redirect-uri-anchoring-e1",
-            "reports back to Specify the BuildYourMarket MCP server: accepted",
+            "Hands work to identityserver-redirect-uri-anchoring-e1",
+            "Reports back to Specify the BuildYourMarket MCP server: accepted",
         }));
         Assert.That(Selected(view, Box(view, ClientFixes)).Links, Is.EqualTo(new[]
         {
-            "buildyourmarket-mcp-server-spec hands work to this", "reports back to Specify the BuildYourMarket MCP server",
+            "buildyourmarket-mcp-server-spec hands work to this", "Reports back to Specify the BuildYourMarket MCP server",
         }), "a link that names no document has no state to add");
     }
 
@@ -168,7 +168,7 @@ public class ProjectViewPropertiesTests
     {
         var view = _views.Theseus();
 
-        Assert.That(Selected(view, Box(view, "method-kit")).Links, Is.EqualTo(new[] { "then worked on holdout-scenarios" }));
+        Assert.That(Selected(view, Box(view, "method-kit")).Links, Is.EqualTo(new[] { "Then worked on holdout-scenarios" }));
     }
 
     [Test]
@@ -180,7 +180,7 @@ public class ProjectViewPropertiesTests
         var line = box.Objective!.Criteria.Single().Line;
 
         Assert.That(pane.ObjectiveHeading, Is.EqualTo("Objective 1.1: Checks shown on cards"));
-        Assert.That(pane.Criteria.Select(criterion => (criterion.Text, criterion.TickGlyph)), Is.EqualTo(new[] { ("A criterion.", "☐") }));
+        Assert.That(pane.Criteria.Select(criterion => (criterion.Text, criterion.TickGlyph)), Is.EqualTo(new[] { ("A criterion.", "\uE739") }));
 
         pane.Criteria.Single().ToggleCommand!.Execute(null);
         pane.EditObjectiveCommand!.Execute(null);
@@ -198,7 +198,7 @@ public class ProjectViewPropertiesTests
 
         criterion.ToggleCommand!.Execute(null);
 
-        Assert.That(criterion.TickGlyph, Is.EqualTo("☑"));
+        Assert.That(criterion.TickGlyph, Is.EqualTo("\uE73A"), "the icon font's ticked box (W25)");
         Assert.That(_views.Edited.Single(), Does.EndWith(":False"));
     }
 

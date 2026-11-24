@@ -32,21 +32,21 @@ public class ButtonReasonTests
         _views.Theseus(actions: actions).AllNodes.Single(node => node.Name == "projects-and-method-ui").Actions;
 
     [Test]
-    public void VerifyThatCannotRun_IsDisabled_WithItsReason_AndTheWayOnFollowsItAsALink()
+    public void VerifyThatCannotRun_IsDisabled_WithItsReason_AndTheWayOnFollowsItAsAButton()
     {
         var ran = 0;
         var actions = ActionsOf(_views.Actions with
         {
             WhyNot = (_, action) => action == StageAction.VerifyWithHoldouts ? Reason : null,
             WayOn = (_, action) => action == StageAction.VerifyWithHoldouts
-                ? new PieceActionViewModel("Write scenarios…", () => ran++) { IsLink = true }
+                ? new PieceActionViewModel("Write scenarios…", () => ran++)
                 : null,
         });
         var verify = actions.Single(action => action.Label == "Independent check…");
         var wayOn = actions[actions.ToList().IndexOf(verify) + 1];
 
         Assert.That((verify.IsEnabled, verify.ToolTip, verify.Command.CanExecute(null)), Is.EqualTo((false, (string?)Reason, false)));
-        Assert.That((wayOn.Label, wayOn.IsLink, wayOn.IsEnabled), Is.EqualTo(("Write scenarios…", true, true)));
+        Assert.That((wayOn.Label, wayOn.IsEnabled), Is.EqualTo(("Write scenarios…", true)), "a button, since it acts (W15, A10)");
 
         wayOn.Command.Execute(null);
 
@@ -59,7 +59,7 @@ public class ButtonReasonTests
         var actions = ActionsOf(_views.Actions with { WhyNot = (_, _) => null, WayOn = (_, _) => null });
 
         Assert.That(actions.Single(action => action.Label == "Independent check…").IsEnabled, Is.True);
-        Assert.That(actions.Any(action => action.IsLink), Is.False);
+        Assert.That(actions.Any(action => action.Label == "Write scenarios…"), Is.False);
     }
 
     [Test]
