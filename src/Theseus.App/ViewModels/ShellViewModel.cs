@@ -614,7 +614,7 @@ public sealed partial class ShellViewModel : ObservableObject
     {
         List<string> names = TabNames();
 
-        if (index is { } at && at < names.Count)
+        if (index is { } at && at < names.Count && at != OpenTabIndex())
         {
             OpenProject(names[at]);
         }
@@ -665,7 +665,7 @@ public sealed partial class ShellViewModel : ObservableObject
     /// Why Independent check… on the Workstream menu cannot run for the one ticked card, or null: the item's dimmer second
     /// line under its fixed label (Nigel, 2026-11-23; W30).
     /// </summary>
-    public string? VerifySelectedOffReason => Chosen() is [var only] ? WhyCannotVerify(only) : null;
+    public string? VerifySelectedOffReason => Chosen() is [WorkstreamCardViewModel only] ? WhyCannotVerify(only) : null;
 
     /// <summary>Ticks every card with a session running, so the end of the day is Select live, then Stop.</summary>
     public ReasonedCommand SelectLiveCommand { get; }

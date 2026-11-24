@@ -49,9 +49,9 @@ public static class SelectionReasons
 
     /// <summary>Fold cards with no session: needs an unfolded card with no session.</summary>
     /// <param name="foldable">How many cards have no session and are unfolded.</param>
-    public static string? FoldInactive(int foldable) => foldable > 0 ? null : "Every card with no session is already folded.";
+    public static string? FoldInactive(int foldable) => foldable > 0 ? null : "No card without a session is open to fold.";
 
     /// <summary>Unfold all cards: needs a folded card.</summary>
     /// <param name="folded">How many cards are folded.</param>
-    public static string? UnfoldAll(int folded) => folded > 0 ? null : "Every card is already unfolded.";
+    public static string? UnfoldAll(int folded) => folded > 0 ? null : "No card is folded.";
 }

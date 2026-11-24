@@ -134,4 +134,29 @@ public class MainWindowKeyTests
                 Assert.That(card.IsSelected, Is.True);
             },
             board => board.With("alpha"));
+
+    [Test]
+    public void Del_ArchivesTheSelection_OnTheBoardOnly() =>
+        MainWindowFixture.Run((window, _) =>
+        {
+            System.Windows.UIElement board = (System.Windows.UIElement)window.FindName("BoardSurface");
+            KeyBinding? del = board.InputBindings.OfType<KeyBinding>().SingleOrDefault(binding => binding.Key == Key.Delete);
+
+            Assert.That(del, Is.Not.Null, "Del is on the board surface, as the menu and toolbar say (W27, B6)");
+            Assert.That(System.Windows.Data.BindingOperations.GetBinding(del!, InputBinding.CommandProperty)?.Path.Path,
+                Is.EqualTo("ArchiveSelectedCommand"));
+            Assert.That(Bound(window, Key.Delete, ModifierKeys.None), Is.Null, "not on the window, where the project view and drawer would get it");
+        });
+
+    [Test]
+    public void TheHelpPage_ListsTheNewKeys_AndNotTheOld()
+    {
+        string page = File.ReadAllText(Path.Combine(Path.GetDirectoryName(Theseus.Tests.Conventions.LooseXaml.SourceFile())!, "..", "docs", "shortcuts.md"));
+
+        Assert.That(page, Does.Contain("| Ctrl+J | Day report |"));
+        Assert.That(page, Does.Contain("| F7 | Live sessions panel"));
+        Assert.That(page, Does.Contain("F6, Shift+F6"));
+        Assert.That(page, Does.Not.Contain("| Ctrl+D |"));
+        Assert.That(page, Does.Not.Contain("| Ctrl+1 | Live sessions"));
+    }
 }

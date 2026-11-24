@@ -117,6 +117,12 @@ public partial class MainWindow : Window
         int found = Array.FindIndex(panes, pane => ReferenceEquals(Keyboard.FocusedElement, pane)
             || (Keyboard.FocusedElement is DependencyObject focused && pane.IsAncestorOf(focused)));
 
+        // The Tags flyout is a popup, outside the search bar's visual tree, but it is the search bar's pane.
+        if (found < 0 && Keyboard.FocusedElement is DependencyObject inFlyout && TagsFlyout.IsAncestorOf(inFlyout))
+        {
+            found = Array.IndexOf(panes, SearchBar);
+        }
+
         if (PaneCycle.Next([.. panes.Select(pane => pane.IsVisible)], found < 0 ? null : found, forward) is not { } next)
         {
             return;

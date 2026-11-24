@@ -1457,10 +1457,10 @@
                 <MenuItem Header="_Find cards" InputGestureText="Ctrl+F" Command="{x:Static local:MainWindow.FindCardsCommand}" />
                 <MenuItem Header="Find _next" InputGestureText="F3" Command="{Binding NextMatchCommand}"
                           Style="{StaticResource ExplainsWhenOff}" Tag="Go to the next card the search finds."
-                          controls:OffReason.Text="Type in Find cards first." />
+                          controls:OffReason.Text="Only on the board, with something typed in Find cards." />
                 <MenuItem Header="Find _previous" InputGestureText="Shift+F3" Command="{Binding PreviousMatchCommand}"
                           Style="{StaticResource ExplainsWhenOff}" Tag="Go to the card the search found before."
-                          controls:OffReason.Text="Type in Find cards first." />
+                          controls:OffReason.Text="Only on the board, with something typed in Find cards." />
                 <Separator />
                 <MenuItem Header="P_roperties" InputGestureText="Alt+Enter" Command="{Binding PropertiesCommand}"
                           ToolTipService.ShowOnDisabled="True" ToolTip="{Binding PropertiesToolTip}" />
@@ -1537,7 +1537,7 @@
                     <MenuItem.Icon><controls:GlyphText Text="&#xF165;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
                 </MenuItem>
                 <MenuItem Header="Fol_d all cards" Command="{Binding FoldAllCommand}" Style="{StaticResource ExplainsWhenOff}"
-                          Tag="Fold every card down to its title." controls:OffReason.Text="Every card is already folded." />
+                          Tag="Fold every card down to its title." controls:OffReason.Text="No card is open to fold." />
                 <MenuItem Header="_Unfold all cards" Command="{Binding ExpandAllCommand}" Style="{StaticResource ExplainsWhenOff}"
                           Tag="Open every folded card again." controls:OffReason.Text="{Binding ExpandAllCommand.WhyNot}">
                     <MenuItem.Icon><controls:GlyphText Text="&#xF164;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
@@ -2871,6 +2871,10 @@
                       PreviewMouseLeftButtonDown="OnBoardMouseDown"
                       PreviewMouseMove="OnBoardMouseMove"
                       PreviewMouseLeftButtonUp="OnBoardMouseUp">
+                    <!-- Del archives on the board only, not in the project view or drawer, where the ticks are out of sight (W27, G79). -->
+                    <Grid.InputBindings>
+                        <KeyBinding Key="Delete" Command="{Binding ArchiveSelectedCommand}" />
+                    </Grid.InputBindings>
                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                         <ItemsControl ItemsSource="{Binding Board.Rows}"
                                       ItemTemplate="{StaticResource RowTemplate}" />
