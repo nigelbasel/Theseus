@@ -20,9 +20,9 @@ namespace Theseus.Core.Budgets;
 /// is resumed once, told only to write it.
 /// </param>
 public sealed record BudgetSettings(
-    decimal RunCostLimitUsd = 5.00m,
-    long RunTokenLimit = 3_000_000,
-    int RunTimeLimitMinutes = 120,
+    decimal? RunCostLimitUsd = 5.00m,
+    long? RunTokenLimit = 3_000_000,
+    int? RunTimeLimitMinutes = 120,
     [property: JsonPropertyName("cardDayLimitUsd")] decimal? CardDayCostLimitUsd = null,
     [property: JsonPropertyName("projectDayLimitUsd")] decimal? ProjectDayCostLimitUsd = null,
     int StopAtPercent = 90,

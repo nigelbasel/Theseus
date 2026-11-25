@@ -19,15 +19,15 @@ public static class HeadlessLimitSettings
     [
         Whole("Headless runs at once", $"How many headless runs may go at once on this machine; the rest wait in order. Default {3}.",
             settings => settings.MaxHeadlessRuns, (settings, value) => settings with { MaxHeadlessRuns = value }),
-        Dollars("Cost per run", $"A run past it is stopped by Claude Code between calls, then resumed once to write its handoff. Default {Money.Usd(Budget.RunCostLimitUsd)}.",
+        OptionalDollars("Cost per run", $"A run past it is stopped by Claude Code between calls, then resumed once to write its handoff. Default {Budget.RunCostLimitUsd}.",
             settings => settings.Budgets.RunCostLimitUsd, (settings, value) => settings with { Budgets = settings.Budgets with { RunCostLimitUsd = value } }),
-        Whole("Tokens per run", $"Input, output and cache-creation tokens; at {Budget.StopAtPercent}% the run is asked to hand over and stop. Default {Budget.RunTokenLimit:N0}.",
+        OptionalWhole("Tokens per run", $"Input, output and cache-creation tokens; at {Budget.StopAtPercent}% the run is asked to hand over and stop. Default {Budget.RunTokenLimit:N0}.",
             settings => settings.Budgets.RunTokenLimit, (settings, value) => settings with { Budgets = settings.Budgets with { RunTokenLimit = value } }),
-        Whole("Minutes per run", $"Wall-clock; at {Budget.StopAtPercent}% the run is asked to hand over and stop. Default {Budget.RunTimeLimitMinutes}.",
-            settings => settings.Budgets.RunTimeLimitMinutes, (settings, value) => settings with { Budgets = settings.Budgets with { RunTimeLimitMinutes = value } }),
-        DayDollars("Cost per card per day", "Once a card has spent it today, its headless starts are refused until tomorrow or until it is raised. Default off: type an amount to switch it on, or Off.",
+        OptionalWhole("Minutes per run", $"Wall-clock; at {Budget.StopAtPercent}% the run is asked to hand over and stop. Default {Budget.RunTimeLimitMinutes}.",
+            settings => settings.Budgets.RunTimeLimitMinutes, (settings, value) => settings with { Budgets = settings.Budgets with { RunTimeLimitMinutes = (int?)value } }),
+        OptionalDollars("Cost per card per day", "Once a card has spent it today, its headless starts are refused until tomorrow or until it is raised. Default off: type an amount to switch it on, or Off.",
             settings => settings.Budgets.CardDayCostLimitUsd, (settings, value) => settings with { Budgets = settings.Budgets with { CardDayCostLimitUsd = value } }),
-        DayDollars("Cost per project per day", "The same for all of a project's cards together. Default off: type an amount to switch it on, or Off.",
+        OptionalDollars("Cost per project per day", "The same for all of a project's cards together. Default off: type an amount to switch it on, or Off.",
             settings => settings.Budgets.ProjectDayCostLimitUsd, (settings, value) => settings with { Budgets = settings.Budgets with { ProjectDayCostLimitUsd = value } }),
         Whole("Crashes in a row", $"Runs that crash or fail to start, in a row, before the card's breaker trips. Default {Breaker.Crashes}.",
             settings => settings.Breakers.Crashes, (settings, value) => settings with { Breakers = settings.Breakers with { Crashes = value } }),
@@ -45,8 +45,8 @@ public static class HeadlessLimitSettings
                 ? set(settings, value)
                 : null);
 
-    // The daily limits are off unless set (Nigel, 2026-11-25): Off, or nothing, switches one off again.
-    private static HeadlessLimitSetting DayDollars(string label, string explanation, Func<TheseusSettings, decimal?> get, Func<TheseusSettings, decimal?, TheseusSettings> set) =>
+    // Every cost, token and time limit is off unless set (Nigel, 2026-11-25): Off, or nothing, switches one off again.
+    private static HeadlessLimitSetting OptionalDollars(string label, string explanation, Func<TheseusSettings, decimal?> get, Func<TheseusSettings, decimal?, TheseusSettings> set) =>
         new(label, explanation, settings => get(settings) is { } limit ? Money.Usd(limit) : "Off",
             (settings, text) => text.Trim() is var typed && (typed.Length == 0 || typed.Equals("off", StringComparison.OrdinalIgnoreCase))
                 ? set(settings, null)
@@ -54,9 +54,11 @@ public static class HeadlessLimitSettings
                     ? set(settings, value)
                     : null);
 
-    private static HeadlessLimitSetting Dollars(string label, string explanation, Func<TheseusSettings, decimal> get, Func<TheseusSettings, decimal, TheseusSettings> set) =>
-        new(label, explanation, settings => Money.Usd(get(settings)),
-            (settings, text) => decimal.TryParse(text.Trim().TrimStart('$'), NumberStyles.Number, CultureInfo.InvariantCulture, out var value) && value > 0
-                ? set(settings, value)
-                : null);
+    private static HeadlessLimitSetting OptionalWhole(string label, string explanation, Func<TheseusSettings, long?> get, Func<TheseusSettings, long?, TheseusSettings> set) =>
+        new(label, explanation, settings => get(settings) is { } limit ? limit.ToString("N0", CultureInfo.InvariantCulture) : "Off",
+            (settings, text) => text.Trim() is var typed && (typed.Length == 0 || typed.Equals("off", StringComparison.OrdinalIgnoreCase))
+                ? set(settings, null)
+                : long.TryParse(typed.Replace(",", string.Empty, StringComparison.Ordinal), NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) && value > 0
+                    ? set(settings, value)
+                    : null);
 }

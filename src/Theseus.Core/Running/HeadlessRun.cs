@@ -128,23 +128,23 @@ public sealed class HeadlessRun
 
         var limits = Start.Limits;
 
-        if (elapsed >= limits.Time + Start.OverTimeGrace)
+        if (limits.Time is { } time && elapsed >= time + Start.OverTimeGrace)
         {
             Interrupt(RunOutcome.OverTime, now);
 
             return HeadlessRunAction.None;
         }
 
-        if (!StopAsked && elapsed >= Share(limits.Time, limits.StopAtPercent))
+        if (!StopAsked && limits.Time is { } limit && elapsed >= Share(limit, limits.StopAtPercent))
         {
             AskToStop(BudgetLimit.RunTime,
-                $"Stopped at its limit: run time {(int)elapsed.TotalMinutes} minutes of {(int)limits.Time.TotalMinutes}.");
+                $"Stopped at its limit: run time {(int)elapsed.TotalMinutes} minutes of {(int)limit.TotalMinutes}.");
         }
 
-        if (!StopAsked && Tokens.Counted >= limits.Tokens * limits.StopAtPercent / 100)
+        if (!StopAsked && limits.Tokens is { } tokens && Tokens.Counted >= tokens * limits.StopAtPercent / 100)
         {
             AskToStop(BudgetLimit.RunTokens,
-                $"Stopped at its limit: run tokens {TokenCount.Format(Tokens.Counted)} of {TokenCount.Format(limits.Tokens)}.");
+                $"Stopped at its limit: run tokens {TokenCount.Format(Tokens.Counted)} of {TokenCount.Format(tokens)}.");
         }
 
         return HeadlessRunAction.None;
@@ -244,13 +244,14 @@ public sealed class HeadlessRun
     private string CostDetail(decimal? spent)
     {
         var limits = Start.Limits;
-        var amount = Money.Usd(spent ?? limits.CostUsd);
+        var amount = Money.Usd(spent ?? limits.CostUsd ?? 0m);
+        var full = Money.Usd(limits.CostLimitValue ?? spent ?? 0m);
 
         return limits.CostLimit switch
         {
-            BudgetLimit.CardDay => $"Stopped at its limit: card's spend today reached its {Money.Usd(limits.CostLimitValue)} a day (this run {amount}).",
-            BudgetLimit.ProjectDay => $"Stopped at its limit: project's spend today reached its {Money.Usd(limits.CostLimitValue)} a day (this run {amount}).",
-            _ => $"Stopped at its limit: run cost {amount} of {Money.Usd(limits.CostLimitValue)}.",
+            BudgetLimit.CardDay => $"Stopped at its limit: card's spend today reached its {full} a day (this run {amount}).",
+            BudgetLimit.ProjectDay => $"Stopped at its limit: project's spend today reached its {full} a day (this run {amount}).",
+            _ => $"Stopped at its limit: run cost {amount} of {full}.",
         };
     }
 

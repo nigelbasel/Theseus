@@ -33,6 +33,8 @@ public static class StartModeChoice
     public const string VerifierTooltip =
         "Starts a fresh verification run with the verifier's own prompt. Nothing from an earlier run is reloaded.";
 
+    public const string ScenarioWriterTooltip = "";
+
     /// <summary>What a card's own start button says it will do.</summary>
     /// <param name="preferred">The board's default.</param>
     /// <param name="transcriptExists">Whether there is a conversation to resume at all.</param>

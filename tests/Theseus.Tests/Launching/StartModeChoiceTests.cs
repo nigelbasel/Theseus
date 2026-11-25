@@ -77,8 +77,33 @@ public class StartModeChoiceTests
             Is.EqualTo(LaunchMode.Resume));
     }
 
+    // A scenario writer is a one-shot run as a verifier is: resumed, both projects' writers ended in seconds with no
+    // progress, seven runs for $91.96, until their breakers tripped and no build was checked (2026-11-25).
+    [TestCase(StartMode.Resume)]
+    [TestCase(StartMode.Fresh)]
+    public void For_AScenarioWriterStartedFromAnyPath_StartsAFreshRun(StartMode requested)
+    {
+        Assert.That(StartModeChoice.For(requested, transcriptExists: true, WorkstreamRole.ScenarioWriter), Is.EqualTo(LaunchMode.FirstRun));
+    }
+
+    [Test]
+    public void For_AScenarioWriterTheOwnerChoseToResumeFromItsCardMenu_IsResumed()
+    {
+        Assert.That(StartModeChoice.For(StartMode.Resume, transcriptExists: true, WorkstreamRole.ScenarioWriter, chosenOnTheCard: true),
+            Is.EqualTo(LaunchMode.Resume));
+    }
+
+    [TestCase(StartMode.Resume)]
+    [TestCase(StartMode.Fresh)]
+    public void Tooltip_OnAScenarioWritersOwnStart_SaysItStartsAFreshRunWithItsOwnPrompt(StartMode preferred)
+    {
+        var tooltip = StartModeChoice.Tooltip(preferred, transcriptExists: true, ResumeCost, WorkstreamRole.ScenarioWriter);
+
+        Assert.That(tooltip, Is.EqualTo(StartModeChoice.ScenarioWriterTooltip));
+        Assert.That(tooltip, Does.Contain("fresh").And.Contain("own prompt"));
+    }
+
     [TestCase(WorkstreamRole.None)]
-    [TestCase(WorkstreamRole.ScenarioWriter)]
     [TestCase(WorkstreamRole.ProjectUpdater)]
     public void For_AnyOtherCardAskedToResume_IsStillResumed(WorkstreamRole role)
     {
