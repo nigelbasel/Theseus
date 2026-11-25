@@ -180,6 +180,14 @@ public sealed class ChainsViewModel : ObservableObject
     /// <summary>The Filter button: "Filter", or "Filter · 2" while two are on.</summary>
     public string FilterButtonText => _filters.Count == 0 ? "Filter" : $"Filter · {_filters.Count}";
 
+    /// <summary>What a screen reader hears of the Filter button's state: "2 filters on", or "No filters on" (criterion 21).</summary>
+    public string FilterHelpText => _filters.Count switch
+    {
+        0 => "No filters on",
+        1 => "1 filter on",
+        var count => $"{count} filters on",
+    };
+
     /// <summary>
     /// What the search and filters hide, as "Showing 14 of 52 · 31 hidden by Hide completed · 7 by Active only"; empty when
     /// nothing narrows the tree (criterion 9).
@@ -545,6 +553,9 @@ public sealed class ChainsViewModel : ObservableObject
             }
         }
 
+        // Read again on every update, not only on a rebuild: a session starting, a card finishing or a tag added changes
+        // what the filters and the search keep without changing the tree's shape.
+        _entries = [.. TopChains().Select(Entry)];
         ApplyView();
         UpdateNeedsYou(cards);
         AnnounceReports();
@@ -873,6 +884,7 @@ public sealed class ChainsViewModel : ObservableObject
         Raise(nameof(WaitingOnMeText));
         Raise(nameof(HideCompletedText));
         Raise(nameof(FilterButtonText));
+        Raise(nameof(FilterHelpText));
         Raise(nameof(NoMatchText));
         Raise(nameof(AllHiddenText));
     }
@@ -910,6 +922,8 @@ public sealed class ChainsViewModel : ObservableObject
     }
 
     private IEnumerable<ChainNodeViewModel> AllRows() => Flatten(Roots);
+
+    private IEnumerable<ChainNodeViewModel> TopChains() => Roots.SelectMany(row => row.IsGroup ? row.Children : [row]);
 
     private static IEnumerable<ChainNodeViewModel> Flatten(IEnumerable<ChainNodeViewModel> nodes) =>
         nodes.SelectMany(node => new[] { node }.Concat(Flatten(node.Children)));

@@ -42,6 +42,27 @@ public class ChainsPanelSearchTests
         });
 
     [Test]
+    public void Tab_ReachesTheSearchBox_BeforeTheFilterButton() =>
+        MainWindowFixture.Run((window, _) =>
+        {
+            var finder = (DependencyObject)window.FindName("ChainsFinder");
+            var inOrder = MainWindowFixtureTests.Descendants<Control>(finder).Where(control => control.IsTabStop && control.Focusable).ToList();
+
+            Assert.That(inOrder.IndexOf((TextBox)window.FindName("ChainsSearchBox")),
+                Is.LessThan(inOrder.IndexOf((Button)window.FindName("ChainsFilterButton"))));
+        });
+
+    [Test]
+    public void TheFilterButton_SaysHowManyFiltersAreOn_ToAScreenReader() =>
+        MainWindowFixture.Run((window, _) =>
+        {
+            var filter = (Button)window.FindName("ChainsFilterButton");
+
+            Assert.That(System.Windows.Data.BindingOperations.GetBinding(filter, System.Windows.Automation.AutomationProperties.HelpTextProperty)!.Path.Path,
+                Is.EqualTo("Chains.FilterHelpText"));
+        });
+
+    [Test]
     public void Esc_ClearsTheSearchBox_AndIsHandledThere() =>
         MainWindowFixture.Run((window, _) =>
         {

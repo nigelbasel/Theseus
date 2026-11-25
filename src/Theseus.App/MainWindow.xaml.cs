@@ -1281,6 +1281,10 @@ public partial class MainWindow : Window
     {
         var first = ChainsTree.Items.OfType<ChainNodeViewModel>().FirstOrDefault(node => node.IsShown);
 
+        // The tree builds only the rows in view, so the first row exists only once the tree is back at its top.
+        FirstScrollViewerIn(ChainsTree)?.ScrollToTop();
+        ChainsTree.UpdateLayout();
+
         if (first is not null && ChainsTree.ItemContainerGenerator.ContainerFromItem(first) is TreeViewItem row)
         {
             row.Focus();

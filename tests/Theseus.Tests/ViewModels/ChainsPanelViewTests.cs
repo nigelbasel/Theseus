@@ -87,6 +87,47 @@ public class ChainsPanelViewTests
     }
 
     [Test]
+    public void TheFilters_FollowACardsState_WithoutARebuild()
+    {
+        _chains.Update();
+        _chains.ActiveOnly = true;
+        Assume.That(Row("build").IsShown, Is.False);
+
+        Find("build").Lifecycle = SessionLifecycle.Running;
+        _chains.Update();
+
+        Assert.That(Row("build").IsShown, Is.True, "a card that starts running shows under Active only at once");
+        Assert.That(Row("lead").IsContext, Is.True);
+    }
+
+    [Test]
+    public void TheSearch_ReadsACardsCurrentFields_WithoutARebuild()
+    {
+        _chains.Update();
+        var card = Find("build");
+        card.Workstream = card.Workstream with { JiraKeys = ["ABC-42"] };
+        _chains.Update();
+
+        _chains.SearchText = "abc-42";
+
+        Assert.That(Row("build").IsShown, Is.True);
+        Assert.That(Row("build").IsContext, Is.False);
+    }
+
+    [Test]
+    public void TheFilterButton_TellsAScreenReaderHowManyFiltersAreOn()
+    {
+        _chains.Update();
+
+        Assert.That(_chains.FilterHelpText, Is.EqualTo("No filters on"));
+
+        _chains.ActiveOnly = true;
+        _chains.HideCompleted = true;
+
+        Assert.That(_chains.FilterHelpText, Is.EqualTo("2 filters on"));
+    }
+
+    [Test]
     public void ASearch_ShowsTheMatch_AndItsAncestorsAsContext()
     {
         _chains.Update();
