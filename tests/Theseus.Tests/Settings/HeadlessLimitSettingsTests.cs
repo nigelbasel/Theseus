@@ -29,6 +29,33 @@ public class HeadlessLimitSettingsTests
         Assert.That(Named("Tokens per run").Apply(TheseusSettings.Default, "4,000,000")!.Budgets.RunTokenLimit, Is.EqualTo(4_000_000));
     }
 
+    [TestCase("Cost per card per day")]
+    [TestCase("Cost per project per day")]
+    public void ADayLimit_IsOffByDefault_AndSaysSo(string label)
+    {
+        var setting = Named(label);
+
+        Assert.That(setting.Show(TheseusSettings.Default), Is.EqualTo("Off"));
+        Assert.That(setting.Explanation, Does.Contain("Default off"));
+    }
+
+    [Test]
+    public void ADayLimit_CanBeSwitchedOn_AndOffAgain()
+    {
+        var setting = Named("Cost per card per day");
+        var on = setting.Apply(TheseusSettings.Default, "$25")!;
+
+        Assert.That((on.Budgets.CardDayCostLimitUsd, setting.Show(on)), Is.EqualTo(((decimal?)25m, "$25.00")));
+        Assert.That(setting.Apply(on, "off")!.Budgets.CardDayCostLimitUsd, Is.Null);
+        Assert.That(setting.Apply(on, "")!.Budgets.CardDayCostLimitUsd, Is.Null, "an empty value is no limit");
+    }
+
+    [Test]
+    public void ADayLimitThatIsNotAPositiveNumber_IsRefused()
+    {
+        Assert.That(Named("Cost per project per day").Apply(TheseusSettings.Default, "-3"), Is.Null);
+    }
+
     [TestCase("")]
     [TestCase("0")]
     [TestCase("-3")]
