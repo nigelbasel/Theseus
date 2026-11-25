@@ -30,7 +30,7 @@ function decide(decision, reason) {
     process.exit(0);
 }
 
-const deny = reason => decide('deny', `${reason} Only Nigel does this; say so in your report and carry on with the rest.`);
+const deny = reason => decide('deny', `${reason} Only the owner does this, never a session; say so in your report and carry on with the rest.`);
 const ask = reason => decide('ask', reason);
 
 // The commands of a command line, split at && || ; | and newlines, each as its words without quotes.
@@ -79,7 +79,7 @@ function checkPush(rest, folder, cwd) {
         || refs.some(ref => ref.startsWith('+'));
 
     if (options.some(option => option === '--delete' || /^-[a-z]*d[a-z]*$/.test(option)) || refs.some(ref => ref.startsWith(':'))) {
-        ask('Deleting a remote branch is Nigel\'s call.');
+        ask('Deleting a remote branch is the owner\'s call.');
     }
     if (options.some(option => option === '--mirror' || option === '--all')) {
         deny('A push of every branch at once can reach the trunk.');
@@ -89,7 +89,7 @@ function checkPush(rest, folder, cwd) {
     const trunk = targets.find(target => TRUNKS.has(target.toLowerCase()));
 
     if (trunk) {
-        deny(`Pushing to ${trunk} goes through a pull request that Nigel completes.`);
+        deny(`Pushing to ${trunk} goes through a pull request that the owner completes.`);
     }
     if (forced) {
         ask('A force-push rewrites history others may have built on.');
@@ -107,7 +107,7 @@ function checkGit(words, cwd) {
         checkPush(rest, git.folder, cwd);
     }
     if (verb === 'branch' && rest.some(word => /^(-[a-zA-Z]*[dD][a-zA-Z]*|--delete)$/.test(word))) {
-        ask('Deleting a branch is Nigel\'s call.');
+        ask('Deleting a branch is the owner\'s call.');
     }
 }
 
@@ -116,14 +116,14 @@ function checkPullRequestCli(words) {
 
     if (/\bgh\s+pr\s+merge\b/.test(line) || /\bgh\s+pr\s+review\b.*--approve\b/.test(line)
         || /\bgh\s+api\b.*\/pulls\/\d+\/merge\b/.test(line)) {
-        deny('Merging or approving a pull request is Nigel\'s.');
+        deny('Merging or approving a pull request is the owner\'s.');
     }
     if (/\baz\s+repos\s+pr\s+set-vote\b/.test(line)) {
-        deny('Voting on a pull request is Nigel\'s.');
+        deny('Voting on a pull request is the owner\'s.');
     }
     if (/\baz\s+repos\s+pr\s+update\b/.test(line)
         && /--status\s+(completed|abandoned)|--auto-complete\s+(true|yes)|--bypass-policy\s+(true|yes)/.test(line)) {
-        deny('Completing, abandoning or auto-completing a pull request, or bypassing its policy, is Nigel\'s.');
+        deny('Completing, abandoning or auto-completing a pull request, or bypassing its policy, is the owner\'s.');
     }
 }
 
@@ -134,7 +134,7 @@ function checkRest(line) {
         return;
     }
     if (/"status"\s*:\s*\\?"?(completed|abandoned)|autocompletesetby|bypasspolicy|\/merge\b|\bvote\b/.test(lower)) {
-        deny('Completing, abandoning, merging or voting on a pull request is Nigel\'s.');
+        deny('Completing, abandoning, merging or voting on a pull request is the owner\'s.');
     }
 }
 
@@ -154,7 +154,7 @@ process.stdin.on('end', () => {
     }
 
     if (/(merge|complete|approve|abandon)_?pull_?request|pull_?request_?(merge|complete|approve|abandon)/i.test(tool)) {
-        deny(`${tool} acts on a pull request in a way only Nigel does.`);
+        deny(`${tool} acts on a pull request in a way only the owner does.`);
     }
 
     if (SHELLS.has(tool) && typeof input.command === 'string') {

@@ -1,0 +1,14 @@
+{
+  "name": "theseus",
+  "description": "The agentic factory method: its stages, standing rules, commands and guards, for plain Claude Code on any OS",
+  "owner": {
+    "name": "Theseus"
+  },
+  "plugins": [
+    {
+      "name": "agentic-factory",
+      "source": "./",
+      "description": "Stage skills (research to review), the method's standing rules, project and workstream commands, and the trunk and holdout guards"
+    }
+  ]
+}

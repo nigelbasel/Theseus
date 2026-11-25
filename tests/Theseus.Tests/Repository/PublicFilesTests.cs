@@ -12,7 +12,7 @@ namespace Theseus.Tests.Repository;
 [TestFixture]
 public class PublicFilesTests
 {
-    private static readonly string[] Folders = ["method"];
+    private static readonly string[] Folders = ["method", "plugin"];
 
     private static readonly Regex MachineSpecific = new(
         @"\\Users\\(?![<%])\w"
