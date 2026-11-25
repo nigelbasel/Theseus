@@ -26,7 +26,7 @@ public sealed class SettingsStore : ISettingsStore
 
         try
         {
-            var settings = JsonSerializer.Deserialize<TheseusSettings>(text, TheseusJson.Readable);
+            var settings = JsonSerializer.Deserialize<TheseusSettings>(DayLimitUpgrade.Apply(text), TheseusJson.Readable);
 
             return settings is null ? TheseusSettings.Default : Complete(settings);
         }

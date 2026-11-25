@@ -5,7 +5,8 @@ using Theseus.Core.Budgets;
 namespace Theseus.Core.Settings;
 
 /// <summary>
-/// The headless runs' limits Options lists, each with its stated default (Nigel, 2026-11-24). A project's own limits
+/// The headless runs' limits Options lists, each with its stated default (Nigel, 2026-11-24); the daily ones are off
+/// unless set (Nigel, 2026-11-25). A project's own limits
 /// replace the budget ones for its cards, and are set in its Project properties.
 /// </summary>
 public static class HeadlessLimitSettings
@@ -24,10 +25,10 @@ public static class HeadlessLimitSettings
             settings => settings.Budgets.RunTokenLimit, (settings, value) => settings with { Budgets = settings.Budgets with { RunTokenLimit = value } }),
         Whole("Minutes per run", $"Wall-clock; at {Budget.StopAtPercent}% the run is asked to hand over and stop. Default {Budget.RunTimeLimitMinutes}.",
             settings => settings.Budgets.RunTimeLimitMinutes, (settings, value) => settings with { Budgets = settings.Budgets with { RunTimeLimitMinutes = value } }),
-        Dollars("Cost per card per day", $"Once a card has spent it today, its headless starts are refused until tomorrow or until it is raised. Default {Money.Usd(Budget.CardDayCostLimitUsd ?? 0m)}.",
-            settings => settings.Budgets.CardDayCostLimitUsd ?? 0m, (settings, value) => settings with { Budgets = settings.Budgets with { CardDayCostLimitUsd = value } }),
-        Dollars("Cost per project per day", $"The same for all of a project's cards together. Default {Money.Usd(Budget.ProjectDayCostLimitUsd ?? 0m)}.",
-            settings => settings.Budgets.ProjectDayCostLimitUsd ?? 0m, (settings, value) => settings with { Budgets = settings.Budgets with { ProjectDayCostLimitUsd = value } }),
+        DayDollars("Cost per card per day", "Once a card has spent it today, its headless starts are refused until tomorrow or until it is raised. Default off: type an amount to switch it on, or Off.",
+            settings => settings.Budgets.CardDayCostLimitUsd, (settings, value) => settings with { Budgets = settings.Budgets with { CardDayCostLimitUsd = value } }),
+        DayDollars("Cost per project per day", "The same for all of a project's cards together. Default off: type an amount to switch it on, or Off.",
+            settings => settings.Budgets.ProjectDayCostLimitUsd, (settings, value) => settings with { Budgets = settings.Budgets with { ProjectDayCostLimitUsd = value } }),
         Whole("Crashes in a row", $"Runs that crash or fail to start, in a row, before the card's breaker trips. Default {Breaker.Crashes}.",
             settings => settings.Breakers.Crashes, (settings, value) => settings with { Breakers = settings.Breakers with { Crashes = value } }),
         Whole("Runs without progress in a row", $"Runs with no new commit, record, tick or report, in a row, before the breaker trips. Default {Breaker.NoProgress}.",
@@ -43,6 +44,15 @@ public static class HeadlessLimitSettings
             (settings, text) => int.TryParse(text.Replace(",", string.Empty, StringComparison.Ordinal).Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) && value > 0
                 ? set(settings, value)
                 : null);
+
+    // The daily limits are off unless set (Nigel, 2026-11-25): Off, or nothing, switches one off again.
+    private static HeadlessLimitSetting DayDollars(string label, string explanation, Func<TheseusSettings, decimal?> get, Func<TheseusSettings, decimal?, TheseusSettings> set) =>
+        new(label, explanation, settings => get(settings) is { } limit ? Money.Usd(limit) : "Off",
+            (settings, text) => text.Trim() is var typed && (typed.Length == 0 || typed.Equals("off", StringComparison.OrdinalIgnoreCase))
+                ? set(settings, null)
+                : decimal.TryParse(typed.TrimStart('$'), NumberStyles.Number, CultureInfo.InvariantCulture, out var value) && value > 0
+                    ? set(settings, value)
+                    : null);
 
     private static HeadlessLimitSetting Dollars(string label, string explanation, Func<TheseusSettings, decimal> get, Func<TheseusSettings, decimal, TheseusSettings> set) =>
         new(label, explanation, settings => Money.Usd(get(settings)),

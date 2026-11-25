@@ -362,7 +362,7 @@ public sealed partial class ShellViewModel : ObservableObject
 
                 if (created.StartNow)
                 {
-                    StartMany([card.Workstream]);
+                    StartMany([card.Workstream], explain: !created.BySession);
 
                     if (joined is not null)
                     {
@@ -2051,7 +2051,9 @@ public sealed partial class ShellViewModel : ObservableObject
     /// fails is remembered with its reason for the Waits line's Start again; one that fails later, in its tab, shows there
     /// too, since a standing verifier neither running nor starting always does.
     /// </summary>
-    private void StartVerifiers(IReadOnlyList<WorkstreamCardViewModel> verifiers)
+    /// <param name="verifiers">The verifiers.</param>
+    /// <param name="quietly">Whether Theseus is starting them itself, so a refusal opens no dialog nobody asked for.</param>
+    private void StartVerifiers(IReadOnlyList<WorkstreamCardViewModel> verifiers, bool quietly = false)
     {
         var before = verifiers.ToDictionary(verifier => verifier.Key, verifier => verifier.Workstream.LastSessionId, StringComparer.OrdinalIgnoreCase);
 
@@ -2060,7 +2062,7 @@ public sealed partial class ShellViewModel : ObservableObject
             _verifierStartFailures.Remove(verifier.Key);
         }
 
-        StartMany([.. verifiers.Select(verifier => verifier.Workstream)]);
+        StartMany([.. verifiers.Select(verifier => verifier.Workstream)], explain: !quietly);
 
         var unstarted = verifiers.Where(verifier => Board.Card(verifier.Key) is not { } after || after.Workstream.LastSessionId == before[verifier.Key]).ToList();
 
@@ -2093,7 +2095,7 @@ public sealed partial class ShellViewModel : ObservableObject
 
         if (made.Count > 0)
         {
-            StartVerifiers(made);
+            StartVerifiers(made, quietly);
         }
     }
 
@@ -4840,7 +4842,7 @@ public sealed partial class ShellViewModel : ObservableObject
     /// every Start two presses (Nigel, 2026-11-23).
     /// </summary>
     private void StartMany(IReadOnlyList<Workstream> workstreams,
-        StartMode? startMode = null, bool evenIfWaiting = false, bool chosenOnTheCard = false,
+        StartMode? startMode = null, bool evenIfWaiting = false, bool chosenOnTheCard = false, bool explain = true,
         [System.Runtime.CompilerServices.CallerMemberName] string trigger = "")
     {
         // Which gesture asked, recorded before anything can go wrong with it. There are four callers
@@ -4922,6 +4924,7 @@ public sealed partial class ShellViewModel : ObservableObject
         var startedKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var startedFolders = new List<string>();
         var refusals = new List<string>();
+        var blocks = new List<StartBlock>();
         var worktreeNotes = new List<string>();
 
         foreach (var candidate in workstreams)
@@ -4948,6 +4951,11 @@ public sealed partial class ShellViewModel : ObservableObject
                 if (_launcher.LastRefusal is { } refusal)
                 {
                     refusals.Add(refusal);
+                }
+
+                if (_launcher.LastBlock is { } block)
+                {
+                    blocks.Add(block);
                 }
 
                 continue;
@@ -5005,6 +5013,41 @@ public sealed partial class ShellViewModel : ObservableObject
         }.OfType<string>());
 
         Refresh();
+
+        if (explain)
+        {
+            ExplainBlocked(blocks, startMode, chosenOnTheCard);
+        }
+    }
+
+    /// <summary>
+    /// Asks whether to reset a breaker and start, with the reason, and starts what it resets. Set by the app; without it a
+    /// refused start is explained with <see cref="ExplainRefusal"/>.
+    /// </summary>
+    public Func<string, string, string, bool>? AskRefusedStart { get; set; }
+
+    // A start a breaker or limit refused says so at once where it was pressed, with what clears it: on 2026-11-25 it was
+    // only a log Warning and Nigel saw "Start again did not do anything".
+    private void ExplainBlocked(IReadOnlyList<StartBlock> blocks, StartMode? startMode, bool chosenOnTheCard)
+    {
+        if (RefusedStart.For(blocks) is not { } refused)
+        {
+            return;
+        }
+
+        if (refused.Action is not { } action || AskRefusedStart is not { } ask)
+        {
+            Refuse(refused.Title, refused.Text);
+
+            return;
+        }
+
+        if (ask(refused.Title, refused.Text, action))
+        {
+            ResetBreakers(refused.BreakerKeys);
+            StartMany([.. refused.BreakerKeys.Select(Board.Card).OfType<WorkstreamCardViewModel>().Select(card => card.Workstream)],
+                startMode, chosenOnTheCard: chosenOnTheCard, trigger: "ResetBreakerAndStart");
+        }
     }
 
     // The folders a session starts in or adds, which Claude Code asks the owner to trust.

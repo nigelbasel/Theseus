@@ -361,6 +361,9 @@ public partial class App : Application
             box.Owner = ActiveWindow;
             box.ShowDialog();
         };
+        // A start a breaker refused offers the reset where Start was pressed (Nigel, 2026-11-25); Cancel starts nothing.
+        shell.AskRefusedStart = (title, text, action) =>
+            new QuestionWindow(title, text, action) { Owner = ActiveWindow }.Ask() == true;
         // Decide later is Cancel, so Esc chooses it; "(Esc)" is not part of its label (A3).
         shell.AskStartRequest = (title, question) =>
             new QuestionWindow(title, question, "_Allow and start", "_Refuse", "Decide later") { Owner = ActiveWindow }.Ask();
