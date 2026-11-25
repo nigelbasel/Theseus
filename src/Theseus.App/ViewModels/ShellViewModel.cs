@@ -4263,7 +4263,7 @@ public sealed partial class ShellViewModel : ObservableObject
         card.ResumeTooltip = Theseus.Core.Domain.RestartCost.Tooltip(measured.TailBytes, measured.TotalBytes);
         card.RestartCost = live
             ? string.Empty
-            : StartModeChoice.Tooltip(preferred, card.CanResume, card.ResumeTooltip);
+            : StartModeChoice.Tooltip(preferred, card.CanResume, card.ResumeTooltip, card.Workstream.Role);
         card.Model = fact.Model ?? string.Empty;
     }
 

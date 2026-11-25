@@ -90,4 +90,13 @@ public class StartModeChoiceTests
     {
         Assert.That(StartModeChoice.VerifierTooltip, Does.Contain("fresh verification run"));
     }
+
+    [TestCase(StartMode.Resume)]
+    [TestCase(StartMode.Fresh)]
+    public void Tooltip_OnAVerifiersOwnStart_SaysItStartsAFreshVerificationRun_NotAResume(StartMode preferred)
+    {
+        var tooltip = StartModeChoice.Tooltip(preferred, transcriptExists: true, ResumeCost, WorkstreamRole.Verifier);
+
+        Assert.That(tooltip, Is.EqualTo(StartModeChoice.VerifierTooltip));
+    }
 }

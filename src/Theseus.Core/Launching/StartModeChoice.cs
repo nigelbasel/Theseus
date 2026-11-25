@@ -37,8 +37,14 @@ public static class StartModeChoice
     /// <param name="preferred">The board's default.</param>
     /// <param name="transcriptExists">Whether there is a conversation to resume at all.</param>
     /// <param name="resumeTooltip">What resuming would cost, as the card already describes it.</param>
-    public static string Tooltip(StartMode preferred, bool transcriptExists, string resumeTooltip)
+    /// <param name="role">What the card's sessions are for: a verifier's Start is always a fresh run.</param>
+    public static string Tooltip(StartMode preferred, bool transcriptExists, string resumeTooltip, WorkstreamRole role = WorkstreamRole.None)
     {
+        if (role == WorkstreamRole.Verifier)
+        {
+            return VerifierTooltip;
+        }
+
         if (!transcriptExists)
         {
             return "Start a new session. There is no earlier conversation to resume.";
