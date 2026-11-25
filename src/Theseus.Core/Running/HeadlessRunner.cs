@@ -102,6 +102,9 @@ public sealed class HeadlessRunner
         return verdict.Allowed ? null : $"{workstream.Title}: {verdict.Detail}";
     }
 
+    /// <summary>The breaker or limit that refuses a card's start now, or null.</summary>
+    public StartBlock? Block(Workstream workstream) => null;
+
     /// <summary>Starts a card's run now if a slot is free, or queues it.</summary>
     /// <returns>Null when it started; otherwise its place in the queue.</returns>
     public int? Submit(HeadlessSubmission submission)

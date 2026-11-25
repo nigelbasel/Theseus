@@ -123,6 +123,33 @@ public class HeadlessRunnerTests
     }
 
     [Test]
+    public void ATrippedCard_IsBlockedByItsBreaker_ForTheBoardToOfferTheReset()
+    {
+        var trip = new BreakerTrip(BreakerKind.NoProgress, "Breaker tripped: 3 runs in a row with no progress.", _clock.UtcNow);
+
+        Assert.That(_runner.Block(Card(breaker: trip)), Is.EqualTo(new StartBlock("card", "CARD", RefusalReason.BreakerTripped, trip.Detail)));
+    }
+
+    [Test]
+    public void ACardWhoseDayIsSpent_IsBlockedByItsBudget()
+    {
+        _settings = _settings with { Budgets = new BudgetSettings(CardDayCostLimitUsd: 1m) };
+        _runner.Submit(Submission());
+        _processes[0].Completes(1.5m);
+
+        Assert.That(_runner.Block(Card())!.Reason, Is.EqualTo(RefusalReason.BudgetReached));
+    }
+
+    [Test]
+    public void WithTheDefaults_ACardThatSpentALotToday_IsNotBlocked()
+    {
+        _runner.Submit(Submission());
+        _processes[0].Completes(250m);
+
+        Assert.That(_runner.Block(Card()), Is.Null);
+    }
+
+    [Test]
     public void ThreeCrashesInARow_TripTheCardsBreaker()
     {
         for (var attempt = 0; attempt < 3; attempt++)

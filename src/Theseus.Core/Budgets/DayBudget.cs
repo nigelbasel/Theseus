@@ -32,29 +32,29 @@ public static class DayBudget
         var todays = ledger.Where(run => TimeZoneInfo.ConvertTime(run.EndedUtc, zone).Date == today).ToList();
 
         var cardSpent = Spent(todays.Where(run => Same(run.Workstream, workstream)));
-        if (cardSpent >= settings.CardDayCostLimitUsd)
+        if (settings.CardDayCostLimitUsd is { } cardLimit && cardSpent >= cardLimit)
         {
             return Refused(BudgetLimit.CardDay,
-                $"Stopped at its limit: card's spend today {Money.Usd(cardSpent)} of {Money.Usd(settings.CardDayCostLimitUsd)} a day.");
+                $"Stopped at its limit: card's spend today {Money.Usd(cardSpent)} of {Money.Usd(cardLimit)} a day.");
         }
 
         var projectSpent = project is null ? 0m : Spent(todays.Where(run => Same(run.Project, project)));
-        if (project is not null && projectSpent >= settings.ProjectDayCostLimitUsd)
+        if (project is not null && settings.ProjectDayCostLimitUsd is { } projectLimit && projectSpent >= projectLimit)
         {
             return Refused(BudgetLimit.ProjectDay,
-                $"Stopped at its limit: project {project}'s spend today {Money.Usd(projectSpent)} of {Money.Usd(settings.ProjectDayCostLimitUsd)} a day.");
+                $"Stopped at its limit: project {project}'s spend today {Money.Usd(projectSpent)} of {Money.Usd(projectLimit)} a day.");
         }
 
         var (cost, kind, full) = (settings.RunCostLimitUsd, BudgetLimit.RunCost, settings.RunCostLimitUsd);
 
-        if (settings.CardDayCostLimitUsd - cardSpent < cost)
+        if (settings.CardDayCostLimitUsd is { } cardDay && cardDay - cardSpent < cost)
         {
-            (cost, kind, full) = (settings.CardDayCostLimitUsd - cardSpent, BudgetLimit.CardDay, settings.CardDayCostLimitUsd);
+            (cost, kind, full) = (cardDay - cardSpent, BudgetLimit.CardDay, cardDay);
         }
 
-        if (project is not null && settings.ProjectDayCostLimitUsd - projectSpent < cost)
+        if (project is not null && settings.ProjectDayCostLimitUsd is { } projectDay && projectDay - projectSpent < cost)
         {
-            (cost, kind, full) = (settings.ProjectDayCostLimitUsd - projectSpent, BudgetLimit.ProjectDay, settings.ProjectDayCostLimitUsd);
+            (cost, kind, full) = (projectDay - projectSpent, BudgetLimit.ProjectDay, projectDay);
         }
 
         return new BudgetVerdict(

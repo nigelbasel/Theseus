@@ -18,8 +18,8 @@ public sealed record BudgetSettings(
     decimal RunCostLimitUsd = 5.00m,
     long RunTokenLimit = 3_000_000,
     int RunTimeLimitMinutes = 120,
-    decimal CardDayCostLimitUsd = 20.00m,
-    decimal ProjectDayCostLimitUsd = 60.00m,
+    decimal? CardDayCostLimitUsd = 20.00m,
+    decimal? ProjectDayCostLimitUsd = 60.00m,
     int StopAtPercent = 90,
     decimal HandoffAllowanceUsd = 1.00m)
 {
