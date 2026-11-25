@@ -131,13 +131,13 @@ public sealed partial class ShellViewModel
                 && !_launcher.InFlight.IsInFlight(writer.Key))
             {
                 TheseusLog.Information("Starting the scenario writer {Writer} for {Project} itself: it stood and was not running", startWriter, reading.Name);
-                StartMany([writer.Workstream]);
+                StartMany([writer.Workstream], explain: false);
             }
 
             if (writeBeside is not null && WritersOf(reading.Name).Count == 0 && Board.Card(writeBeside) is { } build)
             {
                 TheseusLog.Information("Making the scenario writer for {Project} itself: no scenario names {Builds}", reading.Name, string.Join(", ", unnamed));
-                WriteScenarios(build);
+                WriteScenarios(build, quietly: true);
             }
 
             var now = verify.Select(Board.Card).OfType<WorkstreamCardViewModel>()

@@ -362,7 +362,7 @@ public sealed partial class ShellViewModel : ObservableObject
 
                 if (created.StartNow)
                 {
-                    StartMany([card.Workstream]);
+                    StartMany([card.Workstream], explain: !created.BySession);
 
                     if (joined is not null)
                     {
@@ -775,7 +775,8 @@ public sealed partial class ShellViewModel : ObservableObject
         NoticeSeverity saidSeverity = NoticeSeverity;
 
         Notice = string.Empty;
-        StartMany(workstreams, startMode: StartMode.Resume, trigger: trigger);
+        // A session's start answers the session; a dialog here would hold every MCP call behind the owner (review, 2026-11-25).
+        StartMany(workstreams, startMode: StartMode.Resume, explain: false, trigger: trigger);
 
         if (Runs() > before)
         {
@@ -1880,7 +1881,9 @@ public sealed partial class ShellViewModel : ObservableObject
     /// Write scenarios… (1.1e AC 6c): creates a scenario-writing card for the card's project, in its holdout folder, made on
     /// first use. It starts nothing.
     /// </summary>
-    private void WriteScenarios(WorkstreamCardViewModel card)
+    /// <param name="card">The build whose project needs scenarios.</param>
+    /// <param name="quietly">Whether Theseus is doing it itself, so a refused start opens no dialog nobody asked for.</param>
+    private void WriteScenarios(WorkstreamCardViewModel card, bool quietly = false)
     {
         var holdout = HoldoutOf(card);
 
@@ -1911,7 +1914,7 @@ public sealed partial class ShellViewModel : ObservableObject
         TheseusLog.Information("Created {Writer} to write holdout scenarios in {Folder}", key, holdout.Folder);
 
         // Theseus starts what it makes; nothing is left for the owner to start (Nigel, 2026-11-23).
-        StartMany([created.Workstream]);
+        StartMany([created.Workstream], explain: !quietly);
     }
 
     /// <summary>A project's scenario writer, aimed at a holdout folder, given the project's slugs for its Checks lines.</summary>
@@ -2051,7 +2054,9 @@ public sealed partial class ShellViewModel : ObservableObject
     /// fails is remembered with its reason for the Waits line's Start again; one that fails later, in its tab, shows there
     /// too, since a standing verifier neither running nor starting always does.
     /// </summary>
-    private void StartVerifiers(IReadOnlyList<WorkstreamCardViewModel> verifiers)
+    /// <param name="verifiers">The verifiers to start together.</param>
+    /// <param name="quietly">Whether Theseus is starting them itself, so a refusal opens no dialog nobody asked for.</param>
+    private void StartVerifiers(IReadOnlyList<WorkstreamCardViewModel> verifiers, bool quietly = false)
     {
         var before = verifiers.ToDictionary(verifier => verifier.Key, verifier => verifier.Workstream.LastSessionId, StringComparer.OrdinalIgnoreCase);
 
@@ -2060,7 +2065,7 @@ public sealed partial class ShellViewModel : ObservableObject
             _verifierStartFailures.Remove(verifier.Key);
         }
 
-        StartMany([.. verifiers.Select(verifier => verifier.Workstream)]);
+        StartMany([.. verifiers.Select(verifier => verifier.Workstream)], explain: !quietly);
 
         var unstarted = verifiers.Where(verifier => Board.Card(verifier.Key) is not { } after || after.Workstream.LastSessionId == before[verifier.Key]).ToList();
 
@@ -2093,7 +2098,7 @@ public sealed partial class ShellViewModel : ObservableObject
 
         if (made.Count > 0)
         {
-            StartVerifiers(made);
+            StartVerifiers(made, quietly);
         }
     }
 
@@ -4840,7 +4845,7 @@ public sealed partial class ShellViewModel : ObservableObject
     /// every Start two presses (Nigel, 2026-11-23).
     /// </summary>
     private void StartMany(IReadOnlyList<Workstream> workstreams,
-        StartMode? startMode = null, bool evenIfWaiting = false, bool chosenOnTheCard = false,
+        StartMode? startMode = null, bool evenIfWaiting = false, bool chosenOnTheCard = false, bool explain = true,
         [System.Runtime.CompilerServices.CallerMemberName] string trigger = "")
     {
         // Which gesture asked, recorded before anything can go wrong with it. There are four callers
@@ -4922,6 +4927,7 @@ public sealed partial class ShellViewModel : ObservableObject
         var startedKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var startedFolders = new List<string>();
         var refusals = new List<string>();
+        var blocks = new List<(StartBlock Block, Workstream Asked)>();
         var worktreeNotes = new List<string>();
 
         foreach (var candidate in workstreams)
@@ -4948,6 +4954,11 @@ public sealed partial class ShellViewModel : ObservableObject
                 if (_launcher.LastRefusal is { } refusal)
                 {
                     refusals.Add(refusal);
+                }
+
+                if (_launcher.LastBlock is { } block)
+                {
+                    blocks.Add((block, workstream));
                 }
 
                 continue;
@@ -5005,6 +5016,50 @@ public sealed partial class ShellViewModel : ObservableObject
         }.OfType<string>());
 
         Refresh();
+
+        if (explain)
+        {
+            ExplainBlocked(blocks, startMode, evenIfWaiting, chosenOnTheCard);
+        }
+    }
+
+    /// <summary>
+    /// Asks whether to reset a breaker and start, with the reason, and starts what it resets (Nigel, 2026-11-25). Set by the
+    /// app; without it a refused start is explained with <see cref="ExplainRefusal"/>.
+    /// </summary>
+    public Func<string, string, string, bool>? AskRefusedStart { get; set; }
+
+    // A start a breaker or limit refused says so at once where it was pressed, with what clears it: on 2026-11-25 it was
+    // only a log Warning and Nigel saw "Start again did not do anything".
+    private void ExplainBlocked(IReadOnlyList<(StartBlock Block, Workstream Asked)> blocks, StartMode? startMode, bool evenIfWaiting,
+        bool chosenOnTheCard)
+    {
+        if (RefusedStart.For([.. blocks.Select(blocked => blocked.Block)]) is not { } refused)
+        {
+            return;
+        }
+
+        if (refused.Action is not { } action || AskRefusedStart is not { } ask)
+        {
+            Refuse(refused.Title, refused.Text);
+
+            return;
+        }
+
+        if (ask(refused.Title, refused.Text, action))
+        {
+            ResetBreakers(refused.BreakerKeys);
+
+            // The card as reset, with what the refused start carried: an accepted spec's tell, or a tell already taken for it.
+            var again = blocks
+                .Where(blocked => refused.BreakerKeys.Contains(blocked.Block.Key, StringComparer.OrdinalIgnoreCase))
+                .Select(blocked => Board.Card(blocked.Block.Key) is { } card
+                    ? card.Workstream with { StartInstruction = blocked.Asked.StartInstruction }
+                    : null)
+                .OfType<Workstream>()
+                .ToList();
+            StartMany(again, startMode, evenIfWaiting, chosenOnTheCard, trigger: "ResetBreakerAndStart");
+        }
     }
 
     // The folders a session starts in or adds, which Claude Code asks the owner to trust.

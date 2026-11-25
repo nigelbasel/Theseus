@@ -123,6 +123,9 @@ public sealed class LaunchCoordinator : IAsyncDisposable
     /// <summary>Why the last <see cref="Launch"/> failed to open its tab, when the terminal refused it.</summary>
     public string? LastRefusal { get; private set; }
 
+    /// <summary>The breaker or limit that refused the last <see cref="Launch"/>, for the board to say where Start was pressed.</summary>
+    public StartBlock? LastBlock { get; private set; }
+
     /// <summary>Opens a tab for one workstream and records the attempt.</summary>
     /// <returns>The session identifier the tab was started under, or null if it could not start.</returns>
     /// <param name="startMode">
@@ -136,6 +139,7 @@ public sealed class LaunchCoordinator : IAsyncDisposable
         ArgumentNullException.ThrowIfNull(workstream);
 
         LastRefusal = null;
+        LastBlock = null;
 
         // A tab waiting at Claude Code's question about trusting its folder has registered no session yet, so the board's
         // own check would start the card again (git-22, 2026-11-23).
@@ -164,6 +168,7 @@ public sealed class LaunchCoordinator : IAsyncDisposable
         if (headless && (Headless!.Holds(workstream.Key) ? $"{workstream.Title} already has a headless run going or queued." : Headless.Refusal(workstream)) is { } refusal)
         {
             LastRefusal = refusal;
+            LastBlock = Headless.Holds(workstream.Key) ? null : Headless.Block(workstream);
             TheseusLog.Information("Refused a headless start of {Workstream}: {Refusal}", workstream.Key, refusal);
 
             return null;
