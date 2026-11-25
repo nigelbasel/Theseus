@@ -1,3 +1,5 @@
+using Theseus.Core.Domain;
+
 namespace Theseus.Core.Launching;
 
 /// <summary>
@@ -15,17 +17,34 @@ public static class StartModeChoice
     /// <summary>How the session is launched.</summary>
     /// <param name="requested">How it was asked to start.</param>
     /// <param name="transcriptExists">Whether there is a conversation on disk to resume.</param>
-    public static LaunchMode For(StartMode requested, bool transcriptExists) =>
-        requested == StartMode.Resume && transcriptExists
+    /// <param name="role">
+    /// What the card's sessions are for. A verifier is a one-shot independent run, so it starts fresh with its own prompt
+    /// unless the owner chose Resume on its card: resumed, a finished verifier's conversation ended at once and filed no
+    /// report, and its Start again never worked (Nigel, 2026-11-25).
+    /// </param>
+    /// <param name="chosenOnTheCard">Whether the owner picked the mode from the card's own ▾ menu.</param>
+    public static LaunchMode For(StartMode requested, bool transcriptExists,
+        WorkstreamRole role = WorkstreamRole.None, bool chosenOnTheCard = false) =>
+        requested == StartMode.Resume && transcriptExists && (role != WorkstreamRole.Verifier || chosenOnTheCard)
             ? LaunchMode.Resume
             : LaunchMode.FirstRun;
+
+    /// <summary>What a verifier's Start again says it will do (Nigel, 2026-11-25).</summary>
+    public const string VerifierTooltip =
+        "Starts a fresh verification run with the verifier's own prompt. Nothing from an earlier run is reloaded.";
 
     /// <summary>What a card's own start button says it will do.</summary>
     /// <param name="preferred">The board's default.</param>
     /// <param name="transcriptExists">Whether there is a conversation to resume at all.</param>
     /// <param name="resumeTooltip">What resuming would cost, as the card already describes it.</param>
-    public static string Tooltip(StartMode preferred, bool transcriptExists, string resumeTooltip)
+    /// <param name="role">What the card's sessions are for: a verifier's Start is always a fresh run.</param>
+    public static string Tooltip(StartMode preferred, bool transcriptExists, string resumeTooltip, WorkstreamRole role = WorkstreamRole.None)
     {
+        if (role == WorkstreamRole.Verifier)
+        {
+            return VerifierTooltip;
+        }
+
         if (!transcriptExists)
         {
             return "Start a new session. There is no earlier conversation to resume.";

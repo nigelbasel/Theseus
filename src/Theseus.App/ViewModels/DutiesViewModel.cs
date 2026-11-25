@@ -13,6 +13,7 @@ public sealed class DutiesViewModel : ObservableObject
     private readonly DutiesActions _actions;
     private readonly Func<Duty, bool> _shows;
     private readonly string? _card;
+    private string _notice = string.Empty;
 
     /// <summary>Creates the checklist.</summary>
     /// <param name="actions">What the bar reaches for.</param>
@@ -48,6 +49,13 @@ public sealed class DutiesViewModel : ObservableObject
 
     /// <summary>Every duty it lists.</summary>
     public ObservableCollection<DutyRowViewModel> Rows { get; } = [];
+
+    /// <summary>What the last action did, in words, such as "Paused: Live check."; empty before any.</summary>
+    public string Notice
+    {
+        get => _notice;
+        private set => Set(ref _notice, value);
+    }
 
     /// <summary>"1 of 3 selected", or that there are none.</summary>
     public string CountText => Rows.Count == 0 ? "No duties" : $"{Ticked.Count} of {Rows.Count} selected";
@@ -106,6 +114,11 @@ public sealed class DutiesViewModel : ObservableObject
         }
 
         _actions.RunNow();
+        Notice = "Run now: " + string.Join("; ", Ticked.Select(row => _actions.Book.Get(row.Duty.Id) is { } duty
+            ? duty.State.DeliveredUtc is not null && duty.State.LastRunUtc >= DateTimeOffset.UtcNow.AddMinutes(-1)
+                ? $"{duty.Name} was given to {_actions.TitleOf(duty.Card)}"
+                : $"{duty.Name} runs as soon as {_actions.TitleOf(duty.Card)} allows{(duty.State.Waiting is { } why ? $"; it waits: {why}" : string.Empty)}"
+            : row.Duty.Name)) + ".";
         Reload();
     }
 
@@ -117,6 +130,7 @@ public sealed class DutiesViewModel : ObservableObject
             _actions.Record(row.Duty.Card, $"Duty \"{row.Duty.Name}\" paused by you");
         }
 
+        Notice = $"Paused: {Names()}. They do not run until resumed.";
         Reload();
     }
 
@@ -128,6 +142,7 @@ public sealed class DutiesViewModel : ObservableObject
             _actions.Record(row.Duty.Card, $"Duty \"{row.Duty.Name}\" resumed by you");
         }
 
+        Notice = $"Resumed: {Names()}.";
         Reload();
     }
 
@@ -147,6 +162,7 @@ public sealed class DutiesViewModel : ObservableObject
             _actions.Record(row.Duty.Card, $"Duty \"{row.Duty.Name}\" deleted by you");
         }
 
+        Notice = $"Deleted: {names}.";
         Reload([]);
     }
 
@@ -161,8 +177,12 @@ public sealed class DutiesViewModel : ObservableObject
         }
 
         _actions.Record(saved.Card, $"Duty \"{saved.Name}\" {(duty is null ? "set" : "changed")} by you: {saved.Cadence.Describe()}");
+        Notice = $"{(duty is null ? "Set" : "Changed")}: {saved.Name}, {saved.Cadence.Describe()}, next run "
+                 + $"{saved.State.NextDueUtc.ToLocalTime():HH:mm}.";
         Reload();
     }
+
+    private string Names() => string.Join(", ", Ticked.Select(row => row.Duty.Name));
 
     private void TickAll(bool ticked)
     {

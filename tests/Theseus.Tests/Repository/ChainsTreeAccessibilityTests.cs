@@ -81,7 +81,7 @@ public class ChainsTreeAccessibilityTests
         var (tree, _) = LaidOut();
         string name = UIElementAutomationPeer.CreatePeerForElement(Descendants<TreeViewItem>(tree).First()).GetName();
 
-        Assert.That(name, Is.EqualTo("One"));
+        Assert.That(name, Is.EqualTo("One, stopped"), "its title and its state's word (chains-panel-at-scale criterion 12)");
         Assert.That(name, Does.Not.Contain("Theseus.").And.Not.Contain(" { "));
         Assert.That(System.Windows.Automation.AutomationProperties.GetName(tree), Is.EqualTo("Chains"));
     }
@@ -107,7 +107,7 @@ public class ChainsTreeAccessibilityTests
         var window = XDocument.Load(Path.Combine(RepositoryRoot(), "src", "Theseus.App", "MainWindow.xaml"));
         var tree = window.Descendants(Presentation + "TreeView")
             .Single(element => (string?)element.Attribute("ItemsSource") == "{Binding Chains.Roots}");
-        var panelScroller = tree.Ancestors(Presentation + "ScrollViewer").First();
+        tree.Attribute("PreviewMouseWheel")?.Remove(); // a code-behind handler, which a parsed fragment cannot hold
         const string converters = "clr-namespace:Theseus.App.Converters;assembly=Theseus";
 
         return new XElement(Presentation + "Border",
@@ -124,9 +124,7 @@ public class ChainsTreeAccessibilityTests
                     Converter(converters, "HexToBrushConverter", "HexToBrush"),
                     Converter(converters, "CountToVisibilityConverter", "CountToVisibility"),
                     Converter(converters, "NotEmptyToVisibilityConverter", "NotEmptyToVisibility"))),
-            new XElement(Presentation + "ScrollViewer",
-                panelScroller.Attributes().Where(attribute => !attribute.IsNamespaceDeclaration),
-                new XElement(Presentation + "StackPanel", new XElement(tree)))).ToString()
+            new XElement(Presentation + "Grid", new XElement(tree))).ToString()
             .Replace($"\"{AppControls}\"", $"\"{AppControls};assembly=Theseus\"", StringComparison.Ordinal);
     }
 

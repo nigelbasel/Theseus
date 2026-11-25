@@ -87,6 +87,62 @@ Ad hoc work can be promoted to a project. Its handoff becomes the project's firs
   approved. A parent never closes another card's session any other way. (1.1e AC 14 and 17, Nigel 2026-11-21;
   sessions-run-the-project, Nigel 2026-11-22.)
 
+## Working unattended: decide, record, or park
+
+Added for `method-v0.3` from the lessons of the 2026-11-24 Bug Fixing night. Overnight, 73 waits held sessions for
+about 68 hours of session time, and only 9 of them were truly the owner's call. Most of the rest came from a session
+holding a question that a rule already answered, or that it could have answered itself and recorded.
+
+When a session meets a choice it would otherwise ask about, it goes down this ladder:
+
+1. **Owner-only: never decided by a session.**
+   - Completing, approving, abandoning or auto-completing a pull request into the trunk, and pushing or force-pushing
+     to the trunk (a guard refuses these).
+   - Deleting anything: branches, worktrees, files, records.
+   - Creating a tracker item.
+   - Accepting a spec or a bug's rule, and confirming a report.
+   - Changing a standing rule.
+   - Production, secrets, customer data and every Azure mutation.
+   - A product decision the brief and the project's decisions leave open.
+2. **Decide and record.** Anything else, the session decides: it takes the option it would recommend, provided all of
+   these hold:
+   - it keeps every standing rule;
+   - it can be undone before the change merges, because it lives on the workstream's branch or in its own records;
+   - it changes no spec, rule or decision the owner has accepted;
+   - the facts it rests on are checked against the real system, not remembered.
+
+   It records the choice with `record_decision`, by "<card> (default, for review)". It lists the choice in REPORT.md
+   under **Decided without the owner**, with the option it passed over. The owner can overturn it at review.
+3. **Park.** When step 1 applies, or step 2's conditions do not hold:
+   - The session writes the question with its options and its recommendation, calls `ask_owner`, and records who it
+     waits on with `set_waiting`.
+   - Then it carries on with every part of the work that does not depend on the answer.
+   - When nothing is left, it commits what it has, writes its handoff, calls `report_back` with verdict `partial`, and
+     stops. The owner's answer starts it again.
+
+   A session never holds its slot waiting, and never ends a turn on a question written in prose: an ended turn looks
+   finished on the board. The question tool holds the session until it is answered, so use it only when the owner is at
+   the desk.
+
+Further rules for unattended runs:
+
+- **Check a fact before it becomes a decision or a brief.** Read the tracker's real workflow states (for example its
+  transitions for an item), search for tests whose expectations the fix reverses, and check how live code uses what a
+  change blocks. A wrong fact written into a brief became the night's longest single wait, at about 10 hours.
+- **Once the report is in, stop.** Write the handoff, call `report_back`, and end the session. The owner confirms a
+  report on the board, and that needs no live session. Overnight, finished sessions held their slots for about 12 hours.
+- **A shared notes repo is committed with care.**
+  - Stage only your own paths, never `git add -A`, and commit with `git commit -- <paths>`.
+  - If `index.lock` exists, wait and retry with a growing delay, up to five tries. Then record it on your card and carry
+    on.
+  - Never delete a lock file: another session's commit may be running.
+- **A wait is never a sleep.**
+  - A locked test or build run is one command line in its own call, because the lock guard reads only that line.
+  - Run anything long in the background and wait for it with a monitor's until-loop, not `sleep`.
+  - Meanwhile, do the work that does not depend on it.
+- **A failed turn is not the end of the work.** When a turn ends on a network or API error, the next session to look,
+  or Theseus, resumes it with "carry on where you were". The handoff says where that is.
+
 ## Decisions recorded here
 
 | Date | Decision | By |

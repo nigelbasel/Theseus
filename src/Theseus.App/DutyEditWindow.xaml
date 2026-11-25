@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="{Binding Title}"
-        Width="600" Height="560" MinWidth="480" MinHeight="420"
+        Width="640" Height="640" MinWidth="480" MinHeight="480"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False"
         Background="{DynamicResource SolidBackgroundFillColorSecondaryBrush}"
@@ -27,6 +27,7 @@
 
         <TabControl x:Name="Tabs">
             <TabItem x:Name="DutyTab" Header="Duty">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="12">
                     <Label x:Name="CardLabel" Content="_Card" Target="{Binding ElementName=CardBox}" Style="{StaticResource Field}" Margin="0,0,0,8" />
                     <ComboBox x:Name="CardBox" ItemsSource="{Binding Cards}" DisplayMemberPath="Value" SelectedValuePath="Key"
@@ -42,13 +43,6 @@
                     <Label x:Name="NameLabel" Content="_Name" Target="{Binding ElementName=NameBox}" Style="{StaticResource Field}" />
                     <TextBox x:Name="NameBox" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding CanRename}"
                              HorizontalAlignment="Left" Width="280" AutomationProperties.LabeledBy="{x:Reference NameLabel}" />
-
-                    <Label x:Name="InstructionLabel" Content="_Instruction" Target="{Binding ElementName=InstructionBox}" Style="{StaticResource Field}" />
-                    <TextBox x:Name="InstructionBox" Text="{Binding Instruction, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True"
-                             TextWrapping="Wrap" Height="96" VerticalScrollBarVisibility="Auto"
-                             AutomationProperties.LabeledBy="{x:Reference InstructionLabel}" />
-                    <TextBlock Margin="0,4,0,0" Style="{DynamicResource ExplanationText}" TextWrapping="Wrap"
-                               Text="What the card is told each run. Theseus adds which run it is and what it recorded for the card since the last." />
 
                     <Label x:Name="CadenceLabel" Content="Runs" Style="{StaticResource Field}" />
                     <StackPanel x:Name="EveryRow" Orientation="Horizontal" AutomationProperties.LabeledBy="{x:Reference CadenceLabel}">
@@ -72,7 +66,15 @@
                                  IsEnabled="{Binding IsAt}" AutomationProperties.Name="Weekdays" />
                         <TextBlock Margin="8,0,0,0" VerticalAlignment="Center" Style="{DynamicResource ExplanationText}" Text="such as Mon-Fri; empty for every day" />
                     </StackPanel>
+                    <Label x:Name="InstructionLabel" Content="_Instruction" Target="{Binding ElementName=InstructionBox}" Style="{StaticResource Field}" />
+                    <TextBox x:Name="InstructionBox" Text="{Binding Instruction, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True"
+                             TextWrapping="Wrap" Height="96" VerticalScrollBarVisibility="Auto"
+                             AutomationProperties.LabeledBy="{x:Reference InstructionLabel}" />
+                    <TextBlock Margin="0,4,0,0" Style="{DynamicResource ExplanationText}" TextWrapping="Wrap"
+                               Text="What the card is told each run. Theseus adds which run it is and what it recorded for the card since the last." />
+
                 </StackPanel>
+                </ScrollViewer>
             </TabItem>
             <TabItem x:Name="LimitsTab" Header="Limits">
                 <StackPanel Margin="12">

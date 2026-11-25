@@ -124,6 +124,9 @@ public sealed partial class ShellViewModel : ObservableObject
     /// <summary>How the waiting workstreams were asked to start.</summary>
     private StartMode? _heldForInputsMode;
 
+    /// <summary>Whether that mode was the owner's pick on a card's ▾ menu.</summary>
+    private bool _heldForInputsChosenOnTheCard;
+
     /// <summary>Creates the shell over everything the window drives.</summary>
     public ShellViewModel(
         BoardViewModel board,
@@ -397,10 +400,11 @@ public sealed partial class ShellViewModel : ObservableObject
         {
             var held = _heldForInputs;
             var mode = _heldForInputsMode;
+            var chosenOnTheCard = _heldForInputsChosenOnTheCard;
 
             _heldForInputs = [];
             InputsChanged();
-            StartMany(held, evenIfWaiting: true, startMode: mode, trigger: "StartWithoutInputs");
+            StartMany(held, evenIfWaiting: true, startMode: mode, chosenOnTheCard: chosenOnTheCard, trigger: "StartWithoutInputs");
         });
 
         SkipWaitingCommand = new RelayCommand(_ =>
@@ -886,7 +890,7 @@ public sealed partial class ShellViewModel : ObservableObject
 
         if (RunCommands.Allowed(targets, "Start"))
         {
-            StartMany([.. targets.Select(target => target.Workstream)], startMode: mode, trigger: trigger);
+            StartMany([.. targets.Select(target => target.Workstream)], startMode: mode, chosenOnTheCard: true, trigger: trigger);
         }
     }
 
@@ -915,7 +919,7 @@ public sealed partial class ShellViewModel : ObservableObject
             : null;
 
     /// <summary>A project's title from its file, for "resumes with &lt;project&gt;" (review of PR 2, finding 10).</summary>
-    private string ProjectTitle(string name) =>
+    public string ProjectTitle(string name) =>
         _projectReads.Current.FirstOrDefault(reading => string.Equals(reading.Name, name, StringComparison.OrdinalIgnoreCase))?.File?.Title
         ?? name;
 
@@ -4259,7 +4263,7 @@ public sealed partial class ShellViewModel : ObservableObject
         card.ResumeTooltip = Theseus.Core.Domain.RestartCost.Tooltip(measured.TailBytes, measured.TotalBytes);
         card.RestartCost = live
             ? string.Empty
-            : StartModeChoice.Tooltip(preferred, card.CanResume, card.ResumeTooltip);
+            : StartModeChoice.Tooltip(preferred, card.CanResume, card.ResumeTooltip, card.Workstream.Role);
         card.Model = fact.Model ?? string.Empty;
     }
 
@@ -4836,7 +4840,7 @@ public sealed partial class ShellViewModel : ObservableObject
     /// every Start two presses (Nigel, 2026-11-23).
     /// </summary>
     private void StartMany(IReadOnlyList<Workstream> workstreams,
-        StartMode? startMode = null, bool evenIfWaiting = false,
+        StartMode? startMode = null, bool evenIfWaiting = false, bool chosenOnTheCard = false,
         [System.Runtime.CompilerServices.CallerMemberName] string trigger = "")
     {
         // Which gesture asked, recorded before anything can go wrong with it. There are four callers
@@ -4899,6 +4903,7 @@ public sealed partial class ShellViewModel : ObservableObject
         {
             _heldForInputs = waiting;
             _heldForInputsMode = startMode;
+            _heldForInputsChosenOnTheCard = chosenOnTheCard;
             InputsChanged();
 
             workstreams = [.. workstreams.Except(waiting)];
@@ -4938,7 +4943,7 @@ public sealed partial class ShellViewModel : ObservableObject
                 };
             }
 
-            if (_launcher.Launch(workstream, _plans.PathFor(workstream.Key), startMode) is not { } sessionId)
+            if (_launcher.Launch(workstream, _plans.PathFor(workstream.Key), startMode, chosenOnTheCard: chosenOnTheCard) is not { } sessionId)
             {
                 if (_launcher.LastRefusal is { } refusal)
                 {

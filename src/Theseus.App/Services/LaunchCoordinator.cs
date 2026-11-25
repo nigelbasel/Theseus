@@ -129,7 +129,9 @@ public sealed class LaunchCoordinator : IAsyncDisposable
     /// Resume the last conversation or start fresh from the handoff. Null means the board's default.
     /// </param>
     /// <param name="reason">What asked for the start, recorded with a headless run.</param>
-    public string? Launch(Workstream workstream, string? planPath = null, StartMode? startMode = null, RunReason reason = RunReason.Owner)
+    /// <param name="chosenOnTheCard">Whether the owner picked <paramref name="startMode"/> from the card's own ▾ menu.</param>
+    public string? Launch(Workstream workstream, string? planPath = null, StartMode? startMode = null, RunReason reason = RunReason.Owner,
+        bool chosenOnTheCard = false)
     {
         ArgumentNullException.ThrowIfNull(workstream);
 
@@ -169,7 +171,8 @@ public sealed class LaunchCoordinator : IAsyncDisposable
         var requested = startMode ?? settings.DefaultStartMode;
 
         var mode = StartModeChoice.For(requested,
-            !string.IsNullOrWhiteSpace(workstream.LastSessionId) && TranscriptExists(workstream.LastSessionId));
+            !string.IsNullOrWhiteSpace(workstream.LastSessionId) && TranscriptExists(workstream.LastSessionId),
+            workstream.Role, chosenOnTheCard);
         var resume = mode == LaunchMode.Resume;
         var sessionId = resume ? workstream.LastSessionId! : _sessionIds.Create();
 

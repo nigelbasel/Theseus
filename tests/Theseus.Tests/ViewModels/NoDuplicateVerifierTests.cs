@@ -105,6 +105,17 @@ public class NoDuplicateVerifierTests
     }
 
     [Test]
+    public void StartAgain_OnTheWaitsLineAndItsBuildsBox_SaysItStartsAFreshVerificationRun()
+    {
+        var view = WithVerifier(SessionLifecycle.Ended, hasRun: true);
+        var line = Of(view, WaitKind.StartVerifier).Single();
+        var start = view.AllNodes.Single(node => node.Name == _build).Actions.Single(action => action.Label == $"Start {Verifier} again");
+
+        Assert.That(line.ToolTip, Does.Contain("fresh verification run"), "Nigel, 2026-11-25: a resumed verifier ended at once");
+        Assert.That(start.ToolTip, Does.Contain("fresh verification run"));
+    }
+
+    [Test]
     public void AVerifierWhoseStartFailed_SaysWhyInTheWaitsLine_WithStartAgain_WhichStartsIt()
     {
         var line = Of(WithVerifier(SessionLifecycle.NotStarted, failed: WhyNot), WaitKind.StartVerifier).Single();

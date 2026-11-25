@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
 using Theseus.Core.Domain;
+using Theseus.Core.Finding;
 using Theseus.Core.Links;
+using Theseus.Core.Settings;
 
 namespace Theseus.App.ViewModels;
 
@@ -33,6 +35,21 @@ public sealed class ChainsViewModel : ObservableObject
     private string _linkRefusal = string.Empty;
     private bool _isAddingLink;
     private ProposalsViewModel? _proposals;
+    private const string GroupPrefix = "project:";
+    private ISettingsStore? _settings;
+    private ChainFilters _filters = new();
+    private Dictionary<string, bool> _folds = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, bool>? _foldsBeforeSearch;
+    private bool _folding;
+    private string _searchText = string.Empty;
+    private Dictionary<string, ChainRowFacts> _facts = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, SearchableCard> _searchable = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, string> _projects = new(StringComparer.OrdinalIgnoreCase);
+    private List<ChainEntry> _entries = [];
+    private readonly List<ChainNodeViewModel> _groups = [];
+    private ChainViewResult _view = new(new Dictionary<string, ChainVisibility>(), 0, 0, 0, 0, 0, []);
+    private RelayCommand? _clearSearch;
+    private RelayCommand? _clearFilters;
 
     /// <summary>Creates the view over a link book.</summary>
     /// <param name="cards">The cards on the board, read on every update.</param>
@@ -50,8 +67,8 @@ public sealed class ChainsViewModel : ObservableObject
 
         ToggleCommand = new RelayCommand(_ => IsOpen = !IsOpen);
         OpenCommand = new RelayCommand(_ => IsOpen = true);
-        FoldAllCommand = new RelayCommand(_ => SetExpanded(Roots, false), _ => Roots.Count > 0);
-        UnfoldAllCommand = new RelayCommand(_ => SetExpanded(Roots, true), _ => Roots.Count > 0);
+        FoldAllCommand = new RelayCommand(_ => FoldEverything(false), _ => Roots.Count > 0);
+        UnfoldAllCommand = new RelayCommand(_ => FoldEverything(true), _ => Roots.Count > 0);
         AddLinkCommand = new RelayCommand(_ => AddLink(), _ => _focusKey is not null && _target is not null);
         BeginAddLinkCommand = new RelayCommand(_ =>
         {
@@ -65,13 +82,168 @@ public sealed class ChainsViewModel : ObservableObject
         });
     }
 
-    private static void SetExpanded(IEnumerable<ChainNodeViewModel> nodes, bool expanded)
+    // Fold all and Unfold all replace what was remembered with the one choice, for every row (criterion 16).
+    private void FoldEverything(bool expanded)
     {
-        foreach (ChainNodeViewModel node in nodes)
+        _folding = true;
+        _folds.Clear();
+
+        foreach (var node in AllRows())
         {
             node.IsExpanded = expanded;
-            SetExpanded(node.Children, expanded);
+            _folds[node.Key] = expanded;
+
+            if (_foldsBeforeSearch is not null)
+            {
+                _foldsBeforeSearch[node.Key] = expanded;
+            }
         }
+
+        _folding = false;
+        SaveFolds();
+    }
+
+    /// <summary>
+    /// Where the panel keeps the owner's filters and folds between runs; read when set. Without one, they last as long as
+    /// the view (chains-panel-at-scale criteria 11 and 16).
+    /// </summary>
+    public ISettingsStore? Settings
+    {
+        get => _settings;
+        set
+        {
+            _settings = value;
+
+            if (value?.Read() is { } read)
+            {
+                _filters = read.ChainsFilters;
+                _folds = new Dictionary<string, bool>(read.ChainsFolds, StringComparer.OrdinalIgnoreCase);
+            }
+        }
+    }
+
+    /// <summary>Whether a start of the card, by key, waits for the owner's Allow. Set by the app; null means none does.</summary>
+    public Func<string, bool>? StartAsked { get; set; }
+
+    /// <summary>A project's title from its name, for its header. Set by the app; null shows the name.</summary>
+    public Func<string, string>? ProjectTitle { get; set; }
+
+    /// <summary>What is typed in the panel's search box (criterion 2). Not remembered between runs.</summary>
+    public string SearchText
+    {
+        get => _searchText;
+        set
+        {
+            if (Set(ref _searchText, value ?? string.Empty))
+            {
+                ApplyView();
+            }
+        }
+    }
+
+    /// <summary>Clears the search box.</summary>
+    public RelayCommand ClearSearchCommand => _clearSearch ??= new RelayCommand(_ => SearchText = string.Empty);
+
+    /// <summary>Keep only cards with a session or something waiting on the owner, and the cards above them.</summary>
+    public bool ActiveOnly
+    {
+        get => _filters.ActiveOnly;
+        set => SetFilters(_filters with { ActiveOnly = value });
+    }
+
+    /// <summary>Keep only cards with something waiting on the owner, and the cards above them.</summary>
+    public bool WaitingOnMe
+    {
+        get => _filters.WaitingOnMe;
+        set => SetFilters(_filters with { WaitingOnMe = value });
+    }
+
+    /// <summary>Hide a whole chain once every card in it is Done or archived and nothing in it waits on the owner.</summary>
+    public bool HideCompleted
+    {
+        get => _filters.HideCompleted;
+        set => SetFilters(_filters with { HideCompleted = value });
+    }
+
+    /// <summary>Turns every filter off.</summary>
+    public RelayCommand ClearFiltersCommand => _clearFilters ??= new RelayCommand(_ => SetFilters(new ChainFilters(false, false, false)));
+
+    /// <summary>The Active only menu item, with what it hides on its own.</summary>
+    public string ActiveOnlyText => $"Active only ({_view.HiddenByActiveOnly})";
+
+    /// <summary>The Waiting on me menu item, with what it hides on its own.</summary>
+    public string WaitingOnMeText => $"Waiting on me ({_view.HiddenByWaitingOnMe})";
+
+    /// <summary>The Hide completed menu item, with what it hides on its own.</summary>
+    public string HideCompletedText => $"Hide completed ({_view.HiddenByHideCompleted})";
+
+    /// <summary>The Filter button: "Filter", or "Filter · 2" while two are on.</summary>
+    public string FilterButtonText => _filters.Count == 0 ? "Filter" : $"Filter · {_filters.Count}";
+
+    /// <summary>What a screen reader hears of the Filter button's state: "2 filters on", or "No filters on" (criterion 21).</summary>
+    public string FilterHelpText => _filters.Count switch
+    {
+        0 => "No filters on",
+        1 => "1 filter on",
+        var count => $"{count} filters on",
+    };
+
+    /// <summary>
+    /// What the search and filters hide, as "Showing 14 of 52 · 31 hidden by Hide completed · 7 by Active only"; empty when
+    /// nothing narrows the tree (criterion 9).
+    /// </summary>
+    public string HiddenSummary
+    {
+        get
+        {
+            if (_filters.Count == 0 && string.IsNullOrWhiteSpace(_searchText))
+            {
+                return string.Empty;
+            }
+
+            var hidden = new[]
+            {
+                (_filters.HideCompleted, _view.HiddenByHideCompleted, "Hide completed"),
+                (_filters.ActiveOnly, _view.HiddenByActiveOnly, "Active only"),
+                (_filters.WaitingOnMe, _view.HiddenByWaitingOnMe, "Waiting on me"),
+            }.Where(filter => filter.Item1 && filter.Item2 > 0).Select((filter, index) =>
+                index == 0 ? $"{filter.Item2} hidden by {filter.Item3}" : $"{filter.Item2} by {filter.Item3}");
+
+            return string.Join(" · ", new[] { $"Showing {_view.Shown} of {_view.Total}" }.Concat(hidden));
+        }
+    }
+
+    /// <summary>"No chain card matches 'xyz'" while a search finds nothing; empty otherwise (criterion 5).</summary>
+    public string NoMatchText => !SearchQuery.Parse(_searchText).IsEmpty && _view.Total > 0 && _view.Shown == 0
+        ? $"No chain card matches '{_searchText.Trim()}'"
+        : string.Empty;
+
+    /// <summary>Said in place of the tree when the filters alone hide every chain (criterion 10).</summary>
+    public string AllHiddenText => SearchQuery.Parse(_searchText).IsEmpty && _filters.Count > 0 && _view.Total > 0 && _view.Shown == 0
+        ? "Every chain is hidden by your filters"
+        : string.Empty;
+
+    /// <summary>The Ready cards the panel's search keeps (criterion 4).</summary>
+    public ObservableCollection<ChainNodeViewModel> ShownReady { get; } = [];
+
+    private void SetFilters(ChainFilters filters)
+    {
+        if (filters == _filters)
+        {
+            return;
+        }
+
+        _filters = filters;
+
+        if (Settings is { } settings)
+        {
+            settings.Write(settings.Read() with { ChainsFilters = filters });
+        }
+
+        Raise(nameof(ActiveOnly));
+        Raise(nameof(WaitingOnMe));
+        Raise(nameof(HideCompleted));
+        ApplyView();
     }
 
     /// <summary>The links read against the board as of the last update.</summary>
@@ -347,10 +519,13 @@ public sealed class ChainsViewModel : ObservableObject
             .Select(group => group.Key)
             .ToHashSet(StringComparer.CurrentCultureIgnoreCase);
         var nodes = rows.ToDictionary(card => card.Key, card => Node(card, shared.Contains(card.Title)), StringComparer.OrdinalIgnoreCase);
+        _facts = rows.ToDictionary(card => card.Key, Facts, StringComparer.OrdinalIgnoreCase);
+        _searchable = rows.ToDictionary(card => card.Key, card => card.Searchable, StringComparer.OrdinalIgnoreCase);
+        _projects = rows.ToDictionary(card => card.Key, card => card.Workstream.Project ?? string.Empty, StringComparer.OrdinalIgnoreCase);
 
-        // The session's mark and Focus are left out: they change on every turn, and are updated on the rows in place.
+        // The session's mark, the row's state and Focus are left out: they change on every turn, and are updated on the rows in place.
         var shape = string.Join("|", nodes.Values.Select(node =>
-            $"{node.Key}:{node.Title}:{node.State}:{node.WaitsOn}:{node.ReportsBack}:{Parent(node.Key)}:{node.Copy}"));
+            $"{node.Key}:{node.Title}:{node.State}:{node.WaitsOn}:{node.ReportsBack}:{Parent(node.Key)}:{node.Copy}:{_projects[node.Key]}"));
 
         if (shape != _treeShape)
         {
@@ -370,6 +545,18 @@ public sealed class ChainsViewModel : ObservableObject
             }
         }
 
+        foreach (var (key, node) in _shown)
+        {
+            if (_facts.TryGetValue(key, out var facts))
+            {
+                node.RowState = ChainRowStates.Of(facts);
+            }
+        }
+
+        // Read again on every update, not only on a rebuild: a session starting, a card finishing or a tag added changes
+        // what the filters and the search keep without changing the tree's shape.
+        _entries = [.. TopChains().Select(Entry)];
+        ApplyView();
         UpdateNeedsYou(cards);
         AnnounceReports();
         UpdateRelated();
@@ -520,6 +707,10 @@ public sealed class ChainsViewModel : ObservableObject
     {
         Roots.Clear();
         Ready.Clear();
+        _groups.Clear();
+        _foldsBeforeSearch = null;
+
+        List<ChainNodeViewModel> chains = [];
 
         foreach (var node in nodes.Values)
         {
@@ -529,18 +720,213 @@ public sealed class ChainsViewModel : ObservableObject
             }
             else
             {
-                Roots.Add(node);
+                chains.Add(node);
             }
 
             if (node.IsReady)
             {
                 Ready.Add(node);
             }
+
+            node.PropertyChanged += RowFoldChanged;
         }
 
+        _entries = [.. chains.Select(Entry)];
+        _folding = true;
+
+        foreach (var (node, entry) in chains.Zip(_entries))
+        {
+            SetInitialFolds(node, entry);
+        }
+
+        var byProject = chains.GroupBy(node => _projects[node.Key], StringComparer.OrdinalIgnoreCase).ToList();
+
+        if (byProject.Count > 1 && byProject.Any(group => group.Key.Length > 0))
+        {
+            foreach (var group in byProject
+                         .OrderBy(group => group.Key.Length == 0)
+                         .ThenBy(group => TitleOfProject(group.Key), StringComparer.CurrentCultureIgnoreCase))
+            {
+                var header = Header(group.Key, group.Count() + group.Sum(node => Count(node.Children)));
+
+                foreach (var node in group)
+                {
+                    header.Children.Add(node);
+                }
+
+                header.IsExpanded = !_folds.TryGetValue(header.Key, out var unfolded) || unfolded;
+                header.PropertyChanged += RowFoldChanged;
+                _groups.Add(header);
+                Roots.Add(header);
+            }
+        }
+        else
+        {
+            foreach (var node in chains)
+            {
+                Roots.Add(node);
+            }
+        }
+
+        _folding = false;
         RaiseButton();
         Raise(nameof(HasNoChains));
     }
+
+    private static int Count(IEnumerable<ChainNodeViewModel> nodes) => nodes.Sum(node => 1 + Count(node.Children));
+
+    private ChainNodeViewModel Header(string project, int count)
+    {
+        var title = project.Length == 0 ? "Not in a project" : TitleOfProject(project);
+
+        return new ChainNodeViewModel(GroupPrefix + project, $"{title} · {count}", "#00000000", string.Empty, false,
+            string.Empty, string.Empty, new RelayCommand(_ => { }))
+        {
+            IsGroup = true,
+        };
+    }
+
+    private string TitleOfProject(string project) => ProjectTitle?.Invoke(project) ?? project;
+
+    private ChainEntry Entry(ChainNodeViewModel node) =>
+        new(_searchable[node.Key], _facts[node.Key], [.. node.Children.Select(Entry)]);
+
+    // A row the owner folded or unfolded keeps that; any other starts folded when everything below it is finished.
+    private void SetInitialFolds(ChainNodeViewModel node, ChainEntry entry)
+    {
+        node.IsExpanded = _folds.TryGetValue(node.Key, out var unfolded) ? unfolded : !ChainView.IsFinishedBelow(entry);
+
+        foreach (var (child, childEntry) in node.Children.Zip(entry.Children))
+        {
+            SetInitialFolds(child, childEntry);
+        }
+    }
+
+    private void RowFoldChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (_folding || e.PropertyName != nameof(ChainNodeViewModel.IsExpanded) || sender is not ChainNodeViewModel node)
+        {
+            return;
+        }
+
+        _folds[node.Key] = node.IsExpanded;
+
+        if (_foldsBeforeSearch is not null)
+        {
+            _foldsBeforeSearch[node.Key] = node.IsExpanded;
+        }
+
+        SaveFolds();
+    }
+
+    private void SaveFolds()
+    {
+        if (Settings is { } settings)
+        {
+            settings.Write(settings.Read() with { ChainsFolds = new Dictionary<string, bool>(_folds, StringComparer.OrdinalIgnoreCase) });
+        }
+    }
+
+    private ChainRowFacts Facts(WorkstreamCardViewModel card)
+    {
+        var written = _status.Links.Where(link => Same(link.From, card.Key)).Select(link => _status.StateOf(link)).ToList();
+
+        return new ChainRowFacts(card.Lifecycle)
+        {
+            IsPaused = card.IsPaused,
+            IsBlocked = card.IsBlocked,
+            IsArchived = card.IsArchived,
+            IsDone = card.IsDone,
+            Readiness = _status.ReadinessOf(card.Key),
+            ReportWaiting = written.Contains(LinkState.Reported),
+            ReportLost = written.Contains(LinkState.ReportLost),
+            StartAsked = StartAsked?.Invoke(card.Key) == true,
+        };
+    }
+
+    // The search and filters over the tree, as they stand: what shows, what each filter hides, and the folds a search needs.
+    private void ApplyView()
+    {
+        var query = SearchQuery.Parse(_searchText);
+        var view = ChainView.Apply(_entries, query, _filters);
+
+        foreach (var (key, node) in _shown)
+        {
+            var visibility = view.Of(key);
+            node.IsShown = visibility != ChainVisibility.Hidden;
+            node.IsContext = visibility == ChainVisibility.Context;
+            node.TitleHighlights = visibility == ChainVisibility.Shown ? CardSearch.Highlights(node.Title, query.Words) : [];
+        }
+
+        foreach (var header in _groups)
+        {
+            header.IsShown = header.Children.Any(node => node.IsShown);
+        }
+
+        ApplySearchFolds(query, view);
+
+        _view = view;
+        var search = new CardFilter(query, [], TagMatch.Any);
+        var ready = Ready.Where(node => _searchable.TryGetValue(node.Key, out var card) && search.Admits(card)).ToList();
+
+        if (!ready.SequenceEqual(ShownReady))
+        {
+            ShownReady.Clear();
+
+            foreach (var node in ready)
+            {
+                ShownReady.Add(node);
+            }
+        }
+
+        Raise(nameof(HiddenSummary));
+        Raise(nameof(ActiveOnlyText));
+        Raise(nameof(WaitingOnMeText));
+        Raise(nameof(HideCompletedText));
+        Raise(nameof(FilterButtonText));
+        Raise(nameof(FilterHelpText));
+        Raise(nameof(NoMatchText));
+        Raise(nameof(AllHiddenText));
+    }
+
+    // A search unfolds the rows above its matches for as long as it lasts, and the folds go back as they were when it is
+    // cleared; the remembered folds are never changed by it.
+    private void ApplySearchFolds(SearchQuery query, ChainViewResult view)
+    {
+        _folding = true;
+
+        if (!query.IsEmpty)
+        {
+            _foldsBeforeSearch ??= AllRows().ToDictionary(node => node.Key, node => node.IsExpanded, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var node in AllRows().Where(node => view.Unfold.Contains(node.Key, StringComparer.OrdinalIgnoreCase)
+                                                         || (node.IsGroup && node.IsShown)))
+            {
+                node.IsExpanded = true;
+            }
+        }
+        else if (_foldsBeforeSearch is { } before)
+        {
+            foreach (var node in AllRows())
+            {
+                if (before.TryGetValue(node.Key, out var unfolded))
+                {
+                    node.IsExpanded = unfolded;
+                }
+            }
+
+            _foldsBeforeSearch = null;
+        }
+
+        _folding = false;
+    }
+
+    private IEnumerable<ChainNodeViewModel> AllRows() => Flatten(Roots);
+
+    private IEnumerable<ChainNodeViewModel> TopChains() => Roots.SelectMany(row => row.IsGroup ? row.Children : [row]);
+
+    private static IEnumerable<ChainNodeViewModel> Flatten(IEnumerable<ChainNodeViewModel> nodes) =>
+        nodes.SelectMany(node => new[] { node }.Concat(Flatten(node.Children)));
 
     private string? Parent(string key) => _status.ParentLink(key)?.From;
 

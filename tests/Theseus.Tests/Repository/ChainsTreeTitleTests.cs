@@ -34,11 +34,14 @@ public class ChainsTreeTitleTests
             Is.LessThanOrEqualTo(PanelContentWidth + 0.5), "the title ends inside the panel");
     }
 
+    // The longest state word a row shows (chains-panel-at-scale criterion 12).
+    private const string WaitingState = "⧗ waiting on inputs";
+
     [Test]
     public void ALongTitle_LeavesTheStateShowingInsideThePanel()
     {
         var tree = LaidOut();
-        var state = Descendants<TextBlock>(tree).First(text => text.Text == "waiting");
+        var state = Descendants<TextBlock>(tree).First(text => text.Text == WaitingState);
         var left = state.TranslatePoint(new Point(0, 0), tree).X;
 
         Assert.That(state.ActualWidth, Is.GreaterThan(0));
@@ -49,7 +52,7 @@ public class ChainsTreeTitleTests
     [Test]
     public void ALongTitle_LeavesTheStateItsFullWidth()
     {
-        var state = Descendants<TextBlock>(LaidOut()).First(text => text.Text == "waiting");
+        var state = Descendants<TextBlock>(LaidOut()).First(text => text.Text == WaitingState);
 
         // The width the state's text needs with nothing pressing on it, against the room it was laid out in and the
         // size it was drawn at. Its desired size shrinks with the room offered, so it cannot show a squeeze
@@ -67,7 +70,10 @@ public class ChainsTreeTitleTests
     private static TreeView LaidOut()
     {
         var node = new ChainNodeViewModel("long", LongTitle, "#C0392B", "waiting", IsReady: false,
-            string.Empty, string.Empty, new RelayCommand(_ => { }));
+            string.Empty, string.Empty, new RelayCommand(_ => { }))
+        {
+            RowState = Theseus.Core.Links.ChainRowState.WaitingOnInputs,
+        };
 
         var host = (Border)XamlReader.Parse(PanelMarkup());
         host.DataContext = new Board(new Chains(new ObservableCollection<ChainNodeViewModel>([node])));
@@ -85,7 +91,7 @@ public class ChainsTreeTitleTests
         var window = XDocument.Load(Path.Combine(RepositoryRoot(), "src", "Theseus.App", "MainWindow.xaml"));
         var tree = window.Descendants(Presentation + "TreeView")
             .Single(element => (string?)element.Attribute("ItemsSource") == "{Binding Chains.Roots}");
-        var panelScroller = tree.Ancestors(Presentation + "ScrollViewer").First();
+        tree.Attribute("PreviewMouseWheel")?.Remove(); // a code-behind handler, which a parsed fragment cannot hold
         const string converters = "clr-namespace:Theseus.App.Converters;assembly=Theseus";
 
         return new XElement(Presentation + "Border",
@@ -100,9 +106,7 @@ public class ChainsTreeTitleTests
                     Converter(converters, "HexToBrushConverter", "HexToBrush"),
                     Converter(converters, "CountToVisibilityConverter", "CountToVisibility"),
                     Converter(converters, "NotEmptyToVisibilityConverter", "NotEmptyToVisibility"))),
-            new XElement(Presentation + "ScrollViewer",
-                panelScroller.Attributes().Where(attribute => !attribute.IsNamespaceDeclaration),
-                new XElement(Presentation + "StackPanel", new XElement(tree)))).ToString()
+            new XElement(Presentation + "Grid", new XElement(tree))).ToString()
             .Replace("\"clr-namespace:Theseus.App.Controls\"", "\"clr-namespace:Theseus.App.Controls;assembly=Theseus\"", StringComparison.Ordinal);
     }
 

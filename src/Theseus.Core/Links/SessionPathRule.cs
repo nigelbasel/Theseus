@@ -36,7 +36,7 @@ public sealed class SessionPathRule
             return $"{path} is in the plan directory, which only the board writes.";
         }
 
-        if (Inside(full, _dataDirectory))
+        if (Inside(full, _dataDirectory) && !IsVerifierResult(full))
         {
             return $"{path} is in Theseus's own data, which only Theseus writes.";
         }
@@ -65,6 +65,14 @@ public sealed class SessionPathRule
 
         return null;
     }
+
+    // A default holdout folder sits in Theseus's data, and Theseus's own verifier prompt (VerifierCard) puts the results
+    // there, so that one folder holds reports a verifier may name.
+    private bool IsVerifierResult(string full) =>
+        Full(_dataDirectory) is { } data
+        && Path.GetRelativePath(data, full).Split(Path.DirectorySeparatorChar) is [var holdouts, _, var results, _]
+        && string.Equals(holdouts, "holdouts", StringComparison.OrdinalIgnoreCase)
+        && string.Equals(results, VerifierCard.ResultsFolder, StringComparison.OrdinalIgnoreCase);
 
     private static bool Inside(string full, string directory) =>
         Full(directory) is { } root
