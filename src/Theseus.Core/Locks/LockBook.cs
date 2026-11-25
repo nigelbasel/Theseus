@@ -1,5 +1,6 @@
 using System.Globalization;
 using Theseus.Core.Abstractions;
+using Theseus.Core.Diagnostics;
 
 namespace Theseus.Core.Locks;
 
@@ -37,6 +38,7 @@ public sealed class LockBook
     private readonly IProcessTree? _tree;
     private readonly IOrphanCleaner? _cleaner;
     private ResourceTable _table;
+    private DateTimeOffset _lastAwakeUtc;
 
     /// <summary>
     /// Opens the book from its saved state. Waiters are given a fresh grace period and unattached grants
@@ -63,6 +65,7 @@ public sealed class LockBook
         _table = table ?? ResourceTable.Seeded();
 
         var now = clock.UtcNow;
+        _lastAwakeUtc = now;
 
         _tickets = store.Load()
             .Select(ticket => WithScope(ticket, _table))
@@ -451,7 +454,7 @@ public sealed class LockBook
 
     private bool Expire(DateTimeOffset now)
     {
-        var changed = false;
+        var changed = Wake(now);
         var gone = _tickets
             .Where(ticket => ticket.Mode == HoldMode.Session)
             .Select(ticket => ticket.SessionId!)
@@ -471,6 +474,46 @@ public sealed class LockBook
                 End(index, now, ending.Kind, ending.Detail, cleaned is null ? ending.Detail : $"{ending.Detail} {cleaned}");
                 changed = true;
             }
+        }
+
+        return changed;
+    }
+
+    /// <summary>
+    /// Silence is counted only in time Theseus itself was awake: after a gap longer than the waiter grace between two
+    /// of its own looks at the book, the machine was asleep, and so was everyone in the queue.
+    /// </summary>
+    private bool Wake(DateTimeOffset now)
+    {
+        var gap = now - _lastAwakeUtc;
+        _lastAwakeUtc = now;
+
+        if (gap <= WaiterGrace)
+        {
+            return false;
+        }
+
+        var changed = false;
+
+        for (var index = 0; index < _tickets.Count; index++)
+        {
+            var ticket = _tickets[index];
+
+            if (!ticket.IsHolder)
+            {
+                _tickets[index] = ticket with { LastSeenUtc = ticket.LastSeenUtc + gap };
+                changed = true;
+            }
+            else if (ticket.ReservedUntilUtc is { } until)
+            {
+                _tickets[index] = ticket with { ReservedUntilUtc = until + gap };
+                changed = true;
+            }
+        }
+
+        if (changed)
+        {
+            TheseusLog.Information("Theseus was not running for {Gap}; every waiter's and unattached grant's clock moved on by it", Say(gap));
         }
 
         return changed;
