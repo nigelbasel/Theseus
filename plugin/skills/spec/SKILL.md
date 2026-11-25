@@ -29,7 +29,10 @@ version on disk is accepted.
 - **With Theseus:** call `now_at("Spec", ...)` on entering. Before planning, call `gates()`. If the owner says "accept"
   in this session, report it with `accept_spec(slug, version, owner_words)`, quoting them; Theseus asks them to confirm
   on the board.
-- **Without Theseus:** the owner accepts by saying so in the session. Before you plan, record it as a dated row in the
-  project file's Decisions table, quoting their words and naming the spec. A changed spec needs accepting again.
+- **Without Theseus** there is no record a session cannot write, so this gate is weaker and rests on discipline. Only
+  the owner's explicit acceptance of this spec counts, such as "accept spec.md": approval of something else, or
+  "looks fine", is not acceptance. Best, the owner writes the Decisions row themselves. Otherwise, write it only after
+  such words, quoting them exactly, naming the spec and dated, and say in the row that the session wrote it. A changed
+  spec needs accepting again.
 
 A feature's spec is never skipped.

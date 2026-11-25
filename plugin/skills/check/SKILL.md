@@ -11,7 +11,7 @@ allowed-tools: Bash(node:*)
 Run this, with the project home folder if one was given (`$ARGUMENTS`), and show the user its output as it is:
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/plugin/scripts/check.js" $ARGUMENTS
+node "${CLAUDE_PLUGIN_ROOT}/plugin/scripts/check.js" "$ARGUMENTS"
 ```
 
 Then, for each line that is not `ok`, say in one line what to do about it:

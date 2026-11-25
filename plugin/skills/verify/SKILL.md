@@ -14,7 +14,8 @@ block, whose shape is in `${CLAUDE_PLUGIN_ROOT}/method/project.md`. It gives one
 
 - the build and the **full** test suite, as measured figures: passed, total, warnings;
 - for a bug, the reproduction test passing, **unchanged** since it failed (a plain diff check);
-- each holdout scenario the spec names, run, as pass or fail with its evidence;
+- each holdout scenario the spec names (for a bug, each scenario covering the behaviour, judged against
+  `reproduction.md` and `fix.md`), run, as pass or fail with its evidence;
 - each guard or condition the change adds, removed in a copy: report any test that still passes without it;
 - for UI behaviour, "unchanged" checked against what is rendered, not against the source;
 - steps a person is asked to carry out, checked against the code first, each saying what it should produce.

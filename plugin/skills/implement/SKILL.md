@@ -24,7 +24,9 @@ Role: implementer. Work only on the workstream's branch, `<user>/<slug>`, with o
 1. **Reproduce.** Write a test that fails for the reported reason, and **commit it on its own, before any fix**. Write
    `work/<slug>/reproduction.md`: the steps, the expected and actual behaviour, the decision or document that says what
    is expected, and the failing output. Gate: the test fails on the unfixed code, for the reported reason. Never
-   skipped. Do not push between this commit and the fix on a branch that CI builds and releases from.
+   skipped. Do not push between this commit and the fix on a branch that CI builds and releases from. If the defect
+   sits in code no test can reach, a refactor that changes no behaviour may come first, as its own commit with
+   characterisation tests; the reviewer checks it separately.
 2. **Fix.** Make the smallest change that makes the test pass without weakening it. `work/<slug>/fix.md` says the cause,
    and why the change addresses the cause rather than the symptom.
 

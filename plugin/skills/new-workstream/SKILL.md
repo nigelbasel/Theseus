@@ -28,12 +28,16 @@ Read `<home>/project.md` (the home folder is in `$ARGUMENTS`, or ask). Then ask,
 
 ## Then do it
 
-1. Add its row to the objective's workstreams table: `| <name> | <slug> | <user>/<slug> | <repos> | <what> |`. If the
-   objective's `**Pipeline:**` is `[to be chosen]`, set it.
+1. Add its row to the objective's workstreams table, with the table's own columns:
+   `| <name> | <slug> | <user>/<slug> | <repos> |`, plus `<what> |` only when the table has the optional `What` column.
+   If the objective's `**Pipeline:**` is `[to be chosen]`, set it. Keep the shape `method/project.md` gives, where the
+   table follows the `**Pipeline:**` line directly, as Theseus writes it. Theseus reads these lines, so add no column.
 2. In each repo, branch off the project's **primary branch**, not the trunk:
    `git -C <clone> fetch origin`, then
-   `git -C <clone> worktree add -b <user>/<slug> <worktree> origin/<primary>`.
-   Pushing the workstream branch needs no asking; merging into the trunk is never a session's.
+   `git -C <clone> worktree add --no-track -b <user>/<slug> <worktree> origin/<primary>`.
+   `--no-track` keeps a plain `git push` from landing on the primary. Push the workstream branch with
+   `git -C <worktree> push -u origin <user>/<slug>`, which needs no asking; merging into the trunk is never a
+   session's.
    In git, a branch cannot be both `<user>/<project>` and `<user>/<project>/<x>`, so the slug is never nested under
    the primary branch's name.
 3. Create `<home>/work/<slug>/` and write `brief.md` there: the objective and its criteria, the pipeline, the repos

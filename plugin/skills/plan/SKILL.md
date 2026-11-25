@@ -8,7 +8,8 @@ description: The plan stage of the feature pipeline. Use once the owner has acce
 **Pipeline:** feature, stage `plan` (`${CLAUDE_PLUGIN_ROOT}/method/pipelines/feature.yaml`). Role: planner.
 
 **Before you start,** check that the spec on disk is accepted. With Theseus, `gates()` says so. Without Theseus, the
-project file's Decisions table has the owner's acceptance of this version. If it is not accepted, stop: see
+project file's Decisions table has the owner's explicit acceptance of this version, in their own words (see
+`/agentic-factory:spec`). If it is not accepted, stop: see
 `/agentic-factory:spec`.
 
 **Produces:** `work/<slug>/plan.md`:

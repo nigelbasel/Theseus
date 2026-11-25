@@ -35,8 +35,10 @@ Ask the user, in one question each, for what `$ARGUMENTS` does not already give:
 3. Add a dated row to the Decisions table: the project started, by the user.
 4. Offer to make the **projects folder** (the folder that holds the home folders) a local git repository with no remote,
    so every version of every spec is kept. Only with a yes: `git init`, then commit `project.md`.
-5. For each repo, offer to create the primary branch off its trunk and push it: `git -C <clone> switch -c <primary>
-   origin/<trunk>`, then `git -C <clone> push -u origin <primary>`. Each push is the user's yes.
+5. For each repo, offer to create the primary branch off its trunk and push it, **without checking it out**, so the
+   clone stays on its default branch: `git -C <clone> fetch origin`, `git -C <clone> branch <primary> origin/<trunk>`,
+   then `git -C <clone> push -u origin <primary>`. Each push is the user's yes. Work happens in worktrees, which
+   `/agentic-factory:new-workstream` makes.
 6. Run `/agentic-factory:check <home>` and show the result.
 
 Finish by saying what was made, with full paths, and that `/agentic-factory:new-workstream` starts the first piece of

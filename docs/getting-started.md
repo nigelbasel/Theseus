@@ -98,7 +98,7 @@ by discipline:
 
 | With the board | On a Mac |
 |---|---|
-| The spec gate is a click on the board | The session stops at its spec. You accept it in the session, and it records your words as a dated row in the project file's Decisions table before it plans |
+| The spec gate is a click on the board | The session stops at its spec. You accept it explicitly ("accept spec.md"), and you or the session record your words as a dated row in the project file's Decisions table before it plans. Nothing stops a session writing that row itself, so this gate rests on discipline |
 | A verifier card starts when a scenario names a build | You start the verifier yourself, in a new terminal, with the command `/agentic-factory:verifier` gives |
 | `ask_owner` shows a question in Waits for you | A parked question is written to `work/<slug>/questions.md`, with a `Waiting: owner:` line under its criterion |
 | `report_back` files a report for you to confirm | The report is `work/<slug>/REPORT.md`; you read it |

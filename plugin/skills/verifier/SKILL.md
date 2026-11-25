@@ -29,6 +29,10 @@ macOS, Linux, or Git Bash on Windows:
 cd "<worktree>" && THESEUS_ROLE=verifier claude --add-dir "<home>" --add-dir "<holdout>" "You are the independent verifier for <slug>. Run /agentic-factory:verify: check the branch <user>/<slug> against <home>/work/<slug>/spec.md and every holdout scenario in <holdout> that names <slug>. Write <home>/work/<slug>/evidence.md, and your detailed results only in <holdout>/results."
 ```
 
+For a **bug**, the prompt names `<home>/work/<slug>/reproduction.md` and `fix.md` instead of `spec.md`, and the
+scenarios covering the behaviour rather than those a spec names; it also asks that the reproduction test pass unchanged
+since it failed.
+
 Windows PowerShell:
 
 ```powershell

@@ -32,7 +32,7 @@ function rules() {
         '  "Waiting: owner: <what>" under the criterion it holds; carry on with what does not depend on it.',
         '- report_back: write work/<slug>/REPORT.md (/agentic-factory:report), then stop.',
         '- tick_criterion and the other project.md tools: edit by hand, in the shape method/project.md gives.',
-        '- accept_spec: the owner accepts in the session; record their words and the date as a Decisions row first.',
+        '- accept_spec: only the owner\'s explicit words accepting the spec count; quote them in a dated Decisions row.',
         '- a verifier card: /agentic-factory:verifier gives the command to start one in a fresh session.',
         '',
         section(readme, 'Rules that hold everywhere'),
