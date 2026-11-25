@@ -1195,6 +1195,26 @@ public partial class MainWindow : Window
         board.ScrollToVerticalOffset(board.VerticalOffset - e.Delta);
     }
 
+    /// <summary>
+    /// Moves the Chains panel by the wheel's own delta, before anything inside it can swallow the event. Nothing inside
+    /// the panel scrolls on its own, so the panel takes every step; a precision touchpad's small steps then add up to
+    /// what a notch would move, rather than each moving three lines (Nigel, 2026-11-25).
+    /// </summary>
+    private void OnChainsPanelMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (sender is not ScrollViewer panel)
+        {
+            return;
+        }
+
+        e.Handled = true;
+        panel.ScrollToVerticalOffset(panel.VerticalOffset - e.Delta);
+
+        // The offset changes only on the next layout, and a touchpad sends several steps before one: without this, each
+        // step would start from the same place and all but the last would be lost.
+        panel.UpdateLayout();
+    }
+
     /// <summary>The first ScrollViewer above this one in the visual tree, if there is one.</summary>
     private static ScrollViewer? Ancestor(DependencyObject from)
     {

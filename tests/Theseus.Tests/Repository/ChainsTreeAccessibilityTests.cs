@@ -125,7 +125,7 @@ public class ChainsTreeAccessibilityTests
                     Converter(converters, "CountToVisibilityConverter", "CountToVisibility"),
                     Converter(converters, "NotEmptyToVisibilityConverter", "NotEmptyToVisibility"))),
             new XElement(Presentation + "ScrollViewer",
-                panelScroller.Attributes().Where(attribute => !attribute.IsNamespaceDeclaration),
+                panelScroller.Attributes().Where(attribute => !attribute.IsNamespaceDeclaration && attribute.Name.LocalName != "PreviewMouseWheel"),
                 new XElement(Presentation + "StackPanel", new XElement(tree)))).ToString()
             .Replace($"\"{AppControls}\"", $"\"{AppControls};assembly=Theseus\"", StringComparison.Ordinal);
     }

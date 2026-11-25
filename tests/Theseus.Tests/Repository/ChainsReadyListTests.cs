@@ -79,7 +79,7 @@ public class ChainsReadyListTests
                             new XAttribute("Source", "pack://application:,,,/PresentationFramework.Fluent;component/Themes/Fluent.Light.xaml"))),
                     Converter(converters, "HexToBrushConverter", "HexToBrush"))),
             new XElement(Presentation + "ScrollViewer",
-                panelScroller.Attributes().Where(attribute => !attribute.IsNamespaceDeclaration),
+                panelScroller.Attributes().Where(attribute => !attribute.IsNamespaceDeclaration && attribute.Name.LocalName != "PreviewMouseWheel"),
                 new XElement(Presentation + "StackPanel", new XElement(list)))).ToString();
     }
 

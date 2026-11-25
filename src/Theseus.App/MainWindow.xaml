@@ -2251,7 +2251,11 @@
                     </StackPanel>
                 </Grid>
 
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <!--
+                    PreviewMouseWheel because the tree's own scroll viewer has nowhere to scroll and still marks the
+                    wheel handled: over the tree, neither the wheel nor a touchpad moved the panel (Nigel, 2026-11-25).
+                -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto" PreviewMouseWheel="OnChainsPanelMouseWheel">
                     <StackPanel>
                         <TextBlock FontSize="12" TextWrapping="Wrap" Margin="4,0,4,8"
                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"

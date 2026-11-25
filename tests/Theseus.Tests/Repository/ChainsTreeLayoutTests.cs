@@ -93,7 +93,7 @@ public class ChainsTreeLayoutTests
                     Converter("CountToVisibilityConverter", "CountToVisibility"),
                     Converter("NotEmptyToVisibilityConverter", "NotEmptyToVisibility"))),
             new XElement(Presentation + "ScrollViewer",
-                panelScroller.Attributes().Where(attribute => !attribute.IsNamespaceDeclaration),
+                panelScroller.Attributes().Where(attribute => !attribute.IsNamespaceDeclaration && attribute.Name.LocalName != "PreviewMouseWheel"),
                 new XElement(Presentation + "StackPanel", new XElement(tree))));
 
         // The app's controls namespace on a prefix, then given its assembly, as a parsed fragment needs.
