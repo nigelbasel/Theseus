@@ -1724,6 +1724,7 @@ public sealed partial class ShellViewModel : ObservableObject
                     HasRun = HasRun(card),
                     StartFailure = _verifierStartFailures.GetValueOrDefault(card.Key),
                     IsStarting = _launcher.InFlight.IsInFlight(card.Key),
+                    IsHeadless = Headless?.Holds(card.Key) == true,
                     IsObsolete = IsObsolete(card),
                 }),
             Chains?.AllLinks ?? []);
@@ -2909,6 +2910,7 @@ public sealed partial class ShellViewModel : ObservableObject
             HasRun = HasRun(card),
             StartFailure = _verifierStartFailures.GetValueOrDefault(card.Key),
             IsStarting = _launcher.InFlight.IsInFlight(card.Key),
+            IsHeadless = Headless?.Holds(card.Key) == true,
             IsObsolete = IsObsolete(card),
             HandIn = HandInOf(card),
             LastRunStartedUtc = _runStarts.TryGetValue(card.Key, out var started) ? started : null,

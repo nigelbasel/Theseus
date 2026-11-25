@@ -62,7 +62,7 @@ public static class VerifierCards
     {
         ArgumentNullException.ThrowIfNull(card);
 
-        return !card.HasSession && !card.IsStarting;
+        return !card.HasSession && !card.IsStarting && !card.IsHeadless;
     }
 
     /// <summary>The Waits line for a verifier that needs a start, with the reason when it is known.</summary>

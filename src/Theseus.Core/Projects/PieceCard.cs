@@ -37,6 +37,9 @@ public sealed record PieceCard(
     /// <summary>Whether a launch of it is in flight: its tab is open, perhaps asking whether to trust its folder.</summary>
     public bool IsStarting { get; init; }
 
+    /// <summary>Whether a headless run of it is going or queued: it has no tab, so its Lifecycle does not say so.</summary>
+    public bool IsHeadless { get; init; }
+
     /// <summary>The question its session has open for the owner (1.6), or null.</summary>
     public Theseus.Core.Questions.OwnerQuestion? Question { get; init; }
 

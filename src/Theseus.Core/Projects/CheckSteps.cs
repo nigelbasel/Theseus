@@ -32,7 +32,7 @@ public static class CheckSteps
                                             && piece.Status.State == StageNodeState.HoldoutsNotRun).ToList();
         var notChecked = waiting.Where(piece => piece.PendingVerifiers.Count == 0 && isChecked?.Invoke(piece) != true).ToList();
         var unnamed = notChecked.Count(piece => !isNamed(piece));
-        var checking = waiting.Count(piece => piece.PendingVerifiers.Any(verifier => verifier.HasSession || verifier.IsStarting));
+        var checking = waiting.Count(piece => piece.PendingVerifiers.Any(verifier => verifier.HasSession || verifier.IsStarting || verifier.IsHeadless));
 
         var underway = new List<string>();
 
