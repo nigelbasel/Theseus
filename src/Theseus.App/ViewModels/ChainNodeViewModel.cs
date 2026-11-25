@@ -1,5 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using Theseus.Core.Finding;
+using Theseus.Core.Links;
 
 namespace Theseus.App.ViewModels;
 
@@ -28,6 +30,10 @@ public sealed record ChainNodeViewModel(
     private string _session = string.Empty;
     private RelayCommand? _focus;
     private bool _isExpanded = true;
+    private ChainRowState _rowState = ChainRowState.Stopped;
+    private bool _isShown = true;
+    private bool _isContext;
+    private IReadOnlyList<TextSpan> _titleHighlights = [];
 
     /// <inheritdoc />
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -86,4 +92,87 @@ public sealed record ChainNodeViewModel(
 
     /// <summary>Its key, shown when another row has the same title so the two can be told apart; empty otherwise.</summary>
     public string Copy { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Whether it is a project's header rather than a card: shown only when the chains span two or more projects, with
+    /// no state and no Focus (chains-panel-at-scale criterion 18, Nigel 2026-11-25).
+    /// </summary>
+    public bool IsGroup { get; init; }
+
+    /// <summary>Its state, in one mark and word (chains-panel-at-scale criterion 12). Changed in place, as the session is.</summary>
+    public ChainRowState RowState
+    {
+        get => _rowState;
+        set
+        {
+            if (_rowState != value)
+            {
+                _rowState = value;
+                Notify(nameof(RowState), nameof(StateText), nameof(ScreenName), nameof(NeedsOwner), nameof(IsMuted));
+            }
+        }
+    }
+
+    /// <summary>"◆ asking you", "● running", "✓ done" and so on; empty on a project's header.</summary>
+    public string StateText => IsGroup ? string.Empty : $"{ChainRowStates.Mark(_rowState)} {ChainRowStates.Word(_rowState)}";
+
+    /// <summary>What a screen reader names the row: its title and its state's word.</summary>
+    public string ScreenName => IsGroup ? Title : $"{Title}, {ChainRowStates.Word(_rowState)}";
+
+    /// <summary>Whether its state waits on the owner, drawn in the caution colour.</summary>
+    public bool NeedsOwner => !IsGroup && _rowState is ChainRowState.AskingYou or ChainRowState.Reported
+        or ChainRowState.ReportLost or ChainRowState.StartAsked;
+
+    /// <summary>Whether it is finished with, its row muted.</summary>
+    public bool IsMuted => !IsGroup && _rowState is ChainRowState.Done or ChainRowState.Archived;
+
+    /// <summary>Whether the panel's search and filters keep it on screen, as a match or as context.</summary>
+    public bool IsShown
+    {
+        get => _isShown;
+        set
+        {
+            if (_isShown != value)
+            {
+                _isShown = value;
+                Notify(nameof(IsShown));
+            }
+        }
+    }
+
+    /// <summary>Whether it is on screen only because a row below it is kept, drawn quieter.</summary>
+    public bool IsContext
+    {
+        get => _isContext;
+        set
+        {
+            if (_isContext != value)
+            {
+                _isContext = value;
+                Notify(nameof(IsContext));
+            }
+        }
+    }
+
+    /// <summary>Where the panel's search words fall in the title, to be highlighted; empty with no search.</summary>
+    public IReadOnlyList<TextSpan> TitleHighlights
+    {
+        get => _titleHighlights;
+        set
+        {
+            if (!_titleHighlights.SequenceEqual(value))
+            {
+                _titleHighlights = value;
+                Notify(nameof(TitleHighlights));
+            }
+        }
+    }
+
+    private void Notify(params string[] names)
+    {
+        foreach (var name in names)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        }
+    }
 }

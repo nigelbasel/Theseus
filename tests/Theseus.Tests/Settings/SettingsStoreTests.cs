@@ -70,6 +70,8 @@ public class SettingsStoreTests
             MaxHeadlessRuns = 7,
             ProjectRunModes = new Dictionary<string, Theseus.Core.Running.RunMode> { ["bym"] = Theseus.Core.Running.RunMode.Headless },
             Duties = new DutySettings { DailyRunCap = 12, QuietHoursOn = true, QueueProjects = ["bym"] },
+            ChainsFilters = new Theseus.Core.Links.ChainFilters(ActiveOnly: true, WaitingOnMe: false, HideCompleted: false),
+            ChainsFolds = new Dictionary<string, bool> { ["git-22"] = false, ["project:Theseus"] = true },
         };
 
         _store.Write(settings);
@@ -104,6 +106,8 @@ public class SettingsStoreTests
         Assert.That(read.TagColours, Is.EqualTo(new Dictionary<string, string> { ["bym"] = "#208DD7" }));
         Assert.That((read.Duties.DailyRunCap, read.Duties.QuietHoursOn), Is.EqualTo((12, true)));
         Assert.That(read.Duties.QueueProjects, Is.EqualTo(new[] { "bym" }));
+        Assert.That(read.ChainsFilters, Is.EqualTo(settings.ChainsFilters));
+        Assert.That(read.ChainsFolds, Is.EqualTo(settings.ChainsFolds));
         Assert.That(read with
             {
                 Lanes = settings.Lanes, Areas = settings.Areas, CollapsedAreas = settings.CollapsedAreas,
@@ -118,6 +122,7 @@ public class SettingsStoreTests
                 ProjectTags = settings.ProjectTags, TagColours = settings.TagColours,
                 ProjectBudgets = settings.ProjectBudgets, ProjectRunModes = settings.ProjectRunModes,
                 Duties = read.Duties with { QueueProjects = settings.Duties.QueueProjects },
+                ChainsFolds = settings.ChainsFolds,
             }, Is.EqualTo(settings),
             "a record holding a list compares it by reference, so the lists are checked separately");
     }
@@ -141,6 +146,8 @@ public class SettingsStoreTests
         Assert.That(settings.Theme, Is.EqualTo(AppTheme.Dark));
         Assert.That(settings.JiraBaseUrl, Is.Empty);
         Assert.That(settings.SessionPreamble, Is.Empty);
+        Assert.That(settings.ChainsFilters, Is.EqualTo(new Theseus.Core.Links.ChainFilters()), "Hide completed on, the rest off");
+        Assert.That(settings.ChainsFolds, Is.Empty);
     }
 
     [Test]

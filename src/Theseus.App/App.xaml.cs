@@ -125,6 +125,9 @@ public partial class App : Application
         chains.ReportArrived = shell.Say;
         chains.FocusCard = key => shell.FocusCardCommand.Execute(shell.Board.Card(key));
         chains.ReportConfirmed = shell.ReportConfirmed;
+        chains.ProjectTitle = shell.ProjectTitle;
+        chains.StartAsked = key => shell.StartRequests.Pending.Any(request => string.Equals(request.CardKey, key, StringComparison.OrdinalIgnoreCase));
+        chains.Settings = settings;
 
         var workItems = new WorkItemBook(Path.Combine(DataDirectory, "work-items.json"));
         shell.WorkItems = workItems;

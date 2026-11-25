@@ -915,7 +915,7 @@ public sealed partial class ShellViewModel : ObservableObject
             : null;
 
     /// <summary>A project's title from its file, for "resumes with &lt;project&gt;" (review of PR 2, finding 10).</summary>
-    private string ProjectTitle(string name) =>
+    public string ProjectTitle(string name) =>
         _projectReads.Current.FirstOrDefault(reading => string.Equals(reading.Name, name, StringComparison.OrdinalIgnoreCase))?.File?.Title
         ?? name;
 
