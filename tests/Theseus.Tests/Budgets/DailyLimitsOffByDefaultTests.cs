@@ -5,28 +5,27 @@ using static Theseus.Tests.Running.RunRecords;
 namespace Theseus.Tests.Budgets;
 
 /// <summary>
-/// The per-card and per-project daily cost limits are off unless set; the per-run limits and the breaker stay (Nigel,
-/// 2026-11-25: they silently refused every Start again on the bug-fixing verifiers).
+/// The per-card and per-project daily cost limits are off unless set (Nigel, 2026-11-25: they silently refused every Start
+/// again on the bug-fixing verifiers); the per-run ones went off the same day, and the breakers stay.
 /// </summary>
 [TestFixture]
 public class DailyLimitsOffByDefaultTests
 {
     [Test]
-    public void TheDefaults_HaveNoDayLimit_AndKeepThePerRunLimits()
+    public void TheDefaults_HaveNoDayLimit()
     {
         var defaults = BudgetSettings.Default;
 
         Assert.That((defaults.CardDayCostLimitUsd, defaults.ProjectDayCostLimitUsd), Is.EqualTo(((decimal?)null, (decimal?)null)));
-        Assert.That((defaults.RunCostLimitUsd, defaults.RunTokenLimit, defaults.RunTimeLimitMinutes), Is.EqualTo((5.00m, 3_000_000L, 120)));
     }
 
     [Test]
-    public void WithTheDefaults_ACardAndProjectThatSpentALotToday_StillStart_WithThePerRunLimits()
+    public void WithTheDefaults_ACardAndProjectThatSpentALotToday_StillStart()
     {
         var verdict = DayBudget.Check(BudgetSettings.Default, [Run(cost: 100m), Run("other", cost: 100m)], "card", "proj", Noon, TimeZoneInfo.Utc);
 
         Assert.That(verdict.Allowed, Is.True);
-        Assert.That((verdict.Limits!.CostUsd, verdict.Limits.CostLimit), Is.EqualTo((5m, BudgetLimit.RunCost)));
+        Assert.That(verdict.Limits!.CostUsd, Is.Null);
     }
 
     [Test]

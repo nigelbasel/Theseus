@@ -129,6 +129,7 @@ public sealed partial class ShellViewModel : IRunRequests
         ArgumentNullException.ThrowIfNull(keys);
 
         var reset = new List<string>();
+        var writers = false;
 
         foreach (var key in keys)
         {
@@ -149,12 +150,20 @@ public sealed partial class ShellViewModel : IRunRequests
             Board.Persist(card);
             _cardEvents.Append(new CardEvent(DateTimeOffset.UtcNow, key, "Breaker reset by the owner"));
             reset.Add(card.Title);
+            writers |= card.Workstream.Role == WorkstreamRole.ScenarioWriter;
+        }
+
+        if (writers)
+        {
+            ForgetWriterTries();
         }
 
         if (reset.Count > 0)
         {
             TheseusLog.Information("Reset the breakers of {Cards}", string.Join(", ", reset));
-            Notice = $"Reset the breaker of {string.Join(", ", reset)}. It starts again when you start it.";
+            Notice = writers && reset.Count == 1
+                ? $"Reset the breaker of {reset[0]}. Theseus starts it again for the builds no scenario names."
+                : $"Reset the breaker of {string.Join(", ", reset)}. It starts again when you start it.";
             Refresh();
         }
     }
