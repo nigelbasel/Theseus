@@ -153,7 +153,7 @@ public sealed record PieceStatus(StageNodeState State, string Text)
         }
 
         if (stages.Any(stage => stage.State == StageNodeState.HoldoutsNotRun)
-            && piece.PendingVerifiers.FirstOrDefault(verifier => verifier.HasSession) is { } checking)
+            && piece.PendingVerifiers.FirstOrDefault(verifier => verifier.HasSession || verifier.IsHeadless) is { } checking)
         {
             return new PieceStatus(StageNodeState.HoldoutsNotRun, "Built; its independent check is under way.")
             {

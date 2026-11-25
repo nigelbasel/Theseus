@@ -40,14 +40,14 @@ public class NoDuplicateVerifierTests
     public void TearDown() => _folder.Dispose();
 
     private ProjectViewModel WithVerifier(SessionLifecycle lifecycle, bool archived = false, bool hasRun = false, string? failed = null,
-        bool starting = false, bool reported = false)
+        bool starting = false, bool reported = false, bool headless = false)
     {
         IReadOnlyList<PieceCard> cards =
         [
             .. BuildYourMarketBoard(),
             Card(Verifier, lifecycle, role: WorkstreamRole.Verifier) with
             {
-                IsArchived = archived, HasRun = hasRun, StartFailure = failed, IsStarting = starting,
+                IsArchived = archived, HasRun = hasRun, StartFailure = failed, IsStarting = starting, IsHeadless = headless,
             },
         ];
         var reportBack = NewLink(LinkKind.ReportsBack, Verifier, _buildCard);
@@ -184,6 +184,19 @@ public class NoDuplicateVerifierTests
         inMenu.Command.Execute(null);
 
         Assert.That(_views.Ran, Is.EqualTo(new[] { $"StartVerifier:{Verifier}", $"StartVerifier:{Verifier}" }));
+    }
+
+    // The live case (git-22, 2026-11-25): three verifiers ran headless, yet each kept Start again, which was refused.
+    [Test]
+    public void AVerifierRunningOrQueuedHeadless_NeedsNothingFromYou_AndStillStands()
+    {
+        var view = WithVerifier(SessionLifecycle.NotStarted, hasRun: true, headless: true,
+            failed: "Verify: x already has a headless run going or queued.");
+        var box = view.AllNodes.Single(node => node.Name == _build);
+
+        Assert.That(Of(view, WaitKind.StartVerifier), Is.Empty, "it has no tab, but it is running");
+        Assert.That(box.Actions.Select(action => action.Label), Has.None.Contains(Verifier));
+        Assert.That(Stands(view), Is.True);
     }
 
     [Test]

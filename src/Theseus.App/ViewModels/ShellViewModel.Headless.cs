@@ -18,6 +18,7 @@ public sealed partial class ShellViewModel : IRunRequests
     private RelayCommand? _trippedBreakersCommand;
     private RelayCommand? _runInTabCommand;
     private RelayCommand? _runHeadlessCommand;
+    private HashSet<string> _headlessHeld = new(StringComparer.OrdinalIgnoreCase);
     private RelayCommand? _runByDefaultCommand;
     private RelayCommand? _openInTabCommand;
     private RelayCommand? _showOutputCommand;
@@ -77,12 +78,26 @@ public sealed partial class ShellViewModel : IRunRequests
         }
 
         var now = DateTimeOffset.UtcNow;
+        var held = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var card in Board.Cards)
         {
             var state = runner.StateOf(card.Key);
             card.HeadlessLine = HeadlessFace.For(state, now, TimeZoneInfo.Local) ?? string.Empty;
             card.HeadlessDetail = state is { IsRunning: true, LastLine: { } line } ? line : string.Empty;
+
+            if (runner.Holds(card.Key))
+            {
+                held.Add(card.Key);
+            }
+        }
+
+        // A verifier's Start again goes when its run starts or queues, and comes back when the run ends without its report.
+        if (!held.SetEquals(_headlessHeld))
+        {
+            _headlessHeld = held;
+            RefreshStandingVerifiers();
+            WireProjectChoices();
         }
 
         HeadlessCounts = runner.Running + runner.Queued == 0
