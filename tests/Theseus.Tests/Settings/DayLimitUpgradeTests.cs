@@ -79,6 +79,18 @@ public class DayLimitUpgradeTests
     }
 
     [Test]
+    public void KeysInAnyCase_AreUpgraded_AndProjectsWhoseNamesDifferOnlyInCase_DoNotStopTheRead()
+    {
+        var read = ReadAfterWriting("""
+            { "Budgets": { "CardDayCostLimitUsd": 20 },
+              "projectBudgets": { "Foo": { "cardDayCostLimitUsd": 20 }, "foo": { "ProjectDayCostLimitUsd": 45 } } }
+            """);
+
+        Assert.That(read.Budgets.CardDayCostLimitUsd, Is.Null);
+        Assert.That(read.ProjectBudgets.Values.Select(budget => budget.ProjectDayCostLimitUsd), Has.Some.EqualTo(45m));
+    }
+
+    [Test]
     public void AnUpgradedFile_ReadAgain_StillHasNoDayLimit()
     {
         var store = new SettingsStore(_path);

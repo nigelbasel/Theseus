@@ -4,8 +4,7 @@ namespace Theseus.Core.Launching;
 
 /// <summary>
 /// What the board says when a press of Start was refused by a breaker or a limit: at once and where it was pressed, with
-/// the action that clears it. Until 2026-11-25 it was only a Warning in the log, and Nigel saw "Start again did not do
-/// anything".
+/// the action that clears it (Nigel, 2026-11-25: it was only a Warning in the log, and "Start again did not do anything").
 /// </summary>
 /// <param name="Title">The dialog's title, naming what could not be done (baseline A5).</param>
 /// <param name="Text">Why, and what clears it.</param>

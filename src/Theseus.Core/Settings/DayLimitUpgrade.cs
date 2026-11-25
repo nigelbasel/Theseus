@@ -16,21 +16,19 @@ public static class DayLimitUpgrade
         ("projectDayCostLimitUsd", "projectDayLimitUsd", 60.00m),
     ];
 
-    private static readonly JsonNodeOptions CaseInsensitive = new() { PropertyNameCaseInsensitive = true };
-
     /// <summary>The settings text with the old day limits upgraded, or unchanged when it holds none.</summary>
     public static string Apply(string json)
     {
         ArgumentNullException.ThrowIfNull(json);
 
-        if (!json.Contains("DayCostLimitUsd", StringComparison.OrdinalIgnoreCase) || JsonNode.Parse(json, CaseInsensitive) is not JsonObject root)
+        if (!json.Contains("DayCostLimitUsd", StringComparison.OrdinalIgnoreCase) || JsonNode.Parse(json) is not JsonObject root)
         {
             return json;
         }
 
-        Upgrade(root["budgets"] as JsonObject);
+        Upgrade(Named(root, "budgets") as JsonObject);
 
-        if (root["projectBudgets"] is JsonObject projects)
+        if (Named(root, "projectBudgets") is JsonObject projects)
         {
             foreach (var project in projects)
             {
@@ -41,6 +39,11 @@ public static class DayLimitUpgrade
         return root.ToJsonString();
     }
 
+    // Matched as the serialiser reads them, ignoring case, but without a case-insensitive object: two project names that
+    // differ only in case would make one throw.
+    private static JsonNode? Named(JsonObject parent, string name) =>
+        parent.FirstOrDefault(property => property.Key.Equals(name, StringComparison.OrdinalIgnoreCase)).Value;
+
     private static void Upgrade(JsonObject? budget)
     {
         if (budget is null)
@@ -50,14 +53,14 @@ public static class DayLimitUpgrade
 
         foreach (var (old, renamed, oldDefault) in Renamed)
         {
-            if (!budget.TryGetPropertyValue(old, out var value))
+            if (budget.FirstOrDefault(property => property.Key.Equals(old, StringComparison.OrdinalIgnoreCase)) is not { Key: { } found, Value: var value })
             {
                 continue;
             }
 
-            budget.Remove(old);
+            budget.Remove(found);
 
-            if (!budget.ContainsKey(renamed) && value is JsonValue figure && figure.TryGetValue<decimal>(out var chosen) && chosen != oldDefault)
+            if (Named(budget, renamed) is null && value is JsonValue figure && figure.TryGetValue<decimal>(out var chosen) && chosen != oldDefault)
             {
                 budget[renamed] = chosen;
             }
