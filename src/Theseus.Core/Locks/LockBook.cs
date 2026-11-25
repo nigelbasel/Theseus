@@ -34,6 +34,7 @@ public sealed class LockBook
     private readonly ISystemClock _clock;
     private readonly IProcessTree? _tree;
     private readonly IOrphanCleaner? _cleaner;
+    private ResourceTable _table;
 
     /// <summary>
     /// Opens the book from its saved state. Waiters are given a fresh grace period and unattached grants
@@ -41,13 +42,15 @@ public sealed class LockBook
     /// </summary>
     /// <param name="tree">Finds the test hosts under a test run's holder, so they can be cleared if it dies.</param>
     /// <param name="cleaner">Clears what a dead test run's holder left running before the next is granted.</param>
+    /// <param name="table">Each resource's capacity and clashes; the seeded table when not given.</param>
     public LockBook(
         LockStateStore store,
         LockHistory history,
         ILockLiveness liveness,
         ISystemClock clock,
         IProcessTree? tree = null,
-        IOrphanCleaner? cleaner = null)
+        IOrphanCleaner? cleaner = null,
+        ResourceTable? table = null)
     {
         _store = store;
         _history = history;
@@ -55,13 +58,27 @@ public sealed class LockBook
         _clock = clock;
         _tree = tree;
         _cleaner = cleaner;
+        _table = table ?? ResourceTable.Seeded();
 
         var now = clock.UtcNow;
 
         _tickets = store.Load()
-            .Where(ticket => LockNames.Find(ticket.Lock) is not null)
+            .Select(ticket => WithScope(ticket, _table))
+            .Where(ticket => ticket.Claims.Count > 0)
             .Select(ticket => Resumed(ticket, now))
             .ToList();
+    }
+
+    /// <summary>The resource table requests are granted under.</summary>
+    public ResourceTable Table
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _table;
+            }
+        }
     }
 
     /// <summary>Raised after any change to a lock or a queue, on whichever thread made it.</summary>
@@ -84,9 +101,11 @@ public sealed class LockBook
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        if (LockNames.Find(request.Lock) is not { } name)
+        var name = LockNames.Find(request.Lock);
+
+        if (!string.IsNullOrWhiteSpace(request.Lock) && name is null)
         {
-            return new LockAnswer(LockStatus.Refused, $"There is no lock called '{request.Lock}'. The locks are: {string.Join(", ", LockNames.All)}.");
+            return new LockAnswer(LockStatus.Refused, $"There is no lock called '{request.Lock}'. The locks are: {string.Join(", ", LockNames.All)}; any other resource is asked for by scope.");
         }
 
         if (string.IsNullOrWhiteSpace(request.Who) || string.IsNullOrWhiteSpace(request.Purpose))
@@ -101,7 +120,15 @@ public sealed class LockBook
 
         return Change(now =>
         {
-            var key = KeyFor(name, request);
+            var scope = ScopeOf(name, request.Scope);
+
+            if (scope.Count == 0)
+            {
+                return (new LockAnswer(LockStatus.Refused, "A lock request needs a lock or a scope."), false);
+            }
+
+            var label = name ?? string.Join(" + ", scope);
+            var key = KeyFor(label, request);
             var index = _tickets.FindIndex(ticket => string.Equals(ticket.RequesterKey, key, StringComparison.Ordinal));
             var changed = false;
             string token;
@@ -116,11 +143,13 @@ public sealed class LockBook
             {
                 token = Guid.NewGuid().ToString("N");
                 var ticket = new LockTicket(
-                    token, name, request.Who.Trim(), request.Purpose.Trim(), request.Mode, key, now, now,
-                    Trimmed(request.WorkingDirectory), Trimmed(request.SessionId), Trimmed(request.Reason));
+                    token, label, request.Who.Trim(), request.Purpose.Trim(), request.Mode, key, now, now,
+                    Trimmed(request.WorkingDirectory), Trimmed(request.SessionId), Trimmed(request.Reason),
+                    Scope: scope, Owner: OwnerOf(request),
+                    Card: Trimmed(request.Card), Command: Trimmed(request.Command), Commit: Trimmed(request.Commit));
 
                 _tickets.Add(ticket);
-                _history.Append(new LockEvent(now, LockEventKind.Requested, name, ticket.Who, ticket.Purpose, Detail: ticket.Reason));
+                _history.Append(new LockEvent(now, LockEventKind.Requested, label, ticket.Who, ticket.Purpose, Detail: ticket.Reason));
                 changed = true;
             }
 
@@ -212,13 +241,16 @@ public sealed class LockBook
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        if (LockNames.Find(request.Lock) is not { } name)
+        var lockName = LockNames.Find(request.Lock);
+
+        if (!string.IsNullOrWhiteSpace(request.Lock) && lockName is null)
         {
             return new LockAnswer(LockStatus.Refused, $"There is no lock called '{request.Lock}'.");
         }
 
         return Change(now =>
         {
+            var name = lockName ?? string.Join(" + ", ScopeOf(lockName, request.Scope));
             var key = KeyFor(name, request);
             var index = _tickets.FindIndex(ticket => string.Equals(ticket.RequesterKey, key, StringComparison.Ordinal));
 
@@ -273,7 +305,7 @@ public sealed class LockBook
             var ticket = _tickets[index];
             _tickets.RemoveAt(index);
 
-            var waiters = Waiters(ticket.Lock).ToList();
+            var waiters = Waiters(ticket).Where(other => !ReferenceEquals(other, ticket)).ToList();
             var place = Math.Clamp(position, 0, waiters.Count);
             var insertAt = place < waiters.Count
                 ? _tickets.IndexOf(waiters[place])
@@ -343,7 +375,7 @@ public sealed class LockBook
         {
             var ticket = _tickets[index];
 
-            if (ticket is not { IsHolder: true, Lock: LockNames.Tests, ProcessId: { } processId })
+            if (ticket is not { IsHolder: true, ProcessId: { } processId } || !ticket.Needs(ResourceTable.SqlContainers))
             {
                 continue;
             }
@@ -405,7 +437,7 @@ public sealed class LockBook
 
             if (Ending(ticket, now, gone) is { } ending)
             {
-                var cleaned = ending.Kind == LockEventKind.HolderGone && ticket is { Lock: LockNames.Tests, ProcessId: not null, GrantedUtc: { } granted }
+                var cleaned = ending.Kind == LockEventKind.HolderGone && ticket is { ProcessId: not null, GrantedUtc: { } granted } && ticket.Needs(ResourceTable.SqlContainers)
                     ? _cleaner?.Clean(ticket.TestHosts ?? [], granted, now)
                     : null;
 
@@ -462,29 +494,31 @@ public sealed class LockBook
 
     private bool Promote(DateTimeOffset now)
     {
+        var plan = GrantPlanner.Plan(_tickets, _table);
         var changed = false;
 
-        foreach (var name in LockNames.All)
+        for (var index = 0; index < _tickets.Count; index++)
         {
-            if (_tickets.Any(ticket => ticket.IsHolder && ticket.Lock == name))
+            var ticket = _tickets[index];
+
+            if (plan.Overtaken.TryGetValue(ticket.Token, out var overtaken) && overtaken != ticket.Overtaken)
+            {
+                ticket = ticket with { Overtaken = overtaken };
+                _tickets[index] = ticket;
+                changed = true;
+            }
+
+            if (!plan.Granted.Contains(ticket.Token))
             {
                 continue;
             }
 
-            var index = _tickets.FindIndex(ticket => ticket.Lock == name);
-
-            if (index < 0)
-            {
-                continue;
-            }
-
-            var next = _tickets[index];
-            _tickets[index] = next with
+            _tickets[index] = ticket with
             {
                 GrantedUtc = now,
-                ReservedUntilUtc = next.Mode == HoldMode.Process ? now + Reservation : null,
+                ReservedUntilUtc = ticket.Mode == HoldMode.Process ? now + Reservation : null,
             };
-            _history.Append(new LockEvent(now, LockEventKind.Granted, name, next.Who, next.Purpose, WaitedSeconds: Seconds(now - next.RequestedUtc)));
+            _history.Append(new LockEvent(now, LockEventKind.Granted, ticket.Lock, ticket.Who, ticket.Purpose, WaitedSeconds: Seconds(now - ticket.RequestedUtc)));
             changed = true;
         }
 
@@ -536,18 +570,32 @@ public sealed class LockBook
             return new LockAnswer(LockStatus.Granted, detail, token, ticket.Lock, 0, null, ticket.ReservedUntilUtc);
         }
 
-        var position = Waiters(ticket.Lock).ToList().IndexOf(ticket) + 1;
-        var holder = _tickets.FirstOrDefault(other => other.IsHolder && other.Lock == ticket.Lock);
+        var position = Waiters(ticket).TakeWhile(other => !ReferenceEquals(other, ticket)).Count() + 1;
+        var holder = _tickets.FirstOrDefault(other => other.IsHolder && Clash(other, ticket));
         var behind = holder is null
-            ? "the lock is being handed on"
+            ? "what it needs is held back for an earlier request"
             : $"held by {holder.Who} for {holder.Purpose}, for {Say(now - holder.GrantedUtc!.Value)}";
 
         return new LockAnswer(LockStatus.Waiting, $"Waiting for the {ticket.Lock} lock, {Ordinal(position)} in the queue; {behind}.",
             token, ticket.Lock, position, holder);
     }
 
-    private IEnumerable<LockTicket> Waiters(string name) =>
-        _tickets.Where(ticket => !ticket.IsHolder && ticket.Lock == name);
+    private IEnumerable<LockTicket> Waiters(LockTicket ticket) =>
+        _tickets.Where(other => !other.IsHolder && (ReferenceEquals(other, ticket) || Clash(other, ticket)));
+
+    private bool Clash(LockTicket one, LockTicket other) =>
+        !_table.Fits(one.Claims, [other.Claims]);
+
+    private IReadOnlyList<ResourceClaim> ScopeOf(string? name, IReadOnlyList<ResourceClaim>? declared) =>
+        ResourceClaim.Normalise([.. PredefinedScopes.Find(name, _table) ?? [], .. declared ?? []]);
+
+    private static string? OwnerOf(LockRequest request) =>
+        Trimmed(request.Owner) ?? (request.Mode == HoldMode.Session ? Trimmed(request.SessionId) : null);
+
+    private static LockTicket WithScope(LockTicket ticket, ResourceTable table) =>
+        ticket.Scope is { Count: > 0 } scope
+            ? ticket with { Scope = ResourceClaim.Normalise(scope) }
+            : ticket with { Scope = PredefinedScopes.Find(ticket.Lock, table) ?? [] };
 
     private int IndexOf(string token) =>
         _tickets.FindIndex(ticket => string.Equals(ticket.Token, token, StringComparison.Ordinal));

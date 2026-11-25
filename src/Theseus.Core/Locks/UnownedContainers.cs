@@ -14,7 +14,7 @@ public static class UnownedContainers
     /// </summary>
     public static IReadOnlyList<TestContainer> From(IReadOnlyList<TestContainer> containers, IReadOnlyList<LockTicket> tickets)
     {
-        var heldSince = tickets.FirstOrDefault(ticket => ticket is { IsHolder: true, Lock: LockNames.Tests })?.GrantedUtc;
+        var heldSince = tickets.FirstOrDefault(ticket => ticket.IsHolder && ticket.Needs(ResourceTable.SqlContainers))?.GrantedUtc;
 
         return [.. containers
             .Where(container => heldSince is null || container.CreatedUtc < heldSince)
