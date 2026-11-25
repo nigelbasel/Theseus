@@ -3,7 +3,7 @@
 The **agentic factory** is a method for running software work with Claude Code sessions. Work is planned from
 objectives with acceptance criteria. Each piece of work goes through fixed stages, writes its records to disk, and
 passes gates: the owner accepts each spec, an independent verifier checks the result, and only a person merges into
-main. The terms used here (workstream, pipeline, gate, holdout, park) are the ones the software factory guide uses.
+main. The terms used here (workstream, pipeline, gate, holdout, park) are the ones the [software factory guide](factory-guide.md) uses.
 
 The method ships as a **Claude Code plugin**, `agentic-factory`, which works in plain Claude Code on Windows, macOS
 and Linux. It gives every session:

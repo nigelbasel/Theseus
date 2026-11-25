@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 namespace Theseus.Tests.Repository;
 
 /// <summary>
-/// The repo is public, and the method kit under method/ is written by
+/// The repo is public, and the method kit, the plugin and the method's guides under docs/ are written by
 /// sessions working on the owner's machine. They carry no machine paths and no card ids: placeholders such as
 /// &lt;scratch&gt;, &lt;worktree&gt; and "the workstream log" instead (method rule P19, Nigel, 2026-11-19). Every
 /// stage 0 record broke this before the rule existed.
@@ -13,6 +13,8 @@ namespace Theseus.Tests.Repository;
 public class PublicFilesTests
 {
     private static readonly string[] Folders = ["method", "plugin"];
+
+    private static readonly string[] Files = ["docs/factory-guide.md", "docs/getting-started.md"];
 
     private static readonly Regex MachineSpecific = new(
         @"\\Users\\(?![<%])\w"
@@ -50,6 +52,7 @@ public class PublicFilesTests
             .Select(folder => Path.Combine(root, folder))
             .Where(Directory.Exists)
             .SelectMany(folder => Directory.EnumerateFiles(folder, "*.md", SearchOption.AllDirectories))
+            .Concat(Files.Select(file => Path.Combine(root, file)))
             .SelectMany(file => File.ReadLines(file).Select((line, index) => (file, line, number: index + 1)))
             .Where(entry => MachineSpecific.IsMatch(entry.line))
             .Select(entry => $"{Path.GetRelativePath(root, entry.file)}:{entry.number}")
