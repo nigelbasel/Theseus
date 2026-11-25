@@ -116,6 +116,12 @@ public sealed class ProjectPropertiesViewModel : ObservableObject
 
     private bool _grantsBranchRules;
 
+    /// <summary>
+    /// Whether the project's cards run headless unless a card says otherwise (Nigel, 2026-11-24); off leaves each card to
+    /// its role: verifiers and scenario writers headless, the rest in a tab.
+    /// </summary>
+    public bool RunsHeadless { get; set; }
+
     /// <summary>Why its project.md does not read, or null (1.1e AC 18): shown here, not on the card's face.</summary>
     public string? Problem { get; init; }
 

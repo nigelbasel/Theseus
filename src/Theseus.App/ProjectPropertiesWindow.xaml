@@ -163,6 +163,12 @@
                                   ToolTip="{Binding BranchRulesToolTip}" AutomationProperties.HelpText="{Binding BranchRulesLabel}"
                                   Content="Allow branch rules for this project" />
                     </controls:SettingRow>
+
+                    <controls:SettingRow x:Name="RunModeRow" Label="Run mode"
+                                         Explanation="Headless runs need no tab and work inside their budgets; a card's own run mode still comes first.">
+                        <CheckBox x:Name="RunsHeadlessBox" IsChecked="{Binding RunsHeadless, Mode=TwoWay}"
+                                  Content="Run this project's cards _headless" />
+                    </controls:SettingRow>
                 </StackPanel>
             </TabItem>
 

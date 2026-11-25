@@ -47,4 +47,10 @@ public enum WaitKind
 
     /// <summary>A criterion's ask of someone other than the owner: said as theirs, never counted as his.</summary>
     Outside,
+
+    /// <summary>A card's circuit breaker tripped; only the owner's Reset lets it run again (Nigel, 2026-11-24).</summary>
+    ResetBreaker,
+
+    /// <summary>A card's headless run stopped at a budget limit; the owner can raise it, then start the card.</summary>
+    RaiseBudget,
 }

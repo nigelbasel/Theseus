@@ -13,6 +13,7 @@ using Theseus.Core.Launching;
 using Theseus.Core.Links;
 using Theseus.Core.Projects;
 using Theseus.Core.Sessions;
+using Theseus.Core.Running;
 using Theseus.Core.Settings;
 using Theseus.Core.Stopping;
 using Theseus.Core.Terminal;
@@ -960,6 +961,7 @@ public sealed partial class ShellViewModel : ObservableObject
             PrimaryBranch = primary,
             GrantsBranchRules = granted,
             GrantedPrimary = grant?.Primary,
+            RunsHeadless = _settings.Read().ProjectRunModes.TryGetValue(card.Name, out var projectMode) && projectMode == RunMode.Headless,
             ResumesIdleCards = _settings.Read().Duties.QueueIsOn(card.Name),
             OpenAt = openAt,
             Holdout = _holdouts.LocationOfProject(card.Name),
@@ -1025,6 +1027,24 @@ public sealed partial class ShellViewModel : ObservableObject
             });
             Notice = $"{card.Title}'s lead is now {Board.Card(chosen)?.Title ?? chosen}.";
             WireProjectChoices();
+        }
+
+        var modes = _settings.Read().ProjectRunModes;
+
+        if (properties.RunsHeadless != (modes.TryGetValue(card.Name, out var before) && before == RunMode.Headless))
+        {
+            var changed = modes.Where(pair => !string.Equals(pair.Key, card.Name, StringComparison.OrdinalIgnoreCase))
+                .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
+
+            if (properties.RunsHeadless)
+            {
+                changed[card.Name] = RunMode.Headless;
+            }
+
+            _settings.Write(_settings.Read() with { ProjectRunModes = changed });
+            Notice = properties.RunsHeadless
+                ? $"{card.Title}'s cards run headless from their next start, unless a card says otherwise."
+                : $"{card.Title}'s cards run as their roles say from their next start: verifiers headless, the rest in a tab.";
         }
 
         // OK with the box ticked over a grant for another primary branch grants it for the one the file names now.
@@ -2604,7 +2624,11 @@ public sealed partial class ShellViewModel : ObservableObject
             var overview = ProjectOverview.For(reading.File!, pieces, links, Chains?.Proposals?.Pending.Select(row => row.Proposal) ?? [],
                 acceptances.Count(acceptance => string.Equals(acceptance.Project, reading.Name, StringComparison.OrdinalIgnoreCase)),
                 StartRequests.Pending, key => Board.Card(key)?.Title ?? key, WrongVerifiersOf(reading.Name), ClearUpNoticeOf(reading),
-                checkPlan.Underway, others, ChecksThatCannotRun(reading, pieces, checkPlan), OwnerAccount.Names);
+                checkPlan.Underway, others,
+                [.. ChecksThatCannotRun(reading, pieces, checkPlan), .. HeadlessWaits.For(cards
+                    .Where(card => string.Equals(card.Workstream.Project, reading.Name, StringComparison.OrdinalIgnoreCase))
+                    .Select(card => card.Workstream), key => Headless?.StateOf(key))],
+                OwnerAccount.Names);
             TakeCheckSteps(reading, pieces, checkPlan);
             var file = reading.File!;
 
@@ -2821,6 +2845,8 @@ public sealed partial class ShellViewModel : ObservableObject
                 TellCard = (key, text) => Tell(Board.Card(key), text),
                 AnswerStartRequest = AnswerStartRequest,
                 ClearVerifiers = ClearUpVerifiers,
+                ResetBreaker = key => ResetBreakers([key]),
+                OpenOptions = () => Settings.OpenCommand.Execute(null),
                 StartVerifier = key =>
                 {
                     if (Board.Card(key) is { } verifier)
@@ -3648,6 +3674,23 @@ public sealed partial class ShellViewModel : ObservableObject
 
         foreach (var step in steps)
         {
+            // A headless run has no console to type into: its stop is written into the run itself (Nigel, 2026-11-24).
+            if (Headless is { } runner && runner.Holds(step.WorkstreamKey))
+            {
+                TheseusLog.Information("Asked the headless run of {Workstream} to hand over and stop", step.WorkstreamKey);
+
+                if (runner.AskToStop(step.WorkstreamKey))
+                {
+                    asked++;
+                }
+                else
+                {
+                    underway++;
+                }
+
+                continue;
+            }
+
             var alreadyAsked = _stopRequests.Waiting(step.SessionId) is not null;
 
             var alreadyDelivered = StillHandingOver(step);
@@ -4148,6 +4191,12 @@ public sealed partial class ShellViewModel : ObservableObject
             card.ConvertToProjectCommand ??= new RelayCommand(_ => ConvertToProject(card),
                 _ => _hasProjectsFolder && card.Workstream.Project is null && card.Workstream.Role == WorkstreamRole.None);
             card.RenameHandoffCommand ??= new RelayCommand(_ => RenameHandoff(card), _ => card.HandoffRenameTo.Length > 0);
+            card.RunInTabCommand ??= new RelayCommand(_ => RunInTabCommand.Execute(card));
+            card.RunHeadlessCommand ??= new RelayCommand(_ => RunHeadlessCommand.Execute(card));
+            card.RunByDefaultCommand ??= new RelayCommand(_ => RunByDefaultCommand.Execute(card));
+            card.OpenInTabCommand ??= new RelayCommand(_ => OpenInTabCommand.Execute(card), _ => OpenInTabCommand.CanExecute(card));
+            card.ShowOutputCommand ??= new RelayCommand(_ => ShowOutputCommand.Execute(card), _ => ShowOutputCommand.CanExecute(card));
+            card.ResetBreakerCommand ??= new RelayCommand(_ => ResetBreakerCommand.Execute(card), _ => card.IsBreakerTripped);
         }
 
         // After the lifecycles above, so a verifier that has just ended no longer stands (review of 72ec6d7).
@@ -4276,7 +4325,8 @@ public sealed partial class ShellViewModel : ObservableObject
     {
         if (card.Workstream.LastSessionId is not { } sessionId
             || Sessions.Find(sessionId) is not { } session
-            || _unconfirmed.Contains(sessionId))
+            || _unconfirmed.Contains(sessionId)
+            || Headless?.Holds(card.Key) == true)
         {
             return new CloseDecision(CloseVerdict.Skip);
         }

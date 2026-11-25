@@ -68,5 +68,8 @@ public static class WorkstreamAssembler
             PauseReason = sidecar is { IsPaused: true } ? sidecar.PauseReason : null,
             Role = sidecar?.Role ?? WorkstreamRole.None,
             Tags = sidecar?.Tags ?? [],
+            RunMode = sidecar?.RunMode,
+            Breaker = sidecar?.Breaker,
+            BreakerResetUtc = sidecar?.BreakerResetUtc,
         };
 }

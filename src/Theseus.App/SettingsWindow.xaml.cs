@@ -18,6 +18,13 @@ public partial class SettingsWindow : Window
     {
         InitializeComponent();
         SourceInitialized += (_, _) => FitToWorkArea();
+        DataContextChanged += (_, _) =>
+        {
+            if (Settings is { } settings)
+            {
+                settings.AskValue = (title, label, current) => Ask(title, label, current);
+            }
+        };
 
         // The selected tab, not the TabControl, so its focus ring shows and the arrows switch tabs at once (W43, G66).
         Loaded += (_, _) => (Tabs.SelectedItem as System.Windows.Controls.TabItem ?? Tabs.Items.OfType<System.Windows.Controls.TabItem>().First()).Focus();

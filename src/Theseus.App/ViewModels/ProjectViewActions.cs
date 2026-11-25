@@ -93,6 +93,12 @@ public sealed record ProjectViewActions(
     /// <summary>Clear up verifiers… for a project: stops, archives and rejects the verifier cards that should not be kept.</summary>
     public Action<string>? ClearVerifiers { get; init; }
 
+    /// <summary>Resets a card's tripped breaker, by key (Nigel, 2026-11-24).</summary>
+    public Action<string>? ResetBreaker { get; init; }
+
+    /// <summary>Opens Options, where the headless limits are raised.</summary>
+    public Action? OpenOptions { get; init; }
+
     /// <summary>Undo of the last Clear up verifiers… of a project.</summary>
     public Action<string>? UndoClearVerifiers { get; init; }
 

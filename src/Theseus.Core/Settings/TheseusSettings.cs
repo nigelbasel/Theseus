@@ -289,6 +289,27 @@ public sealed record TheseusSettings(
     public Layout.WindowPlacement? SpecWindow { get; init; }
 
 
+    /// <summary>The limits headless runs work inside, unless their project has its own (Nigel, 2026-11-24).</summary>
+    public Budgets.BudgetSettings Budgets { get; init; } = Theseus.Core.Budgets.BudgetSettings.Default;
+
+    /// <summary>A project's own limits for its headless runs, by project name, replacing <see cref="Budgets"/> whole.</summary>
+    public IReadOnlyDictionary<string, Budgets.BudgetSettings> ProjectBudgets { get; init; } =
+        new Dictionary<string, Budgets.BudgetSettings>();
+
+    /// <summary>The thresholds of the circuit breakers on every card (Nigel, 2026-11-24).</summary>
+    public Breakers.BreakerSettings Breakers { get; init; } = Theseus.Core.Breakers.BreakerSettings.Default;
+
+    /// <summary>How many headless runs may go at once on this machine; the rest queue (Nigel, 2026-11-24).</summary>
+    public int MaxHeadlessRuns { get; init; } = 3;
+
+    /// <summary>The run mode a project's cards take when a card has none of its own, by project name.</summary>
+    public IReadOnlyDictionary<string, Running.RunMode> ProjectRunModes { get; init; } =
+        new Dictionary<string, Running.RunMode>();
+
+    /// <summary>The budget limits in force for a project's cards: its own, or the app's.</summary>
+    public Budgets.BudgetSettings BudgetsFor(string? project) =>
+        project is not null && ProjectBudgets.TryGetValue(project, out var own) ? own : Budgets;
+
     /// <summary>Where workstreams are kept until the user points Theseus somewhere of their own.</summary>
     public static string DefaultPlanDirectory { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),

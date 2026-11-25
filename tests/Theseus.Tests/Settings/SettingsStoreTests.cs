@@ -64,6 +64,11 @@ public class SettingsStoreTests
             ProjectUpdaterRuns = new Dictionary<string, string> { ["bym"] = "Does not read: line 3" },
             ProjectTags = new Dictionary<string, IReadOnlyList<string>> { ["bym"] = ["bym", "security"] },
             TagColours = new Dictionary<string, string> { ["bym"] = "#208DD7" },
+            Budgets = new Theseus.Core.Budgets.BudgetSettings(RunCostLimitUsd: 2.5m, RunTokenLimit: 9_000),
+            ProjectBudgets = new Dictionary<string, Theseus.Core.Budgets.BudgetSettings> { ["bym"] = new(CardDayCostLimitUsd: 3m) },
+            Breakers = new Theseus.Core.Breakers.BreakerSettings(Crashes: 5),
+            MaxHeadlessRuns = 7,
+            ProjectRunModes = new Dictionary<string, Theseus.Core.Running.RunMode> { ["bym"] = Theseus.Core.Running.RunMode.Headless },
             Duties = new DutySettings { DailyRunCap = 12, QuietHoursOn = true, QueueProjects = ["bym"] },
         };
 
@@ -84,6 +89,8 @@ public class SettingsStoreTests
         Assert.That(read.PaneSizes["ProjectView:Pane"], Is.EqualTo(420));
         Assert.That(read.ProjectColours["a-project"], Is.EqualTo("#208DD7"));
         Assert.That(read.ProjectGrouping["a-project"], Is.EqualTo(ProjectViewGrouping.Objectives));
+        Assert.That(read.ProjectBudgets["bym"].CardDayCostLimitUsd, Is.EqualTo(3m));
+        Assert.That(read.ProjectRunModes["bym"], Is.EqualTo(Theseus.Core.Running.RunMode.Headless));
         Assert.That(read.ProjectRunStates["a-project"], Is.EqualTo(new[] { "git-22", "git-23" }));
         Assert.That(read.ProjectLeads["a-project"], Is.EqualTo("git-22"));
         Assert.That(read.CardsStoppedByOwner, Is.EqualTo(new[] { "git-24" }));
@@ -109,6 +116,7 @@ public class SettingsStoreTests
                 ProjectHoldoutFolders = settings.ProjectHoldoutFolders,
                 ProjectUpdaterRuns = settings.ProjectUpdaterRuns,
                 ProjectTags = settings.ProjectTags, TagColours = settings.TagColours,
+                ProjectBudgets = settings.ProjectBudgets, ProjectRunModes = settings.ProjectRunModes,
                 Duties = read.Duties with { QueueProjects = settings.Duties.QueueProjects },
             }, Is.EqualTo(settings),
             "a record holding a list compares it by reference, so the lists are checked separately");

@@ -46,4 +46,16 @@ public sealed record LaunchSpec(
     /// see them on 2026-11-19). Empty for a card with no role, which then starts exactly as it always has.
     /// </summary>
     public IReadOnlyDictionary<string, string> Environment { get; init; } = new Dictionary<string, string>();
+
+    /// <summary>
+    /// Whether the session runs headless, in print mode with stream-json in and out, started and read by Theseus rather
+    /// than a tab (Nigel, 2026-11-24). Its prompt is then written to stdin, not passed on the command line.
+    /// </summary>
+    public bool Headless { get; init; }
+
+    /// <summary>
+    /// Claude Code's own cost cap for a headless run, <c>--max-budget-usd</c>: the hard backstop behind Theseus's
+    /// own limits, since cost is only known at the end of a turn. Null for none.
+    /// </summary>
+    public decimal? MaxBudgetUsd { get; init; }
 }

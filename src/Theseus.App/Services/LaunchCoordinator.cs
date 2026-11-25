@@ -5,6 +5,7 @@ using Theseus.Core.Diagnostics;
 using Theseus.Core.Domain;
 using Theseus.Core.Launching;
 using Theseus.Core.Messaging;
+using Theseus.Core.Running;
 using Theseus.Core.Settings;
 using Theseus.Core.Stopping;
 using Theseus.Core.Terminal;
@@ -127,7 +128,8 @@ public sealed class LaunchCoordinator : IAsyncDisposable
     /// <param name="startMode">
     /// Resume the last conversation or start fresh from the handoff. Null means the board's default.
     /// </param>
-    public string? Launch(Workstream workstream, string? planPath = null, StartMode? startMode = null)
+    /// <param name="reason">What asked for the start, recorded with a headless run.</param>
+    public string? Launch(Workstream workstream, string? planPath = null, StartMode? startMode = null, RunReason reason = RunReason.Owner)
     {
         ArgumentNullException.ThrowIfNull(workstream);
 
@@ -143,13 +145,27 @@ public sealed class LaunchCoordinator : IAsyncDisposable
             return null;
         }
 
-        if (_claude.Locate() is not { } claudePath
-            || _terminals.Resolve() is not { Source: not TerminalSource.None } terminal)
+        if (_claude.Locate() is not { } claudePath)
         {
             return null;
         }
 
         var settings = _settings.Read();
+        var headless = Headless is not null && RunModeChoice.For(workstream, settings.ProjectRunModes) == RunMode.Headless;
+        var terminal = headless ? null : _terminals.Resolve();
+
+        if (!headless && terminal is not { Source: not TerminalSource.None })
+        {
+            return null;
+        }
+
+        if (headless && (Headless!.Holds(workstream.Key) ? $"{workstream.Title} already has a headless run going or queued." : Headless.Refusal(workstream)) is { } refusal)
+        {
+            LastRefusal = refusal;
+            TheseusLog.Information("Refused a headless start of {Workstream}: {Refusal}", workstream.Key, refusal);
+
+            return null;
+        }
         var requested = startMode ?? settings.DefaultStartMode;
 
         var mode = StartModeChoice.For(requested,
@@ -186,12 +202,17 @@ public sealed class LaunchCoordinator : IAsyncDisposable
             _settings.Write(_settings.Read() with { CardsToldBranchRules = rules is null ? [.. told] : [.. told, workstream.Key] });
         }
 
+        if (headless)
+        {
+            return LaunchHeadless(workstream, sessionId, mode, claudePath, opening, resume ? fullOpening : null, handoff, settings, reason);
+        }
+
         // Which window this tab joins is the whole of grouping: same name, same window; a name
         // nothing is using yet makes a new one. Nothing else has to exist for sessions to be grouped.
         var windowName = WindowGroupName.For(settings.TerminalWindowName, workstream, settings.AreaWindows, ReadableProjects?.Invoke());
 
         var request = new WorkstreamLaunchRequest(workstream, Guid.NewGuid().ToString("N"), sessionId,
-            mode, claudePath, terminal.ExecutablePath, _launcherPath, _pipeName,
+            mode, claudePath, terminal!.ExecutablePath, _launcherPath, _pipeName,
             windowName, opening, McpConfigFor?.Invoke(sessionId), resume ? fullOpening : null)
         {
             Settings = SessionSettings,
@@ -243,8 +264,46 @@ public sealed class LaunchCoordinator : IAsyncDisposable
         return sessionId;
     }
 
+    /// <summary>
+    /// Runs headless the cards whose mode says so (Nigel, 2026-11-24); null runs every card in a tab, as before.
+    /// </summary>
+    public HeadlessRunner? Headless { get; set; }
+
+    /// <summary>The project's current piece of work for a card, recorded with its headless runs, or null.</summary>
+    public Func<Workstream, string?>? PieceFor { get; set; }
+
     /// <inheritdoc />
     public ValueTask DisposeAsync() => _pipe.DisposeAsync();
+
+    // Built exactly as a tab's launch is, so a headless run keeps the Theseus tools, its folders, its resume and its
+    // handoff; only the process differs.
+    private string LaunchHeadless(Workstream workstream, string sessionId, LaunchMode mode, string claudePath, string opening,
+        string? openingIfReminted, string handoff, TheseusSettings settings, RunReason reason)
+    {
+        var request = new WorkstreamLaunchRequest(workstream, Guid.NewGuid().ToString("N"), sessionId, mode, claudePath,
+            string.Empty, _launcherPath, _pipeName, string.Empty, opening, McpConfigFor?.Invoke(sessionId), openingIfReminted)
+        {
+            Settings = SessionSettings,
+        };
+
+        var spec = WorkstreamLaunchPlanner.Plan(request, DateTimeOffset.UtcNow).Ticket.Spec;
+        var stopText = StopRequest.For(settings.StopPrompt, new StopTarget(workstream.Title, handoff));
+        var runId = Guid.NewGuid();
+
+        TheseusLog.Information("Launching {Workstream} headless as {Mode}: run {Run}, session {Session}", workstream.Key, mode, runId, sessionId);
+
+        Launched?.Invoke(sessionId);
+        LaunchedCard?.Invoke(workstream.Key);
+
+        _runs.Append(new SessionRun(runId, sessionId, workstream.Key, workstream.WorkingDirectory,
+            null, mode == LaunchMode.Resume ? SessionLaunchMode.Resume : SessionLaunchMode.FirstRun, workstream.Prompt,
+            workstream.Title, workstream.ColorHex, DateTimeOffset.UtcNow, null, null, null, null,
+            SessionExitReason.Unknown));
+
+        Headless!.Submit(new HeadlessSubmission(workstream, spec, reason, stopText) { Piece = PieceFor?.Invoke(workstream) });
+
+        return sessionId;
+    }
 
     private string? RelatedSinceLastRun(string key)
     {
