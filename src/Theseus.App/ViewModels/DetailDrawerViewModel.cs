@@ -91,7 +91,14 @@ public sealed class DetailDrawerViewModel : ObservableObject
         AddJiraKeyCommand = new RelayCommand(_ => AddJiraKey(), _ => CanAddJiraKey);
         RemoveJiraKeyCommand = new RelayCommand(RemoveJiraKey, parameter => parameter is string);
         RescanPromptCommand = new RelayCommand(_ => RescanPrompt(), _ => UnclaimedKeys.Count > 0);
+        TagEditor = new TagEditorViewModel(() => [.. (TagsInUse?.Invoke() ?? []).Select(use => use.Tag)], ApplyOverview);
     }
+
+    /// <summary>The card's Tags field (card-search-and-tags item 10); a change applies at once, as the rest of the panel does.</summary>
+    public TagEditorViewModel TagEditor { get; }
+
+    /// <summary>The tags in use on the board, offered as a tag is typed. Set by the shell.</summary>
+    public Func<IReadOnlyList<Theseus.Core.Finding.TagCount>>? TagsInUse { get; set; }
 
     /// <summary>Puts this workstream away, or brings it back when it is already away.</summary>
     public RelayCommand ArchiveCommand { get; }
@@ -172,14 +179,11 @@ public sealed class DetailDrawerViewModel : ObservableObject
     /// <summary>Whether this workstream is put away.</summary>
     public bool IsArchived => _card?.Workstream.IsArchived ?? false;
 
-    /// <summary>What the archive button says, which is the opposite thing when it is already away.</summary>
-    public string ArchiveLabel => IsArchived ? "Restore" : "Archive";
-
     /// <summary>Whether a session is running, which is what stops either from being possible.</summary>
     public bool IsLive => _card?.IsLive ?? false;
 
-    /// <summary>Why neither can be done, or empty when both can.</summary>
-    public string RemovalRefusal => WorkstreamRemoval.RefusalToArchive(IsLive) ?? string.Empty;
+    /// <summary>Beside the More button, why Archive is greyed, so it is not found only inside the menu (git-22, 2026-11-23).</summary>
+    public string ArchiveWhyNot => IsLive ? "Stop its session first" : string.Empty;
 
     /// <summary>What deleting will destroy, said before it is done.</summary>
     public string DeleteConsequence => WorkstreamRemoval.Consequence(Key);
@@ -219,6 +223,15 @@ public sealed class DetailDrawerViewModel : ObservableObject
 
     /// <summary>This workstream's past launches, newest first.</summary>
     public ObservableCollection<RunHistoryEntryViewModel> Runs { get; } = [];
+
+    /// <summary>
+    /// What was done to it that is not a run, such as a project's session pausing it (1.1e AC 16), newest first, each as
+    /// "time  what".
+    /// </summary>
+    public ObservableCollection<string> Events { get; } = [];
+
+    /// <summary>A card's events, set by the shell; null shows none.</summary>
+    public Func<string, IReadOnlyList<Theseus.Core.Domain.CardEvent>>? EventsOf { get; set; }
 
     /// <summary>The workflows this workstream's last session ran, newest first.</summary>
     public ObservableCollection<WorkflowRunViewModel> Workflows { get; } = [];
@@ -414,6 +427,41 @@ public sealed class DetailDrawerViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Whether a card's project is running, and who starts it and when, by key: the box's answer (item 5), given to the
+    /// drawer too (Nigel, 2026-11-23: "Yes, same as the box"). Set by the shell; null keeps the plain Start.
+    /// </summary>
+    public Func<string, ProjectRunStart?>? WhoStarts { get; set; }
+
+    /// <summary>The Start button's words: Start anyway… for a card its running project starts, else the card's own.</summary>
+    public string StartLabel => _card is null
+        ? string.Empty
+        : WhoStarts?.Invoke(_card.Key) is not null ? Theseus.Core.Projects.WhoStarts.StartAnywayLabel : _card.PrimaryAction;
+
+    /// <summary>Who starts it and when, while its project is running and starting it is the project's; null otherwise.</summary>
+    public string? StartedBy => _card is null ? null : WhoStarts?.Invoke(_card.Key)?.Line;
+
+    /// <summary>Whether the who-starts line shows above the buttons.</summary>
+    public bool HasStartedBy => !string.IsNullOrEmpty(StartedBy);
+
+    // A session can end with no board refresh (the launcher reports it), so Start's words follow the card itself too.
+    private void OnCardChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(WorkstreamCardViewModel.PrimaryAction) or nameof(WorkstreamCardViewModel.Lifecycle)
+            or nameof(WorkstreamCardViewModel.IsLive))
+        {
+            RefreshStart();
+        }
+    }
+
+    /// <summary>Works out Start's words and the who-starts line again, as the board refreshes.</summary>
+    public void RefreshStart()
+    {
+        Raise(nameof(StartLabel));
+        Raise(nameof(StartedBy));
+        Raise(nameof(HasStartedBy));
+    }
+
     /// <summary>Shows a workstream, loading its plan and its run history, on the tab asked for.</summary>
     public void Show(WorkstreamCardViewModel card, DrawerTab tab = DrawerTab.Overview)
     {
@@ -444,14 +492,23 @@ public sealed class DetailDrawerViewModel : ObservableObject
         IsBlocked = card.Workstream.IsBlocked;
         IsPaused = card.Workstream.IsPaused;
         ReopenTomorrow = card.Workstream.ReopenTomorrow;
+        TagEditor.MergeInto(card.Workstream.Tags);
         _loading = false;
     }
 
     private void Load(WorkstreamCardViewModel card, DrawerTab tab)
     {
         _loading = true;
+
+        if (_card is not null)
+        {
+            _card.PropertyChanged -= OnCardChanged;
+        }
+
         _card = card;
+        _card.PropertyChanged += OnCardChanged;
         Raise(nameof(Card));
+        RefreshStart();
         var workstream = card.Workstream;
 
         Title = workstream.Title;
@@ -468,12 +525,12 @@ public sealed class DetailDrawerViewModel : ObservableObject
         }
 
         NewJiraKey = string.Empty;
+        TagEditor.Load(workstream.Tags);
         IsConfirmingDelete = false;
 
         Raise(nameof(IsArchived));
-        Raise(nameof(ArchiveLabel));
         Raise(nameof(IsLive));
-        Raise(nameof(RemovalRefusal));
+        Raise(nameof(ArchiveWhyNot));
         Raise(nameof(DeleteConsequence));
 
         Runs.Clear();
@@ -482,6 +539,12 @@ public sealed class DetailDrawerViewModel : ObservableObject
                      .OrderByDescending(run => run.StartedUtc))
         {
             Runs.Add(new RunHistoryEntryViewModel(run));
+        }
+
+        Events.Clear();
+        foreach (var cardEvent in (EventsOf?.Invoke(card.Key) ?? []).OrderByDescending(each => each.AtUtc))
+        {
+            Events.Add($"{cardEvent.AtUtc.ToLocalTime():ddd d MMM HH:mm}  {cardEvent.Text}");
         }
 
         Workflows.Clear();
@@ -592,6 +655,7 @@ public sealed class DetailDrawerViewModel : ObservableObject
             JiraKeys = [.. JiraKeys],
             RemovedJiraKeys = JiraKeySelection.Removed(
                 _card.Workstream.JiraKeys, JiraKeys, _card.Workstream.RemovedJiraKeys),
+            Tags = TagEditor.MergeInto(_card.Workstream.Tags),
         };
 
         _saved(_card);

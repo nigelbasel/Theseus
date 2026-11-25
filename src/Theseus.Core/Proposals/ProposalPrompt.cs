@@ -19,6 +19,13 @@ public static class ProposalPrompt
             request.ReportBack
                 ? "When that is done, write your report where your report-back link asks (call related to see it), then call report_back."
                 : "You carry this work on from the card that proposed you; call related to see it and the document it handed over.",
-            "Your brief authorises no Jira item, branch, worktree, push or pull request. Ask the user before any of those.");
+            NoBranchLine);
     }
+
+    /// <summary>
+    /// What approval did not authorise. A project whose owner granted branch rules has this line replaced, at each start,
+    /// by the rules (1.1e AC 12b), so it is matched exactly.
+    /// </summary>
+    public const string NoBranchLine =
+        "Your brief authorises no Jira item, branch, worktree, push or pull request. Ask the user before any of those.";
 }

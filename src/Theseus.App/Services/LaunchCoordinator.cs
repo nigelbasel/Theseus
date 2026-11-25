@@ -5,6 +5,7 @@ using Theseus.Core.Diagnostics;
 using Theseus.Core.Domain;
 using Theseus.Core.Launching;
 using Theseus.Core.Messaging;
+using Theseus.Core.Running;
 using Theseus.Core.Settings;
 using Theseus.Core.Stopping;
 using Theseus.Core.Terminal;
@@ -57,6 +58,9 @@ public sealed class LaunchCoordinator : IAsyncDisposable
         _pipe.Start();
     }
 
+    /// <summary>The launches whose runs have not ended, so one card started twice never opens a second session.</summary>
+    public LaunchesInFlight InFlight { get; } = new();
+
     /// <summary>Whether everything a launch needs was found on this machine.</summary>
     public bool CanLaunch => _claude.Locate() is not null
                              && _terminals.Resolve().Source != TerminalSource.None
@@ -95,8 +99,23 @@ public sealed class LaunchCoordinator : IAsyncDisposable
     /// <summary>Marks a session as Theseus's at launch, so its hook tells it when Theseus stops or restarts.</summary>
     public Action<string>? Launched { get; set; }
 
+    /// <summary>Told the card's key at each launch, so what its last session said through now_at is forgotten (1.1f E24).</summary>
+    public Action<string>? LaunchedCard { get; set; }
+
     /// <summary>The related-workstreams paragraph a fresh session of a workstream is given, by key.</summary>
     public Func<string, string?>? RelatedFor { get; set; }
+
+    /// <summary>
+    /// The branch rules the owner granted a card's project, as text naming its primary branch now, or null (1.1e AC 12b):
+    /// asked at each start, so turning the grant off changes the next start.
+    /// </summary>
+    public Func<Workstream, string?>? BranchRulesFor { get; set; }
+
+    /// <summary>
+    /// The projects that read now, asked at each start, so a card that joined a project mid-session opens in the
+    /// project's window at its next start (project-view AC 20). Null or empty: every card opens where it always did.
+    /// </summary>
+    public Func<IReadOnlySet<string>>? ReadableProjects { get; set; }
 
     /// <summary>What changed in a workstream's links since a moment, for a resumed session.</summary>
     public Func<string, DateTimeOffset, string?>? RelatedSince { get; set; }
@@ -109,19 +128,44 @@ public sealed class LaunchCoordinator : IAsyncDisposable
     /// <param name="startMode">
     /// Resume the last conversation or start fresh from the handoff. Null means the board's default.
     /// </param>
-    public string? Launch(Workstream workstream, string? planPath = null, StartMode? startMode = null)
+    /// <param name="reason">What asked for the start, recorded with a headless run.</param>
+    public string? Launch(Workstream workstream, string? planPath = null, StartMode? startMode = null, RunReason reason = RunReason.Owner)
     {
         ArgumentNullException.ThrowIfNull(workstream);
 
         LastRefusal = null;
 
-        if (_claude.Locate() is not { } claudePath
-            || _terminals.Resolve() is not { Source: not TerminalSource.None } terminal)
+        // A tab waiting at Claude Code's question about trusting its folder has registered no session yet, so the board's
+        // own check would start the card again (git-22, 2026-11-23).
+        if (InFlight.IsInFlight(workstream.Key))
+        {
+            LastRefusal = $"{workstream.Title} is already starting: its tab is open, perhaps asking whether to trust its folder. Answer it there.";
+            TheseusLog.Information("Refused a second start of {Workstream}: its launch is still in flight", workstream.Key);
+
+            return null;
+        }
+
+        if (_claude.Locate() is not { } claudePath)
         {
             return null;
         }
 
         var settings = _settings.Read();
+        var headless = Headless is not null && RunModeChoice.For(workstream, settings.ProjectRunModes) == RunMode.Headless;
+        var terminal = headless ? null : _terminals.Resolve();
+
+        if (!headless && terminal is not { Source: not TerminalSource.None })
+        {
+            return null;
+        }
+
+        if (headless && (Headless!.Holds(workstream.Key) ? $"{workstream.Title} already has a headless run going or queued." : Headless.Refusal(workstream)) is { } refusal)
+        {
+            LastRefusal = refusal;
+            TheseusLog.Information("Refused a headless start of {Workstream}: {Refusal}", workstream.Key, refusal);
+
+            return null;
+        }
         var requested = startMode ?? settings.DefaultStartMode;
 
         var mode = StartModeChoice.For(requested,
@@ -141,18 +185,34 @@ public sealed class LaunchCoordinator : IAsyncDisposable
             settings.IdentityPrompt,
             RelatedFor?.Invoke(workstream.Key));
 
+        var rules = BranchRulesFor?.Invoke(workstream);
+        var toldBefore = settings.CardsToldBranchRules.Contains(workstream.Key, StringComparer.OrdinalIgnoreCase);
+
         // A resume keeps its conversation, so it opens with one line. The full opening still
         // travels with it, for the shim to use if the resume dies at once and is reminted fresh.
-        var opening = resume
-            ? SessionOpening.ForResume(workstream, _clock.UtcNow, handoff, RelatedSinceLastRun(workstream.Key))
-            : fullOpening;
+        string opening;
+        (fullOpening, opening) = Theseus.Core.Projects.ProjectBranchRules.Openings(fullOpening,
+            resume ? SessionOpening.ForResume(workstream, _clock.UtcNow, handoff, RelatedSinceLastRun(workstream.Key)) : null,
+            rules, toldBefore);
+
+        // Which cards were given the rules, so a later resume without them is told they are withdrawn (1.1e AC 12b).
+        if ((rules is not null) != toldBefore)
+        {
+            var told = settings.CardsToldBranchRules.Where(key => !string.Equals(key, workstream.Key, StringComparison.OrdinalIgnoreCase));
+            _settings.Write(_settings.Read() with { CardsToldBranchRules = rules is null ? [.. told] : [.. told, workstream.Key] });
+        }
+
+        if (headless)
+        {
+            return LaunchHeadless(workstream, sessionId, mode, claudePath, opening, resume ? fullOpening : null, handoff, settings, reason);
+        }
 
         // Which window this tab joins is the whole of grouping: same name, same window; a name
         // nothing is using yet makes a new one. Nothing else has to exist for sessions to be grouped.
-        var windowName = WindowGroupName.For(settings.TerminalWindowName, workstream, settings.AreaWindows);
+        var windowName = WindowGroupName.For(settings.TerminalWindowName, workstream, settings.AreaWindows, ReadableProjects?.Invoke());
 
         var request = new WorkstreamLaunchRequest(workstream, Guid.NewGuid().ToString("N"), sessionId,
-            mode, claudePath, terminal.ExecutablePath, _launcherPath, _pipeName,
+            mode, claudePath, terminal!.ExecutablePath, _launcherPath, _pipeName,
             windowName, opening, McpConfigFor?.Invoke(sessionId), resume ? fullOpening : null)
         {
             Settings = SessionSettings,
@@ -172,6 +232,7 @@ public sealed class LaunchCoordinator : IAsyncDisposable
 
         _ticketIssued?.Invoke(plan.Ticket.Ticket, workstream.Key, runId);
         _pipe.Register(plan.Ticket);
+        InFlight.Began(workstream.Key, plan.Ticket.Ticket);
 
         try
         {
@@ -183,23 +244,66 @@ public sealed class LaunchCoordinator : IAsyncDisposable
             TheseusLog.Warning(exception, "The terminal {Terminal} would not start for {Workstream}",
                 plan.TerminalExecutablePath, workstream.Key);
             LastRefusal = StartNotice.Refusal(workstream.Title, exception.Message);
+            InFlight.Ended(plan.Ticket.Ticket);
             _sink.TicketRefused(plan.Ticket.Ticket, $"The terminal would not start: {exception.Message}");
 
             return null;
         }
 
         Launched?.Invoke(sessionId);
+        LaunchedCard?.Invoke(workstream.Key);
 
         _runs.Append(new SessionRun(runId, sessionId, workstream.Key, workstream.WorkingDirectory,
             null, resume ? SessionLaunchMode.Resume : SessionLaunchMode.FirstRun, workstream.Prompt,
             workstream.Title, workstream.ColorHex, DateTimeOffset.UtcNow, null, null, null, null,
-            SessionExitReason.Unknown));
+            SessionExitReason.Unknown)
+        {
+            WindowName = windowName,
+        });
 
         return sessionId;
     }
 
+    /// <summary>
+    /// Runs headless the cards whose mode says so (Nigel, 2026-11-24); null runs every card in a tab, as before.
+    /// </summary>
+    public HeadlessRunner? Headless { get; set; }
+
+    /// <summary>The project's current piece of work for a card, recorded with its headless runs, or null.</summary>
+    public Func<Workstream, string?>? PieceFor { get; set; }
+
     /// <inheritdoc />
     public ValueTask DisposeAsync() => _pipe.DisposeAsync();
+
+    // Built exactly as a tab's launch is, so a headless run keeps the Theseus tools, its folders, its resume and its
+    // handoff; only the process differs.
+    private string LaunchHeadless(Workstream workstream, string sessionId, LaunchMode mode, string claudePath, string opening,
+        string? openingIfReminted, string handoff, TheseusSettings settings, RunReason reason)
+    {
+        var request = new WorkstreamLaunchRequest(workstream, Guid.NewGuid().ToString("N"), sessionId, mode, claudePath,
+            string.Empty, _launcherPath, _pipeName, string.Empty, opening, McpConfigFor?.Invoke(sessionId), openingIfReminted)
+        {
+            Settings = SessionSettings,
+        };
+
+        var spec = WorkstreamLaunchPlanner.Plan(request, DateTimeOffset.UtcNow).Ticket.Spec;
+        var stopText = StopRequest.For(settings.StopPrompt, new StopTarget(workstream.Title, handoff));
+        var runId = Guid.NewGuid();
+
+        TheseusLog.Information("Launching {Workstream} headless as {Mode}: run {Run}, session {Session}", workstream.Key, mode, runId, sessionId);
+
+        Launched?.Invoke(sessionId);
+        LaunchedCard?.Invoke(workstream.Key);
+
+        _runs.Append(new SessionRun(runId, sessionId, workstream.Key, workstream.WorkingDirectory,
+            null, mode == LaunchMode.Resume ? SessionLaunchMode.Resume : SessionLaunchMode.FirstRun, workstream.Prompt,
+            workstream.Title, workstream.ColorHex, DateTimeOffset.UtcNow, null, null, null, null,
+            SessionExitReason.Unknown));
+
+        Headless!.Submit(new HeadlessSubmission(workstream, spec, reason, stopText) { Piece = PieceFor?.Invoke(workstream) });
+
+        return sessionId;
+    }
 
     private string? RelatedSinceLastRun(string key)
     {

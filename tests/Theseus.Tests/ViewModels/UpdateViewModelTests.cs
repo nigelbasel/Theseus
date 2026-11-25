@@ -87,6 +87,26 @@ public class UpdateViewModelTests
     }
 
     [Test]
+    public void AnInstallerThatCannotBeStarted_IsSaid_NotThrown_SoTheseusKeepsRunning()
+    {
+        var why = UpdateInstaller.Start(@"C:\updates\Theseus.msi", @"C:\Program Files\Theseus\Theseus.exe", 4242,
+            _ => throw new System.ComponentModel.Win32Exception("The request is not supported."));
+
+        Assert.That(why, Is.EqualTo("The update's installer could not be started: The request is not supported."));
+    }
+
+    [Test]
+    public void AFailedInstall_IsShownAsAnError_AndTheUpdateCanBeTriedAgain()
+    {
+        var updates = Updates(Release("2026.10.29.100"));
+
+        updates.InstallFailed("The update's installer could not be started: The request is not supported.");
+
+        Assert.That((updates.Severity, updates.Status), Is.EqualTo((NoticeSeverity.Error,
+            "The update's installer could not be started: The request is not supported. Nothing was installed, and Theseus keeps running.")));
+    }
+
+    [Test]
     public void Script_QuotesPathsSoNothingInThemIsExpanded()
     {
         var script = UpdateInstaller.Script(@"C:\Users\o'brien\$updates\Theseus.msi", @"C:\Program Files\Theseus\Theseus.exe", 4242);
@@ -95,6 +115,63 @@ public class UpdateViewModelTests
         Assert.That(script, Does.Contain(@"Start-Process -FilePath 'C:\Program Files\Theseus\Theseus.exe'"));
         Assert.That(script, Does.Contain("Wait-Process -Id 4242"));
         Assert.That(script, Does.Contain("-Verb RunAs -Wait"));
+    }
+
+    [Test]
+    public async Task CheckAsync_WithdrawsAnOfferWhenTheFeedNoLongerAnswersWithANewerRelease()
+    {
+        var feed = new Feed(Release("2026.10.29.100"));
+        var updates = new UpdateViewModel(feed, Running, Path.GetTempPath(), _ => { });
+        await updates.CheckAsync();
+
+        feed.Latest = Release(Running);
+        await updates.CheckAsync();
+
+        Assert.That(updates.IsOffered, Is.False);
+    }
+
+    [Test]
+    public async Task CheckAsync_KeepsAnOfferWhenTheCheckFails()
+    {
+        var feed = new Feed(Release("2026.10.29.100"));
+        var updates = new UpdateViewModel(feed, Running, Path.GetTempPath(), _ => { });
+        await updates.CheckAsync();
+
+        feed.Latest = null;
+        await updates.CheckAsync();
+
+        Assert.That(updates.IsOffered, Is.True);
+    }
+
+    [Test]
+    public async Task CheckNowAsync_SayingUpToDateWithdrawsAnEarlierOffer()
+    {
+        var feed = new Feed(Release("2026.10.29.100"));
+        var updates = new UpdateViewModel(feed, Running, Path.GetTempPath(), _ => { });
+        await updates.CheckAsync();
+
+        feed.Latest = Release(Running);
+        var answer = await updates.CheckNowAsync();
+
+        Assert.That(answer, Is.EqualTo($"Theseus {Running} is up to date."));
+        Assert.That(updates.IsOffered, Is.False);
+    }
+
+    [Test]
+    public async Task TheQuietCheck_OffersANewerRelease_AndAFailureSaysNothing()
+    {
+        var feed = new Feed(Release("2026.10.29.100"));
+        var said = new List<string>();
+        var updates = new UpdateViewModel(feed, Running, Path.GetTempPath(), _ => { }) { Said = said.Add };
+
+        await updates.CheckQuietlyAsync();
+
+        Assert.That(updates.Offer!.Version, Is.EqualTo("2026.10.29.100"));
+
+        feed.Failure = new HttpRequestException("offline");
+
+        Assert.DoesNotThrowAsync(updates.CheckQuietlyAsync);
+        Assert.That((updates.IsOffered, said.Count), Is.EqualTo((true, 0)));
     }
 
     private static UpdateViewModel Updates(AvailableRelease latest) =>

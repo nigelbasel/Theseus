@@ -15,6 +15,12 @@ public sealed class GitHubReleaseFeed : IReleaseFeed, IDisposable
     /// <summary>The release the feed asks for.</summary>
     public const string LatestEndpoint = "https://api.github.com/repos/nigelbasel/Theseus/releases/latest";
 
+    /// <summary>
+    /// The newest releases, pre-releases among them, asked for when pre-releases are included. One call, like
+    /// <see cref="LatestEndpoint"/>, so the update check's budget of calls is unchanged.
+    /// </summary>
+    public const string ListEndpoint = "https://api.github.com/repos/nigelbasel/Theseus/releases?per_page=20";
+
     /// <summary>The installer's name on every release.</summary>
     public const string InstallerAsset = "Theseus.msi";
 
@@ -22,11 +28,22 @@ public sealed class GitHubReleaseFeed : IReleaseFeed, IDisposable
     public const string ChecksumsAsset = "SHA256SUMS.txt";
 
     private readonly HttpClient _http;
+    private readonly Func<bool> _includePreReleases;
 
-    /// <summary>Creates the feed, presenting itself as this build of Theseus.</summary>
-    public GitHubReleaseFeed(string currentVersion)
+    /// <summary>
+    /// Creates the feed, presenting itself as this build of Theseus. <paramref name="includePreReleases"/> is read on
+    /// every check, so changing the setting needs no restart.
+    /// </summary>
+    public GitHubReleaseFeed(string currentVersion, Func<bool>? includePreReleases = null)
+        : this(currentVersion, includePreReleases, new HttpClientHandler())
     {
-        _http = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
+    }
+
+    /// <summary>The same feed over a given handler, so a test can see which address each check asks.</summary>
+    public GitHubReleaseFeed(string currentVersion, Func<bool>? includePreReleases, HttpMessageHandler handler)
+    {
+        _includePreReleases = includePreReleases ?? (() => false);
+        _http = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(20) };
         _http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("Theseus",
             string.IsNullOrWhiteSpace(currentVersion) ? "unknown" : currentVersion));
         _http.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
@@ -37,7 +54,8 @@ public sealed class GitHubReleaseFeed : IReleaseFeed, IDisposable
     {
         try
         {
-            using var response = await _http.GetAsync(LatestEndpoint, cancellationToken);
+            var includePreReleases = _includePreReleases();
+            using var response = await _http.GetAsync(includePreReleases ? ListEndpoint : LatestEndpoint, cancellationToken);
 
             if (response.StatusCode == HttpStatusCode.NotFound)
             {
@@ -53,7 +71,9 @@ public sealed class GitHubReleaseFeed : IReleaseFeed, IDisposable
                 return null;
             }
 
-            return Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+            var json = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            return includePreReleases ? Newest(json) : Parse(json);
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or JsonException)
         {
@@ -70,9 +90,32 @@ public sealed class GitHubReleaseFeed : IReleaseFeed, IDisposable
     public static AvailableRelease? Parse(string json)
     {
         using var document = JsonDocument.Parse(json);
-        var root = document.RootElement;
 
-        if (Flag(root, "draft") || Flag(root, "prerelease")
+        return Read(document.RootElement, allowPreRelease: false);
+    }
+
+    /// <summary>
+    /// The newest usable release in a GitHub release list, pre-release or not, by its build stamp. Null when the list
+    /// holds none.
+    /// </summary>
+    public static AvailableRelease? Newest(string json)
+    {
+        using var document = JsonDocument.Parse(json);
+
+        if (document.RootElement.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        return document.RootElement.EnumerateArray()
+            .Select(release => Read(release, allowPreRelease: true))
+            .OfType<AvailableRelease>()
+            .MaxBy(release => BuildStamp.BuiltAt(release.Version));
+    }
+
+    private static AvailableRelease? Read(JsonElement root, bool allowPreRelease)
+    {
+        if (Flag(root, "draft") || (!allowPreRelease && Flag(root, "prerelease"))
             || Text(root, "tag_name") is not { } tag || Text(root, "html_url") is not { } page)
         {
             return null;
@@ -115,6 +158,29 @@ public sealed class GitHubReleaseFeed : IReleaseFeed, IDisposable
     /// <inheritdoc />
     public async Task<byte[]> DownloadAsync(Uri uri, CancellationToken cancellationToken) =>
         await _http.GetByteArrayAsync(uri, cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<byte[]> DownloadAsync(Uri uri, IProgress<double?>? progress, CancellationToken cancellationToken)
+    {
+        using HttpResponseMessage response = await _http.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        response.EnsureSuccessStatusCode();
+
+        long? length = response.Content.Headers.ContentLength is > 0 and var known ? known : null;
+        await using Stream body = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using MemoryStream copy = length is <= int.MaxValue ? new MemoryStream((int)length.Value) : new MemoryStream();
+        byte[] buffer = new byte[81920];
+        int read;
+
+        progress?.Report(length is null ? null : 0);
+
+        while ((read = await body.ReadAsync(buffer, cancellationToken)) > 0)
+        {
+            copy.Write(buffer, 0, read);
+            progress?.Report(length is { } total ? Math.Min(1, (double)copy.Length / total) : null);
+        }
+
+        return copy.ToArray();
+    }
 
     /// <inheritdoc />
     public void Dispose() => _http.Dispose();

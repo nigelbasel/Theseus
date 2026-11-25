@@ -1,15 +1,27 @@
 <Window x:Class="Theseus.App.DayReportWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="The day's work"
+        Title="Day report"
         Width="620"
         Height="700"
+        MinWidth="480"
+        MinHeight="360"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False"
         ResizeMode="CanResize"
         Background="{DynamicResource SolidBackgroundFillColorSecondaryBrush}">
-    <DockPanel>
-        <Border DockPanel.Dock="Top" Padding="20,14"
+    <Window.InputBindings>
+        <KeyBinding Key="F5" Command="{Binding RefreshCommand}" />
+    </Window.InputBindings>
+    <!-- Rows in reading order, so Tab goes from the day's buttons through the report to the footer (B2, W43). -->
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Border Padding="24,16"
                 Background="{DynamicResource LayerFillColorDefaultBrush}"
                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                 BorderThickness="0,0,0,1">
@@ -20,41 +32,26 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <TextBlock Grid.Column="0" Text="{Binding Day}" FontSize="16" FontWeight="SemiBold"
+                    <TextBlock Grid.Column="0" Text="{Binding Day}" Style="{DynamicResource BodyLargeText}" FontWeight="SemiBold"
                                VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
 
                     <StackPanel Grid.Column="1" Orientation="Horizontal">
-                        <Button Content="&#xE76B;" FontFamily="Segoe MDL2 Assets" FontSize="11"
-                                Padding="8,3" Margin="0,0,4,0"
-                                ToolTip="The day before"
+                        <Button x:Name="PreviousDayButton" Content="&#xE76B;" Style="{DynamicResource ToolButton}" Margin="0,0,4,0"
+                                ToolTip="Previous day" AutomationProperties.Name="Previous day"
                                 Command="{Binding YesterdayCommand}" />
-                        <Button Content="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="11"
-                                Padding="8,3" Margin="0,0,8,0"
-                                ToolTip="The day after"
+                        <Button x:Name="NextDayButton" Content="&#xE76C;" Style="{DynamicResource ToolButton}" Margin="0,0,8,0"
+                                ToolTip="Next day" AutomationProperties.Name="Next day"
                                 Command="{Binding TomorrowCommand}" />
-                        <Button Content="Refresh" Padding="12,3"
-                                ToolTip="Build it again — a day still in progress has changed"
+                        <Button x:Name="RefreshButton" Content="_Refresh" Style="{DynamicResource CommandButton}"
+                                ToolTip="Refresh (F5): build it again, since a day still in progress has changed."
                                 Command="{Binding RefreshCommand}" />
                     </StackPanel>
                 </Grid>
 
-                <TextBlock Text="{Binding Path}" FontSize="10.5" Margin="0,8,0,0"
+                <TextBlock Text="{Binding Path}" Style="{DynamicResource CaptionText}" Margin="0,8,0,0"
                            TextTrimming="CharacterEllipsis"
                            ToolTip="{Binding Path}"
-                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
-            </StackPanel>
-        </Border>
-
-        <Border DockPanel.Dock="Bottom" Padding="20,14"
-                Background="{DynamicResource LayerFillColorDefaultBrush}"
-                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
-                BorderThickness="0,1,0,0">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Content="Open folder" Padding="14,5" Margin="0,0,8,0"
-                        ToolTip="Every day's report is kept here"
-                        Command="{Binding OpenFolderCommand}" />
-                <Button Content="Close" Padding="18,5" IsCancel="True" IsDefault="True"
-                        Command="{Binding CloseCommand}" />
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
             </StackPanel>
         </Border>
 
@@ -63,16 +60,35 @@
             file is the artefact: what is on screen should be what is in it, ready to be selected and
             pasted into a worklog.
         -->
-        <TextBox Text="{Binding Markdown, Mode=OneWay}"
+        <TextBox Grid.Row="1"
+                 Text="{Binding Markdown, Mode=OneWay}"
                  IsReadOnly="True"
+                 IsReadOnlyCaretVisible="True"
                  TextWrapping="NoWrap"
                  AcceptsReturn="True"
                  VerticalScrollBarVisibility="Auto"
                  HorizontalScrollBarVisibility="Auto"
                  BorderThickness="0"
-                 Padding="20,14"
+                 Padding="24,16"
                  FontFamily="Cascadia Mono, Consolas, monospace"
-                 FontSize="12.5"
-                 Background="Transparent" />
-    </DockPanel>
+                 FontSize="12"
+                 Background="Transparent"
+                 AutomationProperties.Name="Day report as Markdown" />
+
+        <!-- Open folder goes outside Theseus, so it is a link at the footer's left (W12). -->
+        <Border Grid.Row="2" Padding="24,16"
+                Background="{DynamicResource LayerFillColorDefaultBrush}"
+                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                BorderThickness="0,1,0,0">
+            <DockPanel x:Name="Footer" LastChildFill="False">
+                <Button x:Name="OpenFolderButton" DockPanel.Dock="Left" Content="Open folder" Style="{DynamicResource LinkButton}"
+                        VerticalAlignment="Center"
+                        ToolTip="Open folder: every day's report is kept here."
+                        Command="{Binding OpenFolderCommand}" />
+                <Button x:Name="CloseButton" DockPanel.Dock="Right" Content="Close" Style="{DynamicResource DialogButton}"
+                        IsCancel="True" IsDefault="True"
+                        Command="{Binding CloseCommand}" />
+            </DockPanel>
+        </Border>
+    </Grid>
 </Window>

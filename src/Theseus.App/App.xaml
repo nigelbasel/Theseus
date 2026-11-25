@@ -1,14 +1,21 @@
 ﻿<Application x:Class="Theseus.App.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:sys="clr-namespace:System;assembly=System.Runtime"
              xmlns:converters="clr-namespace:Theseus.App.Converters">
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="Themes/CompactMenu.xaml" />
+                <!-- How everything clickable answers the pointer and the keyboard (1.1e AC 6b). -->
+                <ResourceDictionary Source="Themes/Interactive.xaml" />
+                <!-- The project view's state colours; ThemeApplier swaps in the dark or high-contrast twin (1.1d, W47). -->
+                <ResourceDictionary Source="Themes/StateColours.Light.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
             <converters:HexToBrushConverter x:Key="HexToBrush" />
+            <converters:HexToWashConverter x:Key="HexToWash" />
+            <converters:HexToSwatchConverter x:Key="HexToSwatch" />
             <converters:RelativeTimeConverter x:Key="RelativeTime" />
             <converters:LifecycleGlyphConverter x:Key="LifecycleGlyph" />
             <converters:BoolToVisibilityConverter x:Key="BoolToVisibility" />
@@ -16,11 +23,86 @@
             <converters:NotEmptyToVisibilityConverter x:Key="NotEmptyToVisibility" />
             <converters:ZeroToVisibilityConverter x:Key="ZeroToVisibility" />
             <converters:CountToVisibilityConverter x:Key="CountToVisibility" />
+            <!-- A name or a note bound into an access-key label keeps its underscores (W26; B12, C-m3). -->
+            <converters:AccessKeyEscapeConverter x:Key="AccessKeyEscape" />
 
-            <!-- The label above a field, in the main window and in the setup window alike. -->
+            <!-- The UI font (baseline W21), the same face as Text/TypeRamp.cs. Monospace is for code, Markdown source and card keys. -->
+            <FontFamily x:Key="UiFont">Segoe UI Variable Text, Segoe UI</FontFamily>
+
+            <!-- Spacing on the 4 epx grid (W36). The board's gutter of 12 is a recorded deviation, for density. -->
+            <sys:Double x:Key="Space4">4</sys:Double>
+            <sys:Double x:Key="Space8">8</sys:Double>
+            <sys:Double x:Key="Space12">12</sys:Double>
+            <sys:Double x:Key="Space16">16</sys:Double>
+            <sys:Double x:Key="Space24">24</sys:Double>
+            <Thickness x:Key="DialogGutter">24</Thickness>
+            <Thickness x:Key="BoardGutter">12</Thickness>
+            <Thickness x:Key="SurfacePadding">16</Thickness>
+            <Thickness x:Key="ListRowPadding">12,8</Thickness>
+
+            <!-- Corner radii (W37): 4 for controls in a page, 8 for windows, flyouts, popups and menus. -->
+            <CornerRadius x:Key="ControlCornerRadius">4</CornerRadius>
+            <CornerRadius x:Key="OverlayCornerRadius">8</CornerRadius>
+
+            <!-- The type ramp (W18, checklist G94): nothing below 12, and nothing semibold below 14. -->
+            <Style x:Key="CaptionText" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="12" />
+            </Style>
+            <Style x:Key="BodyText" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="14" />
+            </Style>
+            <Style x:Key="BodyStrongText" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="14" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+            </Style>
+            <Style x:Key="BodyLargeText" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="18" />
+            </Style>
+            <Style x:Key="SubtitleText" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="20" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+            </Style>
+            <Style x:Key="TitleText" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="28" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+            </Style>
+
+            <!-- A list row's main line and its second line (G117). -->
+            <Style x:Key="ListItemTitle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="14" />
+            </Style>
+            <Style x:Key="ListItemCaption" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+            </Style>
+
+            <!-- A heading over a section of a list, in sentence case (W19). -->
+            <Style x:Key="ListSectionHeader" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="14" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="Margin" Value="0,12,0,8" />
+            </Style>
+
+            <!-- A tag, such as "Project" on a project's card: not a header, so Caption in the secondary brush (A20, A28). -->
+            <Style x:Key="TagText" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="FontFamily" Value="{DynamicResource UiFont}" />
+                <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+            </Style>
+
+            <!-- A sentence that explains a field or a setting: about 60 characters a line (W23, G103). -->
+            <Style x:Key="ExplanationText" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="MaxWidth" Value="480" />
+                <Setter Property="TextWrapping" Value="Wrap" />
+                <Setter Property="HorizontalAlignment" Value="Left" />
+                <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+            </Style>
+
+            <!-- The label above a field, in the main window and in the setup window alike: 8 above its control (W36). -->
             <Style x:Key="FieldLabel" TargetType="TextBlock">
                 <Setter Property="FontSize" Value="12" />
-                <Setter Property="Margin" Value="0,14,0,4" />
+                <Setter Property="Margin" Value="0,12,0,8" />
                 <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
             </Style>
         </ResourceDictionary>

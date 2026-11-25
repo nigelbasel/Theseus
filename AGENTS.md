@@ -21,11 +21,8 @@ development; the method kit is in [`method/`](method/README.md).
 | `tests/Theseus.Tests` | NUnit tests for all of the above | One test project |
 | `tools/locks` | `ndc-test-lock.sh`, the wrapper script that asks Theseus for a lock | Tested from `tests/Theseus.Tests/Locks` |
 | `docs/` | The user help, published as the GitHub Pages site | User-facing only. Nothing internal, no work artefacts |
-| `method/` | Method kit v0, generic: pipelines, project format, rules | Changes to it are reviewed like code. Nothing Theseus-specific |
+| `method/` | Method kit v0, generic: pipelines, project format, rules, and `starter/`, the files a new project begins with | Changes to it are reviewed like code. Nothing Theseus-specific |
 | `.agents/` | This repo's own method files: the reviewer rubric | |
-| `projects/` | Project files in the method's format | |
-| `work/<issue>/` | Artefacts of one piece of work run through a pipeline | Kept off the Pages site |
-| `bootstrap/` | Retrospectives of the bootstrap stages | Kept off the Pages site |
 | `installer/`, `scripts/Build-Installer.ps1` | The WiX v6 MSI | CI builds it the same way |
 
 ## Build and test
@@ -61,7 +58,12 @@ so it is not part of the generic kit in `method/`.
 
 - Anything that changes the board (a link, a proposal, an approval, a report) passes the person in the tab
   first. A report is a claim, never a fact, until confirmed on the board.
-- Nothing starts a session on its own. Ready is shown, never acted on.
+- Nothing starts a session on its own. Ready is shown, never acted on. The one exception (Nigel, 2026-11-20): inside
+  a project at autonomy level L1 or above, Theseus starts and stops that project's workstreams for objectives already
+  in its approved project file. Until the levels are built (phase 2), there is no such project. Duties are named
+  exceptions too (Nigel, 2026-11-24): a duty the owner set is his instruction, and one a session set is a start that
+  session could make with start_workstream, deferred; the overnight queue, which acts on nobody's request, is off until
+  the owner switches it on for a project, and only ever wakes an open, idle card.
 - Theseus reads trackers and never writes to them. Sessions never report durations.
 - Only the owner reorders, cancels or releases a lock, from the board. Clean-up touches only what can be
   proved to belong to the run being cleaned up.
@@ -73,10 +75,13 @@ so it is not part of the generic kit in `method/`.
 - No screenshots of a real board, no secrets, no names of employers' internal systems, repos, issue keys or
   machine paths. Examples use placeholders such as `<root>\<feature>\<repo>`.
 - Independent holdout scenarios judge changes to Theseus. They are kept outside this repo on purpose.
-  Do not look for them; if you think one is needed or wrong, say so to the owner.
+  Do not look for them; if you think one is needed or wrong, say so to the owner. The one exception is a verifier
+  card (its session runs with `THESEUS_ROLE=verifier`): it reads them as its brief says, and writes only in the
+  holdout's results folder.
 
 ## Working through the method
 
 Ad hoc work needs nothing from the method: it runs as today (the `freeform` pipeline). Work in a project
-follows its pipeline, writes its artefacts under `work/<issue>/`, and is reviewed against the rubric.
-See [`method/README.md`](method/README.md).
+follows its pipeline, writes its artefacts under `work/<slug>/` in the project's **home folder**, outside this repo
+(the folder Theseus's Settings names as the projects folder, with one subfolder per project), and is reviewed
+against the rubric. This repo holds code and the method kit only. See [`method/README.md`](method/README.md).

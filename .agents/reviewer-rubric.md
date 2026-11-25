@@ -24,8 +24,16 @@ Source: `src/Theseus.Core/Mcp/McpHandler.cs`; `src/Theseus.App/ViewModels/Chains
 
 **R3. Nothing starts a session on its own.**
 Ready is shown and counted, never acted on. The chains view is read-only.
-*Breaks if* any code path launches a session without a person pressing Start.
+*Breaks if* any code path launches a session without a person pressing Start, except a project workstream started by
+Theseus inside a project at autonomy level L1 or above, for an objective in its approved project file (Nigel,
+2026-11-20; none exists until the levels are built in phase 2), and a session starting one of its own descendants with
+`start_workstream` or `resume_workstream`, a tool call that passes the person in the tab (Nigel, 2026-11-21, 1.1e AC 14),
+and a stopped card started by the owner's Yes to Accept spec…, whose question says it will be started (1.1e AC 27,
+Nigel's spec, 2026-11-21), and a duty's run (Nigel, 2026-11-24): one the owner set, or one a session set on a card
+`start_workstream` lets it act on; and the overnight queue waking an open, idle card of a project whose owner switched
+it on, never starting a stopped one.
 Source: `src/Theseus.App/ViewModels/ChainsViewModel.cs` (Nigel, 2026-10-21); `src/Theseus.App/MainWindow.xaml`, chains (Nigel, 2026-10-23).
+Descendants: `src/Theseus.Core/Proposals/WorkstreamDescendants.cs`, `src/Theseus.Core/Mcp/McpHandler.cs` (Nigel, 2026-11-21).
 
 **R4. Theseus reads trackers and never writes them; sessions never report durations.**
 Time comes from the attention sampler, attended and machine time separately, and the person logging chooses.
@@ -66,10 +74,11 @@ the owner says.
 *Breaks if* launching the board can end or alter a session with no confirmation.
 Source: `src/Theseus.App/ViewModels/ShellViewModel.cs`, `src/Theseus.App/MainWindow.xaml` (Nigel, 2026-09-02).
 
-**R10. Do not be silent about state the user can see; ask rather than duplicate.**
-Starting a card that already has a tab with nothing running in it asks, rather than opening a second tab.
+**R10. Do not be silent about state the user can see.**
+Starting a card that already has a tab with nothing running in it opens the new tab and says so on the board
+(`StartNotice.OldTabLine`); it no longer asks first, which made every Start two presses (Nigel, 2026-11-23).
 *Breaks if* a Start can open a second tab for a card without saying so.
-Source: `src/Theseus.Core/Launching/AbandonedTabs.cs`, `src/Theseus.App/ViewModels/ShellViewModel.cs` (Nigel, 2026-09-07).
+Source: `src/Theseus.Core/Launching/AbandonedTabs.cs`, `src/Theseus.App/ViewModels/ShellViewModel.cs` (Nigel, 2026-09-07, 2026-11-23).
 
 **R11. Do not start a session that has nothing to read.**
 Cards still waiting on an input are held back and asked about, for one card or a selection.
@@ -81,9 +90,12 @@ Source: `src/Theseus.Core/Links/WaitingStarts.cs`, `src/Theseus.App/MainWindow.x
 Source: `src/Theseus.Core/Status/TheseusStatusNotice.cs`, `src/Theseus.App/App.xaml.cs` (Nigel, 2026-10-30).
 
 **R13. Paused and blocked are marks on a card, not places, and starting a marked card asks.**
-Yes clears the mark and starts; No leaves it marked and unstarted.
+Clear marks and start clears the mark and starts; Start only the others, or Cancel, leaves it marked and unstarted.
 *Breaks if* pausing moves a card out of its stage, or a marked card starts without the question.
 Source: `src/Theseus.Core/Domain/WorkstreamSidecar.cs`, `src/Theseus.Core/Launching/FlaggedStart.cs`, `src/Theseus.Core/Domain/BoardTidy.cs` (Nigel, 2026-10-30).
+One exception: `resume_workstream` clears and starts a card paused by the calling session itself, through a tool call
+that passes the person in the tab; it never touches the owner's pause, another session's, or a blocked card (Nigel,
+2026-11-21, 1.1e AC 14). Source: `src/Theseus.Core/Mcp/McpHandler.cs`.
 
 **R14. Briefs and reports are placed relative to the spawning workstream, never by absolute path.**
 *Breaks if* a brief or report path is stored absolute.

@@ -63,7 +63,10 @@ public sealed class ClaudeProcessRunner
         var request = new ProcessStartRequest(
             spec.ClaudeExecutablePath,
             ClaudeArgumentBuilder.Build(spec),
-            spec.WorkingDirectory);
+            spec.WorkingDirectory)
+        {
+            Environment = spec.Environment,
+        };
 
         var startedUtc = _clock.UtcNow;
 

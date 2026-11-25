@@ -13,4 +13,12 @@ public static class StopRequestRoot
     public static string Default { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "Theseus", "stop-requests");
+
+    /// <summary>
+    /// Where text for a running session's next turn waits, as a stop request does (1.1e AC 27): a session told its spec
+    /// was accepted. Apart from stop requests, so nothing that ends or closes a session after a stop sees these.
+    /// </summary>
+    public static string Tells { get; } = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "Theseus", "tell-requests");
 }

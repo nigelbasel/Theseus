@@ -21,7 +21,7 @@ public class ClaudeProcessRunnerTests
         Assert.That(request.WorkingDirectory, Is.EqualTo(@"C:\work\repo"));
         Assert.That(request.Arguments, Is.EqualTo(new[]
         {
-            "--session-id", SessionId, "-n", "Contact form validation",
+            "--session-id", SessionId, "--permission-mode", "auto", "-n", "Contact form validation",
             "Carry on.", "--add-dir", @"C:\work\repo\Core",
         }));
     }

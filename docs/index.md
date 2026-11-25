@@ -12,10 +12,18 @@ session can carry on where it left off.
 - [The board](board.md): columns and rows, folding, the Paused and Blocked marks, and the menus,
   toolbar and status bar.
 - [Cards](cards.md): what each button on a card does, and what a card is telling you.
+- [The project view](project-view.md): where a project is, its pieces of work as they run down the page, their
+  stages and links, and the Properties pane.
+- [How your work is laid out](project-layout.md): the projects folder, your source clones and the worktrees
+  folder, and why a project's records are kept outside your code repos.
 - [Starting and stopping](starting-and-stopping.md): how a session starts and stops, and what to look
   at when one of them does nothing.
 - [Chains and proposals](chains.md): workstreams that hand over to each other, and sessions that
   propose new ones.
+- [Verifying with holdouts](holdouts.md): a verifier card that runs your private holdout scenarios and reports
+  only a verdict.
+- [Duties and the overnight queue](duties.md): instructions Theseus gives cards on a cadence, and waking idle cards
+  that still have work to do.
 - [Locks](locks.md): the machine's shared locks for test runs, the docker stack and the local model
   server.
 - [Updates](updates.md): how Theseus finds and installs a newer version.

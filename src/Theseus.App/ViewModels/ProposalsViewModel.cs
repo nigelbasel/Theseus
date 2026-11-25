@@ -5,8 +5,8 @@ namespace Theseus.App.ViewModels;
 
 /// <summary>
 /// The workstreams sessions have proposed and Nigel has not yet decided, at the top of the Chains tab.
-/// Nothing in here creates a card: Review opens the composer, and the card exists only when Nigel
-/// presses Create there.
+/// Nothing in here creates a card: Review opens the proposal window, and the card exists only when Nigel
+/// presses Approve there.
 /// </summary>
 public sealed class ProposalsViewModel : ObservableObject
 {
@@ -18,7 +18,7 @@ public sealed class ProposalsViewModel : ObservableObject
 
     /// <summary>Creates the view over the proposal book.</summary>
     /// <param name="cards">The cards on the board, read on every update.</param>
-    /// <param name="review">Opens the composer for a proposal.</param>
+    /// <param name="review">Opens the proposal window for a proposal.</param>
     public ProposalsViewModel(ProposalBook book, Func<IReadOnlyList<WorkstreamCardViewModel>> cards, Action<WorkstreamProposal> review)
     {
         _book = book;
@@ -28,6 +28,9 @@ public sealed class ProposalsViewModel : ObservableObject
 
     /// <summary>The pending proposals, oldest first.</summary>
     public ObservableCollection<ProposalRowViewModel> Pending { get; } = [];
+
+    /// <summary>Shows a proposal's brief in Theseus's Markdown view (Nigel, 2026-11-22). Set by the app.</summary>
+    public Action<string>? ShowBrief { get; set; }
 
     /// <summary>Told, in words, when a proposal arrives that the board has not shown before.</summary>
     public Action<string>? Arrived { get; set; }
@@ -48,7 +51,7 @@ public sealed class ProposalsViewModel : ObservableObject
             var requester = cards.FirstOrDefault(card => string.Equals(card.Key, proposal.RequesterKey, StringComparison.OrdinalIgnoreCase));
 
             Pending.Add(new ProposalRowViewModel(proposal, requester?.Title ?? proposal.RequesterKey, requester?.ColorHex ?? "#808080",
-                _review, Reject));
+                _review, Reject, ShowBrief));
 
             if (_announced.Add(proposal.Id) && _seeded)
             {
@@ -61,19 +64,46 @@ public sealed class ProposalsViewModel : ObservableObject
         Updated?.Invoke(this, EventArgs.Empty);
     }
 
-    /// <summary>Marks a proposal approved once the composer has created its card.</summary>
-    public void Approved(string proposalId, string key)
+    /// <summary>A proposal by its id, decided or not, or null.</summary>
+    public WorkstreamProposal? Find(string proposalId) => _book.Find(proposalId);
+
+    /// <summary>
+    /// Every key a proposal has named, as requester or as the card it made, so a new card never takes one (review of 1.1e
+    /// PR 3, finding 2): a session controls its descendants by these keys.
+    /// </summary>
+    public IReadOnlyCollection<string> TakenKeys =>
+        [.. _book.All.SelectMany(proposal => new[] { proposal.RequesterKey, proposal.ResultingKey }).OfType<string>()];
+
+    /// <summary>Told when the owner rejects a proposal on the board, so its proposer is told (1.1e AC 27a).</summary>
+    public Action<WorkstreamProposal, string?>? Rejected { get; set; }
+
+    /// <summary>Marks a proposal approved once its card is made: by the owner, or by its own session in a project.</summary>
+    public void Approved(string proposalId, string key, bool bySession = false)
     {
-        _book.Approve(proposalId, key);
+        if (bySession)
+        {
+            _book.Create(proposalId, key);
+        }
+        else
+        {
+            _book.Approve(proposalId, key);
+        }
+
         Update();
     }
 
-    private string? Reject(string id, string? note)
+    /// <summary>Rejects a proposal with the owner's note and tells its proposer; why not, or null when it was rejected.</summary>
+    public string? Reject(string id, string? note)
     {
         var outcome = _book.Reject(id, note);
 
         if (outcome.Refusal is null)
         {
+            if (_book.Find(id) is { } rejected)
+            {
+                Rejected?.Invoke(rejected, note);
+            }
+
             Update();
         }
 

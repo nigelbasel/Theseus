@@ -73,6 +73,24 @@ internal sealed class BoardFixture
         return this;
     }
 
+    /// <summary>Changes one workstream's sidecar in the board file, the way the board writing it would.</summary>
+    public BoardFixture Sidecar(string key, Func<WorkstreamSidecar, WorkstreamSidecar> change)
+    {
+        _board.Write([.. _board.Read().Select(sidecar =>
+            string.Equals(sidecar.Key, key, StringComparison.OrdinalIgnoreCase) ? change(sidecar) : sidecar)]);
+
+        return this;
+    }
+
+    /// <summary>Puts tags on a workstream in the board file.</summary>
+    public BoardFixture Tag(string key, params string[] tags) => Sidecar(key, sidecar => sidecar with { Tags = tags });
+
+    /// <summary>Archives a workstream in the board file.</summary>
+    public BoardFixture Archive(string key) => Sidecar(key, sidecar => sidecar with { IsArchived = true });
+
+    /// <summary>The board file as the board last wrote it.</summary>
+    public IReadOnlyList<WorkstreamSidecar> Sidecars => _board.Read();
+
     /// <summary>Deletes a workstream's plan, the way deleting the file by hand would.</summary>
     public BoardFixture Without(string key)
     {

@@ -1,0 +1,201 @@
+<Window x:Class="Theseus.App.ProjectPropertiesWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:converters="clr-namespace:Theseus.App.Converters"
+        xmlns:controls="clr-namespace:Theseus.App.Controls"
+        Title="Project properties"
+        Width="560"
+        Height="540"
+        MinWidth="480"
+        MinHeight="420"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        ResizeMode="CanResize"
+        Background="{DynamicResource SolidBackgroundFillColorSecondaryBrush}">
+    <Window.Resources>
+        <!-- The window is opened by the shell and in tests alike, so its converters are its own. -->
+        <converters:HexToSwatchConverter x:Key="HexToSwatch" />
+        <BooleanToVisibilityConverter x:Key="Visible" />
+        <converters:FormatConverter x:Key="TagToolTip" />
+    </Window.Resources>
+    <!--
+        A project's own settings (1.1d AC 40; 1.1e AC 12a, 12b; options-made-clear items 1, 5, 6): one tab per section, each
+        setting a line of its name, its value and what it does. Nothing here reaches another project.
+    -->
+    <DockPanel Margin="{DynamicResource DialogGutter}">
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button x:Name="OkButton" Content="OK" IsDefault="True" Style="{DynamicResource AccentButton}" Click="OnOk" />
+            <Button Content="Cancel" IsCancel="True" Style="{DynamicResource DialogButton}" Margin="8,0,0,0" />
+        </StackPanel>
+
+        <TabControl x:Name="Tabs">
+            <TabItem x:Name="GeneralTab" Header="General">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="4,16,4,0">
+                        <TextBlock Text="Title" Style="{DynamicResource BodyStrongText}" />
+                        <TextBox x:Name="TitleBox" Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}" Margin="0,8,0,0"
+                                 AutomationProperties.Name="Title"
+                                 ToolTip="The title in its project.md's first line; OK writes it there. The colour and the card's place stay." />
+                        <TextBlock x:Name="TitleError" Text="{Binding Error}" Margin="0,4,0,0" Style="{DynamicResource CaptionText}" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource CriticalTextBrush}"
+                                   Visibility="{Binding HasError, Converter={StaticResource Visible}}" />
+
+                        <!-- Why its file does not read, for whoever updates it (1.1e AC 18). -->
+                        <TextBlock x:Name="Problem" Text="{Binding Problem}" Margin="0,8,0,0" FontSize="12" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                   Visibility="{Binding HasProblem, Converter={StaticResource Visible}}" />
+
+                        <TextBlock Text="Colour" Style="{DynamicResource BodyStrongText}" Margin="0,20,0,0" />
+                        <ListBox x:Name="ColourBox" ItemsSource="{Binding Colours}" SelectedValuePath="Colour"
+                                 SelectedValue="{Binding ColourHex, Mode=TwoWay}" Margin="0,8,0,0"
+                                 BorderThickness="0" Background="Transparent" AutomationProperties.Name="Colour"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <!-- Each swatch's name is its colour and who holds it, not the view model's record text (E11, W50). -->
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                                    <Setter Property="AutomationProperties.Name" Value="{Binding ToolTip}" />
+                                </Style>
+                            </ListBox.ItemContainerStyle>
+                            <ListBox.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel />
+                                </ItemsPanelTemplate>
+                            </ListBox.ItemsPanel>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <!-- A colour another project holds carries a dot, and its tooltip names the project. -->
+                                    <Border x:Name="Swatch" Width="24" Height="24" CornerRadius="4" ToolTip="{Binding ToolTip}"
+                                            AutomationProperties.Name="{Binding ToolTip}"
+                                            Background="{Binding Colour, Converter={StaticResource HexToSwatch}}">
+                                        <Ellipse x:Name="TakenMark" Width="8" Height="8" Fill="{DynamicResource OnKindTextBrush}"
+                                                 HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                 Visibility="{Binding IsTaken, Converter={StaticResource Visible}}" />
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                        <TextBlock Margin="0,4,0,0" Style="{DynamicResource CaptionText}" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                   Text="The project card's stripe and mark, and the project's tab and summary, take this colour. A dot marks one another project has." />
+
+                        <!-- Tags (card-search-and-tags item 10): each with ×; the tags in use are offered as you type; Enter adds. -->
+                        <StackPanel x:Name="ProjectTagsField" Visibility="{Binding DataContext.HasTagEditor, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource Visible}}" DataContext="{Binding TagEditor}">
+                            <TextBlock Text="Tags" Style="{DynamicResource BodyStrongText}" Margin="0,20,0,8" />
+                            <ItemsControl AutomationProperties.Name="Tags" ItemsSource="{Binding Tags}" Focusable="False">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border CornerRadius="8" Padding="8,0,4,0" Margin="0,0,4,4" BorderThickness="1"
+                                                BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="{Binding StringFormat=#{0}}" FontSize="12" VerticalAlignment="Center" />
+                                                <Button Content="&#xE711;" Style="{DynamicResource ToolButton}" Margin="4,0,0,0"
+                                                        ToolTip="{Binding Converter={StaticResource TagToolTip}, ConverterParameter=Take #{0} off}"
+                                                        AutomationProperties.Name="{Binding StringFormat=Remove tag {0}}"
+                                                        Command="{Binding DataContext.RemoveCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                        CommandParameter="{Binding}" />
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                <TextBox Text="{Binding NewTag, UpdateSourceTrigger=PropertyChanged}" Width="220"
+                                         AutomationProperties.Name="New tag" ToolTip="A tag: letters, digits and hyphens. Enter adds it.">
+                                    <TextBox.InputBindings>
+                                        <KeyBinding Key="Return" Command="{Binding EnterCommand}" />
+                                    </TextBox.InputBindings>
+                                </TextBox>
+                                <Button Content="_Add" Margin="8,0,0,0"
+                                        Command="{Binding AddCommand}" ToolTip="{Binding AddToolTip}" ToolTipService.ShowOnDisabled="True" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding Refusal}" Style="{DynamicResource CaptionText}" Margin="0,4,0,0" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource CriticalTextBrush}" />
+                            <ItemsControl AutomationProperties.Name="Suggested tags" ItemsSource="{Binding Suggestions}" Margin="0,4,0,0" Focusable="False">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Content="{Binding}" ContentStringFormat="+ #{0}" Padding="8,0" Margin="0,0,4,4" FontSize="12"
+                                                ToolTip="{Binding Converter={StaticResource TagToolTip}, ConverterParameter='Add #{0}, already used on other cards'}"
+                                                Command="{Binding DataContext.ChooseCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                CommandParameter="{Binding}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+
+                        <controls:SettingRow x:Name="FileRow" Label="project.md" Margin="0,20,0,0" Value="{Binding ProjectFile}"
+                                             Explanation="{Binding ProjectFileExplanation}" ToolTip="{Binding FileToolTip}" />
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem x:Name="LeadTab" Header="Lead and branches">
+                <StackPanel Margin="4,16,4,0">
+                    <!-- The lead card, kept by project folder name; by default the first row's card (Nigel, 2026-11-22). -->
+                    <controls:SettingRow x:Name="LeadRow" Label="Lead" Value="{Binding LeadValue}"
+                                         Explanation="The project's main card: Focus lead brings its terminal forward, and a project's Start starts it.">
+                        <!-- It opens a menu, so a chevron, not an ellipsis (A-m1, W14); off with a reason when there is nothing to choose (C11). -->
+                        <!-- Plain text, so the theme greys it when it is off; a template of its own would keep the enabled colour. -->
+                        <Button x:Name="LeadChange" Content="_Change ▾" Click="OnChooseLead" IsEnabled="{Binding CanChooseLead, Mode=OneWay}"
+                                AutomationProperties.Name="Change the lead" ToolTip="{Binding LeadChangeToolTip}"
+                                ToolTipService.ShowOnDisabled="True" />
+                    </controls:SettingRow>
+
+                    <controls:SettingRow x:Name="QueueRow" Label="Overnight queue"
+                                         Explanation="When on, an open card of this project left idle with unfinished work and nothing waiting on you is told to carry on, after the idle time set in Options › Board.">
+                        <CheckBox x:Name="QueueBox" IsChecked="{Binding ResumesIdleCards, Mode=TwoWay}" Content="Resume idle cards"
+                                  AutomationProperties.Name="Resume idle cards" />
+                    </controls:SettingRow>
+
+                    <!-- Granted by the owner here, never by the file, which sessions write (1.1e AC 12b). -->
+                    <controls:SettingRow x:Name="BranchRulesRow" Label="Branch rules" Value="{Binding BranchRulesValue}"
+                                         Explanation="{Binding BranchRulesExplanation}">
+                        <CheckBox x:Name="BranchRulesBox" IsChecked="{Binding GrantsBranchRules, Mode=TwoWay}"
+                                  IsEnabled="{Binding CanChangeBranchRules, Mode=OneWay}" ToolTipService.ShowOnDisabled="True"
+                                  ToolTip="{Binding BranchRulesToolTip}" AutomationProperties.HelpText="{Binding BranchRulesLabel}"
+                                  Content="Allow branch rules for this project" />
+                    </controls:SettingRow>
+
+                    <controls:SettingRow x:Name="RunModeRow" Label="Run mode"
+                                         Explanation="Headless runs need no tab and work inside their budgets; a card's own run mode still comes first.">
+                        <CheckBox x:Name="RunsHeadlessBox" IsChecked="{Binding RunsHeadless, Mode=TwoWay}"
+                                  Content="Run this project's cards _headless" />
+                    </controls:SettingRow>
+                </StackPanel>
+            </TabItem>
+
+            <TabItem x:Name="HoldoutsTab" Header="Holdouts">
+                <StackPanel Margin="4,16,4,0">
+                    <controls:SettingRow x:Name="HoldoutRow" Label="Holdout folder" Value="{Binding HoldoutValue}"
+                                         Explanation="{Binding HoldoutExplanation}">
+                        <Button x:Name="ResetHoldoutButton" Content="_Reset" Click="OnResetHoldout" IsEnabled="{Binding CanResetHoldout}"
+                                AutomationProperties.Name="Reset the holdout folder" ToolTipService.ShowOnDisabled="True"
+                                ToolTip="Forget the folder you chose: it is found by convention again, once you press OK." />
+                        <Button x:Name="ChangeHoldoutButton" Content="Change…" Margin="8,0,0,0" Click="OnChooseHoldout"
+                                AutomationProperties.Name="Change the holdout folder"
+                                ToolTip="Choose this project's holdout folder: only if you understand what the guard then protects." />
+                    </controls:SettingRow>
+                    <!-- Why a folder or an address was refused, under the row it is about (A19, G4), as TitleError does. -->
+                    <TextBlock x:Name="HoldoutError" Text="{Binding HoldoutError}" Margin="0,4,0,0" Style="{DynamicResource CaptionText}"
+                               TextWrapping="Wrap" Foreground="{DynamicResource CriticalTextBrush}"
+                               Visibility="{Binding HasHoldoutError, Converter={StaticResource Visible}}" />
+                    <!-- Theseus's own folder can be kept in a private repository (1.1e AC 6e): an action, so a button (A10, W15). -->
+                    <Button x:Name="PrivateRepositoryButton" Content="_Use a private repository…" HorizontalAlignment="Left" Margin="0,12,0,0"
+                            Click="OnKeepInPrivateRepository" Visibility="{Binding HoldoutIsTheseusOwn, Converter={StaticResource Visible}}"
+                            ToolTip="Add your own private repository as this folder's remote once you press OK, so the scenarios are kept off this machine too." />
+                    <TextBlock x:Name="PendingRemote" Text="{Binding PendingRemoteText}" Margin="0,4,0,0" Style="{DynamicResource CaptionText}"
+                               TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                               Visibility="{Binding HasPendingRemote, Converter={StaticResource Visible}}" />
+                </StackPanel>
+            </TabItem>
+        </TabControl>
+    </DockPanel>
+</Window>

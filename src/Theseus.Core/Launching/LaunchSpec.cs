@@ -39,4 +39,23 @@ public sealed record LaunchSpec(
     /// same prompt serves both.
     /// </summary>
     public string? PromptIfReminted { get; init; }
+
+    /// <summary>
+    /// Environment variables set on the claude process, and only on it. Its hooks inherit them and its own commands
+    /// cannot change them, which is how a role reaches the holdout guard (verifier-card AC 2; a hook was measured to
+    /// see them on 2026-11-19). Empty for a card with no role, which then starts exactly as it always has.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Environment { get; init; } = new Dictionary<string, string>();
+
+    /// <summary>
+    /// Whether the session runs headless, in print mode with stream-json in and out, started and read by Theseus rather
+    /// than a tab (Nigel, 2026-11-24). Its prompt is then written to stdin, not passed on the command line.
+    /// </summary>
+    public bool Headless { get; init; }
+
+    /// <summary>
+    /// Claude Code's own cost cap for a headless run, <c>--max-budget-usd</c>: the hard backstop behind Theseus's
+    /// own limits, since cost is only known at the end of a turn. Null for none.
+    /// </summary>
+    public decimal? MaxBudgetUsd { get; init; }
 }

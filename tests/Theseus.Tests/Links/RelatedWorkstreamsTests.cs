@@ -14,6 +14,26 @@ public class RelatedWorkstreamsTests
     }
 
     [Test]
+    public void Paragraph_TellsBothEndsWhenAReportWasRejected_NotThatItWaits()
+    {
+        var rejected = new Link("lk-1", LinkKind.ReportsBack, "verify-close", "close-step", Nine, Link.MadeOnTheBoard,
+            Output: @"C:\h\results\r.md", LatestReport: new LinkReport(Nine, "s", @"C:\h\results\r.md", "x: fail", "partial"))
+        {
+            Rejection = new LinkRejection(Nine.AddHours(1), "it ran another project's scenarios", Nine),
+        };
+        var retired = rejected with { Rejection = new LinkRejection(Nine.AddHours(1), "Cleared up: a copy", null) };
+
+        var reader = RelatedWorkstreams.Paragraph("close-step", Status([rejected]));
+        var writer = RelatedWorkstreams.Paragraph("verify-close", Status([rejected]));
+        var retiredWriter = RelatedWorkstreams.Paragraph("verify-close", Status([retired]));
+
+        Assert.That(reader, Does.Contain("Nigel rejected its report (it ran another project's scenarios)").And.Not.Contain("not confirmed"),
+            "review of item 5, S3");
+        Assert.That(writer, Does.Contain("Nigel rejected your report (it ran another project's scenarios); a new report_back can still be confirmed"));
+        Assert.That(retiredWriter, Does.Contain("Nigel retired this link (Cleared up: a copy)"));
+    }
+
+    [Test]
     public void Paragraph_TellsAChildWhichCardItTakesOverFrom()
     {
         var paragraph = RelatedWorkstreams.Paragraph("token-spike", Status(

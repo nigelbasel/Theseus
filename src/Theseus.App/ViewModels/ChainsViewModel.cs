@@ -19,6 +19,7 @@ public sealed class ChainsViewModel : ObservableObject
     private readonly Action<string> _showCard;
     private LinkStatus _status = new([], []);
     private string _treeShape = string.Empty;
+    private Dictionary<string, ChainNodeViewModel> _shown = new(StringComparer.OrdinalIgnoreCase);
     private string _needsShape = string.Empty;
     private readonly Dictionary<string, DateTimeOffset> _setAside = new(StringComparer.Ordinal);
     private readonly Dictionary<string, DateTimeOffset> _seenReports = new(StringComparer.Ordinal);
@@ -49,6 +50,8 @@ public sealed class ChainsViewModel : ObservableObject
 
         ToggleCommand = new RelayCommand(_ => IsOpen = !IsOpen);
         OpenCommand = new RelayCommand(_ => IsOpen = true);
+        FoldAllCommand = new RelayCommand(_ => SetExpanded(Roots, false), _ => Roots.Count > 0);
+        UnfoldAllCommand = new RelayCommand(_ => SetExpanded(Roots, true), _ => Roots.Count > 0);
         AddLinkCommand = new RelayCommand(_ => AddLink(), _ => _focusKey is not null && _target is not null);
         BeginAddLinkCommand = new RelayCommand(_ =>
         {
@@ -60,6 +63,15 @@ public sealed class ChainsViewModel : ObservableObject
             ClearForm();
             IsAddingLink = false;
         });
+    }
+
+    private static void SetExpanded(IEnumerable<ChainNodeViewModel> nodes, bool expanded)
+    {
+        foreach (ChainNodeViewModel node in nodes)
+        {
+            node.IsExpanded = expanded;
+            SetExpanded(node.Children, expanded);
+        }
     }
 
     /// <summary>The links read against the board as of the last update.</summary>
@@ -78,6 +90,12 @@ public sealed class ChainsViewModel : ObservableObject
     /// <summary>Opens the Chains tab, from a card's link line.</summary>
     public RelayCommand OpenCommand { get; }
 
+    /// <summary>Folds every row of the tree (walkthrough row 11; W17's Fold, W25's F165).</summary>
+    public RelayCommand FoldAllCommand { get; }
+
+    /// <summary>Unfolds every row of the tree (walkthrough row 11; W17's Unfold, W25's F164).</summary>
+    public RelayCommand UnfoldAllCommand { get; }
+
     /// <summary>One tree per card with links and no parent.</summary>
     public ObservableCollection<ChainNodeViewModel> Roots { get; } = [];
 
@@ -87,8 +105,14 @@ public sealed class ChainsViewModel : ObservableObject
     /// <summary>Reports waiting for Nigel's Confirm, and reports lost; set-aside ones last.</summary>
     public ObservableCollection<NeedsYouRowViewModel> NeedsYou { get; } = [];
 
+    /// <summary>Every link ever made, removed ones included, for what is read from links elsewhere, such as a verifier having ended.</summary>
+    public IReadOnlyList<Link> AllLinks => _book.All;
+
     /// <summary>Told, in words, when a report arrives that the board has not shown before.</summary>
     public Action<string>? ReportArrived { get; set; }
+
+    /// <summary>Told when the owner confirms a report, after the link is satisfied (verifier-card AC 13).</summary>
+    public Action<Link>? ReportConfirmed { get; set; }
 
     /// <summary>Whether no card has a link yet, so the tab explains how to make one.</summary>
     public bool HasNoChains => Roots.Count == 0;
@@ -229,7 +253,7 @@ public sealed class ChainsViewModel : ObservableObject
 
     /// <summary>Every key a link has ever named, so a new card never takes a deleted card's key.</summary>
     public IReadOnlyCollection<string> TakenKeys =>
-        [.. _book.All.SelectMany(link => new[] { link.From, link.To }).Distinct(StringComparer.OrdinalIgnoreCase)];
+        [.. _book.All.SelectMany(link => new[] { link.From, link.To }).Concat(Proposals?.TakenKeys ?? []).Distinct(StringComparer.OrdinalIgnoreCase)];
 
     /// <summary>The links as a fresh session of this card should be told them.</summary>
     public string RelatedParagraph(string key) => RelatedWorkstreams.Paragraph(key, Current());
@@ -317,17 +341,33 @@ public sealed class ChainsViewModel : ObservableObject
             card.Links = LinkLine.For(card.Key, _status);
         }
 
-        var nodes = cards
-            .Where(card => _status.For(card.Key).Count > 0)
-            .ToDictionary(card => card.Key, card => Node(card), StringComparer.OrdinalIgnoreCase);
+        var rows = cards.Where(card => _status.For(card.Key).Count > 0).ToList();
+        var shared = rows.GroupBy(card => card.Title, StringComparer.CurrentCultureIgnoreCase)
+            .Where(group => group.Count() > 1)
+            .Select(group => group.Key)
+            .ToHashSet(StringComparer.CurrentCultureIgnoreCase);
+        var nodes = rows.ToDictionary(card => card.Key, card => Node(card, shared.Contains(card.Title)), StringComparer.OrdinalIgnoreCase);
 
+        // The session's mark and Focus are left out: they change on every turn, and are updated on the rows in place.
         var shape = string.Join("|", nodes.Values.Select(node =>
-            $"{node.Key}:{node.Title}:{node.State}:{node.WaitsOn}:{node.ReportsBack}:{Parent(node.Key)}"));
+            $"{node.Key}:{node.Title}:{node.State}:{node.WaitsOn}:{node.ReportsBack}:{Parent(node.Key)}:{node.Copy}"));
 
         if (shape != _treeShape)
         {
             _treeShape = shape;
             Rebuild(nodes);
+            _shown = nodes;
+        }
+        else
+        {
+            foreach (var (key, fresh) in nodes)
+            {
+                if (_shown.TryGetValue(key, out var shown))
+                {
+                    shown.Session = fresh.Session;
+                    shown.Focus = fresh.HasFocus == shown.HasFocus ? shown.Focus : fresh.Focus;
+                }
+            }
         }
 
         UpdateNeedsYou(cards);
@@ -383,7 +423,7 @@ public sealed class ChainsViewModel : ObservableObject
             NeedsYou.Add(new NeedsYouRowViewModel(link, state, $"{Title(link.From)} → {Title(link.To)}",
                 Detail(link, state, writer), writer?.ColorHex ?? "#808080",
                 writer is null ? null : Theseus.Core.Stopping.HandoffPath.For(writer.Workstream),
-                setAside, Confirm, Satisfy, SetAside));
+                setAside, Confirm, Satisfy, SetAside, Reject));
         }
 
         RaiseButton();
@@ -440,7 +480,10 @@ public sealed class ChainsViewModel : ObservableObject
         }
     }
 
-    private ChainNodeViewModel Node(WorkstreamCardViewModel card)
+    /// <summary>Brings a card's tab forward, by key: the row's ⌖ Focus (item 8). Set by the app; null shows no Focus.</summary>
+    public Action<string>? FocusCard { get; set; }
+
+    private ChainNodeViewModel Node(WorkstreamCardViewModel card, bool titleShared)
     {
         var readiness = _status.ReadinessOf(card.Key);
         var inputs = _status.Inputs(card.Key);
@@ -462,7 +505,15 @@ public sealed class ChainsViewModel : ObservableObject
                 ? string.Empty
                 : "waits on: " + string.Join(", ", inputs.Select(link => $"{Title(link.From)} {Mark(_status.StateOf(link))}")),
             reportsTo is null ? string.Empty : $"↩ reports back to {Title(reportsTo.To)} {Mark(_status.StateOf(reportsTo))}",
-            new RelayCommand(_ => _showCard(card.Key)));
+            new RelayCommand(_ => _showCard(card.Key)))
+        {
+            Session = SessionMark.Of(card.Lifecycle),
+            // Launching has no session to bring forward yet: its mark shows, and its Focus once it is running.
+            Focus = FocusCard is { } focus && SessionMark.HasSession(card.Lifecycle) && card.Lifecycle != SessionLifecycle.Launching
+                ? new RelayCommand(_ => focus(card.Key))
+                : null,
+            Copy = titleShared ? card.Key : string.Empty,
+        };
     }
 
     private void Rebuild(Dictionary<string, ChainNodeViewModel> nodes)
@@ -550,13 +601,44 @@ public sealed class ChainsViewModel : ObservableObject
 
     private string? Satisfy(string id, string reason) => Changed(_book.Satisfy(id, reason));
 
-    private string? Confirm(string id) => Changed(_book.Confirm(id));
+    /// <summary>Rejects a link's report for the reason given (git-22, 2026-11-23); it leaves NEEDS YOU on the update.</summary>
+    public string? Reject(string id, string reason)
+    {
+        var refusal = Changed(_book.Reject(id, reason));
+
+        if (refusal is null)
+        {
+            Update();
+        }
+
+        return refusal;
+    }
+
+    /// <summary>Retires a verifier's link for Clear up verifiers…: no report on it, now or later, counts as met.</summary>
+    public string? Retire(string id, string reason) => Changed(_book.Retire(id, reason));
+
+    /// <summary>Puts a link back exactly as it was, for Undo of Clear up verifiers….</summary>
+    public string? Restore(Link before) => Changed(_book.Restore(before));
+
+    private string? Confirm(string id)
+    {
+        var link = _book.All.FirstOrDefault(each => string.Equals(each.Id, id, StringComparison.Ordinal));
+        var refusal = Changed(_book.Confirm(id));
+
+        if (refusal is null && link is not null)
+        {
+            ReportConfirmed?.Invoke(link);
+        }
+
+        return refusal;
+    }
 
     private static string Mark(LinkState state) => state switch
     {
         LinkState.Satisfied => "✓",
         LinkState.Reported => "?",
         LinkState.ReportLost => "!",
+        LinkState.Rejected => "✗",
         _ => "⧗",
     };
 
@@ -564,6 +646,15 @@ public sealed class ChainsViewModel : ObservableObject
         string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
 
     private string? Remove(string id) => Changed(_book.Remove(id));
+
+    /// <summary>
+    /// Removes the standing hand-over from one card to another, and its report back with it; the reason it was refused,
+    /// or null. For a box shown in a project only by that hand-over (Nigel, 2026-11-22).
+    /// </summary>
+    public string? RemoveHandOver(string from, string to) =>
+        _book.Active.FirstOrDefault(link => link.Kind == LinkKind.HandsOver && Same(link.From, from) && Same(link.To, to)) is { } link
+            ? Remove(link.Id)
+            : $"{from} no longer hands over to {to}.";
 
     private string? Changed(LinkChange change)
     {

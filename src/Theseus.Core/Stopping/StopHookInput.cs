@@ -18,11 +18,22 @@ namespace Theseus.Core.Stopping;
 /// Present when a subagent is running rather than the session itself. A subagent is not the session
 /// the user asked to stop, and telling one to write a handoff and exit would end the wrong thing.
 /// </param>
+/// <param name="TranscriptPath">The session's transcript, read at the end of a turn for a question asked in prose (1.6).</param>
+/// <param name="LastAssistantMessage">
+/// The turn's final text, where the running Claude Code sends it on Stop. Preferred over the transcript, which may not
+/// hold that text yet when the hook runs; absent from older builds, which leaves the transcript.
+/// </param>
+/// <param name="NotificationType">On a Notification event, its kind: "permission_prompt", "idle_prompt" and others (1.6).</param>
+/// <param name="Message">On a Notification event, what Claude Code says: "Claude needs your permission to use Bash".</param>
 public sealed record StopHookInput(
     [property: JsonPropertyName("session_id")] string? SessionId,
     [property: JsonPropertyName("hook_event_name")] string? HookEventName,
     [property: JsonPropertyName("stop_hook_active")] bool StopHookActive = false,
-    [property: JsonPropertyName("agent_id")] string? AgentId = null)
+    [property: JsonPropertyName("agent_id")] string? AgentId = null,
+    [property: JsonPropertyName("transcript_path")] string? TranscriptPath = null,
+    [property: JsonPropertyName("last_assistant_message")] string? LastAssistantMessage = null,
+    [property: JsonPropertyName("notification_type")] string? NotificationType = null,
+    [property: JsonPropertyName("message")] string? Message = null)
 {
     /// <summary>
     /// Reads what arrived on standard input, or nothing when it cannot be understood.

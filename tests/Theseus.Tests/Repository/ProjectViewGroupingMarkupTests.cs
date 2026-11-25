@@ -1,0 +1,121 @@
+using System.Runtime.CompilerServices;
+using System.Xml.Linq;
+
+namespace Theseus.Tests.Repository;
+
+/// <summary>
+/// The markup of PR 4 (1.1d AC 45, 47, 49, 51, 53): Group by on the toolbar and on the View menu beside Rows by, one box
+/// template for both groupings, the headings' menus, and the Properties overlay with its close button.
+/// </summary>
+[TestFixture]
+public class ProjectViewGroupingMarkupTests
+{
+    private static readonly XNamespace Presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+    private static readonly XNamespace Xaml = "http://schemas.microsoft.com/winfx/2006/xaml";
+
+    private static XDocument Load(params string[] path) =>
+        XDocument.Load(Path.Combine([RepositoryRoot(), "src", "Theseus.App", .. path]));
+
+    private static XDocument View() => Load("Views", "ProjectView.xaml");
+
+    private static XElement Named(XDocument document, string name) =>
+        document.Descendants().Single(element => (string?)element.Attribute(Xaml + "Name") == name);
+
+    [Test]
+    public void TheTwoViews_AreASelectorBarOverThePage_OneSelected_OneTabStop()
+    {
+        var view = View();
+        var buttons = Named(view, "GroupBy").Elements(Presentation + "RadioButton").ToList();
+        var style = view.Descendants(Presentation + "Style").Single(each => (string?)each.Attribute(Xaml + "Key") == "GroupByButton");
+
+        Assert.That(buttons.Select(button => ((string?)button.Attribute("Content"), (string?)button.Attribute("IsChecked"))), Is.EqualTo(new[]
+        {
+            ("Rounds and work", "{Binding IsGroupedByFlow, Mode=TwoWay}"), ("Objectives only", "{Binding IsGroupedByObjectives, Mode=TwoWay}"),
+        }));
+        // Walkthrough row 44: two views of the same data are tabs over the page (checklist G124, G125), not a toolbar's toggles.
+        Assert.That(Named(view, "Toolbar").Descendants().Any(element => (string?)element.Attribute(Xaml + "Name") == "GroupBy"), Is.False);
+        Assert.That((string?)Named(view, "GroupBy").Attribute("KeyboardNavigation.TabNavigation"), Is.EqualTo("Once"));
+        Assert.That((string?)style.Attribute("BasedOn"), Is.EqualTo("{StaticResource SelectorBarItem}"), "the shared selector bar item, with its accent underline");
+        Assert.That(style.Elements(Presentation + "Setter").Single(setter => (string?)setter.Attribute("Property") == "GroupName")
+            .Attribute("Value")!.Value, Is.EqualTo("GroupBy"), "pressing one releases the other");
+    }
+
+    [Test]
+    public void TheViewMenusGroupBy_EndsWithTheProjectSet_DisabledWhileNoProjectIsOpen()
+    {
+        // Columns by, Rows by and Group project by are one Group by submenu of radio sets (W32, C12, C23); the project's
+        // set has the project view's own names (C25) and is disabled, not hidden, with no project open (W31).
+        var view = Load("MainWindow.xaml").Descendants(Presentation + "MenuItem").Single(item => (string?)item.Attribute("Header") == "_View");
+        var group = view.Elements(Presentation + "MenuItem").Single(item => (string?)item.Attribute("Header") == "_Group by");
+        var project = group.Elements(Presentation + "MenuItem").TakeLast(2).ToList();
+
+        Assert.That(project.Select(item =>
+            ((string?)item.Attribute("Header"), (string?)item.Attribute("IsEnabled"), (string?)item.Attribute("IsChecked"))), Is.EqualTo(new[]
+        {
+            ("Project by _rounds and work", "{Binding IsProjectOpen}", "{Binding ProjectView.IsGroupedByFlow, Mode=TwoWay}"),
+            ("Project by o_bjectives only", "{Binding IsProjectOpen}", "{Binding ProjectView.IsGroupedByObjectives, Mode=TwoWay}"),
+        }));
+        Assert.That(project.Select(item => (string?)item.Attribute("Style")), Is.All.EqualTo("{StaticResource RadioMenuItem}"));
+    }
+
+    [Test]
+    public void BothGroupings_DrawTheSameBox()
+    {
+        var presenters = View().Descendants(Presentation + "ContentPresenter")
+            .Where(presenter => (string?)presenter.Attribute("ContentTemplate") == "{StaticResource PieceBox}").ToList();
+
+        Assert.That(presenters, Has.Count.EqualTo(2), "the Flow's node and the box under an objective");
+        Assert.That(View().Descendants(Presentation + "DataTemplate").Count(each => (string?)each.Attribute(Xaml + "Key") == "PieceBox"), Is.EqualTo(1));
+        Assert.That((string?)Named(View(), "ObjectivePieces").Attribute("ItemTemplate"), Is.EqualTo("{StaticResource ObjectivePiece}"));
+    }
+
+    [TestCase("PhaseHeader")]
+    [TestCase("ObjectiveHeader")]
+    public void AHeading_SelectsWithAClickEnterOrSpace_AndHasItsMenu(string header)
+    {
+        var element = Named(View(), header);
+        var menu = element.Descendants(Presentation + "ContextMenu").Single();
+
+        Assert.That((string?)element.Attribute("Focusable"), Is.EqualTo("True"));
+        Assert.That(element.Descendants(Presentation + "KeyBinding").Select(binding => (string?)binding.Attribute("Key")),
+            Is.EquivalentTo(new[] { "Enter", "Space" }));
+        Assert.That((string?)element.Descendants(Presentation + "MouseBinding").Single().Attribute("Command"), Is.EqualTo("{Binding SelectCommand}"));
+        Assert.That(((string?)menu.Attribute("ItemsSource"), (string?)menu.Attribute("ItemContainerStyle")),
+            Is.EqualTo(("{Binding MenuEntries}", "{StaticResource StageMenuItem}")));
+    }
+
+    [Test]
+    public void TheOverlay_IsThePane_MovedOverTheFlowAtItsMinimumWidth_WithAClosingCross()
+    {
+        var view = View();
+        var pane = Named(view, "Pane");
+        var trigger = pane.Descendants(Presentation + "DataTrigger").Single();
+        string? Setter(string property) =>
+            (string?)trigger.Elements(Presentation + "Setter").Single(setter => (string?)setter.Attribute("Property") == property).Attribute("Value");
+        var close = Named(view, "CloseOverlay");
+
+        Assert.That((string?)trigger.Attribute("Binding"), Is.EqualTo("{Binding IsPaneDocked}"));
+        Assert.That((Setter("Grid.ColumnSpan"), Setter("HorizontalAlignment"), Setter("Width")),
+            Is.EqualTo(("3", "Right", "{x:Static vm:ProjectPaneWidth.Minimum}")));
+        Assert.That(pane.Descendants(Presentation + "Condition").Select(condition => (string?)condition.Attribute("Binding")),
+            Is.EqualTo(new[] { "{Binding IsPaneDocked}", "{Binding IsOverlayOpen}" }));
+        Assert.That(((string?)close.Attribute("Content"), (string?)close.Attribute("Command"), (string?)close.Attribute("ToolTip")),
+            Is.EqualTo(("\uE8BB", "{Binding CloseOverlayCommand}", "Close Properties (Esc)")), "W25: E8BB closes");
+    }
+
+    private static string RepositoryRoot([CallerFilePath] string thisFile = "") =>
+        Path.GetFullPath(Path.Combine(Path.GetDirectoryName(thisFile)!, "..", "..", ".."));
+
+    [Test]
+    public void PropertiesLabelsAreSemibold_AndARecordIsNamedOnce()
+    {
+        // Walkthrough rows 33 and 34: the labels did not stand out, and BRIEF.md showed as a link and again written under it.
+        var view = View();
+        var rows = Named(view, "PropertyRows").Descendants(Presentation + "TextBlock").First(text => (string?)text.Attribute("Text") == "{Binding Label}");
+        var record = Named(view, "RecordRows");
+
+        Assert.That((string?)rows.Attribute("FontWeight"), Is.EqualTo("SemiBold"));
+        Assert.That(record.Descendants(Presentation + "Run").Select(run => (string?)run.Attribute("Text")), Has.None.Contains("FileName"));
+        Assert.That((string?)Named(view, "RecordRow").Attribute("ToolTip"), Is.EqualTo("{Binding FileToolTip}"));
+    }
+}

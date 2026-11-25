@@ -1,0 +1,76 @@
+using Theseus.Core.Domain;
+
+namespace Theseus.Core.Projects;
+
+/// <summary>What the project view needs to know about one board card (1.1d AC 1).</summary>
+/// <param name="Key">The card's key, which a project row's Workstream names and links join.</param>
+/// <param name="Title">Its name on screen.</param>
+/// <param name="Colour">Its colour, as <c>#rrggbb</c>.</param>
+/// <param name="Lifecycle">What its session is doing now.</param>
+/// <param name="IsBlocked">Whether the owner marked it blocked.</param>
+/// <param name="Role">A verifier card is never a piece of work of its own (AC 13).</param>
+/// <param name="CanStart">
+/// Whether Start would start it, as <c>StartSelection.IsEligible</c> says (code fact 5): not archived, a prompt, and no
+/// live session in the registry. The caller fills it from the board, so a ghost or archived card offers no Start.
+/// </param>
+public sealed record PieceCard(
+    string Key,
+    string Title,
+    string Colour,
+    SessionLifecycle Lifecycle,
+    bool IsBlocked = false,
+    WorkstreamRole Role = WorkstreamRole.None,
+    bool CanStart = true)
+{
+    /// <summary>Why it is stopped, such as "Stopped by you", shown in the view's Properties (1.1e AC 12); null when its own line says enough.</summary>
+    public string? StopLine { get; init; }
+
+    /// <summary>Why its last start failed, when Theseus knows, or null: said beside Start again.</summary>
+    public string? StartFailure { get; init; }
+
+    /// <summary>
+    /// For a verifier: whether it cannot run under today's rules (made before Checks lines, or its build named by no
+    /// scenario). It neither stands nor asks for a start; Clear up verifiers… takes it.
+    /// </summary>
+    public bool IsObsolete { get; init; }
+
+    /// <summary>Whether a launch of it is in flight: its tab is open, perhaps asking whether to trust its folder.</summary>
+    public bool IsStarting { get; init; }
+
+    /// <summary>Whether a headless run of it is going or queued: it has no tab, so its Lifecycle does not say so.</summary>
+    public bool IsHeadless { get; init; }
+
+    /// <summary>The question its session has open for the owner (1.6), or null.</summary>
+    public Theseus.Core.Questions.OwnerQuestion? Question { get; init; }
+
+    /// <summary>The prompt its session is stopped at in its tab (1.6), or null.</summary>
+    public Theseus.Core.Questions.PermissionPrompt? Prompt { get; init; }
+
+    /// <summary>The card whose session paused it, or null (1.1e AC 14): a project's Start skips it while it stands.</summary>
+    public string? PausedBy { get; init; }
+
+    /// <summary>When the owner granted its project branch rules, for its mark (1.1e AC 12b); null when not granted.</summary>
+    public DateTimeOffset? BranchRulesSince { get; init; }
+
+    /// <summary>Whether it is archived: an archived verifier no longer stands for its build.</summary>
+    public bool IsArchived { get; init; }
+
+    /// <summary>
+    /// Whether it has ever run: Lifecycle's NotStarted means only "no run today", so a verifier that ran yesterday is
+    /// told from one never started by this (review, finding 1).
+    /// </summary>
+    public bool HasRun { get; init; }
+
+    /// <summary>The latest work another card of its project gave it by a start or resume, or null.</summary>
+    public HandIn? HandIn { get; init; }
+
+    /// <summary>When its newest run started, or null with none recorded: a hand-in belongs to the run it launched.</summary>
+    public DateTimeOffset? LastRunStartedUtc { get; init; }
+
+    /// <summary>Whether it has a session open now, so Focus and Stop apply and Start does not.</summary>
+    public bool HasSession => Lifecycle is SessionLifecycle.Launching or SessionLifecycle.Running
+        or SessionLifecycle.Idle or SessionLifecycle.NeedsAttention;
+
+    /// <summary>Whether its session is working: Busy comes from the session, not the records (code fact 6).</summary>
+    public bool IsWorking => Lifecycle is SessionLifecycle.Launching or SessionLifecycle.Running;
+}

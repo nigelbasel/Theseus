@@ -14,11 +14,31 @@ public static class ClaudeArgumentBuilder
     {
         ArgumentNullException.ThrowIfNull(spec);
 
-        var argv = new List<string>
+        var argv = new List<string>();
+
+        // Headless runs speak stream-json both ways (Nigel, 2026-11-24, measured that day): the prompt goes in on stdin
+        // as the first user message, so it is not positional.
+        if (spec.Headless)
         {
+            argv.AddRange(["-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose"]);
+        }
+
+        argv.AddRange(
+        [
             spec.Mode == LaunchMode.Resume ? "--resume" : "--session-id",
             spec.SessionId,
-        };
+            // Sessions Theseus launches run unattended (Nigel, 2026-11-23); a prompt that still stops one shows on the
+            // board as a wait for the owner.
+            "--permission-mode",
+            "auto",
+        ]);
+
+        if (spec.Headless && spec.MaxBudgetUsd is { } cap)
+        {
+            argv.Add("--max-budget-usd");
+            // Down to the cent, so the cap never sits above what is left of a day.
+            argv.Add((Math.Floor(cap * 100) / 100).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture));
+        }
 
         if (!string.IsNullOrWhiteSpace(spec.SessionName))
         {
@@ -26,7 +46,7 @@ public static class ClaudeArgumentBuilder
             argv.Add(spec.SessionName);
         }
 
-        if (!string.IsNullOrWhiteSpace(spec.Prompt))
+        if (!spec.Headless && !string.IsNullOrWhiteSpace(spec.Prompt))
         {
             argv.Add(spec.Prompt);
         }

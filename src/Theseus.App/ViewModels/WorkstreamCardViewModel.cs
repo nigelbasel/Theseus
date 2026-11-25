@@ -4,16 +4,28 @@ using Theseus.Core.Links;
 namespace Theseus.App.ViewModels;
 
 /// <summary>One card on the board.</summary>
-public sealed class WorkstreamCardViewModel : ObservableObject
+public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
 {
     private Workstream _workstream;
     private SessionLifecycle _lifecycle = SessionLifecycle.NotStarted;
+    private Theseus.Core.Questions.OwnerQuestion? _question;
+    private Theseus.Core.Questions.PermissionPrompt? _prompt;
+    private Theseus.Core.Projects.WhyStopped? _stopReason;
+    private string _verifyToolTip = string.Empty;
+    private string? _verifyOffReason;
+    private DateTimeOffset? _branchRulesSince;
     private DateTimeOffset? _lastExitedUtc;
     private DateTimeOffset? _lastStartedUtc;
     private string _todoSummary = string.Empty;
+    private string _headlessLine = string.Empty;
+    private string _headlessDetail = string.Empty;
     private string _resources = string.Empty;
     private string _resourcesTooltip = string.Empty;
     private bool _stopPending;
+    private bool _isStopping;
+    private string _stopTooltip = string.Empty;
+    private bool _canCloseNow;
+    private string _handoffRenameTo = string.Empty;
     private string _runningAs = string.Empty;
     private string _clash = string.Empty;
     private string _linkedShare = string.Empty;
@@ -34,11 +46,22 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     private bool _isCollapsed;
     private IReadOnlyList<PullRequestLink> _pullRequests = [];
     private IReadOnlyList<CardItemRow> _jiraItems = [];
+    private string _projectSource = string.Empty;
     private IReadOnlyList<CardItemRow> _pullRequestItems = [];
     private string _branch = string.Empty;
     private string _branchTooltip = string.Empty;
     private bool _branchesDiffer;
     private DateTimeOffset? _lifecycleSinceUtc;
+    private IReadOnlyList<CardRepo> _repos = [];
+    private IReadOnlyList<CardItemRow> _statusItems = [];
+    private string _statusButtonText = string.Empty;
+    private Theseus.Core.CiStatus.CiState _statusState = Theseus.Core.CiStatus.CiState.NotRead;
+    private bool _isSearchDimmed;
+    private IReadOnlyList<Theseus.Core.Finding.TextSpan> _titleHighlights = [];
+    private IReadOnlyList<TagChipViewModel> _tagChips = [];
+    private string _moreTags = string.Empty;
+    private string _moreTagsToolTip = string.Empty;
+    private IReadOnlyList<TagMenuItemViewModel> _tagMenu = [];
 
     /// <summary>Creates a card over a workstream.</summary>
     public WorkstreamCardViewModel(Workstream workstream) => _workstream = workstream;
@@ -52,6 +75,11 @@ public sealed class WorkstreamCardViewModel : ObservableObject
             if (Set(ref _workstream, value))
             {
                 Raise(nameof(Key));
+                Raise(nameof(IsBreakerTripped));
+                Raise(nameof(RunsInTabByChoice));
+                Raise(nameof(RunsHeadlessByChoice));
+                Raise(nameof(RunsByDefault));
+                Raise(nameof(FaceTooltip));
                 Raise(nameof(Title));
                 Raise(nameof(ColorHex));
                 Raise(nameof(JiraKeys));
@@ -62,14 +90,151 @@ public sealed class WorkstreamCardViewModel : ObservableObject
                 Raise(nameof(IsPaused));
                 Raise(nameof(FlagText));
                 Raise(nameof(PauseTooltip));
-                Raise(nameof(PauseMenuText));
-                Raise(nameof(BlockMenuText));
                 Raise(nameof(ArchiveTooltip));
                 Raise(nameof(ReopenTomorrow));
                 Raise(nameof(Column));
                 Raise(nameof(IsArchived));
                 Raise(nameof(ArchiveLabel));
+                Raise(nameof(Tags));
             }
+        }
+    }
+
+    /// <summary>The owner's tags on the card (card-search-and-tags item 9).</summary>
+    public IReadOnlyList<string> Tags => _workstream.Tags;
+
+    /// <summary>The card's repos and their branches, read with its branch line, for the search to match (item 2).</summary>
+    public IReadOnlyList<CardRepo> Repos
+    {
+        get => _repos;
+        set => Set(ref _repos, value);
+    }
+
+    /// <summary>The card's repos as its pull request and CI status needs them: name, branch and origin (pr-ci-status).</summary>
+    public IReadOnlyList<Theseus.Core.CiStatus.CardStatusRepo> StatusRepos { get; set; } = [];
+
+    /// <summary>The status drop-down's rows: each repo's open pull request and newest CI run, or why they are unknown.</summary>
+    public IReadOnlyList<CardItemRow> StatusItems
+    {
+        get => _statusItems;
+        private set => Set(ref _statusItems, value);
+    }
+
+    /// <summary>What the status drop-down's button says, such as "PR 41 · ✓ CI passed"; empty when there is no status.</summary>
+    public string StatusButtonText
+    {
+        get => _statusButtonText;
+        private set => Set(ref _statusButtonText, value);
+    }
+
+    /// <summary>The worst CI state among the card's repos, which colours the button.</summary>
+    public Theseus.Core.CiStatus.CiState StatusState
+    {
+        get => _statusState;
+        private set => Set(ref _statusState, value);
+    }
+
+    /// <summary>Replaces the status, only when it has changed so an open menu is left alone.</summary>
+    public void SetStatus(Theseus.Core.CiStatus.CardStatus status)
+    {
+        ArgumentNullException.ThrowIfNull(status);
+
+        StatusButtonText = status.ButtonText;
+        StatusState = status.State;
+
+        var rows = status.Rows.Select(row => new CardItemRow(row.Text, null, row.Url, tooltip: row.Tooltip)).ToList();
+
+        if (!rows.Select(row => row.Display + row.Url + row.Tooltip).SequenceEqual(StatusItems.Select(row => row.Display + row.Url + row.Tooltip)))
+        {
+            StatusItems = rows;
+        }
+    }
+
+    /// <summary>What the search reads of the card (item 2): title, key, project, area, Jira keys, tags, branches, repos.</summary>
+    public Theseus.Core.Finding.SearchableCard Searchable => new(
+        Key, Title, _workstream.Project ?? string.Empty, Area, JiraKeys, Tags,
+        [.. _repos.Select(repo => repo.Branch).OfType<string>()], [.. _repos.Select(repo => repo.Name)]);
+
+    /// <summary>Whether a search is on that the card does not match, so it is dimmed (item 3, decision 1).</summary>
+    public bool IsSearchDimmed
+    {
+        get => _isSearchDimmed;
+        private set => Set(ref _isSearchDimmed, value);
+    }
+
+    /// <summary>Where the search's words fall in the title, to be highlighted (item 3); empty with no search.</summary>
+    public IReadOnlyList<Theseus.Core.Finding.TextSpan> TitleHighlights
+    {
+        get => _titleHighlights;
+        private set
+        {
+            if (Set(ref _titleHighlights, value))
+            {
+                Raise(nameof(HasTitleHighlights));
+            }
+        }
+    }
+
+    /// <summary>Whether the search highlights part of the title, so it wraps rather than trims (review R4).</summary>
+    public bool HasTitleHighlights => _titleHighlights.Count > 0;
+
+    /// <summary>The tags shown under the title, at most three (card-search-and-tags item 11).</summary>
+    public IReadOnlyList<TagChipViewModel> TagChips
+    {
+        get => _tagChips;
+        private set
+        {
+            if (Set(ref _tagChips, value))
+            {
+                Raise(nameof(HasTags));
+            }
+        }
+    }
+
+    /// <summary>Whether it shows any tags.</summary>
+    public bool HasTags => _tagChips.Count > 0;
+
+    /// <summary>"+2" for the tags not shown, or empty.</summary>
+    public string MoreTags
+    {
+        get => _moreTags;
+        private set => Set(ref _moreTags, value);
+    }
+
+    /// <summary>The tags not shown, for the "+2" label's tooltip.</summary>
+    public string MoreTagsToolTip
+    {
+        get => _moreTagsToolTip;
+        private set => Set(ref _moreTagsToolTip, value);
+    }
+
+    /// <summary>Its menu's Tags ›, built as the menu opens (item 10).</summary>
+    public IReadOnlyList<TagMenuItemViewModel> TagMenu
+    {
+        get => _tagMenu;
+        set => Set(ref _tagMenu, value);
+    }
+
+    /// <summary>Shows its tags on its face, unchanged chips left in place.</summary>
+    internal void ShowTags(IReadOnlyList<TagChipViewModel> chips, string more, string rest)
+    {
+        if (!chips.Select(chip => (chip.Tag, chip.ColourHex)).SequenceEqual(_tagChips.Select(chip => (chip.Tag, chip.ColourHex))))
+        {
+            TagChips = chips;
+        }
+
+        MoreTags = more;
+        MoreTagsToolTip = rest;
+    }
+
+    /// <summary>Shows what the board's search makes of the card.</summary>
+    internal void ShowSearch(bool dimmed, IReadOnlyList<Theseus.Core.Finding.TextSpan> highlights)
+    {
+        IsSearchDimmed = dimmed;
+
+        if (!highlights.SequenceEqual(_titleHighlights))
+        {
+            TitleHighlights = highlights;
         }
     }
 
@@ -204,6 +369,41 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     /// <summary>What the archive button says, which is the opposite when it is already away.</summary>
     public string ArchiveLabel => IsArchived ? "Restore" : "Archive";
 
+    /// <summary>The question its session has open for the owner (1.6), or null; it is what the status line says while waiting.</summary>
+    public Theseus.Core.Questions.OwnerQuestion? Question
+    {
+        get => _question;
+        set
+        {
+            if (Set(ref _question, value))
+            {
+                RaiseStatus();
+            }
+        }
+    }
+
+    /// <summary>The prompt its session is stopped at in its tab (1.6), or null; while set, it is what the status line says.</summary>
+    public Theseus.Core.Questions.PermissionPrompt? Prompt
+    {
+        get => _prompt;
+        set
+        {
+            if (Set(ref _prompt, value))
+            {
+                RaiseStatus();
+            }
+        }
+    }
+
+    /// <summary>The status line's tooltip: the prompt, or the question with its options and why, when it waits on one.</summary>
+    public string StatusToolTip => Lifecycle != SessionLifecycle.NeedsAttention
+        ? StatusLine
+        : Prompt is { } prompt
+            ? Theseus.Core.Questions.QuestionWords.Detail(prompt)
+            : Question is { } question
+                ? Theseus.Core.Questions.QuestionWords.Detail(question)
+                : StatusLine;
+
     /// <summary>What the session is doing right now.</summary>
     public SessionLifecycle Lifecycle
     {
@@ -216,12 +416,54 @@ public sealed class WorkstreamCardViewModel : ObservableObject
                 Raise(nameof(PlayTooltip));
                 Raise(nameof(PauseTooltip));
                 Raise(nameof(IsLive));
+                Raise(nameof(ArchiveTooltip));
+                Raise(nameof(ShowStop));
                 Raise(nameof(IsWorking));
                 Raise(nameof(IsRunning));
-                Raise(nameof(StatusLine));
+                RaiseStatus();
             }
         }
     }
+
+    /// <summary>
+    /// Whether a stop is under way for this card's session, from the moment it is asked until the session exits or
+    /// the request is retired. The Stop icon gives way to a stopping icon that cannot be pressed, so a stop cannot be
+    /// asked twice from the card (close-step AC 5).
+    /// </summary>
+    public bool IsStopping
+    {
+        get => _isStopping;
+        set
+        {
+            if (Set(ref _isStopping, value))
+            {
+                Raise(nameof(ShowStop));
+            }
+        }
+    }
+
+    /// <summary>Whether the card offers its Stop icon: a live session with no stop under way.</summary>
+    public bool ShowStop => IsLive && !IsStopping;
+
+    /// <summary>Where the stop under way has got to, in the spec's words (close-step AC 6).</summary>
+    public string StopTooltip
+    {
+        get => _stopTooltip;
+        set => Set(ref _stopTooltip, value);
+    }
+
+    /// <summary>
+    /// Whether Close now is offered: /exit was tried and typed nothing for certain. It tries once, only when pressed,
+    /// and raises the terminal as it does (close-step AC 9).
+    /// </summary>
+    public bool CanCloseNow
+    {
+        get => _canCloseNow;
+        set => Set(ref _canCloseNow, value);
+    }
+
+    /// <summary>Tries /exit once more for a stop whose last attempt typed nothing.</summary>
+    public RelayCommand? CloseNowCommand { get; set; }
 
     /// <summary>When the current lifecycle state began, for the card's relative time line.</summary>
     public DateTimeOffset? LifecycleSinceUtc
@@ -231,7 +473,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject
         {
             if (Set(ref _lifecycleSinceUtc, value))
             {
-                Raise(nameof(StatusLine));
+                RaiseStatus();
             }
         }
     }
@@ -244,7 +486,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject
         {
             if (Set(ref _lastExitedUtc, value))
             {
-                Raise(nameof(StatusLine));
+                RaiseStatus();
             }
         }
     }
@@ -257,7 +499,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject
         {
             if (Set(ref _lastStartedUtc, value))
             {
-                Raise(nameof(StatusLine));
+                RaiseStatus();
             }
         }
     }
@@ -305,6 +547,9 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     /// <summary>Attaches this workstream to the session running unattached for it.</summary>
     public RelayCommand? AdoptLostCommand { get; set; }
 
+    /// <summary>Opens this card's duties.</summary>
+    public RelayCommand? DutiesCommand { get; set; }
+
     /// <summary>Whether a session is running, which is what disables Restart in favour of Focus.</summary>
     public bool IsLive => Lifecycle
         is SessionLifecycle.Launching
@@ -344,6 +589,9 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     /// how many they would affect and refuse when that is none.
     /// </summary>
     public Action? SelectionChanged { get; set; }
+
+    /// <summary>A drag of the card carries its key.</summary>
+    public string DragPayload => Key;
 
     /// <summary>
     /// Whether the card is folded down to its title.
@@ -467,7 +715,7 @@ public sealed class WorkstreamCardViewModel : ObservableObject
         {
             if (Set(ref _stopPending, value))
             {
-                Raise(nameof(StatusLine));
+                RaiseStatus();
             }
         }
     }
@@ -480,13 +728,19 @@ public sealed class WorkstreamCardViewModel : ObservableObject
             SessionLifecycle.NeedsAttention => "stopping — answer it first",
             _ => "stopping when this turn ends — press Stop again to cut in",
         }
-        : Lifecycle switch
+        : StopReason is { } reason && !IsLive
+            ? reason.Line
+            : Lifecycle switch
         {
         SessionLifecycle.NotStarted => CardLifecycle.NotStartedLine(LastExitedUtc, LastStartedUtc, DateTimeOffset.UtcNow),
         SessionLifecycle.Launching => "launching",
         SessionLifecycle.Running => Since("busy"),
         SessionLifecycle.Idle => Since("idle"),
-        SessionLifecycle.NeedsAttention => Since("waiting for you"),
+        SessionLifecycle.NeedsAttention => Prompt is { } prompt
+            ? Theseus.Core.Questions.QuestionWords.Card(prompt)
+            : Question is { } question
+                ? Theseus.Core.Questions.QuestionWords.Card(question)
+                : Since("waiting for you"),
         SessionLifecycle.Ended => Since("ended"),
         SessionLifecycle.Ghost => "ended unexpectedly",
         _ => string.Empty,
@@ -544,9 +798,36 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     }
 
     /// <summary>The play button's tooltip: what it does, and what resuming would cost.</summary>
-    public string PlayTooltip => string.IsNullOrWhiteSpace(RestartCost)
-        ? $"{PrimaryAction} this workstream's session"
-        : $"{PrimaryAction} this workstream's session. {RestartCost}";
+    public string PlayTooltip => StopReason?.Kind switch
+    {
+        Theseus.Core.Projects.WhyStoppedKind.Done when !IsLive && Workstream.Project is null => "Restart for more work: asks what the more work is",
+        Theseus.Core.Projects.WhyStoppedKind.ProjectStopped when !IsLive => "Start its project as it was when stopped",
+        _ => string.IsNullOrWhiteSpace(RestartCost)
+            ? $"{PrimaryAction} this workstream's session"
+            : $"{PrimaryAction} this workstream's session. {RestartCost}",
+    };
+
+    /// <summary>
+    /// Why it is stopped, when that is more than its own line says (1.1e AC 12): done, its project stopped, or stopped by
+    /// the owner while its project ran. Set by the shell with the lifecycles; null while it runs.
+    /// </summary>
+    public Theseus.Core.Projects.WhyStopped? StopReason
+    {
+        get => _stopReason;
+        set
+        {
+            if (Set(ref _stopReason, value))
+            {
+                RaiseStatus();
+                Raise(nameof(PrimaryAction));
+                Raise(nameof(PlayTooltip));
+                Raise(nameof(IsDone));
+            }
+        }
+    }
+
+    /// <summary>Whether it is done: its face is muted, as a pinned project's is, and it stays where the owner put it.</summary>
+    public bool IsDone => _stopReason?.Kind == Theseus.Core.Projects.WhyStoppedKind.Done;
 
     /// <summary>The pause button's tooltip, which depends on whether a session is running.</summary>
     public string PauseTooltip => IsLive
@@ -555,16 +836,12 @@ public sealed class WorkstreamCardViewModel : ObservableObject
             ? "Paused. Click to clear the mark"
             : "Mark as paused: set aside on purpose, keeping its stage";
 
-    /// <summary>What the card's menu offers for pausing: an action, so it says what clicking does.</summary>
-    public string PauseMenuText => IsPaused ? "Un_pause" : "_Pause";
-
-    /// <summary>What the card's menu offers for blocking.</summary>
-    public string BlockMenuText => IsBlocked ? "Un_block" : "_Block";
-
-    /// <summary>The archive button's tooltip.</summary>
+    /// <summary>The archive button's tooltip, which says why while it is disabled (W13, C-m1).</summary>
     public string ArchiveTooltip => IsArchived
         ? "Restore this workstream to the board"
-        : "Archive: take this workstream off the board without losing anything";
+        : IsLive
+            ? "Archive: stop its session first. A workstream with a session running cannot be archived."
+            : "Archive: take this workstream off the board without losing anything";
 
     /// <summary>Pauses the card: stops a running session with a handoff and marks it paused.</summary>
     public RelayCommand? PauseCommand { get; set; }
@@ -574,6 +851,121 @@ public sealed class WorkstreamCardViewModel : ObservableObject
 
     /// <summary>Opens the card's properties, from its menu or Alt+Enter.</summary>
     public RelayCommand? PropertiesCommand { get; set; }
+
+    /// <summary>Creates a verifier card for this card's change, from its menu (verifier-card AC 9).</summary>
+    public RelayCommand? VerifyWithHoldoutsCommand { get; set; }
+
+    /// <summary>
+    /// Independent check…'s tooltip on the card's menu: what it does, or, while it is off, why (1.1e AC 6a), as the
+    /// shell last found it.
+    /// </summary>
+    public string VerifyToolTip
+    {
+        get => _verifyToolTip;
+        set => Set(ref _verifyToolTip, value);
+    }
+
+    /// <summary>
+    /// Why Independent check… cannot run on this card, or null when it can: the dimmer second line of the card menu's item,
+    /// since a disabled menu item's tooltip alone is not plain view (Nigel, 2026-11-23; W30).
+    /// </summary>
+    public string? VerifyOffReason
+    {
+        get => _verifyOffReason;
+        set => Set(ref _verifyOffReason, value);
+    }
+
+    /// <summary>When its project was granted branch rules, while they apply, or null (1.1e AC 12b).</summary>
+    public DateTimeOffset? BranchRulesSince
+    {
+        get => _branchRulesSince;
+        set
+        {
+            if (Set(ref _branchRulesSince, value))
+            {
+                Raise(nameof(BranchRulesMark));
+                Raise(nameof(BranchRulesToolTip));
+            }
+        }
+    }
+
+    /// <summary>"project branch rules" while they apply, else empty: a small mark on the card.</summary>
+    public string BranchRulesMark => _branchRulesSince is null ? string.Empty : Theseus.Core.Projects.ProjectBranchRules.Mark;
+
+    /// <summary>The mark's tooltip, with the grant's date.</summary>
+    public string BranchRulesToolTip => _branchRulesSince is { } since
+        ? $"Granted by you on {since.ToLocalTime():d MMM yyyy}: this card may branch off its project's primary branch, push, and merge back without asking"
+        : string.Empty;
+
+    /// <summary>Add to project…: adds the card's row to a project's file (1.1c AC 7).</summary>
+    public RelayCommand? AddToProjectCommand { get; set; }
+
+    /// <summary>Remove from project: removes the card's rows from its project's file (1.1c AC 7).</summary>
+    public RelayCommand? RemoveFromProjectCommand { get; set; }
+
+    /// <summary>Convert to project…: a new project with this card as its first workstream (1.1c AC 7).</summary>
+    public RelayCommand? ConvertToProjectCommand { get; set; }
+
+    private string _dutyText = string.Empty;
+    private string? _dutyToolTip;
+
+    /// <summary>Its duties on its face, one line each, such as "↻ Re-triage · every 2 h · next 23:30"; empty when it has none.</summary>
+    public string DutyText
+    {
+        get => _dutyText;
+        set => Set(ref _dutyText, value);
+    }
+
+    /// <summary>Each duty's instruction and who set it.</summary>
+    public string? DutyToolTip
+    {
+        get => _dutyToolTip;
+        set => Set(ref _dutyToolTip, value);
+    }
+
+    /// <summary>
+    /// Where its project slug's work was read, branch and commit (project-view AC 5); empty for a card in no readable
+    /// project.
+    /// </summary>
+    public string ProjectSource
+    {
+        get => _projectSource;
+        set
+        {
+            if (Set(ref _projectSource, value))
+            {
+                Raise(nameof(FaceTooltip));
+            }
+        }
+    }
+
+    /// <summary>The card face's tooltip: its working directory, and for a project card where its work was read.</summary>
+    public string FaceTooltip => _projectSource.Length == 0
+        ? _workstream.WorkingDirectory
+        : $"{_workstream.WorkingDirectory}{Environment.NewLine}{_projectSource}";
+
+    /// <summary>
+    /// The handover file name the card's menu offers to rename to, to match its title, or empty when none is offered
+    /// (handoff-names AC 5).
+    /// </summary>
+    public string HandoffRenameTo
+    {
+        get => _handoffRenameTo;
+        set
+        {
+            if (Set(ref _handoffRenameTo, value))
+            {
+                Raise(nameof(HandoffRenameToolTip));
+            }
+        }
+    }
+
+    /// <summary>The rename item's tooltip, naming the file; its label is fixed (W30, G62).</summary>
+    public string HandoffRenameToolTip =>
+        $"Rename this card's handover file to {System.IO.Path.GetFileName(_handoffRenameTo)}, to match its title. Only while its session is not running.";
+
+    /// <summary>Renames the card's handover file to match its title (handoff-names AC 6).</summary>
+    public RelayCommand? RenameHandoffCommand { get; set; }
 
     /// <summary>Opens the New dialog with this card as the parent, from the card's menu.</summary>
     public RelayCommand? SpawnFollowOnCommand
@@ -593,12 +985,25 @@ public sealed class WorkstreamCardViewModel : ObservableObject
     }
 
     /// <summary>The single button the card offers on hover.</summary>
-    public string PrimaryAction => Lifecycle switch
+    public string PrimaryAction => IsLive ? "Focus" : StopReason?.Kind switch
+    {
+        Theseus.Core.Projects.WhyStoppedKind.Done when Workstream.Project is null => "Restart for more work",
+        Theseus.Core.Projects.WhyStoppedKind.ProjectStopped => "Start its project",
+        _ => DefaultAction,
+    };
+
+    private string DefaultAction => Lifecycle switch
     {
         SessionLifecycle.NotStarted => "Start",
         SessionLifecycle.Ended or SessionLifecycle.Ghost => "Restart",
         _ => "Focus",
     };
+
+    private void RaiseStatus()
+    {
+        Raise(nameof(StatusLine));
+        Raise(nameof(StatusToolTip));
+    }
 
     private string Since(string verb)
     {
@@ -606,4 +1011,57 @@ public sealed class WorkstreamCardViewModel : ObservableObject
 
         return string.IsNullOrEmpty(elapsed) ? verb : $"{verb} {elapsed}";
     }
+
+    /// <summary>The card's headless run: going, queued or ended, with its measured tokens and cost; empty for none (Nigel, 2026-11-24).</summary>
+    public string HeadlessLine
+    {
+        get => _headlessLine;
+        set
+        {
+            if (Set(ref _headlessLine, value))
+            {
+                Raise(nameof(HasHeadlessLine));
+            }
+        }
+    }
+
+    /// <summary>Whether the card shows a headless line.</summary>
+    public bool HasHeadlessLine => _headlessLine.Length > 0;
+
+    /// <summary>The headless run's latest line of text or tool call, while it goes.</summary>
+    public string HeadlessDetail
+    {
+        get => _headlessDetail;
+        set => Set(ref _headlessDetail, value);
+    }
+
+    /// <summary>Whether the card's breaker has tripped, so its menu offers Reset.</summary>
+    public bool IsBreakerTripped => Workstream.Breaker is not null;
+
+    /// <summary>Run mode › Tab: this card runs in a tab from its next start.</summary>
+    public RelayCommand? RunInTabCommand { get; set; }
+
+    /// <summary>Run mode › Headless: this card runs headless from its next start.</summary>
+    public RelayCommand? RunHeadlessCommand { get; set; }
+
+    /// <summary>Run mode › Project default: this card takes its project's or its role's mode.</summary>
+    public RelayCommand? RunByDefaultCommand { get; set; }
+
+    /// <summary>Open in a tab: ends the card's headless run and resumes its conversation in a tab.</summary>
+    public RelayCommand? OpenInTabCommand { get; set; }
+
+    /// <summary>Output…: the card's headless run's output.</summary>
+    public RelayCommand? ShowOutputCommand { get; set; }
+
+    /// <summary>Reset breaker: clears the card's tripped breaker.</summary>
+    public RelayCommand? ResetBreakerCommand { get; set; }
+
+    /// <summary>Whether the card's own mode is Tab.</summary>
+    public bool RunsInTabByChoice => Workstream.RunMode == Theseus.Core.Running.RunMode.Tab;
+
+    /// <summary>Whether the card's own mode is Headless.</summary>
+    public bool RunsHeadlessByChoice => Workstream.RunMode == Theseus.Core.Running.RunMode.Headless;
+
+    /// <summary>Whether the card has no mode of its own.</summary>
+    public bool RunsByDefault => Workstream.RunMode is null;
 }

@@ -1,4 +1,5 @@
 using System.Windows;
+using Theseus.App.Controls;
 
 namespace Theseus.App;
 
@@ -13,5 +14,12 @@ public partial class ArrangeWindow : Window
     {
         InitializeComponent();
         SourceInitialized += (_, _) => Height = Math.Min(Height, SystemParameters.WorkArea.Height - 80);
+        Loaded += (_, _) =>
+        {
+            if (!FirstRow.Focus(Groups))
+            {
+                KindBox.Focus();
+            }
+        };
     }
 }

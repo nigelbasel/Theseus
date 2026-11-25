@@ -4,24 +4,31 @@ A small, versioned set of plain files that says how agentic work is run: which s
 goes through, who does each, what each produces, and what has to be true before it moves on. Theseus is
 built with it (the bootstrap) and will run it for others.
 
-**Version:** `method-v0.1` (2026-11-19), the kit as it stood at the end of stage 0 of the Theseus bootstrap, after six
-hand-run changes and 17 lessons.
+**Version:** `method-v0.2` (2026-11-20). `method-v0.1` (2026-11-19) was the kit as it stood at the end of stage 0 of
+the Theseus bootstrap, after six hand-run changes and 17 lessons. `method-v0.2` adds, together:
+
+- the **evidence result block**, a machine-readable `theseus-evidence` block in `evidence.md` ([`project.md`](project.md));
+- **P18** (below): a named holdout scenario is run, or verify stays open;
+- the **project file's shape tightened** so Theseus can read it: `Kit:` and `Primary branch:` lines, every objective a
+  heading with its pipeline and one workstreams table, and the artefacts folder named by the workstream's slug;
+- **the owner's gates inside a project** are each workstream's spec (a bug's rule) and the primary branch's pull request
+  into the trunk; plan and review become evidence gates (Nigel, 2026-11-20, decision 4A).
 
 ## What is in it
 
 | File | What it defines |
 |---|---|
-| [`project.md`](project.md) | The project format: objective, phases, derived objectives, exit gates, workstreams, repos |
+| [`project.md`](project.md) | The project format: objective, phases, derived objectives, exit gates, workstreams, repos; the owner's gates in a project; the evidence result block |
 | [`pipelines/freeform.yaml`](pipelines/freeform.yaml) | Ad hoc work: one stage, no gates. Today's Theseus exactly |
 | [`pipelines/feature.yaml`](pipelines/feature.yaml) | research → spec → plan → implement → verify → review → compound |
-| [`pipelines/bug.yaml`](pipelines/bug.yaml) | reproduce (failing test first) → rule (only when the fix needs one; owner's gate) → fix → verify, then review and compound when the rule stage ran |
+| [`pipelines/bug.yaml`](pipelines/bug.yaml) | reproduce (failing test first) → rule (only when the fix needs one; the owner's gate, as the bug's spec) → fix → verify, then review and compound when the rule stage ran |
 | *(per repo)* | Each repo keeps its own reviewer rubric, drawn from that codebase's dated decisions, and names it in its `AGENTS.md`. The kit has none: a rubric is the repo's, not the method's. Theseus's is `.agents/reviewer-rubric.md` |
 
 ## Two modes
 
 - **Standalone (ad hoc).** A card, a session, a handoff. Runs `freeform`. No project file, no artefacts
   folder, no gates, not one more click than Theseus has always needed.
-- **Project.** A project file in `projects/` sets an objective and phases. Each workstream serves one
+- **Project.** A project file, `project.md` in the project's home folder, sets an objective and phases. Each workstream serves one
   derived objective and runs a pipeline, with gates and evidence. Evidence is always shown when it exists;
   only project gates block on it.
 
@@ -63,16 +70,35 @@ Ad hoc work can be promoted to a project. Its handoff becomes the project's firs
 - **An existing test changes only to correct a wrong expectation.** The change gets its own line in
   `implementation.md` saying what the test asserted and why that was wrong, and the verifier judges whether it is a
   correction or a weakening. (card-branches P12.)
+- **No machine paths or card ids in a public repo's records.** Use placeholders (`<scratch>`, `<worktree>`, "the
+  workstream log") or a description. Sub-agent briefs carry this rule, and a check in the suite
+  (`PublicFilesTests`) fails any change whose `method/` files contain a
+  user-profile path, a session scratch path, a drive path with folders, or a card id. (close-step P19, Nigel
+  2026-11-19; every stage 0 record broke it before it existed.)
+- **A test of a decision moved out of the UI feeds it the state the caller actually holds,** step by step through the
+  sequence it serves, not inputs chosen for convenience. (close-step P22; a test passed because it handed in a request
+  the App had already retired.)
+
+- **A child exits once its report is in; its parent restarts it when there is more.** A workstream that reports back
+  to the one that proposed it stops once its report is submitted. The parent reads it, and when there is more work it
+  restarts the child with `start_workstream` and an instruction ("more work: ..."), or pauses or stops it, through the
+  Theseus tools: in a project they reach every card of the project, and a card the owner paused waits for his Allow;
+  on the ordinary board only the session's own descendants, cards made from proposals it raised and the owner
+  approved. A parent never closes another card's session any other way. (1.1e AC 14 and 17, Nigel 2026-11-21;
+  sessions-run-the-project, Nigel 2026-11-22.)
 
 ## Decisions recorded here
 
 | Date | Decision | By |
 |---|---|---|
 | 2026-11-18 | The kit lives in the Theseus repo under `method/` for now; it may move to its own repo later | Nigel |
-| 2026-11-18 | Work artefacts go in top-level `work/<issue>/`, retrospectives in `bootstrap/`, both outside the `docs/` Pages site | Nigel |
+| 2026-11-18 | Work artefacts go in top-level `work/<issue>/`, retrospectives in `bootstrap/`, both outside the `docs/` Pages site (superseded 2026-11-20, below) | Nigel |
 | 2026-11-18 | Holdout scenarios live in a separate private repository, which implementing sessions are refused access to | Nigel |
 | 2026-11-18 | Projects sit above workstreams; standalone workstreams are unchanged; both may span repos | Nigel |
 | 2026-11-19 | The kit stays generic in `method/` on GitHub for now, ships with Theseus as the default, and moves only if other team members start using it. A repo's own rubric and AGENTS.md live in that repo | Nigel |
+| 2026-11-20 | Every project's records (its `project.md`, `work/<slug>/` and retrospectives) live in a project home folder outside any code repo, one subfolder of the projects folder per project; a code repo holds code only. `method/starter/` holds the files a new project begins with. Supersedes the 2026-11-18 row on `work/` and `bootstrap/` | Nigel |
+| 2026-11-20 | Inside a project the owner's gates are each workstream's spec (a bug's rule) and the primary branch's pull request into the trunk, which passes when he merges it; plan and review pass on evidence (decision 4A, released in `method-v0.2`) | Nigel |
+| 2026-11-20 | The evidence result block is JSON in a fenced `theseus-evidence` block; its `gates` field is information only, never proof | Nigel |
 
 ## Open questions
 
@@ -84,5 +110,6 @@ Ad hoc work can be promoted to a project. Its handoff becomes the project's firs
 - **Pinning, by hand for now:** a project names the kit version it follows, as a `Kit:` line in its project file, so
   a change to the kit does not reach a running project unannounced. Versions are git tags `method-v<major>.<minor>`
   in this repo, separate from app releases; the first is `method-v0.1` (2026-11-19). A project moves to a newer
-  version deliberately. Theseus does not yet read the `Kit:` line.
+  version deliberately. From `method-v0.2` Theseus reads the `Kit:` line: a project still at `method-v0.1` is shown as
+  pinned to it and not read further.
 - **L1 Prepared:** [definition not yet written].

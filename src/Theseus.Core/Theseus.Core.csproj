@@ -11,4 +11,13 @@
     <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- The kit's starter files ship inside Theseus, so a new project gets the kit this build reads (1.1b AC 8). -->
+    <EmbeddedResource Include="..\..\method\starter\project.md" LogicalName="Theseus.Core.Starter.project.md" />
+    <!-- The kit's description of project.md, which an updater is given (1.1e AC 19). -->
+    <EmbeddedResource Include="..\..\method\project.md" LogicalName="Theseus.Core.Method.project.md" />
+    <!-- The holdout guard Options installs, so the installed guard is the one this build's board agrees with. -->
+    <EmbeddedResource Include="..\..\tools\holdout\holdout-guard.js" LogicalName="Theseus.Core.Holdout.holdout-guard.js" />
+  </ItemGroup>
+
 </Project>

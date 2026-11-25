@@ -1,4 +1,5 @@
 using System.Text;
+using Theseus.Core.Questions;
 using Theseus.Core.Status;
 using Theseus.Core.Stopping;
 
@@ -47,16 +48,42 @@ try
         return 0;
     }
 
-    // Decide before claiming. Claiming is what makes a request undeliverable to anyone else, so
-    // claiming first and then declining - on a subagent's turn, or one a stop hook already extended
-    // - would consume the request and leave the session that was meant to have it none the wiser.
-    var store = new StopRequestStore(StopRequestRoot.Default);
-    var waiting = store.Waiting(sessionId);
-
-    if (StopHookDecision.Deliver(input, waiting, DateTimeOffset.UtcNow) is null
-        || store.Claim(sessionId, DateTimeOffset.UtcNow) is not { } request)
+    // Registered only for the sessions Theseus launches, on the prompts that stop one: what is asked, for the board (1.6).
+    if (input.HookEventName == "Notification")
     {
-        // Nothing to stop for. A session Theseus launched is told, once, if Theseus has stopped or
+        HookPrompt.OnEvent(input, new PermissionPromptStore(PermissionPromptStore.DefaultRoot), DateTimeOffset.UtcNow);
+
+        return 0;
+    }
+
+    // A stop request first, else something the owner's board action tells it (1.1e AC 27), each decided before it is
+    // claimed: claiming first and then declining, on a subagent's turn or one a stop hook already extended, would
+    // consume it and leave the session that was meant to have it none the wiser.
+    var request = HookTurn.Deliver(input, new StopRequestStore(StopRequestRoot.Default), new StopRequestStore(StopRequestRoot.Tells),
+        DateTimeOffset.UtcNow);
+
+    // The owner typing answers the tab's open question; a turn ending on a question asked only in prose leaves a guess
+    // for the board (1.6). Kept apart so nothing it does can stop a delivery.
+    try
+    {
+        HookQuestion.OnEvent(input, new OwnerQuestionStore(OwnerQuestionRoot.Default), TranscriptTail.Read,
+            DateTimeOffset.UtcNow, delivered: request is not null);
+    }
+    catch (Exception)
+    {
+    }
+
+    try
+    {
+        HookPrompt.OnEvent(input, new PermissionPromptStore(PermissionPromptStore.DefaultRoot), DateTimeOffset.UtcNow);
+    }
+    catch (Exception)
+    {
+    }
+
+    if (request is null)
+    {
+        // A session Theseus launched is told, once, if Theseus has stopped or
         // restarted since it last looked: it cannot be told by Theseus itself once Theseus is gone.
         if (input.HookEventName == "UserPromptSubmit"
             && StatusHook.PromptReply(sessionId, new StatusSeenStore(), TheseusStatusFile.Read(), TheseusStatusFile.IsRunning,

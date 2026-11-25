@@ -42,6 +42,15 @@ public sealed record WorkstreamSidecar(
     /// </summary>
     public bool IsPaused { get; init; }
 
+    /// <summary>
+    /// The card whose session paused it, through pause_workstream, or null when the owner paused it or it is not paused
+    /// (1.1e AC 14): a project's Start does not start it while this stands.
+    /// </summary>
+    public string? PausedBy { get; init; }
+
+    /// <summary>Why that session paused it, or null.</summary>
+    public string? PauseReason { get; init; }
+
     /// <summary>The row of the board this card sits in: the kind of work, not how far along it is.</summary>
     public string? Area { get; init; }
 
@@ -53,4 +62,25 @@ public sealed record WorkstreamSidecar(
     /// because sessions rewrite their plan files and would drop a field they do not know about.
     /// </summary>
     public string? EveryStartPrompt { get; init; }
+
+    /// <summary>
+    /// What the card's sessions are for. Kept here, as the every-start prompt is, because sessions rewrite their plan
+    /// files; and because only the board may set it (verifier-card AC 1 and 3).
+    /// </summary>
+    public WorkstreamRole Role { get; init; }
+
+    /// <summary>
+    /// The owner's tags on the card (card-search-and-tags item 9), lower case. Kept here, per machine, and never in a
+    /// plan file or a repo: sessions rewrite plan files, and tags are the owner's alone (decisions 3 and 4, 2026-11-21).
+    /// </summary>
+    public IReadOnlyList<string> Tags { get; init; } = [];
+
+    /// <summary>The card's own run mode, tab or headless; null to take its project's default, then its role's (Nigel, 2026-11-24).</summary>
+    public Running.RunMode? RunMode { get; init; }
+
+    /// <summary>The circuit breaker that tripped on this card, kept until the owner resets it; null when none has.</summary>
+    public Breakers.BreakerTrip? Breaker { get; init; }
+
+    /// <summary>When the owner last reset the card's breaker: its breakers count only the runs since.</summary>
+    public DateTimeOffset? BreakerResetUtc { get; init; }
 }

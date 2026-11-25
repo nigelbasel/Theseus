@@ -31,14 +31,15 @@ public class BoardStoreTests
     [Test]
     public void Write_RoundTripsEverySidecarFieldIncludingSeveralJiraKeys()
     {
-        var sidecar = Sidecar("contact-forms") with { JiraKeys = ["PROJ-101", "API-202"] };
+        var sidecar = Sidecar("contact-forms") with { JiraKeys = ["PROJ-101", "API-202"], Tags = ["security", "waiting-on-dpo"] };
 
         _store.Write([sidecar]);
 
         var read = _store.Read().Single();
-        Assert.That(read with { JiraKeys = [], RemovedJiraKeys = [] },
-            Is.EqualTo(sidecar with { JiraKeys = [], RemovedJiraKeys = [] }));
+        Assert.That(read with { JiraKeys = [], RemovedJiraKeys = [], Tags = [] },
+            Is.EqualTo(sidecar with { JiraKeys = [], RemovedJiraKeys = [], Tags = [] }));
         Assert.That(read.JiraKeys, Is.EqualTo(new[] { "PROJ-101", "API-202" }));
+        Assert.That(read.Tags, Is.EqualTo(new[] { "security", "waiting-on-dpo" }), "tags survive a restart (card-search-and-tags item 9)");
     }
 
     [Test]

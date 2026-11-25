@@ -1,4 +1,5 @@
 using System.Windows;
+using Microsoft.Win32;
 using Theseus.Core.Settings;
 
 namespace Theseus.App.Services;
@@ -10,6 +11,23 @@ namespace Theseus.App.Services;
 /// </summary>
 public static class ThemeApplier
 {
+    private const string LightStates = "StateColours.Light.xaml";
+
+    private const string DarkStates = "StateColours.Dark.xaml";
+
+    private const string HighContrastStates = "StateColours.HighContrast.xaml";
+
+    private static readonly string[] AllStates = [LightStates, DarkStates, HighContrastStates];
+
+    private static AppTheme _theme;
+    private static bool _following;
+
+    /// <summary>
+    /// Whether a contrast theme is on. Under one, Theseus's own colours give way to the user's system colours whatever
+    /// theme is chosen in Options (W47, G162-G165); tests replace it, since switching the machine's theme is not safe.
+    /// </summary>
+    public static Func<bool> IsHighContrast { get; set; } = () => SystemParameters.HighContrast;
+
     /// <summary>Applies a theme to the application and every open window.</summary>
     public static void Apply(AppTheme theme)
     {
@@ -20,13 +38,73 @@ public static class ThemeApplier
             return;
         }
 
+        _theme = theme;
         application.ThemeMode = mode;
 
         foreach (var window in application.Windows.OfType<Window>())
         {
             window.ThemeMode = mode;
         }
+
+        ApplyStateColours(application.Resources, IsDark(theme));
+
+        // The Fluent theme follows the system by itself; the project view's state colours (1.1d) are Theseus's own,
+        // so they are swapped here when the system's light or dark choice, or its contrast theme, changes.
+        if (!_following)
+        {
+            _following = true;
+            SystemEvents.UserPreferenceChanged += (_, args) =>
+            {
+                if (args.Category is UserPreferenceCategory.General or UserPreferenceCategory.Accessibility or UserPreferenceCategory.Color)
+                {
+                    application.Dispatcher.BeginInvoke(() => ApplyStateColours(application.Resources, IsDark(_theme)));
+                }
+            };
+            SystemParameters.StaticPropertyChanged += (_, args) =>
+            {
+                if (args.PropertyName == nameof(SystemParameters.HighContrast))
+                {
+                    application.Dispatcher.BeginInvoke(() => ApplyStateColours(application.Resources, IsDark(_theme)));
+                }
+            };
+        }
     }
+
+    /// <summary>
+    /// Merges the state colours for a light or dark theme into <paramref name="resources"/>, or the high-contrast ones
+    /// while a contrast theme is on, in place of whichever were there.
+    /// </summary>
+    public static void ApplyStateColours(ResourceDictionary resources, bool dark)
+    {
+        var merged = resources.MergedDictionaries;
+        var wanted = IsHighContrast() ? HighContrastStates : dark ? DarkStates : LightStates;
+        var current = merged.FirstOrDefault(dictionary => AllStates.Any(file => IsStates(dictionary, file)));
+
+        // The contrast dictionary is reloaded even when it is already merged: its brushes are read from the system
+        // colours as it loads, and moving from one contrast theme to another changes those colours.
+        if (current is not null && IsStates(current, wanted) && wanted != HighContrastStates)
+        {
+            return;
+        }
+
+        if (current is not null)
+        {
+            merged.Remove(current);
+        }
+
+        merged.Add(new ResourceDictionary { Source = new Uri($"pack://application:,,,/Theseus;component/Themes/{wanted}") });
+    }
+
+    private static bool IsStates(ResourceDictionary dictionary, string file) =>
+        dictionary.Source?.OriginalString.EndsWith(file, StringComparison.OrdinalIgnoreCase) == true;
+
+    private static bool IsDark(AppTheme theme) => theme switch
+    {
+        AppTheme.Dark => true,
+        AppTheme.Light => false,
+        _ => Registry.GetValue(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize",
+            "AppsUseLightTheme", 1) is 0,
+    };
 
     private static ThemeMode ToThemeMode(AppTheme theme) => theme switch
     {

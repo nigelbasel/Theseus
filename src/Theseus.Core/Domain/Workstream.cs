@@ -43,6 +43,15 @@ public sealed record Workstream(
     /// <summary>Whether the work is paused: set aside on purpose, keeping its stage. A flag like blocked.</summary>
     public bool IsPaused { get; init; }
 
+    /// <summary>
+    /// The card whose session paused it, through pause_workstream, or null when the owner paused it or it is not paused
+    /// (1.1e AC 14): a project's Start does not start it while this stands.
+    /// </summary>
+    public string? PausedBy { get; init; }
+
+    /// <summary>Why that session paused it, or null.</summary>
+    public string? PauseReason { get; init; }
+
     /// <summary>The keys taken off this card by hand, which stay off until they are added again.</summary>
     public IReadOnlyList<string> RemovedJiraKeys { get; init; } = [];
 
@@ -58,4 +67,34 @@ public sealed record Workstream(
     /// so without this there is nowhere to tell one workstream's sessions something every time.
     /// </summary>
     public string? EveryStartPrompt { get; init; }
+
+    /// <summary>What this card's sessions are for: none, or verifier (verifier-card, 2026-11-19).</summary>
+    public WorkstreamRole Role { get; init; }
+
+    /// <summary>The owner's tags on the card, from its sidecar (card-search-and-tags item 9).</summary>
+    public IReadOnlyList<string> Tags { get; init; } = [];
+
+    /// <summary>The card's own run mode, tab or headless; null to take its project's default, then its role's (Nigel, 2026-11-24).</summary>
+    public Running.RunMode? RunMode { get; init; }
+
+    /// <summary>The circuit breaker that tripped on this card, kept until the owner resets it; null when none has.</summary>
+    public Breakers.BreakerTrip? Breaker { get; init; }
+
+    /// <summary>When the owner last reset the card's breaker: its breakers count only the runs since.</summary>
+    public DateTimeOffset? BreakerResetUtc { get; init; }
+
+    /// <summary>
+    /// The project this card is in, or null for ad hoc work: never stored, but set each time the projects are read,
+    /// from the project file whose workstreams table names the card (1.1c AC 1).
+    /// </summary>
+    public string? Project { get; init; }
+
+    /// <summary>Its current slug in that project: the last row naming it (1.1c AC 2).</summary>
+    public string? Slug { get; init; }
+
+    /// <summary>
+    /// An instruction for this one start only, such as Restart for more work's (1.1e AC 12, 15): the session's opening
+    /// prompt ends with it, after the standing and every-start prompts. Never stored, so a later start does not repeat it.
+    /// </summary>
+    public string? StartInstruction { get; init; }
 }

@@ -22,6 +22,15 @@ public sealed record BoardSnapshotCard(
     /// <summary>The card's key.</summary>
     public string Key => Workstream.Key;
 
+    /// <summary>Why it is stopped, as its card says (1.1e AC 12), for workstreams(); null when its own line says enough.</summary>
+    public string? StopLine { get; init; }
+
+    /// <summary>
+    /// The project a scenario writer works for, found by the project home it reads: a writer is not a member card. A
+    /// verifier needs none, being a member through the card it checks. Null for every other card.
+    /// </summary>
+    public string? ProjectOfRole { get; init; }
+
     /// <summary>The card's title.</summary>
     public string Title => Workstream.Title;
 

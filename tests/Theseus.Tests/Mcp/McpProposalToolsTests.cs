@@ -176,6 +176,57 @@ public class McpProposalToolsTests
     }
 
     [Test]
+    public void ProposeWorkstream_KeepsAnOptionalSlug_ForACardInAProject()
+    {
+        var arguments = Proposal();
+        arguments["slug"] = "cache-spike";
+        Call("propose_workstream", arguments, "research-session");
+
+        var entry = JsonNode.Parse(Text(Call("proposal_status", new JsonObject(), "research-session")))!["proposals"]![0]!;
+
+        Assert.That(_proposals.Pending.Single().Request.Slug, Is.EqualTo("cache-spike"));
+        Assert.That(entry["slug"]!.GetValue<string>(), Is.EqualTo("cache-spike"));
+    }
+
+    [Test]
+    public void ProposeWorkstream_KeepsTheObjectiveBranchAndRepos_ForItsRow()
+    {
+        var arguments = Proposal();
+        arguments["slug"] = "cache-spike";
+        arguments["objective"] = "1.2";
+        arguments["branch"] = "nigel/cache-spike";
+        arguments["repos"] = new JsonArray("Theseus", "claude-hq");
+        Call("propose_workstream", arguments, "research-session");
+
+        var request = _proposals.Pending.Single().Request;
+        var entry = JsonNode.Parse(Text(Call("proposal_status", new JsonObject(), "research-session")))!["proposals"]![0]!;
+
+        Assert.That((request.Objective, request.Branch, request.Repos), Is.EqualTo(("1.2", (string?)"nigel/cache-spike", new[] { "Theseus", "claude-hq" })));
+        Assert.That((entry["objective"]!.GetValue<string>(), entry["repos"]!.AsArray().Count), Is.EqualTo(("1.2", 2)));
+    }
+
+    [Test]
+    public void ProposeWorkstream_WithNoSlug_HasNone()
+    {
+        Call("propose_workstream", Proposal(), "research-session");
+
+        Assert.That(_proposals.Pending.Single().Request.Slug, Is.Null);
+    }
+
+    [Test]
+    public void ProposeWorkstream_RefusesASlugThatIsNotOne()
+    {
+        var arguments = Proposal();
+        arguments["slug"] = "Cache Spike";
+
+        var result = Call("propose_workstream", arguments, "research-session");
+
+        Assert.That(result["isError"]!.GetValue<bool>(), Is.True);
+        Assert.That(Text(result), Does.Contain("slug 'Cache Spike' is not a workstream slug"));
+        Assert.That(_proposals.All, Is.Empty);
+    }
+
+    [Test]
     public void ApproveProposal_CreatesTheCardThroughTheBoard()
     {
         Call("propose_workstream", Proposal(), "research-session");

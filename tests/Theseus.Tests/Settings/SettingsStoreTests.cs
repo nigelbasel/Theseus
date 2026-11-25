@@ -39,25 +39,85 @@ public class SettingsStoreTests
             Areas = ["Research", "Dev"],
             CollapsedStages = ["Paused"],
             CollapsedCards = ["theseus", "tailhawk"],
+            CollapsedProjects = ["bym"],
+            ShowActiveOnly = true,
             ColumnsBy = BoardColumnsBy.SessionState,
             RowsBy = BoardRowsBy.Project,
             ViewFolds = new Dictionary<string, IReadOnlyList<string>> { ["rows:Project"] = ["Theseus"] },
+            ProjectsFolder = @"C:\projects",
+            WorktreesFolder = @"C:\work",
+            ClonesFolder = @"C:\src",
+            ProjectCardPlaces = new Dictionary<string, ProjectCardPlace> { ["a-project"] = new("In progress", "Dev") },
+            PaneSizes = new Dictionary<string, double> { ["ProjectView:Pane"] = 420 },
+            ProjectColours = new Dictionary<string, string> { ["a-project"] = "#208DD7" },
+            ProjectGrouping = new Dictionary<string, ProjectViewGrouping> { ["a-project"] = ProjectViewGrouping.Objectives },
+            ProjectRunStates = new Dictionary<string, IReadOnlyList<string>> { ["a-project"] = ["git-22", "git-23"] },
+            ProjectLeads = new Dictionary<string, string> { ["a-project"] = "git-22" },
+            CardsStoppedByOwner = ["git-24"],
+            ProjectBranchRules = new Dictionary<string, ProjectBranchGrant>
+            {
+                ["a-project"] = new(new DateTimeOffset(2026, 11, 21, 20, 0, 0, TimeSpan.Zero), "nigel/a-project"),
+            },
+            CardsToldBranchRules = ["git-25"],
+            HiddenProjectFolders = ["notes"],
+            ProjectHoldoutFolders = new Dictionary<string, string> { ["bym"] = @"C:\mine" },
+            ProjectUpdaterRuns = new Dictionary<string, string> { ["bym"] = "Does not read: line 3" },
+            ProjectTags = new Dictionary<string, IReadOnlyList<string>> { ["bym"] = ["bym", "security"] },
+            TagColours = new Dictionary<string, string> { ["bym"] = "#208DD7" },
+            Budgets = new Theseus.Core.Budgets.BudgetSettings(RunCostLimitUsd: 2.5m, RunTokenLimit: 9_000),
+            ProjectBudgets = new Dictionary<string, Theseus.Core.Budgets.BudgetSettings> { ["bym"] = new(CardDayCostLimitUsd: 3m) },
+            Breakers = new Theseus.Core.Breakers.BreakerSettings(Crashes: 5),
+            MaxHeadlessRuns = 7,
+            ProjectRunModes = new Dictionary<string, Theseus.Core.Running.RunMode> { ["bym"] = Theseus.Core.Running.RunMode.Headless },
+            Duties = new DutySettings { DailyRunCap = 12, QuietHoursOn = true, QueueProjects = ["bym"] },
         };
 
         _store.Write(settings);
 
         var read = _store.Read();
 
+        Assert.That((read.ProjectsFolder, read.WorktreesFolder), Is.EqualTo((@"C:\projects", @"C:\work")));
+        Assert.That(read.ClonesFolder, Is.EqualTo(@"C:\src"));
+        Assert.That(read.ProjectCardPlaces["a-project"], Is.EqualTo(new ProjectCardPlace("In progress", "Dev")));
         Assert.That(read.Lanes, Is.EqualTo(settings.Lanes));
         Assert.That(read.Areas, Is.EqualTo(settings.Areas));
         Assert.That(read.CollapsedStages, Is.EqualTo(settings.CollapsedStages));
         Assert.That(read.CollapsedCards, Is.EqualTo(settings.CollapsedCards));
+        Assert.That(read.CollapsedProjects, Is.EqualTo(settings.CollapsedProjects));
+        Assert.That(read.ShowActiveOnly, Is.True);
         Assert.That(read.ViewFolds["rows:Project"], Is.EqualTo(new[] { "Theseus" }));
+        Assert.That(read.PaneSizes["ProjectView:Pane"], Is.EqualTo(420));
+        Assert.That(read.ProjectColours["a-project"], Is.EqualTo("#208DD7"));
+        Assert.That(read.ProjectGrouping["a-project"], Is.EqualTo(ProjectViewGrouping.Objectives));
+        Assert.That(read.ProjectBudgets["bym"].CardDayCostLimitUsd, Is.EqualTo(3m));
+        Assert.That(read.ProjectRunModes["bym"], Is.EqualTo(Theseus.Core.Running.RunMode.Headless));
+        Assert.That(read.ProjectRunStates["a-project"], Is.EqualTo(new[] { "git-22", "git-23" }));
+        Assert.That(read.ProjectLeads["a-project"], Is.EqualTo("git-22"));
+        Assert.That(read.CardsStoppedByOwner, Is.EqualTo(new[] { "git-24" }));
+        Assert.That(read.ProjectBranchRules["a-project"],
+            Is.EqualTo(new ProjectBranchGrant(new DateTimeOffset(2026, 11, 21, 20, 0, 0, TimeSpan.Zero), "nigel/a-project")));
+        Assert.That(read.CardsToldBranchRules, Is.EqualTo(new[] { "git-25" }));
+        Assert.That(read.HiddenProjectFolders, Is.EqualTo(new[] { "notes" }));
+        Assert.That(read.ProjectHoldoutFolders, Is.EqualTo(new Dictionary<string, string> { ["bym"] = @"C:\mine" }));
+        Assert.That(read.ProjectUpdaterRuns, Is.EqualTo(new Dictionary<string, string> { ["bym"] = "Does not read: line 3" }));
+        Assert.That(read.ProjectTags["bym"], Is.EqualTo(new[] { "bym", "security" }));
+        Assert.That(read.TagColours, Is.EqualTo(new Dictionary<string, string> { ["bym"] = "#208DD7" }));
+        Assert.That((read.Duties.DailyRunCap, read.Duties.QuietHoursOn), Is.EqualTo((12, true)));
+        Assert.That(read.Duties.QueueProjects, Is.EqualTo(new[] { "bym" }));
         Assert.That(read with
             {
                 Lanes = settings.Lanes, Areas = settings.Areas, CollapsedAreas = settings.CollapsedAreas,
-                CollapsedStages = settings.CollapsedStages, CollapsedCards = settings.CollapsedCards,
+                CollapsedStages = settings.CollapsedStages, CollapsedCards = settings.CollapsedCards, CollapsedProjects = settings.CollapsedProjects,
                 ViewFolds = settings.ViewFolds, ColumnWeights = settings.ColumnWeights, RowHeights = settings.RowHeights, AreaWindows = settings.AreaWindows,
+                ProjectCardPlaces = settings.ProjectCardPlaces, PaneSizes = settings.PaneSizes, ProjectColours = settings.ProjectColours,
+                ProjectGrouping = settings.ProjectGrouping, ProjectRunStates = settings.ProjectRunStates, ProjectLeads = settings.ProjectLeads,
+                CardsStoppedByOwner = settings.CardsStoppedByOwner, ProjectBranchRules = settings.ProjectBranchRules,
+                CardsToldBranchRules = settings.CardsToldBranchRules, HiddenProjectFolders = settings.HiddenProjectFolders,
+                ProjectHoldoutFolders = settings.ProjectHoldoutFolders,
+                ProjectUpdaterRuns = settings.ProjectUpdaterRuns,
+                ProjectTags = settings.ProjectTags, TagColours = settings.TagColours,
+                ProjectBudgets = settings.ProjectBudgets, ProjectRunModes = settings.ProjectRunModes,
+                Duties = read.Duties with { QueueProjects = settings.Duties.QueueProjects },
             }, Is.EqualTo(settings),
             "a record holding a list compares it by reference, so the lists are checked separately");
     }

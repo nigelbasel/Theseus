@@ -18,6 +18,12 @@ namespace Theseus.Core.Diagnostics;
 /// </summary>
 public static class TheseusLog
 {
+    /// <summary>
+    /// Each line's shape: the date and time, the level in full and the source in angle brackets, as the estate's Serilog
+    /// and log4net logs write theirs, so a line here can be read beside theirs.
+    /// </summary>
+    public const string LineTemplate = "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff}] [{Level}] <Theseus> {Message:lj}{NewLine}{Exception}";
+
     private static ILogger _logger = Logger.None;
 
     /// <summary>Where the log files are written.</summary>
@@ -36,7 +42,7 @@ public static class TheseusLog
                 rollingInterval: RollingInterval.Day,
                 retainedFileCountLimit: 14,
                 shared: true,
-                outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
+                outputTemplate: LineTemplate)
             .CreateLogger();
 
         _logger.Information("Theseus started. Logging to {Directory}", directory);

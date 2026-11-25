@@ -32,6 +32,25 @@ public sealed record Link(
     /// <summary>What <see cref="CreatedBy"/> says for a link Nigel made himself.</summary>
     public const string MadeOnTheBoard = "board";
 
+    /// <summary>
+    /// On a hand-over, the slug of the From card's current piece when the link was made, so a card's later pieces do not
+    /// take its earlier hand-overs with them (1.1f D15). Never changed after; null on older links, which count as the From
+    /// card's piece in the child's round (decision G8, refining D6).
+    /// </summary>
+    public string? ParentPiece { get; init; }
+
+    /// <summary>The owner's rejection of a report, or of every report on the link, or null.</summary>
+    public LinkRejection? Rejection { get; init; }
+
+    /// <summary>
+    /// Whether the latest report, or any report on the link, is rejected: it never satisfies the link and cannot be
+    /// confirmed.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool ReportIsRejected =>
+        SatisfiedUtc is null && Rejection is { } rejection
+        && (rejection.ReportAtUtc is null || (LatestReport is { } report && report.AtUtc == rejection.ReportAtUtc));
+
     /// <summary>Whether the link still stands.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public bool IsActive => RemovedUtc is null;

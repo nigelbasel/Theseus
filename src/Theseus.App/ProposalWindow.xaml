@@ -1,0 +1,67 @@
+<Window x:Class="Theseus.App.ProposalWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="{Binding Title}"
+        Width="860" Height="720" MinWidth="480" MinHeight="360"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize"
+        Background="{DynamicResource SolidBackgroundFillColorSecondaryBrush}">
+    <!-- The one window for a proposal (sessions-run-the-project 0.1): read-only, Approve, Reject… and Close. -->
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="Visible" />
+    </Window.Resources>
+    <!-- Rows in reading order, so Tab goes through the brief and the reason before the footer (B2, W43). -->
+    <Grid Margin="16,12,16,12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Margin="0,0,0,8">
+            <TextBlock x:Name="HeadingText" Text="{Binding Heading}" Style="{DynamicResource BodyLargeText}" FontWeight="SemiBold" TextWrapping="Wrap" />
+            <TextBlock x:Name="ObjectiveText" Text="{Binding Objective}" Style="{DynamicResource BodyText}" Margin="0,4,0,0" TextWrapping="Wrap" />
+            <TextBlock x:Name="WhereText" Text="{Binding Where}" Margin="0,4,0,0" TextWrapping="Wrap" Style="{DynamicResource CaptionText}"
+                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+            <TextBlock Text="{Binding Detail}" Style="{DynamicResource BodyText}" Margin="0,8,0,0" TextWrapping="Wrap" />
+            <TextBlock x:Name="DoneText" Text="{Binding DoneCriteria}" Margin="0,4,0,0" TextWrapping="Wrap" Style="{DynamicResource BodyStrongText}" />
+            <TextBlock Text="{Binding JiraKeys}" Margin="0,4,0,0" TextWrapping="Wrap" Style="{DynamicResource CaptionText}" />
+            <TextBlock x:Name="WarningsText" Text="{Binding Warnings}" Margin="0,4,0,0" TextWrapping="Wrap" Style="{DynamicResource CaptionText}"
+                       Foreground="{DynamicResource CautionTextBrush}" />
+            <TextBlock Text="{Binding Evidence}" Margin="0,4,0,0" TextWrapping="Wrap" Style="{DynamicResource CaptionText}"
+                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+        </StackPanel>
+
+        <FlowDocumentScrollViewer x:Name="BriefView" Grid.Row="1" IsToolBarVisible="False" VerticalScrollBarVisibility="Auto"
+                                  IsInactiveSelectionHighlightEnabled="True" AutomationProperties.Name="The brief, drawn" />
+
+        <TextBlock x:Name="BlockText" Grid.Row="2" Text="{Binding Block}" TextWrapping="Wrap" Margin="0,8,0,0"
+                   Style="{DynamicResource BodyStrongText}" Foreground="{DynamicResource CriticalTextBrush}" />
+        <TextBlock x:Name="NoticeText" Grid.Row="3" Text="{Binding Notice}" TextWrapping="Wrap" Margin="0,8,0,0"
+                   Style="{DynamicResource BodyText}" Foreground="{DynamicResource CriticalTextBrush}" />
+
+        <StackPanel x:Name="RejectPanel" Grid.Row="4" Margin="0,12,0,0"
+                    Visibility="{Binding IsRejecting, Converter={StaticResource Visible}}">
+            <!-- The box is named by the words over it, so a screen reader says what is shown (E-m2, W17). -->
+            <TextBlock x:Name="NoteLabel" Text="Why you reject it (optional)" Style="{DynamicResource CaptionText}" />
+            <TextBox x:Name="NoteBox" Text="{Binding Note, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0"
+                     AcceptsReturn="True" TextWrapping="Wrap" MinHeight="48" AutomationProperties.LabeledBy="{x:Reference NoteLabel}" />
+            <Button x:Name="ConfirmRejectButton" Content="Reject the _proposal" HorizontalAlignment="Right" Margin="0,8,0,0"
+                    Style="{DynamicResource DialogButton}" Command="{Binding RejectCommand}" />
+        </StackPanel>
+
+        <!-- Windows dialog buttons: together at the bottom right, the default first, Close last (walkthrough row 46; W9). It is
+             modeless, so nothing is cancelled (A7). -->
+        <StackPanel x:Name="Footer" Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button x:Name="ApproveButton" Content="_Approve" IsDefault="True" Style="{DynamicResource AccentButton}"
+                    Command="{Binding ApproveCommand}" ToolTip="{Binding ApproveToolTip}" ToolTipService.ShowOnDisabled="True" />
+            <Button x:Name="RejectButton" Content="_Reject…" Style="{DynamicResource DialogButton}" Margin="8,0,0,0"
+                    Command="{Binding AskRejectCommand}" />
+            <Button x:Name="CloseButton" Content="Close" IsCancel="True" Style="{DynamicResource DialogButton}" Margin="8,0,0,0"
+                    Command="{Binding CancelCommand}" />
+        </StackPanel>
+    </Grid>
+</Window>

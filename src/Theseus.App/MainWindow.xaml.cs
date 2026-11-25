@@ -15,7 +15,7 @@ namespace Theseus.App;
 /// </summary>
 public partial class MainWindow : Window
 {
-    private Point? _dragOrigin;
+    private readonly BoardPress _press = new();
     private SettingsWindow? _settings;
     private ArrangeWindow? _arrange;
     private DayReportWindow? _report;
@@ -30,6 +30,23 @@ public partial class MainWindow : Window
 
         FitToWorkArea();
 
+        // The mouse's back and forward buttons go through the same history as ◀ Back and Forward ▶ (1.1f I46).
+        PreviewMouseDown += (_, e) =>
+        {
+            var command = e.ChangedButton switch
+            {
+                System.Windows.Input.MouseButton.XButton1 => (DataContext as ShellViewModel)?.GoBackCommand,
+                System.Windows.Input.MouseButton.XButton2 => (DataContext as ShellViewModel)?.GoForwardCommand,
+                _ => null,
+            };
+
+            if (command?.CanExecute(null) == true)
+            {
+                command.Execute(null);
+                e.Handled = true;
+            }
+        };
+
         // The remembered position is applied once the window has a handle, and saved as it closes.
         SourceInitialized += (_, _) => RestorePlacement();
         Closing += (_, _) => SavePlacement();
@@ -42,8 +59,20 @@ public partial class MainWindow : Window
         AddHandler(PreviewMouseLeftButtonUpEvent, new MouseButtonEventHandler(OnPreviewMouseUp), handledEventsToo: true);
         AddHandler(PreviewMouseMoveEvent, new MouseEventHandler(OnPreviewMouseMove), handledEventsToo: true);
 
-        DataContextChanged += (_, _) =>
+        PreviewKeyDown += OnWindowPreviewKeyDown;
+
+        DataContextChanged += (_, e) =>
         {
+            if (e.OldValue is ShellViewModel old)
+            {
+                old.MatchShown -= OnMatchShown;
+            }
+
+            if (e.NewValue is ShellViewModel shell)
+            {
+                shell.MatchShown += OnMatchShown;
+            }
+
             WatchSettings();
             WatchArrange();
             WatchDayReport();
@@ -62,6 +91,255 @@ public partial class MainWindow : Window
     }
 
     private BoardViewModel? Board => (DataContext as ShellViewModel)?.Board;
+
+    /// <summary>F6: the focus to the next pane (G71, B8).</summary>
+    public static readonly RoutedCommand NextPaneCommand = new(nameof(NextPaneCommand), typeof(MainWindow));
+
+    /// <summary>Shift+F6: the focus to the previous pane.</summary>
+    public static readonly RoutedCommand PreviousPaneCommand = new(nameof(PreviousPaneCommand), typeof(MainWindow));
+
+    /// <summary>Edit › Find cards: the focus to the search box. Its key, Ctrl+F, is handled in OnWindowPreviewKeyDown.</summary>
+    public static readonly RoutedCommand FindCardsCommand = new(nameof(FindCardsCommand), typeof(MainWindow));
+
+    // The panes in reading order: the top bar, the sessions panel, the board or the project, the locks and chains panels,
+    // and the drawer over them.
+    private FrameworkElement[] Panes => [SearchBar, SessionsPane, BoardSurface, ProjectPane, LocksPane, ChainsPane, DrawerPane];
+
+    private void OnNextPane(object sender, ExecutedRoutedEventArgs e) => MovePane(forward: true);
+
+    private void OnPreviousPane(object sender, ExecutedRoutedEventArgs e) => MovePane(forward: false);
+
+    private void OnFindCards(object sender, ExecutedRoutedEventArgs e) => FocusSearch();
+
+    private void MovePane(bool forward)
+    {
+        FrameworkElement[] panes = Panes;
+        int found = Array.FindIndex(panes, pane => ReferenceEquals(Keyboard.FocusedElement, pane)
+            || (Keyboard.FocusedElement is DependencyObject focused && pane.IsAncestorOf(focused)));
+
+        // The Tags flyout is a popup, outside the search bar's visual tree, but it is the search bar's pane.
+        if (found < 0 && Keyboard.FocusedElement is DependencyObject inFlyout && TagsFlyout.IsAncestorOf(inFlyout))
+        {
+            found = Array.IndexOf(panes, SearchBar);
+        }
+
+        if (PaneCycle.Next([.. panes.Select(pane => pane.IsVisible)], found < 0 ? null : found, forward) is not { } next)
+        {
+            return;
+        }
+
+        FirstFocusable(panes[next])?.Focus();
+    }
+
+    /// <summary>
+    /// The element itself when it takes the focus, or else its first shown descendant in tree order that does. A pane's
+    /// resize edge is passed over: F6 and an opening pane go to its content, and the edge is reached by Tab.
+    /// </summary>
+    internal static UIElement? FirstFocusable(DependencyObject element)
+    {
+        if (element is UIElement { Visibility: not Visibility.Visible } or Controls.PaneResizeThumb)
+        {
+            return null;
+        }
+
+        if (element is UIElement { Focusable: true, IsEnabled: true } candidate
+            && (candidate is not Control control || control.IsTabStop))
+        {
+            return candidate;
+        }
+
+        for (int index = 0; index < VisualTreeHelper.GetChildrenCount(element); index++)
+        {
+            if (FirstFocusable(VisualTreeHelper.GetChild(element, index)) is { } found)
+            {
+                return found;
+            }
+        }
+
+        return null;
+    }
+
+    // Ctrl+F, or / anywhere but a text field, goes to the search box (card-search-and-tags item 1).
+    private void OnWindowPreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        var slash = e.Key is Key.Oem2 or Key.Divide && Keyboard.Modifiers == ModifierKeys.None
+                    && Keyboard.FocusedElement is not System.Windows.Controls.Primitives.TextBoxBase;
+
+        if ((e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control) || slash)
+        {
+            FocusSearch();
+            e.Handled = true;
+        }
+    }
+
+    private void FocusSearch()
+    {
+        SearchBox.Focus();
+
+        if (SearchBox.Template.FindName("PART_EditableTextBox", SearchBox) is TextBox edit)
+        {
+            edit.Focus();
+            edit.SelectAll();
+        }
+    }
+
+    // Enter goes to the next match, Ctrl+Enter opens it, Esc clears the search and gives the board the keys back (item 6).
+    private void OnSearchKeyDown(object sender, KeyEventArgs e)
+    {
+        if (DataContext is not ShellViewModel shell || SearchBox.IsDropDownOpen)
+        {
+            return;
+        }
+
+        var command = e.Key switch
+        {
+            Key.Enter when Keyboard.Modifiers == ModifierKeys.Control => shell.OpenMatchCommand,
+            Key.Enter => shell.NextMatchCommand,
+            _ => null,
+        };
+
+        if (command is not null)
+        {
+            shell.Board.Search.Remember();
+
+            if (command.CanExecute(null))
+            {
+                command.Execute(null);
+            }
+
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Escape)
+        {
+            shell.Board.Search.Clear();
+
+            if (shell.IsProjectOpen)
+            {
+                ProjectPane.Focus();
+            }
+            else
+            {
+                BoardSurface.Focus();
+            }
+
+            e.Handled = true;
+        }
+    }
+
+    private void OnSearchLostFocus(object sender, KeyboardFocusChangedEventArgs e) => Board?.Search.Remember();
+
+    // Esc in the Tags flyout closes it and gives the focus back to Tags, leaving the ticks as they were; the window's own
+    // Esc would clear the card selection instead (A18, G20).
+    private void OnNoticeFlyoutKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Escape || NoticeButton.IsChecked != true)
+        {
+            return;
+        }
+
+        NoticeButton.IsChecked = false;
+        NoticeButton.Focus();
+        e.Handled = true;
+    }
+
+    private void OnTagsFlyoutKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Escape)
+        {
+            return;
+        }
+
+        TagsToggle.IsChecked = false;
+        TagsToggle.Focus();
+        e.Handled = true;
+    }
+
+    // Two buttons come from theme templates with no name, so a screen reader announced them as empty buttons (E9, G167):
+    // the toolbar's overflow button, held to the row's height of 32 (W56), and the search box's history drop-down.
+    private void OnToolBarLoaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is ToolBar toolBar && TemplatePart<System.Windows.Controls.Primitives.ToggleButton>(toolBar) is { } overflow)
+        {
+            System.Windows.Automation.AutomationProperties.SetName(overflow, "More tools");
+            overflow.MaxHeight = 32;
+        }
+
+        if (TemplatePart<System.Windows.Controls.Primitives.ToggleButton>(SearchBox) is { } history)
+        {
+            System.Windows.Automation.AutomationProperties.SetName(history, "Recent searches");
+        }
+    }
+
+    private static T? TemplatePart<T>(Control owner)
+        where T : FrameworkElement
+    {
+        owner.ApplyTemplate();
+
+        return Descendants(owner).OfType<T>().FirstOrDefault(part => ReferenceEquals(part.TemplatedParent, owner));
+
+        static IEnumerable<DependencyObject> Descendants(DependencyObject parent)
+        {
+            for (int index = 0; index < VisualTreeHelper.GetChildrenCount(parent); index++)
+            {
+                DependencyObject child = VisualTreeHelper.GetChild(parent, index);
+
+                yield return child;
+
+                foreach (DependencyObject inner in Descendants(child))
+                {
+                    yield return inner;
+                }
+            }
+        }
+    }
+
+    // Tags › is built as its menu opens, by right-click, the ⋯ button or Shift+F10 alike, from what is selected then (review T2).
+    private void OnCardMenuOpened(object sender, RoutedEventArgs e)
+    {
+        if (Board is not { } board || sender is not FrameworkElement { DataContext: var context })
+        {
+            return;
+        }
+
+        switch (context)
+        {
+            case WorkstreamCardViewModel card:
+                card.TagMenu = board.Tags.MenuFor(card);
+                break;
+            case ProjectCardViewModel project:
+                project.TagMenu = board.Tags.MenuFor(project);
+                break;
+        }
+    }
+
+    // The Tags list is read as it opens, so it counts what is on the cards now (card-search-and-tags item 12).
+    private void OnTagsOpened(object sender, RoutedEventArgs e)
+    {
+        if (Board is { } board)
+        {
+            board.Search.LoadTagRows(board.Tags.InUse(), board.Tags.ColourOf);
+        }
+    }
+
+    // A flyout opened from the keyboard takes the focus to its first choice, or a keyboard user cannot enter it (G66).
+    private void OnTagsPopupOpened(object? sender, EventArgs e) =>
+        Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input, () => (TagsAll.IsChecked == true ? TagsAll : TagsAny).Focus());
+
+    // The drawer's first control takes the focus when it opens (W43, G66).
+    private void OnDrawerShown(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (e.NewValue is true)
+        {
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input, () => FirstFocusable(DrawerPane)?.Focus());
+        }
+    }
+
+    private void OnMatchShown(IBoardCard item)
+    {
+        var row = Board?.Rows.FirstOrDefault(candidate =>
+            candidate.Cells.Any(cell => cell.Cards.Contains(item) || cell.Projects.Contains(item)));
+        BoardReveal.Show(BoardSurface, item, row);
+    }
 
     /// <summary>
     /// Lets the cards move, or stops them. A board nobody is looking at should not hold the render
@@ -316,8 +594,7 @@ public partial class MainWindow : Window
 
         _composer = window;
 
-        // A session's approval opens the composer and creates the card in one dispatcher turn, so by
-        // the time this runs the window may already be closed, and showing a closed window throws
+        // By the time this runs the composer may already be closed, and showing a closed window throws
         // (it took the board down on 2026-11-10). Show it only if it is still the open composer.
         Dispatcher.BeginInvoke(() =>
         {
@@ -449,31 +726,84 @@ public partial class MainWindow : Window
     }
 
     private void OnPreviewMouseDown(object sender, MouseButtonEventArgs e) =>
-        _dragOrigin = e.GetPosition(this);
+        _press.Down(e.OriginalSource as DependencyObject, e.GetPosition(this));
 
-    private void OnPreviewMouseUp(object sender, MouseButtonEventArgs e) => _dragOrigin = null;
+    private void OnPreviewMouseUp(object sender, MouseButtonEventArgs e) => _press.Up();
 
+    /// <summary>Starts a drag of what was pressed, or says why nothing can be dragged here (<see cref="BoardPress"/>).</summary>
     private void OnPreviewMouseMove(object sender, MouseEventArgs e)
     {
-        if (e.LeftButton != MouseButtonState.Pressed || _dragOrigin is not { } origin)
+        if (DataContext is not ShellViewModel shell)
         {
             return;
         }
 
-        var moved = e.GetPosition(this) - origin;
-        if (Math.Abs(moved.X) < SystemParameters.MinimumHorizontalDragDistance
-            && Math.Abs(moved.Y) < SystemParameters.MinimumVerticalDragDistance)
+        var step = _press.Moved(e.GetPosition(this), e.LeftButton == MouseButtonState.Pressed, shell.IsProjectOpen, shell.Board);
+
+        if (step.Refusal is { } refusal)
+        {
+            shell.DropRefused(refusal);
+        }
+        else if (step.Drag is { } item)
+        {
+            DragDrop.DoDragDrop(this, item.DragPayload, DragDropEffects.Move);
+        }
+    }
+
+    /// <summary>A double-click on a project card opens its view (AC 14).</summary>
+    private void OnProjectCardMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount == 2 && sender is FrameworkElement { DataContext: ProjectCardViewModel project })
+        {
+            project.OpenCommand?.Execute(null);
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>
+    /// A click on a project card selects it as a click on a card does (1.1d AC 41), and puts keyboard focus on it so Enter
+    /// opens it; a click on one of its buttons only presses the button.
+    /// </summary>
+    private void OnProjectCardClicked(object sender, MouseButtonEventArgs e)
+    {
+        // The second click of a double-click that opened the project arrives after the view has replaced the board.
+        if (sender is not FrameworkElement { DataContext: ProjectCardViewModel project } face
+            || IsWithinAControl(e.OriginalSource as DependencyObject)
+            || DataContext is not ShellViewModel { IsProjectOpen: false } shell)
         {
             return;
         }
 
-        if (FindCard(e.OriginalSource as DependencyObject) is not { } card)
+        var modifiers = Keyboard.Modifiers;
+
+        shell.Board.ClickSelect(project, modifiers.HasFlag(ModifierKeys.Control), modifiers.HasFlag(ModifierKeys.Shift));
+        face.Focus();
+        e.Handled = true;
+    }
+
+    /// <summary>A right-click on a project card outside the selection selects it alone, as on a card.</summary>
+    private void OnProjectCardRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: ProjectCardViewModel { IsSelected: false } project }
+            && DataContext is ShellViewModel shell)
+        {
+            shell.Board.ClickSelect(project, toggle: false, extend: false);
+        }
+
+    }
+
+    /// <summary>Something dropped on a cell's project strip goes to that cell, a card at the top of its cards.</summary>
+    private void OnProjectsDrop(object sender, DragEventArgs e)
+    {
+        if (sender is not FrameworkElement { DataContext: ColumnViewModel column }
+            || Board is not { } board
+            || e.Data.GetData(DataFormats.StringFormat) is not string dropped)
         {
             return;
         }
 
-        _dragOrigin = null;
-        DragDrop.DoDragDrop(this, card.Key, DragDropEffects.Move);
+        SayAboutDrop(BoardGesture.Drop(board, dropped, column, 0));
+        e.Handled = true;
     }
 
     private void OnAdoptClicked(object sender, RoutedEventArgs e)
@@ -521,6 +851,7 @@ public partial class MainWindow : Window
             shell.Board.ClickSelect(card, toggle: false, extend: false);
             shell.Clicked(card);
         }
+
     }
 
     /// <summary>A double-click opens the card's properties, as Alt+Enter and its menu do.</summary>
@@ -544,8 +875,7 @@ public partial class MainWindow : Window
     {
         var source = e.OriginalSource as DependencyObject;
 
-        if (FindCard(source) is not null || IsWithinAControl(source) || IsWithin<System.Windows.Controls.Primitives.ScrollBar>(source)
-            || IsWithin<System.Windows.Controls.Primitives.Thumb>(source))
+        if (!BoardGesture.StartsBand(source))
         {
             return;
         }
@@ -721,14 +1051,14 @@ public partial class MainWindow : Window
         return null;
     }
 
-    /// <summary>The cards on show whose outline the rubber band touches.</summary>
-    private IEnumerable<WorkstreamCardViewModel> CardsWithin(Rect area)
+    /// <summary>The cards and project cards on show whose outline the rubber band touches.</summary>
+    private IEnumerable<IBoardCard> CardsWithin(Rect area)
     {
         var pending = new Stack<DependencyObject>([BoardSurface]);
 
         while (pending.TryPop(out var element))
         {
-            if (element is FrameworkElement { Tag: "Card", DataContext: WorkstreamCardViewModel card, IsVisible: true } face)
+            if (element is FrameworkElement { Tag: "Card" or "ProjectCard", DataContext: IBoardCard card, IsVisible: true } face)
             {
                 // The band's layer sits beside the board, not above it, so this is a transform between two
                 // visuals of the same window, not one to an ancestor.
@@ -749,36 +1079,8 @@ public partial class MainWindow : Window
         }
     }
 
-    private static bool IsWithin<T>(DependencyObject? source)
-        where T : DependencyObject
-    {
-        while (source is not null)
-        {
-            if (source is T)
-            {
-                return true;
-            }
-
-            source = ParentOf(source);
-        }
-
-        return false;
-    }
-
-    private static bool IsWithinAControl(DependencyObject? source)
-    {
-        while (source is not null)
-        {
-            if (source is System.Windows.Controls.Primitives.ButtonBase)
-            {
-                return true;
-            }
-
-            source = ParentOf(source);
-        }
-
-        return false;
-    }
+    private static bool IsWithinAControl(DependencyObject? source) =>
+        BoardGesture.IsWithin<System.Windows.Controls.Primitives.ButtonBase>(source);
 
     /// <summary>
     /// Lets the wheel through to the board when the cell under the pointer has nowhere to scroll.
@@ -804,6 +1106,16 @@ public partial class MainWindow : Window
 
     /// <summary>Folds one card down to its title, from the button beside its status.</summary>
     private void OnCollapseCard(object sender, RoutedEventArgs e) => FoldCard(sender, e, folded: true);
+
+    private void OnFoldProjectCard(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: ProjectCardViewModel project } && DataContext is ShellViewModel shell)
+        {
+            shell.Board.Fold(project, !project.IsCollapsed);
+        }
+
+        e.Handled = true;
+    }
 
     private void FoldCard(object sender, RoutedEventArgs e, bool folded)
     {
@@ -915,10 +1227,24 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (Board is not { } board)
+        {
+            return;
+        }
+
         // The cell carries both axes, so a drop says stage and area at once. Dragging within a row
         // is the same gesture as dragging across one; only the cell landed in is different.
-        Board?.Move(key, column.Column, column.Area, DropIndex(lane, column, e.GetPosition(lane)));
+        SayAboutDrop(BoardGesture.Drop(board, key, column, DropIndex(lane, column, e.GetPosition(lane))));
         e.Handled = true;
+    }
+
+    /// <summary>Puts what a drop has to say in the status bar (1.1e AC 3).</summary>
+    private void SayAboutDrop(string? notice)
+    {
+        if (notice is not null && DataContext is ShellViewModel shell)
+        {
+            shell.DropRefused(notice);
+        }
     }
 
     /// <summary>
@@ -946,27 +1272,5 @@ public partial class MainWindow : Window
         return column.Cards.Count;
     }
 
-    private static WorkstreamCardViewModel? FindCard(DependencyObject? source)
-    {
-        while (source is not null)
-        {
-            if (source is FrameworkElement { DataContext: WorkstreamCardViewModel card })
-            {
-                return card;
-            }
-
-            source = ParentOf(source);
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// The element above this one. A click on text made of runs reports the run, which is not a
-    /// visual, and asking the visual tree for its parent throws; on 2026-10-30 that closed the board.
-    /// </summary>
-    private static DependencyObject? ParentOf(DependencyObject source) =>
-        source is System.Windows.Media.Visual or System.Windows.Media.Media3D.Visual3D
-            ? System.Windows.Media.VisualTreeHelper.GetParent(source)
-            : LogicalTreeHelper.GetParent(source);
+    private static DependencyObject? ParentOf(DependencyObject source) => BoardGesture.ParentOf(source);
 }

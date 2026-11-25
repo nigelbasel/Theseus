@@ -28,6 +28,8 @@ public partial class App : Application
     private ResourcesViewModel? _resources;
     private AttentionSampler? _attention;
     private GitHubReleaseFeed? _releases;
+    private Theseus.Core.CiStatus.GitHubStatusClient? _gitHubStatus;
+    private CiStatusViewModel? _ciStatus;
     private System.Windows.Threading.DispatcherTimer? _updateTimer;
     private McpHttpServer? _mcp;
     private Timer? _lockSweep;
@@ -65,6 +67,9 @@ public partial class App : Application
             args.Handled = false;
         };
 
+        var launcherPath = LauncherPath;
+        LauncherClearUp.Run(Path.Combine(DataDirectory, "launcher"), launcherPath, DateTimeOffset.UtcNow);
+
         var settings = new SettingsStore(Path.Combine(DataDirectory, "settings.json"));
         var current = settings.Read();
 
@@ -93,7 +98,7 @@ public partial class App : Application
             runs,
             new SystemClock(),
             ShimProtocol.DefaultPipeName,
-            LauncherPath,
+            launcherPath,
             settings,
             sink.Expect);
 
@@ -103,7 +108,10 @@ public partial class App : Application
 
         // Sessions report on links from the MCP server's threads, so a change made off the UI thread
         // redraws the board. The board's own changes already refresh it.
-        var links = new LinkBook(new LinkStateStore(Path.Combine(DataDirectory, "links.json")), new SystemClock());
+        var links = new LinkBook(new LinkStateStore(Path.Combine(DataDirectory, "links.json")), new SystemClock())
+        {
+            CurrentPieceOf = shell.CurrentPieceOf,
+        };
         var snapshots = new BoardSnapshotSource();
         var chains = new ChainsViewModel(
             links,
@@ -114,7 +122,9 @@ public partial class App : Application
 
         shell.Chains = chains;
         shell.Snapshots = snapshots;
-        chains.ReportArrived = shell.Warn;
+        chains.ReportArrived = shell.Say;
+        chains.FocusCard = key => shell.FocusCardCommand.Execute(shell.Board.Card(key));
+        chains.ReportConfirmed = shell.ReportConfirmed;
 
         var workItems = new WorkItemBook(Path.Combine(DataDirectory, "work-items.json"));
         shell.WorkItems = workItems;
@@ -123,12 +133,25 @@ public partial class App : Application
             new Theseus.Core.Proposals.ProposalStateStore(Path.Combine(DataDirectory, "proposals.json")), new SystemClock());
         var proposed = new ProposalsViewModel(proposals, () => [.. shell.Board.Cards], shell.ReviewProposal)
         {
-            Arrived = shell.Warn,
+            Arrived = shell.Say,
+            Rejected = shell.ProposalRejected,
+            ShowBrief = brief => new RecordsWindow(new RecordsViewModel($"Brief: {Path.GetFileName(Path.GetDirectoryName(brief))}",
+                new Theseus.Core.Projects.RecordEntry("Brief", "What the proposing session asks the new workstream to do",
+                    Theseus.Core.Projects.StageNodeState.Done, brief) { StateText = "written" },
+                path => System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true })))
+            {
+                Owner = MainWindow,
+            }.Show(),
         };
 
         chains.Proposals = proposed;
         proposals.Changed += (_, _) => Dispatcher.BeginInvoke(proposed.Update);
-        sink.StartLost = shell.Warn;
+        sink.StartLost = shell.StartLost;
+        shell.RunsChecksItself = true;
+        shell.AskChecklist = model =>
+            new ChecklistWindow(model) { Owner = Windows.OfType<Window>().FirstOrDefault(window => window.IsActive) ?? MainWindow }
+                .ShowDialog() == true ? model.Ticked : null;
+        sink.InFlight = _launcher.InFlight;
         links.Changed += (_, _) =>
         {
             if (!Dispatcher.CheckAccess())
@@ -143,6 +166,26 @@ public partial class App : Application
         {
             TheseusLog.Warning("{Warning}", warning);
             shell.Warn(warning);
+        }
+
+        if (shell.Settings.Guard is { } guard)
+        {
+            // Owned by the active window: both are asked from Options, and one owned by the main window sat behind it (A6).
+            guard.ConfirmChange = change =>
+                new QuestionWindow("Add the holdout guard's hook entry?", change, "_Add hook entry") { Owner = ActiveWindow }.Ask() == true;
+        }
+
+        if (shell.Settings.FolderTrust is { } trust)
+        {
+            trust.ConfirmChange = change =>
+                new QuestionWindow("Trust these folders in Claude Code?", change, "_Trust folders") { Owner = ActiveWindow }.Ask() == true;
+        }
+
+        // Said once for each newer guard an update brings, until it is installed from Options.
+        if (HoldoutGuardNotice(settings) is { } guardNotice)
+        {
+            TheseusLog.Warning("{Warning}", guardNotice);
+            shell.Warn(guardNotice);
         }
         shell.Refresh();
         proposed.Update();
@@ -209,8 +252,27 @@ public partial class App : Application
             }
         };
 
-        _mcp = new McpHttpServer(
-            new Theseus.Core.Mcp.McpHandler(
+        var stageReports = new Theseus.Core.Projects.StageReportBook(Path.Combine(DataDirectory, "stage-skips.json"));
+        shell.StageReports = stageReports.Reports;
+        stageReports.Changed += (_, _) => Dispatcher.BeginInvoke(shell.Refresh);
+
+        if (_launcher is not null)
+        {
+            _launcher.LaunchedCard = stageReports.Forget;
+        }
+
+        // Duties are kept here, so they survive a restart of Theseus or of the machine.
+        var duties = new Theseus.Core.Duties.DutyBook(
+            new Theseus.Core.Duties.DutyStore(Path.Combine(DataDirectory, "duties.json")), clock);
+        shell.Duties = duties;
+        shell.ShowDutiesWindow = model =>
+            new DutiesWindow(model) { Owner = Windows.OfType<Window>().FirstOrDefault(window => window.IsActive) ?? MainWindow }.ShowDialog();
+        shell.AskDuty = model =>
+            new DutyEditWindow(model) { Owner = Windows.OfType<Window>().FirstOrDefault(window => window.IsActive) ?? MainWindow }.ShowDialog() == true;
+        shell.ConfirmDutyDelete = text =>
+            new QuestionWindow("Delete duties?", text, "_Delete") { Owner = ActiveWindow }.Ask() == true;
+
+        var mcpHandler = new Theseus.Core.Mcp.McpHandler(
                 new Theseus.Core.Attention.WorkLog(Path.Combine(DataDirectory, "work.jsonl")),
                 attention.Read,
                 sessionId => runs.Read()
@@ -226,7 +288,25 @@ public partial class App : Application
                 proposals: proposals,
                 briefFolderName: () => settings.Read().BriefFolderName,
                 approve: (proposal, startNow) => Dispatcher.Invoke(() => shell.ApproveFromSession(proposal, startNow)),
-                workItems: workItems),
+                workItems: workItems,
+                control: new DispatchedWorkstreamControl(shell.WorkstreamControl, Dispatcher),
+                gates: new DispatchedSpecGates(shell.SpecGatesOnBoard, Dispatcher),
+                // Read off the UI thread: the log has its own lock, and a board busy with a dialog must not lose what it marks
+                // read (review of PR 6, finding 2).
+                events: shell.EventsFor,
+                projectTools: new Theseus.Core.Mcp.ProjectTools(shell.MemberOf, shell.ProjectReadingOf, stageReports,
+                    () => DateTimeOffset.UtcNow, write: (project, edit) => Dispatcher.Invoke(() => shell.WriteProjectFile(project, edit))),
+                create: (proposal, startNow) => Dispatcher.Invoke(() => shell.CreateForSession(proposal, startNow)),
+                askOwner: new Theseus.Core.Mcp.AskOwnerTool(shell.Questions, () => DateTimeOffset.UtcNow,
+                    () => Dispatcher.BeginInvoke(shell.Refresh)),
+                startRequests: shell.StartRequests,
+                duties: new Theseus.Core.Mcp.DutyTools(duties, record: (card, text) =>
+                    Dispatcher.BeginInvoke(() => shell.RecordDutyEvent(card, text))));
+
+        WireHeadless(shell, settings, mcpHandler);
+
+        _mcp = new McpHttpServer(
+            mcpHandler,
             Theseus.Core.Mcp.TheseusMcp.DefaultPort,
             new LockHttpApi(locks, () => DateTimeOffset.UtcNow));
 
@@ -249,48 +329,120 @@ public partial class App : Application
         SessionJumpList.Show(this, sessions.Snapshot.Live);
         sessions.Refreshed += (_, _) => SessionJumpList.Show(this, sessions.Snapshot.Live);
 
-        StartUpdateChecks(shell);
+        StartUpdateChecks(shell, settings);
+
+        // Pull request and CI status on cards, read from GitHub with no token (pr-ci-status). The first poll waits for the
+        // timer's first tick, a minute in, as the update check does, so the board is up first.
+        _gitHubStatus = new Theseus.Core.CiStatus.GitHubStatusClient(AppVersion.Current);
+        _ciStatus = new CiStatusViewModel(_gitHubStatus);
+        shell.CiStatus = _ciStatus;
+        shell.SyncPullRequests();
 
         MainWindow = new MainWindow { DataContext = shell };
+        // The buttons say what they do (baseline A3, W17): Start only the others only when there are others; Cancel starts nothing.
         shell.ConfirmFlaggedStart = (question, hasOthers) =>
+            new QuestionWindow("Start paused or blocked work?", question, "_Clear marks and start",
+                hasOthers ? "_Start only the others" : null) { Owner = ActiveWindow }.Ask();
+        shell.ConfirmProjectCard = (question, action) =>
+            new QuestionWindow($"{action} a card of a running project?", question, $"_{action}") { Owner = ActiveWindow }.Ask() == true;
+        // Owned by the active window, or the board when none is: Options closes itself before Project properties opens (W8).
+        shell.AskProjectProperties = properties =>
+            new ProjectPropertiesWindow(properties) { Owner = ActiveWindow }.ShowDialog() == true;
+        // Owned by the window it was asked from, so a spec window is blocked behind its question (review of PR 5, 13).
+        shell.ConfirmAcceptSpec = question =>
+            new QuestionWindow("Accept spec?", question, "_Accept spec") { Owner = ActiveWindow }.Ask() == true;
+        // Stays modal (Nigel, 2026-11-23): a refusal only in the status line read as "nothing happens".
+        shell.ExplainRefusal = (title, text) =>
         {
-            var answer = MessageBox.Show(MainWindow, question, "Start paused or blocked work?",
-                hasOthers ? MessageBoxButton.YesNoCancel : MessageBoxButton.YesNo, MessageBoxImage.Question,
-                MessageBoxResult.No);
+            QuestionWindow box = QuestionWindow.Information(title, text);
+            box.Owner = ActiveWindow;
+            box.ShowDialog();
+        };
+        // Decide later is Cancel, so Esc chooses it; "(Esc)" is not part of its label (A3).
+        shell.AskStartRequest = (title, question) =>
+            new QuestionWindow(title, question, "_Allow and start", "_Refuse", "Decide later") { Owner = ActiveWindow }.Ask();
+        shell.StartRequests.Changed += (_, _) => Dispatcher.BeginInvoke(shell.Refresh);
+        shell.AskNewProject = (name, title) =>
+        {
+            var window = new NewProjectWindow(name, title) { Owner = MainWindow };
 
-            return answer switch
+            return window.ShowDialog() == true ? window.Details : null;
+        };
+        shell.AskText = (title, label, initial) =>
+        {
+            return new TextPromptWindow(title, label, initial) { Owner = ActiveWindow }.Ask();
+        };
+        shell.ShowRecordsWindow = model => new RecordsWindow(model) { Owner = MainWindow }.Show();
+        shell.ShowProposalWindow = model => new ProposalWindow(model) { Owner = MainWindow }.Show();
+        var specWindows = new Dictionary<string, SpecWindow>(StringComparer.OrdinalIgnoreCase);
+        shell.ShowSpec = model =>
+        {
+            var key = $"{model.Shown.Project}/{model.Shown.Slug}";
+
+            if (specWindows.TryGetValue(key, out var open))
             {
-                MessageBoxResult.Yes => true,
-                MessageBoxResult.No => false,
-                _ => null,
+                open.Activate();
+
+                return;
+            }
+
+            var window = new SpecWindow(model, shell.SettingsStore.Read().SpecWindow,
+                placement => shell.SettingsStore.Write(shell.SettingsStore.Read() with { SpecWindow = placement }))
+            {
+                Owner = MainWindow,
             };
+            window.Closed += (_, _) => specWindows.Remove(key);
+            specWindows[key] = window;
+            window.Show();
+        };
+        shell.AskObjective = () =>
+        {
+            var window = new AddObjectiveWindow { Owner = MainWindow };
+
+            return window.ShowDialog() == true ? window.Objective : null;
+        };
+        shell.AskAddToProject = (projects, slug, chosen) =>
+        {
+            var window = new AddToProjectWindow(projects, slug, chosen) { Owner = MainWindow };
+
+            return window.ShowDialog() == true ? window.Choice : null;
         };
         MainWindow.Show();
     }
+
+    /// <summary>The window a dialog is asked from, which owns it (baseline W8, A6); the main window when none is active.</summary>
+    private Window? ActiveWindow => Windows.OfType<Window>().FirstOrDefault(window => window.IsActive) ?? MainWindow;
 
     /// <summary>
     /// Checks the public releases a minute after starting, so the board is up first, and every six
     /// hours after that. GitHub allows sixty unauthenticated calls an hour; this makes four a day.
     /// </summary>
-    private void StartUpdateChecks(ShellViewModel shell)
+    private void StartUpdateChecks(ShellViewModel shell, SettingsStore settings)
     {
-        _releases = new GitHubReleaseFeed(AppVersion.Current);
+        _releases = new GitHubReleaseFeed(AppVersion.Current, () => settings.Read().IncludePreReleases);
 
-        var updates = new UpdateViewModel(_releases, AppVersion.Current, Path.Combine(DataDirectory, "updates"), msi =>
+        UpdateViewModel? updates = null;
+        updates = new UpdateViewModel(_releases, AppVersion.Current, Path.Combine(DataDirectory, "updates"), msi =>
         {
-            UpdateInstaller.Start(msi, Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "Theseus.exe"),
-                Environment.ProcessId);
+            if (UpdateInstaller.Start(msi, Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "Theseus.exe"),
+                    Environment.ProcessId) is { } notStarted)
+            {
+                updates!.InstallFailed(notStarted);
+
+                return;
+            }
+
             MainWindow?.Close();
         });
 
-        updates.Said = shell.Warn;
+        updates.Said = shell.Say;
         shell.Updates = updates;
 
         _updateTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
         _updateTimer.Tick += async (_, _) =>
         {
             _updateTimer.Interval = TimeSpan.FromHours(6);
-            await updates.CheckAsync();
+            await updates.CheckQuietlyAsync();
         };
         _updateTimer.Start();
     }
@@ -329,6 +481,8 @@ public partial class App : Application
         _attention?.Dispose();
         _updateTimer?.Stop();
         _releases?.Dispose();
+        _ciStatus?.Dispose();
+        _gitHubStatus?.Dispose();
 
         _locks?.Dispose();
 
@@ -358,7 +512,69 @@ public partial class App : Application
     /// </summary>
     private const string ClaudeCodeVersion = "2.1.246";
 
+    /// <summary>
+    /// The out-of-date notice for the installed holdout guard, or null; recorded as given, so each newer guard is said once.
+    /// Read only: the guard itself is written only by Install the holdout guard.
+    /// </summary>
+    private static string? HoldoutGuardNotice(SettingsStore settings)
+    {
+        try
+        {
+            var notice = new HoldoutGuardInstallation(HoldoutGuardInstallation.UserConfigFolder()).State()
+                .OutOfDateNotice(settings.Read().HoldoutGuardNoticeFor);
+
+            if (notice is not null)
+            {
+                settings.Write(settings.Read() with { HoldoutGuardNoticeFor = HoldoutGuardBundle.Version });
+            }
+
+            return notice;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
     private static string LauncherPath => LauncherKit.Prepare(
         Path.Combine(AppContext.BaseDirectory, "Theseus.Launcher.exe"),
         Path.Combine(DataDirectory, "launcher"));
+
+    // Headless runs (Nigel, 2026-11-24): the runner, its ledger and logs, the faces it keeps current, and what a run's
+    // end, a breaker's trip or a refused queued start tells the board.
+    private void WireHeadless(ShellViewModel shell, ISettingsStore settings, Theseus.Core.Mcp.McpHandler mcp)
+    {
+        if (_launcher is null)
+        {
+            return;
+        }
+
+        var runner = new Theseus.Core.Running.HeadlessRunner(
+            new Theseus.Core.Running.RunLedger(Path.Combine(DataDirectory, "run-ledger.jsonl")),
+            settings.Read,
+            new SystemClock(),
+            (request, line, exited) => Theseus.Core.Running.HeadlessProcess.Start(request, line, exited),
+            Path.Combine(DataDirectory, "runs"))
+        {
+            Tripped = (key, trip) => Dispatcher.BeginInvoke(() => shell.BreakerTripped(key, trip)),
+            Refused = (_, detail) => Dispatcher.BeginInvoke(() => shell.Say(detail)),
+            Ended = _ => Dispatcher.BeginInvoke(shell.Refresh),
+        };
+
+        _launcher.Headless = runner;
+        _launcher.PieceFor = workstream => shell.CurrentPieceOf(workstream.Key);
+        shell.Headless = runner;
+        mcp.ToolCalled = runner.ToolCalled;
+        shell.ShowRunOutput = (title, log) => new RunOutputWindow(title, log) { Owner = ActiveWindow }.Show();
+
+        // The dispatcher keeps a running timer alive.
+        _ = new System.Windows.Threading.DispatcherTimer(TimeSpan.FromSeconds(2),
+            System.Windows.Threading.DispatcherPriority.Background,
+            (_, _) =>
+            {
+                runner.Tick();
+                shell.SyncHeadless();
+            },
+            Dispatcher);
+    }
 }

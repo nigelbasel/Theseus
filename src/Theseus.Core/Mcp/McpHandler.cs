@@ -6,6 +6,7 @@ using Theseus.Core.Attention;
 using Theseus.Core.Domain;
 using Theseus.Core.Links;
 using Theseus.Core.Locks;
+using Theseus.Core.Projects;
 using Theseus.Core.Proposals;
 
 namespace Theseus.Core.Mcp;
@@ -22,8 +23,12 @@ namespace Theseus.Core.Mcp;
 /// A linked session reads its links with <c>related</c> and files its output with <c>report_back</c>.
 /// A report changes nothing that matters: the link shows Reported until Nigel confirms it on the board.
 /// A session that wants part of its work carried on by another workstream proposes one with
-/// <c>propose_workstream</c>. Nothing exists until Nigel approves it on the board.
-/// No tool approves, starts, confirms, satisfies or edits anything.
+/// <c>propose_workstream</c>. On the ordinary board nothing exists until Nigel approves it; in a project the card is made
+/// at once under an objective of the project (sessions-run-the-project item 1; Nigel, 2026-11-22: "I only approve and
+/// review objectives, I dont need to keep approving the start of sessions or creation of cards").
+/// No tool approves, confirms, satisfies or edits anything of the owner's. An ad hoc session starts, stops, pauses and
+/// resumes only its own descendants' cards (1.1e AC 14); a project's session any card of its project, never another
+/// project's or an ad hoc card (item 2). Each such call passes the person in the tab first, since it is not pre-approved.
 /// </summary>
 public sealed partial class McpHandler
 {
@@ -50,15 +55,33 @@ public sealed partial class McpHandler
         + "a document (your hand-over, or your report back) and it is written, call report_back with that "
         + "document, a short summary and a verdict if one fits; then tell the user in this tab that it waits "
         + "for their confirmation on the board. A report never satisfies a link by itself. "
+        + "Call events() when you start, to catch up on what the user did on the board while you were stopped: a tell "
+        + "waiting more than seven days survives only there. "
         + "If part of this work should be carried on by a new workstream, write a brief for it and call "
-        + "propose_workstream; the user approves it on the board, and no card, link or tab exists before that. "
+        + "propose_workstream. On the ordinary board the user approves it there, and no card, link or tab exists before "
+        + "that. In a project, propose_workstream creates the card at once, under the objective you name, linked from "
+        + "you and in the project file; it does not start unless you say start_now. "
         + "Never write a plan file for another workstream yourself. "
         + "When the user asks you to link this workstream to another card on the board, or to remove a link, "
         + "call link_workstream or unlink_workstream; never do either unless the user asked for it in this tab. "
         + "The user may review a proposal's brief with you here and approve or reject it: call approve_proposal or "
         + "reject_proposal only when the user says so in this tab, never on your own judgement. "
         + "When you start work on a Jira issue, raise one, or open a pull request, call record_work_item with "
-        + "its id and title so the card can show it.";
+        + "its id and title so the card can show it. "
+        + "workstreams lists the cards you may start_workstream, stop_workstream, pause_workstream and "
+        + "resume_workstream, with their state and why each is stopped: in a project, every card of the project but "
+        + "your own; on the ordinary board, your descendants (cards made from proposals you raised). Give an "
+        + "instruction for a start when there is more work. Another project's cards and ad hoc cards are the user's. "
+        + "In a project, starting a card the user paused waits for their Allow, and events() tells you their answer. "
+        + "In a project, call now_at(stage, doing) on entering each stage of your piece of work, with what you are doing in "
+        + "under 80 characters; a stage your pipeline lets you skip is reported as now_at(stage, \"skipped: <reason>\"). "
+        + "Theseus writes project.md's structured lines: record a round with record_round, tick a criterion with "
+        + "tick_criterion, add an objective with add_objective, record a decision with record_decision and say who a "
+        + "criterion waits on with set_waiting. Write prose by hand, never those lines. "
+        + "When you need the user's answer before you can go on, ask with the question tool and call ask_owner with the "
+        + "same question, so it shows in Theseus; never ask only in prose, which leaves your card looking finished. "
+        + "For work that recurs, such as checking for something new every hour, call set_duty instead of running a loop in "
+        + "your tab: Theseus keeps it across restarts and the user can see, pause and change it.";
 
     private readonly WorkLog _work;
     private readonly LockBook? _locks;
@@ -72,7 +95,15 @@ public sealed partial class McpHandler
     private readonly ProposalBook? _proposals;
     private readonly Func<string> _briefFolderName;
     private readonly Func<WorkstreamProposal, bool, ProposalApproval>? _approve;
+    private readonly Func<WorkstreamProposal, bool, ProposalApproval>? _create;
+    private readonly StartRequestBook? _startRequests;
     private readonly WorkItemBook? _workItems;
+    private readonly IWorkstreamControl? _control;
+    private readonly ISpecGates? _gates;
+    private readonly Func<string, string>? _events;
+    private readonly ProjectTools? _projectTools;
+    private readonly AskOwnerTool? _askOwner;
+    private readonly DutyTools? _duties;
 
     /// <summary>Creates the handler over the work log, the sampler's intervals and the launched sessions.</summary>
     /// <param name="sessions">Finds the session a request's path names, or null for one Theseus did not launch.</param>
@@ -84,10 +115,24 @@ public sealed partial class McpHandler
     /// <param name="proposals">The workstreams sessions have proposed, or null when Theseus is not taking any.</param>
     /// <param name="briefFolderName">The board's brief folder, relative to a working directory.</param>
     /// <param name="workItems">The Jira issues and pull requests sessions record against their cards, or null.</param>
+    /// <param name="control">Starts, stops, pauses and resumes a session's descendants on the board (1.1e AC 14), or null.</param>
+    /// <param name="projectTools">now_at and the tools that write project.md (1.1f E24, B9), or null.</param>
     /// <param name="approve">
     /// Creates the card for a proposal its session approves when Nigel asks, and whether to start it, or
     /// null when sessions cannot approve.
     /// </param>
+    /// <param name="gates">Answers gates() and keeps accept_spec's reports (1.1e AC 28), or null.</param>
+    /// <param name="events">What the owner did on the board for a card since its session last asked (1.1e AC 27a), or null.</param>
+    /// <param name="create">
+    /// Makes the card for a proposal from a project's session, without approval (sessions-run-the-project item 1), and
+    /// whether to start it; null when sessions in projects only propose.
+    /// </param>
+    /// <param name="askOwner">ask_owner, which shows a session's question on the board (1.6), or null.</param>
+    /// <param name="startRequests">
+    /// Where a project's session's start of a card the owner paused waits for his Allow (sessions-run-the-project item 12),
+    /// or null, when such a start is refused.
+    /// </param>
+    /// <param name="duties">set_duty, duties, pause_duty and end_duty, or null when Theseus keeps no duties.</param>
     public McpHandler(
         WorkLog work,
         Func<IReadOnlyList<AttentionInterval>> attention,
@@ -101,8 +146,24 @@ public sealed partial class McpHandler
         ProposalBook? proposals = null,
         Func<string>? briefFolderName = null,
         Func<WorkstreamProposal, bool, ProposalApproval>? approve = null,
-        WorkItemBook? workItems = null)
+        WorkItemBook? workItems = null,
+        IWorkstreamControl? control = null,
+        ISpecGates? gates = null,
+        Func<string, string>? events = null,
+        ProjectTools? projectTools = null,
+        Func<WorkstreamProposal, bool, ProposalApproval>? create = null,
+        AskOwnerTool? askOwner = null,
+        StartRequestBook? startRequests = null,
+        DutyTools? duties = null)
     {
+        _duties = duties;
+        _startRequests = startRequests;
+        _create = create;
+        _askOwner = askOwner;
+        _projectTools = projectTools;
+        _events = events;
+        _gates = gates;
+        _control = control;
         _workItems = workItems;
         _approve = approve;
         _proposals = proposals;
@@ -117,6 +178,12 @@ public sealed partial class McpHandler
         _clock = clock;
         _zone = zone ?? TimeZoneInfo.Local;
     }
+
+    /// <summary>
+    /// Told the session and tool of every call from a session Theseus launched, before it is answered: how a headless
+    /// run's progress is seen (Nigel, 2026-11-24). Null for no one.
+    /// </summary>
+    public Action<string, string>? ToolCalled { get; set; }
 
     /// <summary>Answers one POSTed JSON-RPC message for the session its path names.</summary>
     public McpResponse Handle(string sessionId, string body, string? protocolVersionHeader)
@@ -174,7 +241,7 @@ public sealed partial class McpHandler
         };
     }
 
-    private static JsonObject ToolsList() => new()
+    private static JsonObject ToolsList() => new JsonObject
     {
         ["tools"] = new JsonArray(
             Tool("start_work",
@@ -235,7 +302,7 @@ public sealed partial class McpHandler
                 },
                 "document", "summary"),
             Tool("propose_workstream",
-                "Propose a new workstream to carry part of this work on: a spike, the next stage, or a piece handed over. Write its brief first. The proposal waits for the user on the board; no card, link or tab exists until they approve it, and they may change anything first. Approval never authorises a Jira item, branch, worktree, push or pull request.",
+                "Propose a new workstream to carry part of this work on: a spike, the next stage, or a piece handed over. Write its brief first. On the ordinary board the proposal waits for the user, and no card, link or tab exists until they approve it. In a project the card is created at once, under the objective named, which is then required, as is slug; it starts only with start_now. Neither authorises a Jira item or a pull request into the trunk.",
                 new JsonObject
                 {
                     ["title"] = Property("The new workstream's title."),
@@ -254,10 +321,24 @@ public sealed partial class McpHandler
                         ["description"] = "Optional: issues it carries. Each must already be on this workstream's card.",
                     },
                     ["reason"] = Property("Optional: why it is wanted, shown to the user."),
+                    ["start_now"] = new JsonObject
+                    {
+                        ["type"] = "boolean",
+                        ["description"] = "Optional, in a project: true to start the new card's session as soon as it is made. Otherwise it waits for your start_workstream.",
+                    },
+                    ["slug"] = Property("For a workstream in a project, required: the name of its records folder (work/<slug>/), lower-case letters, digits and hyphens, not one already in the project file's workstreams table."),
+                    ["objective"] = Property("For a workstream in a project, required: the objective it serves, by number (\"1.2\") or title. Theseus writes its row under that objective when the card is made."),
+                    ["branch"] = Property("Optional, for a workstream in a project: its branch, for its row. None named, the row says none; Theseus never invents one."),
+                    ["repos"] = new JsonObject
+                    {
+                        ["type"] = "array",
+                        ["items"] = new JsonObject { ["type"] = "string" },
+                        ["description"] = "Optional, for a workstream in a project: the repos it works in, for its row. None named, the row says read-only.",
+                    },
                 },
                 "title", "brief", "done_criteria", "report_back"),
             Tool("proposal_status",
-                "This workstream's proposals, everything each asks for, its warnings, and what the user decided: pending, approved (with the new card's key), rejected (with their note) or withdrawn. Read-only.",
+                "This workstream's proposals, everything each asks for, its warnings, and what became of it: pending, approved by the user (with the new card's key), created by you in a project (likewise), rejected (with their note) or withdrawn. Read-only.",
                 new JsonObject()),
             Tool("withdraw_proposal",
                 "Take back one of this workstream's pending proposals.",
@@ -282,6 +363,54 @@ public sealed partial class McpHandler
                 "Remove a link this workstream is at either end of, by its id from related. Removing a hand-over also removes the report back that depended on it. Use only when the user asks for it in this tab.",
                 new JsonObject { ["link_id"] = Property("The link's id, from related.") },
                 "link_id"),
+            Tool("events",
+                "What the owner did on the board that concerns this workstream since you last called this: proposals of yours approved or rejected, reports to you confirmed, your spec accepted. Read-only. Call it when you start, since what waited more than seven days for you is kept only here, and before asking the owner to do something on the board, rather than asking him again.",
+                new JsonObject()),
+            Tool("gates",
+                "This workstream's owner's gates (its spec, or a bug's rule) and whether each is accepted for the version on disk now, with when, by whom and how. Read-only. Stop at the spec and call this before you plan: plan only when it says accepted.",
+                new JsonObject()),
+            Tool("accept_spec",
+                "Report that the owner accepted this workstream's spec in this tab, quoting his words. Nothing is accepted by this call: he confirms on the board, and only then is it accepted. Refused when the version is not the spec's current text. Never take his \"accept\" in chat as the gate itself.",
+                new JsonObject
+                {
+                    ["slug"] = Property("This workstream's records folder name."),
+                    ["version"] = Property("The version he accepted: the spec's version as gates() gives it."),
+                    ["owner_words"] = Property("His words, as he said them in this tab."),
+                },
+                "slug", "version", "owner_words"),
+            Tool("workstreams",
+                "The cards you may start, stop, pause and resume, each with its state, why it is stopped, who made it and who paused it: in a project, every card of the project but your own; on the ordinary board, your descendants (cards made from proposals your card raised, and theirs in turn). Read-only.",
+                new JsonObject()),
+            Tool("start_workstream",
+                "Start a card workstreams lists, resuming its conversation. An instruction, if given, is its opening prompt for this start only, such as \"more work: ...\". A card whose session is open and idle takes the instruction as its next turn instead. Refused if it is mid-turn, archived or blocked. In a project, a card the user paused is not started: your start waits for the user's Allow, and events() tells you their answer.",
+                new JsonObject
+                {
+                    ["card"] = Property("The card's key or title, from workstreams."),
+                    ["instruction"] = Property("Optional: what this start is for, given to it once. In a project it is shown on the card's box as work handed in by you, its first line on the box and all of it in Properties: give work to another card this way, not by a message to its session."),
+                    ["reason"] = Property("Optional: why you want it started, shown to the user when the card is one they paused."),
+                },
+                "card"),
+            Tool("stop_workstream",
+                "Ask the session of a card workstreams lists to write its handover and stop: an idle one at once, a working one when its current turn ends. Its tab closes once the handover is written.",
+                new JsonObject { ["card"] = Property("The card's key or title, from workstreams.") },
+                "card"),
+            Tool("pause_workstream",
+                "Stop a card workstreams lists if it runs and mark it paused by you, with the reason; its project's Start does not start it while it stays paused.",
+                new JsonObject
+                {
+                    ["card"] = Property("The card's key or title, from workstreams."),
+                    ["reason"] = Property("Optional: why, shown on its card."),
+                },
+                "card"),
+            Tool("resume_workstream",
+                "Clear a session's pause on a card workstreams lists (in a project, any session's; otherwise yours) and start it, with an instruction for this start if given; a card whose session is open and idle takes the instruction as its next turn. In a project, the user's own pause is not cleared: the resume waits for their Allow, and events() tells you their answer.",
+                new JsonObject
+                {
+                    ["card"] = Property("The card's key or title, from workstreams."),
+                    ["instruction"] = Property("Optional: what this start is for, given to it once. In a project it is shown on the card's box as work handed in by you, its first line on the box and all of it in Properties: give work to another card this way, not by a message to its session."),
+                    ["reason"] = Property("Optional: why you want it started, shown to the user when the card is one they paused."),
+                },
+                "card"),
             Tool("record_work_item",
                 "Show a Jira issue or pull request on this workstream's card, with its title, in the card's drop-down. Call it when you start work on an issue, raise one, or open a pull request. Recording one again updates its title.",
                 new JsonObject
@@ -315,7 +444,7 @@ public sealed partial class McpHandler
                 },
                 "items"),
             Tool("approve_proposal",
-                "Approve one of this workstream's pending proposals, which creates its card, links it and leaves it ready to start, exactly as Create does on the board. Only when the user has read the brief and tells you to approve it in this tab.",
+                "Approve one of this workstream's pending proposals, which creates its card, links it and leaves it ready to start, exactly as Approve does in the board's proposal window. A project's proposals never wait, so this is for the ordinary board. Only when the user has read the brief and tells you to approve it in this tab.",
                 new JsonObject
                 {
                     ["proposal_id"] = Property("The id propose_workstream returned."),
@@ -333,8 +462,83 @@ public sealed partial class McpHandler
                     ["proposal_id"] = Property("The id propose_workstream returned."),
                     ["note"] = Property("Optional: the user's reason, kept with the proposal."),
                 },
-                "proposal_id")),
-    };
+                "proposal_id"),
+            Tool("now_at",
+                "Say which stage of your piece of work you are at and what you are doing, on entering each stage. The project view shows it until your next call. To say a stage was skipped, give doing as \"skipped: <reason>\".",
+                new JsonObject
+                {
+                    ["stage"] = Property("One of your piece's stages, such as Research, Spec, Plan, Build, Verify, Review or Lessons (Reproduce, Rule, Fix for a bug; Work for freeform)."),
+                    ["doing"] = Property("What you are doing, in under 80 characters, or \"skipped: <reason>\"."),
+                },
+                "stage", "doing"),
+            Tool("record_round",
+                "Record that the owner changed the requirements and work went back to research: a row of project.md's Rounds table, and a Round line on each objective the round adds or reopens.",
+                new JsonObject
+                {
+                    ["name"] = Property("The round's name, a few words."),
+                    ["why"] = Property("Why the requirements changed, in one sentence, in the owner's words."),
+                    ["objectives"] = new JsonObject
+                    {
+                        ["type"] = "array",
+                        ["items"] = new JsonObject { ["type"] = "string" },
+                        ["description"] = "The objective numbers the round adds or reopens, such as 1.7.",
+                    },
+                    ["by"] = Property("Optional: who changed them; Nigel when left out."),
+                },
+                "name", "why", "objectives"),
+            Tool("tick_criterion",
+                "Tick or untick one acceptance criterion in project.md, with a one-line pointer to the evidence kept beside it.",
+                new JsonObject
+                {
+                    ["objective"] = Property("The objective's number, such as 1.2."),
+                    ["criterion"] = new JsonObject { ["type"] = "integer", ["description"] = "The criterion's number in the objective, from 1." },
+                    ["text"] = Property("The criterion's text as the file has it, checked before the tick is made."),
+                    ["ticked"] = new JsonObject { ["type"] = "boolean", ["description"] = "Optional: false to untick; true when left out." },
+                    ["evidence"] = Property("A one-line pointer to what shows it is met; needed to tick."),
+                },
+                "objective", "criterion", "text"),
+            Tool("add_objective",
+                "Add an objective at the end of a phase of project.md, with its criteria, its pipeline and an empty workstreams table.",
+                new JsonObject
+                {
+                    ["phase"] = new JsonObject { ["type"] = "integer", ["description"] = "The phase's number." },
+                    ["title"] = Property("The objective's title."),
+                    ["criteria"] = new JsonObject
+                    {
+                        ["type"] = "array",
+                        ["items"] = new JsonObject { ["type"] = "string" },
+                        ["description"] = "Its acceptance criteria, one line each.",
+                    },
+                    ["pipeline"] = Property("feature, bug or freeform; [to be chosen] when left out."),
+                    ["waiting"] = new JsonObject
+                    {
+                        ["type"] = "array",
+                        ["items"] = new JsonObject { ["type"] = "string" },
+                        ["description"] = "Optional: per criterion, in order, \"owner: <what>\", \"work: <what>\" or empty.",
+                    },
+                },
+                "phase", "title", "criteria"),
+            Tool("record_decision",
+                "Append a dated row to project.md's Decisions table.",
+                new JsonObject
+                {
+                    ["decision"] = Property("The decision, in one line."),
+                    ["by"] = Property("Who made it."),
+                },
+                "decision", "by"),
+            Tool("set_waiting",
+                "Say who an unticked criterion in project.md waits on, with what it waits for: the owner (it then shows in his Waits for you), work, or anyone else by name, such as the project's lead or another team (shown as theirs, not his).",
+                new JsonObject
+                {
+                    ["objective"] = Property("The objective's number."),
+                    ["criterion"] = new JsonObject { ["type"] = "integer", ["description"] = "The criterion's number in the objective, from 1." },
+                    ["text"] = Property("The criterion's text as the file has it."),
+                    ["who"] = Property("owner, work, the name of whoever else it waits on, or none to remove the note."),
+                    ["what"] = Property("What it waits for, in plain words."),
+                },
+                "objective", "criterion", "text", "who"),
+            AskOwnerTool.Definition.DeepClone()),
+    }.WithDutyTools();
 
     private McpResponse CallTool(JsonNode id, string sessionId, JsonObject? parameters)
     {
@@ -350,6 +554,16 @@ public sealed partial class McpHandler
         if (_sessions(sessionId) is not { } session)
         {
             return Ok(id, Result($"Session {sessionId} was not launched by Theseus, so it has no workstream to record time against.", isError: true));
+        }
+
+        ToolCalled?.Invoke(sessionId, name);
+
+        if (ProjectTools.Names.Contains(name))
+        {
+            var outcome = _projectTools?.Call(name, session, arguments)
+                          ?? ProjectToolOutcome.Refused("This Theseus keeps no project tools.");
+
+            return Ok(id, Result(outcome.Text, isError: outcome.IsError));
         }
 
         return Ok(id, name switch
@@ -371,8 +585,261 @@ public sealed partial class McpHandler
             "record_work_item" => RecordWorkItem(session, arguments),
             "name_work_items" => NameWorkItems(arguments),
             "reject_proposal" => RejectProposal(session, arguments),
+            "workstreams" => Workstreams(session),
+            "gates" => _gates is null
+                ? Result("This Theseus does not answer on gates.", isError: true)
+                : Result(_gates.Gates(session.WorkstreamKey)),
+            "accept_spec" => AcceptSpec(session, arguments),
+            "events" => _events is null
+                ? Result("This Theseus does not keep the owner's board actions.", isError: true)
+                : Result(_events(session.WorkstreamKey)),
+            "start_workstream" => ControlWorkstream(session, arguments, WorkstreamCall.Start),
+            "stop_workstream" => ControlWorkstream(session, arguments, WorkstreamCall.Stop),
+            "pause_workstream" => ControlWorkstream(session, arguments, WorkstreamCall.Pause),
+            "resume_workstream" => ControlWorkstream(session, arguments, WorkstreamCall.Resume),
+            AskOwnerTool.Name => AskOwner(session, arguments),
+            DutyTools.SetDuty or DutyTools.ListDuties or DutyTools.PauseDuty or DutyTools.EndDuty => DutyCall(name, session, arguments),
             _ => WhoAmI(session),
         });
+    }
+
+    private JsonObject DutyCall(string name, McpSession session, JsonObject arguments)
+    {
+        if (_duties is null || _proposals is null)
+        {
+            return Result("This Theseus keeps no duties.", isError: true);
+        }
+
+        var board = _board();
+        var (_, controllable) = Controllable(session, board);
+        IReadOnlyList<BoardSnapshotCard> allowed = board.Card(session.WorkstreamKey) is { } own ? [own, .. controllable] : controllable;
+        var (text, isError) = _duties.Call(name, session, arguments, board, allowed);
+
+        return Result(text, isError);
+    }
+
+    private JsonObject AskOwner(McpSession session, JsonObject arguments)
+    {
+        if (_askOwner is null)
+        {
+            return Result("This Theseus does not show questions on the board.", isError: true);
+        }
+
+        var (text, isError) = _askOwner.Call(session, arguments);
+
+        return Result(text, isError);
+    }
+
+    /// <summary>accept_spec (1.1e AC 28): keeps the owner's words for him to confirm on the board; it accepts nothing.</summary>
+    private JsonObject AcceptSpec(McpSession session, JsonObject arguments)
+    {
+        if (_gates is null)
+        {
+            return Result("This Theseus does not take reports of acceptance.", isError: true);
+        }
+
+        var slug = Text(arguments["slug"])?.Trim() ?? string.Empty;
+        var version = Text(arguments["version"])?.Trim() ?? string.Empty;
+        var words = Text(arguments["owner_words"])?.Trim() ?? string.Empty;
+
+        return _gates.ReportAcceptance(session.WorkstreamKey, slug, version, words) is { } refusal
+            ? Result(refusal, isError: true)
+            : Result("Reported. Nothing is accepted until the owner confirms it on the board; call gates() to see when he has, and do not plan before.");
+    }
+
+    /// <summary>
+    /// workstreams (1.1e AC 14; sessions-run-the-project item 10): the cards the caller may act on with their state and
+    /// why, who made each and who paused it, so a session decides from facts.
+    /// </summary>
+    private JsonObject Workstreams(McpSession session)
+    {
+        if (_control is null || _proposals is null)
+        {
+            return Result("This Theseus does not let sessions start or stop workstreams.", isError: true);
+        }
+
+        var board = _board();
+        var (project, cards) = Controllable(session, board);
+
+        if (cards.Count == 0)
+        {
+            return Result(project is null
+                ? "You have no descendants: no card has been made from a proposal this workstream raised."
+                : $"{project} has no other card.");
+        }
+
+        var all = _proposals.All;
+
+        return Result(string.Join(Environment.NewLine, cards.Select(card =>
+        {
+            var parts = new List<string> { StateOf(card) };
+
+            if (card.StopLine is { } why)
+            {
+                parts.Add(why);
+            }
+
+            var made = all.FirstOrDefault(each => string.Equals(each.ResultingKey, card.Key, StringComparison.OrdinalIgnoreCase));
+
+            if (made is not null)
+            {
+                parts.Add(made.MadeBySession
+                    ? $"created by {TitleOf(board, made.RequesterKey)}"
+                    : $"proposed by {TitleOf(board, made.RequesterKey)}, approved by the user");
+            }
+
+            if (card.Workstream.IsPaused)
+            {
+                parts.Add(card.Workstream.PausedBy is { } by ? $"paused by {TitleOf(board, by)}" : "paused by the user");
+            }
+
+            if (project is not null && string.Equals(made?.RequesterKey, session.WorkstreamKey, StringComparison.OrdinalIgnoreCase))
+            {
+                parts.Add("yours");
+            }
+
+            return $"{card.Title} ({card.Key}): {string.Join("; ", parts)}";
+        })));
+    }
+
+    /// <summary>
+    /// The cards a session may act on: in a project, every card of it but the caller's own, by membership, with the
+    /// scenario writers that work for it; on the ordinary board, its descendants. The project is null then.
+    /// </summary>
+    private (string? Project, IReadOnlyList<BoardSnapshotCard> Cards) Controllable(McpSession session, BoardSnapshot board)
+    {
+        if (board.Card(session.WorkstreamKey)?.Workstream.Project is { } project)
+        {
+            return (project, [.. board.Cards.Where(card =>
+                (string.Equals(card.Workstream.Project, project, StringComparison.OrdinalIgnoreCase)
+                 || string.Equals(card.ProjectOfRole, project, StringComparison.OrdinalIgnoreCase))
+                && !string.Equals(card.Key, session.WorkstreamKey, StringComparison.OrdinalIgnoreCase))]);
+        }
+
+        return (null, [.. WorkstreamDescendants.Of(session.WorkstreamKey, _proposals!.All).Select(board.Card).OfType<BoardSnapshotCard>()]);
+    }
+
+    // A card named by its key, shown by its title as the board has it now (review of PR 3, finding 9).
+    private static string TitleOf(BoardSnapshot board, string key) => board.Card(key)?.Title ?? key;
+
+    private static string StateOf(BoardSnapshotCard card) => card switch
+    {
+        { Workstream.IsArchived: true } => "archived",
+        { IsLive: true, Lifecycle: SessionLifecycle.NeedsAttention } => "running, waiting for the user",
+        { IsLive: true } => "running",
+        { Workstream.IsBlocked: true } => "blocked",
+        _ => "not running",
+    };
+
+    /// <summary>
+    /// start_workstream, stop_workstream, pause_workstream and resume_workstream (1.1e AC 14 to 16; sessions-run-the-project
+    /// items 8 to 11): only on a card <see cref="Controllable"/> gives, and only in a state the call fits; a refusal returns its reason and
+    /// changes nothing on the board.
+    /// </summary>
+    private JsonObject ControlWorkstream(McpSession session, JsonObject arguments, WorkstreamCall call)
+    {
+        if (_control is null || _proposals is null)
+        {
+            return Result("This Theseus does not let sessions start or stop workstreams.", isError: true);
+        }
+
+        if (Text(arguments["card"]) is not { } named)
+        {
+            return Result("Name the card: its key or title, from workstreams.", isError: true);
+        }
+
+        // Only the cards workstreams lists are looked in, by key, then by title; two of one title are not guessed between
+        // (review of PR 3, finding 8).
+        var board = _board();
+
+        if (string.Equals(named.Trim(), session.WorkstreamKey, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(named.Trim(), board.Card(session.WorkstreamKey)?.Title, StringComparison.OrdinalIgnoreCase))
+        {
+            return Result("That is this workstream's own card: to stop, write your handover and end your turn.", isError: true);
+        }
+
+        var (project, controllable) = Controllable(session, board);
+        var byKey = controllable.FirstOrDefault(each => string.Equals(each.Key, named.Trim(), StringComparison.OrdinalIgnoreCase));
+        var byTitle = controllable.Where(each => string.Equals(each.Title, named.Trim(), StringComparison.OrdinalIgnoreCase)).ToList();
+
+        if (byKey is null && byTitle.Count > 1)
+        {
+            return Result($"More than one card you may act on is called {named}: name one by its key ({string.Join(", ", byTitle.Select(each => each.Key))}).", isError: true);
+        }
+
+        if ((byKey ?? byTitle.SingleOrDefault()) is not { } card)
+        {
+            var known = board.Card(named) is not null || board.Cards.Any(each => string.Equals(each.Title, named.Trim(), StringComparison.OrdinalIgnoreCase));
+
+            return Result(!known
+                ? $"No card on the board is called {named}."
+                : project is null
+                    ? $"{board.Card(named)?.Title ?? named} is not one of your descendants (a card made from a proposal your card raised and the user approved), so it is the user's to start or stop."
+                    : $"{board.Card(named)?.Title ?? named} is not a card of {project}: another project's cards and ad hoc cards are the user's to start or stop.", isError: true);
+        }
+
+        var inProject = project is not null;
+
+        // The owner's pause is his: in a project a session's start of it becomes his to allow (items 12, 16).
+        if (inProject && _startRequests is not null && call is WorkstreamCall.Start or WorkstreamCall.Resume
+            && card.Workstream is { IsPaused: true, PausedBy: null, IsArchived: false, IsBlocked: false } && !card.IsLive)
+        {
+            var (request, repeat) = _startRequests.Ask(card.Key, session.WorkstreamKey, Text(arguments["instruction"]),
+                Text(arguments["reason"]));
+
+            var mine = string.Equals(request.RequesterKey, session.WorkstreamKey, StringComparison.OrdinalIgnoreCase);
+
+            return Result($"{card.Title} is paused by the user, so it is not started: "
+                          + (!repeat ? $"your request ({request.Id}) waits for them in the project's Waits for you. "
+                              : mine ? $"your request ({request.Id}) was already waiting and is updated. "
+                              : $"{TitleOf(board, request.RequesterKey)}'s request ({request.Id}) was already waiting; it is told the answer, and workstreams shows the card's state. ")
+                          + (mine || !repeat ? "events() tells you whether they allow it; " : string.Empty)
+                          + "do not ask them again in the meantime.");
+        }
+
+        var instruction = Text(arguments["instruction"]);
+        var refusal = call switch
+        {
+            WorkstreamCall.Start or WorkstreamCall.Resume when card.Workstream.IsArchived => $"{card.Title} is archived.",
+            WorkstreamCall.Start or WorkstreamCall.Resume
+                when LiveStart.Refusal(card.Title, card.IsLive, card.Lifecycle, instruction) is { } open => open,
+            WorkstreamCall.Start or WorkstreamCall.Resume when card.Workstream.IsBlocked => $"{card.Title} is blocked: the user marked it so.",
+            WorkstreamCall.Start or WorkstreamCall.Resume or WorkstreamCall.Pause when card.Workstream is { IsPaused: true, PausedBy: null }
+                => $"{card.Title} is paused by the user.",
+            WorkstreamCall.Start when card.Workstream.PausedBy is { } by
+                => string.Equals(by, session.WorkstreamKey, StringComparison.OrdinalIgnoreCase)
+                    ? $"{card.Title} is paused by you: resume it instead."
+                    : inProject
+                        ? $"{card.Title} is paused by {TitleOf(board, by)}: resume it instead."
+                        : $"{card.Title} is paused by {TitleOf(board, by)}.",
+            // In a project any session's pause may be taken over or cleared (item 9); elsewhere only the caller's own.
+            WorkstreamCall.Pause when !inProject && card.Workstream.PausedBy is { } by && !string.Equals(by, session.WorkstreamKey, StringComparison.OrdinalIgnoreCase)
+                => $"{card.Title} is paused by {TitleOf(board, by)}.",
+            WorkstreamCall.Resume when inProject && card.Workstream.PausedBy is null => $"{card.Title} is not paused.",
+            WorkstreamCall.Resume when !inProject && !string.Equals(card.Workstream.PausedBy, session.WorkstreamKey, StringComparison.OrdinalIgnoreCase)
+                => $"{card.Title} is not paused by you.",
+            WorkstreamCall.Stop when !card.IsLive => $"{card.Title} has no session to stop.",
+            WorkstreamCall.Pause when card.Workstream.IsArchived => $"{card.Title} is archived.",
+            _ => null,
+        };
+
+        refusal ??= call switch
+        {
+            WorkstreamCall.Start => _control.Start(card.Key, instruction, session.WorkstreamKey),
+            WorkstreamCall.Stop => _control.Stop(card.Key, session.WorkstreamKey),
+            WorkstreamCall.Pause => _control.Pause(card.Key, session.WorkstreamKey, Text(arguments["reason"])),
+            _ => _control.Resume(card.Key, instruction, session.WorkstreamKey),
+        };
+
+        return refusal is not null
+            ? Result(refusal, isError: true)
+            : Result(call switch
+            {
+                WorkstreamCall.Start => $"Started {card.Title}.",
+                WorkstreamCall.Stop => $"Asked {card.Title} to stop, waiting: it writes its handover, then its tab closes. An idle session is woken to do it now, a working one when its turn ends.",
+                WorkstreamCall.Pause => $"Paused {card.Title}; its project's Start leaves it alone until you resume it.",
+                _ => $"Resumed {card.Title}.",
+            });
     }
 
     private JsonObject Locks()
@@ -460,6 +927,14 @@ public sealed partial class McpHandler
                 ["you"] = (link.Kind == LinkKind.HandsOver) == writes ? "parent" : "child",
                 ["youWrite"] = writes,
                 ["state"] = StateWord(status.StateOf(link)),
+                ["rejection"] = link.ReportIsRejected
+                    ? new JsonObject
+                    {
+                        ["at"] = link.Rejection!.AtUtc.ToString("O", System.Globalization.CultureInfo.InvariantCulture),
+                        ["reason"] = link.Rejection.Reason,
+                        ["everyReport"] = link.Rejection.ReportAtUtc is null,
+                    }
+                    : null,
                 ["other"] = new JsonObject
                 {
                     ["key"] = otherKey,
@@ -671,9 +1146,22 @@ public sealed partial class McpHandler
             Text(arguments["expected_output"])?.Trim() is { Length: > 0 } output ? output : null,
             Text(arguments["done_criteria"])?.Trim() ?? string.Empty,
             [.. Ids(arguments["jira_keys"]).Select(key => key.ToUpperInvariant())],
-            Text(arguments["reason"])?.Trim() is { Length: > 0 } reason ? reason : null);
+            Text(arguments["reason"])?.Trim() is { Length: > 0 } reason ? reason : null)
+        {
+            Slug = Text(arguments["slug"])?.Trim() is { Length: > 0 } slug ? slug : null,
+            Objective = Text(arguments["objective"])?.Trim() is { Length: > 0 } objective ? objective : null,
+            Branch = Text(arguments["branch"])?.Trim() is { Length: > 0 } branch ? branch : null,
+            Repos = [.. Ids(arguments["repos"]).Select(repo => repo.Trim()).Where(repo => repo.Length > 0)],
+        };
 
-        var check = ProposalCheck.Check(request, session.WorkstreamKey, _board(), _links.All, _paths, _briefFolderName());
+        var board = _board();
+        var check = ProposalCheck.Check(request, session.WorkstreamKey, board, _links.All, _paths, _briefFolderName());
+
+        if (board.Card(session.WorkstreamKey)?.Workstream.Project is { } project && _create is not null)
+        {
+            return CreateInProject(session, request, check, project, arguments);
+        }
+
         var outcome = _proposals.Propose(session.WorkstreamKey, session.SessionId, request, check);
 
         if (outcome.Refusal is { } refusal)
@@ -699,6 +1187,73 @@ public sealed partial class McpHandler
         return Result(string.Join("\n", lines));
     }
 
+    /// <summary>
+    /// propose_workstream from a project's card (sessions-run-the-project items 1 to 6): the card is made at once, under an
+    /// objective of the project, with no cap; a card that cannot be made leaves nothing behind, the proposal withdrawn.
+    /// </summary>
+    private JsonObject CreateInProject(McpSession session, ProposalRequest request, ProposalCheckResult check, string project,
+        JsonObject arguments)
+    {
+        if (request.Objective is null)
+        {
+            return Result($"In {project}, name the objective the new workstream serves (objective), by number or title.", isError: true);
+        }
+
+        if (request.Slug is null)
+        {
+            return Result($"In {project}, name the new workstream's records folder (slug).", isError: true);
+        }
+
+        var outcome = _proposals!.Propose(session.WorkstreamKey, session.SessionId, request, check, capped: false);
+
+        if (outcome.Refusal is { } refusal)
+        {
+            return Result(refusal, isError: true);
+        }
+
+        var proposal = outcome.Proposal!;
+        var startNow = arguments["start_now"] is JsonValue value && value.TryGetValue<bool>(out var start) && start;
+        ProposalApproval made;
+
+        try
+        {
+            made = _create!(proposal, startNow);
+        }
+        catch (Exception failure) when (failure is IOException or UnauthorizedAccessException or InvalidOperationException or TaskCanceledException)
+        {
+            made = ProposalApproval.Refused($"Theseus could not make it: {failure.Message}");
+        }
+
+        if (made.Refusal is { } notMade)
+        {
+            // A repeat is a proposal filed earlier, perhaps waiting for the user since before this card joined the project:
+            // it is not this call's to take back (review of PR 1, finding 3).
+            if (!outcome.IsRepeat)
+            {
+                _proposals.Withdraw(session.WorkstreamKey, session.SessionId, proposal.Id);
+            }
+
+            return Result($"Nothing was made: {notMade}", isError: true);
+        }
+
+        var starting = startNow ? "Its session is starting." : "It does not start until you call start_workstream.";
+        var lines = new List<string>
+        {
+            made.Shortfall is { } shortfall
+                ? $"Created {request.Title} as {made.Key}, linked from this workstream, but not in {project}: {shortfall}. "
+                  + $"It is ad hoc until the user adds it to the project. {starting}"
+                : $"Created {request.Title} as {made.Key} under objective {request.Objective} of {project}, linked from this workstream, "
+                  + $"its row in the project file. {starting}",
+        };
+
+        if (proposal.Warnings.Count > 0)
+        {
+            lines.Add("Warnings, kept in its history: " + string.Join(" ", proposal.Warnings));
+        }
+
+        return Result(string.Join("\n", lines));
+    }
+
     private JsonObject ProposalStatusFor(McpSession session)
     {
         if (_proposals is null)
@@ -710,7 +1265,7 @@ public sealed partial class McpHandler
         {
             ["id"] = proposal.Id,
             ["title"] = proposal.Request.Title,
-            ["status"] = proposal.Status.ToString().ToLowerInvariant(),
+            ["status"] = proposal.MadeBySession ? "created" : proposal.Status.ToString().ToLowerInvariant(),
             ["proposed"] = Local(proposal.CreatedUtc).ToString("o", CultureInfo.InvariantCulture),
             ["decided"] = proposal.DecidedUtc is { } decided ? Local(decided).ToString("o", CultureInfo.InvariantCulture) : null,
             ["note"] = proposal.DecisionNote,
@@ -721,6 +1276,10 @@ public sealed partial class McpHandler
             ["expectedOutput"] = proposal.Request.ExpectedOutput,
             ["jiraKeys"] = new JsonArray([.. proposal.Request.JiraKeys.Select(key => (JsonNode?)key)]),
             ["reason"] = proposal.Request.Reason,
+            ["slug"] = proposal.Request.Slug,
+            ["objective"] = proposal.Request.Objective,
+            ["branch"] = proposal.Request.Branch,
+            ["repos"] = new JsonArray([.. proposal.Request.Repos.Select(repo => (JsonNode?)JsonValue.Create(repo))]),
             ["warnings"] = new JsonArray([.. proposal.Warnings.Select(warning => (JsonNode?)warning)]),
         })]);
 
@@ -898,7 +1457,9 @@ public sealed partial class McpHandler
         LinkState.NoReportYet => "no-report-yet",
         LinkState.ReportLost => "report-lost",
         LinkState.Satisfied => "satisfied",
-        _ => "card-missing",
+        LinkState.Rejected => "rejected",
+        LinkState.CardMissing => "card-missing",
+        _ => "unknown",
     };
 
     private JsonObject StartWork(McpSession session, JsonObject arguments)

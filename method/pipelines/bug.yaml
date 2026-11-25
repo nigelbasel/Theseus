@@ -1,16 +1,16 @@
 # A defect: behaviour that differs from what was decided or documented.
-# Paths are relative to the project's home repo. <issue> is the tracker item or card slug.
+# Paths are relative to the project's home folder. <slug> is the workstream's slug in the project file (method/project.md).
 # <repos> are every repo the workstream changes, on one branch name, one worktree each.
 name: bug
-version: 0
+version: 1  # method-v0.2: plan and review are evidence gates inside a project
 mode: project
-artefacts: work/<issue>/
+artefacts: work/<slug>/
 
 stages:
   - id: reproduce
     role: implementer
     inputs: [the report, the code in <repos>]
-    outputs: [a failing test committed on the branch, work/<issue>/reproduction.md]
+    outputs: [a failing test committed on the branch, work/<slug>/reproduction.md]
     produces: >
       A test that fails for the reported reason, committed on its own before any fix. If the defect sits in code no
       test can reach, a refactor that changes no behaviour may come first, as its own commit with characterisation
@@ -22,12 +22,13 @@ stages:
       kind: evidence
       passes_when: the new test fails, for the reported reason, on the unfixed code
       blocks: true
+    skip: never
 
   - id: rule
     role: specifier
     when: the fix needs a rule the code does not already state (a parser, a policy, a threshold)
-    inputs: [work/<issue>/reproduction.md]
-    outputs: [work/<issue>/fix.md, its "Spec" section]
+    inputs: [work/<slug>/reproduction.md]
+    outputs: [work/<slug>/fix.md, its "Spec" section]
     produces: >
       The rule the fix will follow, in a few numbered lines, including what the code is protecting against
       and what it does when it cannot be sure. Skipped when the expected behaviour is already stated.
@@ -37,11 +38,12 @@ stages:
       kind: human
       who: owner
       passes_when: the owner approves the rule
+    skip: when the expected behaviour is already stated; write no rule, and the view shows it done with no record
 
   - id: fix
     role: implementer
-    inputs: [work/<issue>/reproduction.md]
-    outputs: [commits on the branch in each of <repos>, work/<issue>/fix.md]
+    inputs: [work/<slug>/reproduction.md]
+    outputs: [commits on the branch in each of <repos>, work/<slug>/fix.md]
     produces: >
       The smallest change that makes the test pass without weakening it. fix.md says the cause and why
       the change addresses the cause rather than the symptom.
@@ -50,13 +52,14 @@ stages:
   - id: verify
     role: verifier
     independent_of: implementer
-    inputs: [the branch in each of <repos>, work/<issue>/reproduction.md]
-    outputs: [work/<issue>/evidence.md]
+    inputs: [the branch in each of <repos>, work/<slug>/reproduction.md]
+    outputs: [work/<slug>/evidence.md]
     produces: >
       One result per repo: build, the full test suite, the reproduction test passing unchanged, and any
       holdout scenario covering the behaviour. Run by someone other than the implementer. Steps a person is
       asked to carry out are checked against the code before they are given. The verifier removes each guard
       or condition the fix adds, in a copy, and reports any test that still passes (parked-cores P16).
+      Live-check steps are given to the owner exactly as the verifier wrote and checked them (close-step P20).
     gate:
       kind: evidence
       passes_when: >
@@ -66,25 +69,29 @@ stages:
       blocks: true
 
   # Only when the fix needed a rule stage: a rule means new behaviour, which is what review is for (resumed-stop P7).
+    skip: never
+
   - id: review
     role: reviewer
     when: the rule stage ran
     independent_of: implementer
-    inputs: [the diff in each of <repos>, work/<issue>/fix.md, work/<issue>/evidence.md, the reviewer rubric of each of <repos> (named in its AGENTS.md)]
-    outputs: [work/<issue>/review.md]
+    inputs: [the diff in each of <repos>, work/<slug>/fix.md, work/<slug>/evidence.md, the reviewer rubric of each of <repos> (named in its AGENTS.md)]
+    outputs: [work/<slug>/review.md]
     produces: >
       Findings against the rule and the reviewer rubric, each citing the rule or rubric item it breaks. A finding is
       fixed in code or explicitly accepted by the owner.
+    # An evidence gate inside a project from method-v0.2 (decision 4A, Nigel 2026-11-20): the rule is the bug's
+    # spec and stays the owner's gate; review passes on its artefact.
     gate:
-      kind: human
-      who: owner
-      passes_when: no open findings, and the owner accepts
+      kind: evidence
+      passes_when: review.md has no open finding (each is fixed in code or accepted by the owner), and the compound stage has been reached
+      blocks: true
 
   - id: compound
     role: compounder
     when: the rule stage ran
-    inputs: [everything in work/<issue>/]
-    outputs: [work/<issue>/lessons.md, proposed changes to method/ as a separate commit]
+    inputs: [everything in work/<slug>/]
+    outputs: [work/<slug>/lessons.md, proposed changes to method/ as a separate commit]
     produces: >
       What the method caught, what it missed, and what to change so it is caught next time. Proposals only; the
       owner decides.

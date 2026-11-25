@@ -13,6 +13,7 @@ public sealed class ColumnViewModel : ObservableObject
 {
     private bool _isCollapsed;
     private double _weight = 1;
+    private int _matchCount;
 
     /// <summary>Creates a cell.</summary>
     public ColumnViewModel(string column, string area = "")
@@ -34,6 +35,9 @@ public sealed class ColumnViewModel : ObservableObject
     /// <summary>The cards in this column, in board order.</summary>
     public ObservableCollection<WorkstreamCardViewModel> Cards { get; } = [];
 
+    /// <summary>The project cards in this cell, above its cards (project-view AC 12). Empty with no projects.</summary>
+    public ObservableCollection<ProjectCardViewModel> Projects { get; } = [];
+
     /// <summary>How many cards the column holds, shown next to the heading.</summary>
     public int Count => Cards.Count;
 
@@ -53,6 +57,22 @@ public sealed class ColumnViewModel : ObservableObject
         get => _weight;
         set => Set(ref _weight, value);
     }
+
+    /// <summary>How many of its cards and project cards the board's search matches; zero with no search (item 4).</summary>
+    public int MatchCount
+    {
+        get => _matchCount;
+        internal set
+        {
+            if (Set(ref _matchCount, value))
+            {
+                Raise(nameof(MatchText));
+            }
+        }
+    }
+
+    /// <summary>"2 match" while a search matches cards here (item 4), so a fold never hides a match; empty otherwise.</summary>
+    public string MatchText => MatchCount == 0 ? string.Empty : $"{MatchCount} match";
 
     /// <summary>What the folded cell says when hovered.</summary>
     public string FoldedTooltip => LiveCount == 0

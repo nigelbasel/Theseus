@@ -79,6 +79,30 @@ public class AbandonedTabsTests
     }
 
     [Test]
+    public void Among_LeavesATabToTheSiblingOfTheSameNameThatIsLaunchingOrRunning()
+    {
+        // Two checks of the same work share a title. Pressing Start on the second while the first's tab was opening
+        // held it as "already has a tab open", and every verifier Start asked for Open new tabs (Nigel, 2026-11-23).
+        var second = Workstream("verify-two", "Verify: Search");
+
+        Assert.That(
+            AbandonedTabs.Among([second], ["Verify: Search"], SessionRegistrySnapshot.Empty, occupiedTitles: ["Verify: Search"]),
+            Is.Empty);
+    }
+
+    [Test]
+    public void Among_StillFindsATabTheSiblingsDoNotAccountFor()
+    {
+        var second = Workstream("verify-two", "Verify: Search");
+
+        Assert.That(
+            AbandonedTabs.Among([second], ["Verify: Search", "Verify: Search"], SessionRegistrySnapshot.Empty,
+                occupiedTitles: ["Verify: Search"]).Select(w => w.Key),
+            Is.EqualTo(new[] { "verify-two" }),
+            "two tabs and one sibling running: the other tab is still nobody's");
+    }
+
+    [Test]
     public void Among_RefusesNothingRatherThanThrowing()
     {
         Assert.Multiple(() =>

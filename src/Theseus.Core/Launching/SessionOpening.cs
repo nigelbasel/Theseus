@@ -47,7 +47,7 @@ public static class SessionOpening
         var line = $"{ResumedPrefix}{local:HH:mm} on {local:yyyy-MM-dd}. Your context is intact; carry on where you left off.";
         var own = workstream.EveryStartPrompt?.Replace(HandoffPlaceholder, handoffPath, StringComparison.Ordinal);
 
-        return SessionPrompt.Compose(line, SessionPrompt.Compose(related, own));
+        return SessionPrompt.Compose(line, SessionPrompt.Compose(related, SessionPrompt.Compose(own, workstream.StartInstruction)));
     }
 
     /// <summary>Whether this workstream has been worked before.</summary>
@@ -85,7 +85,8 @@ public static class SessionOpening
 
         if (!hasHistory)
         {
-            return Compose(identity, preamble, workstream.Prompt, related, workstream.EveryStartPrompt, handoffPath);
+            return Compose(identity, preamble, workstream.Prompt, related, workstream.EveryStartPrompt, handoffPath,
+                workstream.StartInstruction);
         }
 
         var body = string.IsNullOrWhiteSpace(continuePrompt)
@@ -99,21 +100,22 @@ public static class SessionOpening
             continuation = $"{continuation}{Environment.NewLine}{Environment.NewLine}{MissingHandoffNote}";
         }
 
-        return Compose(identity, preamble, continuation, related, workstream.EveryStartPrompt, handoffPath);
+        return Compose(identity, preamble, continuation, related, workstream.EveryStartPrompt, handoffPath,
+            workstream.StartInstruction);
     }
 
     /// <summary>
     /// Identity, then the board's standing prompt, then what this start is for, then the workstreams
-    /// linked to this one, then what this one workstream asks of every session. Its own instructions
-    /// come last because they are the most specific: nearer the work, and the thing a session should
-    /// read as having the final word.
+    /// linked to this one, then what this one workstream asks of every session, then this start's own
+    /// instruction, if any (1.1e AC 15). Its own instructions come last because they are the most
+    /// specific: nearer the work, and the thing a session should read as having the final word.
     /// </summary>
     private static string Compose(string identity, string? preamble, string? body, string? related,
-        string? everyStart, string handoffPath)
+        string? everyStart, string handoffPath, string? instruction)
     {
         var own = everyStart?.Replace(HandoffPlaceholder, handoffPath, StringComparison.Ordinal);
 
         return SessionPrompt.Compose(identity, SessionPrompt.Compose(preamble,
-            SessionPrompt.Compose(body, SessionPrompt.Compose(related, own))));
+            SessionPrompt.Compose(body, SessionPrompt.Compose(related, SessionPrompt.Compose(own, instruction)))));
     }
 }

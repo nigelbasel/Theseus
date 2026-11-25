@@ -1,0 +1,39 @@
+<Window x:Class="Theseus.App.AddObjectiveWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:Theseus.App.Controls"
+        Title="Add objective"
+        Width="560"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        ResizeMode="NoResize"
+        Background="{DynamicResource SolidBackgroundFillColorSecondaryBrush}">
+    <Window.Resources>
+        <!-- A field's label, with the access key that moves to its field (W26, W50). -->
+        <Style x:Key="Field" TargetType="Label">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0,0,0,8" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+        </Style>
+    </Window.Resources>
+    <StackPanel Margin="24">
+        <Label x:Name="TitleLabel" Content="_Title" Target="{Binding ElementName=TitleBox}" Style="{StaticResource Field}" />
+        <TextBox x:Name="TitleBox" TextChanged="OnChanged" AutomationProperties.LabeledBy="{x:Reference TitleLabel}" />
+
+        <Label x:Name="CriteriaLabel" Content="Acceptance _criteria" Target="{Binding Editor, ElementName=CriteriaBox}" Style="{StaticResource Field}"
+               Margin="0,16,0,8" />
+        <controls:MarkdownBox x:Name="CriteriaBox" EditorMinHeight="90" EditorMaxHeight="320"
+                              AutomationProperties.LabeledBy="{x:Reference CriteriaLabel}" />
+        <TextBlock Margin="0,4,0,0" Style="{DynamicResource ExplanationText}"
+                   Text="One per line: observable facts that mean it is met. It is added at the end of the phase with its pipeline still to be chosen and no workstreams yet." />
+
+        <StackPanel x:Name="Footer" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,24,0,0">
+            <Button x:Name="AddButton" Content="_Add" IsDefault="True" Style="{DynamicResource AccentButton}" Click="OnAdd" IsEnabled="False"
+                    ToolTipService.ShowOnDisabled="True" ToolTip="Give the objective a title first." />
+            <Button x:Name="CancelButton" Content="Cancel" IsCancel="True" Style="{DynamicResource DialogButton}" Margin="8,0,0,0" />
+        </StackPanel>
+    </StackPanel>
+</Window>
