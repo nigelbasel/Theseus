@@ -114,6 +114,11 @@ public static class DutyScheduler
             return Wait(duty, "card busy");
         }
 
+        if (card.TellWaiting)
+        {
+            return Wait(duty, "its last instruction is not yet taken up");
+        }
+
         if (card.IsLive && card.Lifecycle == SessionLifecycle.Ghost)
         {
             return Wait(duty, "its session is in a state Theseus cannot read");
@@ -151,7 +156,8 @@ public static class DutyScheduler
         }
 
         // A short turn can start and end between two looks, so a status change since the run was given counts as taking it.
-        var seen = state.SeenWorking || card.IsBusy || card.StatusSinceUtc > given;
+        // A status change alone is not enough: an idle notice changes it too. The tell must also have been taken.
+        var seen = state.SeenWorking || card.IsBusy || (card.StatusSinceUtc > given && !card.TellWaiting);
 
         if (seen && !card.IsBusy)
         {

@@ -337,6 +337,7 @@ public sealed partial class ShellViewModel : IDutyDelivery
             IsAsking = card.Question is not null,
             IsStopping = step is not null && _stopRequests.Waiting(step.SessionId) is not null,
             StatusSinceUtc = card.LifecycleSinceUtc,
+            TellWaiting = step is not null && Tells.Waiting.Waiting(step.SessionId) is not null,
         };
     }
 
