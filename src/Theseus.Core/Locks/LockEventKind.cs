@@ -32,4 +32,6 @@ public enum LockEventKind
 
     /// <summary>Nigel released it while it was held.</summary>
     ForceReleased,
+
+    DeadlockRefused,
 }

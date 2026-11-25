@@ -22,12 +22,14 @@ public sealed class LockBook
 
     private const int SessionMissesBeforeGone = 2;
     private const int EndedRemembered = 500;
+    private const int DeadlocksRemembered = 50;
 
     private readonly Lock _gate = new();
     private readonly List<LockTicket> _tickets;
     private readonly Dictionary<string, string> _ended = new(StringComparer.Ordinal);
     private readonly Queue<string> _endedOrder = new();
     private readonly Dictionary<string, int> _sessionMisses = new(StringComparer.Ordinal);
+    private readonly List<StoppedDeadlock> _deadlocks = [];
     private readonly LockStateStore _store;
     private readonly LockHistory _history;
     private readonly ILockLiveness _liveness;
@@ -78,6 +80,15 @@ public sealed class LockBook
             {
                 return _table;
             }
+        }
+    }
+
+    /// <summary>The requests refused because they would have closed a wait cycle, newest last.</summary>
+    public IReadOnlyList<StoppedDeadlock> StoppedDeadlocks()
+    {
+        lock (_gate)
+        {
+            return [.. _deadlocks];
         }
     }
 
@@ -149,6 +160,22 @@ public sealed class LockBook
                     Card: Trimmed(request.Card), Command: Trimmed(request.Command), Commit: Trimmed(request.Commit));
 
                 _tickets.Add(ticket);
+
+                if (Deadlock(ticket, now) is { } stopped)
+                {
+                    _tickets.RemoveAt(_tickets.Count - 1);
+                    _deadlocks.Add(stopped);
+
+                    if (_deadlocks.Count > DeadlocksRemembered)
+                    {
+                        _deadlocks.RemoveAt(0);
+                    }
+
+                    _history.Append(new LockEvent(now, LockEventKind.DeadlockRefused, label, ticket.Who, ticket.Purpose, Detail: stopped.Detail));
+
+                    return (new LockAnswer(LockStatus.Refused, stopped.Detail), true);
+                }
+
                 _history.Append(new LockEvent(now, LockEventKind.Requested, label, ticket.Who, ticket.Purpose, Detail: ticket.Reason));
                 changed = true;
             }
@@ -494,7 +521,7 @@ public sealed class LockBook
 
     private bool Promote(DateTimeOffset now)
     {
-        var plan = GrantPlanner.Plan(_tickets, _table);
+        var plan = Plan();
         var changed = false;
 
         for (var index = 0; index < _tickets.Count; index++)
@@ -523,6 +550,16 @@ public sealed class LockBook
         }
 
         return changed;
+    }
+
+    private GrantPlan Plan() =>
+        GrantPlanner.Plan(_tickets, _table, (candidate, reserved) => DeadlockCheck.ReservationIsSafe(_tickets, _table, reserved, candidate));
+
+    private StoppedDeadlock? Deadlock(LockTicket request, DateTimeOffset now)
+    {
+        var plan = Plan();
+
+        return plan.Granted.Contains(request.Token) ? null : DeadlockCheck.Closes(_tickets, request, _table, plan.Reserved, now);
     }
 
     private void End(int index, DateTimeOffset now, LockEventKind kind, string clientDetail, string? historyDetail)

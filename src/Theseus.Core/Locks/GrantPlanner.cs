@@ -11,7 +11,7 @@ public static class GrantPlanner
 
     /// <param name="mayReserve">Whether holding back for a waiter is safe; a reservation that would close a wait
     /// cycle is not made.</param>
-    public static GrantPlan Plan(IReadOnlyList<LockTicket> tickets, ResourceTable table, Func<LockTicket, bool>? mayReserve = null)
+    public static GrantPlan Plan(IReadOnlyList<LockTicket> tickets, ResourceTable table, Func<LockTicket, IReadOnlySet<string>, bool>? mayReserve = null)
     {
         ArgumentNullException.ThrowIfNull(tickets);
         ArgumentNullException.ThrowIfNull(table);
@@ -39,7 +39,7 @@ public static class GrantPlanner
 
             waiting.Add(ticket);
 
-            if (Count(ticket, overtaken) >= OvertakeLimit && (mayReserve?.Invoke(ticket) ?? true))
+            if (Count(ticket, overtaken) >= OvertakeLimit && (mayReserve?.Invoke(ticket, reserved) ?? true))
             {
                 reserved.Add(ticket.Token);
                 taken.Add(ticket.Claims);
