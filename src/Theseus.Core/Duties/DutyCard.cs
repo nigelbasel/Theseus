@@ -30,6 +30,12 @@ public sealed record DutyCard(string Key, string Title, SessionLifecycle Lifecyc
     /// <summary>Whether a stop request waits for its session.</summary>
     public bool IsStopping { get; init; }
 
+    /// <summary>
+    /// Whether an instruction handed to its session waits in the tells folder, not yet taken by its hook: until it is, the
+    /// session has not started the turn that carries it, whatever its status says.
+    /// </summary>
+    public bool TellWaiting { get; init; }
+
     /// <summary>When its session's status last changed, or null when not known.</summary>
     public DateTimeOffset? StatusSinceUtc { get; init; }
 

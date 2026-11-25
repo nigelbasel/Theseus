@@ -194,6 +194,24 @@ public class DutySchedulerTests
     }
 
     [Test]
+    public void Observe_DoesNotCountAStatusChange_WhileTheTellStillWaits()
+    {
+        var given = DueDuty(state => state with { DeliveredUtc = SetAt });
+
+        var outcome = DutyScheduler.Observe(given, Idle() with { StatusSinceUtc = SetAt.AddMinutes(3), TellWaiting = true }, SetAt.AddMinutes(4));
+
+        Assert.That((outcome.Outcome, outcome.SeenWorking), Is.EqualTo(((DutyOutcome?)null, false)), "an idle notice is not a turn");
+    }
+
+    [Test]
+    public void Due_WhileAnEarlierInstructionWaitsUntaken_Waits()
+    {
+        var decision = Decide(DueDuty(), Idle() with { TellWaiting = true }, SetAt.AddMinutes(21));
+
+        Assert.That((decision.Action, decision.Reason), Is.EqualTo((DutyAction.Wait, "its last instruction is not yet taken up")));
+    }
+
+    [Test]
     public void Observe_CountsADeadSession_AsACrash_AndAnUntakenRun_AsNotDelivered()
     {
         var given = DueDuty(state => state with { DeliveredUtc = SetAt });
