@@ -21,7 +21,8 @@ public class BaselineRerunThemeTests
 
     [Test]
     public void AChainsRowsStateWord_IsSecondaryText() =>
-        Assert.That(Load("MainWindow.xaml").Descendants(Presentation + "TextBlock").Single(text => (string?)text.Attribute("Text") == "{Binding State}")
+        Assert.That(Load("MainWindow.xaml").Descendants(Presentation + "TextBlock").Single(text => (string?)text.Attribute("Text") == "{Binding StateText}"
+            && text.Descendants(Presentation + "DataTrigger").Any(trigger => (string?)trigger.Attribute("Binding") == "{Binding RowState}"))
             .Descendants(Presentation + "Setter").First(setter => (string?)setter.Attribute("Property") == "Foreground").Attribute("Value")!.Value,
             Is.EqualTo("{DynamicResource TextFillColorSecondaryBrush}"), "E-m1, W48, G161");
 

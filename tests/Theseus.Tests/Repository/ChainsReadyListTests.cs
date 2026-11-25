@@ -63,7 +63,7 @@ public class ChainsReadyListTests
     {
         var window = XDocument.Load(Path.Combine(RepositoryRoot(), "src", "Theseus.App", "MainWindow.xaml"));
         var list = window.Descendants(Presentation + "ItemsControl")
-            .Single(element => (string?)element.Attribute("ItemsSource") == "{Binding Chains.Ready}");
+            .Single(element => (string?)element.Attribute("ItemsSource") == "{Binding Chains.ShownReady}");
         var panelScroller = list.Ancestors(Presentation + "ScrollViewer").First();
         const string converters = "clr-namespace:Theseus.App.Converters;assembly=Theseus";
 
@@ -75,6 +75,10 @@ public class ChainsReadyListTests
                     new XElement(Presentation + "ResourceDictionary.MergedDictionaries",
                         new XElement(Presentation + "ResourceDictionary",
                             new XAttribute("Source", "pack://application:,,,/PresentationFramework.Fluent;component/Themes/Fluent.xaml")),
+                        // The list's item style is the app's own; without it the markup parsed only when an earlier test had
+                        // left an Application holding App.xaml's resources.
+                        new XElement(Presentation + "ResourceDictionary",
+                            new XAttribute("Source", "pack://application:,,,/Theseus;component/Themes/Interactive.xaml")),
                         new XElement(Presentation + "ResourceDictionary",
                             new XAttribute("Source", "pack://application:,,,/PresentationFramework.Fluent;component/Themes/Fluent.Light.xaml"))),
                     Converter(converters, "HexToBrushConverter", "HexToBrush"))),
@@ -110,5 +114,5 @@ public class ChainsReadyListTests
 
     private sealed record Board(Chains Chains);
 
-    private sealed record Chains(ObservableCollection<ChainNodeViewModel> Ready);
+    private sealed record Chains(ObservableCollection<ChainNodeViewModel> ShownReady);
 }

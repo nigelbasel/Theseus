@@ -2252,6 +2252,68 @@
                 </Grid>
 
                 <!--
+                    Find in chains and Filter (chains-panel-at-scale criteria 1 to 11, Nigel 2026-11-25): outside the scroll
+                    viewer, so they stay in reach however far the chains are scrolled.
+                -->
+                <StackPanel x:Name="ChainsFinder" DockPanel.Dock="Top" Margin="4,0,4,8">
+                    <DockPanel>
+                        <Button x:Name="ChainsFilterButton" DockPanel.Dock="Right" Style="{StaticResource ItemDropDown}" Margin="8,0,0,0"
+                                Click="OnOverflowClick" PreviewKeyDown="OnChainsFilterKeyDown"
+                                ToolTip="Filter the chains: active only, waiting on me, hide completed."
+                                AutomationProperties.Name="Filter" AutomationProperties.HelpText="{Binding Chains.FilterButtonText}">
+                            <StackPanel Orientation="Horizontal">
+                                <controls:GlyphText Text="&#xE71C;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="12"
+                                                    Margin="0,0,4,0" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding Chains.FilterButtonText}" VerticalAlignment="Center" />
+                                <controls:GlyphText Text="&#xE70D;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="8"
+                                                    Margin="4,0,0,0" VerticalAlignment="Center" />
+                            </StackPanel>
+                            <Button.ContextMenu>
+                                <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                                    <MenuItem Header="{Binding Chains.ActiveOnlyText}" IsCheckable="True" IsChecked="{Binding Chains.ActiveOnly, Mode=TwoWay}"
+                                              ToolTip="Keep cards with a session or something waiting on you, and the cards above them." />
+                                    <MenuItem Header="{Binding Chains.WaitingOnMeText}" IsCheckable="True" IsChecked="{Binding Chains.WaitingOnMe, Mode=TwoWay}"
+                                              ToolTip="Keep cards asking you something, with a report to confirm, or with a start to allow." />
+                                    <MenuItem Header="{Binding Chains.HideCompletedText}" IsCheckable="True" IsChecked="{Binding Chains.HideCompleted, Mode=TwoWay}"
+                                              ToolTip="Hide a chain once every card in it is done or archived and nothing in it waits on you." />
+                                    <Separator />
+                                    <MenuItem Header="Clear filters" Command="{Binding Chains.ClearFiltersCommand}" />
+                                </ContextMenu>
+                            </Button.ContextMenu>
+                        </Button>
+                        <Grid>
+                            <TextBox x:Name="ChainsSearchBox" MinHeight="32" Padding="8,0,32,0" VerticalContentAlignment="Center"
+                                     Text="{Binding Chains.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Delay=150}"
+                                     ToolTip="Find chain cards by any part of a title, key, project, area, Jira key, tag, branch or repo. Esc clears."
+                                     AutomationProperties.Name="Find in chains" AutomationProperties.AcceleratorKey="Ctrl+F"
+                                     PreviewKeyDown="OnChainsSearchKeyDown" />
+                            <TextBlock Text="Find in chains (Ctrl+F)" IsHitTestVisible="False" Margin="12,0,0,0" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Text, ElementName=ChainsSearchBox}" Value="">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                            <Button Style="{StaticResource PanelIcon}" Content="&#xE894;" HorizontalAlignment="Right" Margin="0,0,4,0"
+                                    ToolTip="Clear the search (Esc)" AutomationProperties.Name="Clear the search"
+                                    Command="{Binding Chains.ClearSearchCommand}"
+                                    Visibility="{Binding Text, ElementName=ChainsSearchBox, Converter={StaticResource NotEmptyToVisibility}}" />
+                        </Grid>
+                    </DockPanel>
+                    <TextBlock x:Name="ChainsHiddenSummary" FontSize="12" TextWrapping="Wrap" Margin="0,4,0,0"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                               AutomationProperties.LiveSetting="Polite"
+                               Text="{Binding Chains.HiddenSummary, NotifyOnTargetUpdated=True}" TargetUpdated="OnChainsSummaryChanged"
+                               Visibility="{Binding Chains.HiddenSummary, Converter={StaticResource NotEmptyToVisibility}}" />
+                </StackPanel>
+
+                <!--
                     PreviewMouseWheel because the tree's own scroll viewer has nowhere to scroll and still marks the
                     wheel handled: over the tree, neither the wheel nor a touchpad moved the panel (Nigel, 2026-11-25).
                 -->
@@ -2399,9 +2461,9 @@
                             <Separator Margin="0,4,0,8" />
                         </StackPanel>
 
-                        <StackPanel Visibility="{Binding Chains.Ready.Count, Converter={StaticResource CountToVisibility}}">
+                        <StackPanel Visibility="{Binding Chains.ShownReady.Count, Converter={StaticResource CountToVisibility}}">
                             <TextBlock Text="Ready" Style="{StaticResource ListSectionHeader}" Margin="4,0,0,8" />
-                            <ItemsControl AutomationProperties.Name="Ready" ItemContainerStyle="{StaticResource ItemNamedByTitle}" ItemsSource="{Binding Chains.Ready}">
+                            <ItemsControl AutomationProperties.Name="Ready" ItemContainerStyle="{StaticResource ItemNamedByTitle}" ItemsSource="{Binding Chains.ShownReady}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <Border Margin="0,0,0,8" Padding="8,8" CornerRadius="4" BorderThickness="4,0,0,0"
@@ -2434,6 +2496,15 @@
 
                         <TextBlock Text="Chains" Style="{StaticResource ListSectionHeader}" Margin="4,0,0,8"
                                    Visibility="{Binding Chains.Roots.Count, Converter={StaticResource CountToVisibility}}" />
+                        <TextBlock x:Name="ChainsNoMatch" Text="{Binding Chains.NoMatchText}" FontSize="12" TextWrapping="Wrap" Margin="4,0,4,8"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                   Visibility="{Binding Chains.NoMatchText, Converter={StaticResource NotEmptyToVisibility}}" />
+                        <DockPanel Margin="4,0,4,8" Visibility="{Binding Chains.AllHiddenText, Converter={StaticResource NotEmptyToVisibility}}">
+                            <Button Style="{StaticResource CommandButton}" Content="Clear filters" FontSize="12" DockPanel.Dock="Right"
+                                    Margin="8,0,0,0" Command="{Binding Chains.ClearFiltersCommand}" />
+                            <TextBlock Text="{Binding Chains.AllHiddenText}" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        </DockPanel>
                         <!--
                             No sideways scrolling: under the Fluent theme the tree's own horizontal bar was drawn over
                             its bottom row (links-tree-scrollbar, Nigel 2026-11-19). A long title trims instead.
@@ -2450,8 +2521,8 @@
                             <TreeView.ItemContainerStyle>
                                 <Style TargetType="TreeViewItem">
                                     <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
-                                    <!-- The row's title, not the record's ToString (E11, W50, G170). -->
-                                    <Setter Property="AutomationProperties.Name" Value="{Binding Title}" />
+                                    <!-- The row's title and its state's word, not the record's ToString (E11, W50, G170; chains-panel-at-scale 12). -->
+                                    <Setter Property="AutomationProperties.Name" Value="{Binding ScreenName}" />
                                     <Setter Property="Template">
                                         <Setter.Value>
                                             <ControlTemplate TargetType="TreeViewItem">
@@ -2507,12 +2578,30 @@
                                             </ControlTemplate>
                                         </Setter.Value>
                                     </Setter>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsShown}" Value="False">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
                                 </Style>
                             </TreeView.ItemContainerStyle>
                             <TreeView.ItemTemplate>
                                 <HierarchicalDataTemplate ItemsSource="{Binding Children}">
                                     <Border Padding="8,4" BorderThickness="4,0,0,0"
                                             BorderBrush="{Binding ColorHex, Converter={StaticResource HexToBrush}}">
+                                        <!-- A finished card, or one kept only as the context of a match below it, is drawn quieter. -->
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsMuted}" Value="True">
+                                                        <Setter Property="Opacity" Value="0.7" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding IsContext}" Value="True">
+                                                        <Setter Property="Opacity" Value="0.7" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
                                         <StackPanel>
                                             <DockPanel>
                                                 <!--
@@ -2538,20 +2627,37 @@
                                                                     <Setter Property="ToolTip" Value="No session to bring forward: it opens when the card is started." />
                                                                     <Setter Property="AutomationProperties.HelpText" Value="No session to bring forward: it opens when the card is started." />
                                                                 </Trigger>
+                                                                <DataTrigger Binding="{Binding IsGroup}" Value="True">
+                                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                                </DataTrigger>
                                                             </Style.Triggers>
                                                         </Style>
                                                     </Button.Style>
                                                 </Button>
-                                                <TextBlock DockPanel.Dock="Right" Text="{Binding Session}" FontSize="12" Margin="8,0,0,0"
-                                                           VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                                           Visibility="{Binding Session, Converter={StaticResource NotEmptyToVisibility}}" />
-                                                <TextBlock DockPanel.Dock="Right" Text="{Binding State}" FontSize="12" Margin="8,0,0,0">
+                                                <!--
+                                                    One mark and word for the card's state (chains-panel-at-scale criterion 12): the mark and word carry
+                                                    it, and colour only repeats it.
+                                                -->
+                                                <TextBlock DockPanel.Dock="Right" Text="{Binding StateText}" FontSize="12" Margin="8,0,0,0"
+                                                           VerticalAlignment="Center">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
                                                             <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
                                                             <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding IsReady}" Value="True">
+                                                                <DataTrigger Binding="{Binding RowState}" Value="Running">
+                                                                    <Setter Property="Foreground" Value="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding RowState}" Value="Ready">
                                                                     <Setter Property="Foreground" Value="{DynamicResource SuccessTextBrush}" />
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding RowState}" Value="Done">
+                                                                    <Setter Property="Foreground" Value="{DynamicResource SuccessTextBrush}" />
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding NeedsOwner}" Value="True">
+                                                                    <Setter Property="Foreground" Value="{DynamicResource CautionTextBrush}" />
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding IsGroup}" Value="True">
+                                                                    <Setter Property="Visibility" Value="Collapsed" />
                                                                 </DataTrigger>
                                                             </Style.Triggers>
                                                         </Style>
@@ -2562,13 +2668,26 @@
                                                         Background="Transparent" BorderThickness="0" Cursor="Hand"
                                                         AutomationProperties.HelpText="Open this card's details"
                                                         Command="{Binding Show}">
+                                                    <!-- A project's header is a heading, not a card: nothing to open. -->
+                                                    <Button.Style>
+                                                        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsGroup}" Value="True">
+                                                                    <Setter Property="IsHitTestVisible" Value="False" />
+                                                                    <Setter Property="Focusable" Value="False" />
+                                                                    <Setter Property="FontWeight" Value="SemiBold" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Button.Style>
                                                     <Button.ToolTip>
                                                         <StackPanel>
                                                             <TextBlock Text="{Binding Title}" FontWeight="SemiBold"  FontSize="14"/>
                                                             <TextBlock Text="Open this card's details" />
                                                         </StackPanel>
                                                     </Button.ToolTip>
-                                                    <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock controls:HighlightedText.Text="{Binding Title}" controls:HighlightedText.Spans="{Binding TitleHighlights}"
+                                                               TextTrimming="CharacterEllipsis" />
                                                 </Button>
                                             </DockPanel>
                                             <TextBlock Text="{Binding Copy}" FontSize="12" FontFamily="Consolas"

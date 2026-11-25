@@ -105,10 +105,25 @@ public class ChainsPanelWheelTests
         content.Arrange(new Rect(0, 0, 1400, 760));
         content.UpdateLayout();
 
-        var panel = MainWindowFixtureTests.Descendants<ScrollViewer>(pane).First();
+        var panel = PanelAbove((DependencyObject)window.FindName("ChainsTree"));
         Assert.That(panel.ScrollableHeight, Is.GreaterThan(Notch * 2), "the chains do not overflow the panel, so nothing can scroll");
 
         return panel;
+    }
+
+    // The panel's scroll viewer: the first above the tree, as the search box has one of its own.
+    private static ScrollViewer PanelAbove(DependencyObject tree)
+    {
+        for (var node = System.Windows.Media.VisualTreeHelper.GetParent(tree); node is not null;
+             node = System.Windows.Media.VisualTreeHelper.GetParent(node))
+        {
+            if (node is ScrollViewer found)
+            {
+                return found;
+            }
+        }
+
+        throw new AssertionException("the tree is in no scroll viewer");
     }
 
     // One wheel step as the input system raises it: the tunnelling preview first, then, if nothing handled that, the

@@ -81,7 +81,7 @@ public class ChainsTreeAccessibilityTests
         var (tree, _) = LaidOut();
         string name = UIElementAutomationPeer.CreatePeerForElement(Descendants<TreeViewItem>(tree).First()).GetName();
 
-        Assert.That(name, Is.EqualTo("One"));
+        Assert.That(name, Is.EqualTo("One, stopped"), "its title and its state's word (chains-panel-at-scale criterion 12)");
         Assert.That(name, Does.Not.Contain("Theseus.").And.Not.Contain(" { "));
         Assert.That(System.Windows.Automation.AutomationProperties.GetName(tree), Is.EqualTo("Chains"));
     }
