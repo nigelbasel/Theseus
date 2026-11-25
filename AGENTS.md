@@ -23,6 +23,7 @@ development; the method kit is in [`method/`](method/README.md).
 | `docs/` | The user help, published as the GitHub Pages site | User-facing only. Nothing internal, no work artefacts |
 | `method/` | Method kit v0, generic: pipelines, project format, rules, and `starter/`, the files a new project begins with | Changes to it are reviewed like code. Nothing Theseus-specific |
 | `.agents/` | This repo's own method files: the reviewer rubric | |
+| `.claude-plugin/`, `plugin/` | The `agentic-factory` Claude Code plugin, and the marketplace that lists it. The repo root is the plugin's root, so its hooks run `tools/guards` and `tools/holdout`, and its skills read `method/`, where they are | Nothing copied: `PluginTests` checks every path they name. Generic, like `method/` |
 | `installer/`, `scripts/Build-Installer.ps1` | The WiX v6 MSI | CI builds it the same way |
 
 ## Build and test
