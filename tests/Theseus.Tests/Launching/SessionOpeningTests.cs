@@ -86,6 +86,15 @@ public class SessionOpeningTests
         Assert.That(SessionOpening.HasHistory(Workstream(null), handoffExists: false), Is.False);
     }
 
+    // A verifier started again was told to continue from its handoff instead of being given its scenarios to run.
+    [Test]
+    public void HasHistory_IsFalseForAVerifier_SoEveryRunOpensWithItsOwnPrompt()
+    {
+        var verifier = Workstream("session-1") with { Role = WorkstreamRole.Verifier };
+
+        Assert.That(SessionOpening.HasHistory(verifier, handoffExists: true), Is.False);
+    }
+
     private static string For(bool hasHistory, string? preamble = null, string? continuePrompt = null,
         bool handoffExists = true) =>
         SessionOpening.For(preamble, continuePrompt, Workstream("session-1"), hasHistory, Handoff, handoffExists);

@@ -50,12 +50,15 @@ public static class SessionOpening
         return SessionPrompt.Compose(line, SessionPrompt.Compose(related, SessionPrompt.Compose(own, workstream.StartInstruction)));
     }
 
-    /// <summary>Whether this workstream has been worked before.</summary>
+    /// <summary>
+    /// Whether this workstream has been worked before. Never for a verifier: each of its runs is one independent check,
+    /// opened with its own prompt rather than told to continue (Nigel, 2026-11-25).
+    /// </summary>
     public static bool HasHistory(Workstream workstream, bool handoffExists)
     {
         ArgumentNullException.ThrowIfNull(workstream);
 
-        return handoffExists || !string.IsNullOrWhiteSpace(workstream.LastSessionId);
+        return workstream.Role != WorkstreamRole.Verifier && (handoffExists || !string.IsNullOrWhiteSpace(workstream.LastSessionId));
     }
 
     /// <summary>Said when the handoff a continuation points at is not on disk.</summary>

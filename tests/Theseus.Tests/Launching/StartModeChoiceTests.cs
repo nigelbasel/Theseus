@@ -1,3 +1,4 @@
+using Theseus.Core.Domain;
 using Theseus.Core.Launching;
 
 namespace Theseus.Tests.Launching;
@@ -53,5 +54,40 @@ public class StartModeChoiceTests
 
         Assert.That(tooltip, Does.Contain("no earlier conversation"));
         Assert.That(tooltip, Does.Not.Contain("▾"));
+    }
+
+    // Start again on a verifier's Waits line and its build's box asks for the board's default, Resume, and every verifier
+    // that had run had a conversation on disk: each was resumed, ended at once and filed nothing (Nigel, 2026-11-25).
+    [Test]
+    public void For_AVerifierStartedAgainWithAConversationOnDisk_StartsAFreshRun()
+    {
+        Assert.That(StartModeChoice.For(StartMode.Resume, transcriptExists: true, WorkstreamRole.Verifier), Is.EqualTo(LaunchMode.FirstRun));
+    }
+
+    [Test]
+    public void For_AVerifierStartedFresh_StartsAFreshRun()
+    {
+        Assert.That(StartModeChoice.For(StartMode.Fresh, transcriptExists: true, WorkstreamRole.Verifier), Is.EqualTo(LaunchMode.FirstRun));
+    }
+
+    [Test]
+    public void For_AVerifierTheOwnerChoseToResumeFromItsCardMenu_IsResumed()
+    {
+        Assert.That(StartModeChoice.For(StartMode.Resume, transcriptExists: true, WorkstreamRole.Verifier, chosenOnTheCard: true),
+            Is.EqualTo(LaunchMode.Resume));
+    }
+
+    [TestCase(WorkstreamRole.None)]
+    [TestCase(WorkstreamRole.ScenarioWriter)]
+    [TestCase(WorkstreamRole.ProjectUpdater)]
+    public void For_AnyOtherCardAskedToResume_IsStillResumed(WorkstreamRole role)
+    {
+        Assert.That(StartModeChoice.For(StartMode.Resume, transcriptExists: true, role), Is.EqualTo(LaunchMode.Resume));
+    }
+
+    [Test]
+    public void Tooltip_ForAVerifier_SaysItStartsAFreshVerificationRun()
+    {
+        Assert.That(StartModeChoice.VerifierTooltip, Does.Contain("fresh verification run"));
     }
 }

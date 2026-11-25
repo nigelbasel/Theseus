@@ -644,9 +644,13 @@ public sealed class ProjectViewModel : ObservableObject
         view.Rounds = [.. tree.Rounds.Select((round, index) => view.RoundFor(round, tree.Rounds.ElementAtOrDefault(index + 1)?.Round,
             index == tree.Rounds.Count - 1, file, byPiece))];
 
-        view.Waits = [.. view.Overview.Waits.Select(item => item.Kind == WaitKind.CheckCannotRun
-            ? view.CannotRunLine(item)
-            : new WaitItemViewModel(item, view.WaitCommand(item, reading.Name)))];
+        view.Waits = [.. view.Overview.Waits.Select(item => item.Kind switch
+        {
+            WaitKind.CheckCannotRun => view.CannotRunLine(item),
+            WaitKind.StartVerifier => new WaitItemViewModel(item, view.WaitCommand(item, reading.Name),
+                toolTip: Theseus.Core.Launching.StartModeChoice.VerifierTooltip),
+            _ => new WaitItemViewModel(item, view.WaitCommand(item, reading.Name)),
+        })];
         view.OtherWaits = [.. view.Overview.Others.Select(item => new WaitItemViewModel(item, view.WaitCommand(item, reading.Name)))];
         view._waitingPieces = view.AllNodes.Where(node => view.Overview.Waits.Any(wait => Concerns(wait, node)))
             .Select(node => node.Name).ToHashSet(StringComparer.Ordinal);
@@ -977,7 +981,8 @@ public sealed class ProjectViewModel : ObservableObject
             new PieceActionViewModel(
                 $"Start {verifier.Title} again", () => StartVerifier(verifier.Key), verifier.CanStart,
                 verifier.CanStart
-                    ? $"{VerifierCards.NotRunning(verifier)} Start it again: it runs the holdout scenarios against {piece.Workstream}"
+                    ? $"{VerifierCards.NotRunning(verifier)} Start it again: it runs the holdout scenarios against {piece.Workstream}. "
+                      + Theseus.Core.Launching.StartModeChoice.VerifierTooltip
                     : $"{verifier.Title} cannot be started from the board now")),
     ];
 
