@@ -2314,10 +2314,17 @@
                 </StackPanel>
 
                 <!--
-                    PreviewMouseWheel because the tree's own scroll viewer has nowhere to scroll and still marks the
-                    wheel handled: over the tree, neither the wheel nor a touchpad moved the panel (Nigel, 2026-11-25).
+                    The tree has the panel's height to itself and scrolls on its own, so only the rows in view are built
+                    (virtualised: 300 rows took over two seconds to lay out whole, Nigel 2026-11-25). What waits on the owner
+                    sits above it, scrolling apart when it is long. PreviewMouseWheel on both moves them by the wheel's own
+                    delta, so a touchpad's small steps scroll too.
                 -->
-                <ScrollViewer VerticalScrollBarVisibility="Auto" PreviewMouseWheel="OnChainsPanelMouseWheel">
+                <Grid x:Name="ChainsBody">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                <ScrollViewer x:Name="ChainsTop" Grid.Row="0" MaxHeight="320" VerticalScrollBarVisibility="Auto" PreviewMouseWheel="OnChainsPanelMouseWheel">
                     <StackPanel>
                         <TextBlock FontSize="12" TextWrapping="Wrap" Margin="4,0,4,8"
                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
@@ -2505,13 +2512,20 @@
                             <TextBlock Text="{Binding Chains.AllHiddenText}" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center"
                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                         </DockPanel>
+                    </StackPanel>
+                </ScrollViewer>
                         <!--
                             No sideways scrolling: under the Fluent theme the tree's own horizontal bar was drawn over
                             its bottom row (links-tree-scrollbar, Nigel 2026-11-19). A long title trims instead.
                         -->
-                        <TreeView x:Name="ChainsTree" ItemsSource="{Binding Chains.Roots}" BorderThickness="0" Background="Transparent"
+                        <TreeView x:Name="ChainsTree" Grid.Row="1" ItemsSource="{Binding Chains.Roots}" BorderThickness="0" Background="Transparent"
                                   AutomationProperties.Name="Chains"
                                   ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                  ScrollViewer.CanContentScroll="True"
+                                  VirtualizingPanel.IsVirtualizing="True"
+                                  VirtualizingPanel.VirtualizationMode="Recycling"
+                                  VirtualizingPanel.ScrollUnit="Pixel"
+                                  PreviewMouseWheel="OnChainsPanelMouseWheel"
                                   Visibility="{Binding Chains.Roots.Count, Converter={StaticResource CountToVisibility}}">
                             <!--
                                 The standard item lays its header out in an auto-width column, so a row was never held
@@ -2523,6 +2537,14 @@
                                     <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
                                     <!-- The row's title and its state's word, not the record's ToString (E11, W50, G170; chains-panel-at-scale 12). -->
                                     <Setter Property="AutomationProperties.Name" Value="{Binding ScreenName}" />
+                                    <!-- Each level's rows virtualised too, not only the chains at the top. -->
+                                    <Setter Property="ItemsPanel">
+                                        <Setter.Value>
+                                            <ItemsPanelTemplate>
+                                                <VirtualizingStackPanel />
+                                            </ItemsPanelTemplate>
+                                        </Setter.Value>
+                                    </Setter>
                                     <Setter Property="Template">
                                         <Setter.Value>
                                             <ControlTemplate TargetType="TreeViewItem">
@@ -2705,8 +2727,7 @@
                                 </HierarchicalDataTemplate>
                             </TreeView.ItemTemplate>
                         </TreeView>
-                    </StackPanel>
-                </ScrollViewer>
+                </Grid>
             </DockPanel>
         </Border>
         <!--

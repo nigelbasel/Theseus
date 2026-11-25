@@ -10,8 +10,8 @@ using Theseus.App.ViewModels;
 namespace Theseus.Tests.Repository;
 
 /// <summary>
-/// The Chains panel's tree, laid out as the board lays it out: the tree's own markup from MainWindow.xaml, inside the
-/// panel's vertical scroll viewer, at the panel's width. A title wider than the panel made the tree's own horizontal
+/// The Chains panel's tree, laid out as the board lays it out: the tree's own markup from MainWindow.xaml, in the grid
+/// that gives it the panel's height, at the panel's width. A title wider than the panel made the tree's own horizontal
 /// scrollbar appear inside the tree's height and cover its bottom row (Nigel, 2026-11-19). Checked against what is laid
 /// out, not against the markup (method rule P11).
 /// </summary>
@@ -68,14 +68,14 @@ public class ChainsTreeLayoutTests
         return Descendants<TreeView>(host).Single();
     }
 
-    // The tree element exactly as MainWindow.xaml has it, inside a scroll viewer with the same attributes as the
-    // panel's, and the converters it names declared as App.xaml declares them.
+    // The tree element exactly as MainWindow.xaml has it, in a grid as the panel holds it, and the converters it names
+    // declared as App.xaml declares them.
     private static string PanelMarkup()
     {
         var window = XDocument.Load(Path.Combine(RepositoryRoot(), "src", "Theseus.App", "MainWindow.xaml"));
         var tree = window.Descendants(Presentation + "TreeView")
             .Single(element => (string?)element.Attribute("ItemsSource") == "{Binding Chains.Roots}");
-        var panelScroller = tree.Ancestors(Presentation + "ScrollViewer").First();
+        tree.Attribute("PreviewMouseWheel")?.Remove(); // a code-behind handler, which a parsed fragment cannot hold
 
         // The board runs under WPF's Fluent theme (ThemeApplier sets ThemeMode), whose scroll viewers lay their bars
         // over the content; the classic template gives the bar its own row, which is why the bug does not show
@@ -92,9 +92,7 @@ public class ChainsTreeLayoutTests
                     Converter("HexToBrushConverter", "HexToBrush"),
                     Converter("CountToVisibilityConverter", "CountToVisibility"),
                     Converter("NotEmptyToVisibilityConverter", "NotEmptyToVisibility"))),
-            new XElement(Presentation + "ScrollViewer",
-                panelScroller.Attributes().Where(attribute => !attribute.IsNamespaceDeclaration && attribute.Name.LocalName != "PreviewMouseWheel"),
-                new XElement(Presentation + "StackPanel", new XElement(tree))));
+            new XElement(Presentation + "Grid", new XElement(tree)));
 
         // The app's controls namespace on a prefix, then given its assembly, as a parsed fragment needs.
         return host.ToString().Replace("\"clr-namespace:Theseus.App.Controls\"", "\"clr-namespace:Theseus.App.Controls;assembly=Theseus\"", StringComparison.Ordinal);

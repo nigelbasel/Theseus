@@ -8,10 +8,10 @@ namespace Theseus.Tests.Windows;
 
 /// <summary>
 /// The mouse wheel and a touchpad's two-finger scroll move the Chains panel wherever the pointer is over it
-/// (Nigel, 2026-11-25: two-finger scrolling on his laptop did not scroll the panel). The tree sits in the panel's
-/// scroll viewer with a scroll viewer of its own, which has nowhere to scroll and still marked every wheel event
-/// handled, so the panel never moved while the pointer was over the tree. A precision touchpad sends its scroll as
-/// many small wheel steps, so a step smaller than a mouse notch has to move the panel too.
+/// (Nigel, 2026-11-25: two-finger scrolling on his laptop did not scroll the panel). The tree first sat in the panel's
+/// scroll viewer with a scroll viewer of its own that had nowhere to scroll and still marked every wheel event handled.
+/// Since the tree was virtualised it scrolls itself, and what waits above it scrolls apart. A precision touchpad sends
+/// its scroll as many small wheel steps, so a step smaller than a mouse notch has to move each of them too.
 /// </summary>
 [TestFixture]
 [NonParallelizable]
@@ -33,16 +33,20 @@ public class ChainsPanelWheelTests
         });
 
     [Test]
-    public void TheWheelOverThePanelsHeading_ScrollsThePanel() =>
+    public void TheWheelOverWhatWaitsAboveTheTree_ScrollsThatArea() =>
         MainWindowFixture.Run((window, shell) =>
         {
-            var panel = OpenWithLongChains(window, shell);
-            var heading = MainWindowFixtureTests.Descendants<TextBlock>(panel).First(text => text.Text == "Chains");
+            OpenWithLongChains(window, shell);
+            var top = (ScrollViewer)window.FindName("ChainsTop");
+            top.MaxHeight = 12;
+            top.UpdateLayout();
+            Assume.That(top.ScrollableHeight, Is.GreaterThan(0), "the area above the tree overflows");
+            var heading = MainWindowFixtureTests.Descendants<TextBlock>(top).First(text => text.Text == "Chains");
 
-            Turn(heading, -Notch);
-            panel.UpdateLayout();
+            Turn(heading, -12);
+            top.UpdateLayout();
 
-            Assert.That(panel.VerticalOffset, Is.GreaterThan(0));
+            Assert.That(top.VerticalOffset, Is.GreaterThan(0));
         });
 
     [Test]
@@ -105,25 +109,10 @@ public class ChainsPanelWheelTests
         content.Arrange(new Rect(0, 0, 1400, 760));
         content.UpdateLayout();
 
-        var panel = PanelAbove((DependencyObject)window.FindName("ChainsTree"));
-        Assert.That(panel.ScrollableHeight, Is.GreaterThan(Notch * 2), "the chains do not overflow the panel, so nothing can scroll");
+        var panel = MainWindowFixtureTests.Descendants<ScrollViewer>((DependencyObject)window.FindName("ChainsTree")).First();
+        Assert.That(panel.ScrollableHeight, Is.GreaterThan(Notch * 2), "the chains do not overflow the tree, so nothing can scroll");
 
         return panel;
-    }
-
-    // The panel's scroll viewer: the first above the tree, as the search box has one of its own.
-    private static ScrollViewer PanelAbove(DependencyObject tree)
-    {
-        for (var node = System.Windows.Media.VisualTreeHelper.GetParent(tree); node is not null;
-             node = System.Windows.Media.VisualTreeHelper.GetParent(node))
-        {
-            if (node is ScrollViewer found)
-            {
-                return found;
-            }
-        }
-
-        throw new AssertionException("the tree is in no scroll viewer");
     }
 
     // One wheel step as the input system raises it: the tunnelling preview first, then, if nothing handled that, the
