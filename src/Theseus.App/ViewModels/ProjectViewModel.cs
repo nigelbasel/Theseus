@@ -227,7 +227,9 @@ public sealed class ProjectViewModel : ObservableObject
     /// Highlights the boxes the board's search matches (card-search-and-tags item 7), with the highlight a followed
     /// objective uses, and keeps them highlighted while objectives are hovered. Null clears it.
     /// </summary>
-    public void ShowSearch(Func<PieceNodeViewModel, bool>? matches)
+    /// <param name="matches">Whether a box matches, or null to clear the search.</param>
+    /// <param name="cardMatches">Whether a card matches, by key, for the lines of Waits for you it concerns.</param>
+    public void ShowSearch(Func<PieceNodeViewModel, bool>? matches, Func<string, bool>? cardMatches = null)
     {
         _searchHits = matches is null ? [] : [.. AllNodes.Where(matches)];
         HighlightObjective(_highlightedObjective);

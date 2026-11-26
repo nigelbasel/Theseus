@@ -924,6 +924,13 @@ public sealed class WorkstreamCardViewModel : ObservableObject, IBoardCard
     }
 
     /// <summary>
+    /// The project a scenario writer works for, which no project file names, so its <see cref="Workstream"/> carries none:
+    /// the board's search finds its project through it (Nigel, 2026-11-26: "nothing shows when I search for write holdout").
+    /// Null for every other card.
+    /// </summary>
+    public string? ProjectOfRole { get; set; }
+
+    /// <summary>
     /// Where its project slug's work was read, branch and commit (project-view AC 5); empty for a card in no readable
     /// project.
     /// </summary>
