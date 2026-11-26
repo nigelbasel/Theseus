@@ -232,10 +232,13 @@ public partial class App : Application
             new RegistryLockLiveness(new ProcessProbe(), new SessionRegistryReader(SessionRegistryReader.DefaultDirectory, new ProcessProbe()), clock),
             clock,
             new WindowsProcessTree(new ProcessProbe()),
-            OrphanCleaner.ForThisMachine(new ProcessProbe(), testContainers));
+            OrphanCleaner.ForThisMachine(new ProcessProbe(), testContainers),
+            cardFamily: card => Theseus.Core.Links.RunFamily.Of(card, snapshots.Current, links.Active),
+            tableStore: new ResourceTableStore(Path.Combine(DataDirectory, "resources.json")));
 
         _lockSweep = new Timer(_ => locks.Sweep(), null, TimeSpan.Zero, TimeSpan.FromSeconds(15));
-        _locks = new LocksViewModel(locks, () => DateTimeOffset.UtcNow, ticket => LockColours.For(ticket, shell.Board.Cards), testContainers);
+        _locks = new LocksViewModel(locks, () => DateTimeOffset.UtcNow, ticket => LockColours.For(ticket, shell.Board.Cards), testContainers,
+            (ticket, now) => LockIdle.For(ticket, shell.Board.Cards, now));
         shell.Locks = _locks;
 
         // Locks and Chains share the right-hand side and never sit side by side: with the sessions
@@ -304,7 +307,8 @@ public partial class App : Application
                     () => Dispatcher.BeginInvoke(shell.Refresh)),
                 startRequests: shell.StartRequests,
                 duties: new Theseus.Core.Mcp.DutyTools(duties, record: (card, text) =>
-                    Dispatcher.BeginInvoke(() => shell.RecordDutyEvent(card, text))));
+                    Dispatcher.BeginInvoke(() => shell.RecordDutyEvent(card, text))),
+                arbiter: () => settings.Read().LockArbiterCard);
 
         WireHeadless(shell, settings, mcpHandler);
 

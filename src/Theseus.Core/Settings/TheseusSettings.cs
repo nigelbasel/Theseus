@@ -311,6 +311,12 @@ public sealed record TheseusSettings(
     /// <summary>How many headless runs may go at once on this machine; the rest queue (Nigel, 2026-11-24).</summary>
     public int MaxHeadlessRuns { get; init; } = 3;
 
+    /// <summary>
+    /// The card whose sessions may rule on resources the lock table does not know, with rule_resource. None by
+    /// default, so an unknown resource stays exclusive of everything until Nigel names one.
+    /// </summary>
+    public string? LockArbiterCard { get; init; }
+
     /// <summary>The run mode a project's cards take when a card has none of its own, by project name.</summary>
     public IReadOnlyDictionary<string, Running.RunMode> ProjectRunModes { get; init; } =
         new Dictionary<string, Running.RunMode>();

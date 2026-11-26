@@ -25,6 +25,12 @@ public sealed class LockWaiterViewModel : ObservableObject
     /// <summary>The ticket, which the board never shows.</summary>
     public string Token { get; }
 
+    /// <summary>The ticket just ahead of it in this resource's queue, which Move up puts it before.</summary>
+    public string? Previous { get; set; }
+
+    /// <summary>The ticket just behind it in this resource's queue, which Move down puts it after.</summary>
+    public string? Next { get; set; }
+
     /// <summary>Its place in the queue, counting from 1.</summary>
     public int Position
     {

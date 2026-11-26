@@ -23,6 +23,7 @@ public sealed class LocksViewModel : ObservableObject, IDisposable
     private readonly Dispatcher _dispatcher;
     private readonly DispatcherTimer _timer;
     private readonly ITestContainers? _containers;
+    private readonly Func<LockTicket, DateTimeOffset, string?>? _idleOf;
     private IReadOnlyList<TestContainer> _lastContainers = [];
     private int _checking;
     private bool _isOpen;
@@ -33,15 +34,17 @@ public sealed class LocksViewModel : ObservableObject, IDisposable
     /// session it came from (Nigel, 2026-10-06), or null when no card matches.
     /// </param>
     /// <param name="containers">Docker's Testcontainers containers, for the unowned list; null leaves it empty.</param>
-    public LocksViewModel(LockBook book, Func<DateTimeOffset> clock, Func<LockTicket, string?>? colourOf = null, ITestContainers? containers = null)
+    /// <param name="idleOf">For a session hold whose session has idled half an hour or gone, how long; otherwise null.</param>
+    public LocksViewModel(LockBook book, Func<DateTimeOffset> clock, Func<LockTicket, string?>? colourOf = null, ITestContainers? containers = null,
+        Func<LockTicket, DateTimeOffset, string?>? idleOf = null)
     {
+        _idleOf = idleOf;
         _book = book;
         _clock = clock;
         _colourOf = colourOf;
         _containers = containers;
         _dispatcher = Dispatcher.CurrentDispatcher;
-        Rows = new ObservableCollection<LockRowViewModel>(LockNames.All.Select(name =>
-            new LockRowViewModel(name, Release, MoveUp, MoveDown, Cancel)));
+        Rows = [];
 
         ToggleCommand = new RelayCommand(_ => IsOpen = !IsOpen);
         OpenCommand = new RelayCommand(_ => IsOpen = true);
@@ -72,6 +75,15 @@ public sealed class LocksViewModel : ObservableObject, IDisposable
     /// </summary>
     public ObservableCollection<UnownedContainerViewModel> Unowned { get; } = [];
 
+    /// <summary>Requests refused because granting them would have closed a wait cycle, newest first.</summary>
+    public ObservableCollection<string> StoppedDeadlocks { get; } = [];
+
+    /// <summary>Rulings the arbiter or Nigel made on resources, each with Nigel's overturn.</summary>
+    public ObservableCollection<LockRulingViewModel> Rulings { get; } = [];
+
+    /// <summary>Resources asked for that nobody has ruled on yet; until then each is held alone.</summary>
+    public string NeedsRuling { get; private set; } = string.Empty;
+
     /// <summary>Opens or closes the locks panel.</summary>
     public RelayCommand ToggleCommand { get; }
 
@@ -79,7 +91,7 @@ public sealed class LocksViewModel : ObservableObject, IDisposable
     public RelayCommand OpenCommand { get; }
 
     /// <summary>Holders and waiters across every lock, for the command bar button.</summary>
-    public int Busy => Rows.Sum(row => (row.IsHeld ? 1 : 0) + row.Waiting.Count);
+    public int Busy { get; private set; }
 
     /// <summary>The command bar button's label: "Locks", with how many are holding or waiting.</summary>
     public string ButtonText =>
@@ -97,7 +109,7 @@ public sealed class LocksViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>Whether any hold is longer than <see cref="LongHold"/>.</summary>
-    public bool HasLongHold => Rows.Any(row => row.IsLong);
+    public bool HasLongHold => Rows.Any(row => row.IsLong || row.HasAmberHold);
 
     /// <summary>Whether the toolbar's count should turn amber: a long hold, or a container nobody owns.</summary>
     public bool IsUrgent => HasLongHold || Unowned.Count > 0;
@@ -107,11 +119,21 @@ public sealed class LocksViewModel : ObservableObject, IDisposable
     {
         var tickets = _book.Snapshot();
         var now = _clock();
+        var table = _book.Table;
+
+        SyncRows(tickets, table);
 
         foreach (var row in Rows)
         {
-            row.Update(tickets, now, _colourOf);
+            row.Update(tickets, now, _colourOf, table, _idleOf is null ? null : ticket => _idleOf(ticket, now));
         }
+
+        Busy = tickets.Count;
+        Replace(StoppedDeadlocks, [.. _book.StoppedDeadlocks().Reverse().Take(10)
+            .Select(stopped => $"{stopped.WhenUtc.ToLocalTime():HH:mm}  {stopped.Detail}")]);
+        SyncRulings(table);
+        NeedsRuling = string.Join(", ", _book.NeedsRuling());
+        Raise(nameof(NeedsRuling));
 
         UpdateUnowned(UnownedContainers.From(_lastContainers, tickets), now);
 
@@ -138,6 +160,74 @@ public sealed class LocksViewModel : ObservableObject, IDisposable
     };
 
     private void OnChanged(object? sender, EventArgs e) => _dispatcher.BeginInvoke(Refresh);
+
+    // A row for every resource the table names and every one a request names, in the table's order, so a resource
+    // keeps its place on the panel while it is in use.
+    private void SyncRows(IReadOnlyList<LockTicket> tickets, ResourceTable table)
+    {
+        List<string> names = [.. table.Rules.Where(rule => !rule.Name.EndsWith(":*", StringComparison.Ordinal)).Select(rule => rule.Name)
+            .Concat(tickets.SelectMany(ticket => ticket.Claims).Select(claim => claim.Resource))
+            .Distinct(StringComparer.Ordinal)];
+
+        for (var index = Rows.Count - 1; index >= 0; index--)
+        {
+            if (!names.Contains(Rows[index].Name))
+            {
+                Rows.RemoveAt(index);
+            }
+        }
+
+        for (var index = 0; index < names.Count; index++)
+        {
+            var existing = Rows.FirstOrDefault(row => row.Name == names[index]);
+
+            if (existing is null)
+            {
+                Rows.Insert(index, new LockRowViewModel(names[index], Release, MoveUp, MoveDown, Cancel));
+            }
+            else if (Rows.IndexOf(existing) != index)
+            {
+                Rows.Move(Rows.IndexOf(existing), index);
+            }
+        }
+    }
+
+    private void SyncRulings(ResourceTable table)
+    {
+        var ruled = table.Rules.Where(rule => rule.RuledBy is not null).ToList();
+
+        if (ruled.Count == Rulings.Count && ruled.Select(rule => rule.Name).SequenceEqual(Rulings.Select(ruling => ruling.Name)))
+        {
+            return;
+        }
+
+        Rulings.Clear();
+
+        foreach (var rule in ruled)
+        {
+            var clashes = rule.ClashesWith.Count == 0 ? "nothing" : string.Join(", ", rule.ClashesWith);
+            Rulings.Add(new LockRulingViewModel(rule.Name,
+                $"{rule.Name}: {rule.Capacity} slot(s), clashes with {clashes}. {rule.Why} ({rule.RuledBy}{(rule.RuledUtc is { } when ? $", {when.ToLocalTime():d MMM HH:mm}" : string.Empty)})",
+                Overturn));
+        }
+    }
+
+    private static void Replace(ObservableCollection<string> target, IReadOnlyList<string> items)
+    {
+        if (target.SequenceEqual(items))
+        {
+            return;
+        }
+
+        target.Clear();
+
+        foreach (var item in items)
+        {
+            target.Add(item);
+        }
+    }
+
+    private void Overturn(string name) => OffTheUiThread(() => _book.Overturn(name), $"overturn the ruling on {name}");
 
     private void UpdateUnowned(IReadOnlyList<TestContainer> unowned, DateTimeOffset now)
     {
@@ -219,13 +309,13 @@ public sealed class LocksViewModel : ObservableObject, IDisposable
         }).ContinueWith(_ => _dispatcher.BeginInvoke(CheckContainers));
     }
 
-    private void Release(string name) => OffTheUiThread(() => _book.ForceRelease(name), $"release the {name} lock");
+    private void Release(string token) => OffTheUiThread(() => _book.ForceReleaseTicket(token), "release a hold");
 
     private void MoveUp(LockWaiterViewModel waiter) =>
-        OffTheUiThread(() => _book.Reorder(waiter.Token, waiter.Position - 2), $"move {waiter.Who} up");
+        OffTheUiThread(() => waiter.Previous is { } previous && _book.MoveNextTo(waiter.Token, previous, after: false), $"move {waiter.Who} up");
 
     private void MoveDown(LockWaiterViewModel waiter) =>
-        OffTheUiThread(() => _book.Reorder(waiter.Token, waiter.Position), $"move {waiter.Who} down");
+        OffTheUiThread(() => waiter.Next is { } next && _book.MoveNextTo(waiter.Token, next, after: true), $"move {waiter.Who} down");
 
     private void Cancel(LockWaiterViewModel waiter) =>
         OffTheUiThread(() => _book.Cancel(waiter.Token), $"cancel {waiter.Who}'s request");

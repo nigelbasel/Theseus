@@ -462,6 +462,48 @@ public sealed class LockBook
             return (true, true);
         });
 
+    /// <summary>
+    /// Moves a waiting ticket to just before or just after another waiting one, as Nigel's Move up and Move down
+    /// on a resource's queue do. Nigel only, from the board; a holder cannot be moved.
+    /// </summary>
+    public bool MoveNextTo(string token, string anchor, bool after) =>
+        Change(now =>
+        {
+            var index = IndexOf(token);
+            var target = IndexOf(anchor);
+
+            if (index < 0 || target < 0 || index == target || _tickets[index].IsHolder || _tickets[target].IsHolder)
+            {
+                return (false, false);
+            }
+
+            var ticket = _tickets[index];
+            _tickets.RemoveAt(index);
+            var place = IndexOf(anchor) + (after ? 1 : 0);
+            _tickets.Insert(place, ticket);
+            _history.Append(new LockEvent(now, LockEventKind.Reordered, ticket.Lock, ticket.Who, ticket.Purpose,
+                Detail: $"moved {(after ? "behind" : "ahead of")} {_tickets[IndexOf(anchor)].Who}"));
+
+            return (true, true);
+        });
+
+    /// <summary>Takes one hold from its holder. Nigel only, from the board, and never automatic.</summary>
+    public bool ForceReleaseTicket(string token) =>
+        Change(now =>
+        {
+            var index = IndexOf(token);
+
+            if (index < 0 || !_tickets[index].IsHolder)
+            {
+                return (false, false);
+            }
+
+            End(index, now, LockEventKind.ForceReleased, "Released by Nigel from the board.", null);
+            Promote(now);
+
+            return (true, true);
+        });
+
     /// <summary>Takes a waiting ticket out of the queue. Nigel only, from the board.</summary>
     public bool Cancel(string token) =>
         Change(now =>

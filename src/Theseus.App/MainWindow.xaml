@@ -2809,32 +2809,57 @@
                                             <TextBlock Text="{Binding Guards}" FontSize="12" Margin="0,2,0,0" TextWrapping="Wrap"
                                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
 
+                                            <TextBlock Text="{Binding Capacity}" FontSize="12" Margin="0,2,0,0"
+                                                       Visibility="{Binding Capacity, Converter={StaticResource NotEmptyToVisibility}}"
+                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+
                                             <StackPanel Margin="0,8,0,0"
                                                         Visibility="{Binding IsHeld, Converter={StaticResource BoolToVisibility}}">
-                                                <Border Margin="0,0,0,8" Padding="8,4" CornerRadius="4" BorderThickness="4,0,0,0"
-                                                        BorderBrush="{Binding HolderColorHex, Converter={StaticResource HexToBrush}}">
-                                                    <StackPanel>
-                                                        <TextBlock Text="Held by" FontSize="12"
-                                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                                        <TextBlock Text="{Binding Holder}" FontSize="14" TextWrapping="Wrap" Margin="0,1,0,0"
-                                                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                                    </StackPanel>
-                                                </Border>
-                                                <Button Style="{StaticResource CommandButton}" Content="Release…" HorizontalAlignment="Left"
-                                                        ToolTip="Take the lock from its holder. Its run keeps going."
-                                                        Command="{Binding AskReleaseCommand}"
-                                                        Visibility="{Binding CanAskRelease, Converter={StaticResource BoolToVisibility}}" />
-                                                <StackPanel Visibility="{Binding IsConfirmingRelease, Converter={StaticResource BoolToVisibility}}">
-                                                    <TextBlock Text="Its run keeps going, and the next in line may start beside it." FontSize="12"
-                                                               TextWrapping="Wrap" Margin="0,0,0,8"
-                                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <Button Style="{StaticResource CommandButton}" Content="Release" Margin="0,0,8,0"
-                                                                Command="{Binding ConfirmReleaseCommand}" />
-                                                        <Button Style="{StaticResource CommandButton}" Content="Keep"
-                                                                Command="{Binding KeepCommand}" />
-                                                    </StackPanel>
-                                                </StackPanel>
+                                                <TextBlock Text="Held by" FontSize="12" Margin="0,0,0,4"
+                                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                <ItemsControl AutomationProperties.Name="Held by" ItemsSource="{Binding Holders}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <StackPanel Margin="0,0,0,8">
+                                                                <Border Margin="0,0,0,4" Padding="8,4" CornerRadius="4" BorderThickness="4,0,0,0"
+                                                                        AutomationProperties.Name="{Binding Text}"
+                                                                        BorderBrush="{Binding ColorHex, Converter={StaticResource HexToBrush}}">
+                                                                    <StackPanel>
+                                                                        <DockPanel>
+                                                                            <TextBlock DockPanel.Dock="Right" FontSize="12" VerticalAlignment="Center"
+                                                                                       Text="{Binding HeldFor}"
+                                                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                                            <TextBlock Text="{Binding Text}" FontSize="14" TextWrapping="Wrap"
+                                                                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                                                        </DockPanel>
+                                                                        <TextBlock Text="{Binding Amount, StringFormat='{}{0} slots'}" FontSize="12"
+                                                                                   Visibility="{Binding Amount, Converter={StaticResource NotEmptyToVisibility}}"
+                                                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                                        <TextBlock Text="{Binding Idle, StringFormat='⚠ {0}: release it if it is no longer needed'}" FontSize="12"
+                                                                                   TextWrapping="Wrap"
+                                                                                   Visibility="{Binding IsAmber, Converter={StaticResource BoolToVisibility}}"
+                                                                                   Foreground="{DynamicResource CautionTextBrush}" />
+                                                                    </StackPanel>
+                                                                </Border>
+                                                                <Button Style="{StaticResource CommandButton}" Content="Release…" HorizontalAlignment="Left"
+                                                                        ToolTip="Take this hold from its holder. Its run keeps going."
+                                                                        Command="{Binding AskReleaseCommand}"
+                                                                        Visibility="{Binding CanAskRelease, Converter={StaticResource BoolToVisibility}}" />
+                                                                <StackPanel Visibility="{Binding IsConfirmingRelease, Converter={StaticResource BoolToVisibility}}">
+                                                                    <TextBlock Text="Its run keeps going, and the next in line may start beside it." FontSize="12"
+                                                                               TextWrapping="Wrap" Margin="0,0,0,8"
+                                                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                                    <StackPanel Orientation="Horizontal">
+                                                                        <Button Style="{StaticResource CommandButton}" Content="Release" Margin="0,0,8,0"
+                                                                                Command="{Binding ConfirmReleaseCommand}" />
+                                                                        <Button Style="{StaticResource CommandButton}" Content="Keep"
+                                                                                Command="{Binding KeepCommand}" />
+                                                                    </StackPanel>
+                                                                </StackPanel>
+                                                            </StackPanel>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
                                             </StackPanel>
 
                                             <StackPanel Margin="0,8,0,0"
@@ -2889,6 +2914,60 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
+                        <Border Margin="0,0,0,8" Padding="8" CornerRadius="4"
+                                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                                Visibility="{Binding Locks.NeedsRuling, Converter={StaticResource NotEmptyToVisibility}}">
+                            <StackPanel>
+                                <TextBlock Text="Not ruled on yet" FontSize="14" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                <TextBlock FontSize="12" Margin="0,2,0,0" TextWrapping="Wrap"
+                                           Text="{Binding Locks.NeedsRuling, StringFormat='Each is held alone until the arbiter named in Options rules on it: {0}'}"
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                        </Border>
+                        <Border Margin="0,0,0,8" Padding="8" CornerRadius="4"
+                                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                                Visibility="{Binding Locks.Rulings.Count, Converter={StaticResource CountToVisibility}}">
+                            <StackPanel>
+                                <TextBlock Text="Rulings" FontSize="14" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                <ItemsControl AutomationProperties.Name="Rulings" ItemsSource="{Binding Locks.Rulings}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Margin="0,6,0,0" AutomationProperties.Name="{Binding Name}">
+                                                <TextBlock Text="{Binding Text}" FontSize="12" TextWrapping="Wrap"
+                                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                <Button Style="{StaticResource CommandButton}" Content="Overturn" HorizontalAlignment="Left" Margin="0,4,0,0"
+                                                        ToolTip="Take this ruling out: the resource is held alone again until it is ruled on."
+                                                        Command="{Binding OverturnCommand}" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                        <Border Margin="0,0,0,8" Padding="8" CornerRadius="4"
+                                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                                Visibility="{Binding Locks.StoppedDeadlocks.Count, Converter={StaticResource CountToVisibility}}">
+                            <StackPanel>
+                                <TextBlock Text="Stopped deadlocks" FontSize="14" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                <TextBlock Text="Requests refused because granting them would have left two or more sessions waiting on each other for ever. Nothing was stopped."
+                                           FontSize="12" Margin="0,2,0,4" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                <ItemsControl AutomationProperties.Name="Stopped deadlocks" ItemsSource="{Binding Locks.StoppedDeadlocks}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding}" FontSize="12" Margin="0,4,0,0" TextWrapping="Wrap"
+                                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
                         <!--
                             Testcontainers containers no lock holder accounts for: leftovers from before the
                             lock, or from a run that went around the guard, which nothing will ever reap. One
