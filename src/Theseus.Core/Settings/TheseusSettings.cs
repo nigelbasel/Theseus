@@ -103,8 +103,17 @@ public sealed record TheseusSettings(
     /// <summary>The clear-up of verifier cards under way or last made, so a restart neither loses its archives nor Undo.</summary>
     public Theseus.Core.Projects.VerifierClearUpRecord? VerifierClearUp { get; init; }
 
-    /// <summary>The bundled holdout guard's version the out-of-date notice was last given for, so it is said once.</summary>
-    public string? HoldoutGuardNoticeFor { get; init; }
+    /// <summary>The guards' setup findings the board's notice was last given for, so the same ones are said once.</summary>
+    public string? GuardNoticeFor { get; init; }
+
+    /// <summary>The source-control hosts auto mode trusts for pushes, entered once in Options, Guards; the owner's own.</summary>
+    public IReadOnlyList<string> AutoModeSourceControlHosts { get; init; } = [];
+
+    /// <summary>The domains auto mode trusts by name, entered once in Options, Guards.</summary>
+    public IReadOnlyList<string> AutoModeInternalDomains { get; init; } = [];
+
+    /// <summary>Words that mark a host, namespace or resource as production to auto mode, entered once in Options, Guards.</summary>
+    public IReadOnlyList<string> AutoModeProductionPatterns { get; init; } = ["prod", "production", "live"];
 
     /// <summary>Which rows were folded away, so a board left tidy opens tidy.</summary>
     public IReadOnlyList<string> CollapsedAreas { get; init; } = [];
@@ -114,6 +123,12 @@ public sealed record TheseusSettings(
     /// AC 1). Empty by default, so a board with none set behaves exactly as before (AC 13).
     /// </summary>
     public string ProjectsFolder { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Whether the owner finished or skipped the first-run setup, so it does not open by itself again; Tools › Set up Theseus…
+    /// still opens it (first-run-setup, Nigel 2026-11-25).
+    /// </summary>
+    public bool FirstRunSetupDone { get; init; }
 
     /// <summary>Where workstreams' worktrees go, <c>&lt;folder&gt;\&lt;slug&gt;\&lt;repo&gt;</c> (1.1b AC 11). Empty by default.</summary>
     public string WorktreesFolder { get; init; } = string.Empty;
@@ -236,6 +251,13 @@ public sealed record TheseusSettings(
     /// 1.1e PR 2c, finding 3).
     /// </summary>
     public IReadOnlyList<string> CardsToldBranchRules { get; init; } = [];
+
+    /// <summary>
+    /// The projects the owner set unattended in Project properties, by folder name (2.4 W2): their cards are refused the
+    /// question tool and told to park, are ended once they have reported back, and are resumed after a transport error.
+    /// Off for every project until he sets it; kept here, never read from project.md, which sessions write.
+    /// </summary>
+    public IReadOnlyList<string> UnattendedProjects { get; init; } = [];
 
     /// <summary>
     /// The folders in the projects folder the owner said are not projects, by name (1.1e AC 20): their cards are not shown;

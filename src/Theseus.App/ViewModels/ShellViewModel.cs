@@ -164,7 +164,15 @@ public sealed partial class ShellViewModel : ObservableObject
         _acceptances = new SpecAcceptanceStore(Path.Combine(App.DataDirectory, "spec-acceptances.json"));
         _reported = new ReportedAcceptanceStore(Path.Combine(App.DataDirectory, "reported-acceptances.json"));
         CloseProjectCommand = new RelayCommand(_ => CloseProject(), _ => IsProjectOpen);
-        NewProjectCommand = new RelayCommand(_ => NewProject());
+        // With no projects folder, New project opens the setup's folder step rather than sitting greyed out (first-run-setup),
+        // and goes on to New project once the setup closes with a folder chosen.
+        NewProjectCommand = new RelayCommand(_ =>
+        {
+            if (!FirstRun!.OpenForNewProject() || !string.IsNullOrWhiteSpace(_settings.Read().ProjectsFolder))
+            {
+                NewProject();
+            }
+        });
         BringProjectWindowForwardCommand = new RelayCommand(_ => BringProjectWindowForward(),
             _ => IsProjectOpen && _projectWindow.SessionId is not null && Sessions.Find(_projectWindow.SessionId) is not null);
         launcher.ReadableProjects = () => _projectReads.ReadableNames;
@@ -175,8 +183,10 @@ public sealed partial class ShellViewModel : ObservableObject
             workstream.Role == WorkstreamRole.None
             && !string.Equals(RowBranchOf(workstream), Theseus.Core.Proposals.ProposalRow.NoBranch, StringComparison.OrdinalIgnoreCase)
             && ProjectBranchRules.GrantedPrimary(workstream.Project, _settings.Read().ProjectBranchRules, PrimaryBranchOf) is { } primary
-                ? ProjectBranchRules.Text(primary, workstream.Slug ?? workstream.Key)
+                ? ProjectBranchRules.Text(primary, workstream.Slug ?? workstream.Key,
+                    ProjectBranchRules.GrantOf(workstream.Project, _settings.Read().ProjectBranchRules)!.Kind)
                 : null;
+        launcher.UnattendedFor = workstream => UnattendedProjects.IsOn(workstream.Project, _settings.Read().UnattendedProjects);
         _projectReads.Changed += (_, _) => WireProjectChoices();
         _theme = settings.Read().Theme;
         _isSessionsPanelOpen = !settings.Read().SessionsPanelCollapsed;
@@ -289,11 +299,15 @@ public sealed partial class ShellViewModel : ObservableObject
         Drawer.EventsOf = _cardEvents.For;
         Drawer.WhoStarts = WhoStartsCard;
 
+        IReadOnlyList<GuardViewModel> guards = [.. Theseus.Core.Guards.GuardCatalog.All.Select(guard => new GuardViewModel(
+            new Theseus.Core.Guards.GuardInstallation(guard, Theseus.Core.Guards.GuardInstallation.UserConfigFolder())))];
         Settings = new SettingsViewModel(settings, Refresh)
         {
             Tags = new TagsViewModel(Board.Tags),
-            Guard = new HoldoutGuardViewModel(new HoldoutGuardInstallation(HoldoutGuardInstallation.UserConfigFolder())),
-            LockTools = new LockOptionsViewModel(new Theseus.Core.Locks.LockToolsInstallation(HoldoutGuardInstallation.UserConfigFolder()), settings,
+            Guards = guards,
+            AutoMode = new AutoModeViewModel(settings,
+                new Theseus.Core.Guards.AutoModeEnvironment(Theseus.Core.Guards.GuardInstallation.UserConfigFolder())),
+            LockTools = new LockOptionsViewModel(settings,
                 () => [.. Board.Cards.Where(card => !card.IsArchived).Select(card => (card.Key, card.Title))]),
             FolderTrust = new FolderTrustViewModel(
                 new Theseus.Core.Trust.ClaudeFolderTrust(Theseus.Core.Trust.ClaudeFolderTrust.UserConfigPath(),
@@ -303,6 +317,15 @@ public sealed partial class ShellViewModel : ObservableObject
                 Said = text => Notice = text,
             },
         };
+        FirstRun = new FirstRunViewModel(settings,
+            new Theseus.Core.Setup.StopHookRegistration(Theseus.Core.Guards.GuardInstallation.UserConfigFolder(),
+                Path.Combine(AppContext.BaseDirectory, "Theseus.Hook.exe")),
+            guards,
+            () => new Theseus.Core.Setup.ToolsCheck(
+                program => Theseus.Core.Setup.ToolVersions.Of(program, settings.Read().ClaudeExecutablePath),
+                () => Theseus.Core.Instructions.InstalledPlugins.Read(Theseus.Core.Guards.GuardInstallation.UserConfigFolder())
+                    .Any(plugin => plugin.Name == "agentic-factory")).Run(),
+            Refresh);
         Settings.OpenProjectHoldouts = OpenProjectHoldouts;
         Settings.HasProjectCard = project => Board.ProjectCards.Any(each => string.Equals(each.Name, project, StringComparison.OrdinalIgnoreCase));
         Drawer.TagsInUse = Board.Tags.InUse;
@@ -577,7 +600,8 @@ public sealed partial class ShellViewModel : ObservableObject
             return;
         }
 
-        view.ShowSearch(node => SearchCarry.Matches(node, key => Board.Card(key) is { } card ? Board.IsMatch(card) : null, filter));
+        view.ShowSearch(node => SearchCarry.Matches(node, key => Board.Card(key) is { } card ? Board.IsMatch(card) : null, filter),
+            key => Board.Card(key) is { } card && Board.IsMatch(card));
     }
 
     /// <summary>Ticks what is not ticked and unticks what is.</summary>
@@ -967,7 +991,9 @@ public sealed partial class ShellViewModel : ObservableObject
             Problem = card.Problem,
             PrimaryBranch = primary,
             GrantsBranchRules = granted,
+            GrantsItemBranches = grant?.Kind == BranchGrantKind.ItemBranches,
             GrantedPrimary = grant?.Primary,
+            IsUnattended = UnattendedProjects.IsOn(card.Name, _settings.Read().UnattendedProjects),
             RunsHeadless = _settings.Read().ProjectRunModes.TryGetValue(card.Name, out var projectMode) && projectMode == RunMode.Headless,
             ResumesIdleCards = _settings.Read().Duties.QueueIsOn(card.Name),
             OpenAt = openAt,
@@ -1055,10 +1081,23 @@ public sealed partial class ShellViewModel : ObservableObject
         }
 
         // OK with the box ticked over a grant for another primary branch grants it for the one the file names now.
+        var kind = properties.GrantsItemBranches ? BranchGrantKind.ItemBranches : BranchGrantKind.MergeIntoPrimary;
+
         if (properties.GrantsBranchRules != granted
-            || (granted && properties.GrantsBranchRules && !string.Equals(grant!.Primary, primary?.Trim(), StringComparison.Ordinal)))
+            || (granted && properties.GrantsBranchRules && !string.Equals(grant!.Primary, primary?.Trim(), StringComparison.Ordinal))
+            || (granted && properties.GrantsBranchRules && grant!.Kind != kind))
         {
-            GrantBranchRules(card, properties.GrantsBranchRules ? primary : null);
+            GrantBranchRules(card, properties.GrantsBranchRules ? primary : null, kind);
+        }
+
+        if (properties.IsUnattended != UnattendedProjects.IsOn(card.Name, _settings.Read().UnattendedProjects))
+        {
+            var current = _settings.Read();
+            _settings.Write(current with { UnattendedProjects = UnattendedProjects.Set(current.UnattendedProjects, card.Name, properties.IsUnattended) });
+            TheseusLog.Information("{Project} switched {State} by the owner", card.Name, properties.IsUnattended ? "to unattended" : "back to attended");
+            Notice = properties.IsUnattended
+                ? $"{card.Title} runs unattended from each card's next start: questions are parked, finished cards end, and network errors are retried."
+                : $"{card.Title}'s cards may ask you again from their next start.";
         }
 
         if (string.Equals(properties.ColourHex, card.ColourHex, StringComparison.OrdinalIgnoreCase))
@@ -1233,7 +1272,8 @@ public sealed partial class ShellViewModel : ObservableObject
     /// </summary>
     /// <param name="card">The project's card.</param>
     /// <param name="primary">The primary branch to grant, as the file names it now, or null to withdraw.</param>
-    private void GrantBranchRules(ProjectCardViewModel card, string? primary)
+    /// <param name="kind">Which rules are granted.</param>
+    private void GrantBranchRules(ProjectCardViewModel card, string? primary, BranchGrantKind kind = BranchGrantKind.MergeIntoPrimary)
     {
         var settings = _settings.Read();
         var rules = new Dictionary<string, ProjectBranchGrant>(settings.ProjectBranchRules, StringComparer.OrdinalIgnoreCase);
@@ -1241,7 +1281,7 @@ public sealed partial class ShellViewModel : ObservableObject
 
         if (grant)
         {
-            rules[card.Name] = new ProjectBranchGrant(DateTimeOffset.Now, primary!.Trim());
+            rules[card.Name] = new ProjectBranchGrant(DateTimeOffset.Now, primary!.Trim()) { Kind = kind };
         }
         else
         {
@@ -1251,7 +1291,9 @@ public sealed partial class ShellViewModel : ObservableObject
         _settings.Write(settings with { ProjectBranchRules = rules });
         TheseusLog.Information("Branch rules for {Project} {Change} by the owner", card.Name, grant ? "granted" : "withdrawn");
         Notice = grant
-            ? $"{card.Title}'s cards may now branch, push and merge into {primary!.Trim()} without asking, from their next start."
+            ? kind == BranchGrantKind.ItemBranches
+                ? $"{card.Title}'s cards may now branch each item off its repository's trunk, push and raise a pull request without asking, from their next start."
+                : $"{card.Title}'s cards may now branch, push and merge into {primary!.Trim()} without asking, from their next start."
             : $"{card.Title}'s cards ask again before any branch or push, from their next start.";
         Refresh();
     }
@@ -1932,9 +1974,7 @@ public sealed partial class ShellViewModel : ObservableObject
     /// A scenario writer's project: the one kept on its card, else the project whose home it has in reach, as older writers
     /// were made with none (git-22, item 7a).
     /// </summary>
-    private string? WriterProject(Workstream writer) =>
-        writer.Project ?? _projectReads.Current.FirstOrDefault(reading => reading.IsReadable && reading.Folder is { } home
-            && writer.AddDirectories.Any(directory => SameFolder(directory, home)))?.Name;
+    private string? WriterProject(Workstream writer) => RoleProject.Of(writer, _projectReads.Current);
 
     /// <summary>
     /// Aims a scenario writer at its project's holdout folder of today before it starts, rewriting its plan when the folder
@@ -2127,6 +2167,9 @@ public sealed partial class ShellViewModel : ObservableObject
 
     /// <summary>Whether a projects folder is set, so New project… shows in the File menu and on the toolbar (1.1c AC 6).</summary>
     public bool HasProjectsFolder => _hasProjectsFolder;
+
+    /// <summary>The first-run setup: at startup while no projects folder is set, from Tools › Set up Theseus…, and from New project.</summary>
+    public FirstRunViewModel FirstRun { get; }
 
     /// <summary>New project…: a project home from the starter, with what the owner gives (1.1b AC 7; 1.1c AC 6).</summary>
     public RelayCommand NewProjectCommand { get; }
@@ -2582,6 +2625,11 @@ public sealed partial class ShellViewModel : ObservableObject
             card.ProjectSource = string.Empty;
         }
 
+        foreach (var card in cards)
+        {
+            card.ProjectOfRole = card.Workstream.Role == WorkstreamRole.ScenarioWriter ? WriterProject(card.Workstream) : null;
+        }
+
         Board.KeepOutOfGrid = ProjectGridRule.KeepOutOfGrid(memberOf, anyMembers);
 
         // Membership has just been read, so the holdout folders are looked at again by project (1.1e AC 6c).
@@ -2622,11 +2670,7 @@ public sealed partial class ShellViewModel : ObservableObject
                     string.Equals(acceptance.Project, reading.Name, StringComparison.OrdinalIgnoreCase)
                     && string.Equals(acceptance.Slug, slug, StringComparison.OrdinalIgnoreCase)),
                 pieceCards, links, _projectReads.Members, StageReports);
-            pieces = [.. pieces.Select(piece => reportedAcceptances.LastOrDefault(report =>
-                    string.Equals(report.Project, reading.Name, StringComparison.OrdinalIgnoreCase)
-                    && string.Equals(report.Slug, piece.Name, StringComparison.OrdinalIgnoreCase)) is { } reported
-                ? piece with { Reported = reported }
-                : piece)];
+            pieces = PiecesOfWork.WithReports(pieces, reading, reportedAcceptances);
             var working = pieces.Where(piece => piece.IsCurrentPiece && piece.Card is not null)
                 .Select(piece => piece.CardKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
             IReadOnlyList<PieceCard> others = [.. cards
@@ -2637,9 +2681,7 @@ public sealed partial class ShellViewModel : ObservableObject
                 acceptances.Count(acceptance => string.Equals(acceptance.Project, reading.Name, StringComparison.OrdinalIgnoreCase)),
                 StartRequests.Pending, key => Board.Card(key)?.Title ?? key, WrongVerifiersOf(reading.Name), ClearUpNoticeOf(reading),
                 checkPlan.Underway, others,
-                [.. ChecksThatCannotRun(reading, pieces, checkPlan), .. HeadlessWaits.For(cards
-                    .Where(card => string.Equals(card.Workstream.Project, reading.Name, StringComparison.OrdinalIgnoreCase))
-                    .Select(card => card.Workstream), key => Headless?.StateOf(key))],
+                WaitsOnTheChecks(reading, pieces, checkPlan, cards),
                 OwnerAccount.Names);
             TakeCheckSteps(reading, pieces, checkPlan);
             var file = reading.File!;
@@ -2858,6 +2900,7 @@ public sealed partial class ShellViewModel : ObservableObject
                 AnswerStartRequest = AnswerStartRequest,
                 ClearVerifiers = ClearUpVerifiers,
                 ResetBreaker = key => ResetBreakers([key]),
+                ResetBreakerAndStart = ResetBreakerAndStart,
                 OpenOptions = () => Settings.OpenCommand.Execute(null),
                 StartVerifier = key =>
                 {
@@ -4320,6 +4363,7 @@ public sealed partial class ShellViewModel : ObservableObject
         var waiting = new List<DateTimeOffset>();
 
         EndFinishedCards(now, waiting);
+        ResumeAfterTransportErrors(now, waiting);
 
         foreach (var card in Board.Cards)
         {

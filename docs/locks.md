@@ -80,9 +80,9 @@ itself was awake: after the machine sleeps, nobody in the queue is dropped for h
 
 ## Options
 
-**Advanced** in Options has the lock client, its guard and the command classes they share, with
-**Install** and **Undo**, and the **Arbiter**: the card whose sessions may rule on a resource the table
-does not know. With no arbiter, unknown resources stay held alone.
+The lock client and the command classes install with the **tests-lock guard**, in Options, **Guards**.
+**Advanced** has the **Lock arbiter**: the card whose sessions may rule on a resource the table does
+not know. With no arbiter, unknown resources stay held alone.
 
 ## When Theseus stops or restarts
 

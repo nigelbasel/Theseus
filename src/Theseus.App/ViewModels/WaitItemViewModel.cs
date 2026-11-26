@@ -8,8 +8,10 @@ namespace Theseus.App.ViewModels;
 /// view may say more than the model knows: when no independent check can run, the line says why and its button is the
 /// way on (Nigel, 2026-11-23).
 /// </summary>
-public sealed class WaitItemViewModel
+public sealed class WaitItemViewModel : ObservableObject
 {
+    private bool _isSearchHit;
+
     private readonly string? _text;
     private readonly string? _button;
 
@@ -45,4 +47,14 @@ public sealed class WaitItemViewModel
 
     /// <summary>What the button does.</summary>
     public ICommand? Command { get; }
+
+    /// <summary>
+    /// Whether the board's search found the card it concerns, which has no box to light, such as a scenario writer or a
+    /// verifier (Nigel, 2026-11-26).
+    /// </summary>
+    public bool IsSearchHit
+    {
+        get => _isSearchHit;
+        set => Set(ref _isSearchHit, value);
+    }
 }

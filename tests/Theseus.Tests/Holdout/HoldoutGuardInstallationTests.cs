@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using Theseus.Core.Guards;
 using Theseus.Core.Links;
 
 namespace Theseus.Tests.Holdout;
@@ -54,7 +55,7 @@ public class HoldoutGuardInstallationTests
         var outcome = Installation().Install();
 
         Assert.That(outcome.Succeeded, Is.True, outcome.Message);
-        Assert.That(File.ReadAllText(guard), Is.EqualTo(HoldoutGuardBundle.Text));
+        Assert.That(File.ReadAllText(guard), Is.EqualTo(GuardCatalog.Holdout.Guard.Text));
         Assert.That(File.ReadAllText(guard + ".previous"), Is.EqualTo("// the 18 November guard"));
         Assert.That(outcome.Message, Does.Contain("refused a read of the holdout by a session with no role"));
         Assert.That(outcome.Message, Does.Contain("allowed a verifier's"));
@@ -118,7 +119,7 @@ public class HoldoutGuardInstallationTests
     {
         var guard = Path.Combine(_config, "bin", "holdout-guard.js");
         Directory.CreateDirectory(Path.GetDirectoryName(guard)!);
-        File.WriteAllText(guard, HoldoutGuardBundle.Text.Replace("\r\n", "\n", StringComparison.Ordinal));
+        File.WriteAllText(guard, GuardCatalog.Holdout.Guard.Text.Replace("\r\n", "\n", StringComparison.Ordinal));
 
         Assert.That(Installation().State().IsUpToDate, Is.True);
     }
@@ -152,21 +153,6 @@ public class HoldoutGuardInstallationTests
         WriteSettings("node \"$HOME/.claude/bin/holdout-guard.js\"");
 
         Assert.That(Installation().HookEntryChange(), Is.Null);
-    }
-
-    [Test]
-    public void TheOutOfDateNotice_IsGivenOncePerNewGuard_AndNotWhenNoneIsInstalled()
-    {
-        var guard = Path.Combine(_config, "bin", "holdout-guard.js");
-
-        Assert.That(Installation().State().OutOfDateNotice(null), Is.Null, "nothing installed, nothing out of date");
-
-        Directory.CreateDirectory(Path.GetDirectoryName(guard)!);
-        File.WriteAllText(guard, "// the 18 November guard");
-        var state = Installation().State();
-
-        Assert.That(state.OutOfDateNotice(null), Is.EqualTo("The holdout guard is out of date: install it in Tools > Options, Holdouts."));
-        Assert.That(state.OutOfDateNotice(HoldoutGuardBundle.Version), Is.Null, "already said for this guard");
     }
 
     [Test]
@@ -290,7 +276,7 @@ public class HoldoutGuardInstallationTests
     [Test]
     public void ARelativeConfigFolder_DoesNotStopTheseus()
     {
-        Assert.That(() => new HoldoutGuardInstallation(".claude-relative", _home).State(), Throws.Nothing,
+        Assert.That(() => new GuardInstallation(GuardCatalog.Holdout, ".claude-relative", _home).State(), Throws.Nothing,
             "review of the install, consider: .First() threw");
     }
 
@@ -303,7 +289,7 @@ public class HoldoutGuardInstallationTests
         }
     }
 
-    private HoldoutGuardInstallation Installation() => new(_config, _home);
+    private GuardInstallation Installation() => new(GuardCatalog.Holdout, _config, _home);
 
     private void WriteSettings(string command) =>
         File.WriteAllText(Path.Combine(_config, "settings.json"), new JsonObject

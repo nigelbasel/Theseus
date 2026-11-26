@@ -259,10 +259,18 @@ public class StageCalculatorTests
     }
 
     [Test]
-    public void FreeformWork_AndWorkWithNoPipelineChosen_HaveNoStages()
+    public void FreeformWork_AndWorkWithNoPipelineChosen_HaveNoStages_UntilAGatesRecordIsWritten()
     {
-        Assert.That(StageCalculator.Calculate([PipelineKind.Freeform], Artefacts("spec.md"), null).Position, Is.Null);
-        Assert.That(StageCalculator.Calculate([], Artefacts("spec.md"), null).Position, Is.Null);
+        Assert.That(StageCalculator.Calculate([PipelineKind.Freeform], Artefacts("notes.md"), null).Position, Is.Null);
+        Assert.That(StageCalculator.Calculate([], Artefacts("research.md"), null).Position, Is.Null);
+    }
+
+    [Test]
+    public void ASpecWritten_UnderFreeformOrNoPipelineChosen_WaitsAtTheSpecGate()
+    {
+        // git-22 for Nigel, 2026-11-26: a spec.md written under such an objective must still show its Accept.
+        Assert.That(StageCalculator.Calculate([PipelineKind.Freeform], Artefacts("spec.md"), null).IsWaitingOnOwner, Is.True);
+        Assert.That(StageCalculator.Calculate([], Artefacts("spec.md"), null).IsWaitingOnOwner, Is.True);
     }
 
     [Test]

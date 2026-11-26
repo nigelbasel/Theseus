@@ -184,7 +184,9 @@ public class AutomationTreeTests
         Directory.CreateDirectory(folder);
         SettingsViewModel settings = new(new Theseus.Core.Settings.SettingsStore(Path.Combine(folder, "settings.json")), () => { })
         {
-            Guard = new HoldoutGuardViewModel(new Theseus.Core.Links.HoldoutGuardInstallation(Path.Combine(folder, "claude"), folder)),
+            Guards = [new GuardViewModel(new Theseus.Core.Guards.GuardInstallation(Theseus.Core.Guards.GuardCatalog.Holdout, Path.Combine(folder, "claude"), folder))],
+            AutoMode = new AutoModeViewModel(new Theseus.Core.Settings.SettingsStore(Path.Combine(folder, "settings.json")),
+                new Theseus.Core.Guards.AutoModeEnvironment(Path.Combine(folder, "claude"))),
             FolderTrust = new FolderTrustViewModel(
                 new Theseus.Core.Trust.ClaudeFolderTrust(Path.Combine(folder, ".claude.json"), Path.Combine(folder, "undo.json")), () => []),
             Tags = null,

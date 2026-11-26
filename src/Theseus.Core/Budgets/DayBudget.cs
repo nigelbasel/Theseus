@@ -47,18 +47,18 @@ public static class DayBudget
 
         var (cost, kind, full) = (settings.RunCostLimitUsd, BudgetLimit.RunCost, settings.RunCostLimitUsd);
 
-        if (settings.CardDayCostLimitUsd is { } cardDay && cardDay - cardSpent < cost)
+        if (settings.CardDayCostLimitUsd is { } cardDay && (cost is null || cardDay - cardSpent < cost))
         {
             (cost, kind, full) = (cardDay - cardSpent, BudgetLimit.CardDay, cardDay);
         }
 
-        if (project is not null && settings.ProjectDayCostLimitUsd is { } projectDay && projectDay - projectSpent < cost)
+        if (project is not null && settings.ProjectDayCostLimitUsd is { } projectDay && (cost is null || projectDay - projectSpent < cost))
         {
             (cost, kind, full) = (projectDay - projectSpent, BudgetLimit.ProjectDay, projectDay);
         }
 
         return new BudgetVerdict(
-            new RunLimits(cost, settings.RunTokenLimit, TimeSpan.FromMinutes(settings.RunTimeLimitMinutes), kind, full,
+            new RunLimits(cost, settings.RunTokenLimit, settings.RunTimeLimitMinutes is { } minutes ? TimeSpan.FromMinutes(minutes) : null, kind, full,
                 settings.StopAtPercent),
             null,
             null);

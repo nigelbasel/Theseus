@@ -152,11 +152,12 @@ public sealed class BoardViewModel : ObservableObject
 
     /// <summary>
     /// The cards a project holds for the search: those its pieces name, and any card the project claims, such as a verifier
-    /// of one of them, which leaves the grid with them (project-view-usability item 4: "Verify: Theseus" found 0 of 69).
+    /// of one of them, which leaves the grid with them (project-view-usability item 4: "Verify: Theseus" found 0 of 69), or
+    /// its scenario writer (Nigel, 2026-11-26: "nothing shows when I search for write holdout").
     /// </summary>
     private IEnumerable<string> KeysIn(ProjectCardViewModel project) =>
         project.MemberKeys.Concat(_all
-                .Where(card => string.Equals(card.Workstream.Project, project.Name, StringComparison.OrdinalIgnoreCase))
+                .Where(card => string.Equals(card.Workstream.Project ?? card.ProjectOfRole, project.Name, StringComparison.OrdinalIgnoreCase))
                 .Select(card => card.Key))
             .Distinct(StringComparer.OrdinalIgnoreCase);
 

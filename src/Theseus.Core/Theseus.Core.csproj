@@ -18,10 +18,14 @@
     <EmbeddedResource Include="..\..\method\project.md" LogicalName="Theseus.Core.Method.project.md" />
     <!-- The holdout guard Options installs, so the installed guard is the one this build's board agrees with. -->
     <EmbeddedResource Include="..\..\tools\holdout\holdout-guard.js" LogicalName="Theseus.Core.Holdout.holdout-guard.js" />
-    <!-- The lock client, its guard and the command classes they share, installed from Options like the holdout guard. -->
-    <EmbeddedResource Include="..\..\tools\locks\command-classes.json" LogicalName="Theseus.Core.Locks.command-classes.json" />
-    <EmbeddedResource Include="..\..\tools\locks\ndc-test-lock.sh" LogicalName="Theseus.Core.Locks.ndc-test-lock.sh" />
+    <!-- The trunk and tests-lock guards and the lock script, installed from Options the same way, so a new machine gets every guard. -->
+    <EmbeddedResource Include="..\..\tools\guards\trunk-guard.js" LogicalName="Theseus.Core.Guards.trunk-guard.js" />
     <EmbeddedResource Include="..\..\tools\locks\ndc-test-lock-guard.js" LogicalName="Theseus.Core.Locks.ndc-test-lock-guard.js" />
+    <EmbeddedResource Include="..\..\tools\locks\ndc-test-lock.sh" LogicalName="Theseus.Core.Locks.ndc-test-lock.sh" />
+    <!-- The command classes the tests-lock guard and Theseus both read, installed beside the guard. -->
+    <EmbeddedResource Include="..\..\tools\locks\command-classes.json" LogicalName="Theseus.Core.Locks.command-classes.json" />
+    <!-- Auto mode's environment template; the owner's own hosts and domains are entered in Options, never kept here. -->
+    <EmbeddedResource Include="..\..\tools\automode\environment.template.txt" LogicalName="Theseus.Core.AutoMode.environment.template.txt" />
   </ItemGroup>
 
 </Project>

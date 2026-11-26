@@ -47,6 +47,10 @@ public class SettingsStoreTests
             ProjectsFolder = @"C:\projects",
             WorktreesFolder = @"C:\work",
             ClonesFolder = @"C:\src",
+            GuardNoticeFor = "trunk guard:NotInstalled:ABC",
+            AutoModeSourceControlHosts = ["git.example.com"],
+            AutoModeInternalDomains = ["example.com"],
+            AutoModeProductionPatterns = ["prod"],
             ProjectCardPlaces = new Dictionary<string, ProjectCardPlace> { ["a-project"] = new("In progress", "Dev") },
             PaneSizes = new Dictionary<string, double> { ["ProjectView:Pane"] = 420 },
             ProjectColours = new Dictionary<string, string> { ["a-project"] = "#208DD7" },
@@ -57,8 +61,10 @@ public class SettingsStoreTests
             ProjectBranchRules = new Dictionary<string, ProjectBranchGrant>
             {
                 ["a-project"] = new(new DateTimeOffset(2026, 11, 21, 20, 0, 0, TimeSpan.Zero), "nigel/a-project"),
+                ["bug-fixing"] = new(new DateTimeOffset(2026, 11, 26, 9, 0, 0, TimeSpan.Zero), "nigel/bug-fixing") { Kind = BranchGrantKind.ItemBranches },
             },
             CardsToldBranchRules = ["git-25"],
+            UnattendedProjects = ["bug-fixing"],
             HiddenProjectFolders = ["notes"],
             ProjectHoldoutFolders = new Dictionary<string, string> { ["bym"] = @"C:\mine" },
             ProjectUpdaterRuns = new Dictionary<string, string> { ["bym"] = "Does not read: line 3" },
@@ -98,7 +104,9 @@ public class SettingsStoreTests
         Assert.That(read.CardsStoppedByOwner, Is.EqualTo(new[] { "git-24" }));
         Assert.That(read.ProjectBranchRules["a-project"],
             Is.EqualTo(new ProjectBranchGrant(new DateTimeOffset(2026, 11, 21, 20, 0, 0, TimeSpan.Zero), "nigel/a-project")));
+        Assert.That(read.ProjectBranchRules["bug-fixing"].Kind, Is.EqualTo(BranchGrantKind.ItemBranches));
         Assert.That(read.CardsToldBranchRules, Is.EqualTo(new[] { "git-25" }));
+        Assert.That(read.UnattendedProjects, Is.EqualTo(new[] { "bug-fixing" }));
         Assert.That(read.HiddenProjectFolders, Is.EqualTo(new[] { "notes" }));
         Assert.That(read.ProjectHoldoutFolders, Is.EqualTo(new Dictionary<string, string> { ["bym"] = @"C:\mine" }));
         Assert.That(read.ProjectUpdaterRuns, Is.EqualTo(new Dictionary<string, string> { ["bym"] = "Does not read: line 3" }));
@@ -108,6 +116,8 @@ public class SettingsStoreTests
         Assert.That(read.Duties.QueueProjects, Is.EqualTo(new[] { "bym" }));
         Assert.That(read.ChainsFilters, Is.EqualTo(settings.ChainsFilters));
         Assert.That(read.ChainsFolds, Is.EqualTo(settings.ChainsFolds));
+        Assert.That((read.AutoModeSourceControlHosts, read.AutoModeInternalDomains, read.AutoModeProductionPatterns),
+            Is.EqualTo((settings.AutoModeSourceControlHosts, settings.AutoModeInternalDomains, settings.AutoModeProductionPatterns)));
         Assert.That(read with
             {
                 Lanes = settings.Lanes, Areas = settings.Areas, CollapsedAreas = settings.CollapsedAreas,
@@ -117,12 +127,15 @@ public class SettingsStoreTests
                 ProjectGrouping = settings.ProjectGrouping, ProjectRunStates = settings.ProjectRunStates, ProjectLeads = settings.ProjectLeads,
                 CardsStoppedByOwner = settings.CardsStoppedByOwner, ProjectBranchRules = settings.ProjectBranchRules,
                 CardsToldBranchRules = settings.CardsToldBranchRules, HiddenProjectFolders = settings.HiddenProjectFolders,
+                UnattendedProjects = settings.UnattendedProjects,
                 ProjectHoldoutFolders = settings.ProjectHoldoutFolders,
                 ProjectUpdaterRuns = settings.ProjectUpdaterRuns,
                 ProjectTags = settings.ProjectTags, TagColours = settings.TagColours,
                 ProjectBudgets = settings.ProjectBudgets, ProjectRunModes = settings.ProjectRunModes,
                 Duties = read.Duties with { QueueProjects = settings.Duties.QueueProjects },
                 ChainsFolds = settings.ChainsFolds,
+                AutoModeSourceControlHosts = settings.AutoModeSourceControlHosts, AutoModeInternalDomains = settings.AutoModeInternalDomains,
+                AutoModeProductionPatterns = settings.AutoModeProductionPatterns,
             }, Is.EqualTo(settings),
             "a record holding a list compares it by reference, so the lists are checked separately");
     }

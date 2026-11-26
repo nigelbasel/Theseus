@@ -95,7 +95,7 @@ Hover over a toolbar button to see its name and shortcut.
 | View | The three panels, the archive, folding, the toolbar and status bar, Refresh |
 | Workstream | Start, Stop and Archive the selected cards, and mark them paused or blocked |
 | Window | Arrange the terminal windows |
-| Tools | Options, and the logs and data folders |
+| Tools | Options, Set up Theseus, Duties, Tripped breakers, and the logs and data folders |
 | Help | These pages, Check for updates, What's new, About |
 
 The toolbar's three panel buttons (live sessions, locks, chains) stay pressed while their panel is

@@ -52,13 +52,30 @@ public static class StageCalculator
 
     /// <summary>
     /// The pipeline a slug runs: its objective's, or, where the objective names several, bug when the slug has a
-    /// reproduction.md or fix.md and the other one named otherwise. Null when none is chosen yet.
+    /// reproduction.md or fix.md and the other one named otherwise. Null when none is chosen yet. Where that is none or
+    /// freeform, a spec.md or fix.md written gives it the pipeline whose gate that record is: a spec written waits for the
+    /// owner whatever the objective says, and the board, gates() and now_at all read it so (Nigel, 2026-11-26: "I dont see
+    /// any acccept spec notifications in the ui").
     /// </summary>
     public static PipelineKind? PipelineFor(IReadOnlyList<PipelineKind> pipelines, IReadOnlySet<string> files)
     {
         ArgumentNullException.ThrowIfNull(pipelines);
         ArgumentNullException.ThrowIfNull(files);
 
+        var named = Named(pipelines, files);
+
+        if (named is not (null or PipelineKind.Freeform))
+        {
+            return named;
+        }
+
+        return files.Contains("fix.md") ? PipelineKind.Bug
+            : files.Contains("spec.md") ? PipelineKind.Feature
+            : named;
+    }
+
+    private static PipelineKind? Named(IReadOnlyList<PipelineKind> pipelines, IReadOnlySet<string> files)
+    {
         if (pipelines.Count <= 1)
         {
             return pipelines.Count == 1 ? pipelines[0] : null;
