@@ -11,6 +11,8 @@
                 <ResourceDictionary Source="Themes/Interactive.xaml" />
                 <!-- The project view's state colours; ThemeApplier swaps in the dark or high-contrast twin (1.1d, W47). -->
                 <ResourceDictionary Source="Themes/StateColours.Light.xaml" />
+                <!-- The All projects tab draws the kanban by its view model's type (projects-kanban, 2026-11-26). -->
+                <ResourceDictionary Source="Themes/KanbanTemplates.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
             <converters:HexToBrushConverter x:Key="HexToBrush" />

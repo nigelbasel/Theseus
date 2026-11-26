@@ -120,6 +120,28 @@ public partial class KanbanView : UserControl
         }
     }
 
+    // The menu is made when it is asked for, by right-click, Shift+F10 or the menu key, not once per card drawn: a
+    // hundred cards each carrying a built menu was most of the kanban's layout time.
+    private void OnCardMenuOpening(object sender, ContextMenuEventArgs e)
+    {
+        if (sender is not Border { DataContext: KanbanCardViewModel card } frame)
+        {
+            return;
+        }
+
+        e.Handled = true;
+
+        var menu = new ContextMenu
+        {
+            ItemsSource = card.MenuEntries,
+            ItemContainerStyle = (Style)FindResource("KanbanMenuItem"),
+            PlacementTarget = frame,
+            Placement = e.CursorLeft < 0 ? PlacementMode.Bottom : PlacementMode.MousePoint,
+        };
+
+        menu.IsOpen = true;
+    }
+
     // Left and Right go to the neighbouring cell's first card in the row, Up and Down within the cell (AC 23).
     private void OnCardKeyDown(object sender, KeyEventArgs e)
     {

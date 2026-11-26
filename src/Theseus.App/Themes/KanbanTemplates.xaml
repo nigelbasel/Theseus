@@ -1,0 +1,9 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:vm="clr-namespace:Theseus.App.ViewModels"
+                    xmlns:views="clr-namespace:Theseus.App.Views">
+    <!-- The shell's AllProjectsView holds a KanbanViewModel; this draws it (projects-kanban spec AC 1). -->
+    <DataTemplate DataType="{x:Type vm:KanbanViewModel}">
+        <views:KanbanView />
+    </DataTemplate>
+</ResourceDictionary>
