@@ -1483,7 +1483,7 @@ For Theseus you need Windows 10 1809 or later, the .NET 11 Desktop Runtime, Wind
 flowchart TB
   A["Install Theseus<br/>from the latest release"] --> B["Run install.ps1 once<br/>for the stop hook entry,<br/>or add it as printed"]
   B --> C["Tools, Options:<br/>projects, worktrees<br/>and clones folders"]
-  C --> D["Options, Holdouts:<br/>install the holdout guard"]
+  C --> D["Options, Guards:<br/>install the three guards,<br/>write auto mode's environment"]
   D --> E["Options, Folder trust:<br/>trust the folders cards use"]
   E --> F["File, New project:<br/>title, objective,<br/>primary branch"]
   F --> G["Start the project:<br/>its lead card starts first"]
@@ -1501,8 +1501,10 @@ Figure 41. First steps on a new machine.
 3. **Choose your folders** in **Tools > Options**: a projects folder (for example `D:\projects`), a worktrees folder (for
    example `D:\work`) and a clones folder (for example `D:\src`). Theseus suggests folders under Documents but sets none.
    Keep the projects folder in a local git repository with no remote, so you keep every version of every spec.
-4. **Install the holdout guard** from **Options > Holdouts**, and keep each project's scenarios in a private repository
-   of your own, cloned beside the project's home repository as `<repo>-holdout`.
+4. **Install the guards** from **Options > Guards**: the holdout, trunk and tests-lock guards, each with its hook entry,
+   and auto mode's environment from your source-control hosts, internal domains and production words. Keep each
+   project's scenarios in a private repository of your own, cloned beside the project's home repository as
+   `<repo>-holdout`.
 5. **Trust your folders** once in **Options > Folder trust**, so sessions do not stop on Claude Code's trust question.
 6. **Make a project** with **File > New project…**, or convert an existing card with **Convert to project…**. Start it:
    the lead card starts first.

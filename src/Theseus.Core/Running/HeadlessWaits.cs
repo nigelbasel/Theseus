@@ -9,6 +9,19 @@ namespace Theseus.Core.Running;
 /// </summary>
 public static class HeadlessWaits
 {
+    /// <summary>A project's waits: those of the cards that answer to it, its scenario writers among them.</summary>
+    /// <param name="project">The project's name.</param>
+    /// <param name="cards">Every card on the board.</param>
+    /// <param name="readings">The projects as last read, which place a writer.</param>
+    /// <param name="stateOf">A card's headless state, by key, or null.</param>
+    public static IReadOnlyList<WaitItem> ForProject(string project, IEnumerable<Workstream> cards, IReadOnlyList<ProjectFileReading> readings,
+        Func<string, HeadlessCardState?> stateOf)
+    {
+        ArgumentNullException.ThrowIfNull(cards);
+
+        return For(cards.Where(card => string.Equals(RoleProject.Of(card, readings), project, StringComparison.OrdinalIgnoreCase)), stateOf);
+    }
+
     /// <summary>The waits, one per card at most.</summary>
     /// <param name="cards">The project's cards.</param>
     /// <param name="stateOf">A card's headless state, by key, or null.</param>
@@ -26,6 +39,7 @@ public static class HeadlessWaits
                 waits.Add(new WaitItem(WaitKind.ResetBreaker, $"{card.Title}: {trip.Detail} Reset it from the card when fixed.", [])
                 {
                     CardKey = card.Key,
+                    AndStart = card.Role != WorkstreamRole.None,
                 });
 
                 continue;

@@ -248,28 +248,63 @@
                 </ScrollViewer>
             </TabItem>
 
-            <TabItem x:Name="HoldoutsTab" Header="Holdouts">
+            <TabItem x:Name="GuardsTab" Header="Guards">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Style="{StaticResource Page}">
-                        <!-- The installed holdout guard, installed from here and never by a session (verifier-runs brief step 3). -->
-                        <StackPanel DataContext="{Binding Guard}">
-                            <controls:SettingRow x:Name="HoldoutGuardRow" Label="Holdout guard" Value="{Binding Line}"
-                                                 Explanation="Keeps implementing sessions out of every project's holdout folder. It runs from Claude Code's settings, so it covers every session on this machine.">
-                                <Button Content="_Undo" Style="{StaticResource Action}" Command="{Binding UndoCommand}"
-                                        AutomationProperties.Name="Undo the holdout guard install" ToolTipService.ShowOnDisabled="True"
-                                        ToolTip="Put back the holdout guard the last install replaced. Offered only when an earlier copy is kept." />
-                                <Button Content="I_nstall" Style="{StaticResource Action}" Command="{Binding InstallCommand}"
-                                        AutomationProperties.Name="Install the holdout guard"
-                                        ToolTip="Copy this Theseus's holdout guard to where the Claude Code hook runs it, keeping the old copy, and check it on a fixture folder." />
+                        <!-- Every guard Theseus ships, installed from here and never by a session, so a new machine gets them all (guards-ship-with-theseus, 2026-11-26). -->
+                        <ItemsControl ItemContainerStyle="{DynamicResource ItemNamedByTitle}" AutomationProperties.Name="Guards" x:Name="GuardRows" ItemsSource="{Binding Guards}" Focusable="False">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel>
+                                        <controls:SettingRow Label="{Binding Title}" Value="{Binding Line}" Explanation="{Binding Explanation}">
+                                            <Button Content="Undo" Style="{StaticResource Action}" Command="{Binding UndoCommand}"
+                                                    AutomationProperties.Name="{Binding Name, StringFormat=Undo the {0} install}" ToolTipService.ShowOnDisabled="True"
+                                                    ToolTip="Put back the copy the last install replaced. Offered only when an earlier copy is kept." />
+                                            <Button Content="Install" Style="{StaticResource Action}" Command="{Binding InstallCommand}"
+                                                    AutomationProperties.Name="{Binding Name, StringFormat=Install the {0}}"
+                                                    ToolTip="Copy this Theseus's guard to where the Claude Code hook runs it, keeping the old copy, and check it on a fixture folder." />
+                                        </controls:SettingRow>
+                                        <TextBlock Text="{Binding GuardPath}" Style="{StaticResource PageNote}" Margin="0,-12,0,8" />
+                                        <DockPanel Margin="0,0,0,12" Visibility="{Binding HookIsMissing, Converter={StaticResource BoolToVisibility}}">
+                                            <Button DockPanel.Dock="Right" Content="Add the hook entry…" Style="{StaticResource Action}" Margin="8,0,0,0"
+                                                    Command="{Binding AddHookCommand}"
+                                                    AutomationProperties.Name="{Binding Name, StringFormat=Add a hook entry for the {0}}"
+                                                    ToolTip="Shows the exact change to Claude Code's settings first, and makes it only if you agree." />
+                                            <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding HookMissingLine}" />
+                                        </DockPanel>
+                                        <TextBlock Text="{Binding Result}" Style="{StaticResource PageNote}" Margin="0,0,0,8" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- Auto mode's environment, built from what you enter once and written at your click (guards-ship-with-theseus step 3). -->
+                        <StackPanel x:Name="AutoModeSection" DataContext="{Binding AutoMode}" Margin="0,8,0,0">
+                            <TextBlock Text="Auto mode's environment" Style="{DynamicResource BodyStrongText}" Margin="0,0,0,4" />
+                            <TextBlock Style="{StaticResource PageNote}" Margin="0,0,0,16"
+                                       Text="What Claude Code's auto mode reads to tell routine work, such as pushing your own branch, from leaving the trust boundary. Built from the entries below; kept in your Theseus settings, never in a repository." />
+                            <controls:SettingRow Label="Source-control hosts" Value="{Binding SourceControlHostsValue}"
+                                                 Explanation="The hosts you push to, such as git.example.com or github.com/you. Pushing a workstream's branch to them is routine; completing a pull request is not.">
+                                <Button Content="Change…" Style="{StaticResource Action}" Click="OnChangeSourceControlHosts"
+                                        AutomationProperties.Name="Change the source-control hosts" />
                             </controls:SettingRow>
-                            <TextBlock Text="{Binding GuardPath}" Style="{StaticResource PageNote}" Margin="0,-12,0,8" />
-                            <DockPanel Margin="0,0,0,12" Visibility="{Binding HookIsMissing, Converter={StaticResource BoolToVisibility}}">
-                                <Button DockPanel.Dock="Right" Content="_Add the hook entry…" Style="{StaticResource Action}" Margin="8,0,0,0"
-                                        Command="{Binding AddHookCommand}"
+                            <controls:SettingRow Label="Internal domains" Value="{Binding InternalDomainsValue}"
+                                                 Explanation="The domains trusted by name. Leave out any that also serve live systems.">
+                                <Button Content="Change…" Style="{StaticResource Action}" Click="OnChangeInternalDomains"
+                                        AutomationProperties.Name="Change the internal domains" />
+                            </controls:SettingRow>
+                            <controls:SettingRow Label="Production words" Value="{Binding ProductionPatternsValue}"
+                                                 Explanation="Words that mark a host, namespace or resource as production, such as prod or live. Anything so named is sensitive.">
+                                <Button Content="Change…" Style="{StaticResource Action}" Click="OnChangeProductionPatterns"
+                                        AutomationProperties.Name="Change the production words" />
+                            </controls:SettingRow>
+                            <controls:SettingRow x:Name="AutoModeRow" Label="Environment" Value="{Binding Line}"
+                                                 Explanation="Written to Claude Code's settings only when you choose Write, after the exact change is shown. Sessions started afterwards read it.">
+                                <Button Content="_Write…" Style="{StaticResource Action}" Command="{Binding WriteCommand}"
+                                        AutomationProperties.Name="Write auto mode's environment"
                                         ToolTip="Shows the exact change to Claude Code's settings first, and makes it only if you agree." />
-                                <TextBlock VerticalAlignment="Center" TextWrapping="Wrap"
-                                           Text="Claude Code's settings do not run the holdout guard, so no session is guarded." />
-                            </DockPanel>
+                            </controls:SettingRow>
+                            <TextBlock Text="{Binding SettingsPath}" Style="{StaticResource PageNote}" Margin="0,-12,0,8" />
                             <TextBlock Text="{Binding Result}" Style="{StaticResource PageNote}" />
                         </StackPanel>
 

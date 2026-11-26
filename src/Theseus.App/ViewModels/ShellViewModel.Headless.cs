@@ -168,6 +168,20 @@ public sealed partial class ShellViewModel : IRunRequests
         }
     }
 
+    /// <summary>
+    /// Resets a card's breaker and starts it, as the refused start's Reset the breaker and start does: Waits for you's
+    /// button for a writer or verifier, which nothing else would start (Nigel, 2026-11-26).
+    /// </summary>
+    private void ResetBreakerAndStart(string key)
+    {
+        ResetBreakers([key]);
+
+        if (Board.Card(key) is { IsLive: false, Workstream.Breaker: null } card)
+        {
+            StartMany([card.Workstream], trigger: "ResetBreakerAndStart");
+        }
+    }
+
     private void TrippedBreakers()
     {
         var tripped = Board.Cards.Where(card => card.Workstream.Breaker is not null).ToList();

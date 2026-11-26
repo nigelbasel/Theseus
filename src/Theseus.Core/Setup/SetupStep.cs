@@ -9,8 +9,8 @@ public enum SetupStep
     /// <summary>The stop hook in Claude Code's settings.</summary>
     Hook,
 
-    /// <summary>The holdout guard, installed, current and run by Claude Code.</summary>
-    HoldoutGuard,
+    /// <summary>The guards Theseus ships (holdout, trunk, tests-lock), each installed, current and run by Claude Code.</summary>
+    Guards,
 
     /// <summary>Claude Code, Node, git and the agentic-factory plugin: reported, never installed.</summary>
     Tools,

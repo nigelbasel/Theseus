@@ -57,7 +57,7 @@ public static class SecondaryWindows
         Directory.CreateDirectory(folder);
         FirstRunViewModel setup = new(new Theseus.Tests.ViewModels.MemorySettingsStore(),
             new Theseus.Core.Setup.StopHookRegistration(folder, @"C:\Program Files\Theseus\Theseus.Hook.exe"),
-            new HoldoutGuardViewModel(new Theseus.Core.Links.HoldoutGuardInstallation(folder, folder)),
+            [new GuardViewModel(new Theseus.Core.Guards.GuardInstallation(Theseus.Core.Guards.GuardCatalog.Holdout, folder, folder))],
             () => [new("Claude Code", true, "Claude Code 2.1.300"), new("Node", false, "Node was not found on the PATH")], () => { });
         setup.Open();
 

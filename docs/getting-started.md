@@ -94,7 +94,8 @@ project's file as well: `/agentic-factory:check <home folder>`.
    - **The stop hook**, which lets Stop ask a session for its handover. The step shows the exact entry; **Add the hook
      entry…** shows the change to `%USERPROFILE%\.claude\settings.json` again and makes it only if you agree, keeping the
      old file beside it as `settings.json.previous`.
-   - **The holdout guard**, with the same **Install** and hook entry as **Tools > Options > Holdouts**.
+   - **The guards**: the holdout, trunk and tests-lock guards, each with the same **Install** and hook entry as
+     **Tools > Options > Guards**. Until every guard is set up, the board names the ones missing or out of date.
    - **The tools**: Claude Code 2.1.295 or later, Node, git and the `agentic-factory` plugin. It reports what it finds
      and installs nothing.
 
@@ -118,6 +119,10 @@ project's file as well: `/agentic-factory:check <home folder>`.
    ```
 
    **Help > About** says whether the hook is registered ([Starting and stopping](starting-and-stopping.md)).
+
+   **Auto mode.** In **Tools > Options > Guards**, enter your source-control hosts, internal domains and production
+   words once, then **Write…** auto mode's environment, so auto mode treats pushing your own branches as routine. The
+   change to Claude Code's settings is shown first and made only if you agree.
 3. Install the plugin as in section 2. Sessions Theseus starts read the same Claude Code configuration, so they get
    the same plugin: the same rules, skills and guards, from the same files.
 4. Make projects with **File > New project…**. The board then does what the commands above do by hand: cards for

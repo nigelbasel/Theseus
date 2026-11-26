@@ -32,6 +32,30 @@ public static class PiecesOfWork
     }
 
     /// <summary>
+    /// The pieces with what their sessions reported the owner accepted in their tabs: a report counts only for the version
+    /// on disk, so one of text since changed leaves the spec waiting for his Accept again (git-22, 2026-11-26).
+    /// </summary>
+    /// <param name="pieces">The pieces.</param>
+    /// <param name="reading">The project as read, whose records hold each spec's version.</param>
+    /// <param name="reported">Every reported acceptance, any project.</param>
+    public static IReadOnlyList<PieceOfWork> WithReports(IReadOnlyList<PieceOfWork> pieces, ProjectFileReading reading,
+        IEnumerable<ReportedAcceptance> reported)
+    {
+        ArgumentNullException.ThrowIfNull(pieces);
+        ArgumentNullException.ThrowIfNull(reading);
+        ArgumentNullException.ThrowIfNull(reported);
+        var reports = reported.ToList();
+
+        return [.. pieces.Select(piece => reports.LastOrDefault(report =>
+                string.Equals(report.Project, reading.Name, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(report.Slug, piece.Name, StringComparison.OrdinalIgnoreCase)) is { } report
+                && SpecGates.SpecOf(reading, piece.Name) is { } spec
+                && string.Equals(report.ContentHash, spec.ContentHash, StringComparison.Ordinal)
+            ? piece with { Reported = report }
+            : piece)];
+    }
+
+    /// <summary>
     /// A piece of work for each workstreams row of a readable project, in file order, then one for each card handed work
     /// by one of them that no project file lists, in link order. None for a project that does not read.
     /// </summary>

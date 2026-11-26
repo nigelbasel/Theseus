@@ -47,6 +47,10 @@ public class SettingsStoreTests
             ProjectsFolder = @"C:\projects",
             WorktreesFolder = @"C:\work",
             ClonesFolder = @"C:\src",
+            GuardNoticeFor = "trunk guard:NotInstalled:ABC",
+            AutoModeSourceControlHosts = ["git.example.com"],
+            AutoModeInternalDomains = ["example.com"],
+            AutoModeProductionPatterns = ["prod"],
             ProjectCardPlaces = new Dictionary<string, ProjectCardPlace> { ["a-project"] = new("In progress", "Dev") },
             PaneSizes = new Dictionary<string, double> { ["ProjectView:Pane"] = 420 },
             ProjectColours = new Dictionary<string, string> { ["a-project"] = "#208DD7" },
@@ -112,6 +116,8 @@ public class SettingsStoreTests
         Assert.That(read.Duties.QueueProjects, Is.EqualTo(new[] { "bym" }));
         Assert.That(read.ChainsFilters, Is.EqualTo(settings.ChainsFilters));
         Assert.That(read.ChainsFolds, Is.EqualTo(settings.ChainsFolds));
+        Assert.That((read.AutoModeSourceControlHosts, read.AutoModeInternalDomains, read.AutoModeProductionPatterns),
+            Is.EqualTo((settings.AutoModeSourceControlHosts, settings.AutoModeInternalDomains, settings.AutoModeProductionPatterns)));
         Assert.That(read with
             {
                 Lanes = settings.Lanes, Areas = settings.Areas, CollapsedAreas = settings.CollapsedAreas,
@@ -128,6 +134,8 @@ public class SettingsStoreTests
                 ProjectBudgets = settings.ProjectBudgets, ProjectRunModes = settings.ProjectRunModes,
                 Duties = read.Duties with { QueueProjects = settings.Duties.QueueProjects },
                 ChainsFolds = settings.ChainsFolds,
+                AutoModeSourceControlHosts = settings.AutoModeSourceControlHosts, AutoModeInternalDomains = settings.AutoModeInternalDomains,
+                AutoModeProductionPatterns = settings.AutoModeProductionPatterns,
             }, Is.EqualTo(settings),
             "a record holding a list compares it by reference, so the lists are checked separately");
     }

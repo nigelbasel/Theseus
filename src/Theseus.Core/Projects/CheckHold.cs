@@ -52,6 +52,7 @@ public static class CheckHold
                 $"{because} is stopped by its breaker ({Reason(trip.Detail)}). Reset its breaker and Theseus starts it again.", pieces)
             {
                 CardKey = writer.Key,
+                AndStart = true,
             }
             : new WaitItem(WaitKind.CheckCannotRun, $"{because} is paused. Start it from its card.", pieces);
     }

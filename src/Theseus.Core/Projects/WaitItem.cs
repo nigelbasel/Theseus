@@ -36,6 +36,12 @@ public sealed record WaitItem(WaitKind Kind, string Text, IReadOnlyList<string> 
     /// <summary>The start request it concerns, for a start request; null otherwise.</summary>
     public string? StartRequestId { get; init; }
 
+    /// <summary>
+    /// For a tripped breaker, whether its button starts the card again once reset: so for a card Theseus made, a scenario
+    /// writer or a verifier, which nothing else would start (Nigel, 2026-11-26). The owner starts his own cards himself.
+    /// </summary>
+    public bool AndStart { get; init; }
+
     /// <summary>The button's label, or null for something outside Theseus.</summary>
     public string? Button => Kind switch
     {
@@ -51,7 +57,7 @@ public sealed record WaitItem(WaitKind Kind, string Text, IReadOnlyList<string> 
         WaitKind.ClearVerifiers => "Clear up verifiers…",
         WaitKind.CheckCannotRun => "Independent check…",
         WaitKind.Decide or WaitKind.Outside => "Respond…",
-        WaitKind.ResetBreaker => "Reset breaker",
+        WaitKind.ResetBreaker => AndStart ? "Reset breaker and start" : "Reset breaker",
         WaitKind.RaiseBudget => "Options…",
         _ => null,
     };

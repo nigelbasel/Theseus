@@ -26,18 +26,18 @@ public sealed class FirstRunViewModel : ObservableObject
     /// <summary>Creates the setup.</summary>
     /// <param name="settings">Where the folders and the done flag are kept.</param>
     /// <param name="hook">The stop hook's registration in Claude Code's settings.</param>
-    /// <param name="guard">Options › Holdouts' guard section, whose Install and Add the hook entry… the guard step offers.</param>
+    /// <param name="guards">Options › Guards' rows, whose Install and Add the hook entry… the guards step offers.</param>
     /// <param name="checkTools">Reads the tools the method needs; run each time the setup opens.</param>
     /// <param name="changed">Tells the board a folder changed, so New project and the project cards follow at once.</param>
-    public FirstRunViewModel(ISettingsStore settings, StopHookRegistration hook, HoldoutGuardViewModel guard,
+    public FirstRunViewModel(ISettingsStore settings, StopHookRegistration hook, IReadOnlyList<GuardViewModel> guards,
         Func<IReadOnlyList<ToolFinding>> checkTools, Action changed)
     {
         _settings = settings;
         _hook = hook;
-        Guard = guard;
+        Guards = guards;
         _checkTools = checkTools;
         _changed = changed;
-        IsGuardReady = () => Guard.IsReady;
+        IsGuardReady = () => Guards.All(guard => guard.IsReady);
 
         OpenCommand = new RelayCommand(_ => Open());
         BackCommand = new RelayCommand(_ => Move(-1), _ => _isOpen && _index > 0);
@@ -64,11 +64,11 @@ public sealed class FirstRunViewModel : ObservableObject
     /// <summary>Asks the owner to agree to a change, shown in full; true to make it. Set by the app.</summary>
     public Func<string, bool>? ConfirmChange { get; set; }
 
-    /// <summary>Whether the holdout guard step is done; the guard section's own reading unless a test says otherwise.</summary>
+    /// <summary>Whether the guards step is done: every guard row's own reading unless a test says otherwise.</summary>
     public Func<bool> IsGuardReady { get; set; }
 
-    /// <summary>The guard step's actions, shared with Options › Holdouts.</summary>
-    public HoldoutGuardViewModel Guard { get; }
+    /// <summary>The guards step's rows, shared with Options › Guards.</summary>
+    public IReadOnlyList<GuardViewModel> Guards { get; }
 
     /// <summary>Tools › Set up Theseus…: opens on the steps still missing.</summary>
     public RelayCommand OpenCommand { get; }
@@ -120,7 +120,7 @@ public sealed class FirstRunViewModel : ObservableObject
     public bool IsHookStep => Current == SetupStep.Hook;
 
     /// <summary>Whether the holdout guard step is showing.</summary>
-    public bool IsGuardStep => Current == SetupStep.HoldoutGuard;
+    public bool IsGuardStep => Current == SetupStep.Guards;
 
     /// <summary>Whether the tools step is showing.</summary>
     public bool IsToolsStep => Current == SetupStep.Tools;
@@ -221,7 +221,12 @@ public sealed class FirstRunViewModel : ObservableObject
     private void Open(SetupStep? first)
     {
         _tools = _checkTools();
-        Guard.Load();
+
+        foreach (var guard in Guards)
+        {
+            guard.Load();
+        }
+
         _steps = FirstRunSetup.Steps(new SetupFacts(!string.IsNullOrWhiteSpace(ProjectsFolder), _hook.IsRegistered, IsGuardReady(), _tools),
             first);
         _index = 0;
@@ -322,7 +327,7 @@ public sealed class FirstRunViewModel : ObservableObject
     {
         SetupStep.Folders => "Folders",
         SetupStep.Hook => "The stop hook",
-        SetupStep.HoldoutGuard => "The holdout guard",
+        SetupStep.Guards => "The guards",
         _ => "The tools",
     };
 

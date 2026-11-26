@@ -32,7 +32,7 @@ public class FirstRunSetupTests
     {
         var facts = new SetupFacts(HasProjectsFolder: false, HookIsRegistered: true, GuardIsReady: false, AllTools);
 
-        Assert.That(FirstRunSetup.Steps(facts), Is.EqualTo(new[] { SetupStep.Folders, SetupStep.HoldoutGuard }));
+        Assert.That(FirstRunSetup.Steps(facts), Is.EqualTo(new[] { SetupStep.Folders, SetupStep.Guards }));
     }
 
     [Test]
@@ -41,7 +41,7 @@ public class FirstRunSetupTests
         var facts = new SetupFacts(false, false, false, [new("Node", false, "Node was not found")]);
 
         Assert.That(FirstRunSetup.Steps(facts),
-            Is.EqualTo(new[] { SetupStep.Folders, SetupStep.Hook, SetupStep.HoldoutGuard, SetupStep.Tools }));
+            Is.EqualTo(new[] { SetupStep.Folders, SetupStep.Hook, SetupStep.Guards, SetupStep.Tools }));
     }
 
     [Test]
