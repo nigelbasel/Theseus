@@ -222,6 +222,9 @@ public sealed record TheseusSettings(
     public IReadOnlyDictionary<string, ProjectViewGrouping> ProjectGrouping { get; init; } =
         new Dictionary<string, ProjectViewGrouping>();
 
+    /// <summary>Whether the projects kanban also shows closed and archived projects (projects-kanban spec AC 4).</summary>
+    public bool KanbanShowsClosed { get; init; }
+
     /// <summary>
     /// Each stopped project's run state, by project name (1.1e AC 8; Nigel, 2026-11-21: "when I restart the project, it
     /// would go back to the previous state"): the keys of its cards that had a session when it was stopped. A project not
