@@ -76,7 +76,8 @@ public sealed partial class McpHandler
         + "In a project, call now_at(stage, doing) on entering each stage of your piece of work, with what you are doing in "
         + "under 80 characters; a stage your pipeline lets you skip is reported as now_at(stage, \"skipped: <reason>\"). "
         + "Theseus writes project.md's structured lines: record a round with record_round, tick a criterion with "
-        + "tick_criterion, add an objective with add_objective, record a decision with record_decision and say who a "
+        + "tick_criterion, add an objective with add_objective, write an existing objective's criteria with set_criteria, "
+        + "record a decision with record_decision and say who a "
         + "criterion waits on with set_waiting. Write prose by hand, never those lines. "
         + "When you need the user's answer before you can go on, ask with the question tool and call ask_owner with the "
         + "same question, so it shows in Theseus; never ask only in prose, which leaves your card looking finished. "
@@ -518,6 +519,25 @@ public sealed partial class McpHandler
                     },
                 },
                 "phase", "title", "criteria"),
+            Tool("set_criteria",
+                "Write acceptance criteria into an existing objective of project.md: in place of its [criteria to be written] line, or after the criteria it has. Existing criteria, ticks and Evidence lines are never changed; a criterion it has already is refused.",
+                new JsonObject
+                {
+                    ["objective"] = Property("The objective's number, such as 2.2."),
+                    ["criteria"] = new JsonObject
+                    {
+                        ["type"] = "array",
+                        ["items"] = new JsonObject { ["type"] = "string" },
+                        ["description"] = "The criteria to write, one line each, in order.",
+                    },
+                    ["waiting"] = new JsonObject
+                    {
+                        ["type"] = "array",
+                        ["items"] = new JsonObject { ["type"] = "string" },
+                        ["description"] = "Optional: per criterion, in order, \"owner: <what>\", \"work: <what>\" or empty.",
+                    },
+                },
+                "objective", "criteria"),
             Tool("record_decision",
                 "Append a dated row to project.md's Decisions table.",
                 new JsonObject

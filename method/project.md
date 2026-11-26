@@ -140,6 +140,7 @@ so a session cannot leave the file unreadable:
 |---|---|
 | `record_round(name, why, objectives)` | A row of the Rounds table (making the table, with round 1, when there is none) and a Round line on each objective the round adds or reopens. It asks the owner in the tab first |
 | `add_objective(phase, title, criteria, pipeline, waiting)` | An objective at the end of a phase, with its criteria, its pipeline line and an empty workstreams table. It asks the owner in the tab first |
+| `set_criteria(objective, criteria, waiting)` | Criteria in an existing objective: in place of its `[criteria to be written]` line, or after the criteria it has. No existing line is changed, so ticks and Evidence are kept; a criterion it has already is refused. It asks the owner in the tab first |
 | `tick_criterion(objective, criterion, text, ticked, evidence)` | A tick, with its Evidence line; unticking removes the Evidence line |
 | `set_waiting(objective, criterion, text, who, what)` | A criterion's `Waiting:` line: `who` is `owner`, `work`, a name (written `on <who>:`), or `none` to remove it |
 | `record_decision(decision, by)` | A dated row of the Decisions table |
