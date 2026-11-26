@@ -142,9 +142,45 @@ function viaGitBash(segment) {
   return /Git[\\/](usr[\\/])?bin[\\/]bash(\.exe)?$/i.test(programAndArgument(segment).program);
 }
 
+// The command classes Theseus reads too (command-classes.json beside this file), so the two agree on what needs a
+// lock. Without the file the guard still refuses what it always has.
+const BUILT_IN_CLASSES = {
+  exempt: ['Api\\.Mcp\\.Tests', '\\bTheseus\\.slnx\\b'],
+  classes: [
+    { name: 'container-suite', describe: 'a container-backed test suite (or a whole-solution test run)',
+      pattern: 'dotnet(\\.exe)?\\s+test\\b[^\\n;&|]*(Api\\.Tests|Api\\.[A-Za-z]+\\.Tests|Persistence\\.?Tests|IntegrationTests|Content\\.Service\\.UnitTests|\\.slnf?\\b)' },
+    { name: 'compose-build', describe: 'a docker compose build',
+      pattern: 'docker(-compose|\\s+compose)\\b[^\\n;&|]*(\\sbuild\\b|\\sup\\b[^\\n;&|]*--build)' },
+    { name: 'solution-build', describe: 'a whole-solution build', pattern: 'dotnet(\\.exe)?\\s+build\\b[^\\n;&|]*\\.slnf?\\b' },
+  ],
+};
+
+function commandClasses() {
+  try {
+    const text = require('fs').readFileSync(require('path').join(__dirname, 'command-classes.json'), 'utf8');
+    const parsed = JSON.parse(text);
+    if (Array.isArray(parsed.classes) && parsed.classes.length > 0) {
+      return parsed;
+    }
+  } catch {
+  }
+  return BUILT_IN_CLASSES;
+}
+
+function classify(command) {
+  const file = commandClasses();
+  const text = (file.exempt || []).reduce((current, exempt) => current.replace(new RegExp(exempt, 'gi'), 'exempt'), command);
+  return file.classes.filter(entry => new RegExp(entry.pattern, 'i').test(text));
+}
+
 let raw = '';
 process.stdin.on('data', chunk => { raw += chunk; });
 process.stdin.on('end', () => {
+  if (process.argv.includes('--classify')) {
+    process.stdout.write(JSON.stringify(classify(raw).map(entry => entry.name)));
+    process.exit(0);
+  }
+
   let command = '';
   let toolName = '';
   try {
@@ -188,18 +224,8 @@ process.stdin.on('end', () => {
     ? announceWaitIfHeldByAnother(command, () => process.exit(0))
     : process.exit(0);
 
-  const containerSuite = /dotnet(\.exe)?\s+test\b[^\n;&|]*(Api\.Tests|Api\.[A-Za-z]+\.Tests|Persistence\.?Tests|IntegrationTests|Content\.Service\.UnitTests|\.slnf?\b)/i;
-  const composeBuild = /docker(-compose|\s+compose)\b[^\n;&|]*(\sbuild\b|\sup\b[^\n;&|]*--build)/i;
-  const solutionBuild = /dotnet(\.exe)?\s+build\b[^\n;&|]*\.slnf?\b/i;
-
-  const withoutUnitOnlySuites = rest
-    .replace(/Api\.Mcp\.Tests/gi, 'McpUnitSuite')
-    .replace(/\bTheseus\.slnx\b/gi, 'TheseusSolution');
-
-  let what = null;
-  if (containerSuite.test(withoutUnitOnlySuites)) { what = 'a container-backed test suite (or a whole-solution test run)'; }
-  else if (composeBuild.test(rest)) { what = 'a docker compose build'; }
-  else if (solutionBuild.test(withoutUnitOnlySuites)) { what = 'a whole-solution build'; }
+  const matched = classify(rest);
+  const what = matched.length > 0 ? matched[0].describe : null;
 
   if (!what) {
     lockedOrNothing();

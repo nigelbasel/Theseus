@@ -18,6 +18,10 @@
     <EmbeddedResource Include="..\..\method\project.md" LogicalName="Theseus.Core.Method.project.md" />
     <!-- The holdout guard Options installs, so the installed guard is the one this build's board agrees with. -->
     <EmbeddedResource Include="..\..\tools\holdout\holdout-guard.js" LogicalName="Theseus.Core.Holdout.holdout-guard.js" />
+    <!-- The lock client, its guard and the command classes they share, installed from Options like the holdout guard. -->
+    <EmbeddedResource Include="..\..\tools\locks\command-classes.json" LogicalName="Theseus.Core.Locks.command-classes.json" />
+    <EmbeddedResource Include="..\..\tools\locks\ndc-test-lock.sh" LogicalName="Theseus.Core.Locks.ndc-test-lock.sh" />
+    <EmbeddedResource Include="..\..\tools\locks\ndc-test-lock-guard.js" LogicalName="Theseus.Core.Locks.ndc-test-lock-guard.js" />
   </ItemGroup>
 
 </Project>
