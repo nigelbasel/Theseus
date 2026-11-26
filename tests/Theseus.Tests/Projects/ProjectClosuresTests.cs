@@ -96,4 +96,26 @@ public class ProjectClosuresTests
                                               + "Reopen, under Archived on the board, puts it back as it was."));
         Assert.That(one.Question, Does.StartWith("1 card is running, A: it is asked to write its handover and stop. 2 duties pause."));
     }
+
+    [Test]
+    public void AWorkstreamOfAClosedProject_IsHeldFromStarting_WhoeverAsks_AndNoOtherIs()
+    {
+        var settings = ProjectClosures.Close(TheseusSettings.Default, "alpha", new ProjectClosure(ProjectClosureKind.Closed, Nine));
+        static Theseus.Core.Domain.Workstream Card(string key, string? project) =>
+            new(key, key, "#208DD7", false, @"C:\work", [], "Carry on.", 0, "New", false, true, false, null, [], null,
+                DateTimeOffset.UnixEpoch) { Project = project };
+
+        Assert.That(ProjectClosures.Holds(settings, Card("in-alpha", "ALPHA")), Is.True);
+        Assert.That(ProjectClosures.Holds(settings, Card("in-beta", "beta")), Is.False);
+        Assert.That(ProjectClosures.Holds(settings, Card("ad-hoc", null)), Is.False);
+    }
+
+    [Test]
+    public void ArchivingAProjectWhoseCardsAreAllArchivedAlready_DoesNotSayItArchivesNone()
+    {
+        var plan = ProjectClose.For(ProjectClosureKind.Archived, "Alpha", [new("a", "A", false, true)], 0, false);
+
+        Assert.That(plan.Question, Does.Not.Contain("cards are archived"));
+        Assert.That(plan.Question, Does.Not.Contain("card is archived"));
+    }
 }

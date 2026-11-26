@@ -21,6 +21,18 @@ public static class ProjectClosures
     /// <summary>Whether a project is closed or archived.</summary>
     public static bool IsClosed(TheseusSettings settings, string? project) => Of(settings, project) is not null;
 
+    /// <summary>
+    /// Whether a workstream is held from starting because its project is closed or archived: every start, the owner's,
+    /// a duty's, a check's or a session's, passes this (review of archive-a-project, 2026-11-26), so a closed project starts
+    /// nothing until it is reopened.
+    /// </summary>
+    public static bool Holds(TheseusSettings settings, Domain.Workstream workstream)
+    {
+        ArgumentNullException.ThrowIfNull(workstream);
+
+        return IsClosed(settings, workstream.Project);
+    }
+
     /// <summary>Puts a project away: the closure recorded, with whether its overnight queue was on, and the queue switched off.</summary>
     public static TheseusSettings Close(TheseusSettings settings, string project, ProjectClosure closure)
     {

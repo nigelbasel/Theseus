@@ -2704,7 +2704,11 @@ public sealed partial class ShellViewModel : ObservableObject
                 checkPlan.Underway, others,
                 WaitsOnTheChecks(reading, pieces, checkPlan, cards),
                 OwnerAccount.Names);
-            TakeCheckSteps(reading, pieces, checkPlan);
+            // A closed project's checks wait for it to be reopened, as its other starts do.
+            if (!IsProjectClosed(reading.Name))
+            {
+                TakeCheckSteps(reading, pieces, checkPlan);
+            }
             var file = reading.File!;
 
             foreach (var piece in pieces.Where(piece => piece.IsCurrentPiece && piece.Card is not null))
@@ -4991,6 +4995,21 @@ public sealed partial class ShellViewModel : ObservableObject
             Warn(impediment);
 
             return;
+        }
+
+        // A closed project starts nothing until the owner reopens it, whoever asks: a duty, a check, a session or a press.
+        var settingsNow = _settings.Read();
+
+        if (workstreams.Where(workstream => ProjectClosures.Holds(settingsNow, workstream)).ToList() is { Count: > 0 } held)
+        {
+            TheseusLog.Information("{Trigger}: not started, their project is closed: {Keys}", trigger, string.Join(", ", held.Select(workstream => workstream.Key)));
+            Warn($"Not started: {string.Join(", ", held.Select(workstream => workstream.Title))}. Its project is closed: reopen it from Archived on the board first.");
+            workstreams = [.. workstreams.Except(held)];
+
+            if (workstreams.Count == 0)
+            {
+                return;
+            }
         }
 
         if (FlaggedStart.Among(workstreams) is { Count: > 0 } flagged)

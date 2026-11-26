@@ -1,6 +1,6 @@
 namespace Theseus.Core.Projects;
 
-/// <summary>What a close needs to know of one of the project's cards.</summary>
+/// <summary>What a close needs to know of one of the project's cards (archive-a-project, Nigel 2026-11-26).</summary>
 /// <param name="Key">The card's key.</param>
 /// <param name="Title">Its name on screen.</param>
 /// <param name="HasSession">Whether a session is open on it, so the close asks it to hand over and stop.</param>

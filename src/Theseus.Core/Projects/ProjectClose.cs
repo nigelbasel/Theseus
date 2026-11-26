@@ -3,7 +3,7 @@ namespace Theseus.Core.Projects;
 /// <summary>
 /// What closing or archiving a project does, said once before it is done (archive-a-project, brief item 2): how many of
 /// its cards are running and are asked to hand over and stop, how many duties pause, whether its overnight queue goes
-/// off, and, for an archive, that its cards are archived while its records stay where they are.
+/// off, and, for an archive, that its cards are archived while its records stay where they are (Nigel, 2026-11-26).
 /// </summary>
 public sealed class ProjectClose
 {
@@ -64,9 +64,13 @@ public sealed class ProjectClose
         {
             var archived = cards.Count(card => !card.IsArchived);
 
-            lines.Add(archived == 1
-                ? "Its card is archived once its session has ended."
-                : $"Its {archived} cards are archived, each once its session has ended.");
+            if (archived > 0)
+            {
+                lines.Add(archived == 1
+                    ? "Its card is archived once its session has ended."
+                    : $"Its {archived} cards are archived, each once its session has ended.");
+            }
+
             lines.Add("project.md and its records stay where they are.");
         }
 
