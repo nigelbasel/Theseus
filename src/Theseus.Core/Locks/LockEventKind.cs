@@ -34,4 +34,8 @@ public enum LockEventKind
     ForceReleased,
 
     DeadlockRefused,
+
+    Ruled,
+
+    Overturned,
 }

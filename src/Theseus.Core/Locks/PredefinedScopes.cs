@@ -14,7 +14,7 @@ public static class PredefinedScopes
         {
             LockNames.Tests =>
             [
-                new ResourceClaim(ResourceTable.CpuBuild, table.Capacity(ResourceTable.CpuBuild)),
+                new ResourceClaim(ResourceTable.CpuBuild, ResourceClaim.All),
                 new ResourceClaim(ResourceTable.DockerBuild, 1),
                 new ResourceClaim(ResourceTable.SqlContainers, 1),
             ],

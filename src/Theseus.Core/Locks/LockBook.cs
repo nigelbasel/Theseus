@@ -37,6 +37,7 @@ public sealed class LockBook
     private readonly List<StoppedDeadlock> _deadlocks = [];
     private readonly List<RunResult> _runs = [];
     private readonly Func<string, string> _cardFamily;
+    private readonly ResourceTableStore? _tableStore;
     private readonly LockStateStore _store;
     private readonly LockHistory _history;
     private readonly ILockLiveness _liveness;
@@ -54,6 +55,7 @@ public sealed class LockBook
     /// <param name="cleaner">Clears what a dead test run's holder left running before the next is granted.</param>
     /// <param name="table">Each resource's capacity and clashes; the seeded table when not given.</param>
     /// <param name="cardFamily">The card a card's runs count as: a verifier's is the card it verifies.</param>
+    /// <param name="tableStore">Where the table and its rulings are kept; read when <paramref name="table"/> is not given.</param>
     public LockBook(
         LockStateStore store,
         LockHistory history,
@@ -62,7 +64,8 @@ public sealed class LockBook
         IProcessTree? tree = null,
         IOrphanCleaner? cleaner = null,
         ResourceTable? table = null,
-        Func<string, string>? cardFamily = null)
+        Func<string, string>? cardFamily = null,
+        ResourceTableStore? tableStore = null)
     {
         _store = store;
         _history = history;
@@ -70,7 +73,8 @@ public sealed class LockBook
         _clock = clock;
         _tree = tree;
         _cleaner = cleaner;
-        _table = table ?? ResourceTable.Seeded();
+        _tableStore = tableStore;
+        _table = table ?? tableStore?.Load() ?? ResourceTable.Seeded();
         _cardFamily = cardFamily ?? (card => card);
 
         var now = clock.UtcNow;
@@ -103,6 +107,53 @@ public sealed class LockBook
             return [.. _deadlocks];
         }
     }
+
+    /// <summary>Resources asked for that the table does not know, waiting for a ruling; until then they clash with everything.</summary>
+    public IReadOnlyList<string> NeedsRuling()
+    {
+        lock (_gate)
+        {
+            return [.. _tickets.SelectMany(ticket => ticket.Claims).Select(claim => claim.Resource).Where(resource => !_table.IsKnown(resource)).Distinct(StringComparer.Ordinal)];
+        }
+    }
+
+    /// <summary>
+    /// Writes a ruling into the table: from now on a resource has this capacity and clashes with these. A hold
+    /// already granted keeps what it was granted.
+    /// </summary>
+    public void Rule(ResourceRule rule, string ruledBy)
+    {
+        ArgumentNullException.ThrowIfNull(rule);
+
+        Change(now =>
+        {
+            _table = _table.With(rule with { RuledBy = ruledBy, RuledUtc = now });
+            _tableStore?.Save(_table);
+            _history.Append(new LockEvent(now, LockEventKind.Ruled, ResourceClaim.Name(rule.Name), ruledBy, rule.Why,
+                Detail: $"capacity {rule.Capacity}; clashes with {(rule.ClashesWith.Count == 0 ? "nothing" : string.Join(", ", rule.ClashesWith))}"));
+            Promote(now);
+
+            return (true, true);
+        });
+    }
+
+    /// <summary>Takes a row out of the table, so the resource clashes with everything again. Nigel only, from the board.</summary>
+    public bool Overturn(string resource) =>
+        Change(now =>
+        {
+            var name = ResourceClaim.Name(resource);
+
+            if (!_table.Rules.Any(rule => rule.Name == name))
+            {
+                return (false, false);
+            }
+
+            _table = new ResourceTable(_table.Rules.Where(rule => rule.Name != name));
+            _tableStore?.Save(_table);
+            _history.Append(new LockEvent(now, LockEventKind.Overturned, name, "Nigel", "overturned from the board"));
+
+            return (true, true);
+        });
 
     /// <summary>How the most recent runs held through the lock ended, newest last.</summary>
     public IReadOnlyList<RunResult> RecentRuns()

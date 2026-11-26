@@ -7,6 +7,9 @@ public sealed record ResourceClaim(string Resource, int Amount)
 {
     public const string WorktreeKind = "worktree:";
 
+    /// <summary>Every slot the resource has, however many that is when it is granted.</summary>
+    public const int All = int.MaxValue;
+
     /// <summary>
     /// Lower-cases names, writes a worktree's path one way however it was given, and merges repeats keeping the
     /// larger amount, so two requests naming the same thing differently are seen to clash.
@@ -39,5 +42,10 @@ public sealed record ResourceClaim(string Resource, int Amount)
         return WorktreeKind + path;
     }
 
-    public override string ToString() => Amount == 1 ? Resource : $"{Resource}={Amount}";
+    public override string ToString() => Amount switch
+    {
+        1 => Resource,
+        All => $"{Resource}=all",
+        _ => $"{Resource}={Amount}",
+    };
 }

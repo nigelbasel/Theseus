@@ -48,6 +48,11 @@ public static class ScopeText
     {
         int equals = text.LastIndexOf('=');
 
+        if (equals > 0 && string.Equals(text[(equals + 1)..].Trim(), "all", StringComparison.OrdinalIgnoreCase))
+        {
+            return new ResourceClaim(text[..equals].Trim(), ResourceClaim.All);
+        }
+
         return equals > 0 && int.TryParse(text[(equals + 1)..], NumberStyles.Integer, CultureInfo.InvariantCulture, out int amount)
             ? new ResourceClaim(text[..equals].Trim(), amount)
             : new ResourceClaim(text.Trim(), 1);
