@@ -27,7 +27,7 @@ public sealed class SpecStageNode : StageNode
     {
         if (AwaitsAcceptance)
         {
-            yield return new StageActionOffer(StageAction.OpenSpec, "Open spec");
+            yield return new StageActionOffer(StageAction.OpenSpec, "View spec");
             yield return new StageActionOffer(StageAction.AcceptSpec, "Accept spec…");
         }
     }

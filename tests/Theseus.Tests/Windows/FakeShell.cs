@@ -43,7 +43,20 @@ internal sealed class FakeShell : System.ComponentModel.INotifyPropertyChanged
     {
         Board = board;
         Drawer = new DetailDrawerViewModel(plans, new NoRunLog(), new NoWorkflowRuns(), board.Persist);
+        Refreshing = new RefreshRun(() => { }, () => RefreshCheck.Task, () => Notice, text => Notice = text, () => Task.CompletedTask);
     }
+
+    /// <summary>View › Project view and the toolbar's Projects.</summary>
+    public RecordingCommand OpenProjectViewCommand { get; } = new();
+
+    /// <summary>The update check a refresh waits for: a test answers it.</summary>
+    public TaskCompletionSource<string> RefreshCheck { get; } = new();
+
+    /// <summary>Refresh as it runs, the real one over a check the test answers.</summary>
+    public RefreshRun Refreshing { get; }
+
+    /// <summary>Refresh (F5, the toolbar and View › Refresh).</summary>
+    public RelayCommand RefreshCommand => Refreshing.Command;
 
     /// <summary>The detail drawer, closed until a test shows a card in it.</summary>
     public DetailDrawerViewModel Drawer { get; }

@@ -66,7 +66,8 @@ public partial class MainWindowMenuTests
 
     [Test]
     public void TheViewMenu_FollowsTheW26Map() =>
-        Assert.That(string.Concat(Items(TopLevel("_View")).Select(Key)), Is.EqualTo("SLCGAHPWJOEKFNDUMVTBR"), "W26's map, with J for Show just active cards (2026-11-24)");
+        Assert.That(string.Concat(Items(TopLevel("_View")).Select(Key)), Is.EqualTo("SLCGAHPWJOIEKFNDUMVTBR"),
+            "W26's map, with J for Show just active cards (2026-11-24) and I for Project view, every letter of Projects being taken (2026-11-26)");
 
     [Test]
     public void TheGroupBySubmenu_FollowsTheW26Map()
@@ -81,11 +82,12 @@ public partial class MainWindowMenuTests
         Assert.That(Items(TopLevel("Win_dow")).Select(Label), Is.EqualTo(new[] { "_Arrange windows…", "_Bring project window forward" }));
 
     [Test]
-    public void NoKey_UsesIOrO_ButOpenProject_TheRecordedDeviation()
+    public void NoKey_UsesIOrO_ButOpenProjectAndProjectView_TheRecordedDeviations()
     {
         IEnumerable<XElement> all = MenusWithItems().SelectMany(Items);
 
-        Assert.That(all.Where(item => Key(item) is 'I' or 'O').Select(Label), Is.EqualTo(new[] { "_Open project" }));
+        // Project view's every other letter is taken in View (board-small-changes item 3, 2026-11-26).
+        Assert.That(all.Where(item => Key(item) is 'I' or 'O').Select(Label), Is.EqualTo(new[] { "_Open project", "Project v_iew" }));
     }
 
     [TestCase("O_ptions")]

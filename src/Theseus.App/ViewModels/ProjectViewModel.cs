@@ -18,6 +18,9 @@ public sealed class ProjectViewModel : ObservableObject
     /// <summary>Accept spec's tooltip, on the box and in Properties.</summary>
     internal const string AcceptSpecToolTip = "Pass this gate: asks first, naming the piece of work and the commit.";
 
+    /// <summary>View spec's tooltip, wherever it sits beside Accept spec… (board-small-changes item 4).</summary>
+    internal const string ViewSpecToolTip = "Read the spec, drawn, in its window; Accept spec… or Reject… there decides on the version on screen";
+
     /// <summary>What the status bar says once when the window becomes too narrow for the pane beside the flow (AC 52).</summary>
     public const string PaneHiddenNotice = "Properties hidden: the window is too narrow";
 
@@ -502,7 +505,7 @@ public sealed class ProjectViewModel : ObservableObject
         }
     }
 
-    /// <summary>The specs waiting on the owner, for the menu bar's Open spec and Accept spec (R16).</summary>
+    /// <summary>The specs waiting on the owner, for the menu bar's View spec and Accept spec (R16).</summary>
     public IReadOnlyList<SpecAtGate> WaitingSpecs { get; private set; } = [];
 
     /// <summary>How the boxes are grouped: the Flow of hand-overs, or under phases and objectives (AC 45).</summary>
@@ -656,6 +659,7 @@ public sealed class ProjectViewModel : ObservableObject
             WaitKind.CheckCannotRun => view.CannotRunLine(item),
             WaitKind.StartVerifier => new WaitItemViewModel(item, view.WaitCommand(item, reading.Name),
                 toolTip: Theseus.Core.Launching.StartModeChoice.VerifierTooltip),
+            WaitKind.AcceptSpec or WaitKind.ConfirmAcceptance => view.SpecLine(item, reading.Name),
             _ => new WaitItemViewModel(item, view.WaitCommand(item, reading.Name)),
         })];
         view.OtherWaits = [.. view.Overview.Others.Select(item => new WaitItemViewModel(item, view.WaitCommand(item, reading.Name)))];
@@ -944,7 +948,7 @@ public sealed class ProjectViewModel : ObservableObject
 
         (Action Run, string? ToolTip) what = offer.Action switch
         {
-            StageAction.OpenSpec => (() => Run(spec, _actions.OpenSpec), "Open the spec in its window; Accept spec… there accepts the version on screen"),
+            StageAction.OpenSpec => (() => Run(spec, _actions.OpenSpec), ViewSpecToolTip),
             StageAction.AcceptSpec => (() => Run(spec, _actions.AcceptSpec), AcceptSpecToolTip),
             StageAction.VerifyWithHoldouts => (() => _actions.VerifyWithHoldouts(key),
                 $"Create a verifier card for {piece.Workstream}: it runs the holdout scenarios and reports only a verdict"),
@@ -1123,6 +1127,19 @@ public sealed class ProjectViewModel : ObservableObject
         item.CardKey is { } card && _actions.WayOn?.Invoke(card, StageAction.VerifyWithHoldouts) is { } wayOn
             ? new WaitItemViewModel(item, wayOn.Command, button: wayOn.Label, toolTip: wayOn.ToolTip)
             : new WaitItemViewModel(item, null);
+
+    // A spec's line has View spec beside Accept spec…, so it can be read before it is decided (board-small-changes item 4).
+    private WaitItemViewModel SpecLine(WaitItem item, string project)
+    {
+        var spec = item.Pieces.Count == 0 ? null : AllNodes.FirstOrDefault(each => each.Name == item.Pieces[0])?.Spec;
+
+        return new WaitItemViewModel(item, WaitCommand(item, project))
+        {
+            SecondButton = spec is null ? null : "View spec",
+            SecondCommand = spec is null ? null : new RelayCommand(_ => _actions.OpenSpec(spec)),
+            SecondToolTip = spec is null ? null : ViewSpecToolTip,
+        };
+    }
 
     private System.Windows.Input.ICommand? WaitCommand(WaitItem item, string project)
     {
@@ -1396,7 +1413,7 @@ public sealed class ProjectViewModel : ObservableObject
                 string.Join(";", view.Waits.Concat(view.OtherWaits).Concat(view.Phases.SelectMany(phase => phase.Held)).Select(wait =>
                     $"{wait.Text}:{wait.Button}:{string.Join(",", wait.Item.Pieces)}:{wait.Item.CardKey}:"
                     + string.Join(",", wait.Item.Criteria.Select(criterion => $"{criterion.Objective}/{criterion.Index}/{criterion.On}/{criterion.Ask}")))) }
-            .Concat(view.Tabs.Select(tab => $"{tab.Name}:{tab.Title}:{tab.IsOpen}:{tab.ColourHex}"))
+            .Concat(view.Tabs.Select(tab => $"{tab.Name}:{tab.Title}:{tab.IsOpen}:{tab.ColourHex}:{tab.WaitingCount}"))
             .Concat(view.Roots.SelectMany(root => Lines(root, 0)))
             .Concat(view._thenWorkedOn.Select(link => $"{link.From.Name}>{link.To.Name}"))
             .Concat(view.Rounds.Select(round => string.Join("/", round.Title, round.Dates, round.StateText, round.Line, round.Banner,

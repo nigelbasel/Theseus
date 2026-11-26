@@ -13,8 +13,25 @@ namespace Theseus.App.ViewModels;
 /// <param name="OpenCommand">Opens it.</param>
 public sealed record ProjectTabViewModel(string Name, string Title, bool IsOpen, ICommand? OpenCommand)
 {
-    /// <summary>What it does.</summary>
-    public string ToolTip => IsOpen ? $"{Title} is open" : Key is { } key ? $"Open {Title} ({key})" : $"Open {Title}";
+    /// <summary>What it does, and how many things wait for the owner in its project.</summary>
+    public string ToolTip => HasWaiting ? $"{Action}{Environment.NewLine}{WaitingText}" : Action;
+
+    private string Action => IsOpen ? $"{Title} is open" : Key is { } key ? $"Open {Title} ({key})" : $"Open {Title}";
+
+    /// <summary>
+    /// How many lines its project's Waits for you has: the count its amber dot stands for (board-small-changes item 2,
+    /// Nigel, 2026-11-26).
+    /// </summary>
+    public int WaitingCount { get; init; }
+
+    /// <summary>Whether its dot shows.</summary>
+    public bool HasWaiting => WaitingCount > 0;
+
+    /// <summary>"3 waiting for you": the dot in words, for its tooltip and name, since a state is never colour alone.</summary>
+    public string WaitingText => $"{WaitingCount} waiting for you";
+
+    /// <summary>Its name to assistive technology: its title, and its waits when it has any.</summary>
+    public string AutomationName => HasWaiting ? $"{Title}, {WaitingText}" : Title;
 
     /// <summary>The key that opens it (Ctrl+1 to Ctrl+9), or null when no number key reaches it.</summary>
     public string? Key { get; init; }
@@ -30,8 +47,9 @@ public sealed record ProjectTabViewModel(string Name, string Title, bool IsOpen,
     /// <param name="open">The open project's name.</param>
     /// <param name="commandFor">The command that opens a project, by name.</param>
     /// <param name="colourOf">Each project's own colour, by name; none gives every mark the accent colour.</param>
+    /// <param name="waitsOf">How many lines each project's Waits for you has, by name; none gives no tab a dot.</param>
     public static IReadOnlyList<ProjectTabViewModel> For(IEnumerable<ProjectFileReading> readings, string? open,
-        Func<string, ICommand?> commandFor, Func<string, string?>? colourOf = null)
+        Func<string, ICommand?> commandFor, Func<string, string?>? colourOf = null, Func<string, int>? waitsOf = null)
     {
         ArgumentNullException.ThrowIfNull(readings);
         ArgumentNullException.ThrowIfNull(commandFor);
@@ -44,6 +62,7 @@ public sealed record ProjectTabViewModel(string Name, string Title, bool IsOpen,
                 reading.File!.Title, string.Equals(reading.Name, open, StringComparison.OrdinalIgnoreCase), commandFor(reading.Name))
             {
                 ColourHex = colourOf?.Invoke(reading.Name),
+                WaitingCount = waitsOf?.Invoke(reading.Name) ?? 0,
                 Key = ProjectTabKeys.KeyFor(index, readable.Count),
             }),
         ];

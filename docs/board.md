@@ -86,13 +86,15 @@ workstream off the board without losing anything: its plan, notes and history st
 ## The menus, toolbar and status bar
 
 Every command is in a menu. The ones you use most also have a toolbar button with the same icon.
-Hover over a toolbar button to see its name and shortcut.
+Hover over a toolbar button to see its name and shortcut. While **Refresh** (**F5**) reads the board again and checks for
+a new version, the pointer shows it is busy, the status bar says **Refreshing…** and then what it found, and Refresh is
+off until it ends.
 
 | Menu | What is in it |
 |---|---|
 | File | New workstream, Day report, Exit |
 | Edit | Select all, Select live, Invert selection, Unselect all, Properties |
-| View | The three panels, the archive, folding, the toolbar and status bar, Refresh |
+| View | The three panels, the archive, folding, Project view, the toolbar and status bar, Refresh |
 | Workstream | Start, Stop and Archive the selected cards, and mark them paused or blocked |
 | Window | Arrange the terminal windows |
 | Tools | Options, Set up Theseus, Duties, Tripped breakers, and the logs and data folders |

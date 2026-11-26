@@ -22,6 +22,18 @@
         Icon="Assets/theseus.ico"
         Title="Theseus" Height="760" Width="1400" MinHeight="480" MinWidth="720">
 
+    <!-- The busy cursor while Refresh runs, over every control's own cursor (board-small-changes item 1, Nigel, 2026-11-26). -->
+    <Window.Style>
+        <Style TargetType="Window">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Refreshing.IsBusy}" Value="True">
+                    <Setter Property="Cursor" Value="Wait" />
+                    <Setter Property="ForceCursor" Value="True" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Style>
+
     <Window.CommandBindings>
         <CommandBinding Command="{x:Static local:MainWindow.NextPaneCommand}" Executed="OnNextPane" />
         <CommandBinding Command="{x:Static local:MainWindow.PreviousPaneCommand}" Executed="OnPreviousPane" />
@@ -1693,6 +1705,11 @@
                           IsEnabled="{Binding HasOpenProjectChoices}"
                           Tag="Fill the main area with a project: where it is, and its pieces of work as they run down the page."
                           controls:OffReason.Text="No project can be opened. Projects are read from the projects folder set in Tools › Options." />
+                <!-- I: every letter of Projects is taken in View (W26); "view" gives the I (board-small-changes item 3). -->
+                <MenuItem x:Name="ProjectViewMenu" Header="Project v_iew" Command="{Binding OpenProjectViewCommand}"
+                          Style="{StaticResource ExplainsWhenOff}"
+                          Tag="Open the project view on the project you last opened, or the first; its tabs switch between projects."
+                          controls:OffReason.Text="{Binding OpenProjectViewCommand.WhyNot}" />
                 <MenuItem Header="Back to th_e board" Command="{Binding CloseProjectCommand}" Style="{StaticResource ExplainsWhenOff}"
                           Tag="Close the project view and show the board again." controls:OffReason.Text="No project is open." />
                 <MenuItem Header="Bac_k" InputGestureText="Alt+Left" Command="{Binding GoBackCommand}" Style="{StaticResource ExplainsWhenOff}"
@@ -1761,7 +1778,7 @@
                         </StackPanel>
                     </MenuItem.Header>
                 </MenuItem>
-                <MenuItem Header="Ope_n spec" ItemsSource="{Binding OpenSpecChoices}"
+                <MenuItem Header="_View spec" ItemsSource="{Binding OpenSpecChoices}"
                           ItemContainerStyle="{StaticResource ProjectChoiceItem}" Style="{StaticResource ExplainsWhenOff}"
                           IsEnabled="{Binding HasSpecChoices}" Tag="Open a spec waiting on you in the open project, in its window."
                           controls:OffReason.Text="No spec is waiting on you in the open project." />
@@ -1845,6 +1862,15 @@
                     </Button>
                     <Button Style="{StaticResource ExplainsWhenOffTool}" Content="&#xE8F4;" AutomationProperties.Name="New project"
                             Command="{Binding NewProjectCommand}" Tag="New project" />
+                    <!-- To the project view without picking a project (board-small-changes item 3, Nigel, 2026-11-26). -->
+                    <Button Style="{StaticResource LabelledTool}" Command="{Binding OpenProjectViewCommand}"
+                            Tag="Open the project view on the project you last opened, or the first" AutomationProperties.Name="Project view"
+                            controls:OffReason.Text="{Binding OpenProjectViewCommand.WhyNot}">
+                        <StackPanel Orientation="Horizontal">
+                            <controls:GlyphText Text="&#xE8F1;" VerticalAlignment="Center" />
+                            <TextBlock Text="Projects" Style="{StaticResource ToolLabel}" />
+                        </StackPanel>
+                    </Button>
 
                     <Separator />
 

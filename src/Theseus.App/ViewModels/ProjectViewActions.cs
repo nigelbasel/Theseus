@@ -3,7 +3,7 @@ using Theseus.Core.Projects;
 namespace Theseus.App.ViewModels;
 
 /// <summary>
-/// What the project view's buttons run (1.1d AC 27): the shell's existing Open spec, Accept spec, Independent check,
+/// What the project view's buttons run (1.1d AC 27): the shell's existing View spec, Accept spec, Independent check,
 /// Focus, Start and Stop, each for one card by its key, and opening a records folder or file.
 /// </summary>
 /// <param name="OpenSpec">Opens a spec in its window.</param>

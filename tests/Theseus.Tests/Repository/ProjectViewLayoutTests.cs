@@ -118,7 +118,8 @@ public class ProjectViewLayoutTests
         Assert.That(band.Visibility, Is.EqualTo(Visibility.Visible));
         Assert.That(((TextBlock)control.FindName("WaitsHeading")).Text, Is.EqualTo($"◆ Waits for you ({view.Waits.Count})"));
         Assert.That(Descendants<Button>(band).Where(button => button.Visibility == Visibility.Visible).Select(button => button.Content),
-            Has.Exactly(view.Waits.Count(wait => wait.HasButton)).Items);
+            Has.Exactly(view.Waits.Count(wait => wait.HasButton) + view.Waits.Count(wait => wait.HasSecondButton)).Items,
+            "each line's button, and View spec beside a spec's Accept spec…");
         Assert.That(((Border)LaidOut(_views.BuildYourMarket()).FindName("WaitingBand")).Visibility, Is.EqualTo(Visibility.Visible),
             "always in place, even when nothing waits (G36)");
     }
@@ -200,7 +201,7 @@ public class ProjectViewLayoutTests
         Assert.That(arrows.Select(arrow => arrow.Text), Is.EqualTo(Enumerable.Repeat("▶", 6)));
         Assert.That(Descendants<Button>(Named<ItemsControl>(box, "Actions")).Select(button => ((PieceActionViewModel)button.DataContext).Label), Is.EqualTo(new[]
         {
-            "Open spec", "Accept spec…", "Independent check…", "⧉ Focus git-22", "■ Stop", "Open records",
+            "View spec", "Accept spec…", "Independent check…", "⧉ Focus git-22", "■ Stop", "Open records",
         }));
         Assert.That(Named<ItemsControl>(box, "Strip").Visibility, Is.EqualTo(Visibility.Collapsed));
     }

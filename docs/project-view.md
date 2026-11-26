@@ -9,7 +9,12 @@ the drawer, the side panels and the status bar stay.
 ## Getting back and across
 
 **← Board** at the top left, **Alt+Left**, or **View > Back to the board** goes back to the board. Next to it is a tab
-for each project that reads, its stacked-card mark in the project's own colour; click one to open that project. **Esc** clears what is selected; it does not go back.
+for each project that reads, its stacked-card mark in the project's own colour; click one to open that project. A tab
+whose project has anything in **Waits for you** carries a small amber dot, and its tooltip says how many ("3 waiting
+for you"). **Esc** clears what is selected; it does not go back.
+
+To get here from the board without choosing a project, press **Projects** on the toolbar or choose **View > Project
+view**: it opens the project you last opened, or the first, and the tabs take you to the others.
 
 ## Where the project is
 
@@ -66,7 +71,7 @@ workstream that works it, its kind (feature, bug or freeform), its objective, an
 
 - **Folded** (▸, the first time you open a project), a box shows a strip of its stages, each with the first three
   letters of its name. Hover over one for its state.
-- **Open** (▾), a box shows its stages as a chain, then what you can do: **Open spec** and **Accept spec…** while a
+- **Open** (▾), a box shows its stages as a chain, then what you can do: **View spec** and **Accept spec…** while a
   spec waits on you, **Independent check…**, **⧉ Focus** the workstream's terminal, **▶ Start** or **■ Stop**, and
   **Open records**. Start, Stop, Focus and Verify act on the workstream's current piece of work only.
 
@@ -91,7 +96,8 @@ waiting on you stays folded and says so in its status line and strip.
 
 ## The spec window
 
-**Open spec**, from a box, the board or the menus, opens the spec in its own window, which can be resized and opens
+**View spec**, beside every **Accept spec…** (a box, its stage, Properties, a line of Waits for you) and in the
+**Workstream** menu, opens the spec in its own window, which can be resized and opens
 where you last left it. It is titled with the piece of work and the spec's version. **Preview** shows the spec drawn,
 **Source** its Markdown as written; **Ctrl+F** finds in it, and **Enter** or **F3** finds the next match. **Accept spec…** at its
 foot accepts the version on screen, after the same question, which names the card Theseus then tells and says whether it
@@ -101,7 +107,9 @@ instead, the session reports it, and the box shows **You accepted this in <card>
 on the board accepts it. **Properties** shows the record: the version, when, by whom, and how ("on the board", or "said in
 <card>'s tab, confirmed on the board").
 The window follows its file: a spec changed on disk is drawn again and says so, and one changed since it was drawn is
-drawn again before it can be accepted. **Open in editor** opens the file itself; **Close** or **Esc** closes the window.
+drawn again before it can be accepted. **Reject…** beside Accept asks what to change, optionally, then sends the version on
+screen back: the card is told as it is when you accept, with your note, and the gate waits for its next version. A bug's
+rule has the same window and buttons. **Open in editor** opens the file itself; **Close** or **Esc** closes the window.
 
 A session in a project creates a new workstream naming the objective it serves, its records folder, its branch and its
 repos; the card is made at once and its row written under that objective, with branch `none` and repos `read-only` when

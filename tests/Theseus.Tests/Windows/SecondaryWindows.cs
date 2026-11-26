@@ -96,6 +96,6 @@ public static class SecondaryWindows
         File.WriteAllText(Path.Combine(folder, "spec.md"), Text);
         SpecAtGate spec = new("theseus", "cache-spike", SpecIdentity.Hash(Text), Text, new WorkstreamSource(folder));
 
-        return new SpecWindowViewModel(spec, shown => shown.ReadAgain(), _ => null, _ => true, _ => { });
+        return new SpecWindowViewModel(spec, shown => shown.ReadAgain(), _ => null, _ => true, _ => { }, (_, _) => "Its card is told.");
     }
 }

@@ -104,8 +104,8 @@ cards is running. **Not a project** on its menu hides a folder's card; **Tools >
 **Show again** then **Save** brings one back. A hidden folder whose file reads again is a project again. **↗ Open**, the first button on a project card that reads, a double-click,
 **Enter** on it, **Open** on its menu, or **View > Open project**, fills the main area with the project: see
 [The project view](project-view.md). A spec waiting for you shows **Waiting on you**, with
-**Open spec** and **Accept spec…**, which asks first and names the version it accepts; a spec changed after you accept
-it waits for you again. **Open spec**, wherever it appears, opens the [spec window](project-view.md#the-spec-window). **← Board** at the top, **Alt+Left**, or **View > Back to the board**, goes back.
+**View spec** and **Accept spec…**, which asks first and names the version it accepts; a spec changed after you accept
+it waits for you again. **View spec**, wherever it appears, opens the [spec window](project-view.md#the-spec-window). **← Board** at the top, **Alt+Left**, or **View > Back to the board**, goes back.
 
 ## The buttons on a card
 

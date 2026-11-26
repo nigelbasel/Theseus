@@ -283,7 +283,7 @@ public class ProjectViewModelTests
         Assert.That((box.IsOpen, box.BoxWidth, box.Chevron, box.ChevronToolTip), Is.EqualTo((true, 640.0, FoldGlyph.Open, "Fold this piece of work")));
         Assert.That(box.Actions.Select(action => action.Label), Is.EqualTo(new[]
         {
-            "Open spec", "Accept spec…", "Independent check…", "⧉ Focus git-22", "■ Stop", "Open records",
+            "View spec", "Accept spec…", "Independent check…", "⧉ Focus git-22", "■ Stop", "Open records",
         }));
         Assert.That(box.Actions.Single(action => action.Label.StartsWith('⧉')).ToolTip, Is.EqualTo("Bring its terminal forward"));
     }
@@ -311,7 +311,7 @@ public class ProjectViewModelTests
 
         Assert.That(box.Actions.Select(action => action.Label), Is.EqualTo(new[]
         {
-            "Open spec", "Accept spec…", "Independent check…", "▶ Start", "Open records",
+            "View spec", "Accept spec…", "Independent check…", "▶ Start", "Open records",
         }));
     }
 
@@ -410,7 +410,7 @@ public class ProjectViewModelTests
 
         Assert.That(spec.MenuItems.Select(item => item.Label), Is.EqualTo(new[]
         {
-            "Properties", "Open spec", "Accept spec…", "Open records", "Open spec.md",
+            "Properties", "View spec", "Accept spec…", "Open records", "Open spec.md",
         }));
         Assert.That(spec.MenuItems.Select(item => item.IsDefault), Is.EqualTo(new[] { true, false, false, false, false }));
 

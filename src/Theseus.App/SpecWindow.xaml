@@ -7,11 +7,15 @@
         ResizeMode="CanResize"
         PreviewKeyDown="OnKey"
         Background="{DynamicResource SolidBackgroundFillColorSecondaryBrush}">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="Visible" />
+    </Window.Resources>
     <!-- The spec window (1.1e AC 24a): the spec as read, Preview and Source, Ctrl+F, Accept spec… at its foot. -->
     <Grid Margin="16,12,16,12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
@@ -50,7 +54,17 @@
                    Style="{DynamicResource BodyText}" Foreground="{DynamicResource CautionTextBrush}" />
 
         <!-- The editor is outside Theseus, so a link at the footer's left; the commit and Close at the right (W9, W12; A4, A10). -->
-        <DockPanel x:Name="Footer" Grid.Row="3" Margin="0,12,0,0" LastChildFill="False">
+        <!-- Reject…'s note, as the proposal window asks for one (board-small-changes item 4, Nigel, 2026-11-26). -->
+        <StackPanel x:Name="RejectPanel" Grid.Row="3" Margin="0,12,0,0"
+                    Visibility="{Binding IsRejecting, Converter={StaticResource Visible}}">
+            <TextBlock x:Name="NoteLabel" Text="What to change (optional): its session is told" Style="{DynamicResource CaptionText}" />
+            <TextBox x:Name="NoteBox" Text="{Binding Note, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0"
+                     AcceptsReturn="True" TextWrapping="Wrap" MinHeight="48" AutomationProperties.LabeledBy="{x:Reference NoteLabel}" />
+            <Button x:Name="ConfirmRejectButton" Content="Reject this _version" HorizontalAlignment="Right" Margin="0,8,0,0"
+                    Style="{DynamicResource DialogButton}" Command="{Binding RejectCommand}" />
+        </StackPanel>
+
+        <DockPanel x:Name="Footer" Grid.Row="4" Margin="0,12,0,0" LastChildFill="False">
             <Button x:Name="EditorButton" DockPanel.Dock="Left" Content="Open in editor" Style="{DynamicResource LinkButton}"
                     VerticalAlignment="Center"
                     ToolTip="Open the spec's file in its editor; this window follows its changes."
@@ -59,6 +73,9 @@
                 <Button x:Name="AcceptButton" Content="_Accept spec…" Style="{DynamicResource AccentButton}" IsDefault="True"
                         Command="{Binding AcceptCommand}" ToolTip="{Binding AcceptToolTip}"
                         ToolTipService.ShowOnDisabled="True" />
+                <Button x:Name="RejectButton" Content="_Reject…" Style="{DynamicResource DialogButton}" Margin="8,0,0,0"
+                        Command="{Binding AskRejectCommand}" ToolTip="{Binding RejectToolTip}" ToolTipService.ShowOnDisabled="True"
+                        Visibility="{Binding HasReject, Converter={StaticResource Visible}}" />
                 <Button x:Name="CloseButton" Content="Close" IsCancel="True" Style="{DynamicResource DialogButton}" Margin="8,0,0,0"
                         Click="OnClose" />
             </StackPanel>

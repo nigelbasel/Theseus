@@ -245,7 +245,7 @@
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
             <Setter Property="ToolTip" Value="{Binding ToolTip}" />
-            <Setter Property="AutomationProperties.Name" Value="{Binding Title}" />
+            <Setter Property="AutomationProperties.Name" Value="{Binding AutomationName}" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ListBoxItem">
@@ -260,6 +260,11 @@
                                     <controls:StackedCardMark Style="{StaticResource ProjectMark}" Margin="0,0,8,0" />
                                     <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="Medium" VerticalAlignment="Center"
                                                Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                    <!-- Waits for you has something (board-small-changes item 2): the banner's own brush, and the
+                                         count in the tab's name and tooltip, so the dot is never the only sign. -->
+                                    <Ellipse x:Name="WaitsDot" Width="8" Height="8" Margin="8,0,0,0" VerticalAlignment="Center"
+                                             Fill="{DynamicResource StateWaitingBrush}" IsHitTestVisible="False"
+                                             Visibility="{Binding HasWaiting, Converter={StaticResource Visible}}" />
                                 </StackPanel>
                                 <Rectangle x:Name="Underline" Height="2" VerticalAlignment="Bottom" Margin="-8,0,-12,-4"
                                            Visibility="Collapsed" Fill="{DynamicResource TextFillColorPrimaryBrush}" />
@@ -921,11 +926,19 @@
                     </Style>
                 </Border.Style>
                 <DockPanel>
-                    <Button x:Name="WaitButton" DockPanel.Dock="Right" Content="{Binding Button, Converter={StaticResource AccessKeyEscape}}"
-                            Command="{Binding Command}" Style="{StaticResource CommandButton}" Margin="12,0,0,0" FontSize="14"
-                            ToolTip="{Binding ToolTip}" ToolTipService.ShowOnDisabled="True"
-                            VerticalAlignment="Top" AutomationProperties.Name="{Binding Button}"
-                            Visibility="{Binding HasButton, Converter={StaticResource Visible}}" />
+                    <!-- View spec, then the line's own button, in reading order, so Tab meets them so (B2; board-small-changes item 4). -->
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
+                        <Button x:Name="WaitSecondButton" Content="{Binding SecondButton, Converter={StaticResource AccessKeyEscape}}"
+                                Command="{Binding SecondCommand}" Style="{StaticResource CommandButton}" Margin="12,0,0,0" FontSize="14"
+                                ToolTip="{Binding SecondToolTip}" ToolTipService.ShowOnDisabled="True"
+                                AutomationProperties.Name="{Binding SecondButton}"
+                                Visibility="{Binding HasSecondButton, Converter={StaticResource Visible}}" />
+                        <Button x:Name="WaitButton" Content="{Binding Button, Converter={StaticResource AccessKeyEscape}}"
+                                Command="{Binding Command}" Style="{StaticResource CommandButton}" Margin="12,0,0,0" FontSize="14"
+                                ToolTip="{Binding ToolTip}" ToolTipService.ShowOnDisabled="True"
+                                AutomationProperties.Name="{Binding Button}"
+                                Visibility="{Binding HasButton, Converter={StaticResource Visible}}" />
+                    </StackPanel>
                     <TextBlock x:Name="WaitText" local:LinkedText.Text="{Binding Text}" FontSize="14" TextWrapping="Wrap" VerticalAlignment="Center"
                                TextTrimming="CharacterEllipsis" ToolTip="{Binding Text}"
                                Foreground="{DynamicResource TextFillColorPrimaryBrush}" />

@@ -47,6 +47,27 @@ public class OwnerActionLinesTests
     }
 
     [Test]
+    public void AWaitingSpecsLine_AlsoHasViewSpec_WhichOpensItInTheSpecWindow()
+    {
+        var view = _views.One("feature", Files("spec.md", "plan.md", "implementation.md"), SessionLifecycle.Idle);
+        var line = view.Waits.Single(wait => wait.Item.Kind == WaitKind.AcceptSpec);
+
+        line.SecondCommand!.Execute(null);
+
+        Assert.That((line.HasSecondButton, line.SecondButton), Is.EqualTo((true, "View spec")));
+        Assert.That(line.SecondToolTip, Is.EqualTo(ProjectViewModel.ViewSpecToolTip));
+        Assert.That(_views.Ran, Is.EqualTo(new[] { $"OpenSpec:{APiece}" }));
+    }
+
+    [Test]
+    public void ALineThatIsNotASpec_HasNoSecondButton()
+    {
+        var view = _views.BuildYourMarket(otherWaits: _ => [ResetLine()]);
+
+        Assert.That(view.Waits.Single(wait => wait.Item.Kind == WaitKind.ResetBreaker).HasSecondButton, Is.False);
+    }
+
+    [Test]
     public void AWritersResetBreakerLine_ResetsAndStartsThatCard()
     {
         var ran = new List<string>();

@@ -59,7 +59,7 @@ public sealed class PropertiesViewModel
     /// <summary>Whether it has a Links section.</summary>
     public bool HasLinks => Links.Count > 0;
 
-    /// <summary>Accept spec… while it waits, then Open &lt;record&gt; or Open records.</summary>
+    /// <summary>View spec and Accept spec… while it waits, then Open &lt;record&gt; or Open records.</summary>
     public IReadOnlyList<PieceActionViewModel> Buttons { get; private init; } = [];
 
     /// <summary>"Objective 1.1: Checks shown on cards", "Criteria" for an objective heading, or empty with no objective.</summary>
@@ -259,6 +259,7 @@ public sealed class PropertiesViewModel
 
         if (waits && node.Spec is { } spec)
         {
+            yield return new PieceActionViewModel("View spec", () => actions.OpenSpec(spec), toolTip: ProjectViewModel.ViewSpecToolTip);
             yield return new PieceActionViewModel("Accept spec…", () => actions.AcceptSpec(spec),
                 toolTip: ProjectViewModel.AcceptSpecToolTip);
         }

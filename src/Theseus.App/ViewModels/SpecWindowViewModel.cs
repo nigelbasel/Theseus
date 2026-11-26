@@ -12,6 +12,9 @@ public sealed class SpecWindowViewModel : ObservableObject
     private readonly Func<SpecAtGate, string?> _whyNotAccept;
     private readonly Func<SpecAtGate, bool> _accept;
     private readonly Action<SpecAtGate> _openInEditor;
+    private readonly Func<SpecAtGate, string?, string>? _reject;
+    private bool _isRejecting;
+    private string _note = string.Empty;
     private SpecAtGate _shown;
     private bool _isSource;
     private string _notice = string.Empty;
@@ -23,17 +26,22 @@ public sealed class SpecWindowViewModel : ObservableObject
     /// <param name="whyNotAccept">Why Accept cannot run for a version, or null when it can.</param>
     /// <param name="accept">Accepts a version after its confirmation; whether it was accepted.</param>
     /// <param name="openInEditor">Opens its file in the editor.</param>
+    /// <param name="reject">Rejects a version with the owner's note, or none; what was done, for the window's notice. Null
+    /// leaves the window without Reject….</param>
     public SpecWindowViewModel(SpecAtGate spec, Func<SpecAtGate, SpecAtGate?> readAgain, Func<SpecAtGate, string?> whyNotAccept,
-        Func<SpecAtGate, bool> accept, Action<SpecAtGate> openInEditor)
+        Func<SpecAtGate, bool> accept, Action<SpecAtGate> openInEditor, Func<SpecAtGate, string?, string>? reject = null)
     {
         _shown = spec ?? throw new ArgumentNullException(nameof(spec));
         _readAgain = readAgain;
         _whyNotAccept = whyNotAccept;
         _accept = accept;
         _openInEditor = openInEditor;
+        _reject = reject;
         PreviewCommand = new RelayCommand(_ => IsSource = false);
         SourceCommand = new RelayCommand(_ => IsSource = true);
-        AcceptCommand = new RelayCommand(_ => Accept(), _ => CanAccept);
+        AcceptCommand = new RelayCommand(_ => Accept(), _ => CanAccept && !_isRejecting);
+        AskRejectCommand = new RelayCommand(_ => IsRejecting = true, _ => CanReject && !_isRejecting);
+        RejectCommand = new RelayCommand(_ => Reject(), _ => _isRejecting);
         OpenInEditorCommand = new RelayCommand(_ => _openInEditor(_shown), _ => _shown.FilePath is not null);
     }
 
@@ -101,6 +109,42 @@ public sealed class SpecWindowViewModel : ObservableObject
     /// <summary>Opens its file in the editor.</summary>
     public RelayCommand OpenInEditorCommand { get; }
 
+    /// <summary>Reject…: shows the note and the button that rejects (board-small-changes item 4).</summary>
+    public RelayCommand AskRejectCommand { get; }
+
+    /// <summary>Rejects the version on screen with the note.</summary>
+    public RelayCommand RejectCommand { get; }
+
+    /// <summary>Whether Reject… can run: the version on screen can still be decided.</summary>
+    public bool CanReject => _reject is not null && WhyNot is null;
+
+    /// <summary>Whether the window has Reject… at all.</summary>
+    public bool HasReject => _reject is not null;
+
+    /// <summary>Whether Reject… was pressed, so the note shows.</summary>
+    public bool IsRejecting
+    {
+        get => _isRejecting;
+        private set
+        {
+            if (Set(ref _isRejecting, value))
+            {
+                System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+            }
+        }
+    }
+
+    /// <summary>Why the owner rejects it, told to its session; optional.</summary>
+    public string Note
+    {
+        get => _note;
+        set => Set(ref _note, value ?? string.Empty);
+    }
+
+    /// <summary>Reject…'s tooltip: why it cannot run, or what it does.</summary>
+    public string RejectToolTip => WhyNot
+        ?? $"Send the {Noun.ToLowerInvariant()} back to its session to be written again, with a note; asks for the note first";
+
     /// <summary>Raised when the text on screen has changed, so the window draws it again.</summary>
     public event EventHandler? Redrawn;
 
@@ -164,6 +208,49 @@ public sealed class SpecWindowViewModel : ObservableObject
         RaiseState();
     }
 
+    private void Reject()
+    {
+        // As Accept: what is rejected is what is on screen, and nothing else.
+        if (Changed("Read it, then decide.") || _reject is null)
+        {
+            return;
+        }
+
+        var note = string.IsNullOrWhiteSpace(_note) ? null : _note.Trim();
+        var told = _reject(_shown, note);
+        IsRejecting = false;
+        Note = string.Empty;
+        Notice = $"Rejected version {_shown.ShortVersion}. {told}";
+        RaiseState();
+    }
+
+    // Reads the file again; true, with the notice said, when it has gone or changed since it was drawn.
+    private bool Changed(string then)
+    {
+        var now = _readAgain(_shown);
+
+        if (now is null)
+        {
+            _isGone = true;
+            Notice = $"The {Noun.ToLowerInvariant()} is no longer on disk, so nothing was decided.";
+            RaiseState();
+
+            return true;
+        }
+
+        if (string.Equals(now.ContentHash, _shown.ContentHash, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var before = _shown.ShortVersion;
+        Draw(now);
+        Notice = $"The {Noun.ToLowerInvariant()} changed since it was drawn (version {before}); it is drawn again as version "
+                 + $"{now.ShortVersion}. {then}";
+
+        return true;
+    }
+
     private void Draw(SpecAtGate spec)
     {
         _shown = spec;
@@ -178,6 +265,8 @@ public sealed class SpecWindowViewModel : ObservableObject
     {
         Raise(nameof(CanAccept));
         Raise(nameof(AcceptToolTip));
+        Raise(nameof(CanReject));
+        Raise(nameof(RejectToolTip));
         System.Windows.Input.CommandManager.InvalidateRequerySuggested();
     }
 }

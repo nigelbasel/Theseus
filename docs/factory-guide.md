@@ -1005,7 +1005,7 @@ flowchart TB
   RW --> BOX["A box per piece of work"]
   OO --> BOX
   BOX --> STG["Its stages, each<br/>with a mark"]
-  BOX --> ACT["Open spec, Accept spec,<br/>Independent check,<br/>Focus, Start, Stop,<br/>Open records"]
+  BOX --> ACT["View spec, Accept spec,<br/>Independent check,<br/>Focus, Start, Stop,<br/>Open records"]
   PV --> PROP["Properties pane:<br/>state in words, records,<br/>links, criteria to tick"]
 ```
 

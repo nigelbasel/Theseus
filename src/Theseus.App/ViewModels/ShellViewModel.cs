@@ -49,6 +49,7 @@ public sealed partial class ShellViewModel : ObservableObject
 
     private SessionTells Tells => _sessionTells ??= new SessionTells(new StopRequestStore(StopRequestRoot.Tells), _ownerEvents);
     private IReadOnlyList<SessionRun>? _refreshRuns;
+    private string? _lastOpenedProject;
     private string? _openProjectName;
     private ProjectViewModel? _projectView;
 
@@ -164,6 +165,14 @@ public sealed partial class ShellViewModel : ObservableObject
         _acceptances = new SpecAcceptanceStore(Path.Combine(App.DataDirectory, "spec-acceptances.json"));
         _reported = new ReportedAcceptanceStore(Path.Combine(App.DataDirectory, "reported-acceptances.json"));
         CloseProjectCommand = new RelayCommand(_ => CloseProject(), _ => IsProjectOpen);
+        OpenProjectViewCommand = new ReasonedCommand(_ =>
+            {
+                if (ProjectViewTarget.Choose(TabNames(), _lastOpenedProject) is { } project)
+                {
+                    OpenProject(project);
+                }
+            },
+            _ => ProjectViewTarget.WhyNot(TabNames().Count > 0, IsProjectOpen));
         // With no projects folder, New project opens the setup's folder step rather than sitting greyed out (first-run-setup),
         // and goes on to New project once the setup closes with a folder chosen.
         NewProjectCommand = new RelayCommand(_ =>
@@ -196,12 +205,16 @@ public sealed partial class ShellViewModel : ObservableObject
         Board.WaitsOnOwner = key => Chains?.NeedsYou.Any(row => string.Equals(row.Link.From, key, StringComparison.OrdinalIgnoreCase)) == true;
         _transcripts.Changed += (_, _) => ApplyTranscripts();
 
-        RefreshCommand = new RelayCommand(_ =>
-        {
-            Refresh();
-            _ = Updates?.CheckQuietlyAsync();
-            _ = CiStatus?.PollAsync(refresh: true);
-        });
+        Refreshing = new RefreshRun(() =>
+            {
+                Refresh();
+                _ = CiStatus?.PollAsync(refresh: true);
+            },
+            async () => Updates is { } updates ? await updates.CheckForRefreshAsync() : "Theseus is not checking for new versions.",
+            () => Notice,
+            text => SetNotice(string.Equals(text, RefreshRun.Started, StringComparison.Ordinal) ? NoticeSeverity.Information : NoticeSeverity, text),
+            async () => await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.Background));
+        RefreshCommand = Refreshing.Command;
         FocusCardCommand = new RelayCommand(FocusCard, CanFocusCard);
         OpenJiraCommand = new RelayCommand(OpenJira, parameter => parameter is string);
         OpenPullRequestCommand = new RelayCommand(OpenPullRequest,
@@ -520,8 +533,11 @@ public sealed partial class ShellViewModel : ObservableObject
     /// <summary>What the strip says: which cards are waiting, and on what.</summary>
     public string HeldForInputsSummary => Chains?.WaitingSummary(_heldForInputs) ?? string.Empty;
 
-    /// <summary>Re-reads everything on disk.</summary>
+    /// <summary>Re-reads everything on disk, and checks for a new version; disabled while it runs.</summary>
     public RelayCommand RefreshCommand { get; }
+
+    /// <summary>Refresh as it runs: busy while the owner waits on it, for the busy cursor (board-small-changes item 1).</summary>
+    public RefreshRun Refreshing { get; }
 
     /// <summary>Brings a card's session to the front.</summary>
     public RelayCommand FocusCardCommand { get; }
@@ -2661,8 +2677,10 @@ public sealed partial class ShellViewModel : ObservableObject
                 !reading.IsReadable && reading.Folder is { } home && File.Exists(Path.Combine(home, ProjectCatalog.ProjectFileName)))
             .ToList();
         var colours = ProjectColoursFor([.. readable.Concat(dimmed).Select(reading => reading.Name)]);
-        var tabs = ProjectTabViewModel.For(readable, _openProjectName, name => new RelayCommand(_ => OpenProject(name)),
-            name => ProjectColours.Of(colours, name));
+        // The tabs carry each project's waits (board-small-changes item 2), so they are made, with the open view, once
+        // every project's overview is read.
+        var waitsByProject = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        (ProjectFileReading Reading, IReadOnlyList<PieceOfWork> Pieces, ProjectOverview Overview, string? Lead)? open = null;
 
         foreach (var reading in readable)
         {
@@ -2735,13 +2753,21 @@ public sealed partial class ShellViewModel : ObservableObject
             }
 
             projectCards.Add(projectCard);
+            waitsByProject[name] = overview.Waits.Count;
 
             if (string.Equals(name, _openProjectName, StringComparison.OrdinalIgnoreCase))
             {
-                openView = BuildView(reading, pieces, tabs, overview, lead);
+                open = (reading, pieces, overview, lead);
             }
 
             GatherQueueCandidates(name, pieces, queueSettings, queueCandidates);
+        }
+
+        if (open is { } openOne)
+        {
+            var tabs = ProjectTabViewModel.For(readable, _openProjectName, name => new RelayCommand(_ => OpenProject(name)),
+                name => ProjectColours.Of(colours, name), name => waitsByProject.GetValueOrDefault(name));
+            openView = BuildView(openOne.Reading, openOne.Pieces, tabs, openOne.Overview, openOne.Lead);
         }
 
         _queueCandidates = queueCandidates;
@@ -2978,12 +3004,12 @@ public sealed partial class ShellViewModel : ObservableObject
             ? new HandIn(given.AtUtc, by, from.Title, instruction)
             : null;
 
-    /// <summary>Open spec and Accept spec on the menu bar, for the open project's waiting specs (R16).</summary>
+    /// <summary>View spec and Accept spec on the menu bar, for the open project's waiting specs (R16).</summary>
     private void WireSpecChoices()
     {
         var specs = ProjectView?.WaitingSpecs ?? [];
         var open = specs.Select(spec => new ProjectChoice(spec.Slug, false, new RelayCommand(_ => OpenSpec(spec)), [],
-            $"Open the spec of {spec.Slug} in its window; Accept spec… there accepts the version on screen") { ShowsTick = false }).ToList();
+            $"View the spec of {spec.Slug}, drawn, in its window; Accept spec… or Reject… there decides on the version on screen") { ShowsTick = false }).ToList();
         var accept = specs.Select(spec => new ProjectChoice(spec.Slug, false, new RelayCommand(_ => AcceptSpec(spec)), [],
             $"Accept the spec of {spec.Slug}, version {spec.ShortVersion}, after a confirmation") { ShowsTick = false }).ToList();
 
@@ -3084,6 +3110,7 @@ public sealed partial class ShellViewModel : ObservableObject
         }
 
         _viewHost.Opened();
+        _lastOpenedProject = name;
 
         if (Board.Search.IsOn)
         {
@@ -3140,6 +3167,12 @@ public sealed partial class ShellViewModel : ObservableObject
     /// <summary>Back to the board (AC 14).</summary>
     public RelayCommand CloseProjectCommand { get; }
 
+    /// <summary>
+    /// View › Project view and the toolbar's Projects: the project view on the project last opened, or the first, with no
+    /// project picked first (board-small-changes item 3).
+    /// </summary>
+    public ReasonedCommand OpenProjectViewCommand { get; }
+
     /// <summary>View › Open project: one item per readable project.</summary>
     public IReadOnlyList<ProjectChoice> OpenProjectChoices
     {
@@ -3156,7 +3189,7 @@ public sealed partial class ShellViewModel : ObservableObject
     /// <summary>Whether View shows Open project.</summary>
     public bool HasOpenProjectChoices => _openProjectChoices.Count > 0;
 
-    /// <summary>Workstream › Open spec, for the open project's waiting specs.</summary>
+    /// <summary>Workstream › View spec, for the open project's waiting specs.</summary>
     public IReadOnlyList<ProjectChoice> OpenSpecChoices
     {
         get => _openSpecChoices;
@@ -3176,7 +3209,7 @@ public sealed partial class ShellViewModel : ObservableObject
         private set => Set(ref _acceptSpecChoices, value);
     }
 
-    /// <summary>Whether the Workstream menu shows Open spec and Accept spec.</summary>
+    /// <summary>Whether the Workstream menu shows View spec and Accept spec.</summary>
     public bool HasSpecChoices => _openSpecChoices.Count > 0;
 
     /// <summary>Asks the owner to accept a spec; true to accept. Set by the App to a message box.</summary>
@@ -3351,7 +3384,38 @@ public sealed partial class ShellViewModel : ObservableObject
             {
                 OpenFile(path);
             }
-        });
+        }, RejectSpec);
+
+    /// <summary>
+    /// Reject… in the spec window (board-small-changes item 4): nothing is recorded as decided, so the gate still waits; the
+    /// card is told as an accepted one is, so it writes a new version. What was done, for the window.
+    /// </summary>
+    private string RejectSpec(SpecAtGate spec, string? note)
+    {
+        var card = CardOfPiece(spec.Project, spec.Slug);
+        var text = RejectedTell.Text(spec, note);
+        TheseusLog.Information("Rejected the {Noun} of {Slug} in {Project}, version {Version}", spec.IsRule ? "rule" : "spec", spec.Slug,
+            spec.Project, spec.ContentHash);
+        string told;
+
+        if (card is null)
+        {
+            told = "No card works it, so no session was told.";
+        }
+        else if (Tell(card, text))
+        {
+            told = $"{card.Title} is told with its next turn.";
+        }
+        else
+        {
+            StartMany([card.Workstream with { StartInstruction = text }], trigger: "SpecRejected");
+            told = $"Starting {card.Title}, told to change it.";
+        }
+
+        Notice = $"Rejected the {(spec.IsRule ? "rule" : "spec")} of {spec.Slug}, version {spec.ShortVersion}. {told}";
+
+        return told;
+    }
 
     /// <summary>
     /// Why Accept spec… cannot run for a version, or null (1.1e AC 24a): it is accepted already at that version, so its gate
@@ -3360,7 +3424,7 @@ public sealed partial class ShellViewModel : ObservableObject
     private string? WhyNotAcceptSpec(SpecAtGate spec) => _acceptances.WhyNotAccept(spec);
 
     /// <summary>
-    /// Open spec, wherever it appears (view, board, menus): the spec window, not the editor (1.1e AC 24a; Nigel, 2026-11-21).
+    /// View spec, wherever it appears (view, board, menus): the spec window, not the editor (1.1e AC 24a; Nigel, 2026-11-21).
     /// </summary>
     private void OpenSpec(SpecAtGate spec)
     {
