@@ -35,6 +35,9 @@ public sealed class HoldoutGuardViewModel : ObservableObject
     /// <summary>Whether Claude Code's settings run the guard; when not, no session is guarded at all.</summary>
     public bool HookIsMissing => !_state.HookIsRegistered;
 
+    /// <summary>Whether the guard is installed, this Theseus's own, and run before every tool: the setup's step is then done.</summary>
+    public bool IsReady => _state is { IsInstalled: true, IsUpToDate: true, HookIsRegistered: true };
+
     /// <summary>What the last action came to, or empty.</summary>
     public string Result
     {
@@ -91,5 +94,6 @@ public sealed class HoldoutGuardViewModel : ObservableObject
         Raise(nameof(Line));
         Raise(nameof(GuardPath));
         Raise(nameof(HookIsMissing));
+        Raise(nameof(IsReady));
     }
 }

@@ -54,9 +54,9 @@ public sealed class HelpViewModel : ObservableObject
     public string HookStatus => HookIsRegistered
         ? "The stop hook is registered, so Stop delivers on its own. A session started before it was"
           + " registered still will not answer: hooks are loaded when a session starts."
-        : "The stop hook is not registered, so nothing will be delivered to any session. Run"
-          + " install.ps1 - it prints the configuration to merge - or stop sessions by typing into"
-          + " their tabs, which needs no hook.";
+        : "The stop hook is not registered, so nothing will be delivered to any session. Tools > Set up"
+          + " Theseus… shows the entry and adds it if you agree; or stop sessions by typing into their"
+          + " tabs, which needs no hook.";
 
     /// <summary>Where the hook is registered, shown so it can be opened and read.</summary>
     public string SettingsPath => HookInstallation.SettingsPath;
