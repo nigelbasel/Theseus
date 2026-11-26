@@ -12,6 +12,9 @@ internal sealed class FakeShell : System.ComponentModel.INotifyPropertyChanged
 {
     private string _notice = string.Empty;
     private NoticeSeverity _noticeSeverity;
+    private RecordingCommand? _startSelected;
+    private RecordingCommand? _stopSelected;
+    private RecordingCommand? _archiveSelected;
 
     /// <inheritdoc />
     public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
@@ -45,6 +48,34 @@ internal sealed class FakeShell : System.ComponentModel.INotifyPropertyChanged
         Drawer = new DetailDrawerViewModel(plans, new NoRunLog(), new NoWorkflowRuns(), board.Persist);
         Refreshing = new RefreshRun(() => { }, () => RefreshCheck.Task, () => Notice, text => Notice = text, () => Task.CompletedTask);
     }
+
+    /// <summary>
+    /// Whether the board's card commands can run: false is the project view, where no card can be ticked. Setting it gives
+    /// the window new commands, so its buttons ask them again.
+    /// </summary>
+    public bool CardCommandsCanRun
+    {
+        get;
+        set
+        {
+            field = value;
+            _startSelected = _stopSelected = _archiveSelected = null;
+
+            foreach (string name in new[] { nameof(StartSelectedCommand), nameof(StopSelectedCommand), nameof(ArchiveSelectedCommand) })
+            {
+                PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(name));
+            }
+        }
+    } = true;
+
+    /// <summary>Start selected, which runs only while <see cref="CardCommandsCanRun"/>.</summary>
+    public RecordingCommand StartSelectedCommand => _startSelected ??= Card();
+
+    /// <summary>Stop selected, which runs only while <see cref="CardCommandsCanRun"/>.</summary>
+    public RecordingCommand StopSelectedCommand => _stopSelected ??= Card();
+
+    /// <summary>Archive selected, which runs only while <see cref="CardCommandsCanRun"/>.</summary>
+    public RecordingCommand ArchiveSelectedCommand => _archiveSelected ??= Card();
 
     /// <summary>View › Project view and the toolbar's Projects.</summary>
     public RecordingCommand OpenProjectViewCommand { get; } = new();
@@ -102,4 +133,11 @@ internal sealed class FakeShell : System.ComponentModel.INotifyPropertyChanged
 
     /// <summary>Opens the previous project tab.</summary>
     public RecordingCommand PreviousProjectTabCommand { get; } = new();
+
+    private RecordingCommand Card()
+    {
+        bool canRun = CardCommandsCanRun;
+
+        return new RecordingCommand(_ => canRun);
+    }
 }
