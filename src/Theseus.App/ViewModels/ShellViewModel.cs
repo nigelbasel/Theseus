@@ -164,7 +164,15 @@ public sealed partial class ShellViewModel : ObservableObject
         _acceptances = new SpecAcceptanceStore(Path.Combine(App.DataDirectory, "spec-acceptances.json"));
         _reported = new ReportedAcceptanceStore(Path.Combine(App.DataDirectory, "reported-acceptances.json"));
         CloseProjectCommand = new RelayCommand(_ => CloseProject(), _ => IsProjectOpen);
-        NewProjectCommand = new RelayCommand(_ => NewProject());
+        // With no projects folder, New project opens the setup's folder step rather than sitting greyed out (first-run-setup),
+        // and goes on to New project once the setup closes with a folder chosen.
+        NewProjectCommand = new RelayCommand(_ =>
+        {
+            if (!FirstRun!.OpenForNewProject() || !string.IsNullOrWhiteSpace(_settings.Read().ProjectsFolder))
+            {
+                NewProject();
+            }
+        });
         BringProjectWindowForwardCommand = new RelayCommand(_ => BringProjectWindowForward(),
             _ => IsProjectOpen && _projectWindow.SessionId is not null && Sessions.Find(_projectWindow.SessionId) is not null);
         launcher.ReadableProjects = () => _projectReads.ReadableNames;
@@ -289,11 +297,12 @@ public sealed partial class ShellViewModel : ObservableObject
         Drawer.EventsOf = _cardEvents.For;
         Drawer.WhoStarts = WhoStartsCard;
 
+        IReadOnlyList<GuardViewModel> guards = [.. Theseus.Core.Guards.GuardCatalog.All.Select(guard => new GuardViewModel(
+            new Theseus.Core.Guards.GuardInstallation(guard, Theseus.Core.Guards.GuardInstallation.UserConfigFolder())))];
         Settings = new SettingsViewModel(settings, Refresh)
         {
             Tags = new TagsViewModel(Board.Tags),
-            Guards = [.. Theseus.Core.Guards.GuardCatalog.All.Select(guard => new GuardViewModel(
-                new Theseus.Core.Guards.GuardInstallation(guard, Theseus.Core.Guards.GuardInstallation.UserConfigFolder())))],
+            Guards = guards,
             AutoMode = new AutoModeViewModel(settings,
                 new Theseus.Core.Guards.AutoModeEnvironment(Theseus.Core.Guards.GuardInstallation.UserConfigFolder())),
             FolderTrust = new FolderTrustViewModel(
@@ -304,6 +313,15 @@ public sealed partial class ShellViewModel : ObservableObject
                 Said = text => Notice = text,
             },
         };
+        FirstRun = new FirstRunViewModel(settings,
+            new Theseus.Core.Setup.StopHookRegistration(Theseus.Core.Guards.GuardInstallation.UserConfigFolder(),
+                Path.Combine(AppContext.BaseDirectory, "Theseus.Hook.exe")),
+            guards,
+            () => new Theseus.Core.Setup.ToolsCheck(
+                program => Theseus.Core.Setup.ToolVersions.Of(program, settings.Read().ClaudeExecutablePath),
+                () => Theseus.Core.Instructions.InstalledPlugins.Read(Theseus.Core.Guards.GuardInstallation.UserConfigFolder())
+                    .Any(plugin => plugin.Name == "agentic-factory")).Run(),
+            Refresh);
         Settings.OpenProjectHoldouts = OpenProjectHoldouts;
         Settings.HasProjectCard = project => Board.ProjectCards.Any(each => string.Equals(each.Name, project, StringComparison.OrdinalIgnoreCase));
         Drawer.TagsInUse = Board.Tags.InUse;
@@ -2128,6 +2146,9 @@ public sealed partial class ShellViewModel : ObservableObject
 
     /// <summary>Whether a projects folder is set, so New project… shows in the File menu and on the toolbar (1.1c AC 6).</summary>
     public bool HasProjectsFolder => _hasProjectsFolder;
+
+    /// <summary>The first-run setup: at startup while no projects folder is set, from Tools › Set up Theseus…, and from New project.</summary>
+    public FirstRunViewModel FirstRun { get; }
 
     /// <summary>New project…: a project home from the starter, with what the owner gives (1.1b AC 7; 1.1c AC 6).</summary>
     public RelayCommand NewProjectCommand { get; }

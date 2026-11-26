@@ -6,9 +6,11 @@ namespace Theseus.Core.Stopping;
 /// <summary>
 /// Whether a Theseus stop hook is registered, and the configuration that would register one.
 ///
-/// The settings file belongs to the user. It is read and never written: a tool that edits the
+/// The settings file belongs to the user. This reads it and never writes it: a tool that edits the
 /// configuration governing what runs inside every session on the machine, on its own initiative, is
-/// a tool nobody can reason about. Theseus reports what it finds and hands over the text.
+/// a tool nobody can reason about. The one way the hook is written for the owner is the setup's
+/// <see cref="Setup.StopHookRegistration"/>, after showing the exact entry and only on the owner's
+/// consent (first-run-setup, Nigel 2026-11-25).
 /// </summary>
 public static class HookInstallation
 {

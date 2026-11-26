@@ -124,6 +124,12 @@ public sealed record TheseusSettings(
     /// </summary>
     public string ProjectsFolder { get; init; } = string.Empty;
 
+    /// <summary>
+    /// Whether the owner finished or skipped the first-run setup, so it does not open by itself again; Tools › Set up Theseus…
+    /// still opens it (first-run-setup, Nigel 2026-11-25).
+    /// </summary>
+    public bool FirstRunSetupDone { get; init; }
+
     /// <summary>Where workstreams' worktrees go, <c>&lt;folder&gt;\&lt;slug&gt;\&lt;repo&gt;</c> (1.1b AC 11). Empty by default.</summary>
     public string WorktreesFolder { get; init; } = string.Empty;
 

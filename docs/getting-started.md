@@ -85,8 +85,25 @@ project's file as well: `/agentic-factory:check <home folder>`.
 ### Windows: Theseus and the plugin
 
 1. Install Theseus with `Theseus.msi` from the newest release at https://github.com/nigelbasel/Theseus/releases.
-   Theseus reads your Claude Code settings but never writes them, so register its hook yourself: merge this into
-   `%USERPROFILE%\.claude\settings.json` (into the `hooks` you already have, if any), then start new sessions.
+2. **Let the setup run.** The first time Theseus opens with no projects folder, **Set up Theseus** opens by itself and
+   shows only what is still missing, one step at a time, with **Back**, **Next**, **Skip setup** and **Finish**:
+   - **Folders.** A **projects folder** (needed for projects; outside any code repo: each project's `project.md` and
+     records go there), and optionally a **worktrees folder** and a **clones folder**. With the last two set, Theseus
+     makes each workstream's branch and worktree for you. Section 6 suggests a layout, and
+     [How your work is laid out](project-layout.md) explains each folder.
+   - **The stop hook**, which lets Stop ask a session for its handover. The step shows the exact entry; **Add the hook
+     entry…** shows the change to `%USERPROFILE%\.claude\settings.json` again and makes it only if you agree, keeping the
+     old file beside it as `settings.json.previous`.
+   - **The guards**: the holdout, trunk and tests-lock guards, each with the same **Install** and hook entry as
+     **Tools > Options > Guards**. Until every guard is set up, the board names the ones missing or out of date.
+   - **The tools**: Claude Code 2.1.295 or later, Node, git and the `agentic-factory` plugin. It reports what it finds
+     and installs nothing.
+
+   Once you finish or skip it, it does not open by itself again; **Tools > Set up Theseus…** opens it whenever you like.
+   **File > New project…** with no projects folder chosen opens its folder step.
+
+   **By hand, if you prefer.** Choose the folders in **Tools > Options > Folders**. Register the hook by merging this
+   into `%USERPROFILE%\.claude\settings.json` (into the `hooks` you already have, if any), then start new sessions:
 
    ```json
    {
@@ -101,17 +118,11 @@ project's file as well: `/agentic-factory:check <home folder>`.
    }
    ```
 
-   It is what lets Stop ask a session for its handover, and it is silent otherwise. **Help > About** says whether it is
-   registered ([Starting and stopping](starting-and-stopping.md)). Then open **Tools > Options > Guards**: for each of
-   the holdout, trunk and tests-lock guards, **Install** it, then **Add the hook entry…**. Below them, enter your
-   source-control hosts, internal domains and production words once, and **Write…** auto mode's environment, so auto mode
-   treats pushing your own branches as routine. Each change to Claude Code's settings is shown first and made only if you
-   agree. Until every guard is set up, the board names the ones missing or out of date.
-2. **Choose your folders, once.** **File > New project…** stays greyed out until a projects folder is chosen. Open
-   **Tools > Options > Folders** and choose a **projects folder** (outside any code repo: each project's `project.md`
-   and records go there), a **worktrees folder** and a **clones folder**. With the last two set, Theseus makes each
-   workstream's branch and worktree for you. Section 6 suggests a layout, and
-   [How your work is laid out](project-layout.md) explains each folder.
+   **Help > About** says whether the hook is registered ([Starting and stopping](starting-and-stopping.md)).
+
+   **Auto mode.** In **Tools > Options > Guards**, enter your source-control hosts, internal domains and production
+   words once, then **Write…** auto mode's environment, so auto mode treats pushing your own branches as routine. The
+   change to Claude Code's settings is shown first and made only if you agree.
 3. Install the plugin as in section 2. Sessions Theseus starts read the same Claude Code configuration, so they get
    the same plugin: the same rules, skills and guards, from the same files.
 4. Make projects with **File > New project…**. The board then does what the commands above do by hand: cards for
@@ -157,8 +168,8 @@ folder in its own local git repository keeps every version of every spec.
 
 ## 7. When something is wrong
 
-- **New project is greyed out in Theseus:** no projects folder is chosen yet. Choose one in **Tools > Options >
-  Folders** (section 5).
+- **New project asks for a folder in Theseus:** no projects folder is chosen yet. It opens the setup's folder step;
+  **Tools > Options > Folders** also chooses one (section 5).
 - **Every tool call is refused, mentioning node:** Node is missing or not on the PATH. Install it and start a new
   session.
 - **`/agentic-factory:...` is not offered:** the plugin is not installed, or not enabled for this configuration.

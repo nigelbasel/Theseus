@@ -24,6 +24,7 @@ public static class SecondaryWindows
         ("Arrange", () => new ArrangeWindow { DataContext = Arrange() }),
         ("Checklist", () => new ChecklistWindow(Checklist())),
         ("DayReport", () => new DayReportWindow()),
+        ("FirstRun", () => new FirstRunWindow { DataContext = FirstRun(scratchFolder) }),
         ("Instructions", () => new InstructionsWindow()),
         ("NewProject", () => new NewProjectWindow("my-project", "My project")),
         ("NewWorkstream", () => new NewWorkstreamWindow()),
@@ -48,6 +49,19 @@ public static class SecondaryWindows
         return new WaitsChecklistViewModel(
             [(new WaitItemViewModel(ask, new RelayCommand(_ => { })), "For you"), (new WaitItemViewModel(question, new RelayCommand(_ => { })), "For you")],
             [ask], new WaitsChecklistActions("Cache spike", (_, _) => { }, (_, _, _) => null, "Cache lead", _ => { }, _ => { }));
+    }
+
+    /// <summary>The first-run setup over a scratch Claude Code folder, open on its folder step, with nothing read from this machine.</summary>
+    public static FirstRunViewModel FirstRun(string folder)
+    {
+        Directory.CreateDirectory(folder);
+        FirstRunViewModel setup = new(new Theseus.Tests.ViewModels.MemorySettingsStore(),
+            new Theseus.Core.Setup.StopHookRegistration(folder, @"C:\Program Files\Theseus\Theseus.Hook.exe"),
+            [new GuardViewModel(new Theseus.Core.Guards.GuardInstallation(Theseus.Core.Guards.GuardCatalog.Holdout, folder, folder))],
+            () => [new("Claude Code", true, "Claude Code 2.1.300"), new("Node", false, "Node was not found on the PATH")], () => { });
+        setup.Open();
+
+        return setup;
     }
 
     /// <summary>The arranger with one terminal window, read from nowhere: no real window is looked at or moved.</summary>

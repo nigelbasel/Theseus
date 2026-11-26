@@ -1595,9 +1595,9 @@
         -->
         <Menu DockPanel.Dock="Top" Padding="8,0,8,0" Background="Transparent">
             <MenuItem Header="_File">
-                <MenuItem Header="New _project…" Command="{Binding NewProjectCommand}" Style="{StaticResource ExplainsWhenOff}"
-                          IsEnabled="{Binding HasProjectsFolder}" Tag="Start a new project: a project.md in the projects folder."
-                          controls:OffReason.Text="Choose a projects folder in Tools › Options first." />
+                <!-- Never greyed out: with no projects folder it opens the setup's folder step (first-run-setup, Nigel 2026-11-25). -->
+                <MenuItem Header="New _project…" Command="{Binding NewProjectCommand}"
+                          ToolTip="Start a new project: a project.md in the projects folder. With none chosen yet, it asks for one first." />
                 <MenuItem Header="_New workstream…" InputGestureText="Ctrl+N" Command="{Binding NewWorkstream.OpenCommand}">
                     <MenuItem.Icon><controls:GlyphText Text="&#xE710;" Style="{StaticResource MenuGlyph}" /></MenuItem.Icon>
                 </MenuItem>
@@ -1794,6 +1794,8 @@
 
             <MenuItem Header="_Tools">
                 <MenuItem Header="O_ptions" InputGestureText="Ctrl+," Command="{Binding Settings.OpenCommand}" />
+                <MenuItem Header="_Set up Theseus…" Command="{Binding FirstRun.OpenCommand}"
+                          ToolTip="The first-run setup: folders, the stop hook, the holdout guard and the tools, showing only what is missing." />
                 <MenuItem Header="D_uties…" Command="{Binding OpenDutiesCommand}"
                           ToolTip="Every duty on the board: the instructions Theseus gives cards on a cadence." />
                 <Separator />
@@ -1842,8 +1844,7 @@
                         </StackPanel>
                     </Button>
                     <Button Style="{StaticResource ExplainsWhenOffTool}" Content="&#xE8F4;" AutomationProperties.Name="New project"
-                            Command="{Binding NewProjectCommand}" IsEnabled="{Binding HasProjectsFolder}" Tag="New project"
-                            controls:OffReason.Text="New project: choose a projects folder in Tools › Options first." />
+                            Command="{Binding NewProjectCommand}" Tag="New project" />
 
                     <Separator />
 
