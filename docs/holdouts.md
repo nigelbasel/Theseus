@@ -29,7 +29,7 @@ To keep a project's scenarios in a private repository of your own, clone it besi
 
 ## Installing the guard
 
-**Tools > Options, Holdouts** shows the installed guard: *Not installed*, *Up to date*, or when an older one was
+**Tools > Options, Guards** shows the installed guard, beside the trunk and tests-lock guards, which install the same way: *Not installed*, *Up to date*, or when an older one was
 installed. **Install the holdout guard** copies this Theseus's guard to where your Claude Code hook runs it (by default
 `bin\holdout-guard.js` in your Claude Code folder), keeps the copy it replaces as `holdout-guard.js.previous`, then
 checks it on a folder made for the check: a session with no role must be refused a read of the holdout, and a verifier
@@ -38,7 +38,8 @@ allowed it. **Undo** puts the previous copy back. If Claude Code's settings do n
 as `settings.json.previous`. Hooks are read as a session starts, so a newly registered hook guards sessions started
 after it. The guard reads the folders and the address from Theseus's files, so it holds no path of its own.
 
-After an update that brings a newer guard, the board says once that the holdout guard is out of date.
+The board names any guard that is missing, out of date or not run, once for each change: after an update that brings
+a newer guard, it says so again.
 
 With the guard installed, a session with no role is refused reading, searching or fetching in the holdout. A verifier
 can read the scenarios and write only its report and its handoff, in the holdout's `results` folder. No session runs a

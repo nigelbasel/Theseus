@@ -102,8 +102,11 @@ project's file as well: `/agentic-factory:check <home folder>`.
    ```
 
    It is what lets Stop ask a session for its handover, and it is silent otherwise. **Help > About** says whether it is
-   registered ([Starting and stopping](starting-and-stopping.md)). For holdout scenarios, also use **Tools > Options >
-   Holdouts**: **Install** the holdout guard, then **Add the hook entry…**.
+   registered ([Starting and stopping](starting-and-stopping.md)). Then open **Tools > Options > Guards**: for each of
+   the holdout, trunk and tests-lock guards, **Install** it, then **Add the hook entry…**. Below them, enter your
+   source-control hosts, internal domains and production words once, and **Write…** auto mode's environment, so auto mode
+   treats pushing your own branches as routine. Each change to Claude Code's settings is shown first and made only if you
+   agree. Until every guard is set up, the board names the ones missing or out of date.
 2. **Choose your folders, once.** **File > New project…** stays greyed out until a projects folder is chosen. Open
    **Tools > Options > Folders** and choose a **projects folder** (outside any code repo: each project's `project.md`
    and records go there), a **worktrees folder** and a **clones folder**. With the last two set, Theseus makes each

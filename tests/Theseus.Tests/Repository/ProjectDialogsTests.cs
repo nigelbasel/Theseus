@@ -126,7 +126,9 @@ public class ProjectDialogsTests
         {
             var settings = new SettingsViewModel(new Theseus.Core.Settings.SettingsStore(Path.Combine(folder, "settings.json")), () => { })
             {
-                Guard = new HoldoutGuardViewModel(new Theseus.Core.Links.HoldoutGuardInstallation(Path.Combine(folder, "claude"), folder)),
+                Guards = [new GuardViewModel(new Theseus.Core.Guards.GuardInstallation(Theseus.Core.Guards.GuardCatalog.Holdout, Path.Combine(folder, "claude"), folder))],
+                AutoMode = new AutoModeViewModel(new Theseus.Core.Settings.SettingsStore(Path.Combine(folder, "settings.json")),
+                    new Theseus.Core.Guards.AutoModeEnvironment(Path.Combine(folder, "claude"))),
                 FolderTrust = new FolderTrustViewModel(
                     new Theseus.Core.Trust.ClaudeFolderTrust(Path.Combine(folder, ".claude.json"), Path.Combine(folder, "undo.json")), () => []),
                 Tags = null,
@@ -137,7 +139,7 @@ public class ProjectDialogsTests
             var tabs = (TabControl)window.FindName("Tabs");
 
             Assert.That(tabs.Items.Cast<TabItem>().Select(tab => tab.Header),
-                Is.EqualTo(new[] { "General", "Board", "Folders", "Holdouts", "Tags", "Prompts", "Advanced" }));
+                Is.EqualTo(new[] { "General", "Board", "Folders", "Guards", "Tags", "Prompts", "Advanced" }));
 
             var rows = new List<Theseus.App.Controls.SettingRow>();
 
