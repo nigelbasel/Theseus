@@ -47,20 +47,44 @@ public class OwnerActionLinesTests
     }
 
     [Test]
-    public void AWritersResetBreakerLine_HasItsButton_WhichResetsThatCard()
+    public void AWritersResetBreakerLine_ResetsAndStartsThatCard()
     {
-        var reset = new List<string>();
-        var actions = _views.Actions with { ResetBreaker = key => reset.Add(key) };
-        var line = ResetLine();
+        var ran = new List<string>();
+        var actions = _views.Actions with
+        {
+            ResetBreaker = key => ran.Add($"Reset:{key}"),
+            ResetBreakerAndStart = key => ran.Add($"ResetAndStart:{key}"),
+        };
 
-        var view = _views.BuildYourMarket(actions: actions, otherWaits: _ => [line]);
+        var view = _views.BuildYourMarket(actions: actions, otherWaits: _ => [ResetLine()]);
+        var shown = view.Waits.Single(wait => wait.Item.Kind == WaitKind.ResetBreaker);
+        shown.Command!.Execute(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(shown.Button, Is.EqualTo("Reset breaker and start"));
+            Assert.That(ran, Is.EqualTo(new[] { "ResetAndStart:write-scenarios" }));
+        });
+    }
+
+    [Test]
+    public void ACardTheOwnerMade_HasResetBreakerOnly()
+    {
+        var ran = new List<string>();
+        var actions = _views.Actions with
+        {
+            ResetBreaker = key => ran.Add($"Reset:{key}"),
+            ResetBreakerAndStart = key => ran.Add($"ResetAndStart:{key}"),
+        };
+
+        var view = _views.BuildYourMarket(actions: actions, otherWaits: _ => [ResetLine() with { AndStart = false, CardKey = "own" }]);
         var shown = view.Waits.Single(wait => wait.Item.Kind == WaitKind.ResetBreaker);
         shown.Command!.Execute(null);
 
         Assert.Multiple(() =>
         {
             Assert.That(shown.Button, Is.EqualTo("Reset breaker"));
-            Assert.That(reset, Is.EqualTo(new[] { "write-scenarios" }));
+            Assert.That(ran, Is.EqualTo(new[] { "Reset:own" }));
         });
     }
 
@@ -86,5 +110,6 @@ public class OwnerActionLinesTests
         new(WaitKind.ResetBreaker, "Write scenarios for BYM MCP: Breaker tripped. Reset it from the card when fixed.", [])
         {
             CardKey = "write-scenarios",
+            AndStart = true,
         };
 }

@@ -1137,7 +1137,9 @@ public sealed class ProjectViewModel : ObservableObject
             WaitKind.StartVerifier when item.CardKey is { } verifier => new RelayCommand(_ => StartVerifier(verifier)),
             WaitKind.Decide or WaitKind.Outside => new RelayCommand(_ => Respond([item])),
             WaitKind.ClearVerifiers when _actions.ClearVerifiers is { } clear => new RelayCommand(_ => clear(project)),
-            WaitKind.ResetBreaker when item.CardKey is { } card && _actions.ResetBreaker is { } reset => new RelayCommand(_ => reset(card)),
+            WaitKind.ResetBreaker when item is { AndStart: true, CardKey: { } card } && _actions.ResetBreakerAndStart is { } resetAndStart =>
+                new RelayCommand(_ => resetAndStart(card)),
+            WaitKind.ResetBreaker when item is { AndStart: false, CardKey: { } card } && _actions.ResetBreaker is { } reset => new RelayCommand(_ => reset(card)),
             WaitKind.RaiseBudget when _actions.OpenOptions is { } options => new RelayCommand(_ => options()),
             WaitKind.AddToObjective when item.CardKey is { } card && _actions.AddToProject is { } add => new RelayCommand(_ => add(project, card)),
             WaitKind.Proposal when item.ProposalId is { } proposal && _actions.ReviewProposal is { } review =>

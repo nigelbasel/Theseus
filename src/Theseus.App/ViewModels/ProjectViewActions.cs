@@ -96,6 +96,9 @@ public sealed record ProjectViewActions(
     /// <summary>Resets a card's tripped breaker, by key (Nigel, 2026-11-24).</summary>
     public Action<string>? ResetBreaker { get; init; }
 
+    /// <summary>Resets a card's tripped breaker and starts it, by key: the line's button for a card Theseus made.</summary>
+    public Action<string>? ResetBreakerAndStart { get; init; }
+
     /// <summary>Opens Options, where the headless limits are raised.</summary>
     public Action? OpenOptions { get; init; }
 

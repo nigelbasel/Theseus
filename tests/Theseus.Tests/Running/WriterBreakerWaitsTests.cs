@@ -78,7 +78,7 @@ public class WriterBreakerWaitsTests
         {
             Assert.That(line.Kind, Is.EqualTo(WaitKind.ResetBreaker));
             Assert.That(line.CardKey, Is.EqualTo(writer.Key));
-            Assert.That(line.Button, Is.EqualTo("Reset breaker"));
+            Assert.That(line.Button, Is.EqualTo("Reset breaker and start"), "Theseus made it, so the reset starts it again");
             Assert.That(line.Text, Does.StartWith("Write scenarios for One:"));
         });
     }
@@ -89,7 +89,17 @@ public class WriterBreakerWaitsTests
         // A verifier takes its subject's project as the board reads the links.
         var verifier = Card("verify-a-piece", "Verify: a piece", WorkstreamRole.Verifier, @"C:\scenarios\one", []) with { Project = OneProject };
 
-        Assert.That(HeadlessWaits.ForProject(OneProject, [verifier], Readings(), _ => null).Single().Kind, Is.EqualTo(WaitKind.ResetBreaker));
+        var line = HeadlessWaits.ForProject(OneProject, [verifier], Readings(), _ => null).Single();
+
+        Assert.That((line.Kind, line.Button), Is.EqualTo((WaitKind.ResetBreaker, "Reset breaker and start")));
+    }
+
+    [Test]
+    public void ACardTheOwnerMade_IsResetOnly_HeStartsItHimself()
+    {
+        var own = Card("own-card", "Own card", WorkstreamRole.None, @"C:\work", []) with { Project = OneProject };
+
+        Assert.That(HeadlessWaits.ForProject(OneProject, [own], Readings(), _ => null).Single().Button, Is.EqualTo("Reset breaker"));
     }
 
     [Test]

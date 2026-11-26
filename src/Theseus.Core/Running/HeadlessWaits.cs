@@ -39,6 +39,7 @@ public static class HeadlessWaits
                 waits.Add(new WaitItem(WaitKind.ResetBreaker, $"{card.Title}: {trip.Detail} Reset it from the card when fixed.", [])
                 {
                     CardKey = card.Key,
+                    AndStart = card.Role != WorkstreamRole.None,
                 });
 
                 continue;

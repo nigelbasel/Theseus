@@ -2854,6 +2854,7 @@ public sealed partial class ShellViewModel : ObservableObject
                 AnswerStartRequest = AnswerStartRequest,
                 ClearVerifiers = ClearUpVerifiers,
                 ResetBreaker = key => ResetBreakers([key]),
+                ResetBreakerAndStart = ResetBreakerAndStart,
                 OpenOptions = () => Settings.OpenCommand.Execute(null),
                 StartVerifier = key =>
                 {
