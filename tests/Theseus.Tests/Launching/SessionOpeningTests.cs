@@ -95,6 +95,14 @@ public class SessionOpeningTests
         Assert.That(SessionOpening.HasHistory(verifier, handoffExists: true), Is.False);
     }
 
+    [Test]
+    public void HasHistory_IsFalseForAScenarioWriter_SoEveryRunOpensWithItsOwnPrompt()
+    {
+        var writer = Workstream("session-1") with { Role = WorkstreamRole.ScenarioWriter };
+
+        Assert.That(SessionOpening.HasHistory(writer, handoffExists: true), Is.False);
+    }
+
     private static string For(bool hasHistory, string? preamble = null, string? continuePrompt = null,
         bool handoffExists = true) =>
         SessionOpening.For(preamble, continuePrompt, Workstream("session-1"), hasHistory, Handoff, handoffExists);
