@@ -88,14 +88,55 @@ public class PluginTests
     }
 
     [Test]
-    public void TheSessionRules_FitClaudeCodesLimitAndCarryBothSections()
+    public void TheSessionRules_FitClaudeCodesLimitAndCarryEverySection()
     {
-        var rules = Node("plugin/scripts/session-rules.js", string.Empty);
+        var standing = Node("plugin/scripts/session-rules.js", string.Empty, "standing");
+        var ladder = Node("plugin/scripts/session-rules.js", string.Empty, "ladder");
 
-        Assert.That(rules.Length, Is.LessThan(10_000), "Claude Code caps a SessionStart hook's context at 10,000 characters");
-        Assert.That(rules, Does.Contain("## Rules that hold everywhere"));
-        Assert.That(rules, Does.Contain("## Working unattended: decide, record, or park"));
-        Assert.That(rules, Does.Contain("Without the Theseus tools"));
+        Assert.That(standing.Length, Is.LessThan(10_000), "Claude Code caps each SessionStart hook's output at 10,000 characters");
+        Assert.That(ladder.Length, Is.LessThan(10_000), "Claude Code caps each SessionStart hook's output at 10,000 characters");
+        Assert.That(standing, Does.Contain("## Rules that hold everywhere"));
+        Assert.That(standing, Does.Contain("## Branches, worktrees and merging"));
+        Assert.That(standing, Does.Contain("Without the Theseus tools"));
+        Assert.That(ladder, Does.Contain("## Working unattended: decide, record, or park"));
+    }
+
+    [Test]
+    public void TheSessionStartHooks_PrintBothParts()
+    {
+        using var hooks = Json("plugin", "hooks", "hooks.json");
+        var parts = hooks.RootElement.GetProperty("hooks").GetProperty("SessionStart").EnumerateArray().Single()
+            .GetProperty("hooks").EnumerateArray()
+            .Select(hook => hook.GetProperty("args")[1].GetString())
+            .ToList();
+
+        Assert.That(parts, Is.EqualTo(new[] { "standing", "ladder" }));
+    }
+
+    [Test]
+    public void TheSessionRules_LoseNoRuleOfTheirSections()
+    {
+        var readme = File.ReadAllText(Full("method/README.md"));
+        var printed = Node("plugin/scripts/session-rules.js", string.Empty, "standing")
+                      + Node("plugin/scripts/session-rules.js", string.Empty, "ladder");
+        string[] headings = ["Rules that hold everywhere", "Branches, worktrees and merging", "Working unattended: decide, record, or park"];
+        var leads = headings
+            .Select(heading => Regex.Match(readme, $@"\n## {Regex.Escape(heading)}\r?\n(.*?)(?=\n## |$)", RegexOptions.Singleline).Groups[1].Value)
+            .SelectMany(body => Regex.Matches(body, @"\*\*[^*\r\n]+\*\*").Select(match => match.Value))
+            .ToList();
+
+        Assert.That(leads, Has.Count.GreaterThan(25));
+        Assert.That(leads.Where(lead => !printed.Contains(lead, StringComparison.Ordinal)), Is.Empty);
+    }
+
+    [Test]
+    public void TheSessionRules_LeaveOutWhereARuleCameFrom()
+    {
+        var printed = Node("plugin/scripts/session-rules.js", string.Empty, "standing")
+                      + Node("plugin/scripts/session-rules.js", string.Empty, "ladder");
+
+        Assert.That(printed, Does.Not.Match(@"\bP\d+\b"));
+        Assert.That(printed, Does.Not.Contain("Added for `method-v0.3`"));
     }
 
     [Test]
@@ -109,7 +150,7 @@ public class PluginTests
         Assert.That(files.Where(file => internalHost.IsMatch(File.ReadAllText(file))).Select(Path.GetFileName), Is.Empty);
     }
 
-    private static string Node(string script, string input)
+    private static string Node(string script, string input, string argument = "")
     {
         var node = (Environment.GetEnvironmentVariable("PATH") ?? string.Empty)
             .Split(Path.PathSeparator)
@@ -120,7 +161,7 @@ public class PluginTests
             Assert.Ignore("Node is not installed here.");
         }
 
-        var start = new ProcessStartInfo(node!, $"\"{Full(script)}\"")
+        var start = new ProcessStartInfo(node!, $"\"{Full(script)}\" {argument}".TrimEnd())
         {
             RedirectStandardInput = true,
             RedirectStandardOutput = true,

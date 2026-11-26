@@ -93,7 +93,10 @@ archived either way.
 
 **File > New project…**, or the toolbar's New project button beside New workstream, asks for a name (lower-case
 letters, digits and hyphens, such as `checkout-redesign`), and optionally a title, the objective and the primary
-branch. It makes the project's folder in the projects folder, with a `project.md` filled in from what you gave and an
+branch. The primary branch is suggested as `<user>/<name>`, from your user name, and follows the name until you change
+it. The box **Workstreams may branch off the primary branch, push, and merge back into it without asking** starts
+ticked; left ticked, and with a primary branch of its own (not empty, a trunk or a placeholder), it grants the
+project's branch rules as Project properties does (see [Cards](cards.md#projects)). It makes the project's folder in the projects folder, with a `project.md` filled in from what you gave and an
 empty `work` folder, and its project card appears on the board.
 
 A workstream card's right-click menu has **Add to project…** (a row naming it under one of a project's objectives),

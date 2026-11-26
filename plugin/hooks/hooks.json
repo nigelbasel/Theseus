@@ -7,7 +7,13 @@
           {
             "type": "command",
             "command": "node",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/plugin/scripts/session-rules.js"],
+            "args": ["${CLAUDE_PLUGIN_ROOT}/plugin/scripts/session-rules.js", "standing"],
+            "timeout": 20
+          },
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/plugin/scripts/session-rules.js", "ladder"],
             "timeout": 20
           }
         ]

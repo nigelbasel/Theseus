@@ -92,7 +92,9 @@ off the primary branch, named after its records folder, push it, and merge it ba
 is done, and still to ask before any Jira item, pull request into the trunk, force push, deleted branch, or anything
 outside the project's repositories. Such a card shows **project branch rules**, with the date you ticked it in its
 tooltip. Untick it and its cards ask again from their next start; a session resumed after that is told the rules are
-withdrawn.
+withdrawn. **New project** has the same box, ticked to begin with, so a project you start there is granted unless you
+untick it, provided its primary branch is a branch of its own (not empty, a trunk or a placeholder); the notice says
+which.
 
 One whose `project.md` does not read, or is in an older shape, is dimmed and says only **Needs updating**, keeping its
 mark, colour and the word PROJECT but with no ▷ or □; the reason is in its tooltip and Project properties, for the
