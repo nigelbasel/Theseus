@@ -85,6 +85,7 @@ public class SettingsStoreTests
             Duties = new DutySettings { DailyRunCap = 12, QuietHoursOn = true, QueueProjects = ["bym"] },
             ChainsFilters = new Theseus.Core.Links.ChainFilters(ActiveOnly: true, WaitingOnMe: false, HideCompleted: false),
             ChainsFolds = new Dictionary<string, bool> { ["git-22"] = false, ["project:Theseus"] = true },
+            LocksFolds = new Dictionary<string, bool> { ["lock:tests"] = true, ["queue:tests"] = false },
         };
 
         _store.Write(settings);
@@ -127,6 +128,7 @@ public class SettingsStoreTests
         Assert.That(read.Duties.QueueProjects, Is.EqualTo(new[] { "bym" }));
         Assert.That(read.ChainsFilters, Is.EqualTo(settings.ChainsFilters));
         Assert.That(read.ChainsFolds, Is.EqualTo(settings.ChainsFolds));
+        Assert.That(read.LocksFolds, Is.EqualTo(settings.LocksFolds));
         Assert.That((read.AutoModeSourceControlHosts, read.AutoModeInternalDomains, read.AutoModeProductionPatterns),
             Is.EqualTo((settings.AutoModeSourceControlHosts, settings.AutoModeInternalDomains, settings.AutoModeProductionPatterns)));
         Assert.That(read with
@@ -144,7 +146,7 @@ public class SettingsStoreTests
                 ProjectTags = settings.ProjectTags, TagColours = settings.TagColours,
                 ProjectBudgets = settings.ProjectBudgets, ProjectRunModes = settings.ProjectRunModes,
                 Duties = read.Duties with { QueueProjects = settings.Duties.QueueProjects },
-                ChainsFolds = settings.ChainsFolds,
+                ChainsFolds = settings.ChainsFolds, LocksFolds = settings.LocksFolds,
                 AutoModeSourceControlHosts = settings.AutoModeSourceControlHosts, AutoModeInternalDomains = settings.AutoModeInternalDomains,
                 AutoModeProductionPatterns = settings.AutoModeProductionPatterns,
             }, Is.EqualTo(settings),
@@ -172,6 +174,7 @@ public class SettingsStoreTests
         Assert.That(settings.SessionPreamble, Is.Empty);
         Assert.That(settings.ChainsFilters, Is.EqualTo(new Theseus.Core.Links.ChainFilters()), "Hide completed on, the rest off");
         Assert.That(settings.ChainsFolds, Is.Empty);
+        Assert.That(settings.LocksFolds, Is.Empty);
     }
 
     [Test]
