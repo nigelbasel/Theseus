@@ -26,7 +26,7 @@ public class ProjectsInUseDocsTests
     [TestCase("project-view.md", "A button that cannot act now is shown disabled")]
     [TestCase("cards.md", "is kept by Theseus, never in `project.md`. It covers the primary branch")]
     [TestCase("cards.md", "shows **project branch rules**")]
-    [TestCase("holdouts.md", "the board says once that the holdout guard is out of date")]
+    [TestCase("holdouts.md", "The board names any guard that is missing, out of date or not run")]
     [TestCase("chains.md", "a session acts only on its **descendants**")]
     [TestCase("chains.md", "`start_workstream`")]
     [TestCase("cards.md", "says only **Needs updating**")]

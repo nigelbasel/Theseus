@@ -297,11 +297,14 @@ public sealed partial class ShellViewModel : ObservableObject
         Drawer.EventsOf = _cardEvents.For;
         Drawer.WhoStarts = WhoStartsCard;
 
-        var guard = new HoldoutGuardViewModel(new HoldoutGuardInstallation(HoldoutGuardInstallation.UserConfigFolder()));
+        IReadOnlyList<GuardViewModel> guards = [.. Theseus.Core.Guards.GuardCatalog.All.Select(guard => new GuardViewModel(
+            new Theseus.Core.Guards.GuardInstallation(guard, Theseus.Core.Guards.GuardInstallation.UserConfigFolder())))];
         Settings = new SettingsViewModel(settings, Refresh)
         {
             Tags = new TagsViewModel(Board.Tags),
-            Guard = guard,
+            Guards = guards,
+            AutoMode = new AutoModeViewModel(settings,
+                new Theseus.Core.Guards.AutoModeEnvironment(Theseus.Core.Guards.GuardInstallation.UserConfigFolder())),
             FolderTrust = new FolderTrustViewModel(
                 new Theseus.Core.Trust.ClaudeFolderTrust(Theseus.Core.Trust.ClaudeFolderTrust.UserConfigPath(),
                     Path.Combine(App.DataDirectory, "folder-trust-undo.json")),
@@ -311,12 +314,12 @@ public sealed partial class ShellViewModel : ObservableObject
             },
         };
         FirstRun = new FirstRunViewModel(settings,
-            new Theseus.Core.Setup.StopHookRegistration(HoldoutGuardInstallation.UserConfigFolder(),
+            new Theseus.Core.Setup.StopHookRegistration(Theseus.Core.Guards.GuardInstallation.UserConfigFolder(),
                 Path.Combine(AppContext.BaseDirectory, "Theseus.Hook.exe")),
-            guard,
+            guards,
             () => new Theseus.Core.Setup.ToolsCheck(
                 program => Theseus.Core.Setup.ToolVersions.Of(program, settings.Read().ClaudeExecutablePath),
-                () => Theseus.Core.Instructions.InstalledPlugins.Read(HoldoutGuardInstallation.UserConfigFolder())
+                () => Theseus.Core.Instructions.InstalledPlugins.Read(Theseus.Core.Guards.GuardInstallation.UserConfigFolder())
                     .Any(plugin => plugin.Name == "agentic-factory")).Run(),
             Refresh);
         Settings.OpenProjectHoldouts = OpenProjectHoldouts;

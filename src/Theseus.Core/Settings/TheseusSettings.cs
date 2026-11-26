@@ -103,8 +103,17 @@ public sealed record TheseusSettings(
     /// <summary>The clear-up of verifier cards under way or last made, so a restart neither loses its archives nor Undo.</summary>
     public Theseus.Core.Projects.VerifierClearUpRecord? VerifierClearUp { get; init; }
 
-    /// <summary>The bundled holdout guard's version the out-of-date notice was last given for, so it is said once.</summary>
-    public string? HoldoutGuardNoticeFor { get; init; }
+    /// <summary>The guards' setup findings the board's notice was last given for, so the same ones are said once.</summary>
+    public string? GuardNoticeFor { get; init; }
+
+    /// <summary>The source-control hosts auto mode trusts for pushes, entered once in Options, Guards; the owner's own.</summary>
+    public IReadOnlyList<string> AutoModeSourceControlHosts { get; init; } = [];
+
+    /// <summary>The domains auto mode trusts by name, entered once in Options, Guards.</summary>
+    public IReadOnlyList<string> AutoModeInternalDomains { get; init; } = [];
+
+    /// <summary>Words that mark a host, namespace or resource as production to auto mode, entered once in Options, Guards.</summary>
+    public IReadOnlyList<string> AutoModeProductionPatterns { get; init; } = ["prod", "production", "live"];
 
     /// <summary>Which rows were folded away, so a board left tidy opens tidy.</summary>
     public IReadOnlyList<string> CollapsedAreas { get; init; } = [];

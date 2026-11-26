@@ -1,0 +1,19 @@
+### Org-wide
+**Organization**: None configured
+**Cloud provider(s)**: None configured
+**Repository visibility**: assume private unless the remote host and repo name indicate otherwise, or a visibility check in the transcript shows public.
+**Internal sharing / snippet hosting**: None. Public paste and gist services are outside the trust boundary.
+**Secrets management**: None configured
+**Default / protected branches**: main, master and trunk are protected: only the owner completes a pull request into them, and nothing pushes to them directly (the Theseus trunk guard enforces this). Each project has a primary branch, and each workstream's branch comes off it.
+**CI/CD deploy targets**: None configured
+**Network posture**: None configured
+**Source control**: Trusted remotes are on {sourceControlHosts}. Pushing a workstream's own branch or a project's primary branch to them, and raising pull requests there, is routine work. Completing, approving or abandoning a pull request is not.
+**Trusted internal domains**: {internalDomains}. No other domain is trusted by name.
+**Trusted cloud buckets**: None configured
+**Key internal services**: Theseus on http://localhost:47813 (the board, its MCP server and the machine-wide locks).
+**Internal package registry**: None configured
+**Sensitive data locations & audiences**: any file or store holding personal data, confidential business data, credentials, regulated data, or similarly sensitive material.
+**Data retention / declassification**: None configured
+**Sensitive remote targets**: any namespace, host, or container whose name carries {productionPatterns} as a whole word or name segment.
+**Protected deployment namespaces / environments**: any whose name carries {productionPatterns}. Fall back to the Sensitive remote targets heuristic.
+**Protected IaC scopes**: IAM, RBAC, networking, quota, and node-pool resources; anything whose name or tag carries {productionPatterns} as a whole word or name segment.

@@ -34,7 +34,7 @@ public static class FirstRunSetup
 
         if (!facts.GuardIsReady)
         {
-            missing.Add(SetupStep.HoldoutGuard);
+            missing.Add(SetupStep.Guards);
         }
 
         if (facts.Tools.Any(tool => !tool.IsOk))

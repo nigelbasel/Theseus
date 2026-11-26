@@ -134,8 +134,7 @@ public class OptionsTextAndKeysTests
     [TestCase("General", 'C')]
     [TestCase("General", 'P')]
     [TestCase("Folders", 'T')]
-    [TestCase("Holdouts", 'N')]
-    [TestCase("Holdouts", 'A')]
+    [TestCase("Guards", 'W')]
     [TestCase("Prompts", 'R')]
     [TestCase("Advanced", 'C')]
     public void CommonCommands_HaveAnAccessKey(string tab, char key)

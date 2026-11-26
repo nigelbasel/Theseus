@@ -88,24 +88,34 @@
                 <TextBlock Text="{Binding HookResult}" Style="{StaticResource Note}" />
             </StackPanel>
 
-            <!-- The holdout guard: Options › Holdouts' own section. -->
-            <StackPanel x:Name="GuardStep" DataContext="{Binding Guard}"
-                        Visibility="{Binding DataContext.IsGuardStep, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}">
-                <controls:SettingRow Label="Holdout guard" Value="{Binding Line}"
-                                     Explanation="Keeps implementing sessions out of every project's holdout scenarios. It runs from Claude Code's settings, for every session.">
-                    <Button x:Name="InstallGuardButton" Content="_Install" Style="{StaticResource Action}" Command="{Binding InstallCommand}"
-                            AutomationProperties.Name="Install the holdout guard"
-                            ToolTip="Copy this Theseus's holdout guard to where the Claude Code hook runs it, keeping the old copy, and check it." />
-                </controls:SettingRow>
-                <DockPanel Margin="0,0,0,12" Visibility="{Binding HookIsMissing, Converter={StaticResource BoolToVisibility}}">
-                    <Button x:Name="AddGuardHookButton" DockPanel.Dock="Right" Content="Add the _guard's hook entry…" Style="{StaticResource Action}" Margin="8,0,0,0"
-                            Command="{Binding AddHookCommand}"
-                            ToolTip="Shows the exact change to Claude Code's settings first, and makes it only if you agree." />
-                    <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Style="{DynamicResource CaptionText}"
-                               Text="Claude Code's settings do not run the holdout guard, so no session is guarded." />
-                </DockPanel>
-                <TextBlock Text="{Binding Result}" Style="{StaticResource Note}" />
-            </StackPanel>
+            <!-- The guards: Options › Guards' own rows, one for each guard Theseus ships. -->
+            <ItemsControl x:Name="GuardStep" ItemsSource="{Binding Guards}" Focusable="False" AutomationProperties.Name="Guards"
+                          Visibility="{Binding IsGuardStep, Converter={StaticResource BoolToVisibility}}">
+                <ItemsControl.ItemContainerStyle>
+                    <Style TargetType="ContentPresenter">
+                        <Setter Property="AutomationProperties.Name" Value="{Binding Title}" />
+                    </Style>
+                </ItemsControl.ItemContainerStyle>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel>
+                            <controls:SettingRow Label="{Binding Title}" Value="{Binding Line}" Explanation="{Binding Explanation}">
+                                <Button Content="Install" Style="{StaticResource Action}" Command="{Binding InstallCommand}"
+                                        AutomationProperties.Name="{Binding Name, StringFormat=Install the {0}}"
+                                        ToolTip="Copy this Theseus's guard to where the Claude Code hook runs it, keeping the old copy, and check it." />
+                            </controls:SettingRow>
+                            <DockPanel Margin="0,0,0,12" Visibility="{Binding HookIsMissing, Converter={StaticResource BoolToVisibility}}">
+                                <Button DockPanel.Dock="Right" Content="Add the hook entry…" Style="{StaticResource Action}" Margin="8,0,0,0"
+                                        Command="{Binding AddHookCommand}"
+                                        AutomationProperties.Name="{Binding Name, StringFormat=Add a hook entry for the {0}}"
+                                        ToolTip="Shows the exact change to Claude Code's settings first, and makes it only if you agree." />
+                                <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Style="{DynamicResource CaptionText}" Text="{Binding HookMissingLine}" />
+                            </DockPanel>
+                            <TextBlock Text="{Binding Result}" Style="{StaticResource Note}" />
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
 
             <!-- The tools: reported, never installed. -->
             <StackPanel x:Name="ToolsStep" Visibility="{Binding IsToolsStep, Converter={StaticResource BoolToVisibility}}">

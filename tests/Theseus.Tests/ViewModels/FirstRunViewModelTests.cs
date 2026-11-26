@@ -34,7 +34,7 @@ public class FirstRunViewModelTests
 
     private FirstRunViewModel Setup() =>
         new(_store, new StopHookRegistration(_config, @"C:\Theseus\Theseus.Hook.exe"),
-            new HoldoutGuardViewModel(new HoldoutGuardInstallation(_config, _config)), () => _tools, () => _changes++);
+            [new GuardViewModel(new Theseus.Core.Guards.GuardInstallation(Theseus.Core.Guards.GuardCatalog.Holdout, _config, _config))], () => _tools, () => _changes++);
 
     [Test]
     public void Opening_ShowsOnlyWhatIsMissing_FromTheFirstStep()
@@ -45,7 +45,7 @@ public class FirstRunViewModelTests
         setup.Open();
 
         Assert.That(setup.IsOpen, Is.True);
-        Assert.That(setup.Steps, Is.EqualTo(new[] { SetupStep.Folders, SetupStep.Hook, SetupStep.HoldoutGuard }));
+        Assert.That(setup.Steps, Is.EqualTo(new[] { SetupStep.Folders, SetupStep.Hook, SetupStep.Guards }));
         Assert.That((setup.Current, setup.StepHeading), Is.EqualTo((SetupStep.Folders, "Step 1 of 3: Folders")));
         Assert.That(setup.IsFoldersStep, Is.True);
     }
@@ -66,7 +66,7 @@ public class FirstRunViewModelTests
 
         setup.NextCommand.Execute(null);
         setup.NextCommand.Execute(null);
-        Assert.That((setup.Current, setup.IsLast), Is.EqualTo((SetupStep.HoldoutGuard, true)));
+        Assert.That((setup.Current, setup.IsLast), Is.EqualTo((SetupStep.Guards, true)));
         Assert.That(setup.NextCommand.CanExecute(null), Is.False, "Finish takes Next's place");
     }
 

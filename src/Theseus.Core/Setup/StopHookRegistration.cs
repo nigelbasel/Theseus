@@ -1,14 +1,14 @@
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using Theseus.Core.Links;
+using Theseus.Core.Guards;
 using Theseus.Core.Stopping;
 
 namespace Theseus.Core.Setup;
 
 /// <summary>
 /// The stop hook registered in Claude Code's settings from the first-run setup, only after the owner has read the exact entry
-/// and agreed (first-run-setup brief step 1, Nigel 2026-11-25), as Options › Holdouts adds the guard's entry. Theseus still
+/// and agreed (first-run-setup brief step 1, Nigel 2026-11-25), as Options › Guards adds a guard's entry. Theseus still
 /// never writes those settings on its own initiative: the owner's click is the only way in, and the old file is kept beside
 /// the new one as <c>settings.json.previous</c>.
 /// </summary>
@@ -57,18 +57,18 @@ public sealed class StopHookRegistration
             : $"Add to hooks in {SettingsPath}:{Environment.NewLine}{Entries().ToJsonString(Readable)}";
 
     /// <summary>Adds the entry, keeping everything else in the settings and the old file beside it.</summary>
-    public HoldoutGuardOutcome Add()
+    public GuardOutcome Add()
     {
         var text = Read();
 
         if (HookInstallation.IsInstalled(text))
         {
-            return new HoldoutGuardOutcome(true, "The stop hook is registered already.");
+            return new GuardOutcome(true, "The stop hook is registered already.");
         }
 
         if (Editable(text) is not { } settings)
         {
-            return new HoldoutGuardOutcome(false,
+            return new GuardOutcome(false,
                 $"{SettingsPath} does not read as settings whose hooks can be added to, so nothing was changed. Add the entry by hand.");
         }
 
@@ -97,10 +97,10 @@ public sealed class StopHookRegistration
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            return new HoldoutGuardOutcome(false, $"Could not write {SettingsPath}: {exception.Message}");
+            return new GuardOutcome(false, $"Could not write {SettingsPath}: {exception.Message}");
         }
 
-        return new HoldoutGuardOutcome(true,
+        return new GuardOutcome(true,
             $"Registered the stop hook in {SettingsPath}; the old file is kept beside it. Sessions started from now on run it.");
     }
 

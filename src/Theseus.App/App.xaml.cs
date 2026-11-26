@@ -7,6 +7,7 @@ using Theseus.Core.Colour;
 using Theseus.Core.Domain;
 using Theseus.Core.Diagnostics;
 using Theseus.Core.Launching;
+using Theseus.Core.Guards;
 using Theseus.Core.Links;
 using Theseus.Core.Locks;
 using Theseus.Core.Messaging;
@@ -171,11 +172,17 @@ public partial class App : Application
             shell.Warn(warning);
         }
 
-        if (shell.Settings.Guard is { } guard)
+        foreach (var guard in shell.Settings.Guards)
         {
             // Owned by the active window: both are asked from Options, and one owned by the main window sat behind it (A6).
             guard.ConfirmChange = change =>
-                new QuestionWindow("Add the holdout guard's hook entry?", change, "_Add hook entry") { Owner = ActiveWindow }.Ask() == true;
+                new QuestionWindow($"Add the {guard.Name}'s hook entry?", change, "_Add hook entry") { Owner = ActiveWindow }.Ask() == true;
+        }
+
+        if (shell.Settings.AutoMode is { } autoMode)
+        {
+            autoMode.ConfirmChange = change =>
+                new QuestionWindow("Write auto mode's environment?", change, "_Write environment") { Owner = ActiveWindow }.Ask() == true;
         }
 
         // The stop hook is written only after the owner reads the exact entry and agrees (first-run-setup brief step 1).
@@ -190,8 +197,8 @@ public partial class App : Application
                 new QuestionWindow("Trust these folders in Claude Code?", change, "_Trust folders") { Owner = ActiveWindow }.Ask() == true;
         }
 
-        // Said once for each newer guard an update brings, until it is installed from Options.
-        if (HoldoutGuardNotice(settings) is { } guardNotice)
+        // Said once for each set of guards to set up, and again when it changes, such as an update bringing a newer guard.
+        if (GuardNotice(settings) is { } guardNotice)
         {
             TheseusLog.Warning("{Warning}", guardNotice);
             shell.Warn(guardNotice);
@@ -531,19 +538,19 @@ public partial class App : Application
     private const string ClaudeCodeVersion = "2.1.246";
 
     /// <summary>
-    /// The out-of-date notice for the installed holdout guard, or null; recorded as given, so each newer guard is said once.
-    /// Read only: the guard itself is written only by Install the holdout guard.
+    /// The machine setup check's notice of any guard missing, out of date or not run, or null; recorded as given, so the
+    /// same findings are said once (guards-ship-with-theseus brief step 2). Read only: a guard is written only from Options.
     /// </summary>
-    private static string? HoldoutGuardNotice(SettingsStore settings)
+    private static string? GuardNotice(SettingsStore settings)
     {
         try
         {
-            var notice = new HoldoutGuardInstallation(HoldoutGuardInstallation.UserConfigFolder()).State()
-                .OutOfDateNotice(settings.Read().HoldoutGuardNoticeFor);
+            var findings = GuardSetupCheck.ForUser().Findings();
+            var notice = GuardSetupCheck.Notice(findings, settings.Read().GuardNoticeFor);
 
             if (notice is not null)
             {
-                settings.Write(settings.Read() with { HoldoutGuardNoticeFor = HoldoutGuardBundle.Version });
+                settings.Write(settings.Read() with { GuardNoticeFor = GuardSetupCheck.Signature(findings) });
             }
 
             return notice;
