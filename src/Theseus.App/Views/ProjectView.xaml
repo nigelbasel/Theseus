@@ -236,67 +236,6 @@
         </Style>
 
         <!--
-            A project tab, an item of the tab strip's selector (W41; G118, G124): the open one has a foreground border and a
-            2 px underline (AC 17), and is the selected item. 32 high, as the buttons beside it (W56).
-        -->
-        <Style x:Key="ProjectTab" TargetType="ListBoxItem">
-            <Setter Property="Margin" Value="0,0,8,0" />
-            <Setter Property="MinHeight" Value="32" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
-            <Setter Property="ToolTip" Value="{Binding ToolTip}" />
-            <Setter Property="AutomationProperties.Name" Value="{Binding AutomationName}" />
-            <!-- The chip's menu (archive-a-project): Close and Archive, each asking once, so no ellipsis (W17). -->
-            <Setter Property="ContextMenu">
-                <Setter.Value>
-                    <ContextMenu FontFamily="{x:Static SystemFonts.MessageFontFamily}">
-                        <MenuItem Header="_Close project" Command="{Binding CloseCommand}"
-                                  ToolTip="Stop its cards after their handover, pause its duties and queue, and put it under Archived until you reopen it." />
-                        <MenuItem Header="_Archive project" Command="{Binding ArchiveCommand}"
-                                  ToolTip="As Close, and archive its cards too. project.md and its records stay where they are." />
-                    </ContextMenu>
-                </Setter.Value>
-            </Setter>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ListBoxItem">
-                        <Border x:Name="Frame" BorderThickness="1" CornerRadius="4" Padding="8,4,12,4"
-                                MinHeight="{TemplateBinding MinHeight}"
-                                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
-                                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
-                            <Grid>
-                                <Border x:Name="Wash" IsHitTestVisible="False" CornerRadius="4" Margin="-8,-4,-12,-4" Opacity="0"
-                                        Background="{DynamicResource AccentFillColorDefaultBrush}" />
-                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <controls:StackedCardMark Style="{StaticResource ProjectMark}" Margin="0,0,8,0" />
-                                    <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="Medium" VerticalAlignment="Center"
-                                               Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                    <!-- Waits for you has something (board-small-changes item 2): the banner's own brush, and the
-                                         count in the tab's name and tooltip, so the dot is never the only sign. -->
-                                    <Ellipse x:Name="WaitsDot" Width="8" Height="8" Margin="8,0,0,0" VerticalAlignment="Center"
-                                             Fill="{DynamicResource StateWaitingBrush}" IsHitTestVisible="False"
-                                             Visibility="{Binding HasWaiting, Converter={StaticResource Visible}}" />
-                                </StackPanel>
-                                <Rectangle x:Name="Underline" Height="2" VerticalAlignment="Bottom" Margin="-8,0,-12,-4"
-                                           Visibility="Collapsed" Fill="{DynamicResource TextFillColorPrimaryBrush}" />
-                            </Grid>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Wash" Property="Opacity" Value="0.14" />
-                            </Trigger>
-                            <!-- The open project, not the selection, which Ctrl+click can clear while it stays open. -->
-                            <DataTrigger Binding="{Binding IsOpen}" Value="True">
-                                <Setter TargetName="Frame" Property="BorderBrush" Value="{DynamicResource TextFillColorPrimaryBrush}" />
-                                <Setter TargetName="Underline" Property="Visibility" Value="Visible" />
-                            </DataTrigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!--
             A stage of an open box's chain (AC 27): a 3 px top border in the state's colour on its soft fill, the mark and
             name over the state word. Both lines wrap, so a narrow chain never cuts a word off.
         -->
@@ -1114,66 +1053,6 @@
     </UserControl.Resources>
 
     <DockPanel>
-        <!-- The title bar: back to the board, then a tab per project (AC 16, 17). -->
-        <Border DockPanel.Dock="Top" Padding="24,8" BorderThickness="0,0,0,1"
-                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
-            <WrapPanel>
-                <!--
-                    Back and Forward first, then the board, then the project tabs (1.1f I46): glyph and word, 32 high as the tabs
-                    are (W25, W56; C2, D19). No key the window already uses: the menu bar's F E V W D T H, the search bar's R and C.
-                -->
-                <Button x:Name="GoBackButton" Command="{Binding GoBackCommand}" Style="{StaticResource CommandButton}" Margin="0,0,8,0"
-                        ToolTipService.ShowOnDisabled="True"
-                        ToolTip="Back to where you were (Alt+Left, or the mouse's back button)." AutomationProperties.Name="Back"
-                        AutomationProperties.AcceleratorKey="Alt+Left">
-                    <StackPanel Orientation="Horizontal">
-                        <controls:GlyphText Text="&#xE72B;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="16" Margin="0,0,8,0"
-                                            VerticalAlignment="Center" />
-                        <AccessText Text="Bac_k" VerticalAlignment="Center" />
-                    </StackPanel>
-                </Button>
-                <Button x:Name="GoForwardButton" Command="{Binding GoForwardCommand}" Style="{StaticResource CommandButton}" Margin="0,0,8,0"
-                        ToolTipService.ShowOnDisabled="True"
-                        ToolTip="Forward again (Alt+Right, or the mouse's forward button)." AutomationProperties.Name="Forward"
-                        AutomationProperties.AcceleratorKey="Alt+Right">
-                    <StackPanel Orientation="Horizontal">
-                        <AccessText Text="Forw_ard" VerticalAlignment="Center" />
-                        <controls:GlyphText Text="&#xE72A;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="16" Margin="8,0,0,0"
-                                            VerticalAlignment="Center" />
-                    </StackPanel>
-                </Button>
-                <Button x:Name="BackButton" Command="{Binding BackCommand}" Style="{StaticResource CommandButton}" Margin="0,0,12,0"
-                        ToolTip="Leave the project for the board." AutomationProperties.Name="Board">
-                    <StackPanel Orientation="Horizontal">
-                        <controls:GlyphText Text="&#xE80F;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="16" Margin="0,0,8,0"
-                                            VerticalAlignment="Center" />
-                        <AccessText Text="_Board" VerticalAlignment="Center" />
-                    </StackPanel>
-                </Button>
-                <!--
-                    The tabs are a selector (W41; B7, D6): one Tab stop, the arrow keys move between them without wrapping, and
-                    the selected tab is the open project, so selecting one opens it. Ctrl+1 to Ctrl+9 and Ctrl+Tab are the window's.
-                -->
-                <ListBox x:Name="Tabs" ItemsSource="{Binding Tabs}" SelectedItem="{Binding OpenTab, Mode=TwoWay}"
-                         SelectionChanged="OnTabSelectionChanged"
-                         ItemContainerStyle="{StaticResource ProjectTab}" VerticalAlignment="Center" Background="Transparent"
-                         BorderThickness="0" Padding="0" SelectionMode="Single" AutomationProperties.Name="Project tabs"
-                         KeyboardNavigation.TabNavigation="Once" KeyboardNavigation.DirectionalNavigation="Contained"
-                         ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Disabled">
-                    <ListBox.Template>
-                        <ControlTemplate TargetType="ListBox">
-                            <ItemsPresenter />
-                        </ControlTemplate>
-                    </ListBox.Template>
-                    <ListBox.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <WrapPanel />
-                        </ItemsPanelTemplate>
-                    </ListBox.ItemsPanel>
-                </ListBox>
-            </WrapPanel>
-        </Border>
-
         <!-- Where the project is: its title, one sentence, six counts, and what waits on you (AC 19, 20). -->
         <!-- It scrolls within a bounded share of the view's height, set as the view is sized, so the work below always has
              room and the page can always be acted on (project-view-scale, 2026-11-24). -->
@@ -1343,32 +1222,11 @@
                 <Button x:Name="FocusLeadIcon" Content="&#xE8A7;" Command="{Binding FocusLeadCommand}" Style="{StaticResource ToolbarIcon}"
                         Height="32" Margin="0,0,12,8"
                         AutomationProperties.Name="Focus lead session" ToolTip="{Binding FocusLeadIconToolTip}" />
-                <!-- Fold all and Unfold all, the board's glyphs and verbs for the same thing (W17, W25; C3). -->
-                <Button x:Name="FoldAll" Content="&#xF165;" Command="{Binding CollapseAllCommand}" Style="{StaticResource ToolbarIcon}"
-                        Height="32" Margin="0,0,4,8"
-                        AutomationProperties.Name="Fold all" ToolTip="Fold all: fold every piece of work and every heading." />
-                <Button x:Name="UnfoldAll" Content="&#xF164;" Command="{Binding ExpandAllCommand}" Style="{StaticResource ToolbarIcon}"
-                        Height="32" Margin="0,0,4,8"
-                        AutomationProperties.Name="Unfold all" ToolTip="Unfold all: open every piece of work into its stages, and every heading." />
                 <!-- A short label; what it opens is said to screen readers (W35; C21). -->
                 <Button x:Name="OpenWhatNeedsAttention" Content="&#xE7C1;" Command="{Binding OpenWhatNeedsAttentionCommand}"
                         Style="{StaticResource ToolbarIcon}" Height="32" Margin="0,0,12,8"
                         AutomationProperties.Name="Open what needs attention" ToolTip="Open what needs attention"
                         AutomationProperties.HelpText="Opens what is busy, waiting on you, stuck or waiting for its holdout check, and the headings on the way to it, and folds the rest." />
-                <!-- The project's less used commands behind More, the Windows overflow (archive-a-project): Close and Archive. -->
-                <Button x:Name="MoreProjectCommands" Content="&#xE712;" Style="{StaticResource ToolbarIcon}" Height="32" Margin="0,0,12,8"
-                        AutomationProperties.Name="More project commands" ToolTip="More: close or archive this project"
-                        Click="OnMoreProjectCommands">
-                    <Button.ContextMenu>
-                        <!-- The message font: a menu takes its button's, which here is the icon font. -->
-                        <ContextMenu FontFamily="{x:Static SystemFonts.MessageFontFamily}">
-                            <MenuItem x:Name="CloseThisProject" Header="_Close project" Command="{Binding CloseProjectCommand}"
-                                      ToolTip="Stop its cards after their handover, pause its duties and queue, and put it under Archived until you reopen it." />
-                            <MenuItem x:Name="ArchiveThisProject" Header="_Archive project" Command="{Binding ArchiveProjectCommand}"
-                                      ToolTip="As Close, and archive its cards too. project.md and its records stay where they are." />
-                        </ContextMenu>
-                    </Button.ContextMenu>
-                </Button>
                 <WrapPanel x:Name="Legend" Margin="0,0,0,8" VerticalAlignment="Center">
                     <!-- The legend row is the state chips, and a click filters by them (1.1e item 26, moved here by 1.1f D15). -->
                     <ItemsControl x:Name="Counts" ItemsSource="{Binding Counts}" Focusable="False"

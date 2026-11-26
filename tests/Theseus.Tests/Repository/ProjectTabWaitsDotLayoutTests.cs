@@ -38,13 +38,13 @@ public class ProjectTabWaitsDotLayoutTests
         var reading = WriteTheseus(_folder);
         var view = ProjectViewModel.Build(reading, TheseusPieces(_folder), LinksOn([], []),
             ProjectTabViewModel.For([reading], TheseusProject, _ => null, waitsOf: _ => waits), _views.Settings, _views.Actions);
-        var control = new ProjectView { DataContext = view, Width = 1400, Height = 900 };
+        var strip = new ProjectTabStrip { DataContext = new TabStripContext(view.Tabs), Width = 1400 };
 
-        control.Measure(new Size(1400, 900));
-        control.Arrange(new Rect(0, 0, 1400, 900));
-        control.UpdateLayout();
+        strip.Measure(new Size(1400, 60));
+        strip.Arrange(new Rect(0, 0, 1400, 60));
+        strip.UpdateLayout();
 
-        return Descendants<ListBoxItem>(control).Single(item => item.DataContext is ProjectTabViewModel);
+        return Descendants<ListBoxItem>(strip).Single(item => item.DataContext is ProjectTabViewModel);
     }
 
     [Test]

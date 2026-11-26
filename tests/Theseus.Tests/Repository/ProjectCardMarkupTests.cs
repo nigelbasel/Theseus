@@ -46,7 +46,7 @@ public class ProjectCardMarkupTests
             ("_Update", "{Binding OpenCommand}"),
             ("_Not a project", "{Binding HideCommand}"),
             ("_Start", "{Binding StartCommand}"),
-            ("S_top", "{Binding StopCommand}"),
+            ("S_top the project…", "{Binding StopCommand}"),
             ("T_ags", null),
             ("Open project._md", "{Binding OpenFileCommand}"),
             ("Add o_bjective…", "{Binding AddObjectiveCommand}"),

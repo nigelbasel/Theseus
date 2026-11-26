@@ -40,7 +40,7 @@ public class ProjectViewConventionsTests
     public void TheTabStrip_IsASelector_WithOneTabStop_TheArrowKeysInside_AndTheOpenProjectSelected()
     {
         ProjectViewFixtures.WriteBuildYourMarket(_folder);
-        ProjectView control = LaidOut(_views.Theseus());
+        ProjectTabStrip control = Strip(_views.Theseus().Tabs);
         Selector tabs = (Selector)control.FindName("Tabs");
 
         Assert.That(KeyboardNavigation.GetTabNavigation(tabs), Is.EqualTo(KeyboardNavigationMode.Once));
@@ -53,10 +53,10 @@ public class ProjectViewConventionsTests
     public void TheTabStripsSelection_FollowsTheOpenProject_WhenAnotherProjectOpens()
     {
         ProjectViewFixtures.WriteTheseus(_folder);
-        ProjectView control = LaidOut(_views.Theseus());
+        ProjectTabStrip control = Strip(_views.Theseus().Tabs);
         Selector tabs = (Selector)control.FindName("Tabs");
 
-        control.DataContext = _views.BuildYourMarket();
+        control.DataContext = new TabStripContext(_views.BuildYourMarket().Tabs);
         control.UpdateLayout();
 
         Assert.That(((ProjectTabViewModel)tabs.SelectedItem).Name, Is.EqualTo(ProjectViewFixtures.BuildYourMarket),
@@ -68,7 +68,7 @@ public class ProjectViewConventionsTests
     {
         ProjectViewFixtures.WriteBuildYourMarket(_folder);
         RecordingCommand open = new();
-        ProjectView control = LaidOut(_views.Theseus(tabCommands: _ => open));
+        ProjectTabStrip control = Strip(_views.Theseus(tabCommands: _ => open).Tabs);
         Selector tabs = (Selector)control.FindName("Tabs");
 
         tabs.SelectedItem = tabs.Items.Cast<ProjectTabViewModel>().Single(tab => !tab.IsOpen);
@@ -132,7 +132,7 @@ public class ProjectViewConventionsTests
     public void TheToolbarIcons_ShareOneHeightOfAtLeast32_WithGroupBy_AndAreNamedForWhatTheyDo()
     {
         ProjectView control = LaidOut(_views.Theseus());
-        string[] icons = ["FocusLeadIcon", "FoldAll", "UnfoldAll", "OpenWhatNeedsAttention"];
+        string[] icons = ["FocusLeadIcon", "OpenWhatNeedsAttention"];
         double groupBy = ((FrameworkElement)control.FindName("GroupByFlow")).ActualHeight;
 
         Assert.That(groupBy, Is.GreaterThanOrEqualTo(32));
@@ -140,9 +140,7 @@ public class ProjectViewConventionsTests
         Assert.That(Descendants<Button>((DependencyObject)control.FindName("Counts")).Where(chip => chip.Name == "ChipButton").Select(chip => chip.ActualHeight),
             Is.Not.Empty.And.All.EqualTo(groupBy), "the count chips in the toolbar's row too (W56)");
         Assert.That(icons.Skip(1).Select(name => AutomationProperties.GetName((DependencyObject)control.FindName(name))),
-            Is.EqualTo(new[] { "Fold all", "Unfold all", "Open what needs attention" }));
-        Assert.That(((Button)control.FindName("FoldAll")).Content, Is.EqualTo(""), "W25: the board's fold glyph");
-        Assert.That(((Button)control.FindName("UnfoldAll")).Content, Is.EqualTo(""));
+            Is.EqualTo(new[] { "Open what needs attention" }));
         Assert.That(((Button)control.FindName("OpenWhatNeedsAttention")).ToolTip, Is.EqualTo("Open what needs attention"),
             "C21: the label; the explanation is in HelpText");
     }
@@ -154,9 +152,14 @@ public class ProjectViewConventionsTests
             actions: _views.Actions with { UndoClearVerifiers = _ => { }, DismissClearUp = _ => { } }));
         Dictionary<string, string> expected = new()
         {
-            ["GoBackButton"] = "Bac_k", ["GoForwardButton"] = "Forw_ard", ["BackButton"] = "_Board",
             ["UndoClearUp"] = "_Undo", ["DismissClearUp"] = "Dis_miss",
         };
+        ProjectTabStrip strip = Strip([]);
+
+        Assert.That(Descendants<AccessText>((Button)strip.FindName("GoBackButton")).Select(text => text.Text), Does.Contain("Bac_k"));
+        Assert.That(Descendants<AccessText>((Button)strip.FindName("GoForwardButton")).Select(text => text.Text), Does.Contain("Forw_ard"));
+        Assert.That(Descendants<AccessText>(strip).Select(text => char.ToUpperInvariant(text.AccessKey)).Intersect(MainWindowKeys()), Is.Empty,
+            "W26: the strip's keys are none the main window uses either");
 
         foreach ((string name, string label) in expected)
         {
@@ -294,6 +297,16 @@ public class ProjectViewConventionsTests
     }
 
     // The window's own access keys: its menu bar's and its search bar's (MainWindow.xaml).
+    private static ProjectTabStrip Strip(IReadOnlyList<ProjectTabViewModel> tabs)
+    {
+        ProjectTabStrip strip = new() { DataContext = new TabStripContext(tabs), Width = 1400 };
+        strip.Measure(new Size(1400, 60));
+        strip.Arrange(new Rect(0, 0, 1400, 60));
+        strip.UpdateLayout();
+
+        return strip;
+    }
+
     private static IEnumerable<char> MainWindowKeys()
     {
         string window = File.ReadAllText(Path.Combine(RepositoryRoot(), "src", "Theseus.App", "MainWindow.xaml"));

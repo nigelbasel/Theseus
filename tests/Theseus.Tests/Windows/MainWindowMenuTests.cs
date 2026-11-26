@@ -97,14 +97,19 @@ public partial class MainWindowMenuTests
         Assert.That(MenuBar.Descendants(Presentation + "MenuItem").Select(Label), Does.Contain(label));
 
     [Test]
-    public void NothingInTheMenuBarOrToolbar_HidesByACondition()
+    public void NothingInTheMenuBar_HidesByACondition_AndTheToolbarOnlyByWhatIsShown()
     {
         XElement toolBar = Window.Value.Descendants(Presentation + "ToolBar").Single();
-        IEnumerable<XElement> commands = MenuBar.Descendants(Presentation + "MenuItem")
-            .Concat(toolBar.Elements().Where(element => element.Name.LocalName is "Button" or "ToggleButton"));
+        IEnumerable<XElement> tools = toolBar.Elements().Where(element => element.Name.LocalName is "Button" or "ToggleButton");
 
-        Assert.That(commands.Where(element => ((string?)element.Attribute("Visibility"))?.Contains("{Binding", StringComparison.Ordinal) == true)
-            .Select(element => Label(element) ?? (string?)element.Attribute("AutomationProperties.Name")), Is.Empty);
+        Assert.That(MenuBar.Descendants(Presentation + "MenuItem")
+            .Where(element => ((string?)element.Attribute("Visibility"))?.Contains("{Binding", StringComparison.Ordinal) == true)
+            .Select(Label), Is.Empty, "the menu bar never changes shape");
+        // The toolbar shows the commands of what is shown, the board's or the project's (project-view-as-tabs AC 6, 7; Nigel,
+        // 2026-11-26); within that, a command that cannot run is greyed with its reason.
+        Assert.That(tools.Select(element => (string?)element.Attribute("Visibility")).Where(visibility => visibility?.Contains("{Binding", StringComparison.Ordinal) == true),
+            Is.All.EqualTo("{Binding IsBoardShown, Converter={StaticResource BoolToVisibility}}")
+                .Or.EqualTo("{Binding IsProjectViewShown, Converter={StaticResource BoolToVisibility}}"));
     }
 
     [Test]

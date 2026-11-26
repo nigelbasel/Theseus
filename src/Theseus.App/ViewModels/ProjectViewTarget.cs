@@ -17,10 +17,4 @@ public static class ProjectViewTarget
         return readable.FirstOrDefault(name => string.Equals(name, lastOpened, StringComparison.OrdinalIgnoreCase))
                ?? readable.FirstOrDefault();
     }
-
-    /// <summary>Why the command is off, or null when it can run.</summary>
-    public static string? WhyNot(bool anyProject, bool isProjectOpen) =>
-        !anyProject ? "No project can be opened. Projects are read from the projects folder set in Tools › Options."
-        : isProjectOpen ? "The project view is open."
-        : null;
 }

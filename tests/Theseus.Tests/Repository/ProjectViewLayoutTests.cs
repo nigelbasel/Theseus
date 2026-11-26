@@ -69,22 +69,24 @@ public class ProjectViewLayoutTests
         AllNamed<Border>(control, "Box").Single(box => box.DataContext is PieceNodeViewModel node && node.Name == piece);
 
     [Test]
-    public void TheTitleBar_StartsWithBackToTheBoard_ThenATabPerProject()
+    public void TheTabStrip_StartsWithBackAndForward_ThenATabPerProject_AndNoBoardButton()
     {
         WriteBuildYourMarket(_folder);
-        var control = LaidOut(_views.Theseus());
-        var back = (Button)control.FindName("BackButton");
-        var tabs = Descendants<ListBoxItem>(control).Where(item => item.DataContext is ProjectTabViewModel).ToList();
+        var strip = new ProjectTabStrip { DataContext = new TabStripContext(_views.Theseus().Tabs), Width = 1400 };
+        strip.Measure(new Size(1400, 60));
+        strip.Arrange(new Rect(0, 0, 1400, 60));
+        strip.UpdateLayout();
+        var tabs = Descendants<ListBoxItem>(strip).Where(item => item.DataContext is ProjectTabViewModel).ToList();
 
-        Assert.That(Descendants<Button>(control).Take(3).Select(button => button.Name), Is.EqualTo(new[] { "GoBackButton", "GoForwardButton", "BackButton" }),
-            "Back, Forward, then the board, then the tabs (1.1f I46)");
-        Assert.That((Descendants<AccessText>(back).Single().Text, back.ToolTip), Is.EqualTo(("_Board", "Leave the project for the board.")));
+        Assert.That(Descendants<Button>(strip).Select(button => button.Name), Is.EqualTo(new[] { "GoBackButton", "GoForwardButton" }),
+            "Back and Forward, then the tabs; the toolbar's toggle replaces the Board button (project-view-as-tabs AC 5)");
         Assert.That(tabs.Select(tab => ((ProjectTabViewModel)tab.DataContext).Title), Is.EquivalentTo(new[]
         {
             "Theseus bootstrap", "BuildYourMarket MCP server",
         }));
-        Assert.That(tabs.Select(tab => Named<Rectangle>(tab, "Underline").Visibility == Visibility.Visible),
-            Is.EquivalentTo(new[] { true, false }), "only the open tab is underlined");
+        Assert.That(tabs.Select(tab => Named<TextBlock>(tab, "TabTitle").FontWeight == FontWeights.SemiBold),
+            Is.EquivalentTo(new[] { true, false }), "only the open tab is marked");
+        Assert.That(Descendants<ProjectTabStrip>(LaidOut(_views.Theseus())), Is.Empty, "the strip is not inside the view");
     }
 
     [Test]
@@ -337,7 +339,7 @@ public class ProjectViewLayoutTests
         // everything else in that row". Their names, keys and tooltips stay; only their size and face change.
         var control = LaidOut(_views.Theseus());
 
-        foreach (var (name, spoken) in new[] { ("FoldAll", "Fold all"), ("UnfoldAll", "Unfold all"), ("OpenWhatNeedsAttention", "Open what needs attention") })
+        foreach (var (name, spoken) in new[] { ("OpenWhatNeedsAttention", "Open what needs attention") })
         {
             var button = Named<Button>(control, name);
 

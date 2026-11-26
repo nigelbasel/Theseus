@@ -28,8 +28,10 @@ public class ProjectHomeMarkupTests
         Assert.That(newProject.Select(element => (string?)element.Attribute("IsEnabled")), Is.All.Null);
         Assert.That(file.Elements(Presentation + "MenuItem").Select(item => (string?)item.Attribute("Command")),
             Does.Contain("{Binding NewProjectCommand}"));
-        Assert.That(window.Descendants(Presentation + "MenuItem").Select(item => (string?)item.Attribute("Header")),
-            Has.None.EqualTo("_Project"), "no menu of its own any more");
+        // The Project menu is back, for the open project's commands (project-view-as-tabs AC 9, Nigel 2026-11-26); New
+        // project stays in File, not there.
+        Assert.That(window.Descendants(Presentation + "MenuItem").Single(item => (string?)item.Attribute("Header") == "_Project")
+            .Elements(Presentation + "MenuItem").Select(item => (string?)item.Attribute("Command")), Has.None.EqualTo("{Binding NewProjectCommand}"));
     }
 
     [Test]

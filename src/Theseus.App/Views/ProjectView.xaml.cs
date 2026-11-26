@@ -18,7 +18,6 @@ namespace Theseus.App.Views;
 public partial class ProjectView : UserControl
 {
     private ProjectViewGrouping _grouping;
-    private bool _tabsHadFocus;
 
     /// <summary>Creates the view.</summary>
     public ProjectView()
@@ -114,16 +113,8 @@ public partial class ProjectView : UserControl
         {
             Flow.ScrollToHome();
 
-            // An arrow key in the tab strip opened this project: the rebuilt strip keeps the focus, so the next arrow works.
-            bool fromTabs = _tabsHadFocus;
-            _tabsHadFocus = false;
-            Dispatcher.BeginInvoke(DispatcherPriority.Input, () =>
-            {
-                if (!(fromTabs && Tabs.ItemContainerGenerator.ContainerFromItem(Tabs.SelectedItem) is ListBoxItem tab && tab.Focus()))
-                {
-                    FocusView();
-                }
-            });
+            // The tab strip, outside the view, takes the focus back after this when an arrow key in it opened the project.
+            Dispatcher.BeginInvoke(DispatcherPriority.Input, () => FocusView());
         }
     }
 
@@ -198,20 +189,6 @@ public partial class ProjectView : UserControl
 
     // The arrow keys move the splitter without a drag, so its width is kept on their release too (B17).
     private void OnSplitterKeyUp(object sender, KeyEventArgs e) => OnSplitterDragCompleted(sender, null!);
-
-    private void OnTabSelectionChanged(object sender, SelectionChangedEventArgs e) => _tabsHadFocus = Tabs.IsKeyboardFocusWithin;
-
-    // More opens its menu under itself, as a drop-down does; the menu takes the view's context so its commands bind.
-    private void OnMoreProjectCommands(object sender, RoutedEventArgs e)
-    {
-        if (sender is Button { ContextMenu: { } menu } button)
-        {
-            menu.DataContext = button.DataContext;
-            menu.PlacementTarget = button;
-            menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
-            menu.IsOpen = true;
-        }
-    }
 
     private void OnAllWaitsRequested(object? sender, WaitsChecklistViewModel list) =>
         new WaitsWindow(list) { Owner = Window.GetWindow(this) }.ShowDialog();

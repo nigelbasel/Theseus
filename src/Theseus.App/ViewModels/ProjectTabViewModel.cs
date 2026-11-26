@@ -19,6 +19,24 @@ public sealed record ProjectTabViewModel(string Name, string Title, bool IsOpen,
     private string Action => IsOpen ? $"{Title} is open" : Key is { } key ? $"Open {Title} ({key})" : $"Open {Title}";
 
     /// <summary>
+    /// Whether this is the strip's first tab, All projects, which shows 1.5b's kanban rather than a project (agreed with
+    /// 1.5b, 2026-11-26). It has no project, no number key of the projects', and no project menu.
+    /// </summary>
+    public bool IsAllProjects { get; init; }
+
+    /// <summary>Start the project, on the tab's menu (project-view-as-tabs AC 4); null offers none.</summary>
+    public ICommand? StartCommand { get; init; }
+
+    /// <summary>Stop the project…, on the tab's menu; null offers none.</summary>
+    public ICommand? StopCommand { get; init; }
+
+    /// <summary>The All projects tab: first in the strip, opened by Ctrl+0.</summary>
+    /// <param name="isOpen">Whether All projects is what the view shows.</param>
+    /// <param name="open">Opens it.</param>
+    public static ProjectTabViewModel AllProjects(bool isOpen, ICommand? open) =>
+        new(string.Empty, "All projects", isOpen, open) { IsAllProjects = true, Key = "Ctrl+0" };
+
+    /// <summary>
     /// How many lines its project's Waits for you has: the count its amber dot stands for (board-small-changes item 2,
     /// Nigel, 2026-11-26).
     /// </summary>
@@ -56,9 +74,12 @@ public sealed record ProjectTabViewModel(string Name, string Title, bool IsOpen,
     /// <param name="waitsOf">How many lines each project's Waits for you has, by name; none gives no tab a dot.</param>
     /// <param name="closeFor">Close project for a tab's menu, by name; none offers it.</param>
     /// <param name="archiveFor">Archive project for a tab's menu, by name; none offers it.</param>
+    /// <param name="startFor">Start the project for a tab's menu, by name; none offers it.</param>
+    /// <param name="stopFor">Stop the project… for a tab's menu, by name; none offers it.</param>
     public static IReadOnlyList<ProjectTabViewModel> For(IEnumerable<ProjectFileReading> readings, string? open,
         Func<string, ICommand?> commandFor, Func<string, string?>? colourOf = null, Func<string, int>? waitsOf = null,
-        Func<string, ICommand?>? closeFor = null, Func<string, ICommand?>? archiveFor = null)
+        Func<string, ICommand?>? closeFor = null, Func<string, ICommand?>? archiveFor = null,
+        Func<string, ICommand?>? startFor = null, Func<string, ICommand?>? stopFor = null)
     {
         ArgumentNullException.ThrowIfNull(readings);
         ArgumentNullException.ThrowIfNull(commandFor);
@@ -74,6 +95,8 @@ public sealed record ProjectTabViewModel(string Name, string Title, bool IsOpen,
                 WaitingCount = waitsOf?.Invoke(reading.Name) ?? 0,
                 CloseCommand = closeFor?.Invoke(reading.Name),
                 ArchiveCommand = archiveFor?.Invoke(reading.Name),
+                StartCommand = startFor?.Invoke(reading.Name),
+                StopCommand = stopFor?.Invoke(reading.Name),
                 Key = ProjectTabKeys.KeyFor(index, readable.Count),
             }),
         ];

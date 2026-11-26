@@ -71,7 +71,9 @@ public class InteractiveStylesTests
         Assert.That(FocusVisual(style), Is.Not.Null, "a keyboard-focus ring");
         Assert.That(PropertyTrigger(triggers, "IsMouseOver", true), Is.Not.Null);
         Assert.That(PropertyTrigger(triggers, "IsPressed", true), Is.Not.Null);
-        Assert.That(ResourceKey(Sets(PropertyTrigger(triggers, "IsEnabled", false), "Label", "Foreground")), Is.EqualTo("TextFillColorDisabledBrush"));
+        // The template greys its own glyph; a style may also grey the button, for words and icons given as content.
+        Assert.That(triggers.OfType<Trigger>().Where(trigger => trigger.Property.Name == "IsEnabled" && Equals(trigger.Value, false))
+            .Select(trigger => ResourceKey(Sets(trigger, "Label", "Foreground"))), Has.Member("TextFillColorDisabledBrush"));
     }
 
     [Test]
@@ -123,8 +125,9 @@ public class InteractiveStylesTests
         Assert.That(chain.Descendants(Presentation + "Border").Select(border => (string?)border.Attribute("Style")),
             Has.One.EqualTo("{StaticResource SurfaceWash}"));
 
-        // A tab is a selector's item now (W41), so it draws its own ring and hover wash: a ListBoxItem has no IsPressed.
-        XElement tab = view.Descendants(Presentation + "Style").Single(each => (string?)each.Attribute(Xaml + "Key") == "ProjectTab");
+        // A tab is a selector's item now (W41), so it draws its own ring and hover wash: a ListBoxItem has no IsPressed. The
+        // strip is its own control, over the main area (project-view-as-tabs).
+        XElement tab = XDocument.Load(SourceFile("Views", "ProjectTabStrip.xaml")).Descendants(Presentation + "Style").Single(each => (string?)each.Attribute(Xaml + "Key") == "ProjectTab");
 
         Assert.That((string?)tab.Attribute("TargetType"), Is.EqualTo("ListBoxItem"));
         Assert.That(tab.Elements(Presentation + "Setter").Single(setter => (string?)setter.Attribute("Property") == "FocusVisualStyle")

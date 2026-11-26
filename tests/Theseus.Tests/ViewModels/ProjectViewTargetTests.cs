@@ -28,13 +28,4 @@ public class ProjectViewTargetTests
     [Test]
     public void WithNoProjectThatReads_ThereIsNone() =>
         Assert.That(ProjectViewTarget.Choose([], "theseus"), Is.Null);
-
-    [Test]
-    public void WhyNot_SaysThereIsNoProject_OrThatOneIsOpen()
-    {
-        Assert.That(ProjectViewTarget.WhyNot(anyProject: false, isProjectOpen: false),
-            Is.EqualTo("No project can be opened. Projects are read from the projects folder set in Tools › Options."));
-        Assert.That(ProjectViewTarget.WhyNot(anyProject: true, isProjectOpen: true), Is.EqualTo("The project view is open."));
-        Assert.That(ProjectViewTarget.WhyNot(anyProject: true, isProjectOpen: false), Is.Null);
-    }
 }

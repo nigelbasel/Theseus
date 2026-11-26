@@ -72,6 +72,13 @@ public class SettingsStoreTests
                     QueueWasOn = true, PausedDuties = ["d-1"], ArchivedCards = ["git-26"],
                 },
             },
+            StoppedProjects = new Dictionary<string, Theseus.Core.Projects.ProjectStopping>
+            {
+                ["bym"] = new(new DateTimeOffset(2026, 11, 26, 21, 0, 0, TimeSpan.Zero))
+                {
+                    QueueWasOn = true, PausedDuties = ["d-2"], PendingLockCards = ["git-27"],
+                },
+            },
             HiddenProjectFolders = ["notes"],
             ProjectHoldoutFolders = new Dictionary<string, string> { ["bym"] = @"C:\mine" },
             ProjectUpdaterRuns = new Dictionary<string, string> { ["bym"] = "Does not read: line 3" },
@@ -120,6 +127,8 @@ public class SettingsStoreTests
             Is.EqualTo((Theseus.Core.Projects.ProjectClosureKind.Archived, true)));
         Assert.That(read.ClosedProjects["old"].PausedDuties, Is.EqualTo(new[] { "d-1" }));
         Assert.That(read.ClosedProjects["old"].ArchivedCards, Is.EqualTo(new[] { "git-26" }));
+        Assert.That((read.StoppedProjects["bym"].QueueWasOn, read.StoppedProjects["bym"].PausedDuties.Single(),
+            read.StoppedProjects["bym"].PendingLockCards.Single()), Is.EqualTo((true, "d-2", "git-27")));
         Assert.That(read.ProjectHoldoutFolders, Is.EqualTo(new Dictionary<string, string> { ["bym"] = @"C:\mine" }));
         Assert.That(read.ProjectUpdaterRuns, Is.EqualTo(new Dictionary<string, string> { ["bym"] = "Does not read: line 3" }));
         Assert.That(read.ProjectTags["bym"], Is.EqualTo(new[] { "bym", "security" }));
@@ -140,7 +149,7 @@ public class SettingsStoreTests
                 ProjectGrouping = settings.ProjectGrouping, ProjectRunStates = settings.ProjectRunStates, ProjectLeads = settings.ProjectLeads,
                 CardsStoppedByOwner = settings.CardsStoppedByOwner, ProjectBranchRules = settings.ProjectBranchRules,
                 CardsToldBranchRules = settings.CardsToldBranchRules, HiddenProjectFolders = settings.HiddenProjectFolders,
-                UnattendedProjects = settings.UnattendedProjects, ClosedProjects = settings.ClosedProjects,
+                UnattendedProjects = settings.UnattendedProjects, ClosedProjects = settings.ClosedProjects, StoppedProjects = settings.StoppedProjects,
                 ProjectHoldoutFolders = settings.ProjectHoldoutFolders,
                 ProjectUpdaterRuns = settings.ProjectUpdaterRuns,
                 ProjectTags = settings.ProjectTags, TagColours = settings.TagColours,

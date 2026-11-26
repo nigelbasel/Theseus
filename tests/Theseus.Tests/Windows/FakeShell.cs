@@ -77,8 +77,30 @@ internal sealed class FakeShell : System.ComponentModel.INotifyPropertyChanged
     /// <summary>Archive selected, which runs only while <see cref="CardCommandsCanRun"/>.</summary>
     public RecordingCommand ArchiveSelectedCommand => _archiveSelected ??= Card();
 
-    /// <summary>View › Project view and the toolbar's Projects.</summary>
-    public RecordingCommand OpenProjectViewCommand { get; } = new();
+    /// <summary>The toolbar's Board / Projects toggle, View's item and Ctrl+B.</summary>
+    public RecordingCommand ToggleViewCommand { get; } = new();
+
+    /// <summary>The toggle's words, as the shell gives them on the board.</summary>
+    public string ToggleViewText => IsProjectViewShown ? "Board" : "Projects";
+
+    /// <summary>The toggle's tooltip.</summary>
+    public string ToggleViewToolTip => "Open the project view where you left it (Ctrl+B)";
+
+    /// <summary>Whether the project view, a project or All projects, fills the main area.</summary>
+    public bool IsProjectViewShown { get; private set; }
+
+    /// <summary>Shows the project view, as opening a project does, and tells the window.</summary>
+    public void ShowProjectView()
+    {
+        IsProjectViewShown = true;
+        IsProjectOpen = true;
+        IsBoardShown = false;
+
+        foreach (string name in new[] { nameof(IsProjectViewShown), nameof(IsProjectOpen), nameof(IsBoardShown), nameof(ToggleViewText) })
+        {
+            PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(name));
+        }
+    }
 
     /// <summary>The update check a refresh waits for: a test answers it.</summary>
     public TaskCompletionSource<string> RefreshCheck { get; } = new();

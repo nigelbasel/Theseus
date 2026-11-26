@@ -47,7 +47,12 @@ public class ProjectViewColourTests
 
         Assert.That(view.ColourHex, Is.EqualTo("#8674D6"));
         Assert.That(ColourOf((StackedCardMark)control.FindName("SummaryMark")), Is.EqualTo("#FF8674D6"));
-        Assert.That(Descendants<ListBoxItem>(control).Where(tab => tab.DataContext is ProjectTabViewModel)
+        var strip = new ProjectTabStrip { DataContext = new TabStripContext(view.Tabs), Width = 1400 };
+
+        strip.Measure(new Size(1400, 60));
+        strip.Arrange(new Rect(0, 0, 1400, 60));
+        strip.UpdateLayout();
+        Assert.That(Descendants<ListBoxItem>(strip).Where(tab => tab.DataContext is ProjectTabViewModel)
                 .Select(tab => (((ProjectTabViewModel)tab.DataContext).Name, ColourOf(Descendants<StackedCardMark>(tab).Single()))),
             Is.EquivalentTo(new[] { (TheseusProject, "#FF8674D6"), (BuildYourMarket, "#FF1D9F5E") }));
     }

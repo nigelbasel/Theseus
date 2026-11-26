@@ -165,14 +165,6 @@ public sealed partial class ShellViewModel : ObservableObject
         _acceptances = new SpecAcceptanceStore(Path.Combine(App.DataDirectory, "spec-acceptances.json"));
         _reported = new ReportedAcceptanceStore(Path.Combine(App.DataDirectory, "reported-acceptances.json"));
         CloseProjectCommand = new RelayCommand(_ => CloseProject(), _ => IsProjectOpen);
-        OpenProjectViewCommand = new ReasonedCommand(_ =>
-            {
-                if (ProjectViewTarget.Choose(TabNames(), _lastOpenedProject) is { } project)
-                {
-                    OpenProject(project);
-                }
-            },
-            _ => ProjectViewTarget.WhyNot(TabNames().Count > 0, IsProjectOpen));
         // With no projects folder, New project opens the setup's folder step rather than sitting greyed out (first-run-setup),
         // and goes on to New project once the setup closes with a folder chosen.
         NewProjectCommand = new RelayCommand(_ =>
@@ -357,6 +349,7 @@ public sealed partial class ShellViewModel : ObservableObject
             () => [.. Board.Areas],
             created =>
             {
+                var into = TakeNewIntoProject();
                 Refresh();
                 Board.Place(created.Key, created.Stage, created.Area);
 
@@ -381,6 +374,11 @@ public sealed partial class ShellViewModel : ObservableObject
                 }
 
                 var joined = approved is null ? null : JoinProposersProject(card, approved);
+
+                if (into is not null && approved is null)
+                {
+                    AddToProject(card, into);
+                }
 
                 if (approved is not null && created.BySession)
                 {
@@ -415,6 +413,7 @@ public sealed partial class ShellViewModel : ObservableObject
             () => Chains?.TakenKeys ?? [],
             () => _settings.Read().BriefFolderName);
 
+        NewWorkstream.PropertyChanged += OnNewWorkstreamChanged;
         SpawnFollowOnCommand = new RelayCommand(
             parameter => NewWorkstream.OpenFollowOn(((WorkstreamCardViewModel)parameter!).Workstream),
             parameter => parameter is WorkstreamCardViewModel { IsArchived: false });
@@ -2779,13 +2778,17 @@ public sealed partial class ShellViewModel : ObservableObject
             GatherQueueCandidates(name, pieces, queueSettings, queueCandidates);
         }
 
+        var tabs = ProjectTabViewModel.For(readable.Where(reading => !IsProjectClosed(reading.Name)), _openProjectName,
+            name => new RelayCommand(_ => OpenProject(name)),
+            name => ProjectColours.Of(colours, name), name => waitsByProject.GetValueOrDefault(name),
+            name => new RelayCommand(_ => PutProjectAway(name, ProjectClosureKind.Closed)),
+            name => new RelayCommand(_ => PutProjectAway(name, ProjectClosureKind.Archived)),
+            name => projectCards.FirstOrDefault(card => string.Equals(card.Name, name, StringComparison.OrdinalIgnoreCase))?.StartCommand,
+            name => projectCards.FirstOrDefault(card => string.Equals(card.Name, name, StringComparison.OrdinalIgnoreCase))?.StopCommand);
+        SetProjectTabs(tabs);
+
         if (open is { } openOne)
         {
-            var tabs = ProjectTabViewModel.For(readable.Where(reading => !IsProjectClosed(reading.Name)), _openProjectName,
-                name => new RelayCommand(_ => OpenProject(name)),
-                name => ProjectColours.Of(colours, name), name => waitsByProject.GetValueOrDefault(name),
-                name => new RelayCommand(_ => PutProjectAway(name, ProjectClosureKind.Closed)),
-                name => new RelayCommand(_ => PutProjectAway(name, ProjectClosureKind.Archived)));
             openView = BuildView(openOne.Reading, openOne.Pieces, tabs, openOne.Overview, openOne.Lead);
         }
 
@@ -3125,6 +3128,7 @@ public sealed partial class ShellViewModel : ObservableObject
     /// <summary>Replaces the board with a project's view (AC 14). The drawer, side panels and status bar stay.</summary>
     public void OpenProject(string name)
     {
+        LeaveAllProjects(forProject: true);
         _openProjectName = name;
         ProjectView = null;
         WireProjectChoices();
@@ -3147,9 +3151,7 @@ public sealed partial class ShellViewModel : ObservableObject
 
         SelectionMoved();
         Jumped(null);
-        Raise(nameof(IsProjectOpen));
-        Raise(nameof(IsBoardShown));
-        System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+        ContextChanged();
     }
 
     /// <summary>Back to the board, from ← Board, Alt+Left or View › Back to the board (1.1d AC 16).</summary>
@@ -3161,13 +3163,13 @@ public sealed partial class ShellViewModel : ObservableObject
         }
 
         _openProjectName = null;
+        LeaveAllProjects(forProject: false);
         ProjectView = null;
         _viewHost.Closed();
         SelectionMoved();
         WireSpecChoices();
-        Raise(nameof(IsProjectOpen));
-        Raise(nameof(IsBoardShown));
-        System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+        WireProjectChoices();
+        ContextChanged();
     }
 
     /// <summary>The open project's view, or null while the board shows.</summary>
@@ -3190,16 +3192,11 @@ public sealed partial class ShellViewModel : ObservableObject
     public bool IsProjectOpen => _openProjectName is not null && _projectView is not null;
 
     /// <summary>Whether the board fills the main area.</summary>
-    public bool IsBoardShown => !IsProjectOpen;
+    public bool IsBoardShown => !IsProjectViewShown;
 
     /// <summary>Back to the board (AC 14).</summary>
     public RelayCommand CloseProjectCommand { get; }
 
-    /// <summary>
-    /// View › Project view and the toolbar's Projects: the project view on the project last opened, or the first, with no
-    /// project picked first (board-small-changes item 3).
-    /// </summary>
-    public ReasonedCommand OpenProjectViewCommand { get; }
 
     /// <summary>View › Open project: one item per readable project.</summary>
     public IReadOnlyList<ProjectChoice> OpenProjectChoices
