@@ -548,6 +548,9 @@
     <Style x:Key="ItemNamedByHeading" TargetType="ContentPresenter">
         <Setter Property="AutomationProperties.Name" Value="{Binding Heading}" />
     </Style>
+    <Style x:Key="ItemNamedBySelf" TargetType="ContentPresenter">
+        <Setter Property="AutomationProperties.Name" Value="{Binding}" />
+    </Style>
     <Style x:Key="ItemNamedByName" TargetType="ContentPresenter">
         <Setter Property="AutomationProperties.Name" Value="{Binding Name}" />
     </Style>

@@ -36,6 +36,28 @@ public class UnownedContainersTests
     }
 
     [Test]
+    public void AContainerStartedWhileNoHoldHadSql_IsShownAgainstTheHoldsRunningThen()
+    {
+        var build = new LockTicket("b", "cpu-build", "Build card", "sln build", HoldMode.Process, "b",
+            Nine.AddMinutes(-20), Nine, GrantedUtc: Nine.AddMinutes(-20), Scope: [new ResourceClaim(ResourceTable.CpuBuild, 1)]);
+        var later = new LockTicket("l", "llama", "Later card", "classify", HoldMode.Session, "l",
+            Nine.AddMinutes(-1), Nine, SessionId: "s", GrantedUtc: Nine.AddMinutes(-1));
+
+        var during = UnownedContainers.StartedDuring(Container("c", Nine.AddMinutes(-5)), [build, later]);
+
+        Assert.That(during, Is.EqualTo(new[] { "Build card" }));
+    }
+
+    [Test]
+    public void ALeftoverFromBeforeEveryHold_IsShownAgainstNobody()
+    {
+        var build = new LockTicket("b", "cpu-build", "Build card", "sln build", HoldMode.Process, "b",
+            Nine, Nine, GrantedUtc: Nine, Scope: [new ResourceClaim(ResourceTable.CpuBuild, 1)]);
+
+        Assert.That(UnownedContainers.StartedDuring(Container("c", Nine.AddDays(-1)), [build]), Is.Empty);
+    }
+
+    [Test]
     public void DockersListing_IsReadIntoContainers()
     {
         Assert.That(DockerTestContainers.ParseCreated("2026-10-03 17:02:10 -0100 X"),

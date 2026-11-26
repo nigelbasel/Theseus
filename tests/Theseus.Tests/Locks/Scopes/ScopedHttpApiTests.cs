@@ -100,25 +100,27 @@ public class ScopedHttpApiTests
     }
 
     [Test]
-    public void ALaterStepOfASequence_KeepsTheSequencesPlace()
+    public void ALaterStepOfASequence_KeepsTheSequencesPlace_ButOnlyRightAfterItsPreviousStep()
     {
-        Post("request", """{"who":"holder","purpose":"suite","scope":["sql-containers"]}""");
-        _clock.Advance(TimeSpan.FromMinutes(1));
+        Post("request", """{"who":"holder","purpose":"suite","scope":["sql-containers"],"mode":"session","sessionId":"H"}""");
         DateTimeOffset sequenceStart = _clock.UtcNow;
+        string first = Post("request", """{"who":"steps","purpose":"step 1","scope":["cpu-build"]}""")["token"]!.GetValue<string>();
         _clock.Advance(TimeSpan.FromMinutes(1));
         Post("request", """{"who":"later","purpose":"suite","scope":["sql-containers"]}""");
-        _clock.Advance(TimeSpan.FromMinutes(1));
+        JsonObject stranger = Post("request", $$"""{"who":"stranger","purpose":"jump","scope":["sql-containers"],"since":"{{sequenceStart:o}}"}""");
+        Post("finish", $$"""{"token":"{{first}}","exit":0}""");
 
         JsonObject step = Post("request", $$"""{"who":"steps","purpose":"step 2","scope":["sql-containers"],"since":"{{sequenceStart:o}}"}""");
 
         Assert.That(step["position"]!.GetValue<int>(), Is.EqualTo(1));
+        Assert.That(stranger["position"]!.GetValue<int>(), Is.EqualTo(2), "a since with no step of its own just finished claims nothing");
     }
 
     [Test]
     public void AStoppedDeadlock_IsInTheListing()
     {
         Post("request", """{"who":"session A","purpose":"stack","lock":"dev-stack","mode":"session","sessionId":"A"}""");
-        Post("request", """{"who":"session B","purpose":"suite","scope":["sql-containers"],"owner":"B"}""");
+        Post("request", """{"who":"session B","purpose":"suite","scope":["sql-containers"],"mode":"session","sessionId":"B"}""");
         Post("request", """{"who":"session A","purpose":"suite","scope":["sql-containers"],"owner":"A"}""");
 
         McpResponseShape refused = Raw("request", """{"who":"session B","purpose":"stack","scope":["dev-stack"],"owner":"B"}""");

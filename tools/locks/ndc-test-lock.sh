@@ -208,7 +208,7 @@ attach_run_and_finish() {
   stray_container_report
   "$@"
   code=$?
-  call finish "{\"token\":\"$TOKEN\",\"exit\":$code}" >/dev/null
+  call finish "{\"token\":\"$TOKEN\",\"exit\":$code}" >/dev/null || call release "$(json token="$TOKEN")" >/dev/null
   trap - EXIT INT TERM
   return "$code"
 }
@@ -224,7 +224,8 @@ again=""
 command_text=""
 since=""
 
-# Reads --lock, --scope, --again and --wait from the arguments before "--"; leaves the rest in ARGS.
+# Reads --lock, --scope, --again and --wait; the command is what follows "--", or the first word that is not one of
+# them, so a command given without "--" runs whole, as it always has.
 take_options() {
   ARGS=()
   while [ "$#" -gt 0 ]; do
@@ -234,7 +235,7 @@ take_options() {
       --again) again="true"; shift ;;
       --wait) budget="${2:-5400}"; shift 2 ;;
       --) shift; ARGS=("$@"); return 0 ;;
-      *) shift ;;
+      *) ARGS=("$@"); return 0 ;;
     esac
   done
 }
@@ -343,7 +344,8 @@ case "${1:-status}" in
     shift
     who="${1:-unknown}"; label="${2:-unspecified}"
     shift 2 2>/dev/null || true
-    [ "${1:-}" = "--" ] && shift
+    take_options "$@"
+    set -- "${ARGS[@]}"
     if [ "$#" -eq 0 ]; then
       echo "usage: ndc-test-lock.sh steps \"<who>\" \"<label>\" -- <command...> ::: <command...>" >&2
       exit 2
@@ -366,7 +368,7 @@ case "${1:-status}" in
       eval "set -- $step"
       command_text="$*"
       echo "STEP $number of ${#STEPS[@]}: $command_text"
-      queue "" "$who" "$label (step $number of ${#STEPS[@]})" "${NDC_TEST_LOCK_WAIT:-5400}"
+      queue "$lock_name" "$who" "$label (step $number of ${#STEPS[@]})" "${NDC_TEST_LOCK_WAIT:-5400}"
       result=$?
       [ "$result" -eq 0 ] || exit "$result"
       attach_run_and_finish "$@"

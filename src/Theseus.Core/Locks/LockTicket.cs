@@ -48,12 +48,24 @@ public sealed record LockTicket(
     string? Card = null,
     string? Command = null,
     string? Commit = null,
-    int Overtaken = 0)
+    int Overtaken = 0,
+    bool HeldAlone = false)
 {
+    private const string AloneKind = "held-alone:";
+
     /// <summary>Whether this ticket holds its lock.</summary>
     public bool IsHolder => GrantedUtc is not null;
 
     public IReadOnlyList<ResourceClaim> Claims => Scope ?? PredefinedScopes.Find(Lock, ResourceTable.Default) ?? [];
+
+    /// <summary>
+    /// What granting reads. A request that named a resource nobody had ruled on stays held alone, clashing with every
+    /// hold, even after a ruling: a ruling applies only to requests made after it.
+    /// </summary>
+    public IReadOnlyList<ResourceClaim> GrantClaims => HeldAlone ? [.. Claims, new ResourceClaim(AloneKind + Token, 1)] : Claims;
+
+    /// <summary>Whether its hold ends by itself, with its process, whatever else its owner waits for.</summary>
+    public bool EndsByItself => Mode == HoldMode.Process;
 
     /// <summary>Who the ticket waits and holds as: its owner session when known, otherwise the ticket alone.</summary>
     public string OwnerKey => Owner ?? SessionId ?? $"ticket:{Token}";

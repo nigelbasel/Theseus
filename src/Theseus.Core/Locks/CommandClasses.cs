@@ -16,6 +16,7 @@ public sealed class CommandClasses
     private static readonly TimeSpan MatchLimit = TimeSpan.FromSeconds(1);
     private static readonly Regex ComposeProject = new(@"(?:\s-p|--project-name)[\s=]+([A-Za-z0-9_.-]+)", RegexOptions.CultureInvariant, MatchLimit);
     private static readonly Regex ComposeProjectVariable = new(@"\bCOMPOSE_PROJECT_NAME=([A-Za-z0-9_.-]+)", RegexOptions.CultureInvariant, MatchLimit);
+    private static readonly Regex ComposeFile = new(@"(?:\s-f|--file)[\s=]+(""[^""]+""|'[^']+'|\S+)", RegexOptions.CultureInvariant, MatchLimit);
     private static readonly Regex NotProjectCharacter = new("[^a-z0-9_-]", RegexOptions.CultureInvariant, MatchLimit);
 
     private readonly IReadOnlyList<Regex> _exempt;
@@ -61,7 +62,8 @@ public sealed class CommandClasses
     /// filled in. Empty for a command that needs no lock.
     /// </summary>
     /// <param name="root">The repository's top folder, or the working directory when it is not in one.</param>
-    public IReadOnlyList<ResourceClaim> LeastScope(string command, string? root)
+    /// <param name="folder">The working directory, which names a compose project as compose does.</param>
+    public IReadOnlyList<ResourceClaim> LeastScope(string command, string? root, string? folder = null)
     {
         IReadOnlyList<string> names = Classify(command);
         string tree = string.IsNullOrWhiteSpace(root) ? "unknown" : root.Trim();
@@ -71,11 +73,14 @@ public sealed class CommandClasses
             .SelectMany(entry => entry.Class.Scope)
             .Select(resource => resource
                 .Replace("{root}", tree, StringComparison.Ordinal)
-                .Replace("{project}", Project(command, tree), StringComparison.Ordinal))
+                .Replace("{project}", Project(command, folder ?? tree), StringComparison.Ordinal))
             .Select(resource => new ResourceClaim(resource, 1)));
     }
 
-    /// <summary>The compose project a command uses: <c>-p</c>, then <c>COMPOSE_PROJECT_NAME</c>, then the folder's name, as compose does.</summary>
+    /// <summary>
+    /// The compose project a command uses, as compose names it: <c>-p</c>, then <c>COMPOSE_PROJECT_NAME</c>, then the
+    /// folder of the first <c>-f</c> file, then the working folder.
+    /// </summary>
     public static string Project(string command, string? folder)
     {
         ArgumentNullException.ThrowIfNull(command);
@@ -84,10 +89,15 @@ public sealed class CommandClasses
             ? flag.Groups[1].Value
             : ComposeProjectVariable.Match(command) is { Success: true } variable
                 ? variable.Groups[1].Value
-                : Path.GetFileName((folder ?? string.Empty).Replace('/', Path.DirectorySeparatorChar).TrimEnd(Path.DirectorySeparatorChar));
+                : ComposeFile.Match(command) is { Success: true } file && LastFolder(Path.GetDirectoryName(file.Groups[1].Value.Trim('"', '\'')) ?? string.Empty) is { Length: > 0 } fileFolder
+                    ? fileFolder
+                    : LastFolder(folder ?? string.Empty);
 
         return NotProjectCharacter.Replace(name.ToLowerInvariant(), string.Empty);
     }
+
+    private static string LastFolder(string path) =>
+        Path.GetFileName(path.Replace('/', Path.DirectorySeparatorChar).TrimEnd(Path.DirectorySeparatorChar));
 
     private static Regex Compile(string pattern) =>
         new(pattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, MatchLimit);

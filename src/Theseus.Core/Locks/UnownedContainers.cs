@@ -20,4 +20,20 @@ public static class UnownedContainers
             .Where(container => heldSince is null || container.CreatedUtc < heldSince)
             .OrderBy(container => container.CreatedUtc)];
     }
+
+    /// <summary>
+    /// Who was holding something when an unowned container started: the holds that may have started containers they
+    /// did not declare. Since <c>sql-containers</c> is exclusive, at most one hold can own them, so a container started
+    /// while no hold had it is on one of these. Shown, never acted on.
+    /// </summary>
+    public static IReadOnlyList<string> StartedDuring(TestContainer container, IReadOnlyList<LockTicket> tickets)
+    {
+        ArgumentNullException.ThrowIfNull(container);
+        ArgumentNullException.ThrowIfNull(tickets);
+
+        return [.. tickets
+            .Where(ticket => ticket.IsHolder && ticket.GrantedUtc <= container.CreatedUtc && !ticket.Needs(ResourceTable.SqlContainers))
+            .Select(ticket => ticket.Who)
+            .Distinct(StringComparer.Ordinal)];
+    }
 }

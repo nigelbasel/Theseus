@@ -250,6 +250,15 @@ public class LockScriptTests
     }
 
     [Test]
+    public void Run_WithoutTheSeparator_RunsTheWholeCommand_AsItAlwaysHas()
+    {
+        var (exitCode, output) = Script("run \"Old caller\" \"suite\" bash -c 'exit 6' -- ignored");
+
+        Assert.That(exitCode, Is.EqualTo(6), output);
+        Assert.That(_book.RecentRuns().Single().Command, Does.StartWith("bash -c"));
+    }
+
+    [Test]
     public void Steps_RunsEachCommandUnderItsOwnHold_AndStopsAtTheFirstFailure()
     {
         var (exitCode, output) = Script("steps \"Seq card\" \"build then suites\" -- bash -c 'exit 0' ::: bash -c 'exit 3' ::: bash -c 'exit 0'");

@@ -2817,7 +2817,7 @@
                                                         Visibility="{Binding IsHeld, Converter={StaticResource BoolToVisibility}}">
                                                 <TextBlock Text="Held by" FontSize="12" Margin="0,0,0,4"
                                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                                <ItemsControl AutomationProperties.Name="Held by" ItemsSource="{Binding Holders}">
+                                                <ItemsControl AutomationProperties.Name="Held by" ItemContainerStyle="{StaticResource ItemNamedByText}" ItemsSource="{Binding Holders}">
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate>
                                                             <StackPanel Margin="0,0,0,8">
@@ -2933,10 +2933,10 @@
                             <StackPanel>
                                 <TextBlock Text="Rulings" FontSize="14" FontWeight="SemiBold"
                                            Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                <ItemsControl AutomationProperties.Name="Rulings" ItemsSource="{Binding Locks.Rulings}">
+                                <ItemsControl AutomationProperties.Name="Rulings" ItemContainerStyle="{StaticResource ItemNamedByName}" ItemsSource="{Binding Locks.Rulings}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <StackPanel Margin="0,6,0,0" AutomationProperties.Name="{Binding Name}">
+                                            <StackPanel Margin="0,8,0,0">
                                                 <TextBlock Text="{Binding Text}" FontSize="12" TextWrapping="Wrap"
                                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                                                 <Button Style="{StaticResource CommandButton}" Content="Overturn" HorizontalAlignment="Left" Margin="0,4,0,0"
@@ -2956,9 +2956,9 @@
                                 <TextBlock Text="Stopped deadlocks" FontSize="14" FontWeight="SemiBold"
                                            Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                                 <TextBlock Text="Requests refused because granting them would have left two or more sessions waiting on each other for ever. Nothing was stopped."
-                                           FontSize="12" Margin="0,2,0,4" TextWrapping="Wrap"
+                                           FontSize="12" Margin="0,2,0,0" TextWrapping="Wrap"
                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                <ItemsControl AutomationProperties.Name="Stopped deadlocks" ItemsSource="{Binding Locks.StoppedDeadlocks}">
+                                <ItemsControl AutomationProperties.Name="Stopped deadlocks" ItemContainerStyle="{StaticResource ItemNamedBySelf}" ItemsSource="{Binding Locks.StoppedDeadlocks}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                             <TextBlock Text="{Binding}" FontSize="12" Margin="0,4,0,0" TextWrapping="Wrap"
@@ -3003,6 +3003,9 @@
                                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                                                     <TextBlock Text="{Binding Status}" FontSize="12"
                                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                    <TextBlock Text="{Binding StartedDuring}" FontSize="12" TextWrapping="Wrap"
+                                                               Visibility="{Binding StartedDuring, Converter={StaticResource NotEmptyToVisibility}}"
+                                                               Foreground="{DynamicResource CautionTextBrush}" />
                                                     <Button Style="{StaticResource CommandButton}" Content="Remove…" Margin="0,8,0,0"
                                                             HorizontalAlignment="Left"
                                                             ToolTip="Stop and delete this container."

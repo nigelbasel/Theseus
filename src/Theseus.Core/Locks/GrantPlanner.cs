@@ -16,22 +16,40 @@ public static class GrantPlanner
         ArgumentNullException.ThrowIfNull(tickets);
         ArgumentNullException.ThrowIfNull(table);
 
-        List<IReadOnlyList<ResourceClaim>> taken = [.. tickets.Where(ticket => ticket.IsHolder).Select(ticket => ticket.Claims)];
+        List<IReadOnlyList<ResourceClaim>> taken = [.. tickets.Where(ticket => ticket.IsHolder).Select(ticket => ticket.GrantClaims)];
         List<LockTicket> waiting = [];
         HashSet<string> granted = new(StringComparer.Ordinal);
         HashSet<string> reserved = new(StringComparer.Ordinal);
         Dictionary<string, int> overtaken = new(StringComparer.Ordinal);
 
+        void Reserve(LockTicket ticket)
+        {
+            if (!reserved.Contains(ticket.Token) && (mayReserve?.Invoke(ticket, reserved) ?? true))
+            {
+                reserved.Add(ticket.Token);
+                taken.Add(ticket.GrantClaims);
+            }
+        }
+
         foreach (LockTicket ticket in tickets.Where(ticket => !ticket.IsHolder))
         {
-            if (table.Fits(ticket.Claims, taken))
+            List<LockTicket> passed = [.. waiting.Where(earlier => !table.Fits(earlier.GrantClaims, [ticket.GrantClaims]))];
+
+            // A waiter passed as often as the limit allows gets what it needs held back before anyone passes it again,
+            // even when the limit is reached part way through this pass.
+            foreach (LockTicket limited in passed.Where(earlier => Count(earlier, overtaken) >= OvertakeLimit))
+            {
+                Reserve(limited);
+            }
+
+            if (table.Fits(ticket.GrantClaims, taken))
             {
                 granted.Add(ticket.Token);
-                taken.Add(ticket.Claims);
+                taken.Add(ticket.GrantClaims);
 
-                foreach (LockTicket passed in waiting.Where(earlier => !table.Fits(earlier.Claims, [ticket.Claims])))
+                foreach (LockTicket earlier in passed)
                 {
-                    overtaken[passed.Token] = Count(passed, overtaken) + 1;
+                    overtaken[earlier.Token] = Count(earlier, overtaken) + 1;
                 }
 
                 continue;
@@ -39,10 +57,9 @@ public static class GrantPlanner
 
             waiting.Add(ticket);
 
-            if (Count(ticket, overtaken) >= OvertakeLimit && (mayReserve?.Invoke(ticket, reserved) ?? true))
+            if (Count(ticket, overtaken) >= OvertakeLimit)
             {
-                reserved.Add(ticket.Token);
-                taken.Add(ticket.Claims);
+                Reserve(ticket);
             }
         }
 

@@ -67,6 +67,7 @@ public class LeastScopeAndDuplicateTests
 
         LockAnswer again = Run("nuf-1", Suite + "  ", "second");
 
+        Assert.That(again.Token, Is.Null, "the running ticket's token is its holder's secret");
         Assert.That(again.Status, Is.EqualTo(LockStatus.Refused));
         Assert.That(again.Detail, Does.StartWith("nuf-1 is already running this command on abc (granted, since"));
         Assert.That(again.Detail, Does.Contain("ndc-test-lock.sh status"));

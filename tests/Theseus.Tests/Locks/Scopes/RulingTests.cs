@@ -41,15 +41,18 @@ public class RulingTests
     }
 
     [Test]
-    public void ARuling_LetsWaitersThatNoLongerClashGo_IsSaved_AndSurvivesARestart()
+    public void ARuling_AppliesToRequestsMadeAfterIt_IsSaved_AndSurvivesARestart()
     {
         LockBook book = Open();
         Ask(book, "llama");
-        LockAnswer gpu = Ask(book, "gpu");
+        LockAnswer before = Ask(book, "gpu");
 
         book.Rule(new ResourceRule("gpu", 1, ["dev-stack"], "the card uses its own GPU slot"), "arbiter session");
+        book.Release(before.Token!);
+        LockAnswer after = Ask(book, "gpu");
 
-        Assert.That(book.Check(gpu.Token!).Status, Is.EqualTo(LockStatus.Granted));
+        Assert.That(before.Status, Is.EqualTo(LockStatus.Waiting), "asked before the ruling, so held alone");
+        Assert.That(after.Status, Is.EqualTo(LockStatus.Granted), "asked after it, so beside llama");
         Assert.That(book.NeedsRuling(), Is.Empty);
 
         ResourceRule saved = Open().Table.Rule("gpu")!;

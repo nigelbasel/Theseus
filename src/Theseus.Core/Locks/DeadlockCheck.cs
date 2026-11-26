@@ -22,14 +22,14 @@ public static class DeadlockCheck
         while (moved && pending.Count > 0)
         {
             HashSet<string> waiting = [.. pending.Select(ticket => ticket.OwnerKey)];
-            moved = holds.RemoveAll(hold => !waiting.Contains(hold.OwnerKey)) > 0;
+            moved = holds.RemoveAll(hold => hold.EndsByItself || !waiting.Contains(hold.OwnerKey)) > 0;
 
             for (int index = 0; index < pending.Count; index++)
             {
                 LockTicket waiter = pending[index];
-                bool behindReserved = pending.Take(index).Any(earlier => reserved.Contains(earlier.Token) && !table.Fits(earlier.Claims, [waiter.Claims]));
+                bool behindReserved = pending.Take(index).Any(earlier => reserved.Contains(earlier.Token) && !table.Fits(earlier.GrantClaims, [waiter.GrantClaims]));
 
-                if (behindReserved || !table.Fits(waiter.Claims, holds.Select(hold => hold.Claims)))
+                if (behindReserved || !table.Fits(waiter.GrantClaims, holds.Select(hold => hold.GrantClaims)))
                 {
                     continue;
                 }
@@ -77,7 +77,8 @@ public static class DeadlockCheck
         while (seen.Add(waiter.OwnerKey))
         {
             List<LockTicket> mine = [.. tickets.Where(ticket => ticket.IsHolder && ticket.OwnerKey == waiter.OwnerKey)];
-            LockTicket? blocker = tickets.FirstOrDefault(ticket => ticket.IsHolder && !table.Fits(waiter.Claims, [ticket.Claims]));
+            LockTicket? blocker = tickets.FirstOrDefault(ticket => ticket is { IsHolder: true, EndsByItself: false } && !table.Fits(waiter.GrantClaims, [ticket.GrantClaims]))
+                ?? tickets.FirstOrDefault(ticket => ticket.IsHolder && !table.Fits(waiter.GrantClaims, [ticket.GrantClaims]));
             string name = NameOf(tickets, waiter);
             string wanted = Joined(waiter.Claims.Where(claim => blocker is null || !table.Fits([claim], [blocker.Claims])));
             string held = Joined(mine.SelectMany(ticket => ticket.Claims));

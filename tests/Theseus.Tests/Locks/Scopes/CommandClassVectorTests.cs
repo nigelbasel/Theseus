@@ -70,6 +70,15 @@ public class CommandClassVectorTests
         Assert.That(CommandClasses.Shipped.LeastScope("dotnet test Fabrikam.Contacts.UnitTests", @"E:\work\x"), Is.Empty);
     }
 
+    [Test]
+    public void TheComposeProject_IsNamedByTheWorkingFolderOrTheFirstFile_NotByTheRepository()
+    {
+        Assert.That(CommandClasses.Shipped.LeastScope("docker compose up -d --build", @"E:\work\repo", @"E:\work\repo\local-dev"),
+            Has.Member(new ResourceClaim("compose:local-dev", 1)));
+        Assert.That(CommandClasses.Shipped.LeastScope("docker compose -f stacks/members-hub/compose.yml build", @"E:\work\repo", @"E:\work\repo"),
+            Has.Member(new ResourceClaim("compose:members-hub", 1)));
+    }
+
     private static string LocksFolder([CallerFilePath] string thisFile = "") =>
         Path.GetFullPath(Path.Combine(Path.GetDirectoryName(thisFile)!, "..", "..", "..", "..", "tools", "locks"));
 

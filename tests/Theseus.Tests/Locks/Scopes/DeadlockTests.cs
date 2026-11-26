@@ -35,7 +35,7 @@ public class DeadlockTests
     {
         LockBook book = Open();
         LockAnswer aStack = HoldForSession(book, "A", LockNames.DevStack);
-        LockAnswer bSql = Run(book, "B", "sql-containers");
+        LockAnswer bSql = Hold(book, "B", "sql-containers");
         LockAnswer aWaits = Run(book, "A", "sql-containers");
 
         LockAnswer bAsks = Run(book, "B", LockNames.DevStack);
@@ -58,7 +58,7 @@ public class DeadlockTests
         LockBook book = Open();
         HoldForSession(book, "A", LockNames.DevStack);
         HoldForSession(book, "B", LockNames.Llama);
-        Run(book, "C", "sql-containers");
+        Hold(book, "C", "sql-containers");
 
         LockAnswer aWaits = Run(book, "A", LockNames.Llama);
         LockAnswer bWaits = Run(book, "B", "sql-containers");
@@ -75,8 +75,8 @@ public class DeadlockTests
     {
         LockBook book = Open(Slots(2));
         HoldForSession(book, "A", LockNames.DevStack);
-        Run(book, "A", "cpu-build");
-        Run(book, "B", "cpu-build", "worktree:e:/work/b");
+        Hold(book, "A", "cpu-build");
+        Hold(book, "B", "cpu-build", "worktree:e:/work/b");
 
         LockAnswer aWaits = Run(book, "A", "cpu-build", "worktree:e:/work/a2");
         LockAnswer bAsks = Run(book, "B", LockNames.DevStack);
@@ -90,9 +90,9 @@ public class DeadlockTests
     {
         LockBook book = Open(Slots(3));
         HoldForSession(book, "A", LockNames.DevStack);
-        Run(book, "A", "cpu-build");
-        Run(book, "B", "cpu-build", "worktree:e:/work/b");
-        LockAnswer c = Run(book, "C", "cpu-build", "worktree:e:/work/c");
+        Hold(book, "A", "cpu-build");
+        Hold(book, "B", "cpu-build", "worktree:e:/work/b");
+        LockAnswer c = Hold(book, "C", "cpu-build", "worktree:e:/work/c");
 
         LockAnswer aWaits = Run(book, "A", "cpu-build", "worktree:e:/work/a2");
         LockAnswer bAsks = Run(book, "B", LockNames.DevStack);
@@ -137,7 +137,7 @@ public class DeadlockTests
             Scope: [new ResourceClaim("cpu-build", 2)], Owner: "A"));
         LockAnswer d = Run(book, "C", "cpu-build", "worktree:e:/work/d");
         book.Release(d.Token!);
-        Run(book, "B", "cpu-build", "worktree:e:/work/e");
+        Hold(book, "B", "cpu-build", "worktree:e:/work/e");
         book.Release(c.Token!);
         Assert.That(book.Snapshot().Single(ticket => ticket.Token == wide.Token).Overtaken, Is.EqualTo(2));
 
@@ -146,15 +146,48 @@ public class DeadlockTests
         Assert.That(bAgain.Status, Is.EqualTo(LockStatus.Granted), "holding the slot back for the wide build would leave B and the wide build waiting on each other");
     }
 
+    [Test]
+    public void ASessionQueueingASecondSuiteWhileItsFirstRuns_Waits_BecauseARunEndsByItself()
+    {
+        LockBook book = Open();
+        Run(book, "A", "sql-containers");
+
+        LockAnswer second = Run(book, "A", "sql-containers", "worktree:e:/work/second");
+
+        Assert.That(second.Status, Is.EqualTo(LockStatus.Waiting));
+        Assert.That(book.StoppedDeadlocks(), Is.Empty);
+    }
+
+    [Test]
+    public void AWaiterIsNotPassedMoreThanTwice_EvenWhenSeveralFitInOnePass()
+    {
+        DateTimeOffset at = Nine;
+        LockTicket sql = new("s", "sql", "suite", "suite", HoldMode.Process, "s", at, at, GrantedUtc: at, Scope: [new ResourceClaim("sql-containers", 1)]);
+        LockTicket wide = new("w", "wide", "wide", "wide", HoldMode.Process, "w", at, at,
+            Scope: [new ResourceClaim("cpu-build", ResourceClaim.All), new ResourceClaim("sql-containers", 1)], Overtaken: 1);
+        LockTicket t1 = new("t1", "cpu-build", "t1", "build", HoldMode.Process, "t1", at, at, Scope: [new ResourceClaim("cpu-build", 1)]);
+        LockTicket t2 = new("t2", "cpu-build", "t2", "build", HoldMode.Process, "t2", at, at, Scope: [new ResourceClaim("cpu-build", 1)]);
+
+        GrantPlan plan = GrantPlanner.Plan([sql, wide, t1, t2], Slots(2));
+
+        Assert.That(plan.Granted, Is.EquivalentTo(new[] { "t1" }));
+        Assert.That(plan.Overtaken["w"], Is.EqualTo(2));
+        Assert.That(plan.Reserved, Does.Contain("w"));
+    }
+
     private static ResourceTable Slots(int slots) =>
         ResourceTable.Seeded().With(new ResourceRule(ResourceTable.CpuBuild, slots, [], "test"));
 
     private LockAnswer HoldForSession(LockBook book, string session, string lockName) =>
         book.Request(new LockRequest(lockName, $"session {session}", $"{lockName} work", HoldMode.Session, SessionId: session));
 
+    private static LockAnswer Hold(LockBook book, string session, params string[] resources) =>
+        book.Request(new LockRequest(string.Empty, $"session {session}", $"{string.Join(",", resources)} hold", HoldMode.Session,
+            SessionId: session, Scope: [.. resources.Select(resource => new ResourceClaim(resource, 1))]));
+
     private static LockAnswer Run(LockBook book, string owner, params string[] resources) =>
         book.Request(new LockRequest(string.Empty, $"session {owner}", $"{string.Join(",", resources)} run", HoldMode.Process,
-            Scope: [.. resources.Select(resource => new ResourceClaim(resource, 1))], Owner: owner));
+            Scope: [.. resources.SelectMany(resource => ScopeText.Parse(resource))], Owner: owner));
 
     private LockBook Open(ResourceTable? table = null) =>
         new(new LockStateStore(Path.Combine(_directory, "locks.json")),

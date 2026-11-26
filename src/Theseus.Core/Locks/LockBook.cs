@@ -24,6 +24,9 @@ public sealed class LockBook
     /// <summary>How far back a later step of a sequence may claim its place from.</summary>
     public static readonly TimeSpan SequenceLimit = TimeSpan.FromHours(12);
 
+    /// <summary>How soon after one step finishes the next must ask to keep the sequence's place.</summary>
+    public static readonly TimeSpan StepGap = TimeSpan.FromMinutes(2);
+
     private const int SessionMissesBeforeGone = 2;
     private const int EndedRemembered = 500;
     private const int DeadlocksRemembered = 50;
@@ -176,7 +179,7 @@ public sealed class LockBook
             }
 
             var ticket = _tickets[index];
-            _runs.Add(new RunResult(ticket.Card, ticket.Commit, ticket.Command, exitCode, now));
+            _runs.Add(new RunResult(ticket.Card, ticket.Commit, ticket.Command, exitCode, now, ticket.Who));
 
             if (_runs.Count > RunsRemembered)
             {
@@ -228,7 +231,7 @@ public sealed class LockBook
 
         return Change(now =>
         {
-            var scope = ScopeOf(name, request.Scope, request.Command, Trimmed(request.Root) ?? Trimmed(request.WorkingDirectory));
+            var scope = ScopeOf(name, request.Scope, request.Command, Trimmed(request.Root) ?? Trimmed(request.WorkingDirectory), Trimmed(request.WorkingDirectory));
 
             if (scope.Count == 0)
             {
@@ -254,17 +257,18 @@ public sealed class LockBook
 
                 return (new LockAnswer(LockStatus.Refused,
                     $"{running.Card} is already running this command on {running.Commit} ({state}, since {since}). " +
-                    "Wait for it: its result is shown by `ndc-test-lock.sh status`.", running.Token, running.Lock), false);
+                    "Wait for it: its result is shown by `ndc-test-lock.sh status`.", Lock: running.Lock), false);
             }
             else
             {
                 token = Guid.NewGuid().ToString("N");
-                var asked = request.Since is { } since && since < now ? (since > now - SequenceLimit ? since : now - SequenceLimit) : now;
+                var asked = SequencePlace(request, now);
                 var ticket = new LockTicket(
                     token, label, request.Who.Trim(), request.Purpose.Trim(), request.Mode, key, now, now,
                     Trimmed(request.WorkingDirectory), Trimmed(request.SessionId), Trimmed(request.Reason),
                     Scope: scope, Owner: OwnerOf(request),
-                    Card: Trimmed(request.Card), Command: Trimmed(request.Command), Commit: Trimmed(request.Commit));
+                    Card: Trimmed(request.Card), Command: Trimmed(request.Command), Commit: Trimmed(request.Commit),
+                    HeldAlone: scope.Any(claim => !_table.IsKnown(claim.Resource)));
 
                 var place = _tickets.FindIndex(other => !other.IsHolder && other.RequestedUtc > asked);
                 _tickets.Insert(place < 0 ? _tickets.Count : place, ticket);
@@ -829,20 +833,38 @@ public sealed class LockBook
         _tickets.Where(other => !other.IsHolder && (ReferenceEquals(other, ticket) || Clash(other, ticket)));
 
     private bool Clash(LockTicket one, LockTicket other) =>
-        !_table.Fits(one.Claims, [other.Claims]);
+        !_table.Fits(one.GrantClaims, [other.GrantClaims]);
 
     /// <summary>
     /// What a request is held for: its predefined scope, what it declared, and the least its command needs; a command
     /// the classes do not recognise, with nothing else declared, is held for everything the old tests lock guarded.
     /// </summary>
-    private IReadOnlyList<ResourceClaim> ScopeOf(string? name, IReadOnlyList<ResourceClaim>? declared, string? command = null, string? root = null)
+    private IReadOnlyList<ResourceClaim> ScopeOf(string? name, IReadOnlyList<ResourceClaim>? declared, string? command = null, string? root = null, string? folder = null)
     {
-        var least = string.IsNullOrWhiteSpace(command) ? [] : CommandClasses.Shipped.LeastScope(command, root);
+        var least = string.IsNullOrWhiteSpace(command) ? [] : CommandClasses.Shipped.LeastScope(command, root, folder);
         var scope = ResourceClaim.Normalise([.. PredefinedScopes.Find(name, _table) ?? [], .. declared ?? [], .. least]);
 
         return scope.Count == 0 && !string.IsNullOrWhiteSpace(command)
             ? PredefinedScopes.Find(LockNames.Tests, _table)!
             : scope;
+    }
+
+    /// <summary>
+    /// Where a later step of a sequence goes in the queue: at the sequence's first request, but only when the same
+    /// requester's previous step has just finished, so no one else can claim a place they never had.
+    /// </summary>
+    private DateTimeOffset SequencePlace(LockRequest request, DateTimeOffset now)
+    {
+        if (request.Since is not { } since || since >= now || since < now - SequenceLimit)
+        {
+            return now;
+        }
+
+        var who = request.Who.Trim();
+        var stepJustEnded = _runs.Any(run => string.Equals(run.Who, who, StringComparison.OrdinalIgnoreCase)
+                                             && run.WhenUtc >= since && now - run.WhenUtc <= StepGap);
+
+        return stepJustEnded ? since : now;
     }
 
     private LockTicket? SameRun(LockRequest request)

@@ -135,7 +135,7 @@ public sealed class LocksViewModel : ObservableObject, IDisposable
         NeedsRuling = string.Join(", ", _book.NeedsRuling());
         Raise(nameof(NeedsRuling));
 
-        UpdateUnowned(UnownedContainers.From(_lastContainers, tickets), now);
+        UpdateUnowned(UnownedContainers.From(_lastContainers, tickets), tickets, now);
 
         Raise(nameof(Busy));
         Raise(nameof(ButtonText));
@@ -229,7 +229,7 @@ public sealed class LocksViewModel : ObservableObject, IDisposable
 
     private void Overturn(string name) => OffTheUiThread(() => _book.Overturn(name), $"overturn the ruling on {name}");
 
-    private void UpdateUnowned(IReadOnlyList<TestContainer> unowned, DateTimeOffset now)
+    private void UpdateUnowned(IReadOnlyList<TestContainer> unowned, IReadOnlyList<LockTicket> tickets, DateTimeOffset now)
     {
         for (var index = Unowned.Count - 1; index >= 0; index--)
         {
@@ -256,6 +256,9 @@ public sealed class LocksViewModel : ObservableObject, IDisposable
 
             existing.Age = Say(now - container.CreatedUtc);
             existing.Status = container.Status;
+            existing.StartedDuring = UnownedContainers.StartedDuring(container, tickets) is { Count: > 0 } during
+                ? $"Started while these held no SQL containers: {string.Join(", ", during)}. One of them started containers it did not declare."
+                : string.Empty;
         }
     }
 

@@ -5,6 +5,7 @@ public sealed class UnownedContainerViewModel : ObservableObject
 {
     private string _age = string.Empty;
     private string _status = string.Empty;
+    private string _startedDuring = string.Empty;
     private bool _isConfirmingRemove;
 
     /// <summary>Creates the entry, with Nigel's way of removing it.</summary>
@@ -46,6 +47,13 @@ public sealed class UnownedContainerViewModel : ObservableObject
     }
 
     /// <summary>Whether Remove has been pressed and is waiting for a second press.</summary>
+    /// <summary>The holds running when it started, which may have started a container they did not declare.</summary>
+    public string StartedDuring
+    {
+        get => _startedDuring;
+        set => Set(ref _startedDuring, value);
+    }
+
     public bool IsConfirmingRemove
     {
         get => _isConfirmingRemove;

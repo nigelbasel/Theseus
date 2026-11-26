@@ -445,7 +445,13 @@
                     <controls:SettingRow Label="Arbiter" Value="{Binding Arbiter}"
                                          Explanation="The card whose sessions may rule on a resource the lock table does not know (its capacity and what it clashes with). Until one rules, such a resource is held alone. You see every ruling on the Locks panel and can overturn it.">
                         <ComboBox x:Name="ArbiterBox" ItemsSource="{Binding ArbiterChoices}" SelectedItem="{Binding Arbiter, Mode=TwoWay}" Width="260"
-                                  AutomationProperties.Name="Arbiter" />
+                                  AutomationProperties.Name="Arbiter">
+                            <ComboBox.ItemContainerStyle>
+                                <Style TargetType="ComboBoxItem" BasedOn="{StaticResource {x:Type ComboBoxItem}}">
+                                    <Setter Property="AutomationProperties.Name" Value="{Binding}" />
+                                </Style>
+                            </ComboBox.ItemContainerStyle>
+                        </ComboBox>
                     </controls:SettingRow>
                 </StackPanel>
 
