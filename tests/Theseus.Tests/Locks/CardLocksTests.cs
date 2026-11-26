@@ -74,6 +74,17 @@ public class CardLocksTests
     }
 
     [Test]
+    public void Release_NeverEndsAHoldOrPlaceOfASessionStillAlive_WhateverItsCard()
+    {
+        SessionHold("card-a", "session-other", LockNames.DevStack);
+
+        var released = CardLocks.Release(_book, "card-a", "session-a", isAlive: session => session == "session-other");
+
+        Assert.That(released, Is.Zero);
+        Assert.That(_book.Snapshot().Single().IsHolder, Is.True);
+    }
+
+    [Test]
     public void Of_FindsTheCardsTickets_ByCardOrByItsSession()
     {
         _liveness.Sessions.Add("session-a");

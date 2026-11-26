@@ -164,7 +164,7 @@ public sealed partial class ShellViewModel : ObservableObject
         }), TimeSpan.FromMilliseconds(500), TimeSpan.FromSeconds(1.5));
         _acceptances = new SpecAcceptanceStore(Path.Combine(App.DataDirectory, "spec-acceptances.json"));
         _reported = new ReportedAcceptanceStore(Path.Combine(App.DataDirectory, "reported-acceptances.json"));
-        CloseProjectCommand = new RelayCommand(_ => CloseProject(), _ => IsProjectOpen);
+        CloseProjectCommand = new RelayCommand(_ => CloseProject(), _ => IsProjectViewShown);
         // With no projects folder, New project opens the setup's folder step rather than sitting greyed out (first-run-setup),
         // and goes on to New project once the setup closes with a folder chosen.
         NewProjectCommand = new RelayCommand(_ =>
@@ -904,7 +904,10 @@ public sealed partial class ShellViewModel : ObservableObject
             {
                 Warn($"{project.Title} does not read, so its lead card cannot be made.");
             }
-        });
+        })
+    {
+        Resuming = name => Stopper.Resume(name),
+    };
 
     /// <summary>A card's and a selection's Start and Stop, with the questions and marks of a project that owns what runs (1.1e AC 10 to 12).</summary>
     private CardRunCommands RunCommands => _runCommands ??= new CardRunCommands(_settings, () => Board.ProjectCards, Runner,
@@ -2842,7 +2845,7 @@ public sealed partial class ShellViewModel : ObservableObject
 
         Board.ShowProjects(projectCards);
         ArchiveDueCards(projectCards);
-        ReleaseDueLocks(projectCards);
+        RefreshStopping(projectCards);
 
         var openChoices = openable
             .Select(card => new ProjectChoice(card.Name.Replace("_", "__", StringComparison.Ordinal), false, card.OpenCommand,

@@ -14,6 +14,12 @@ public sealed record ProjectStopping(DateTimeOffset StoppedUtc)
     /// <summary>The ids of the duties the stop paused; Start resumes these and no other.</summary>
     public IReadOnlyList<string> PausedDuties { get; init; } = [];
 
+    /// <summary>
+    /// Whether Start the project has resumed it while some of its cards' locks were still to release: it is not stopped, and
+    /// only the pending releases are kept, until the last is done.
+    /// </summary>
+    public bool IsResumed { get; init; }
+
     /// <summary>The keys of the cards whose holds and queue places are released once their sessions have ended.</summary>
     public IReadOnlyList<string> PendingLockCards { get; init; } = [];
 }

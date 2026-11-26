@@ -76,4 +76,45 @@ public class ProjectStopsTests
 
         Assert.That(ProjectStops.Of(after, "theseus")!.PendingLockCards, Is.EqualTo(new[] { "b" }));
     }
+
+    [Test]
+    public void Resume_WhileLocksAreStillToRelease_KeepsThemPending_ButTheProjectIsNoLongerStopped()
+    {
+        var settings = ProjectStops.Stop(TheseusSettings.Default, "theseus", new ProjectStopping(Nine) { PendingLockCards = ["a"], PausedDuties = ["d1"] });
+
+        var (resumed, stopping) = ProjectStops.Resume(settings, "theseus");
+        var (again, nothing) = ProjectStops.Resume(resumed, "theseus");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(stopping!.PausedDuties, Is.EqualTo(new[] { "d1" }));
+            Assert.That(ProjectStops.IsStopped(resumed, "theseus"), Is.False);
+            Assert.That(ProjectStops.Of(resumed, "theseus")!.PendingLockCards, Is.EqualTo(new[] { "a" }));
+            Assert.That(nothing, Is.Null, "a second Start resumes nothing");
+            Assert.That(again, Is.SameAs(resumed));
+        });
+    }
+
+    [Test]
+    public void Released_OfTheLastPendingCardOfAResumedProject_ForgetsTheStop()
+    {
+        var settings = ProjectStops.Resume(
+            ProjectStops.Stop(TheseusSettings.Default, "theseus", new ProjectStopping(Nine) { PendingLockCards = ["a"] }), "theseus").Settings;
+
+        var after = ProjectStops.Released(settings, "theseus", ["a"]);
+
+        Assert.That(ProjectStops.Of(after, "theseus"), Is.Null);
+    }
+
+    [Test]
+    public void IsStopped_IsTrueFromStopUntilStart()
+    {
+        var settings = ProjectStops.Stop(TheseusSettings.Default, "theseus", new ProjectStopping(Nine));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(ProjectStops.IsStopped(TheseusSettings.Default, "theseus"), Is.False);
+            Assert.That(ProjectStops.IsStopped(settings, "Theseus"), Is.True);
+        });
+    }
 }

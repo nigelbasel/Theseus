@@ -188,7 +188,7 @@ public class ProjectStopperTests
             Assert.That(_duties.Get(watched.Id)!.IsPaused, Is.False);
             Assert.That(_duties.Get(ownersPause.Id)!.IsPaused, Is.True);
             Assert.That(_settings.Read().Duties.QueueIsOn(BuildYourMarket), Is.True);
-            Assert.That(ProjectStops.Of(_settings.Read(), BuildYourMarket), Is.Null);
+            Assert.That(ProjectStops.IsStopped(_settings.Read(), BuildYourMarket), Is.False, "its cards' locks may still be pending");
         });
     }
 
@@ -202,6 +202,43 @@ public class ProjectStopperTests
         SetDuty(Host, "Watch");
 
         Assert.That(stopper.CanStop(Project()), Is.True);
+    }
+
+    [Test]
+    public void Start_OfAProjectStoppedWithNothingRunning_ResumesItsDuties_AndStartsNoCard()
+    {
+        var duty = SetDuty(Host, "Watch");
+        var stopper = Stopper();
+        stopper.Stop(Project());
+        var started = new List<string>();
+        var runner = new ProjectRunner(_board.Board.Card, _settings, workstreams => started.AddRange(workstreams.Select(each => each.Key)),
+            _ => { }, _ => { }) { Resuming = stopper.Resume };
+
+        runner.Start(Project());
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(started, Is.Empty, "no card it was not running");
+            Assert.That(_duties.Get(duty.Id)!.IsPaused, Is.False);
+            Assert.That(ProjectStops.IsStopped(_settings.Read(), BuildYourMarket), Is.False);
+        });
+    }
+
+    [Test]
+    public void Stop_PutsTheCardsItStopsOutsideTheFile_InTheRunState_SoStartBringsThemBack()
+    {
+        _live.Add("verifier-of-host");
+        var stopper = new ProjectStopper(_settings, _board.Board.Card, project => Runner().Stop(project), _duties, (_, _, _) => true, _ => { }, () => Nine)
+        {
+            HasSession = card => _live.Contains(card.Key),
+            OthersOf = _ => [Host],
+            StopCards = cards => _stopped.AddRange(cards.Select(card => card.Key)),
+        };
+        _live.Add(Host);
+
+        stopper.Stop(Project());
+
+        Assert.That(_settings.Read().ProjectRunStates[BuildYourMarket], Does.Contain(Host));
     }
 
     private ProjectRunner Runner() => new(_board.Board.Card, _settings, _ => { },

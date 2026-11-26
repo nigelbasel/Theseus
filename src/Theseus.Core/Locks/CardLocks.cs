@@ -34,17 +34,23 @@ public static class CardLocks
         return !ticket.IsHolder || ticket.Mode == HoldMode.Session;
     }
 
-    /// <summary>Releases a stopped card's session holds and takes it out of every queue; how many tickets ended.</summary>
+    /// <summary>
+    /// Releases a stopped card's session holds and takes it out of every queue; how many tickets ended. A ticket of a session
+    /// still alive is never touched, whichever session it is: a card can have a session Theseus did not start for it.
+    /// </summary>
     /// <param name="book">The lock book.</param>
     /// <param name="card">The card's key.</param>
     /// <param name="sessionId">The card's session, or null when it has none.</param>
-    public static int Release(LockBook book, string card, string? sessionId)
+    /// <param name="isAlive">Whether a session is alive; none treats every session as ended.</param>
+    public static int Release(LockBook book, string card, string? sessionId, Func<string, bool>? isAlive = null)
     {
         ArgumentNullException.ThrowIfNull(book);
 
+        var alive = isAlive ?? (_ => false);
         var released = 0;
 
-        foreach (var ticket in Of(book.Snapshot(), card, sessionId).Where(Releasable))
+        foreach (var ticket in Of(book.Snapshot(), card, sessionId).Where(Releasable)
+                     .Where(ticket => !(ticket.SessionId is { } session && alive(session)) && !(ticket.Owner is { } owner && alive(owner))))
         {
             if (ticket.IsHolder ? book.ForceReleaseTicket(ticket.Token) : book.Cancel(ticket.Token))
             {

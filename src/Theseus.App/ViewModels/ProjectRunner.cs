@@ -43,10 +43,24 @@ public sealed class ProjectRunner
         _notice = notice;
     }
 
+    /// <summary>
+    /// Start the project's other half (project-view-as-tabs): resumes what Stop the project paused, by project name; true when
+    /// it had been stopped. Null resumes nothing.
+    /// </summary>
+    public Func<string, bool>? Resuming { get; init; }
+
     /// <summary>▶ on a project card, or Start on its menu.</summary>
     public void Start(ProjectCardViewModel project)
     {
         ArgumentNullException.ThrowIfNull(project);
+
+        // A project stopped with nothing running comes back as it was: its duties and queue, and no card it was not running.
+        if (Resuming?.Invoke(project.Name) == true && !project.IsStopped)
+        {
+            _changed?.Invoke();
+
+            return;
+        }
 
         if (project.StartPlan is { CanStart: false, Skipped.Count: 0 } nothing)
         {
@@ -67,6 +81,8 @@ public sealed class ProjectRunner
     {
         ArgumentNullException.ThrowIfNull(cards);
         ArgumentNullException.ThrowIfNull(projects);
+
+        projects = [.. projects.Where(project => !(Resuming?.Invoke(project.Name) == true && !project.IsStopped))];
 
         foreach (var leadless in projects.Where(project => project.StartPlan is { MakesLead: true }))
         {

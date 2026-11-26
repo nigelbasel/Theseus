@@ -9,6 +9,9 @@ namespace Theseus.App.ViewModels;
 /// </summary>
 public sealed partial class ShellViewModel
 {
+    private HashSet<string> _stopped = new(StringComparer.OrdinalIgnoreCase);
+    private HashSet<string> _canStop = new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>The machine's lock book, so Stop the project can release a stopped card's holds; null releases none.</summary>
     public LockBook? LockBook { get; set; }
 
@@ -21,41 +24,43 @@ public sealed partial class ShellViewModel
             .Select(card => card.Key)],
         StopCards = cards => BeginStop(StepsFor(cards)),
         Tickets = () => LockBook?.Snapshot() ?? [],
-        Release = (card, session) => LockBook is { } book ? CardLocks.Release(book, card, session) : 0,
+        Release = (card, session) => LockBook is { } book ? CardLocks.Release(book, card, session, id => Sessions.Find(id) is not null) : 0,
     };
 
     /// <summary>
-    /// Gives a project card its ▶ and ■ as Start the project and Stop the project, before the runner's own: ■ asks once and
-    /// stops, pauses and releases; ▶ resumes what the stop paused, then starts the run state as before.
+    /// Gives a project card its ▶ and ■ as Start the project and Stop the project, before the runner's own. ■ asks once,
+    /// then stops, pauses and releases. ▶ resumes what the stop paused, then starts the run state as before (the runner
+    /// resumes on every Start path). Whether each can run is worked out once per refresh, not on every requery: it reads
+    /// the settings and the lock book.
     /// </summary>
     private void WireStopping(ProjectCardViewModel card, Func<bool> canLaunch)
     {
-        card.StopCommand ??= new RelayCommand(_ => Stopper.Stop(card), _ => Stopper.CanStop(card));
-        card.StartCommand ??= new RelayCommand(_ =>
-            {
-                Stopper.Resume(card.Name);
-
-                if (card.StartPlan is { CanStart: true } && canLaunch())
-                {
-                    Runner.Start(card);
-                }
-            },
-            _ => (card.StartPlan is { CanStart: true } && canLaunch()) || ProjectStops.Of(_settings.Read(), card.Name) is not null);
+        card.StopCommand ??= new RelayCommand(_ => Stopper.Stop(card), _ => _canStop.Contains(card.Name));
+        card.StartCommand ??= new RelayCommand(_ => Runner.Start(card),
+            _ => (card.StartPlan is { CanStart: true } && canLaunch()) || _stopped.Contains(card.Name));
     }
 
-    /// <summary>Releases the locks of each stopped project's cards whose sessions have ended since the last refresh.</summary>
-    private void ReleaseDueLocks(IReadOnlyList<ProjectCardViewModel> projects)
+    /// <summary>
+    /// Once per refresh: releases the locks of each stopped project's cards whose sessions have ended, and works out which
+    /// projects are stopped and which have anything to stop.
+    /// </summary>
+    private void RefreshStopping(IReadOnlyList<ProjectCardViewModel> projects)
     {
-        if (_settings.Read().StoppedProjects.Count == 0)
-        {
-            return;
-        }
-
         var stopper = Stopper;
+        var settings = _settings.Read();
 
-        foreach (var project in projects)
+        if (settings.StoppedProjects.Count > 0)
         {
-            stopper.ReleaseDue(project.Name, project.MemberKeys);
+            foreach (var project in projects)
+            {
+                stopper.ReleaseDue(project.Name, project.MemberKeys);
+            }
+
+            settings = _settings.Read();
         }
+
+        _stopped = [.. projects.Where(project => ProjectStops.IsStopped(settings, project.Name)).Select(project => project.Name)];
+        _canStop = [.. projects.Where(stopper.CanStop).Select(project => project.Name)];
+        System.Windows.Input.CommandManager.InvalidateRequerySuggested();
     }
 }

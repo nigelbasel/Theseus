@@ -117,6 +117,12 @@ public sealed class ProjectStopper
         if (others.Count > 0)
         {
             StopCards?.Invoke(others);
+
+            // In its run state too, so Start the project brings them back as the confirmation says.
+            var read = _settings.Read();
+            var states = new Dictionary<string, IReadOnlyList<string>>(read.ProjectRunStates, StringComparer.OrdinalIgnoreCase);
+            states[project.Name] = [.. (states.GetValueOrDefault(project.Name) ?? []).Union(others.Select(card => card.Key), StringComparer.OrdinalIgnoreCase)];
+            _settings.Write(read with { ProjectRunStates = states });
         }
 
         var paused = new List<string>();

@@ -18,6 +18,9 @@ public static class ProjectStops
             : settings.StoppedProjects.FirstOrDefault(entry => string.Equals(entry.Key, project, StringComparison.OrdinalIgnoreCase)).Value;
     }
 
+    /// <summary>Whether a project is stopped: Stop the project has run and Start the project has not since.</summary>
+    public static bool IsStopped(TheseusSettings settings, string? project) => Of(settings, project) is { IsResumed: false };
+
     /// <summary>Records a stop, with whether its overnight queue was on, and switches the queue off.</summary>
     public static TheseusSettings Stop(TheseusSettings settings, string project, ProjectStopping stopping)
     {
@@ -25,7 +28,8 @@ public static class ProjectStops
         ArgumentNullException.ThrowIfNull(project);
         ArgumentNullException.ThrowIfNull(stopping);
 
-        var earlier = Of(settings, project);
+        var found = Of(settings, project);
+        var earlier = found is { IsResumed: true } ? new ProjectStopping(found.StoppedUtc) { PendingLockCards = found.PendingLockCards } : found;
         var queueOn = settings.Duties.QueueIsOn(project) || earlier?.QueueWasOn == true;
         var record = stopping with
         {
@@ -52,7 +56,7 @@ public static class ProjectStops
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(project);
 
-        if (Of(settings, project) is not { } stopping)
+        if (Of(settings, project) is not { IsResumed: false } stopping)
         {
             return (settings, null);
         }
@@ -61,9 +65,16 @@ public static class ProjectStops
             ? [.. settings.Duties.QueueProjects, project]
             : settings.Duties.QueueProjects;
 
+        var stopped = Without(settings, project);
+
+        if (stopping.PendingLockCards.Count > 0)
+        {
+            stopped[project] = new ProjectStopping(stopping.StoppedUtc) { IsResumed = true, PendingLockCards = stopping.PendingLockCards };
+        }
+
         return (settings with
         {
-            StoppedProjects = Without(settings, project),
+            StoppedProjects = stopped,
             Duties = settings.Duties with { QueueProjects = queue },
         }, stopping);
     }
@@ -74,12 +85,19 @@ public static class ProjectStops
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(keys);
 
-        return Of(settings, project) is { } stopping && keys.Count > 0
-            ? With(settings, project, stopping with
-            {
-                PendingLockCards = [.. stopping.PendingLockCards.Where(key => !keys.Contains(key, StringComparer.OrdinalIgnoreCase))],
-            })
-            : settings;
+        if (Of(settings, project) is not { } stopping || keys.Count == 0)
+        {
+            return settings;
+        }
+
+        var left = stopping with
+        {
+            PendingLockCards = [.. stopping.PendingLockCards.Where(key => !keys.Contains(key, StringComparer.OrdinalIgnoreCase))],
+        };
+
+        return left is { IsResumed: true, PendingLockCards.Count: 0 }
+            ? settings with { StoppedProjects = Without(settings, project) }
+            : With(settings, project, left);
     }
 
     private static Dictionary<string, ProjectStopping> Without(TheseusSettings settings, string project) =>
