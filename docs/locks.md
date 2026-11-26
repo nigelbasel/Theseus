@@ -59,8 +59,15 @@ who holds how much of it and for how long, and who waits, in order. A request fo
 shows on each of them. Only you reorder the queue, cancel a request or release a hold, from this
 panel.
 
+Each resource folds to one line: its name and its state, such as *free*, *held by 2 · 3 waiting* or
+*1 deadlock stopped*. Select a line, or press Right on it, to unfold its holds, its queue and what you can
+do; Left folds it again. The queue under a resource folds on its own, so a long one can be put away. The
+sections below the resources fold the same way. **Expand all** and **Collapse all** at the top of the
+panel open or fold everything, and the panel remembers what you left open.
+
 A hold taken by a session that has been idle for 30 minutes, or whose session has gone, shows amber
-with how long, for you to release. Nothing releases it by itself.
+with how long, for you to release. Nothing releases it by itself. A folded line says so too: **⚠ idle**
+for such a hold, **⚠ long** for one held over 90 minutes.
 
 **Rulings** lists what the arbiter ruled, with **Overturn**. **Not ruled on yet** lists resources
 requests have named that the table does not know.

@@ -24,6 +24,7 @@ public sealed class LocksViewModel : ObservableObject, IDisposable
     private readonly DispatcherTimer _timer;
     private readonly ITestContainers? _containers;
     private readonly Func<LockTicket, DateTimeOffset, string?>? _idleOf;
+    private readonly LockFolds _folds = new();
     private IReadOnlyList<TestContainer> _lastContainers = [];
     private int _checking;
     private bool _isOpen;
@@ -45,6 +46,10 @@ public sealed class LocksViewModel : ObservableObject, IDisposable
         _containers = containers;
         _dispatcher = Dispatcher.CurrentDispatcher;
         Rows = [];
+        NeedsRulingFold = _folds.For("section:needs-ruling", open: false);
+        RulingsFold = _folds.For("section:rulings", open: false);
+        DeadlocksFold = _folds.For("section:deadlocks", open: false);
+        UnownedFold = _folds.For("section:unowned", open: true);
 
         ToggleCommand = new RelayCommand(_ => IsOpen = !IsOpen);
         OpenCommand = new RelayCommand(_ => IsOpen = true);
@@ -84,6 +89,28 @@ public sealed class LocksViewModel : ObservableObject, IDisposable
     /// <summary>Resources asked for that nobody has ruled on yet; until then each is held alone.</summary>
     public string NeedsRuling { get; private set; } = string.Empty;
 
+    /// <summary>Where the panel's folds are kept between runs (Nigel, 2026-11-26); without one, they last as long as the panel.</summary>
+    public Theseus.Core.Settings.ISettingsStore? Settings
+    {
+        get => _folds.Settings;
+        set => _folds.Settings = value;
+    }
+
+    /// <summary>Unfolds every lock, its queue, and every section around them.</summary>
+    public RelayCommand ExpandAllCommand => _folds.ExpandAllCommand;
+
+    /// <summary>Folds every lock and section, leaving a list of the lock names.</summary>
+    public RelayCommand CollapseAllCommand => _folds.CollapseAllCommand;
+
+    public FoldState NeedsRulingFold { get; }
+
+    public FoldState RulingsFold { get; }
+
+    public FoldState DeadlocksFold { get; }
+
+    /// <summary>Open unless the owner folds it: containers nobody owns wait on him.</summary>
+    public FoldState UnownedFold { get; }
+
     /// <summary>Opens or closes the locks panel.</summary>
     public RelayCommand ToggleCommand { get; }
 
@@ -122,14 +149,16 @@ public sealed class LocksViewModel : ObservableObject, IDisposable
         var table = _book.Table;
 
         SyncRows(tickets, table);
+        List<StoppedDeadlock> deadlocks = [.. _book.StoppedDeadlocks().Reverse().Take(10)];
 
         foreach (var row in Rows)
         {
-            row.Update(tickets, now, _colourOf, table, _idleOf is null ? null : ticket => _idleOf(ticket, now));
+            row.Update(tickets, now, _colourOf, table, _idleOf is null ? null : ticket => _idleOf(ticket, now),
+                deadlocks.Count(stopped => stopped.Resources.Contains(row.Name, StringComparer.Ordinal)));
         }
 
         Busy = tickets.Count;
-        Replace(StoppedDeadlocks, [.. _book.StoppedDeadlocks().Reverse().Take(10)
+        Replace(StoppedDeadlocks, [.. deadlocks
             .Select(stopped => $"{stopped.WhenUtc.ToLocalTime():HH:mm}  {stopped.Detail}")]);
         SyncRulings(table);
         NeedsRuling = string.Join(", ", _book.NeedsRuling());
@@ -183,7 +212,7 @@ public sealed class LocksViewModel : ObservableObject, IDisposable
 
             if (existing is null)
             {
-                Rows.Insert(index, new LockRowViewModel(names[index], Release, MoveUp, MoveDown, Cancel));
+                Rows.Insert(index, new LockRowViewModel(names[index], Release, MoveUp, MoveDown, Cancel, _folds));
             }
             else if (Rows.IndexOf(existing) != index)
             {
