@@ -1,6 +1,8 @@
-// SessionStart hook: puts the method's standing rules and its decide, record or park ladder into the session, read
-// from method/README.md so the rules are written once. Plain stdout is added to the session's context; Claude Code caps
-// it at 10,000 characters, which the suite checks.
+// SessionStart hooks: put the method's standing rules, its branch conventions and its decide, record or park ladder into
+// the session, read from method/README.md so the rules are written once. Plain stdout is added to the session's context;
+// Claude Code caps each hook's output at 10,000 characters, measured hook by hook, so the rules are two hooks:
+// "standing" (the rules and the branch conventions) and "ladder". The suite checks each part fits. Where a rule came
+// from stays in README.md only: a rule's closing citation in parentheses, and a section's opening paragraph of history.
 
 const fs = require('fs');
 const path = require('path');
@@ -16,9 +18,27 @@ function section(text, heading) {
     return text.slice(start + 1, next < 0 ? text.length : next).trim();
 }
 
-function rules() {
+// A citation names a lesson (P1, AC 12) or the owner, and ends its line, as in "(stop-timing P1; ... in stage 0.)".
+const citation = /\s+\((?:[^()]|\([^()]*\))*?(?:\bP\d+\b|\bAC \d+|Nigel)(?:[^()]|\([^()]*\))*?\)(?=\n|$)/g;
+
+function withoutHistory(text) {
+    return text
+        .replace(citation, '')
+        .replace(/^(## [^\n]+\n\n)Added for [\s\S]*?\n\n/, '$1');
+}
+
+function rules(part) {
     const readme = fs.readFileSync(path.join(root, 'method', 'README.md'), 'utf8').replace(/\r\n/g, '\n');
     const version = (readme.match(/\*\*Version:\*\* `([^`]+)`/) || [])[1] || 'unknown';
+
+    if (part === 'ladder') {
+        return [
+            `# The agentic factory method (${version}): deciding without the owner`,
+            '',
+            withoutHistory(section(readme, 'Working unattended: decide, record, or park')),
+            '',
+        ].join('\n');
+    }
 
     return [
         `# The agentic factory method (${version}), from the agentic-factory plugin`,
@@ -35,15 +55,17 @@ function rules() {
         '- accept_spec: only the owner\'s explicit words accepting the spec count; quote them in a dated Decisions row.',
         '- a verifier card: /agentic-factory:verifier gives the command to start one in a fresh session.',
         '',
-        section(readme, 'Rules that hold everywhere'),
+        withoutHistory(section(readme, 'Rules that hold everywhere')),
         '',
-        section(readme, 'Working unattended: decide, record, or park'),
+        withoutHistory(section(readme, 'Branches, worktrees and merging')),
+        '',
+        'The decide, record or park ladder is in this session too, from the plugin\'s second session-start hook.',
         '',
     ].join('\n');
 }
 
 try {
-    process.stdout.write(rules());
+    process.stdout.write(rules(process.argv[2]));
 } catch (error) {
     process.stdout.write(`The agentic-factory plugin could not read its method files (${error.message}). `
         + 'Run /agentic-factory:check, and reinstall the plugin if files are missing.\n');

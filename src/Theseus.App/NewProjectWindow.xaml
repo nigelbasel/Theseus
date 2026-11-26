@@ -35,9 +35,14 @@
         <TextBlock Margin="0,4,0,0" Style="{DynamicResource ExplanationText}" Text="One paragraph: the outcome the whole project exists for." />
 
         <Label x:Name="PrimaryLabel" Content="_Primary branch" Target="{Binding ElementName=PrimaryBox}" Style="{StaticResource Field}" />
-        <TextBox x:Name="PrimaryBox" AutomationProperties.LabeledBy="{x:Reference PrimaryLabel}" />
+        <TextBox x:Name="PrimaryBox" TextChanged="OnPrimaryChanged" AutomationProperties.LabeledBy="{x:Reference PrimaryLabel}" />
         <TextBlock Margin="0,4,0,0" Style="{DynamicResource ExplanationText}"
-                   Text="The project's long-lived branch off the trunk, such as you/my-project: workstream branches come off it, and one pull request takes it into the trunk." />
+                   Text="Made from your user name and the project's name; change it if you like. The project's long-lived branch off the trunk: workstream branches come off it, and one pull request takes it into the trunk." />
+
+        <CheckBox x:Name="GrantBox" IsChecked="True" Margin="0,16,0,0"
+                  Content="_Workstreams may branch off the primary branch, push, and merge back into it without asking" />
+        <TextBlock Margin="0,4,0,0" Style="{DynamicResource ExplanationText}"
+                   Text="Each merge waits for the workstream's full suite to pass. The pull request into the trunk is always yours. Project properties changes this later." />
 
         <StackPanel x:Name="Footer" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,24,0,0">
             <Button x:Name="CreateButton" Content="_Create" IsDefault="True" Style="{DynamicResource AccentButton}" Click="OnCreate" IsEnabled="False"
