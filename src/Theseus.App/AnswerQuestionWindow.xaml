@@ -1,0 +1,55 @@
+<Window x:Class="Theseus.App.AnswerQuestionWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="{Binding Heading}"
+        Width="520"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        ResizeMode="NoResize"
+        Background="{DynamicResource SolidBackgroundFillColorSecondaryBrush}">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="Shown" />
+    </Window.Resources>
+    <StackPanel Margin="{DynamicResource DialogGutter}">
+        <TextBlock x:Name="QuestionText" Text="{Binding Question}" Style="{DynamicResource BodyStrongText}" TextWrapping="Wrap" />
+        <TextBlock Text="{Binding Why}" Style="{DynamicResource CaptionText}" TextWrapping="Wrap" Margin="0,4,0,0"
+                   Visibility="{Binding HasWhy, Converter={StaticResource Shown}}" />
+        <!-- Each of the session's own answers is a button that gives it at once (2.4e). -->
+        <ItemsControl ItemsSource="{Binding Options}" Margin="0,16,0,0" Focusable="False"
+                      AutomationProperties.Name="Its answers"
+                      Visibility="{Binding HasOptions, Converter={StaticResource Shown}}">
+            <ItemsControl.ItemContainerStyle>
+                <Style>
+                    <Setter Property="AutomationProperties.Name" Value="{Binding Text}" />
+                </Style>
+            </ItemsControl.ItemContainerStyle>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Button Command="{Binding Command}" Style="{DynamicResource DialogButton}" Margin="0,0,0,8"
+                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                            AutomationProperties.Name="{Binding Text}">
+                        <TextBlock Text="{Binding Text}" TextWrapping="Wrap" />
+                    </Button>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <TextBlock x:Name="OwnWordsLabel" Text="Or answer in your own words" Margin="0,8,0,0" />
+        <TextBox x:Name="OwnWords" Text="{Binding OwnWords, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0"
+                 AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64" VerticalScrollBarVisibility="Auto"
+                 AutomationProperties.LabeledBy="{Binding ElementName=OwnWordsLabel}" />
+        <TextBlock Text="{Binding ReachesWhen}" Style="{DynamicResource CaptionText}" TextWrapping="Wrap" Margin="0,8,0,0" />
+        <!-- The action on the left, Cancel on the right (W9). -->
+        <StackPanel x:Name="Footer" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,24,0,0">
+            <Button x:Name="SendButton" Command="{Binding SendCommand}" IsDefault="True" Style="{DynamicResource AccentButton}" ToolTipService.ShowOnDisabled="True"
+                    ToolTip="Gives your own words as the answer" AutomationProperties.Name="Send answer">
+                <AccessText Text="_Send answer" />
+            </Button>
+            <Button x:Name="GoToTabButton" Command="{Binding GoToTabCommand}" Style="{DynamicResource DialogButton}" Margin="8,0,0,0"
+                    Visibility="{Binding HasTab, Converter={StaticResource Shown}}" AutomationProperties.Name="Go to its tab">
+                <AccessText Text="_Go to its tab" />
+            </Button>
+            <Button x:Name="CancelButton" Content="Cancel" IsCancel="True" Style="{DynamicResource DialogButton}" Margin="8,0,0,0" />
+        </StackPanel>
+    </StackPanel>
+</Window>

@@ -12,6 +12,9 @@ public enum WaitKind
     /// <summary>Answer a session in its terminal.</summary>
     Answer,
 
+    /// <summary>An answer he gave on the board, waiting to be delivered to its session; nothing for him to do (2.4e).</summary>
+    Delivering,
+
     /// <summary>Look at a card marked blocked.</summary>
     Unblock,
 

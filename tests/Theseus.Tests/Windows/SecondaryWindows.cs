@@ -19,6 +19,7 @@ public static class SecondaryWindows
     public static IReadOnlyList<(string Name, Func<Window> Build)> All(string scratchFolder) =>
     [
         ("About", () => new AboutWindow()),
+        ("AnswerQuestion", () => new AnswerQuestionWindow(AnswerQuestion())),
         ("AddObjective", () => new AddObjectiveWindow()),
         ("AddToProject", () => new AddToProjectWindow([new ProjectOption("theseus", "Theseus", [("1.9", "Windows conventions")])], "wg-secondary-windows")),
         ("Arrange", () => new ArrangeWindow { DataContext = Arrange() }),
@@ -34,6 +35,14 @@ public static class SecondaryWindows
         ("Spec", () => new SpecWindow(Spec(scratchFolder))),
         ("Waits", () => new WaitsWindow(Waits())),
     ];
+
+    /// <summary>A verifier's question asked with ask_owner, with its options and why, for a session that has a tab.</summary>
+    public static AnswerQuestionViewModel AnswerQuestion() =>
+        new("Verify: Auth", new Theseus.Core.Questions.OwnerQuestion("s", "Which route for the host scenarios?", IsGuess: false, DateTimeOffset.UnixEpoch)
+        {
+            Options = ["A: allow a scratch harness", "B: I sign in", "C: record both as not run"],
+            Why = "Neither runs without a harness file or your sign-in.",
+        }, hasTab: true, "Your answer is typed into its tab as its next turn.");
 
     /// <summary>A criterion's ask on two criteria, its first ticked, and a session's question with its own button.</summary>
     public static WaitsChecklistViewModel Waits()

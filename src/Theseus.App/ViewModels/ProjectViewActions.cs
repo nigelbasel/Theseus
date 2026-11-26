@@ -87,6 +87,9 @@ public sealed record ProjectViewActions(
     /// <summary>Asks the owner to allow or refuse a start request by its id (sessions-run-the-project 13); null in tests.</summary>
     public Action<string>? AnswerStartRequest { get; init; }
 
+    /// <summary>Opens a card's question to answer in Theseus, by the card's key (2.4e); Focus when null.</summary>
+    public Action<string>? AnswerQuestion { get; init; }
+
     /// <summary>Starts a verifier card Theseus made, as Start again does; null starts it as a card's Start.</summary>
     public Action<string>? StartVerifier { get; init; }
 

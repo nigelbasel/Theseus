@@ -1140,6 +1140,13 @@ asking; tools that act on other cards ask for permission unless the session runs
 with the same question, so it shows on its card and in Waits for you. A turn that ends with a question written only as
 prose looks finished on the board.
 
+**Answering on the board.** **Answer it** on a question asked with `ask_owner` opens it in Theseus: the question, why it
+is asked, each of its options as a button, and a box for your own words. Your answer goes to the session as its next
+turn: typed into its tab, given to a headless run when its turn ends, or given with the start that resumes a session that
+has ended. A card you stopped or paused keeps the answer until it next runs, and the wait says "answered, waiting to be
+delivered" until the answer has reached it. **Go to its tab** is still there for a session open in a tab. A session
+stopped at a prompt in its tab, or at the question tool, is answered there: Answer it brings the tab forward.
+
 ## Verifiers and scenario writers
 
 Holdout scenarios live in a private repository of your own. Theseus finds each project's holdout folder by convention:

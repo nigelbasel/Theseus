@@ -11,6 +11,11 @@ public static class QuestionWords
     {
         ArgumentNullException.ThrowIfNull(question);
 
+        if (!question.IsOpen)
+        {
+            return $"You answered \"{question.Answer}\" on the board: answered, waiting to be delivered";
+        }
+
         return question.IsGuess ? $"Probably asking you something: {question.Text}" : $"Asks: {question.Text}";
     }
 
@@ -18,6 +23,11 @@ public static class QuestionWords
     public static string Named(string who, OwnerQuestion question)
     {
         ArgumentNullException.ThrowIfNull(question);
+
+        if (!question.IsOpen)
+        {
+            return $"{who}: answered, waiting to be delivered";
+        }
 
         return question.IsGuess ? $"{who} is probably asking you something: {question.Text}" : $"{who} asks: {question.Text}";
     }
@@ -27,9 +37,14 @@ public static class QuestionWords
     {
         ArgumentNullException.ThrowIfNull(question);
 
+        if (!question.IsOpen)
+        {
+            return "Nobody: your answer is given to it when it next takes a turn.";
+        }
+
         return question.IsGuess
             ? "You, probably: answer it in its tab if it asks."
-            : "You; it does nothing until you answer in its tab.";
+            : "You; it does nothing until you answer it, here or in its tab.";
     }
 
     /// <summary>The card's tooltip: the question, its options and why, each on a line.</summary>

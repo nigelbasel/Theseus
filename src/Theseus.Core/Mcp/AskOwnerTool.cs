@@ -129,7 +129,8 @@ public sealed class AskOwnerTool
             return (Parked, false);
         }
 
-        return ("Shown on the board: on your card, in Waits for you and in Needs you, until the owner next types in this tab. "
+        return ("Shown on the board: on your card, in Waits for you and in Needs you, until the owner next types in this tab "
+                + "or answers it on the board, which gives you his answer as your next turn. "
                 + "Ask the same question here with the question tool now, so he can answer where he is; "
                 + "once it answers you, call ask_owner with answered: true.", false);
     }
