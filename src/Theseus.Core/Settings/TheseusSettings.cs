@@ -237,6 +237,13 @@ public sealed record TheseusSettings(
     public IReadOnlyDictionary<string, Projects.ProjectClosure> ClosedProjects { get; init; } =
         new Dictionary<string, Projects.ProjectClosure>();
 
+    /// <summary>
+    /// The projects the owner stopped with Stop the project, by project name (project-view-as-tabs, 2026-11-26): what the
+    /// stop paused, so Start resumes exactly that, and the cards whose locks are still to release once they have stopped.
+    /// </summary>
+    public IReadOnlyDictionary<string, Projects.ProjectStopping> StoppedProjects { get; init; } =
+        new Dictionary<string, Projects.ProjectStopping>();
+
     /// <summary>Each project's lead card, by project name, as chosen in Project properties (Nigel, 2026-11-22).</summary>
     public IReadOnlyDictionary<string, string> ProjectLeads { get; init; } = new Dictionary<string, string>();
 

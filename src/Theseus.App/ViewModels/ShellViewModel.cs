@@ -2749,6 +2749,7 @@ public sealed partial class ShellViewModel : ObservableObject
                 System.Windows.Input.CommandManager.InvalidateRequerySuggested();
             }
 
+            WireStopping(projectCard, () => _launcher.CanLaunch);
             Runner.Wire(projectCard, () => _launcher.CanLaunch);
 
             // A closed or archived project is shown only under Archived, with Reopen: no tab, no waits, no queue.
@@ -2838,6 +2839,7 @@ public sealed partial class ShellViewModel : ObservableObject
 
         Board.ShowProjects(projectCards);
         ArchiveDueCards(projectCards);
+        ReleaseDueLocks(projectCards);
 
         var openChoices = openable
             .Select(card => new ProjectChoice(card.Name.Replace("_", "__", StringComparison.Ordinal), false, card.OpenCommand,
