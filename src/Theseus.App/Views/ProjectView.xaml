@@ -249,7 +249,7 @@
             <!-- The chip's menu (archive-a-project): Close and Archive, each asking once, so no ellipsis (W17). -->
             <Setter Property="ContextMenu">
                 <Setter.Value>
-                    <ContextMenu>
+                    <ContextMenu FontFamily="{x:Static SystemFonts.MessageFontFamily}">
                         <MenuItem Header="_Close project" Command="{Binding CloseCommand}"
                                   ToolTip="Stop its cards after their handover, pause its duties and queue, and put it under Archived until you reopen it." />
                         <MenuItem Header="_Archive project" Command="{Binding ArchiveCommand}"
@@ -1360,7 +1360,8 @@
                         AutomationProperties.Name="More project commands" ToolTip="More: close or archive this project"
                         Click="OnMoreProjectCommands">
                     <Button.ContextMenu>
-                        <ContextMenu>
+                        <!-- The message font: a menu takes its button's, which here is the icon font. -->
+                        <ContextMenu FontFamily="{x:Static SystemFonts.MessageFontFamily}">
                             <MenuItem x:Name="CloseThisProject" Header="_Close project" Command="{Binding CloseProjectCommand}"
                                       ToolTip="Stop its cards after their handover, pause its duties and queue, and put it under Archived until you reopen it." />
                             <MenuItem x:Name="ArchiveThisProject" Header="_Archive project" Command="{Binding ArchiveProjectCommand}"
