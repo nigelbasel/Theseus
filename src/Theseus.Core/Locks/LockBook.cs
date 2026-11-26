@@ -386,9 +386,10 @@ public sealed class LockBook
 
         return Change(now =>
         {
-            var name = lockName ?? string.Join(" + ", ScopeOf(lockName, request.Scope, request.Command, Trimmed(request.Root) ?? Trimmed(request.WorkingDirectory)));
-            var key = KeyFor(name, request);
-            var index = _tickets.FindIndex(ticket => string.Equals(ticket.RequesterKey, key, StringComparison.Ordinal));
+            var name = lockName ?? "scope";
+            var index = lockName is null
+                ? _tickets.FindIndex(ticket => ticket.Mode == HoldMode.Process && KeyFor(ticket.Lock, request) == ticket.RequesterKey)
+                : _tickets.FindIndex(ticket => string.Equals(ticket.RequesterKey, KeyFor(lockName, request), StringComparison.Ordinal));
 
             if (index < 0)
             {

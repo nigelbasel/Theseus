@@ -18,14 +18,15 @@ public class LaunchEnvironmentTests
     public void AVerifiersLaunch_SetsTheRoleVariable()
     {
         Assert.That(Plan(WorkstreamRole.Verifier).Ticket.Spec.Environment,
-            Is.EqualTo(new Dictionary<string, string> { ["THESEUS_ROLE"] = "verifier" }));
+            Is.EqualTo(new Dictionary<string, string> { ["THESEUS_ROLE"] = "verifier", ["THESEUS_CARD"] = "checking" }));
     }
 
     [Test]
-    public void ALaunchWithNoRole_SetsNoVariableAtAll()
+    public void ALaunchWithNoRole_SetsNoRoleVariable_OnlyTheCard()
     {
-        Assert.That(Plan(WorkstreamRole.None).Ticket.Spec.Environment, Is.Empty,
-            "a card with no role starts exactly as it always has");
+        Assert.That(Plan(WorkstreamRole.None).Ticket.Spec.Environment,
+            Is.EqualTo(new Dictionary<string, string> { ["THESEUS_CARD"] = "checking" }),
+            "a card with no role carries no role; the card is for the lock script");
     }
 
     [Test]
@@ -41,7 +42,7 @@ public class LaunchEnvironmentTests
         new ClaudeProcessRunner(launcher, new FixedIds(), new FixedClock()).Run(spec, new SilentReporter());
 
         Assert.That(launcher.Requests.Single().Environment,
-            Is.EqualTo(new Dictionary<string, string> { ["THESEUS_ROLE"] = "verifier" }));
+            Is.EqualTo(new Dictionary<string, string> { ["THESEUS_ROLE"] = "verifier", ["THESEUS_SESSION_ID"] = "session-1" }));
     }
 
     private static WorkstreamLaunchPlan Plan(WorkstreamRole role)
