@@ -233,6 +233,11 @@ public sealed class ProjectViewModel : ObservableObject
     {
         _searchHits = matches is null ? [] : [.. AllNodes.Where(matches)];
         HighlightObjective(_highlightedObjective);
+
+        foreach (var line in Waits.Concat(OtherWaits).Concat(AllObjectives.SelectMany(heading => heading.Waits)))
+        {
+            line.IsSearchHit = matches is not null && cardMatches is not null && line.Item.CardKey is { } key && cardMatches(key);
+        }
     }
 
     /// <summary>

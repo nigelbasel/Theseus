@@ -49,6 +49,8 @@ public static class PiecesOfWork
         return [.. pieces.Select(piece => reports.LastOrDefault(report =>
                 string.Equals(report.Project, reading.Name, StringComparison.OrdinalIgnoreCase)
                 && string.Equals(report.Slug, piece.Name, StringComparison.OrdinalIgnoreCase)) is { } report
+                && SpecGates.SpecOf(reading, piece.Name) is { } spec
+                && string.Equals(report.ContentHash, spec.ContentHash, StringComparison.Ordinal)
             ? piece with { Reported = report }
             : piece)];
     }

@@ -575,7 +575,8 @@ public sealed partial class ShellViewModel : ObservableObject
             return;
         }
 
-        view.ShowSearch(node => SearchCarry.Matches(node, key => Board.Card(key) is { } card ? Board.IsMatch(card) : null, filter));
+        view.ShowSearch(node => SearchCarry.Matches(node, key => Board.Card(key) is { } card ? Board.IsMatch(card) : null, filter),
+            key => Board.Card(key) is { } card && Board.IsMatch(card));
     }
 
     /// <summary>Ticks what is not ticked and unticks what is.</summary>
@@ -1930,9 +1931,7 @@ public sealed partial class ShellViewModel : ObservableObject
     /// A scenario writer's project: the one kept on its card, else the project whose home it has in reach, as older writers
     /// were made with none (git-22, item 7a).
     /// </summary>
-    private string? WriterProject(Workstream writer) =>
-        writer.Project ?? _projectReads.Current.FirstOrDefault(reading => reading.IsReadable && reading.Folder is { } home
-            && writer.AddDirectories.Any(directory => SameFolder(directory, home)))?.Name;
+    private string? WriterProject(Workstream writer) => RoleProject.Of(writer, _projectReads.Current);
 
     /// <summary>
     /// Aims a scenario writer at its project's holdout folder of today before it starts, rewriting its plan when the folder
@@ -2580,6 +2579,11 @@ public sealed partial class ShellViewModel : ObservableObject
             card.ProjectSource = string.Empty;
         }
 
+        foreach (var card in cards)
+        {
+            card.ProjectOfRole = card.Workstream.Role == WorkstreamRole.ScenarioWriter ? WriterProject(card.Workstream) : null;
+        }
+
         Board.KeepOutOfGrid = ProjectGridRule.KeepOutOfGrid(memberOf, anyMembers);
 
         // Membership has just been read, so the holdout folders are looked at again by project (1.1e AC 6c).
@@ -2620,11 +2624,7 @@ public sealed partial class ShellViewModel : ObservableObject
                     string.Equals(acceptance.Project, reading.Name, StringComparison.OrdinalIgnoreCase)
                     && string.Equals(acceptance.Slug, slug, StringComparison.OrdinalIgnoreCase)),
                 pieceCards, links, _projectReads.Members, StageReports);
-            pieces = [.. pieces.Select(piece => reportedAcceptances.LastOrDefault(report =>
-                    string.Equals(report.Project, reading.Name, StringComparison.OrdinalIgnoreCase)
-                    && string.Equals(report.Slug, piece.Name, StringComparison.OrdinalIgnoreCase)) is { } reported
-                ? piece with { Reported = reported }
-                : piece)];
+            pieces = PiecesOfWork.WithReports(pieces, reading, reportedAcceptances);
             var working = pieces.Where(piece => piece.IsCurrentPiece && piece.Card is not null)
                 .Select(piece => piece.CardKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
             IReadOnlyList<PieceCard> others = [.. cards

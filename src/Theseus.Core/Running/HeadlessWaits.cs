@@ -19,7 +19,7 @@ public static class HeadlessWaits
     {
         ArgumentNullException.ThrowIfNull(cards);
 
-        return For(cards.Where(card => string.Equals(card.Project, project, StringComparison.OrdinalIgnoreCase)), stateOf);
+        return For(cards.Where(card => string.Equals(RoleProject.Of(card, readings), project, StringComparison.OrdinalIgnoreCase)), stateOf);
     }
 
     /// <summary>The waits, one per card at most.</summary>

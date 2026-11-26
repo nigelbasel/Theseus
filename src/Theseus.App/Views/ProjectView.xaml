@@ -904,18 +904,33 @@
             </DockPanel>
         </DataTemplate>
 
-        <!-- One line of Waits for you with its button, at the top and under the objective it belongs to (item 6). -->
+        <!--
+            One line of Waits for you with its button, at the top and under the objective it belongs to (item 6). A search
+            that found the card it concerns marks it, as it does a box: a writer or verifier has no box of its own.
+        -->
         <DataTemplate x:Key="WaitLine" DataType="{x:Type vm:WaitItemViewModel}">
-            <DockPanel Margin="0,0,0,8">
-                <Button x:Name="WaitButton" DockPanel.Dock="Right" Content="{Binding Button, Converter={StaticResource AccessKeyEscape}}"
-                        Command="{Binding Command}" Style="{StaticResource CommandButton}" Margin="12,0,0,0" FontSize="14"
-                        ToolTip="{Binding ToolTip}" ToolTipService.ShowOnDisabled="True"
-                        VerticalAlignment="Top" AutomationProperties.Name="{Binding Button}"
-                        Visibility="{Binding HasButton, Converter={StaticResource Visible}}" />
-                <TextBlock x:Name="WaitText" local:LinkedText.Text="{Binding Text}" FontSize="14" TextWrapping="Wrap" VerticalAlignment="Center"
-                           TextTrimming="CharacterEllipsis" ToolTip="{Binding Text}"
-                           Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-            </DockPanel>
+            <Border x:Name="WaitLineMark" Margin="0,0,0,8" BorderThickness="3,0,0,0" Padding="8,0,0,0">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="BorderBrush" Value="Transparent" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsSearchHit}" Value="True">
+                                <Setter Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <DockPanel>
+                    <Button x:Name="WaitButton" DockPanel.Dock="Right" Content="{Binding Button, Converter={StaticResource AccessKeyEscape}}"
+                            Command="{Binding Command}" Style="{StaticResource CommandButton}" Margin="12,0,0,0" FontSize="14"
+                            ToolTip="{Binding ToolTip}" ToolTipService.ShowOnDisabled="True"
+                            VerticalAlignment="Top" AutomationProperties.Name="{Binding Button}"
+                            Visibility="{Binding HasButton, Converter={StaticResource Visible}}" />
+                    <TextBlock x:Name="WaitText" local:LinkedText.Text="{Binding Text}" FontSize="14" TextWrapping="Wrap" VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis" ToolTip="{Binding Text}"
+                               Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                </DockPanel>
+            </Border>
         </DataTemplate>
 
         <!-- A box under its objective heading: the same box, with no branch, since no connector crosses headings (AC 47). -->

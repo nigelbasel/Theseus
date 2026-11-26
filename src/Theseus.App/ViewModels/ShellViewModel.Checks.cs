@@ -223,9 +223,8 @@ public sealed partial class ShellViewModel
         IEnumerable<WorkstreamCardViewModel> cards)
     {
         var cannotRun = ChecksThatCannotRun(reading, pieces, plan);
-        var headless = HeadlessWaits.For(cards
-                .Where(card => string.Equals(card.Workstream.Project, reading.Name, StringComparison.OrdinalIgnoreCase))
-                .Select(card => card.Workstream), key => Headless?.StateOf(key))
+        var headless = HeadlessWaits.ForProject(reading.Name, cards.Select(card => card.Workstream), _projectReads.Current,
+                key => Headless?.StateOf(key))
             .Where(wait => !cannotRun.Any(each => each.Kind == wait.Kind && string.Equals(each.CardKey, wait.CardKey, StringComparison.OrdinalIgnoreCase)));
 
         return [.. cannotRun, .. headless];

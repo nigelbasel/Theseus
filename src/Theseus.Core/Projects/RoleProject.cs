@@ -17,6 +17,17 @@ public static class RoleProject
         ArgumentNullException.ThrowIfNull(card);
         ArgumentNullException.ThrowIfNull(readings);
 
-        return card.Project;
+        if (card.Project is not null || card.Role != WorkstreamRole.ScenarioWriter)
+        {
+            return card.Project;
+        }
+
+        return readings.FirstOrDefault(reading => reading.IsReadable && reading.Folder is { } home
+            && card.AddDirectories.Any(directory => SameFolder(directory, home)))?.Name;
     }
+
+    private static bool SameFolder(string left, string right) =>
+        !string.IsNullOrWhiteSpace(left) && !string.IsNullOrWhiteSpace(right)
+        && string.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(left)), Path.TrimEndingDirectorySeparator(Path.GetFullPath(right)),
+            StringComparison.OrdinalIgnoreCase);
 }
