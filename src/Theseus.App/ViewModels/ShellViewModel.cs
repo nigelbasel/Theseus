@@ -801,7 +801,10 @@ public sealed partial class ShellViewModel : ObservableObject
         _cardEvents,
         text => Extend(string.IsNullOrWhiteSpace(Notice) ? text : $"{Notice} {text}"),
         () => DateTimeOffset.UtcNow,
-        Refresh);
+        Refresh)
+    {
+        IsProjectClosed = IsProjectClosed,
+    };
 
     /// <summary>
     /// A session's start of a descendant (review of PR 3, findings 5 and 6): it resumes the conversation, falling back to
@@ -2744,6 +2747,14 @@ public sealed partial class ShellViewModel : ObservableObject
 
             Runner.Wire(projectCard, () => _launcher.CanLaunch);
 
+            // A closed or archived project is shown only under Archived, with Reopen: no tab, no waits, no queue.
+            if (WireClosure(projectCard, name))
+            {
+                projectCards.Add(projectCard);
+
+                continue;
+            }
+
             // The badge counts what the summary sentence counts: one source (walkthrough row 6).
             IReadOnlyList<string> waiting = [.. overview.Waits.Select(wait => wait.Text)];
 
@@ -2765,13 +2776,16 @@ public sealed partial class ShellViewModel : ObservableObject
 
         if (open is { } openOne)
         {
-            var tabs = ProjectTabViewModel.For(readable, _openProjectName, name => new RelayCommand(_ => OpenProject(name)),
-                name => ProjectColours.Of(colours, name), name => waitsByProject.GetValueOrDefault(name));
+            var tabs = ProjectTabViewModel.For(readable.Where(reading => !IsProjectClosed(reading.Name)), _openProjectName,
+                name => new RelayCommand(_ => OpenProject(name)),
+                name => ProjectColours.Of(colours, name), name => waitsByProject.GetValueOrDefault(name),
+                name => new RelayCommand(_ => PutProjectAway(name, ProjectClosureKind.Closed)),
+                name => new RelayCommand(_ => PutProjectAway(name, ProjectClosureKind.Archived)));
             openView = BuildView(openOne.Reading, openOne.Pieces, tabs, openOne.Overview, openOne.Lead);
         }
 
         _queueCandidates = queueCandidates;
-        var openable = projectCards.ToList();
+        var openable = projectCards.Where(card => !card.IsPutAway).ToList();
 
         // A project whose file does not read still gets its card, dimmed and saying why (1.1c AC 5), with its mark and
         // colour but no Start or Stop (1.1d AC 44).
@@ -2819,6 +2833,7 @@ public sealed partial class ShellViewModel : ObservableObject
         }
 
         Board.ShowProjects(projectCards);
+        ArchiveDueCards(projectCards);
 
         var openChoices = openable
             .Select(card => new ProjectChoice(card.Name.Replace("_", "__", StringComparison.Ordinal), false, card.OpenCommand,
@@ -2828,6 +2843,11 @@ public sealed partial class ShellViewModel : ObservableObject
         if (!openChoices.SequenceEqual(OpenProjectChoices))
         {
             OpenProjectChoices = openChoices;
+        }
+
+        if (_openProjectName is { } shut && IsProjectClosed(shut))
+        {
+            CloseProject();
         }
 
         if (_openProjectName is not null && openView is null)
@@ -2937,6 +2957,8 @@ public sealed partial class ShellViewModel : ObservableObject
                 },
                 UndoClearVerifiers = UndoClearUp,
                 DismissClearUp = DismissClearUp,
+                CloseProject = name => PutProjectAway(name, ProjectClosureKind.Closed),
+                ArchiveProject = name => PutProjectAway(name, ProjectClosureKind.Archived),
                 WhoStarts = WhoStartsCard,
                 ReportOpened = _reportsOpened.HasOpened,
                 OpenReport = (link, at, document) =>
@@ -3104,7 +3126,7 @@ public sealed partial class ShellViewModel : ObservableObject
         if (ProjectView is null)
         {
             _openProjectName = null;
-            Warn($"{name} cannot be read just now.");
+            Warn(IsProjectClosed(name) ? $"{name} is closed: reopen it from Archived on the board." : $"{name} cannot be read just now.");
 
             return;
         }

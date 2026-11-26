@@ -108,6 +108,12 @@ public sealed record ProjectViewActions(
     /// <summary>✕ Dismiss on a clear-up's notice: it can no longer be undone.</summary>
     public Action<string>? DismissClearUp { get; init; }
 
+    /// <summary>Close project, by project name: asks once, then stops, pauses and puts it away (archive-a-project); null offers none.</summary>
+    public Action<string>? CloseProject { get; init; }
+
+    /// <summary>Archive project, by project name: as Close, and its cards archived too; null offers none.</summary>
+    public Action<string>? ArchiveProject { get; init; }
+
     /// <summary>The pending proposals a card raised, as the board's Chains panel shows them (1.1e item 30); null in tests.</summary>
     public Func<string, IReadOnlyList<ProposalRowViewModel>>? ProposalsOf { get; init; }
 }

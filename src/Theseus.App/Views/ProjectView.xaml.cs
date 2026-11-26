@@ -201,6 +201,18 @@ public partial class ProjectView : UserControl
 
     private void OnTabSelectionChanged(object sender, SelectionChangedEventArgs e) => _tabsHadFocus = Tabs.IsKeyboardFocusWithin;
 
+    // More opens its menu under itself, as a drop-down does; the menu takes the view's context so its commands bind.
+    private void OnMoreProjectCommands(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { ContextMenu: { } menu } button)
+        {
+            menu.DataContext = button.DataContext;
+            menu.PlacementTarget = button;
+            menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+            menu.IsOpen = true;
+        }
+    }
+
     private void OnAllWaitsRequested(object? sender, WaitsChecklistViewModel list) =>
         new WaitsWindow(list) { Owner = Window.GetWindow(this) }.ShowDialog();
 

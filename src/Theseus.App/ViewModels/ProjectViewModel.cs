@@ -97,6 +97,12 @@ public sealed class ProjectViewModel : ObservableObject
     /// <summary>✕ Dismiss on the clear-up's notice.</summary>
     public ICommand? DismissClearUpCommand => _actions.DismissClearUp is { } dismiss ? new RelayCommand(_ => dismiss(Name)) : null;
 
+    /// <summary>Close project, from the view's More menu (archive-a-project, 2026-11-26); null where the view cannot.</summary>
+    public ICommand? CloseProjectCommand => _actions.CloseProject is { } close ? new RelayCommand(_ => close(Name)) : null;
+
+    /// <summary>Archive project, from the view's More menu; null where the view cannot.</summary>
+    public ICommand? ArchiveProjectCommand => _actions.ArchiveProject is { } archive ? new RelayCommand(_ => archive(Name)) : null;
+
     /// <summary>The summary, phase strip, tallies and "Waits for you" (1.1f G33 to G37b).</summary>
     public ProjectOverview Overview { get; private set; } = null!;
 

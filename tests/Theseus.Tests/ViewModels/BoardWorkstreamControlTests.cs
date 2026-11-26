@@ -295,4 +295,21 @@ public class BoardWorkstreamControlTests
         Assert.That(Control().Stop("child", "parent"), Is.EqualTo(_stopRefusal));
         Assert.That(Events(), Has.Count.EqualTo(1), "nothing recorded for a stop that was not sent");
     }
+
+    [Test]
+    public void ACardOfAClosedProject_IsNotStartedOrResumedByASession_OnlyTheOwnerReopensIt()
+    {
+        var parent = _board.Card("parent")!;
+        var child = _board.Card("child")!;
+        parent.Workstream = parent.Workstream with { Project = "theseus" };
+        child.Workstream = child.Workstream with { Project = "theseus" };
+        var control = Control();
+        control.IsProjectClosed = project => project == "theseus";
+
+        const string Refused = "child is in theseus, which the user closed: only they reopen it.";
+
+        Assert.That(control.Start("child", "go", "parent"), Is.EqualTo(Refused));
+        Assert.That(control.Resume("child", "go", "parent"), Is.EqualTo(Refused));
+        Assert.That(_started, Is.Empty);
+    }
 }

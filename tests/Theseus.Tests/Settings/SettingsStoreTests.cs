@@ -65,6 +65,13 @@ public class SettingsStoreTests
             },
             CardsToldBranchRules = ["git-25"],
             UnattendedProjects = ["bug-fixing"],
+            ClosedProjects = new Dictionary<string, Theseus.Core.Projects.ProjectClosure>
+            {
+                ["old"] = new(Theseus.Core.Projects.ProjectClosureKind.Archived, new DateTimeOffset(2026, 11, 26, 9, 0, 0, TimeSpan.Zero))
+                {
+                    QueueWasOn = true, PausedDuties = ["d-1"], ArchivedCards = ["git-26"],
+                },
+            },
             HiddenProjectFolders = ["notes"],
             ProjectHoldoutFolders = new Dictionary<string, string> { ["bym"] = @"C:\mine" },
             ProjectUpdaterRuns = new Dictionary<string, string> { ["bym"] = "Does not read: line 3" },
@@ -108,6 +115,10 @@ public class SettingsStoreTests
         Assert.That(read.CardsToldBranchRules, Is.EqualTo(new[] { "git-25" }));
         Assert.That(read.UnattendedProjects, Is.EqualTo(new[] { "bug-fixing" }));
         Assert.That(read.HiddenProjectFolders, Is.EqualTo(new[] { "notes" }));
+        Assert.That((read.ClosedProjects["old"].Kind, read.ClosedProjects["old"].QueueWasOn),
+            Is.EqualTo((Theseus.Core.Projects.ProjectClosureKind.Archived, true)));
+        Assert.That(read.ClosedProjects["old"].PausedDuties, Is.EqualTo(new[] { "d-1" }));
+        Assert.That(read.ClosedProjects["old"].ArchivedCards, Is.EqualTo(new[] { "git-26" }));
         Assert.That(read.ProjectHoldoutFolders, Is.EqualTo(new Dictionary<string, string> { ["bym"] = @"C:\mine" }));
         Assert.That(read.ProjectUpdaterRuns, Is.EqualTo(new Dictionary<string, string> { ["bym"] = "Does not read: line 3" }));
         Assert.That(read.ProjectTags["bym"], Is.EqualTo(new[] { "bym", "security" }));
@@ -127,7 +138,7 @@ public class SettingsStoreTests
                 ProjectGrouping = settings.ProjectGrouping, ProjectRunStates = settings.ProjectRunStates, ProjectLeads = settings.ProjectLeads,
                 CardsStoppedByOwner = settings.CardsStoppedByOwner, ProjectBranchRules = settings.ProjectBranchRules,
                 CardsToldBranchRules = settings.CardsToldBranchRules, HiddenProjectFolders = settings.HiddenProjectFolders,
-                UnattendedProjects = settings.UnattendedProjects,
+                UnattendedProjects = settings.UnattendedProjects, ClosedProjects = settings.ClosedProjects,
                 ProjectHoldoutFolders = settings.ProjectHoldoutFolders,
                 ProjectUpdaterRuns = settings.ProjectUpdaterRuns,
                 ProjectTags = settings.ProjectTags, TagColours = settings.TagColours,

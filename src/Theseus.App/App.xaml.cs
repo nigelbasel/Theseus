@@ -372,6 +372,9 @@ public partial class App : Application
         shell.ConfirmFlaggedStart = (question, hasOthers) =>
             new QuestionWindow("Start paused or blocked work?", question, "_Clear marks and start",
                 hasOthers ? "_Start only the others" : null) { Owner = ActiveWindow }.Ask();
+        // Close and Archive ask once, naming what runs and what stops (archive-a-project); Cancel closes nothing (A3).
+        shell.ConfirmProjectClose = (caption, question, action) =>
+            new QuestionWindow(caption, question, action) { Owner = ActiveWindow }.Ask() == true;
         shell.ConfirmProjectCard = (question, action) =>
             new QuestionWindow($"{action} a card of a running project?", question, $"_{action}") { Owner = ActiveWindow }.Ask() == true;
         // Owned by the active window, or the board when none is: Options closes itself before Project properties opens (W8).

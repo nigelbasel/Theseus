@@ -230,6 +230,13 @@ public sealed record TheseusSettings(
     public IReadOnlyDictionary<string, IReadOnlyList<string>> ProjectRunStates { get; init; } =
         new Dictionary<string, IReadOnlyList<string>>();
 
+    /// <summary>
+    /// The projects the owner closed or archived, by project name (archive-a-project, 2026-11-26): each with what its
+    /// close changed, so Reopen undoes exactly that. Kept here, never in project.md, whose records are never moved.
+    /// </summary>
+    public IReadOnlyDictionary<string, Projects.ProjectClosure> ClosedProjects { get; init; } =
+        new Dictionary<string, Projects.ProjectClosure>();
+
     /// <summary>Each project's lead card, by project name, as chosen in Project properties (Nigel, 2026-11-22).</summary>
     public IReadOnlyDictionary<string, string> ProjectLeads { get; init; } = new Dictionary<string, string>();
 

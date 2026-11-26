@@ -46,6 +46,12 @@ public sealed class BoardWorkstreamControl : IWorkstreamControl
         _refresh = refresh;
     }
 
+    /// <summary>
+    /// Whether a project is closed or archived, by name (archive-a-project, 2026-11-26): a session then starts and resumes
+    /// none of its cards, since only the owner reopens it. Null treats every project as open.
+    /// </summary>
+    public Func<string, bool>? IsProjectClosed { get; set; }
+
     /// <inheritdoc />
     public string? Start(string key, string? instruction, string caller)
     {
@@ -188,6 +194,8 @@ public sealed class BoardWorkstreamControl : IWorkstreamControl
         return call switch
         {
             _ when workstream.IsArchived => $"{card.Title} is archived.",
+            WorkstreamCall.Start or WorkstreamCall.Resume when workstream.Project is { } project && IsProjectClosed?.Invoke(project) == true
+                => $"{card.Title} is in {project}, which the user closed: only they reopen it.",
             WorkstreamCall.Start or WorkstreamCall.Resume
                 when LiveStart.Refusal(card.Title, card.IsLive, card.Lifecycle, instruction) is { } open => open,
             WorkstreamCall.Start or WorkstreamCall.Resume when workstream.IsBlocked => $"{card.Title} is blocked: the user marked it so.",

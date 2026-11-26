@@ -36,6 +36,12 @@ public sealed record ProjectTabViewModel(string Name, string Title, bool IsOpen,
     /// <summary>The key that opens it (Ctrl+1 to Ctrl+9), or null when no number key reaches it.</summary>
     public string? Key { get; init; }
 
+    /// <summary>Close project, on the tab's menu (archive-a-project, 2026-11-26); null offers none.</summary>
+    public ICommand? CloseCommand { get; init; }
+
+    /// <summary>Archive project, on the tab's menu; null offers none.</summary>
+    public ICommand? ArchiveCommand { get; init; }
+
     /// <summary>The project's own colour, for the tab's mark (1.1d AC 40), or null, when the mark takes the accent colour.</summary>
     public string? ColourHex { get; init; }
 
@@ -48,8 +54,11 @@ public sealed record ProjectTabViewModel(string Name, string Title, bool IsOpen,
     /// <param name="commandFor">The command that opens a project, by name.</param>
     /// <param name="colourOf">Each project's own colour, by name; none gives every mark the accent colour.</param>
     /// <param name="waitsOf">How many lines each project's Waits for you has, by name; none gives no tab a dot.</param>
+    /// <param name="closeFor">Close project for a tab's menu, by name; none offers it.</param>
+    /// <param name="archiveFor">Archive project for a tab's menu, by name; none offers it.</param>
     public static IReadOnlyList<ProjectTabViewModel> For(IEnumerable<ProjectFileReading> readings, string? open,
-        Func<string, ICommand?> commandFor, Func<string, string?>? colourOf = null, Func<string, int>? waitsOf = null)
+        Func<string, ICommand?> commandFor, Func<string, string?>? colourOf = null, Func<string, int>? waitsOf = null,
+        Func<string, ICommand?>? closeFor = null, Func<string, ICommand?>? archiveFor = null)
     {
         ArgumentNullException.ThrowIfNull(readings);
         ArgumentNullException.ThrowIfNull(commandFor);
@@ -63,6 +72,8 @@ public sealed record ProjectTabViewModel(string Name, string Title, bool IsOpen,
             {
                 ColourHex = colourOf?.Invoke(reading.Name),
                 WaitingCount = waitsOf?.Invoke(reading.Name) ?? 0,
+                CloseCommand = closeFor?.Invoke(reading.Name),
+                ArchiveCommand = archiveFor?.Invoke(reading.Name),
                 Key = ProjectTabKeys.KeyFor(index, readable.Count),
             }),
         ];

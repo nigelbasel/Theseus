@@ -246,6 +246,17 @@
             <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
             <Setter Property="ToolTip" Value="{Binding ToolTip}" />
             <Setter Property="AutomationProperties.Name" Value="{Binding AutomationName}" />
+            <!-- The chip's menu (archive-a-project): Close and Archive, each asking once, so no ellipsis (W17). -->
+            <Setter Property="ContextMenu">
+                <Setter.Value>
+                    <ContextMenu>
+                        <MenuItem Header="_Close project" Command="{Binding CloseCommand}"
+                                  ToolTip="Stop its cards after their handover, pause its duties and queue, and put it under Archived until you reopen it." />
+                        <MenuItem Header="_Archive project" Command="{Binding ArchiveCommand}"
+                                  ToolTip="As Close, and archive its cards too. project.md and its records stay where they are." />
+                    </ContextMenu>
+                </Setter.Value>
+            </Setter>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ListBoxItem">
@@ -1344,6 +1355,19 @@
                         Style="{StaticResource ToolbarIcon}" Height="32" Margin="0,0,12,8"
                         AutomationProperties.Name="Open what needs attention" ToolTip="Open what needs attention"
                         AutomationProperties.HelpText="Opens what is busy, waiting on you, stuck or waiting for its holdout check, and the headings on the way to it, and folds the rest." />
+                <!-- The project's less used commands behind More, the Windows overflow (archive-a-project): Close and Archive. -->
+                <Button x:Name="MoreProjectCommands" Content="&#xE712;" Style="{StaticResource ToolbarIcon}" Height="32" Margin="0,0,12,8"
+                        AutomationProperties.Name="More project commands" ToolTip="More: close or archive this project"
+                        Click="OnMoreProjectCommands">
+                    <Button.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem x:Name="CloseThisProject" Header="_Close project" Command="{Binding CloseProjectCommand}"
+                                      ToolTip="Stop its cards after their handover, pause its duties and queue, and put it under Archived until you reopen it." />
+                            <MenuItem x:Name="ArchiveThisProject" Header="_Archive project" Command="{Binding ArchiveProjectCommand}"
+                                      ToolTip="As Close, and archive its cards too. project.md and its records stay where they are." />
+                        </ContextMenu>
+                    </Button.ContextMenu>
+                </Button>
                 <WrapPanel x:Name="Legend" Margin="0,0,0,8" VerticalAlignment="Center">
                     <!-- The legend row is the state chips, and a click filters by them (1.1e item 26, moved here by 1.1f D15). -->
                     <ItemsControl x:Name="Counts" ItemsSource="{Binding Counts}" Focusable="False"

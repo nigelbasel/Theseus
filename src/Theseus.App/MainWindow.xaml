@@ -595,6 +595,17 @@
                                   Visibility="{Binding IsDimmed, Converter={StaticResource NotBoolToVisibility}}"
                                   ToolTip="The instructions Theseus gives this project's cards on a cadence: run, pause, change or add them." />
                         <Separator />
+                        <!-- Close and Archive are the owner's alone (archive-a-project); each asks once, so no ellipsis (W17). -->
+                        <MenuItem Header="C_lose project" Command="{Binding CloseCommand}"
+                                  Visibility="{Binding IsOpenProject, Converter={StaticResource BoolToVisibility}}"
+                                  ToolTip="Stop its cards after their handover, pause its duties and queue, and put it under Archived until you reopen it." />
+                        <MenuItem Header="Arc_hive project" Command="{Binding ArchiveCommand}"
+                                  Visibility="{Binding IsOpenProject, Converter={StaticResource BoolToVisibility}}"
+                                  ToolTip="As Close, and archive its cards too. project.md and its records stay where they are." />
+                        <MenuItem Header="Reop_en project" Command="{Binding ReopenCommand}" FontWeight="SemiBold"
+                                  Visibility="{Binding IsPutAway, Converter={StaticResource BoolToVisibility}}"
+                                  ToolTip="Put it back on the board as it was: its duties, its queue and its archived cards. Nothing starts." />
+                        <Separator />
                         <MenuItem Header="Project p_roperties" Command="{Binding PropertiesCommand}"
                                   ToolTip="Its title, its colour, its tags and its project.md; the colour can be changed here." />
                     </ContextMenu>
@@ -668,6 +679,17 @@
                                        TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTip="{Binding Sentence}" behaviors:TrimmedToolTip.IsEnabled="True"
                                        Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                                        Visibility="{Binding HasSentence, Converter={StaticResource BoolToVisibility}}" />
+                            <!-- A closed or archived project says so, and how to bring it back (archive-a-project). -->
+                            <DockPanel x:Name="ProjectClosed" Margin="0,4,0,0"
+                                       Visibility="{Binding IsPutAway, Converter={StaticResource BoolToVisibility}}">
+                                <Button x:Name="ProjectReopen" DockPanel.Dock="Right" Style="{StaticResource CommandButton}" Margin="8,0,0,0"
+                                        Command="{Binding ReopenCommand}" AutomationProperties.Name="Reopen project"
+                                        ToolTip="Put it back on the board as it was: its duties, its queue and its archived cards. Nothing starts.">
+                                    <AccessText Text="Reop_en" />
+                                </Button>
+                                <TextBlock Text="{Binding ClosedText}" FontSize="12" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            </DockPanel>
                             <!-- A stopped project keeps its run state and says so (1.1e AC 8). -->
                             <TextBlock x:Name="ProjectStopped" Text="⏸ Project stopped" FontSize="12" Margin="0,4,0,0"
                                        ToolTip="Start brings back the cards that were running when it was stopped."
