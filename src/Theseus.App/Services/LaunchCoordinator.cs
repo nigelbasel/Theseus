@@ -105,8 +105,21 @@ public sealed class LaunchCoordinator : IAsyncDisposable
     /// <summary>Whether a card's project is unattended, asked at each start from the settings as they are then; null for none.</summary>
     public Func<Workstream, bool>? UnattendedFor { get; set; }
 
-    private string? SettingsFor(Workstream workstream) =>
-        UnattendedSessionSettings is not null && UnattendedFor?.Invoke(workstream) == true ? UnattendedSessionSettings : SessionSettings;
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, bool> _unattendedSessions = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Whether a session was launched as an unattended card's, known before its process starts: its run is recorded only
+    /// once the terminal has started, which can be after the session first asks the MCP server for its instructions.
+    /// </summary>
+    public bool LaunchedUnattended(string sessionId) => _unattendedSessions.TryGetValue(sessionId, out var unattended) && unattended;
+
+    private string? SettingsFor(Workstream workstream, string sessionId)
+    {
+        var unattended = UnattendedSessionSettings is not null && UnattendedFor?.Invoke(workstream) == true;
+        _unattendedSessions[sessionId] = unattended;
+
+        return unattended ? UnattendedSessionSettings : SessionSettings;
+    }
 
     /// <summary>Marks a session as Theseus's at launch, so its hook tells it when Theseus stops or restarts.</summary>
     public Action<string>? Launched { get; set; }
@@ -235,7 +248,7 @@ public sealed class LaunchCoordinator : IAsyncDisposable
             mode, claudePath, terminal!.ExecutablePath, _launcherPath, _pipeName,
             windowName, opening, McpConfigFor?.Invoke(sessionId), resume ? fullOpening : null)
         {
-            Settings = SettingsFor(workstream),
+            Settings = SettingsFor(workstream, sessionId),
         };
 
         var plan = WorkstreamLaunchPlanner.Plan(request, DateTimeOffset.UtcNow.AddMinutes(2));
@@ -303,7 +316,7 @@ public sealed class LaunchCoordinator : IAsyncDisposable
         var request = new WorkstreamLaunchRequest(workstream, Guid.NewGuid().ToString("N"), sessionId, mode, claudePath,
             string.Empty, _launcherPath, _pipeName, string.Empty, opening, McpConfigFor?.Invoke(sessionId), openingIfReminted)
         {
-            Settings = SettingsFor(workstream),
+            Settings = SettingsFor(workstream, sessionId),
         };
 
         var spec = WorkstreamLaunchPlanner.Plan(request, DateTimeOffset.UtcNow).Ticket.Spec;

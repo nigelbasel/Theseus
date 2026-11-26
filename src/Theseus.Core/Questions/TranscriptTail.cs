@@ -118,6 +118,7 @@ public static class TranscriptTail
 
                 if (root.ValueKind != JsonValueKind.Object
                     || (root.TryGetProperty("isSidechain", out var sidechain) && sidechain.ValueKind == JsonValueKind.True)
+                    || (root.TryGetProperty("isMeta", out var meta) && meta.ValueKind == JsonValueKind.True)
                     || !root.TryGetProperty("message", out var message) || message.ValueKind != JsonValueKind.Object
                     || !message.TryGetProperty("content", out var content))
                 {
@@ -145,10 +146,12 @@ public static class TranscriptTail
         return called;
     }
 
-    // A prompt is text the session was sent; a user record holding only tool results is the turn going on.
+    // A prompt is text the session was sent; a user record holding any tool result is the turn going on, whatever else it
+    // carries, and Claude Code's own injected records (isMeta) are passed over above.
     private static bool IsPrompt(JsonElement content) =>
         content.ValueKind == JsonValueKind.String
-        || (content.ValueKind == JsonValueKind.Array && Blocks(content).Any(block => Text(block, "type") != "tool_result"));
+        || (content.ValueKind == JsonValueKind.Array && Blocks(content).Any(block => Text(block, "type") == "text")
+            && Blocks(content).All(block => Text(block, "type") != "tool_result"));
 
     private static IEnumerable<Record> Records(string? lines)
     {

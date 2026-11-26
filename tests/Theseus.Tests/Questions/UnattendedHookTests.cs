@@ -103,6 +103,20 @@ public class UnattendedHookTests
         Assert.That(TranscriptTail.ToolsCalledThisTurn(tail(null)), Is.EquivalentTo(new[] { "Bash", "mcp__theseus__now_at" }));
     }
 
+    [Test]
+    public void ARecordClaudeCodeInjects_IsNotANewTurn()
+    {
+        var meta = JsonSerializer.Serialize(new { type = "user", isMeta = true, message = new { role = "user", content = "<system-reminder>x</system-reminder>" } });
+        var withImage = JsonSerializer.Serialize(new
+        {
+            type = "user",
+            message = new { role = "user", content = new object[] { new { type = "tool_result", tool_use_id = "t1", content = "ok" }, new { type = "text", text = "image" } } },
+        });
+        var tail = Tail(Prompt("go"), Assistant(ToolUse("mcp__theseus__ask_owner")), ToolResult(), meta, withImage, Assistant(Text("Parked.")));
+
+        Assert.That(UnattendedHook.StopRefusal(Stop("Which option do you want?"), tail), Is.Null);
+    }
+
     private static StopHookInput Stop(string? lastWords) =>
         new(SessionId, "Stop", LastAssistantMessage: lastWords, TranscriptPath: "t.jsonl");
 

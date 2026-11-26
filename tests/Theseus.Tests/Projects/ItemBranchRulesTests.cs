@@ -27,11 +27,11 @@ public class ItemBranchRulesTests
     [Test]
     public void TheText_GivesABranchOffTheTrunk_PushAndAPullRequest_NeverCompletingOne()
     {
-        var text = ProjectBranchRules.Text("nigel/bug-fixing", "fix-nuf-1", BranchGrantKind.ItemBranches);
+        var text = ProjectBranchRules.Text("nigel/bug-fixing", "fix-item-1", BranchGrantKind.ItemBranches);
 
         Assert.Multiple(() =>
         {
-            Assert.That(text, Does.Contain("your own branch nigel/fix-nuf-1 off its repository's trunk"));
+            Assert.That(text, Does.Contain("your own branch nigel/fix-item-1 off its repository's trunk"));
             Assert.That(text, Does.Contain("raise a pull request from it into the trunk"));
             Assert.That(text, Does.Contain("Never complete, merge, approve, auto-complete or abandon a pull request into the trunk"));
             Assert.That(text, Does.Contain("never push to the trunk"));
@@ -42,7 +42,7 @@ public class ItemBranchRulesTests
     [Test]
     public void TheText_SendsTheCardToTheTracker_ForTheStatesItMayMoveAnItemTo()
     {
-        var text = ProjectBranchRules.Text("nigel/bug-fixing", "fix-nuf-1", BranchGrantKind.ItemBranches);
+        var text = ProjectBranchRules.Text("nigel/bug-fixing", "fix-item-1", BranchGrantKind.ItemBranches);
 
         Assert.That(text, Does.Contain("read them from the tracker").And.Contain("never from memory"));
         Assert.That(text, Does.Contain("Decisions table"));
@@ -61,7 +61,7 @@ public class ItemBranchRulesTests
         Assert.That(ProjectBranchRules.GrantedPrimary("bug-fixing", ItemGrant, _ => "nigel/other"), Is.Null);
         Assert.That(ProjectBranchRules.GrantedPrimary("bug-fixing", ItemGrant, _ => "nigel/bug-fixing"), Is.EqualTo("nigel/bug-fixing"));
 
-        var rules = ProjectBranchRules.Text("nigel/bug-fixing", "fix-nuf-1", BranchGrantKind.ItemBranches);
+        var rules = ProjectBranchRules.Text("nigel/bug-fixing", "fix-item-1", BranchGrantKind.ItemBranches);
 
         Assert.That(ProjectBranchRules.Apply(ProposalPrompt.NoBranchLine, rules), Is.EqualTo(rules));
     }

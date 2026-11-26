@@ -313,7 +313,7 @@ public partial class App : Application
                     Dispatcher.BeginInvoke(() => shell.RecordDutyEvent(card, text))));
 
         // From the owner's setting only (2.4 W2): the card a session runs for, and that card's project, as the board has them.
-        mcpHandler.IsUnattended = sessionId => runs.Read()
+        mcpHandler.IsUnattended = sessionId => _launcher?.LaunchedUnattended(sessionId) == true || runs.Read()
             .Where(run => string.Equals(run.ClaudeSessionId, sessionId, StringComparison.OrdinalIgnoreCase))
             .OrderByDescending(run => run.StartedUtc)
             .Select(run => snapshots.Current.Card(run.WorkstreamKey)?.Workstream.Project)

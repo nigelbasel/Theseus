@@ -15,6 +15,11 @@ public class TransportErrorTests
     [TestCase("API Error: 529 Overloaded. This is a server-side issue, usually temporary — try again in a moment.")]
     [TestCase("API Error: 500 Internal server error")]
     [TestCase("API Error: Request timed out.")]
+    [TestCase("API Error: Unable to connect to API (ConnectionRefused)")]
+    [TestCase("API Error: Unable to connect to API (ConnectionClosed)")]
+    [TestCase("API Error: getaddrinfo EAI_AGAIN api.anthropic.com")]
+    [TestCase("API Error: connect ECONNREFUSED 127.0.0.1:443")]
+    [TestCase("API Error: fetch failed")]
     public void ANetworkOrServerError_IsATransportError(string text)
     {
         Assert.That(TransportError.EndedOn(Tail(Error(text))), Is.EqualTo(At));
@@ -27,6 +32,9 @@ public class TransportErrorTests
     [TestCase("Claude Code can't use your Claude subscription, usually because a payment is past due")]
     [TestCase("API Error: 429 rate_limit_error")]
     [TestCase("API Error: 403 Forbidden")]
+    [TestCase("API Error: 400 invalid_request_error: max_tokens 512 is too large")]
+    [TestCase("API Error: 401 {\"type\":\"error\",\"error\":{\"type\":\"authentication_error\"}}")]
+    [TestCase("API Error: 429 {\"error\":{\"type\":\"rate_limit_error\"}}")]
     public void ASignInOrALimit_IsNever(string text)
     {
         Assert.That(TransportError.EndedOn(Tail(Error(text))), Is.Null);
@@ -44,6 +52,8 @@ public class TransportErrorTests
             Assert.That(TransportError.EndedOn(Tail(Error("API Error: Connection lost mid-response."), System())), Is.EqualTo(At),
                 "Claude Code's own records after it do not hide it");
             Assert.That(TransportError.EndedOn(null), Is.Null);
+            Assert.That(TransportError.EndedOn(Tail(Undated("API Error: Connection lost mid-response."))), Is.Null,
+                "an error with no time cannot be counted, so it is left for the owner");
         });
     }
 
@@ -88,6 +98,13 @@ public class TransportErrorTests
         timestamp = At.ToString("O"),
         isApiErrorMessage = true,
         message = new { role = "assistant", model = "<synthetic>", content = new[] { new { type = "text", text } } },
+    });
+
+    private static string Undated(string text) => JsonSerializer.Serialize(new
+    {
+        type = "assistant",
+        isApiErrorMessage = true,
+        message = new { role = "assistant", content = new[] { new { type = "text", text } } },
     });
 
     private static string Assistant(string text) => JsonSerializer.Serialize(new

@@ -62,14 +62,14 @@ public static partial class TransportError
                 return null;
             }
 
-            var at = root.TryGetProperty("timestamp", out var stamp) && stamp.ValueKind == JsonValueKind.String
-                     && DateTimeOffset.TryParse(stamp.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var parsed)
-                ? parsed
-                : DateTimeOffset.MinValue;
+            // An error with no time cannot be counted against the cap, so it is not one Theseus acts on.
+            var parsed = DateTimeOffset.MinValue;
+            var dated = root.TryGetProperty("timestamp", out var stamp) && stamp.ValueKind == JsonValueKind.String
+                        && DateTimeOffset.TryParse(stamp.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out parsed);
             var isError = type.GetString() == "assistant"
                           && root.TryGetProperty("isApiErrorMessage", out var flag) && flag.ValueKind == JsonValueKind.True;
 
-            return (isError && Text(root) is { } text && IsTransport(text), at);
+            return (dated && isError && Text(root) is { } text && IsTransport(text), parsed);
         }
         catch (JsonException)
         {
@@ -87,11 +87,12 @@ public static partial class TransportError
 
     // The texts measured in this machine's transcripts, 2026-11-26: can't reach the server, connection lost or refused,
     // overloaded, and the 5xx family; a timeout and a reset socket are the same failure.
-    [GeneratedRegex(@"can't reach|connection (lost|refused|error|reset)|overloaded|timed out|timeout|\b5\d\d\b|ENOTFOUND|ECONNRESET|ETIMEDOUT|socket",
+    [GeneratedRegex(@"can't reach|unable to connect|connection ?(lost|refused|closed|error|reset)|overloaded|timed out|timeout|^API Error: 5\d\d\b|ENOTFOUND|ECONN[A-Z]+|EAI_AGAIN|ETIMEDOUT|fetch failed|network error|FailedToOpenSocket",
         RegexOptions.IgnoreCase)]
     private static partial Regex Transport();
 
-    [GeneratedRegex(@"log ?in|sign.?in|auth|\b40[13]\b|\b429\b|credit|limit|subscription|payment|billing|forbidden",
+    // Whole words, so an id or a host name holding "auth" or "limit" does not stop a genuine retry.
+    [GeneratedRegex(@"\blog ?in\b|/login|\bsign.?in\b|\bauth|^API Error: 4\d\d\b|rate.?limit|\blimits?\b|\bcredits?\b|\bsubscription\b|\bpayment\b|\bbilling\b|\bforbidden\b",
         RegexOptions.IgnoreCase)]
     private static partial Regex Owners();
 }
