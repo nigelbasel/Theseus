@@ -411,16 +411,24 @@ public sealed class LockBook
         });
     }
 
-    /// <summary>Lets go of a session's hold on, or place in the queue for, one lock.</summary>
-    public LockAnswer ReleaseForSession(string sessionId, string lockName)
+    /// <summary>
+    /// Lets go of a session's hold on, or place in the queue for, one lock or scope, named as it was asked for.
+    /// With neither named, the session's only hold or wait.
+    /// </summary>
+    public LockAnswer ReleaseForSession(string sessionId, string? lockName, IReadOnlyList<ResourceClaim>? scope = null)
     {
-        var token = Snapshot()
-            .FirstOrDefault(ticket => ticket.Mode == HoldMode.Session
-                                      && string.Equals(ticket.SessionId, sessionId, StringComparison.OrdinalIgnoreCase)
-                                      && string.Equals(ticket.Lock, LockNames.Find(lockName), StringComparison.Ordinal))?.Token;
+        var label = LockNames.Find(lockName) ?? (scope is { Count: > 0 } ? string.Join(" + ", ScopeOf(null, scope)) : null);
+        var mine = Snapshot()
+            .Where(ticket => ticket.Mode == HoldMode.Session && string.Equals(ticket.SessionId, sessionId, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        var token = label is null
+            ? (mine.Count == 1 ? mine[0].Token : null)
+            : mine.FirstOrDefault(ticket => string.Equals(ticket.Lock, label, StringComparison.Ordinal))?.Token;
 
         return token is null
-            ? new LockAnswer(LockStatus.Unknown, $"This session neither holds nor is waiting for the {lockName} lock.")
+            ? new LockAnswer(LockStatus.Unknown, label is null
+                ? $"Say which to release: this session holds or waits for {(mine.Count == 0 ? "nothing" : string.Join("; ", mine.Select(ticket => ticket.Lock)))}."
+                : $"This session neither holds nor is waiting for {label}.")
             : Release(token);
     }
 
