@@ -15,6 +15,7 @@ namespace Theseus.Core.Locks;
 /// <param name="Commit">The repository's commit.</param>
 /// <param name="Again">A second run of the same command on the same commit, asked for on purpose.</param>
 /// <param name="Root">The repository's top folder, which a build's tree is named by; the working directory when absent.</param>
+/// <param name="Since">For a later step of a sequence, when the sequence first asked, so the step keeps its place.</param>
 public sealed record LockRequest(
     string Lock,
     string Who,
@@ -29,4 +30,5 @@ public sealed record LockRequest(
     string? Command = null,
     string? Commit = null,
     bool Again = false,
-    string? Root = null);
+    string? Root = null,
+    DateTimeOffset? Since = null);

@@ -21,6 +21,9 @@ public sealed class LockBook
     /// <summary>How long a waiting process may go without asking before it is taken out of the queue.</summary>
     public static readonly TimeSpan WaiterGrace = TimeSpan.FromMinutes(5);
 
+    /// <summary>How far back a later step of a sequence may claim its place from.</summary>
+    public static readonly TimeSpan SequenceLimit = TimeSpan.FromHours(12);
+
     private const int SessionMissesBeforeGone = 2;
     private const int EndedRemembered = 500;
     private const int DeadlocksRemembered = 50;
@@ -205,17 +208,19 @@ public sealed class LockBook
             else
             {
                 token = Guid.NewGuid().ToString("N");
+                var asked = request.Since is { } since && since < now ? (since > now - SequenceLimit ? since : now - SequenceLimit) : now;
                 var ticket = new LockTicket(
                     token, label, request.Who.Trim(), request.Purpose.Trim(), request.Mode, key, now, now,
                     Trimmed(request.WorkingDirectory), Trimmed(request.SessionId), Trimmed(request.Reason),
                     Scope: scope, Owner: OwnerOf(request),
                     Card: Trimmed(request.Card), Command: Trimmed(request.Command), Commit: Trimmed(request.Commit));
 
-                _tickets.Add(ticket);
+                var place = _tickets.FindIndex(other => !other.IsHolder && other.RequestedUtc > asked);
+                _tickets.Insert(place < 0 ? _tickets.Count : place, ticket);
 
                 if (Deadlock(ticket, now) is { } stopped)
                 {
-                    _tickets.RemoveAt(_tickets.Count - 1);
+                    _tickets.Remove(ticket);
                     _deadlocks.Add(stopped);
 
                     if (_deadlocks.Count > DeadlocksRemembered)
@@ -705,7 +710,7 @@ public sealed class LockBook
                 ? $"You hold the {ticket.Lock} lock. Start the work within {Say(until - now)} or it passes to the next in line."
                 : $"You hold the {ticket.Lock} lock.";
 
-            return new LockAnswer(LockStatus.Granted, detail, token, ticket.Lock, 0, null, ticket.ReservedUntilUtc);
+            return new LockAnswer(LockStatus.Granted, detail, token, ticket.Lock, 0, null, ticket.ReservedUntilUtc, ticket.Claims);
         }
 
         var position = Waiters(ticket).TakeWhile(other => !ReferenceEquals(other, ticket)).Count() + 1;
@@ -715,7 +720,7 @@ public sealed class LockBook
             : $"held by {holder.Who} for {holder.Purpose}, for {Say(now - holder.GrantedUtc!.Value)}";
 
         return new LockAnswer(LockStatus.Waiting, $"Waiting for the {ticket.Lock} lock, {Ordinal(position)} in the queue; {behind}.",
-            token, ticket.Lock, position, holder);
+            token, ticket.Lock, position, holder, Scope: ticket.Claims);
     }
 
     private IEnumerable<LockTicket> Waiters(LockTicket ticket) =>
