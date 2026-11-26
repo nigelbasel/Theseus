@@ -657,6 +657,7 @@ public sealed class SettingsViewModel : ObservableObject
 
         Tags?.Load();
         Guard?.Load();
+        LockTools?.Load();
         FolderTrust?.Load();
         IsOpen = true;
     }
@@ -666,6 +667,9 @@ public sealed class SettingsViewModel : ObservableObject
 
     /// <summary>Options, Holdouts: the installed holdout guard and its Install button; acts at once. Set by the shell.</summary>
     public HoldoutGuardViewModel? Guard { get; set; }
+
+    /// <summary>Options, Locks: the installed lock tools and the arbiter; acts at once. Set by the shell.</summary>
+    public LockOptionsViewModel? LockTools { get; set; }
 
     /// <summary>Options, Duties: the limits for duties and the overnight queue; each change is saved at once.</summary>
     public DutyOptionsViewModel Duties { get; }

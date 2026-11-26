@@ -127,6 +127,8 @@ public class ProjectDialogsTests
             var settings = new SettingsViewModel(new Theseus.Core.Settings.SettingsStore(Path.Combine(folder, "settings.json")), () => { })
             {
                 Guard = new HoldoutGuardViewModel(new Theseus.Core.Links.HoldoutGuardInstallation(Path.Combine(folder, "claude"), folder)),
+                LockTools = new LockOptionsViewModel(new Theseus.Core.Locks.LockToolsInstallation(Path.Combine(folder, "claude")),
+                    new Theseus.Core.Settings.SettingsStore(Path.Combine(folder, "settings.json")), () => []),
                 FolderTrust = new FolderTrustViewModel(
                     new Theseus.Core.Trust.ClaudeFolderTrust(Path.Combine(folder, ".claude.json"), Path.Combine(folder, "undo.json")), () => []),
                 Tags = null,

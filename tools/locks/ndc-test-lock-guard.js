@@ -242,8 +242,11 @@ process.stdin.on('end', () => {
     `Run it as:\n` +
     `  ${runner} run "<your session name>" "<suite or build>" -- <the same command>\n` +
     `Check who holds it: ${runner} status. If busy, queue: in the background, ${runner} wait "<your session name>" ` +
-    `"<suite or build>", then run the command with ${runner} run --token <token> -- <the same command> in a fresh ` +
+    `"<suite or build>" -- <the same command>, then run the command with ${runner} run --token <token> -- <the same command> in a fresh ` +
     `background call; tell Nigel you are waiting. If it is urgent, tell Nigel. ` +
     `Never ask the holder to stop or give way, and never kill a run to free the lock. Verify locally before pushing; do not offload verification to CI. ` +
-    `Unit suites (*.UnitTests, *.Unit.Tests, Api.Mcp.Tests) are not blocked.`);
+    `Unit suites (*.UnitTests, *.Unit.Tests, Api.Mcp.Tests) are not blocked. ` +
+    `Run a build, its unit suites and its container suites as separate steps, each held only for what it needs: ` +
+    `${runner} steps "<your session name>" "<label>" -- <build> ::: <unit suite> ::: <container suite>. ` +
+    `Chaining them with && holds everything they need for the whole chain.`);
 });

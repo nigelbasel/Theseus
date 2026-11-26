@@ -428,6 +428,27 @@
                         <TextBlock Style="{StaticResource PageNote}"
                                    Text="These rarely need changing: each is found or set up for you, and is here for when that is wrong." />
 
+                <!-- The lock client, its guard and the command classes they share, installed from here and never by a session. -->
+                <StackPanel DataContext="{Binding LockTools}">
+                    <controls:SettingRow x:Name="LockToolsRow" Label="Lock client and guard" Value="{Binding Line}"
+                                         Explanation="The script sessions run builds and suites through, the guard that refuses them outside it, and the command classes both read, so each command is held only for what it needs.">
+                        <Button Content="_Undo" Style="{StaticResource Action}" Command="{Binding UndoCommand}"
+                                AutomationProperties.Name="Undo the lock tools install" ToolTipService.ShowOnDisabled="True"
+                                ToolTip="Put back the files the last install replaced. Offered only when an earlier copy is kept." />
+                        <Button Content="I_nstall" Style="{StaticResource Action}" Command="{Binding InstallCommand}"
+                                AutomationProperties.Name="Install the lock tools"
+                                ToolTip="Copy this Theseus's lock client, guard and command classes to Claude Code's bin folder, keeping the old copies. A run already going keeps the script it started with." />
+                    </controls:SettingRow>
+                    <TextBlock Text="{Binding Folder}" Style="{StaticResource PageNote}" Margin="0,-12,0,8" />
+                    <TextBlock Text="{Binding Result}" Style="{StaticResource PageNote}" Margin="0,0,0,8" />
+
+                    <controls:SettingRow Label="Arbiter" Value="{Binding Arbiter}"
+                                         Explanation="The card whose sessions may rule on a resource the lock table does not know (its capacity and what it clashes with). Until one rules, such a resource is held alone. You see every ruling on the Locks panel and can overturn it.">
+                        <ComboBox x:Name="ArbiterBox" ItemsSource="{Binding ArbiterChoices}" SelectedItem="{Binding Arbiter, Mode=TwoWay}" Width="260"
+                                  AutomationProperties.Name="Arbiter" />
+                    </controls:SettingRow>
+                </StackPanel>
+
                         <controls:SettingRow Label="Plan directory" Value="{Binding PlanDirectoryValue}"
                                              Explanation="Where Claude Code writes its plan files. Theseus reads the cards from here.">
                             <Button Content="Change…" Style="{StaticResource Action}" Click="OnChoosePlanDirectory"

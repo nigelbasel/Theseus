@@ -293,6 +293,8 @@ public sealed partial class ShellViewModel : ObservableObject
         {
             Tags = new TagsViewModel(Board.Tags),
             Guard = new HoldoutGuardViewModel(new HoldoutGuardInstallation(HoldoutGuardInstallation.UserConfigFolder())),
+            LockTools = new LockOptionsViewModel(new Theseus.Core.Locks.LockToolsInstallation(HoldoutGuardInstallation.UserConfigFolder()), settings,
+                () => [.. Board.Cards.Where(card => !card.IsArchived).Select(card => (card.Key, card.Title))]),
             FolderTrust = new FolderTrustViewModel(
                 new Theseus.Core.Trust.ClaudeFolderTrust(Theseus.Core.Trust.ClaudeFolderTrust.UserConfigPath(),
                     Path.Combine(App.DataDirectory, "folder-trust-undo.json")),
