@@ -79,8 +79,8 @@ public partial class KanbanView : UserControl
             card.InvalidateMeasure();
         }
 
-        // The cell's padding (6 left, 8 right) and its 1 px border.
-        return widest > 0 ? widest + 15 : 0;
+        // The cell's padding (8 each side) and its 1 px border.
+        return widest > 0 ? widest + 17 : 0;
     }
 
     private void OnColumnKeyDown(object sender, KeyEventArgs e)

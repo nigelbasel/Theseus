@@ -101,7 +101,7 @@
             <!-- A link on a card: opens its one row, or lists its rows when it has several (AC 17). -->
             <Style x:Key="CardLink" TargetType="Button" BasedOn="{StaticResource LinkButton}">
                 <Setter Property="FontSize" Value="12" />
-                <Setter Property="Margin" Value="0,0,8,2" />
+                <Setter Property="Margin" Value="0,0,8,4" />
                 <EventSetter Event="Click" Handler="OnLinkClick" />
             </Style>
 
@@ -180,7 +180,7 @@
                                            ToolTip="{Binding KindToolTip}" VerticalAlignment="Center" />
                             </DockPanel>
                         </Border>
-                        <StackPanel Margin="8,6,8,8">
+                        <StackPanel Margin="8">
                             <TextBlock x:Name="CardTitle" Text="{Binding Title}" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap"
                                        ToolTip="{Binding Box.MetaText}" />
                             <TextBlock x:Name="CardStatus" DataContext="{Binding Box}" Text="{Binding StatusText}" ToolTip="{Binding StatusToolTip}"
@@ -193,7 +193,7 @@
                                        ToolTip="{Binding Box.ReportBackToolTip}"
                                        Visibility="{Binding Box.HasReportBack, Converter={StaticResource Visible}}" />
                             <WrapPanel Margin="0,4,0,0">
-                                <TextBlock Text="{Binding BranchText}" FontSize="12" Margin="0,0,8,2" ToolTip="{Binding BranchToolTip}"
+                                <TextBlock Text="{Binding BranchText}" FontSize="12" Margin="0,0,8,4" ToolTip="{Binding BranchToolTip}"
                                            TextTrimming="CharacterEllipsis" MaxWidth="240"
                                            Visibility="{Binding HasBranch, Converter={StaticResource Visible}}" />
                                 <Button Style="{StaticResource CardLink}" Content="{Binding Links.CiText}" Tag="{Binding Links.CiRows}"
@@ -205,17 +205,17 @@
                                 <Button Style="{StaticResource CardLink}" Content="{Binding JiraText}" Tag="{Binding Links.Jira}"
                                         ToolTip="Its Jira items" AutomationProperties.Name="{Binding JiraText}"
                                         Visibility="{Binding HasJira, Converter={StaticResource Visible}}" />
-                                <Button Style="{StaticResource LinkButton}" FontSize="12" Margin="0,0,8,2" Content="▤ Records"
+                                <Button Style="{StaticResource LinkButton}" FontSize="12" Margin="0,0,8,4" Content="▤ Records"
                                         Command="{Binding Records.Command}" ToolTip="{Binding Records.ToolTip}" AutomationProperties.Name="Records"
                                         Visibility="{Binding HasRecords, Converter={StaticResource Visible}}" />
                             </WrapPanel>
-                            <Button x:Name="CardAction" HorizontalAlignment="Left" Margin="0,6,0,0" Style="{StaticResource CommandButton}"
+                            <Button x:Name="CardAction" HorizontalAlignment="Left" Margin="0,8,0,0" Style="{StaticResource CommandButton}"
                                     Command="{Binding PrimaryAction.Command}" ToolTip="{Binding PrimaryAction.ToolTip}"
                                     ToolTipService.ShowOnDisabled="True" AutomationProperties.Name="{Binding PrimaryAction.SpokenLabel}"
                                     Visibility="{Binding Box.HasPrimaryAction, Converter={StaticResource Visible}}">
                                 <StackPanel Orientation="Horizontal">
                                     <controls:GlyphText Text="{Binding PrimaryAction.Glyph}" FontFamily="{DynamicResource SymbolThemeFontFamily}"
-                                                        FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center"
+                                                        FontSize="14" Margin="0,0,4,0" VerticalAlignment="Center"
                                                         Visibility="{Binding PrimaryAction.Glyph, Converter={StaticResource NotEmpty}}" />
                                     <TextBlock Text="{Binding PrimaryAction.SpokenLabel}" VerticalAlignment="Center" />
                                 </StackPanel>
@@ -227,10 +227,10 @@
 
             <!-- A cell: its cards, or only their count while its column is collapsed or its row folded (AC 6, 11). -->
             <DataTemplate x:Key="Cell" DataType="{x:Type vm:KanbanCellViewModel}">
-                <Border Width="{Binding Column.Width}" Padding="6,8,8,0" BorderThickness="0,0,1,0"
+                <Border Width="{Binding Column.Width}" Padding="8,8,8,0" BorderThickness="0,0,1,0"
                         BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" AutomationProperties.Name="{Binding AutomationName}">
                     <Grid>
-                        <ItemsControl x:Name="CellCards" ItemsSource="{Binding Cards}" ItemTemplate="{StaticResource Card}" Focusable="False"
+                        <ItemsControl x:Name="CellCards" ItemsSource="{Binding Cards}" AutomationProperties.Name="{Binding AutomationName}" ItemTemplate="{StaticResource Card}" Focusable="False"
                                       ItemContainerStyle="{StaticResource ItemNamedByAutomationName}"
                                       Visibility="{Binding Column.IsOpen, Converter={StaticResource Visible}}" />
                         <TextBlock x:Name="CellCount" Text="{Binding CountText}" FontSize="14" HorizontalAlignment="Center"
@@ -242,7 +242,7 @@
 
             <!-- A folded row's cell: the count alone. -->
             <DataTemplate x:Key="FoldedCell" DataType="{x:Type vm:KanbanCellViewModel}">
-                <Border Width="{Binding Column.Width}" Padding="6" BorderThickness="0,0,1,0"
+                <Border Width="{Binding Column.Width}" Padding="8" BorderThickness="0,0,1,0"
                         BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" AutomationProperties.Name="{Binding AutomationName}">
                     <TextBlock Text="{Binding CountText}" FontSize="14" HorizontalAlignment="Center"
                                Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
@@ -275,7 +275,7 @@
                                         ToolTip="{Binding ChevronToolTip}" AutomationProperties.Name="{Binding ChevronToolTip}"
                                         Style="{StaticResource ToolIcon}" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="12"
                                         VerticalAlignment="Top" Margin="0,0,4,0" />
-                                <Grid DockPanel.Dock="Left" Width="10" Height="10" Margin="0,5,6,0" VerticalAlignment="Top">
+                                <Grid DockPanel.Dock="Left" Width="10" Height="10" Margin="0,4,8,0" VerticalAlignment="Top">
                                     <Rectangle Fill="{DynamicResource AccentFillColorDefaultBrush}" />
                                     <Rectangle Fill="{Binding ColourHex, Converter={StaticResource HexToBrush}}" />
                                 </Grid>
@@ -294,7 +294,7 @@
                             </DockPanel>
                         </Border>
                         <Grid>
-                            <ItemsControl ItemsSource="{Binding Cells}" ItemTemplate="{StaticResource Cell}" Focusable="False"
+                            <ItemsControl ItemsSource="{Binding Cells}" ItemTemplate="{StaticResource Cell}" AutomationProperties.Name="{Binding Title, StringFormat={}{0} by stage}" Focusable="False"
                                           ItemContainerStyle="{StaticResource ItemNamedByAutomationName}"
                                           Visibility="{Binding IsUnfolded, Converter={StaticResource Visible}}">
                                 <ItemsControl.ItemsPanel>
@@ -303,7 +303,7 @@
                                     </ItemsPanelTemplate>
                                 </ItemsControl.ItemsPanel>
                             </ItemsControl>
-                            <ItemsControl ItemsSource="{Binding Cells}" ItemTemplate="{StaticResource FoldedCell}" Focusable="False"
+                            <ItemsControl ItemsSource="{Binding Cells}" ItemTemplate="{StaticResource FoldedCell}" AutomationProperties.Name="{Binding Title, StringFormat={}{0} counts by stage}" Focusable="False"
                                           ItemContainerStyle="{StaticResource ItemNamedByAutomationName}"
                                           Visibility="{Binding IsFolded, Converter={StaticResource Visible}}">
                                 <ItemsControl.ItemsPanel>
