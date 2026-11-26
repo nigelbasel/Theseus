@@ -80,7 +80,7 @@ the typing.
 
 | What happens | Why, and what to do |
 |---|---|
-| Nothing, and the hook is not registered | Nothing will be delivered. Theseus reads your Claude Code settings but never writes them. Run `install.ps1`, which prints the configuration to add. **Help > About** says whether the hook is registered. |
+| Nothing, and the hook is not registered | Nothing will be delivered. **Tools > Set up Theseus…** shows the exact entry and adds it if you agree; Theseus never writes your Claude Code settings otherwise. **Help > About** says whether the hook is registered. |
 | Nothing, and the hook is registered | Hooks load when a session starts, so a session older than the hook does not have it. Restart that session. This is the usual answer. |
 | The session is sitting idle | Theseus types into its console to start the turn that carries the request. If it cannot reach that console, it brings the tab to the front so you can press Enter. |
 | The terminal runs as administrator | Windows will not let Theseus type into a more privileged window. Stop that session by hand, or run its terminal normally. |

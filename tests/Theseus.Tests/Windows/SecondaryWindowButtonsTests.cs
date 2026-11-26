@@ -22,6 +22,7 @@ public class SecondaryWindowButtonsTests
         ["Arrange", "ArrangeButton", "CloseButton", "ArrangeButton"],
         ["Checklist", "CancelButton", "CancelButton", null],
         ["DayReport", "CloseButton", "CloseButton", null],
+        ["FirstRun", "ForwardButton", "SkipButton", "ForwardButton"],
         ["Instructions", "CloseButton", "CloseButton", null],
         ["NewProject", "CreateButton", "CancelButton", "CreateButton"],
         ["NewWorkstream", null, "CancelButton", "CreateButton"],

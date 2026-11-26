@@ -178,6 +178,12 @@ public partial class App : Application
                 new QuestionWindow("Add the holdout guard's hook entry?", change, "_Add hook entry") { Owner = ActiveWindow }.Ask() == true;
         }
 
+        // The stop hook is written only after the owner reads the exact entry and agrees (first-run-setup brief step 1).
+        shell.FirstRun.ConfirmChange = change =>
+            new QuestionWindow("Add the stop hook to Claude Code's settings?", change, "_Add hook entry") { Owner = ActiveWindow }.Ask() == true;
+        shell.FirstRun.ShowWindow = () =>
+            new FirstRunWindow { Owner = ActiveWindow, DataContext = shell.FirstRun }.ShowDialog();
+
         if (shell.Settings.FolderTrust is { } trust)
         {
             trust.ConfirmChange = change =>
@@ -423,6 +429,12 @@ public partial class App : Application
             return window.ShowDialog() == true ? window.Choice : null;
         };
         MainWindow.Show();
+
+        // A board with no projects folder is set up before anything is greyed out (Nigel, 2026-11-25); once the board is drawn.
+        if (Theseus.Core.Setup.FirstRunSetup.ShowsAtStartup(settings.Read()))
+        {
+            Dispatcher.BeginInvoke(shell.FirstRun.Open, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        }
     }
 
     /// <summary>The window a dialog is asked from, which owns it (baseline W8, A6); the main window when none is active.</summary>
