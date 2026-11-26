@@ -596,6 +596,7 @@ file changed since Theseus read it, or when the edit would not read.
 flowchart LR
   S["A session"] -->|record_round| T["Theseus"]
   S -->|add_objective| T
+  S -->|set_criteria| T
   S -->|tick_criterion| T
   S -->|set_waiting| T
   S -->|record_decision| T
@@ -610,6 +611,7 @@ Figure 16. Structured lines go through Theseus's tools; prose is written by hand
 |---|---|
 | `record_round(name, why, objectives)` | A row of the Rounds table and a Round line on each objective the round adds or reopens. Asks the owner first |
 | `add_objective(phase, title, criteria, pipeline, waiting)` | An objective at the end of a phase, with its criteria, pipeline line and an empty workstreams table. Asks the owner first |
+| `set_criteria(objective, criteria, waiting)` | Criteria in an existing objective, in place of its `[criteria to be written]` line or after those it has; existing lines are never changed. Asks the owner first |
 | `tick_criterion(objective, criterion, text, ticked, evidence)` | A tick with its Evidence line; unticking removes the Evidence line |
 | `set_waiting(objective, criterion, text, who, what)` | A criterion's Waiting line, or removes it |
 | `record_decision(decision, by)` | A dated row of the Decisions table |
@@ -1130,7 +1132,7 @@ asking; tools that act on other cards ask for permission unless the session runs
 | Proposals | `propose_workstream`, `proposal_status`, `approve_proposal`, `reject_proposal`, `withdraw_proposal` | Propose new work, and act on proposals only when the owner says so |
 | Other cards | `workstreams`, `start_workstream`, `stop_workstream`, `pause_workstream`, `resume_workstream` | List and act on the cards this session may reach |
 | Gates and asking | `gates`, `accept_spec`, `ask_owner` | The spec gate's state; report an acceptance said in the tab; show a question on the board |
-| Project file | `now_at`, `record_round`, `add_objective`, `tick_criterion`, `set_waiting`, `record_decision` | Say which stage it is in; write the structured lines of `project.md` |
+| Project file | `now_at`, `record_round`, `add_objective`, `set_criteria`, `tick_criterion`, `set_waiting`, `record_decision` | Say which stage it is in; write the structured lines of `project.md` |
 | Duties | `set_duty`, `duties`, `pause_duty`, `end_duty` | Recurring instructions, kept by Theseus |
 | Locks | `locks`, `lock_acquire`, `lock_release` | Take and give back the dev-stack and llama locks |
 

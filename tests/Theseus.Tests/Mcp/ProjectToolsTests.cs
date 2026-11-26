@@ -297,6 +297,42 @@ public class ProjectToolsTests
     }
 
     [Test]
+    public void SetCriteria_WritesThemAfterTheOnesItHas_WithTheirWaitingNotes()
+    {
+        ProjectToolOutcome outcome = Call("set_criteria", new JsonObject
+        {
+            ["objective"] = "0.1",
+            ["criteria"] = new JsonArray("Three.", "Four."),
+            ["waiting"] = new JsonArray("", "owner: say which projects"),
+        });
+        IReadOnlyList<ProjectCriterion> criteria = File().Objectives[0].Criteria;
+
+        Assert.That(outcome.Text, Is.EqualTo("Wrote criteria 3 to 4 of objective 0.1."));
+        Assert.That(criteria.Select(criterion => criterion.Text), Is.EqualTo(new[] { "One.", "Two.", "Three.", "Four." }));
+        Assert.That(criteria.Select(criterion => criterion.Waiting), Is.EqualTo(new[]
+        {
+            null, null, null, new CriterionWaiting(true, "say which projects"),
+        }));
+    }
+
+    [Test]
+    public void SetCriteria_IsRefusedWithItsReason_AndWritesNothing()
+    {
+        string before = System.IO.File.ReadAllText(_folder.Home(Project) + "/project.md");
+
+        Assert.That(Call("set_criteria", new JsonObject { ["objective"] = "0.1" }).Text, Does.Contain("needs the objective's number and its criteria"));
+        Assert.That(Call("set_criteria", new JsonObject { ["objective"] = "0.1", ["criteria"] = new JsonArray("One.") }).Text,
+            Is.EqualTo("Refused: objective 0.1 would have the criterion \"One.\" twice."));
+        Assert.That(Call("set_criteria", new JsonObject
+        {
+            ["objective"] = "0.1", ["criteria"] = new JsonArray("Five."), ["waiting"] = new JsonArray("", "owner: x"),
+        }).IsError, Is.True);
+        Assert.That(Call("set_criteria", new JsonObject { ["objective"] = "0.1", ["criteria"] = new JsonArray("Five."), ["waiting"] = new JsonArray("later") })
+            .Text, Does.Contain("is not 'owner: <what>'"));
+        Assert.That(System.IO.File.ReadAllText(_folder.Home(Project) + "/project.md"), Is.EqualTo(before));
+    }
+
+    [Test]
     public void RecordDecision_AppendsADatedRow_MakingTheTableWhenThereIsNone()
     {
         Call("record_decision", new JsonObject { ["decision"] = "Rounds are recorded by tool", ["by"] = "Nigel" });

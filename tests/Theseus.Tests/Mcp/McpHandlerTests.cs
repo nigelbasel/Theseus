@@ -138,7 +138,7 @@ public class McpHandlerTests
                 "propose_workstream", "proposal_status", "withdraw_proposal", "link_workstream", "unlink_workstream",
                 "approve_proposal", "reject_proposal", "record_work_item", "name_work_items",
                 "start_workstream", "stop_workstream", "pause_workstream", "resume_workstream", "workstreams", "gates", "accept_spec", "events",
-                "now_at", "record_round", "tick_criterion", "add_objective", "record_decision", "set_waiting", "ask_owner",
+                "now_at", "record_round", "tick_criterion", "add_objective", "set_criteria", "record_decision", "set_waiting", "ask_owner",
                 "set_duty", "duties", "pause_duty", "end_duty" }));
         Assert.That(tools.All(tool => tool!["inputSchema"]!["type"]!.GetValue<string>() == "object"), Is.True);
     }

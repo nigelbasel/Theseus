@@ -278,6 +278,101 @@ public static class ProjectFileEditor
         return (Close(lines, file.Name), number);
     }
 
+    /// <summary>The line an objective has in place of criteria not yet written.</summary>
+    public const string CriteriaPlaceholder = "[criteria to be written]";
+
+    /// <summary>
+    /// Writes criteria into an existing objective, unticked: in place of its <see cref="CriteriaPlaceholder"/>, else
+    /// before its Pipeline line, else after its last criterion and that criterion's notes. No existing line is changed,
+    /// moved or removed but the placeholder, so ticked criteria and their Evidence lines are always kept. A criterion the
+    /// objective already has is refused, so a retried call cannot write it twice. Returns the text and the place, from 0,
+    /// of the first criterion written.
+    /// </summary>
+    public static (string Text, int First) SetCriteria(string text, string objective, IReadOnlyList<string> criteria)
+    {
+        ArgumentNullException.ThrowIfNull(criteria);
+
+        var file = Open(text, out var lines);
+        var heading = Objective(file, objective);
+        var clean = criteria.Select(criterion => OneLine(criterion, "a criterion")).ToList();
+
+        if (clean.Count == 0)
+        {
+            throw new ProjectEditRefusedException("set_criteria needs at least one criterion");
+        }
+
+        if (clean.FirstOrDefault(criterion => heading.Criteria.Any(each => each.Text == criterion)
+                                              || clean.Count(each => each == criterion) > 1) is { } twice)
+        {
+            throw new ProjectEditRefusedException($"objective {objective} would have the criterion \"{twice}\" twice");
+        }
+
+        var stop = Headings(lines).FirstOrDefault(index => index >= heading.Line, lines.Count);
+
+        if (heading.Criteria.Count > 0)
+        {
+            var at = heading.Criteria[^1].Line - 1;
+            var indent = lines[at].Text[..lines[at].Text.IndexOf("- [", StringComparison.Ordinal)];
+
+            while (at + 1 < lines.Count && lines[at + 1].Text.Length > 0 && char.IsWhiteSpace(lines[at + 1].Text[0])
+                   && lines[at + 1].Text.Trim().Length > 0 && !lines[at + 1].Text.TrimStart().StartsWith("- [", StringComparison.Ordinal))
+            {
+                at++;
+            }
+
+            foreach (var criterion in clean)
+            {
+                lines.Insert(at + 1, NewLine(lines, at, $"{indent}- [ ] {criterion}"));
+                at++;
+            }
+
+            return (Close(lines, file.Name), heading.Criteria.Count);
+        }
+
+        var boxes = clean.Select(criterion => $"- [ ] {criterion}").ToList();
+        var placeholder = Enumerable.Range(heading.Line, Math.Max(0, stop - heading.Line))
+            .Where(index => lines[index].Text.TrimEnd().EndsWith(CriteriaPlaceholder, StringComparison.Ordinal))
+            .DefaultIfEmpty(-1)
+            .First();
+
+        if (placeholder >= 0)
+        {
+            var ending = lines[placeholder].Ending.Length > 0 ? lines[placeholder].Ending : Ending(lines);
+            var prose = lines[placeholder].Text.TrimEnd()[..^CriteriaPlaceholder.Length].TrimEnd();
+
+            if (prose.Length == 0)
+            {
+                lines.RemoveAt(placeholder);
+            }
+            else
+            {
+                lines[placeholder] = lines[placeholder] with { Text = prose, Ending = ending };
+                placeholder++;
+            }
+
+            lines.InsertRange(placeholder, boxes.Select(box => new Line(box, ending)));
+
+            return (Close(lines, file.Name), 0);
+        }
+
+        // Before the Pipeline line and the blank line above it, so a Round line stays directly under the heading.
+        var before = FindInObjective(lines, heading.Line, line => line.StartsWith("**Pipeline:**", StringComparison.Ordinal))
+                     ?? throw new ProjectEditRefusedException($"objective {objective} has no **Pipeline:** line");
+
+        if (before - 1 > heading.Line - 1 && lines[before - 1].Text.Trim().Length == 0)
+        {
+            before--;
+        }
+        else
+        {
+            boxes.Add(string.Empty);
+        }
+
+        lines.InsertRange(before, boxes.Select(box => new Line(box, Ending(lines))));
+
+        return (Close(lines, file.Name), 0);
+    }
+
     /// <summary>
     /// Sets or clears a criterion's note line (its <c>Waiting:</c> or <c>Evidence:</c> line), addressed as a view showed it
     /// and refused when the criterion no longer reads that way (brief, PR 2: Theseus writes the structured lines).
