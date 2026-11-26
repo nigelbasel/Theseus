@@ -1,7 +1,7 @@
 # How your work is laid out
 
-Theseus keeps three kinds of thing apart, each in a place of its own. You choose the folders in **Tools >
-Options**; Theseus suggests `Documents\Theseus\projects` and `Documents\Theseus\work` but sets none for you.
+Theseus keeps three kinds of thing apart, each in a place of its own. You choose the folders in the setup that opens the first time,
+**Tools > Set up Theseus…**, or in **Tools > Options**; Theseus suggests `Documents\Theseus\projects` and `Documents\Theseus\work` but sets none for you.
 
 Theseus reads the projects folder. With the worktrees folder and the clones folder both chosen, it also makes each
 workstream's worktrees when its card starts: see [Worktrees made at the start](#worktrees-made-at-the-start).
