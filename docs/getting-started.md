@@ -161,7 +161,11 @@ layout: each asks where things go.
 Branches: one **primary branch** per project, `<user>/<project>`, off main; one branch per workstream,
 `<user>/<workstream>`, off the primary. Workstreams push and merge into the primary freely; only the pull request into
 main waits for a person. A workstream branch cannot be `<user>/<project>/<workstream>`, because git cannot hold a
-branch and a folder of branches under one name.
+branch and a folder of branches under one name. These are the method's own rules, not only suggestions: "Branches,
+worktrees and merging" in `method/README.md` gives them in full, and the plugin puts them into every session. In
+Theseus, **New project** suggests the primary branch as `<user>/<project>` from your user name, and its box
+**Workstreams may branch off the primary branch, push, and merge back into it without asking** starts ticked; untick it
+to have each workstream ask first.
 
 Records stay out of code repos, so specs and evidence never need a branch or a pull request. Keeping the projects
 folder in its own local git repository keeps every version of every spec.
