@@ -45,8 +45,10 @@ public class WalkthroughRowsTests
             .Single(button => (string?)button.Attribute("Command") == "{Binding Focus}");
 
         Assert.That(focus.Attribute("Visibility"), Is.Null);
-        Assert.That(focus.Descendants(Presentation + "Setter").Any(setter =>
-            (string?)setter.Attribute("Property") == "Visibility"), Is.False, "never hidden: row 12 asked why some rows had none");
+        // A project's header is not a card, so it has no Focus (chains-panel-at-scale criterion 18); every card's row keeps it.
+        Assert.That(focus.Descendants(Presentation + "Setter").Where(setter => (string?)setter.Attribute("Property") == "Visibility")
+            .Select(setter => (string?)setter.Parent!.Attribute("Binding")), Is.All.EqualTo("{Binding IsGroup}"),
+            "never hidden on a card's row: row 12 asked why some rows had none");
         Assert.That((string?)focus.Attribute("IsEnabled"), Is.EqualTo("{Binding HasFocus}"));
         Assert.That((string?)focus.Attribute("ToolTipService.ShowOnDisabled"), Is.EqualTo("True"));
         Assert.That(focus.Descendants(Presentation + "Trigger").Single().Elements(Presentation + "Setter")

@@ -165,7 +165,13 @@ public partial class MainWindow : Window
         var slash = e.Key is Key.Oem2 or Key.Divide && Keyboard.Modifiers == ModifierKeys.None
                     && Keyboard.FocusedElement is not System.Windows.Controls.Primitives.TextBoxBase;
 
-        if ((e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control) || slash)
+        if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control && IsInChainsPane(Keyboard.FocusedElement as DependencyObject))
+        {
+            ChainsSearchBox.Focus();
+            ChainsSearchBox.SelectAll();
+            e.Handled = true;
+        }
+        else if ((e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control) || slash)
         {
             FocusSearch();
             e.Handled = true;
@@ -1193,6 +1199,119 @@ public partial class MainWindow : Window
 
         e.Handled = true;
         board.ScrollToVerticalOffset(board.VerticalOffset - e.Delta);
+    }
+
+    /// <summary>
+    /// Moves one of the Chains panel's two areas, the tree or what waits above it, by the wheel's own delta, before
+    /// anything inside can swallow the event. A precision touchpad's small steps then add up to what a notch would move,
+    /// rather than each moving three lines (Nigel, 2026-11-25).
+    /// </summary>
+    private void OnChainsPanelMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        var panel = sender as ScrollViewer ?? (sender as DependencyObject is { } host ? FirstScrollViewerIn(host) : null);
+
+        if (panel is null)
+        {
+            return;
+        }
+
+        e.Handled = true;
+        panel.ScrollToVerticalOffset(panel.VerticalOffset - e.Delta);
+
+        // The offset changes only on the next layout, and a touchpad sends several steps before one: without this, each
+        // step would start from the same place and all but the last would be lost.
+        panel.UpdateLayout();
+    }
+
+    private static ScrollViewer? FirstScrollViewerIn(DependencyObject parent)
+    {
+        for (var index = 0; index < VisualTreeHelper.GetChildrenCount(parent); index++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, index);
+
+            if ((child as ScrollViewer ?? FirstScrollViewerIn(child)) is { } found)
+            {
+                return found;
+            }
+        }
+
+        return null;
+    }
+
+    private bool IsInChainsPane(DependencyObject? element)
+    {
+        for (var node = element; node is not null; node = VisualTreeHelper.GetParent(node) ?? LogicalTreeHelper.GetParent(node))
+        {
+            if (ReferenceEquals(node, ChainsPane))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // Esc clears the chains search, and a second Esc gives the keys to the tree; Down goes to the first row shown
+    // (chains-panel-at-scale criterion 6).
+    private void OnChainsSearchKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape)
+        {
+            if (ChainsSearchBox.Text.Length > 0)
+            {
+                // At once, not after the binding's typing delay, so the tree is whole again as the box empties.
+                ChainsSearchBox.Text = string.Empty;
+                ChainsSearchBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
+            }
+            else
+            {
+                FocusFirstChainRow();
+            }
+
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Down)
+        {
+            FocusFirstChainRow();
+            e.Handled = true;
+        }
+    }
+
+    private void FocusFirstChainRow()
+    {
+        var first = ChainsTree.Items.OfType<ChainNodeViewModel>().FirstOrDefault(node => node.IsShown);
+
+        // The tree builds only the rows in view, so the first row exists only once the tree is back at its top.
+        FirstScrollViewerIn(ChainsTree)?.ScrollToTop();
+        ChainsTree.UpdateLayout();
+
+        if (first is not null && ChainsTree.ItemContainerGenerator.ContainerFromItem(first) is TreeViewItem row)
+        {
+            row.Focus();
+        }
+        else
+        {
+            ChainsTree.Focus();
+        }
+    }
+
+    // Alt+Down opens the Filter menu, as it opens any drop-down (criterion 20).
+    private void OnChainsFilterKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.SystemKey == Key.Down && Keyboard.Modifiers == ModifierKeys.Alt)
+        {
+            OnOverflowClick(sender, e);
+            e.Handled = true;
+        }
+    }
+
+    // The counts line is a live region: a screen reader hears what the filters now hide (criterion 21).
+    private void OnChainsSummaryChanged(object? sender, System.Windows.Data.DataTransferEventArgs e)
+    {
+        if (sender is TextBlock line && System.Windows.Automation.Peers.UIElementAutomationPeer.CreatePeerForElement(line) is { } peer)
+        {
+            peer.RaiseAutomationEvent(System.Windows.Automation.Peers.AutomationEvents.LiveRegionChanged);
+        }
     }
 
     /// <summary>The first ScrollViewer above this one in the visual tree, if there is one.</summary>

@@ -1,0 +1,14 @@
+{
+  "name": "agentic-factory",
+  "displayName": "Agentic factory",
+  "version": "0.3.0",
+  "description": "The method Theseus runs, without Theseus: stage skills, the standing rules and the decide, record or park ladder, project and workstream commands, and the trunk and holdout guards",
+  "author": {
+    "name": "Theseus"
+  },
+  "homepage": "https://github.com/nigelbasel/Theseus/blob/main/docs/getting-started.md",
+  "repository": "https://github.com/nigelbasel/Theseus",
+  "license": "MIT",
+  "skills": ["./plugin/skills/"],
+  "hooks": "./plugin/hooks/hooks.json"
+}

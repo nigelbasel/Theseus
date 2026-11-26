@@ -27,7 +27,7 @@ public class HeadlessRunnerTests
         _folder = Path.Combine(Path.GetTempPath(), "theseus-runner-" + Guid.NewGuid().ToString("N"));
         _clock = new MovingClock(new DateTimeOffset(2026, 11, 24, 12, 0, 0, TimeSpan.Zero));
         _ledger = new RunLedger(Path.Combine(_folder, "run-ledger.jsonl"));
-        _settings = TheseusSettings.Default with { MaxHeadlessRuns = 1 };
+        _settings = TheseusSettings.Default with { MaxHeadlessRuns = 1, Budgets = TheseusSettings.Default.Budgets with { RunCostLimitUsd = 5m, RunTokenLimit = 3_000_000, RunTimeLimitMinutes = 120 } };
         _runner = Runner();
     }
 
@@ -76,6 +76,17 @@ public class HeadlessRunnerTests
     }
 
     [Test]
+    public void WithNoCostLimitSet_TheRunHasNoCostCapOnTheCommandLine()
+    {
+        _settings = TheseusSettings.Default with { MaxHeadlessRuns = 1 };
+        _runner = Runner();
+
+        _runner.Submit(Submission());
+
+        Assert.That(_processes.Single().Request.Arguments, Does.Contain("-p").And.Not.Contain("--max-budget-usd"));
+    }
+
+    [Test]
     public void AnEndedRun_IsRecordedInTheLedger_WithItsMeasuredCost()
     {
         _runner.Submit(Submission());
@@ -120,6 +131,33 @@ public class HeadlessRunnerTests
 
         Assert.That(_runner.Refusal(Card(breaker: trip)), Does.Contain("3 crashes"));
         Assert.That(_runner.Refusal(Card()), Is.Null);
+    }
+
+    [Test]
+    public void ATrippedCard_IsBlockedByItsBreaker_ForTheBoardToOfferTheReset()
+    {
+        var trip = new BreakerTrip(BreakerKind.NoProgress, "Breaker tripped: 3 runs in a row with no progress.", _clock.UtcNow);
+
+        Assert.That(_runner.Block(Card(breaker: trip)), Is.EqualTo(new StartBlock("card", "CARD", RefusalReason.BreakerTripped, trip.Detail)));
+    }
+
+    [Test]
+    public void ACardWhoseDayIsSpent_IsBlockedByItsBudget()
+    {
+        _settings = _settings with { Budgets = new BudgetSettings(CardDayCostLimitUsd: 1m) };
+        _runner.Submit(Submission());
+        _processes[0].Completes(1.5m);
+
+        Assert.That(_runner.Block(Card())!.Reason, Is.EqualTo(RefusalReason.BudgetReached));
+    }
+
+    [Test]
+    public void WithTheDefaults_ACardThatSpentALotToday_IsNotBlocked()
+    {
+        _runner.Submit(Submission());
+        _processes[0].Completes(250m);
+
+        Assert.That(_runner.Block(Card()), Is.Null);
     }
 
     [Test]

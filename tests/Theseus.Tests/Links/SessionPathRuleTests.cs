@@ -46,6 +46,25 @@ public class SessionPathRuleTests
         Assert.That(_rule.Refusal(path, Board(Card("token-spike"))), Is.Not.Null);
     }
 
+    // The live case (Bug Fixing lead, 2026-11-25): every verifier wrote its results where its prompt said, under the
+    // default holdout folder in Theseus's data, and report_back refused that path, so each asked to be started again.
+    [Test]
+    public void AVerifiersResultsInADefaultHoldoutFolder_AreAllowed()
+    {
+        Assert.That(_rule.Refusal(@"C:\data\Theseus\holdouts\bug-fixing\results\fix-nuf-1491-20261125-0712.md", Board(Card("v"))),
+            Is.Null);
+    }
+
+    [TestCase(@"C:\data\Theseus\holdouts\bug-fixing\scenarios\x.md")]
+    [TestCase(@"C:\data\Theseus\holdouts\bug-fixing\results\deeper\x.md")]
+    [TestCase(@"C:\data\Theseus\holdouts\results\x.md")]
+    [TestCase(@"C:\data\Theseus\board.json")]
+    [TestCase(@"C:\data\Theseus\results\bug-fixing\holdouts\x.md")]
+    public void EverythingElseInTheseusData_IsStillRefused(string path)
+    {
+        Assert.That(_rule.Refusal(path, Board(Card("v"))), Does.Contain("Theseus's own data"));
+    }
+
     private static BoardSnapshot Board(params BoardSnapshotCard[] cards) => new(cards, Nine);
 
     private static BoardSnapshotCard Card(string key, string? stored = null, string? handoff = null) =>

@@ -20,7 +20,12 @@
 // known limit (verifier-card review S2).
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
+
+// macOS and Linux have no drive letters and no Theseus: a holdout there is a <repo>-holdout folder, or one an absolute
+// POSIX path in a settings file names.
+const POSIX = process.platform !== 'win32';
 
 const PATH_FIELDS = ['file_path', 'path', 'notebook_path'];
 const TEXT_FIELDS = ['command', 'url', 'glob', 'pattern'];
@@ -31,6 +36,9 @@ const SHELLS = new Set(['Bash', 'PowerShell']);
 
 // Theseus's own data folder, where its settings and board live.
 function theseusFolder() {
+    if (POSIX && !process.env.LOCALAPPDATA) {
+        return path.join(os.homedir(), '.theseus');
+    }
     const local = process.env.LOCALAPPDATA || path.join(process.env.USERPROFILE || '', 'AppData', 'Local');
     return path.join(local, 'Theseus');
 }
@@ -58,7 +66,7 @@ function readHoldout() {
 // review S3; re-verify C1). A Git Bash form is the folder it stands for.
 function folderPath(typed) {
     const written = windowsPaths(typed.trim().replace(/\\/g, '/'));
-    if (!/^([a-z]:\/|\/\/[^/])/i.test(written)) {
+    if (!/^([a-z]:\/|\/\/[^/])/i.test(written) && !(POSIX && /^\/[^/]/.test(written))) {
         return '';
     }
     const resolved = path.win32.resolve(written);
@@ -301,7 +309,7 @@ process.stdin.on('end', () => {
         // The installed guard and the hook that runs it: a session that rewrote either would switch the guard off.
         // Theseus installs them (Options, Holdouts); the rest of the Claude Code folder stays writable (Nigel,
         // 2026-11-22: guard and hooks only).
-        const config = process.env.CLAUDE_CONFIG_DIR || path.join(process.env.USERPROFILE || '', '.claude');
+        const config = process.env.CLAUDE_CONFIG_DIR || path.join(process.env.USERPROFILE || os.homedir(), '.claude');
         const written = target ? resolve(target, cwd) : '';
         if (written && (normalise(written) === normalise(path.win32.join(config, 'settings.json'))
             || (under(written, config) && /^holdout-guard\.js(\.previous)?$/i.test(path.win32.basename(written))))) {

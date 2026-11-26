@@ -1,3 +1,5 @@
+using Theseus.Core.Domain;
+
 namespace Theseus.Core.Launching;
 
 /// <summary>
@@ -15,17 +17,47 @@ public static class StartModeChoice
     /// <summary>How the session is launched.</summary>
     /// <param name="requested">How it was asked to start.</param>
     /// <param name="transcriptExists">Whether there is a conversation on disk to resume.</param>
-    public static LaunchMode For(StartMode requested, bool transcriptExists) =>
-        requested == StartMode.Resume && transcriptExists
+    /// <param name="role">
+    /// What the card's sessions are for. A verifier or a scenario writer is a one-shot run, so it starts fresh with its own
+    /// prompt unless the owner chose Resume on its card: resumed, a finished verifier's conversation ended at once and filed
+    /// no report, and both projects' scenario writers ended in seconds with nothing written until their breakers tripped
+    /// (Nigel, 2026-11-25).
+    /// </param>
+    /// <param name="chosenOnTheCard">Whether the owner picked the mode from the card's own ▾ menu.</param>
+    public static LaunchMode For(StartMode requested, bool transcriptExists,
+        WorkstreamRole role = WorkstreamRole.None, bool chosenOnTheCard = false) =>
+        requested == StartMode.Resume && transcriptExists && (!StartsFresh(role) || chosenOnTheCard)
             ? LaunchMode.Resume
             : LaunchMode.FirstRun;
+
+    /// <summary>What a verifier's Start again says it will do (Nigel, 2026-11-25).</summary>
+    public const string VerifierTooltip =
+        "Starts a fresh verification run with the verifier's own prompt. Nothing from an earlier run is reloaded.";
+
+    /// <summary>Whether a card's every start is a fresh run with its own prompt: a verifier's and a scenario writer's.</summary>
+    public static bool StartsFresh(WorkstreamRole role) => role is WorkstreamRole.Verifier or WorkstreamRole.ScenarioWriter;
+
+    /// <summary>What a scenario writer's Start says it will do.</summary>
+    public const string ScenarioWriterTooltip =
+        "Starts a fresh run of the scenario writer with its own prompt. Nothing from an earlier run is reloaded.";
 
     /// <summary>What a card's own start button says it will do.</summary>
     /// <param name="preferred">The board's default.</param>
     /// <param name="transcriptExists">Whether there is a conversation to resume at all.</param>
     /// <param name="resumeTooltip">What resuming would cost, as the card already describes it.</param>
-    public static string Tooltip(StartMode preferred, bool transcriptExists, string resumeTooltip)
+    /// <param name="role">What the card's sessions are for: a verifier's or scenario writer's Start is always a fresh run.</param>
+    public static string Tooltip(StartMode preferred, bool transcriptExists, string resumeTooltip, WorkstreamRole role = WorkstreamRole.None)
     {
+        if (role == WorkstreamRole.Verifier)
+        {
+            return VerifierTooltip;
+        }
+
+        if (role == WorkstreamRole.ScenarioWriter)
+        {
+            return ScenarioWriterTooltip;
+        }
+
         if (!transcriptExists)
         {
             return "Start a new session. There is no earlier conversation to resume.";

@@ -88,18 +88,29 @@ public sealed class HeadlessRunner
     public int Queued => _queue.Queued;
 
     /// <summary>Why a card may not start headless now, or null when it may: a tripped breaker, or a day's budget spent.</summary>
-    public string? Refusal(Workstream workstream)
+    public string? Refusal(Workstream workstream) => Block(workstream) switch
+    {
+        null => null,
+        { Reason: RefusalReason.BreakerTripped } block => $"{block.Title} is stopped: {block.Detail} Reset it from the card when fixed.",
+        var block => $"{block.Title}: {block.Detail}",
+    };
+
+    /// <summary>
+    /// The tripped breaker or spent limit that refuses a card's start now, or null: what the board says where Start was
+    /// pressed, with the action that clears it (Nigel, 2026-11-25).
+    /// </summary>
+    public StartBlock? Block(Workstream workstream)
     {
         ArgumentNullException.ThrowIfNull(workstream);
 
         if (workstream.Breaker is { } trip)
         {
-            return $"{workstream.Title} is stopped: {trip.Detail} Reset it from the card when fixed.";
+            return new StartBlock(workstream.Key, workstream.Title, RefusalReason.BreakerTripped, trip.Detail);
         }
 
         var verdict = Budget(workstream);
 
-        return verdict.Allowed ? null : $"{workstream.Title}: {verdict.Detail}";
+        return verdict.Allowed ? null : new StartBlock(workstream.Key, workstream.Title, RefusalReason.BudgetReached, verdict.Detail ?? "its budget is spent");
     }
 
     /// <summary>Starts a card's run now if a slot is free, or queues it.</summary>
@@ -359,7 +370,7 @@ public sealed class HeadlessRunner
             TheseusLog.Information(
                 "Started {Workstream} headless as {Mode}: run {Run}, session {Session}, process {Process}, cost cap {Cap}, log {Log}",
                 key, active.Mode, active.Run.Start.RunId, active.Run.Start.SessionId, process.ProcessId,
-                Money.Usd(active.Run.Start.Limits.CostUsd), active.LogPath);
+                active.Run.Start.Limits.CostUsd is { } cap ? Money.Usd(cap) : "none", active.LogPath);
         }
         catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception or IOException)
         {
@@ -387,7 +398,7 @@ public sealed class HeadlessRunner
         if (isHandoffRun)
         {
             var allowance = settings.BudgetsFor(workstream.Project).HandoffAllowanceUsd;
-            limits = new RunLimits(allowance, long.MaxValue / 200, TimeSpan.FromMinutes(30), BudgetLimit.RunCost, allowance, 100);
+            limits = new RunLimits(allowance, null, TimeSpan.FromMinutes(30), BudgetLimit.RunCost, allowance, 100);
         }
         else if (Budget(workstream) is { Limits: { } allowed })
         {
@@ -402,7 +413,7 @@ public sealed class HeadlessRunner
             return (null, null);
         }
 
-        var spec = submission.Spec with { Headless = true, MaxBudgetUsd = Math.Max(0.01m, limits.CostUsd) };
+        var spec = submission.Spec with { Headless = true, MaxBudgetUsd = limits.CostUsd is { } cost ? Math.Max(0.01m, cost) : null };
 
         if (isHandoffRun)
         {

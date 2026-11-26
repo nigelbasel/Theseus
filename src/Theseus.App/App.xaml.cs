@@ -125,6 +125,9 @@ public partial class App : Application
         chains.ReportArrived = shell.Say;
         chains.FocusCard = key => shell.FocusCardCommand.Execute(shell.Board.Card(key));
         chains.ReportConfirmed = shell.ReportConfirmed;
+        chains.ProjectTitle = shell.ProjectTitle;
+        chains.StartAsked = key => shell.StartRequests.Pending.Any(request => string.Equals(request.CardKey, key, StringComparison.OrdinalIgnoreCase));
+        chains.Settings = settings;
 
         var workItems = new WorkItemBook(Path.Combine(DataDirectory, "work-items.json"));
         shell.WorkItems = workItems;
@@ -358,6 +361,9 @@ public partial class App : Application
             box.Owner = ActiveWindow;
             box.ShowDialog();
         };
+        // A start a breaker refused offers the reset where Start was pressed (Nigel, 2026-11-25); Cancel starts nothing.
+        shell.AskRefusedStart = (title, text, action) =>
+            new QuestionWindow(title, text, action) { Owner = ActiveWindow }.Ask() == true;
         // Decide later is Cancel, so Esc chooses it; "(Esc)" is not part of its label (A3).
         shell.AskStartRequest = (title, question) =>
             new QuestionWindow(title, question, "_Allow and start", "_Refuse", "Decide later") { Owner = ActiveWindow }.Ask();

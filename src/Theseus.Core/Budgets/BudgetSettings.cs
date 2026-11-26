@@ -1,25 +1,33 @@
+using System.Text.Json.Serialization;
+
 namespace Theseus.Core.Budgets;
 
 /// <summary>
-/// The limits a headless run works inside. Each is a setting with a stated default, and a project can replace them with
-/// its own (Nigel, 2026-11-24). The figures are starting values, to be revised from the run ledger.
+/// The limits a headless run works inside. Each is a setting, and a project can replace them with its own (Nigel,
+/// 2026-11-24). Every cost, token and time limit is off unless set (Nigel, 2026-11-25: "we dont want to have any limits
+/// turned on"). Each is stored under a newer name than its old default was, so <see cref="Settings.LimitUpgrade"/> can tell
+/// a figure someone chose from one a file holds only because the whole budget is written back.
 /// </summary>
-/// <param name="RunCostLimitUsd">Cost per run, in US dollars.</param>
-/// <param name="RunTokenLimit">Tokens per run: input, output and cache creation. Cache reads are shown but not counted.</param>
-/// <param name="RunTimeLimitMinutes">Wall-clock per run.</param>
-/// <param name="CardDayCostLimitUsd">Cost per card per local calendar day.</param>
-/// <param name="ProjectDayCostLimitUsd">Cost per project per local calendar day.</param>
+/// <param name="RunCostLimitUsd">Cost per run, in US dollars, or null for none.</param>
+/// <param name="RunTokenLimit">
+/// Tokens per run, or null for none: input, output and cache creation. Cache reads are shown but not counted.
+/// </param>
+/// <param name="RunTimeLimitMinutes">Wall-clock per run, or null for none; with none, the over-time breaker never trips.</param>
+/// <param name="CardDayCostLimitUsd">
+/// Cost per card per local calendar day, or null for none.
+/// </param>
+/// <param name="ProjectDayCostLimitUsd">Cost per project per local calendar day, or null for none, as the card's.</param>
 /// <param name="StopAtPercent">The share of a run's token or time limit at which the run is asked to hand over and stop.</param>
 /// <param name="HandoffAllowanceUsd">
 /// What the one resume after a hard cost stop may spend: Claude Code's own cap ends a run without a handoff, so the run
 /// is resumed once, told only to write it.
 /// </param>
 public sealed record BudgetSettings(
-    decimal RunCostLimitUsd = 5.00m,
-    long RunTokenLimit = 3_000_000,
-    int RunTimeLimitMinutes = 120,
-    decimal CardDayCostLimitUsd = 20.00m,
-    decimal ProjectDayCostLimitUsd = 60.00m,
+    [property: JsonPropertyName("runLimitUsd")] decimal? RunCostLimitUsd = null,
+    [property: JsonPropertyName("runLimitTokens")] long? RunTokenLimit = null,
+    [property: JsonPropertyName("runLimitMinutes")] int? RunTimeLimitMinutes = null,
+    [property: JsonPropertyName("cardDayLimitUsd")] decimal? CardDayCostLimitUsd = null,
+    [property: JsonPropertyName("projectDayLimitUsd")] decimal? ProjectDayCostLimitUsd = null,
     int StopAtPercent = 90,
     decimal HandoffAllowanceUsd = 1.00m)
 {

@@ -3,6 +3,7 @@ using Theseus.Core.Diagnostics;
 using Theseus.Core.Domain;
 using Theseus.Core.Links;
 using Theseus.Core.Projects;
+using Theseus.Core.Running;
 
 namespace Theseus.App.ViewModels;
 
@@ -131,13 +132,13 @@ public sealed partial class ShellViewModel
                 && !_launcher.InFlight.IsInFlight(writer.Key))
             {
                 TheseusLog.Information("Starting the scenario writer {Writer} for {Project} itself: it stood and was not running", startWriter, reading.Name);
-                StartMany([writer.Workstream]);
+                StartMany([writer.Workstream], explain: false);
             }
 
             if (writeBeside is not null && WritersOf(reading.Name).Count == 0 && Board.Card(writeBeside) is { } build)
             {
                 TheseusLog.Information("Making the scenario writer for {Project} itself: no scenario names {Builds}", reading.Name, string.Join(", ", unnamed));
-                WriteScenarios(build);
+                WriteScenarios(build, quietly: true);
             }
 
             var now = verify.Select(Board.Card).OfType<WorkstreamCardViewModel>()
@@ -153,41 +154,59 @@ public sealed partial class ShellViewModel
         });
     }
 
+    private const string WriterTryPrefix = "writer:";
+
     private static string WriterTry(string project, IEnumerable<string> unnamed) =>
-        $"writer:{project}:{string.Join(",", unnamed.Order(StringComparer.OrdinalIgnoreCase))}";
+        $"{WriterTryPrefix}{project}:{string.Join(",", unnamed.Order(StringComparer.OrdinalIgnoreCase))}";
+
+    // A scenario writer whose breaker the owner reset is started again by Theseus, as the Waits line said it would be.
+    private void ForgetWriterTries() => _checksTried.RemoveWhere(tried => tried.StartsWith(WriterTryPrefix, StringComparison.Ordinal));
 
     /// <summary>
-    /// The waiting builds whose check Theseus will not start, one line for each reason: no holdout folder, no scenario
-    /// naming them once the writer has had its go, and the like. Without them a build stuck there said nothing at all
-    /// (review of P1, blocker 1). A build still being worked on, held by the owner, or about to be helped by a scenario
-    /// writer Theseus is making or starting, is left out.
+    /// The waiting builds whose check Theseus will not start, one line for each reason: the project stopped, its scenario
+    /// writer paused or stopped by its breaker, no holdout folder, no scenario naming them once the writer has had its go,
+    /// and the like. Without them a build stuck there said nothing at all (review of P1, blocker 1). A build still being
+    /// worked on, held by the owner, or about to be helped by a scenario writer Theseus is making or starting, is left out.
     /// </summary>
     private List<WaitItem> ChecksThatCannotRun(ProjectFileReading reading, IReadOnlyList<PieceOfWork> pieces, CheckPlan plan)
     {
-        var stuck = pieces
+        var waiting = pieces
             .Where(piece => piece is { IsCurrentPiece: true, Card: not null, CheckReported: null }
                             && piece.Status.State == StageNodeState.HoldoutsNotRun && piece.PendingVerifiers.Count == 0
-                            && !IsChecked(piece.CardKey))
-            .Select(piece => (Piece: piece, Card: Board.Card(piece.CardKey)))
-            .Where(pair => pair.Card is { IsLive: false } card && !IsHeld(card))
-            .Select(pair => (pair.Piece, Card: pair.Card!, Why: WhyCannotVerify(pair.Card!)))
+                            && !IsChecked(piece.CardKey)
+                            && Board.Card(piece.CardKey) is { IsLive: false } card && !IsHeld(card))
+            .ToList();
+        var writers = WritersOf(reading.Name);
+        var busy = writers.Any(card => card.IsLive || _launcher.InFlight.IsInFlight(card.Key));
+        var heldWriter = !busy && writers.Count > 0 && writers.All(IsHeld)
+            ? writers.FirstOrDefault(card => card.Workstream.Breaker is not null) ?? writers[0]
+            : null;
+        var hold = CheckHold.For(reading.Name, ProjectIsStopped(reading.Name), waiting,
+            piece => Board.Card(piece.CardKey) is { } card && _holdouts.IsNamed(card.Workstream), heldWriter?.Workstream, heldWriter is not null);
+        List<WaitItem> held = hold is null ? [] : [hold];
+
+        var stuck = waiting
+            .Where(piece => hold?.Pieces.Contains(piece.Name) != true)
+            .Select(piece => (Piece: piece, Card: Board.Card(piece.CardKey)!))
+            .Select(pair => (pair.Piece, pair.Card, Why: WhyCannotVerify(pair.Card)))
             .Where(each => each.Why is not null)
             .ToList();
 
-        if (stuck.Count == 0 || WritersOf(reading.Name).Any(card => card.IsLive || _launcher.InFlight.IsInFlight(card.Key)))
+        if (stuck.Count == 0 || busy)
         {
-            return [];
+            return held;
         }
 
         var unnamed = stuck.Where(each => !_holdouts.IsNamed(each.Card.Workstream)).Select(each => each.Card.Key);
 
         if ((plan.MakeWriter || plan.StartWriter is not null) && !_checksTried.Contains(WriterTry(reading.Name, unnamed)))
         {
-            return [];
+            return held;
         }
 
         return
         [
+            .. held,
             .. stuck.GroupBy(each => each.Why!, StringComparer.Ordinal).Select(group => new WaitItem(WaitKind.CheckCannotRun,
                 group.Count() == 1
                     ? $"{group.First().Piece.Title}: its independent check cannot run. {Sentence(group.Key)}"
@@ -197,6 +216,19 @@ public sealed partial class ShellViewModel
                 CardKey = group.First().Card.Key,
             }),
         ];
+    }
+
+    // A writer's tripped breaker said with the builds it holds up is not said a second time on its own.
+    private List<WaitItem> WaitsOnTheChecks(ProjectFileReading reading, IReadOnlyList<PieceOfWork> pieces, CheckPlan plan,
+        IEnumerable<WorkstreamCardViewModel> cards)
+    {
+        var cannotRun = ChecksThatCannotRun(reading, pieces, plan);
+        var headless = HeadlessWaits.For(cards
+                .Where(card => string.Equals(card.Workstream.Project, reading.Name, StringComparison.OrdinalIgnoreCase))
+                .Select(card => card.Workstream), key => Headless?.StateOf(key))
+            .Where(wait => !cannotRun.Any(each => each.Kind == wait.Kind && string.Equals(each.CardKey, wait.CardKey, StringComparison.OrdinalIgnoreCase)));
+
+        return [.. cannotRun, .. headless];
     }
 
     private static string Sentence(string text) => text.EndsWith('.') ? text : text + ".";

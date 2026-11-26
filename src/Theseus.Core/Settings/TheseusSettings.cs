@@ -278,6 +278,15 @@ public sealed record TheseusSettings(
     /// <summary>Whether the board shows only what is active: cards with a session or waiting on the owner (Nigel, 2026-11-24).</summary>
     public bool ShowActiveOnly { get; init; }
 
+    /// <summary>The Chains panel's filters, as last chosen; Hide completed on by default (Nigel, 2026-11-25).</summary>
+    public Links.ChainFilters ChainsFilters { get; init; } = new();
+
+    /// <summary>
+    /// The Chains rows the owner folded (false) or unfolded (true) by hand, by card key, or <c>project:&lt;name&gt;</c> for a
+    /// project's header. A row not here takes its default: folded when everything below it is finished (Nigel, 2026-11-25).
+    /// </summary>
+    public IReadOnlyDictionary<string, bool> ChainsFolds { get; init; } = new Dictionary<string, bool>();
+
     /// <summary>
     /// Where the board window was when it last closed, so it opens where it was left. Checked against
     /// the screens actually attached before it is used: a position saved while docked is a position

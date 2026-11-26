@@ -9,6 +9,10 @@ session can carry on where it left off.
 
 ## Contents
 
+- [Getting started with the agentic factory](getting-started.md): the plugin that carries the method to plain Claude
+  Code on Windows, macOS and Linux, a first project and workstream, and how to check it is all in place.
+- [The software factory guide](factory-guide.md): what an agentic factory is, the method exactly (pipelines, gates,
+  the project file, holdouts, locks), and what Theseus adds, with a diagram for every concept and flow.
 - [The board](board.md): columns and rows, folding, the Paused and Blocked marks, and the menus,
   toolbar and status bar.
 - [Cards](cards.md): what each button on a card does, and what a card is telling you.
