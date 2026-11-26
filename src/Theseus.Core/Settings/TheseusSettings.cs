@@ -324,6 +324,12 @@ public sealed record TheseusSettings(
     public IReadOnlyDictionary<string, bool> ChainsFolds { get; init; } = new Dictionary<string, bool>();
 
     /// <summary>
+    /// The locks panel's folds the owner chose, by <c>lock:&lt;name&gt;</c>, <c>queue:&lt;name&gt;</c> or <c>section:&lt;name&gt;</c>.
+    /// A fold not here takes its default: a lock folded to one line, its queue open (Nigel, 2026-11-26).
+    /// </summary>
+    public IReadOnlyDictionary<string, bool> LocksFolds { get; init; } = new Dictionary<string, bool>();
+
+    /// <summary>
     /// Where the board window was when it last closed, so it opens where it was left. Checked against
     /// the screens actually attached before it is used: a position saved while docked is a position
     /// on a monitor that may not be there any more.

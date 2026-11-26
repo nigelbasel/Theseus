@@ -295,6 +295,45 @@
             </Style.Triggers>
         </Style>
 
+        <!--
+            A fold's header line on the locks panel (Nigel, 2026-11-26): the whole line toggles, its chevron in a 24 epx hit
+            area drawn as the Chains panel's (E76C folded, E70D open), Right and Left unfold and fold, as in a tree (1.9).
+        -->
+        <Style x:Key="LockFold" TargetType="controls:FoldToggle">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="controls:FoldToggle">
+                        <Border x:Name="Face" Background="Transparent" CornerRadius="4">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="24" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Border Width="24" Height="24" Background="Transparent" VerticalAlignment="Top">
+                                    <controls:GlyphText x:Name="Chevron" Text="&#xE76C;" FontFamily="{DynamicResource SymbolThemeFontFamily}"
+                                                        FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                        HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <ContentPresenter Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Stretch" />
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Chevron" Property="Text" Value="&#xE70D;" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Face" Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- A panel's button: stays pressed while its panel is open, and is wider for its count. -->
         <Style x:Key="ToolToggle" TargetType="ToggleButton" BasedOn="{StaticResource ToolButton}">
             <Setter Property="Width" Value="NaN" />
@@ -2811,6 +2850,13 @@
                                      ToolTip="Show the chains panel." Command="{Binding Chains.OpenCommand}" />
                     </controls:SelectorGroup>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <!-- Expand all and Collapse all, with the Chains panel's glyphs (Nigel, 2026-11-26). -->
+                        <Button x:Name="LocksCollapseAll" Style="{StaticResource PanelIcon}" Content="&#xF165;" Margin="0,0,4,0"
+                                ToolTip="Collapse all: show only the lock names." AutomationProperties.Name="Collapse all"
+                                Command="{Binding Locks.CollapseAllCommand}" />
+                        <Button x:Name="LocksExpandAll" Style="{StaticResource PanelIcon}" Content="&#xF164;" Margin="0,0,8,0"
+                                ToolTip="Expand all: show every lock's holds, queue and actions." AutomationProperties.Name="Expand all"
+                                Command="{Binding Locks.ExpandAllCommand}" />
                         <Button Style="{StaticResource PanelIcon}" Content="&#xE897;" Margin="0,0,8,0"
                                 ToolTip="Locks help, in your browser" AutomationProperties.Name="Locks help"
                                 AutomationProperties.HelpText="Opens nigelbasel.github.io/Theseus in your browser"
@@ -2827,194 +2873,223 @@
                         <ItemsControl AutomationProperties.Name="Locks" ItemContainerStyle="{StaticResource ItemNamedByName}" ItemsSource="{Binding Locks.Rows}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Margin="0,0,0,8" Padding="8" CornerRadius="4"
+                                    <Border Margin="0,0,0,4" Padding="4" CornerRadius="4"
                                             Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
                                             BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                                             BorderThickness="1">
                                         <StackPanel>
-                                            <DockPanel>
-                                                <TextBlock DockPanel.Dock="Right" FontSize="12" VerticalAlignment="Center">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock">
-                                                            <Setter Property="Text" Value="{Binding HeldFor}" />
-                                                            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding IsHeld}" Value="False">
-                                                                    <Setter Property="Text" Value="Free" />
-                                                                    <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
-                                                                </DataTrigger>
-                                                                <DataTrigger Binding="{Binding IsLong}" Value="True">
-                                                                    <Setter Property="Text" Value="{Binding HeldFor, StringFormat='⚠ {0}, long'}" />
-                                                                    <Setter Property="Foreground" Value="{DynamicResource CautionTextBrush}" />
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
-                                                <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold"
-                                                           Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                            </DockPanel>
+                                            <!-- Folded, one line: the name, its state and counts, and ⚠ in words when it waits on you (Nigel, 2026-11-26). -->
+                                            <controls:FoldToggle Style="{StaticResource LockFold}" IsChecked="{Binding Fold.IsExpanded, Mode=TwoWay}"
+                                                                 AutomationProperties.Name="{Binding ScreenName}"
+                                                                 ToolTip="Unfold for the holds, the queue and what you can do; Right and Left unfold and fold.">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="1" FontSize="12" VerticalAlignment="Center" Margin="8,0,4,0" Text="{Binding StateText}"
+                                                               TextAlignment="Right" TextWrapping="Wrap">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding NeedsOwner}" Value="True">
+                                                                        <Setter Property="Foreground" Value="{DynamicResource CautionTextBrush}" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                    <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"
+                                                               Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                                </Grid>
+                                            </controls:FoldToggle>
 
-                                            <TextBlock Text="{Binding Guards}" FontSize="12" Margin="0,2,0,0" TextWrapping="Wrap"
-                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                            <StackPanel Margin="24,0,0,4" Visibility="{Binding Fold.IsExpanded, Converter={StaticResource BoolToVisibility}}">
 
-                                            <TextBlock Text="{Binding Capacity}" FontSize="12" Margin="0,2,0,0"
-                                                       Visibility="{Binding Capacity, Converter={StaticResource NotEmptyToVisibility}}"
-                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-
-                                            <StackPanel Margin="0,8,0,0"
-                                                        Visibility="{Binding IsHeld, Converter={StaticResource BoolToVisibility}}">
-                                                <TextBlock Text="Held by" FontSize="12" Margin="0,0,0,4"
+                                                <TextBlock Text="{Binding Guards}" FontSize="12" Margin="0,2,0,0" TextWrapping="Wrap"
                                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                                <ItemsControl AutomationProperties.Name="Held by" ItemContainerStyle="{StaticResource ItemNamedByText}" ItemsSource="{Binding Holders}">
-                                                    <ItemsControl.ItemTemplate>
-                                                        <DataTemplate>
-                                                            <StackPanel Margin="0,0,0,8">
-                                                                <Border Margin="0,0,0,4" Padding="8,4" CornerRadius="4" BorderThickness="4,0,0,0"
-                                                                        AutomationProperties.Name="{Binding Text}"
-                                                                        BorderBrush="{Binding ColorHex, Converter={StaticResource HexToBrush}}">
+
+                                                <TextBlock Text="{Binding Capacity}" FontSize="12" Margin="0,2,0,0"
+                                                           Visibility="{Binding Capacity, Converter={StaticResource NotEmptyToVisibility}}"
+                                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+
+                                                <StackPanel Margin="0,8,0,0"
+                                                            Visibility="{Binding IsHeld, Converter={StaticResource BoolToVisibility}}">
+                                                    <TextBlock Text="Held by" FontSize="12" Margin="0,0,0,4"
+                                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                    <ItemsControl AutomationProperties.Name="Held by" ItemContainerStyle="{StaticResource ItemNamedByText}" ItemsSource="{Binding Holders}">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <StackPanel Margin="0,0,0,8">
+                                                                    <Border Margin="0,0,0,4" Padding="8,4" CornerRadius="4" BorderThickness="4,0,0,0"
+                                                                            AutomationProperties.Name="{Binding Text}"
+                                                                            BorderBrush="{Binding ColorHex, Converter={StaticResource HexToBrush}}">
+                                                                        <StackPanel>
+                                                                            <DockPanel>
+                                                                                <TextBlock DockPanel.Dock="Right" FontSize="12" VerticalAlignment="Center"
+                                                                                           Text="{Binding HeldFor}"
+                                                                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                                                <TextBlock Text="{Binding Text}" FontSize="14" TextWrapping="Wrap"
+                                                                                           Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                                                            </DockPanel>
+                                                                            <TextBlock Text="{Binding Amount, StringFormat='{}{0} slots'}" FontSize="12"
+                                                                                       Visibility="{Binding Amount, Converter={StaticResource NotEmptyToVisibility}}"
+                                                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                                            <TextBlock Text="{Binding Idle, StringFormat='⚠ {0}: release it if it is no longer needed'}" FontSize="12"
+                                                                                       TextWrapping="Wrap"
+                                                                                       Visibility="{Binding IsAmber, Converter={StaticResource BoolToVisibility}}"
+                                                                                       Foreground="{DynamicResource CautionTextBrush}" />
+                                                                        </StackPanel>
+                                                                    </Border>
+                                                                    <Button Style="{StaticResource CommandButton}" Content="Release…" HorizontalAlignment="Left"
+                                                                            ToolTip="Take this hold from its holder. Its run keeps going."
+                                                                            Command="{Binding AskReleaseCommand}"
+                                                                            Visibility="{Binding CanAskRelease, Converter={StaticResource BoolToVisibility}}" />
+                                                                    <StackPanel Visibility="{Binding IsConfirmingRelease, Converter={StaticResource BoolToVisibility}}">
+                                                                        <TextBlock Text="Its run keeps going, and the next in line may start beside it." FontSize="12"
+                                                                                   TextWrapping="Wrap" Margin="0,0,0,8"
+                                                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                                        <StackPanel Orientation="Horizontal">
+                                                                            <Button Style="{StaticResource CommandButton}" Content="Release" Margin="0,0,8,0"
+                                                                                    Command="{Binding ConfirmReleaseCommand}" />
+                                                                            <Button Style="{StaticResource CommandButton}" Content="Keep"
+                                                                                    Command="{Binding KeepCommand}" />
+                                                                        </StackPanel>
+                                                                    </StackPanel>
+                                                                </StackPanel>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </StackPanel>
+
+                                                <StackPanel Margin="0,8,0,0"
+                                                            Visibility="{Binding Waiting.Count, Converter={StaticResource CountToVisibility}}">
+                                                    <!-- The queue folds on its own, so a long one does not push the other locks down. -->
+                                                    <controls:FoldToggle Style="{StaticResource LockFold}" Margin="0,0,0,4"
+                                                                         IsChecked="{Binding QueueFold.IsExpanded, Mode=TwoWay}"
+                                                                         AutomationProperties.Name="{Binding QueueHeading}">
+                                                        <TextBlock Text="{Binding QueueHeading}" FontSize="12"
+                                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                    </controls:FoldToggle>
+                                                    <ItemsControl AutomationProperties.Name="Waiting, in order" ItemContainerStyle="{StaticResource ItemNamedByWho}" ItemsSource="{Binding Waiting}"
+                                                                  Visibility="{Binding QueueFold.IsExpanded, Converter={StaticResource BoolToVisibility}}">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <Border Margin="0,0,0,8" Padding="8,8" CornerRadius="4"
+                                                                        BorderThickness="4,0,0,0"
+                                                                        BorderBrush="{Binding ColorHex, Converter={StaticResource HexToBrush}}"
+                                                                        Background="{DynamicResource LayerFillColorDefaultBrush}">
                                                                     <StackPanel>
                                                                         <DockPanel>
                                                                             <TextBlock DockPanel.Dock="Right" FontSize="12" VerticalAlignment="Center"
-                                                                                       Text="{Binding HeldFor}"
-                                                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                                                            <TextBlock Text="{Binding Text}" FontSize="14" TextWrapping="Wrap"
-                                                                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}">
+                                                                                <Run Text="waiting " />
+                                                                                <Run Text="{Binding WaitingFor, Mode=OneWay}" />
+                                                                            </TextBlock>
+                                                                            <TextBlock FontSize="14" TextTrimming="CharacterEllipsis"
+                                                                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+                                                                                <Run Text="{Binding Position, Mode=OneWay}" />
+                                                                                <Run Text=". " />
+                                                                                <Run Text="{Binding Who, Mode=OneWay}" />
+                                                                            </TextBlock>
                                                                         </DockPanel>
-                                                                        <TextBlock Text="{Binding Amount, StringFormat='{}{0} slots'}" FontSize="12"
-                                                                                   Visibility="{Binding Amount, Converter={StaticResource NotEmptyToVisibility}}"
+                                                                        <TextBlock Text="{Binding Purpose}" FontSize="12" TextWrapping="Wrap"
                                                                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                                                        <TextBlock Text="{Binding Idle, StringFormat='⚠ {0}: release it if it is no longer needed'}" FontSize="12"
-                                                                                   TextWrapping="Wrap"
-                                                                                   Visibility="{Binding IsAmber, Converter={StaticResource BoolToVisibility}}"
-                                                                                   Foreground="{DynamicResource CautionTextBrush}" />
+                                                                        <TextBlock Text="{Binding Reason, StringFormat=Reason: {0}}" FontSize="12" TextWrapping="Wrap"
+                                                                                   Visibility="{Binding Reason, Converter={StaticResource NotEmptyToVisibility}}"
+                                                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                                        <WrapPanel Margin="0,8,0,0">
+                                                                            <Button Style="{StaticResource CommandButton}" Content="Move up" Margin="0,0,8,0"
+                                                                                    ToolTip="Move one place towards the front."
+                                                                                    Command="{Binding MoveUpCommand}" />
+                                                                            <Button Style="{StaticResource CommandButton}" Content="Move down" Margin="0,0,8,0"
+                                                                                    ToolTip="Move one place back."
+                                                                                    Command="{Binding MoveDownCommand}" />
+                                                                            <Button Style="{StaticResource CommandButton}" Content="Cancel request"
+                                                                                    ToolTip="Take it out of the queue. Its script is told it was cancelled."
+                                                                                    Command="{Binding CancelCommand}" />
+                                                                        </WrapPanel>
                                                                     </StackPanel>
                                                                 </Border>
-                                                                <Button Style="{StaticResource CommandButton}" Content="Release…" HorizontalAlignment="Left"
-                                                                        ToolTip="Take this hold from its holder. Its run keeps going."
-                                                                        Command="{Binding AskReleaseCommand}"
-                                                                        Visibility="{Binding CanAskRelease, Converter={StaticResource BoolToVisibility}}" />
-                                                                <StackPanel Visibility="{Binding IsConfirmingRelease, Converter={StaticResource BoolToVisibility}}">
-                                                                    <TextBlock Text="Its run keeps going, and the next in line may start beside it." FontSize="12"
-                                                                               TextWrapping="Wrap" Margin="0,0,0,8"
-                                                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                                                    <StackPanel Orientation="Horizontal">
-                                                                        <Button Style="{StaticResource CommandButton}" Content="Release" Margin="0,0,8,0"
-                                                                                Command="{Binding ConfirmReleaseCommand}" />
-                                                                        <Button Style="{StaticResource CommandButton}" Content="Keep"
-                                                                                Command="{Binding KeepCommand}" />
-                                                                    </StackPanel>
-                                                                </StackPanel>
-                                                            </StackPanel>
-                                                        </DataTemplate>
-                                                    </ItemsControl.ItemTemplate>
-                                                </ItemsControl>
-                                            </StackPanel>
-
-                                            <StackPanel Margin="0,8,0,0"
-                                                        Visibility="{Binding Waiting.Count, Converter={StaticResource CountToVisibility}}">
-                                                <TextBlock Text="Waiting, in order" FontSize="12" Margin="0,0,0,4"
-                                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                                <ItemsControl AutomationProperties.Name="Waiting, in order" ItemContainerStyle="{StaticResource ItemNamedByWho}" ItemsSource="{Binding Waiting}">
-                                                    <ItemsControl.ItemTemplate>
-                                                        <DataTemplate>
-                                                            <Border Margin="0,0,0,8" Padding="8,8" CornerRadius="4"
-                                                                    BorderThickness="4,0,0,0"
-                                                                    BorderBrush="{Binding ColorHex, Converter={StaticResource HexToBrush}}"
-                                                                    Background="{DynamicResource LayerFillColorDefaultBrush}">
-                                                                <StackPanel>
-                                                                    <DockPanel>
-                                                                        <TextBlock DockPanel.Dock="Right" FontSize="12" VerticalAlignment="Center"
-                                                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}">
-                                                                            <Run Text="waiting " />
-                                                                            <Run Text="{Binding WaitingFor, Mode=OneWay}" />
-                                                                        </TextBlock>
-                                                                        <TextBlock FontSize="14" TextTrimming="CharacterEllipsis"
-                                                                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}">
-                                                                            <Run Text="{Binding Position, Mode=OneWay}" />
-                                                                            <Run Text=". " />
-                                                                            <Run Text="{Binding Who, Mode=OneWay}" />
-                                                                        </TextBlock>
-                                                                    </DockPanel>
-                                                                    <TextBlock Text="{Binding Purpose}" FontSize="12" TextWrapping="Wrap"
-                                                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                                                    <TextBlock Text="{Binding Reason, StringFormat=Reason: {0}}" FontSize="12" TextWrapping="Wrap"
-                                                                               Visibility="{Binding Reason, Converter={StaticResource NotEmptyToVisibility}}"
-                                                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                                                        <Button Style="{StaticResource CommandButton}" Content="Move up" Margin="0,0,8,0"
-                                                                                ToolTip="Move one place towards the front."
-                                                                                Command="{Binding MoveUpCommand}" />
-                                                                        <Button Style="{StaticResource CommandButton}" Content="Move down" Margin="0,0,8,0"
-                                                                                ToolTip="Move one place back."
-                                                                                Command="{Binding MoveDownCommand}" />
-                                                                        <Button Style="{StaticResource CommandButton}" Content="Cancel request"
-                                                                                ToolTip="Take it out of the queue. Its script is told it was cancelled."
-                                                                                Command="{Binding CancelCommand}" />
-                                                                    </StackPanel>
-                                                                </StackPanel>
-                                                            </Border>
-                                                        </DataTemplate>
-                                                    </ItemsControl.ItemTemplate>
-                                                </ItemsControl>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </StackPanel>
                                             </StackPanel>
                                         </StackPanel>
                                     </Border>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
-                        <Border Margin="0,0,0,8" Padding="8" CornerRadius="4"
+                        <Border Margin="0,0,0,4" Padding="4" CornerRadius="4"
                                 Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
                                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1"
                                 Visibility="{Binding Locks.NeedsRuling, Converter={StaticResource NotEmptyToVisibility}}">
                             <StackPanel>
-                                <TextBlock Text="Not ruled on yet" FontSize="14" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                <TextBlock FontSize="12" Margin="0,2,0,0" TextWrapping="Wrap"
-                                           Text="{Binding Locks.NeedsRuling, StringFormat='Each is held alone until the arbiter named in Options rules on it: {0}'}"
-                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                <controls:FoldToggle Style="{StaticResource LockFold}" IsChecked="{Binding Locks.NeedsRulingFold.IsExpanded, Mode=TwoWay}"
+                                                     AutomationProperties.Name="Not ruled on yet">
+                                    <TextBlock Text="Not ruled on yet" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                </controls:FoldToggle>
+                                <StackPanel Margin="24,0,0,4" Visibility="{Binding Locks.NeedsRulingFold.IsExpanded, Converter={StaticResource BoolToVisibility}}">
+                                    <TextBlock FontSize="12" Margin="0,2,0,0" TextWrapping="Wrap"
+                                               Text="{Binding Locks.NeedsRuling, StringFormat='Each is held alone until the arbiter named in Options rules on it: {0}'}"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
                             </StackPanel>
                         </Border>
-                        <Border Margin="0,0,0,8" Padding="8" CornerRadius="4"
+                        <Border Margin="0,0,0,4" Padding="4" CornerRadius="4"
                                 Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
                                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1"
                                 Visibility="{Binding Locks.Rulings.Count, Converter={StaticResource CountToVisibility}}">
                             <StackPanel>
-                                <TextBlock Text="Rulings" FontSize="14" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                <ItemsControl AutomationProperties.Name="Rulings" ItemContainerStyle="{StaticResource ItemNamedByName}" ItemsSource="{Binding Locks.Rulings}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <StackPanel Margin="0,8,0,0">
-                                                <TextBlock Text="{Binding Text}" FontSize="12" TextWrapping="Wrap"
-                                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                                <Button Style="{StaticResource CommandButton}" Content="Overturn" HorizontalAlignment="Left" Margin="0,4,0,0"
-                                                        ToolTip="Take this ruling out: the resource is held alone again until it is ruled on."
-                                                        Command="{Binding OverturnCommand}" />
-                                            </StackPanel>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
+                                <controls:FoldToggle Style="{StaticResource LockFold}" IsChecked="{Binding Locks.RulingsFold.IsExpanded, Mode=TwoWay}"
+                                                     AutomationProperties.Name="{Binding Locks.Rulings.Count, StringFormat='Rulings ({0})'}">
+                                    <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+                                        <Run Text="Rulings" /><Run Text=" (" /><Run Text="{Binding Locks.Rulings.Count, Mode=OneWay}" /><Run Text=")" />
+                                    </TextBlock>
+                                </controls:FoldToggle>
+                                <StackPanel Margin="24,0,0,4" Visibility="{Binding Locks.RulingsFold.IsExpanded, Converter={StaticResource BoolToVisibility}}">
+                                    <ItemsControl AutomationProperties.Name="Rulings" ItemContainerStyle="{StaticResource ItemNamedByName}" ItemsSource="{Binding Locks.Rulings}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Margin="0,8,0,0">
+                                                    <TextBlock Text="{Binding Text}" FontSize="12" TextWrapping="Wrap"
+                                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                    <Button Style="{StaticResource CommandButton}" Content="Overturn" HorizontalAlignment="Left" Margin="0,4,0,0"
+                                                            ToolTip="Take this ruling out: the resource is held alone again until it is ruled on."
+                                                            Command="{Binding OverturnCommand}" />
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
                             </StackPanel>
                         </Border>
-                        <Border Margin="0,0,0,8" Padding="8" CornerRadius="4"
+                        <Border Margin="0,0,0,4" Padding="4" CornerRadius="4"
                                 Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
                                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1"
                                 Visibility="{Binding Locks.StoppedDeadlocks.Count, Converter={StaticResource CountToVisibility}}">
                             <StackPanel>
-                                <TextBlock Text="Stopped deadlocks" FontSize="14" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                <TextBlock Text="Requests refused because granting them would have left two or more sessions waiting on each other for ever. Nothing was stopped."
-                                           FontSize="12" Margin="0,2,0,0" TextWrapping="Wrap"
-                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                <ItemsControl AutomationProperties.Name="Stopped deadlocks" ItemContainerStyle="{StaticResource ItemNamedBySelf}" ItemsSource="{Binding Locks.StoppedDeadlocks}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding}" FontSize="12" Margin="0,4,0,0" TextWrapping="Wrap"
-                                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
+                                <controls:FoldToggle Style="{StaticResource LockFold}" IsChecked="{Binding Locks.DeadlocksFold.IsExpanded, Mode=TwoWay}"
+                                                     AutomationProperties.Name="{Binding Locks.StoppedDeadlocks.Count, StringFormat='Stopped deadlocks ({0})'}">
+                                    <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+                                        <Run Text="Stopped deadlocks" /><Run Text=" (" /><Run Text="{Binding Locks.StoppedDeadlocks.Count, Mode=OneWay}" /><Run Text=")" />
+                                    </TextBlock>
+                                </controls:FoldToggle>
+                                <StackPanel Margin="24,0,0,4" Visibility="{Binding Locks.DeadlocksFold.IsExpanded, Converter={StaticResource BoolToVisibility}}">
+                                    <TextBlock Text="Requests refused because granting them would have left two or more sessions waiting on each other for ever. Nothing was stopped."
+                                               FontSize="12" Margin="0,2,0,0" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                    <ItemsControl AutomationProperties.Name="Stopped deadlocks" ItemContainerStyle="{StaticResource ItemNamedBySelf}" ItemsSource="{Binding Locks.StoppedDeadlocks}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding}" FontSize="12" Margin="0,4,0,0" TextWrapping="Wrap"
+                                                           Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
                             </StackPanel>
                         </Border>
                         <!--
@@ -3023,55 +3098,61 @@
                             cost a workstream a day on 2026-10-02. Shown for Nigel to remove, never removed
                             automatically, because one cannot be told apart from a run outside the lock.
                         -->
-                        <Border Margin="0,0,0,8" Padding="8" CornerRadius="4"
+                        <Border Margin="0,0,0,4" Padding="4" CornerRadius="4"
                                 Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
                                 BorderBrush="{DynamicResource CautionTextBrush}" BorderThickness="1"
                                 Visibility="{Binding Locks.Unowned.Count, Converter={StaticResource CountToVisibility}}">
                             <StackPanel>
-                                <TextBlock Text="Unowned test containers" FontSize="14" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                <TextBlock FontSize="12" Margin="0,4,0,8" TextWrapping="Wrap"
-                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                           Text="No lock holder accounts for these. A leftover like this can make the next suite fail as if it were broken. Remove only what you know is not a run in progress." />
-                                <ItemsControl AutomationProperties.Name="Unowned test containers" ItemContainerStyle="{StaticResource ItemNamedByName}" ItemsSource="{Binding Locks.Unowned}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Margin="0,0,0,8" Padding="8,8" CornerRadius="4"
-                                                    Background="{DynamicResource LayerFillColorDefaultBrush}">
-                                                <StackPanel>
-                                                    <DockPanel>
-                                                        <TextBlock DockPanel.Dock="Right" FontSize="12" VerticalAlignment="Center"
-                                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}">
-                                                            <Run Text="{Binding Age, Mode=OneWay}" />
-                                                            <Run Text=" old" />
-                                                        </TextBlock>
-                                                        <TextBlock Text="{Binding Name}" FontSize="14" TextTrimming="CharacterEllipsis"
-                                                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                                    </DockPanel>
-                                                    <TextBlock Text="{Binding Image}" FontSize="12" TextTrimming="CharacterEllipsis"
-                                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                                    <TextBlock Text="{Binding Status}" FontSize="12"
-                                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                                    <TextBlock Text="{Binding StartedDuring}" FontSize="12" TextWrapping="Wrap"
-                                                               Visibility="{Binding StartedDuring, Converter={StaticResource NotEmptyToVisibility}}"
-                                                               Foreground="{DynamicResource CautionTextBrush}" />
-                                                    <Button Style="{StaticResource CommandButton}" Content="Remove…" Margin="0,8,0,0"
-                                                            HorizontalAlignment="Left"
-                                                            ToolTip="Stop and delete this container."
-                                                            Command="{Binding AskRemoveCommand}"
-                                                            Visibility="{Binding CanAskRemove, Converter={StaticResource BoolToVisibility}}" />
-                                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0"
-                                                                Visibility="{Binding IsConfirmingRemove, Converter={StaticResource BoolToVisibility}}">
-                                                        <Button Style="{StaticResource CommandButton}" Content="Remove" Margin="0,0,8,0"
-                                                                Command="{Binding ConfirmRemoveCommand}" />
-                                                        <Button Style="{StaticResource CommandButton}" Content="Keep"
-                                                                Command="{Binding KeepCommand}" />
+                                <controls:FoldToggle Style="{StaticResource LockFold}" IsChecked="{Binding Locks.UnownedFold.IsExpanded, Mode=TwoWay}"
+                                                     AutomationProperties.Name="{Binding Locks.Unowned.Count, StringFormat='Unowned test containers ({0})'}">
+                                    <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+                                        <Run Text="Unowned test containers" /><Run Text=" (" /><Run Text="{Binding Locks.Unowned.Count, Mode=OneWay}" /><Run Text=")" />
+                                    </TextBlock>
+                                </controls:FoldToggle>
+                                <StackPanel Margin="24,0,0,4" Visibility="{Binding Locks.UnownedFold.IsExpanded, Converter={StaticResource BoolToVisibility}}">
+                                    <TextBlock FontSize="12" Margin="0,4,0,8" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                               Text="No lock holder accounts for these. A leftover like this can make the next suite fail as if it were broken. Remove only what you know is not a run in progress." />
+                                    <ItemsControl AutomationProperties.Name="Unowned test containers" ItemContainerStyle="{StaticResource ItemNamedByName}" ItemsSource="{Binding Locks.Unowned}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Margin="0,0,0,8" Padding="8,8" CornerRadius="4"
+                                                        Background="{DynamicResource LayerFillColorDefaultBrush}">
+                                                    <StackPanel>
+                                                        <DockPanel>
+                                                            <TextBlock DockPanel.Dock="Right" FontSize="12" VerticalAlignment="Center"
+                                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}">
+                                                                <Run Text="{Binding Age, Mode=OneWay}" />
+                                                                <Run Text=" old" />
+                                                            </TextBlock>
+                                                            <TextBlock Text="{Binding Name}" FontSize="14" TextTrimming="CharacterEllipsis"
+                                                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                                        </DockPanel>
+                                                        <TextBlock Text="{Binding Image}" FontSize="12" TextTrimming="CharacterEllipsis"
+                                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                        <TextBlock Text="{Binding Status}" FontSize="12"
+                                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                        <TextBlock Text="{Binding StartedDuring}" FontSize="12" TextWrapping="Wrap"
+                                                                   Visibility="{Binding StartedDuring, Converter={StaticResource NotEmptyToVisibility}}"
+                                                                   Foreground="{DynamicResource CautionTextBrush}" />
+                                                        <Button Style="{StaticResource CommandButton}" Content="Remove…" Margin="0,8,0,0"
+                                                                HorizontalAlignment="Left"
+                                                                ToolTip="Stop and delete this container."
+                                                                Command="{Binding AskRemoveCommand}"
+                                                                Visibility="{Binding CanAskRemove, Converter={StaticResource BoolToVisibility}}" />
+                                                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0"
+                                                                    Visibility="{Binding IsConfirmingRemove, Converter={StaticResource BoolToVisibility}}">
+                                                            <Button Style="{StaticResource CommandButton}" Content="Remove" Margin="0,0,8,0"
+                                                                    Command="{Binding ConfirmRemoveCommand}" />
+                                                            <Button Style="{StaticResource CommandButton}" Content="Keep"
+                                                                    Command="{Binding KeepCommand}" />
+                                                        </StackPanel>
                                                     </StackPanel>
-                                                </StackPanel>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
                             </StackPanel>
                         </Border>
                     </StackPanel>

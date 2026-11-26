@@ -253,7 +253,7 @@ public partial class App : Application
 
         _lockSweep = new Timer(_ => locks.Sweep(), null, TimeSpan.Zero, TimeSpan.FromSeconds(15));
         _locks = new LocksViewModel(locks, () => DateTimeOffset.UtcNow, ticket => LockColours.For(ticket, shell.Board.Cards), testContainers,
-            (ticket, now) => LockIdle.For(ticket, shell.Board.Cards, now));
+            (ticket, now) => LockIdle.For(ticket, shell.Board.Cards, now)) { Settings = settings };
         shell.Locks = _locks;
 
         // Locks and Chains share the right-hand side and never sit side by side: with the sessions
