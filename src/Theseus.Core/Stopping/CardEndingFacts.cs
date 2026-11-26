@@ -32,4 +32,10 @@ public sealed record CardEndingFacts(
 
     /// <summary>For a scenario writer, when a scenario in its folder was last written, if ever.</summary>
     public DateTimeOffset? ScenariosWrittenUtc { get; init; }
+
+    /// <summary>Whether its project is unattended, as the owner set it in Project properties (2.4 W2).</summary>
+    public bool Unattended { get; init; }
+
+    /// <summary>When its handoff was last written, if it exists.</summary>
+    public DateTimeOffset? HandoffWrittenUtc { get; init; }
 }

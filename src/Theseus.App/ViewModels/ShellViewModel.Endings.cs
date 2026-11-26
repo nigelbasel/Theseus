@@ -4,6 +4,7 @@ using Theseus.Core.Domain;
 using Theseus.Core.Links;
 using Theseus.Core.Persistence;
 using Theseus.Core.Projects;
+using Theseus.App.Services;
 using Theseus.Core.Stopping;
 using Theseus.Core.Terminal;
 
@@ -17,10 +18,14 @@ namespace Theseus.App.ViewModels;
 public sealed partial class ShellViewModel
 {
     /// <summary>What is typed into an idle session to start the turn that carries work handed to it.</summary>
-    public const string HandInMarker = "theseus-next";
+    public const string HandInMarker = StopRouting.HandInMarker;
 
     // Each session is ended by itself once: a session resumed later under the same id is a new run, judged again.
     private readonly HashSet<(string Session, DateTimeOffset Started)> _endedByThemselves = [];
+
+    // Each unattended session's tries after a transport error: the error last tried for, and how many tries in a row. Kept
+    // for this run of Theseus only, so a restart begins counting again.
+    private readonly Dictionary<string, (DateTimeOffset TriedForUtc, int Tries)> _transportTries = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Types a marker into an idle session's console to start its turn. Nothing is raised and focus does not move, so this
@@ -86,6 +91,7 @@ public sealed partial class ShellViewModel
 
         var links = Chains?.AllLinks ?? [];
         var leads = ProjectLeadKeys();
+        var unattended = _settings.Read().UnattendedProjects;
 
         foreach (var card in Board.Cards)
         {
@@ -107,6 +113,8 @@ public sealed partial class ShellViewModel
                 QuestionOpen = Questions.Read(sessionId) is not null,
                 IsLead = leads.Contains(card.Key),
                 ScenariosWrittenUtc = card.Workstream.Role == WorkstreamRole.ScenarioWriter ? ScenariosWritten(card.Workstream.WorkingDirectory) : null,
+                Unattended = UnattendedProjects.IsOn(card.Workstream.Project, unattended),
+                HandoffWrittenUtc = WrittenUtc(HandoffPath.For(card.Workstream)),
             };
 
             if (CardEnding.Decide(facts, now) is not { } reason)
@@ -131,6 +139,86 @@ public sealed partial class ShellViewModel
             var said = CardEnding.Text(reason);
             _cardEvents.Append(new CardEvent(now, card.Key, said));
             TheseusLog.Information("{Workstream}: {Ending}", card.Key, said);
+        }
+    }
+
+    /// <summary>
+    /// Tells each idle card of an unattended project whose turn ended on a network or API error to carry on where it was
+    /// (2.4 W2), after <see cref="TransportResume"/>'s growing delay and up to its cap. A sign-in or a usage limit is never
+    /// tried again: only the owner can fix those. A card whose try is due later gives the time to look again.
+    /// </summary>
+    private void ResumeAfterTransportErrors(DateTimeOffset now, List<DateTimeOffset> waiting)
+    {
+        if (!RunsChecksItself || !HookInstallation.IsInstalled(SettingsFile()))
+        {
+            return;
+        }
+
+        var unattended = _settings.Read().UnattendedProjects;
+
+        foreach (var card in Board.Cards)
+        {
+            if (!UnattendedProjects.IsOn(card.Workstream.Project, unattended)
+                || card.Lifecycle != SessionLifecycle.Idle
+                || card.Workstream.LastSessionId is not { } sessionId
+                || Sessions.Find(sessionId) is not { } session
+                || !string.Equals(session.Status, "idle", StringComparison.OrdinalIgnoreCase)
+                || _unconfirmed.Contains(sessionId)
+                || Headless?.Holds(card.Key) == true
+                || _stopRequests.Waiting(sessionId) is not null || _stopRequests.Delivered(sessionId) is not null
+                || Tells.Waiting.Waiting(sessionId) is not null)
+            {
+                continue;
+            }
+
+            if (TransportError.EndedOn(Theseus.Core.Questions.TranscriptTail.Read(TranscriptLocator.Find(sessionId))) is not { } errorUtc)
+            {
+                _transportTries.Remove(sessionId);
+
+                continue;
+            }
+
+            (DateTimeOffset TriedForUtc, int Tries)? streak = _transportTries.TryGetValue(sessionId, out var held) ? held : null;
+            var tries = streak?.Tries ?? 0;
+
+            if (TransportResume.NextTryUtc(errorUtc, streak) is not { } due)
+            {
+                continue;
+            }
+
+            if (due > now)
+            {
+                waiting.Add(due);
+
+                continue;
+            }
+
+            if (StepsFor([card]).FirstOrDefault() is not { } step
+                || !Tells.Queue(card.Key, card.Title, sessionId, TransportResume.Text, now))
+            {
+                continue;
+            }
+
+            _transportTries[sessionId] = (errorUtc, tries + 1);
+            Wake(step, HandInMarker);
+
+            var said = tries + 1 == TransportResume.Cap
+                ? $"Told to carry on after a network error, the last of {TransportResume.Cap} tries; after this it waits for you"
+                : $"Told to carry on after a network error, try {tries + 1} of {TransportResume.Cap}";
+            _cardEvents.Append(new CardEvent(now, card.Key, said));
+            TheseusLog.Information("{Workstream}: {Resume}", card.Key, said);
+        }
+    }
+
+    private static DateTimeOffset? WrittenUtc(string path)
+    {
+        try
+        {
+            return File.Exists(path) ? new DateTimeOffset(File.GetLastWriteTimeUtc(path), TimeSpan.Zero) : null;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return null;
         }
     }
 

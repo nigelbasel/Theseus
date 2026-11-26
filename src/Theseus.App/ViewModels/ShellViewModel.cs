@@ -175,8 +175,10 @@ public sealed partial class ShellViewModel : ObservableObject
             workstream.Role == WorkstreamRole.None
             && !string.Equals(RowBranchOf(workstream), Theseus.Core.Proposals.ProposalRow.NoBranch, StringComparison.OrdinalIgnoreCase)
             && ProjectBranchRules.GrantedPrimary(workstream.Project, _settings.Read().ProjectBranchRules, PrimaryBranchOf) is { } primary
-                ? ProjectBranchRules.Text(primary, workstream.Slug ?? workstream.Key)
+                ? ProjectBranchRules.Text(primary, workstream.Slug ?? workstream.Key,
+                    ProjectBranchRules.GrantOf(workstream.Project, _settings.Read().ProjectBranchRules)!.Kind)
                 : null;
+        launcher.UnattendedFor = workstream => UnattendedProjects.IsOn(workstream.Project, _settings.Read().UnattendedProjects);
         _projectReads.Changed += (_, _) => WireProjectChoices();
         _theme = settings.Read().Theme;
         _isSessionsPanelOpen = !settings.Read().SessionsPanelCollapsed;
@@ -965,7 +967,9 @@ public sealed partial class ShellViewModel : ObservableObject
             Problem = card.Problem,
             PrimaryBranch = primary,
             GrantsBranchRules = granted,
+            GrantsItemBranches = grant?.Kind == BranchGrantKind.ItemBranches,
             GrantedPrimary = grant?.Primary,
+            IsUnattended = UnattendedProjects.IsOn(card.Name, _settings.Read().UnattendedProjects),
             RunsHeadless = _settings.Read().ProjectRunModes.TryGetValue(card.Name, out var projectMode) && projectMode == RunMode.Headless,
             ResumesIdleCards = _settings.Read().Duties.QueueIsOn(card.Name),
             OpenAt = openAt,
@@ -1053,10 +1057,23 @@ public sealed partial class ShellViewModel : ObservableObject
         }
 
         // OK with the box ticked over a grant for another primary branch grants it for the one the file names now.
+        var kind = properties.GrantsItemBranches ? BranchGrantKind.ItemBranches : BranchGrantKind.MergeIntoPrimary;
+
         if (properties.GrantsBranchRules != granted
-            || (granted && properties.GrantsBranchRules && !string.Equals(grant!.Primary, primary?.Trim(), StringComparison.Ordinal)))
+            || (granted && properties.GrantsBranchRules && !string.Equals(grant!.Primary, primary?.Trim(), StringComparison.Ordinal))
+            || (granted && properties.GrantsBranchRules && grant!.Kind != kind))
         {
-            GrantBranchRules(card, properties.GrantsBranchRules ? primary : null);
+            GrantBranchRules(card, properties.GrantsBranchRules ? primary : null, kind);
+        }
+
+        if (properties.IsUnattended != UnattendedProjects.IsOn(card.Name, _settings.Read().UnattendedProjects))
+        {
+            var current = _settings.Read();
+            _settings.Write(current with { UnattendedProjects = UnattendedProjects.Set(current.UnattendedProjects, card.Name, properties.IsUnattended) });
+            TheseusLog.Information("{Project} switched {State} by the owner", card.Name, properties.IsUnattended ? "to unattended" : "back to attended");
+            Notice = properties.IsUnattended
+                ? $"{card.Title} runs unattended from each card's next start: questions are parked, finished cards end, and network errors are retried."
+                : $"{card.Title}'s cards may ask you again from their next start.";
         }
 
         if (string.Equals(properties.ColourHex, card.ColourHex, StringComparison.OrdinalIgnoreCase))
@@ -1231,7 +1248,8 @@ public sealed partial class ShellViewModel : ObservableObject
     /// </summary>
     /// <param name="card">The project's card.</param>
     /// <param name="primary">The primary branch to grant, as the file names it now, or null to withdraw.</param>
-    private void GrantBranchRules(ProjectCardViewModel card, string? primary)
+    /// <param name="kind">Which rules are granted.</param>
+    private void GrantBranchRules(ProjectCardViewModel card, string? primary, BranchGrantKind kind = BranchGrantKind.MergeIntoPrimary)
     {
         var settings = _settings.Read();
         var rules = new Dictionary<string, ProjectBranchGrant>(settings.ProjectBranchRules, StringComparer.OrdinalIgnoreCase);
@@ -1239,7 +1257,7 @@ public sealed partial class ShellViewModel : ObservableObject
 
         if (grant)
         {
-            rules[card.Name] = new ProjectBranchGrant(DateTimeOffset.Now, primary!.Trim());
+            rules[card.Name] = new ProjectBranchGrant(DateTimeOffset.Now, primary!.Trim()) { Kind = kind };
         }
         else
         {
@@ -1249,7 +1267,9 @@ public sealed partial class ShellViewModel : ObservableObject
         _settings.Write(settings with { ProjectBranchRules = rules });
         TheseusLog.Information("Branch rules for {Project} {Change} by the owner", card.Name, grant ? "granted" : "withdrawn");
         Notice = grant
-            ? $"{card.Title}'s cards may now branch, push and merge into {primary!.Trim()} without asking, from their next start."
+            ? kind == BranchGrantKind.ItemBranches
+                ? $"{card.Title}'s cards may now branch each item off its repository's trunk, push and raise a pull request without asking, from their next start."
+                : $"{card.Title}'s cards may now branch, push and merge into {primary!.Trim()} without asking, from their next start."
             : $"{card.Title}'s cards ask again before any branch or push, from their next start.";
         Refresh();
     }
@@ -4316,6 +4336,7 @@ public sealed partial class ShellViewModel : ObservableObject
         var waiting = new List<DateTimeOffset>();
 
         EndFinishedCards(now, waiting);
+        ResumeAfterTransportErrors(now, waiting);
 
         foreach (var card in Board.Cards)
         {

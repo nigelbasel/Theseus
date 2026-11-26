@@ -57,8 +57,10 @@ public class SettingsStoreTests
             ProjectBranchRules = new Dictionary<string, ProjectBranchGrant>
             {
                 ["a-project"] = new(new DateTimeOffset(2026, 11, 21, 20, 0, 0, TimeSpan.Zero), "nigel/a-project"),
+                ["bug-fixing"] = new(new DateTimeOffset(2026, 11, 26, 9, 0, 0, TimeSpan.Zero), "nigel/bug-fixing") { Kind = BranchGrantKind.ItemBranches },
             },
             CardsToldBranchRules = ["git-25"],
+            UnattendedProjects = ["bug-fixing"],
             HiddenProjectFolders = ["notes"],
             ProjectHoldoutFolders = new Dictionary<string, string> { ["bym"] = @"C:\mine" },
             ProjectUpdaterRuns = new Dictionary<string, string> { ["bym"] = "Does not read: line 3" },
@@ -98,7 +100,9 @@ public class SettingsStoreTests
         Assert.That(read.CardsStoppedByOwner, Is.EqualTo(new[] { "git-24" }));
         Assert.That(read.ProjectBranchRules["a-project"],
             Is.EqualTo(new ProjectBranchGrant(new DateTimeOffset(2026, 11, 21, 20, 0, 0, TimeSpan.Zero), "nigel/a-project")));
+        Assert.That(read.ProjectBranchRules["bug-fixing"].Kind, Is.EqualTo(BranchGrantKind.ItemBranches));
         Assert.That(read.CardsToldBranchRules, Is.EqualTo(new[] { "git-25" }));
+        Assert.That(read.UnattendedProjects, Is.EqualTo(new[] { "bug-fixing" }));
         Assert.That(read.HiddenProjectFolders, Is.EqualTo(new[] { "notes" }));
         Assert.That(read.ProjectHoldoutFolders, Is.EqualTo(new Dictionary<string, string> { ["bym"] = @"C:\mine" }));
         Assert.That(read.ProjectUpdaterRuns, Is.EqualTo(new Dictionary<string, string> { ["bym"] = "Does not read: line 3" }));
@@ -117,6 +121,7 @@ public class SettingsStoreTests
                 ProjectGrouping = settings.ProjectGrouping, ProjectRunStates = settings.ProjectRunStates, ProjectLeads = settings.ProjectLeads,
                 CardsStoppedByOwner = settings.CardsStoppedByOwner, ProjectBranchRules = settings.ProjectBranchRules,
                 CardsToldBranchRules = settings.CardsToldBranchRules, HiddenProjectFolders = settings.HiddenProjectFolders,
+                UnattendedProjects = settings.UnattendedProjects,
                 ProjectHoldoutFolders = settings.ProjectHoldoutFolders,
                 ProjectUpdaterRuns = settings.ProjectUpdaterRuns,
                 ProjectTags = settings.ProjectTags, TagColours = settings.TagColours,

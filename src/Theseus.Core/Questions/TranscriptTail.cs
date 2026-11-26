@@ -90,6 +90,66 @@ public static class TranscriptTail
         return false;
     }
 
+    /// <summary>
+    /// The names of the tools the session called in its current turn: since the last prompt typed or sent to it, not since
+    /// the last tool result, which is the same turn going on. Subagents' calls are passed over. A turn longer than the
+    /// window gives every call in the window, so a refusal leans towards letting the turn end (2.4 W2).
+    /// </summary>
+    public static IReadOnlyList<string> ToolsCalledThisTurn(string? lines)
+    {
+        var called = new List<string>();
+
+        if (lines is null)
+        {
+            return called;
+        }
+
+        foreach (var line in lines.Split('\n'))
+        {
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                continue;
+            }
+
+            try
+            {
+                using var document = JsonDocument.Parse(line);
+                var root = document.RootElement;
+
+                if (root.ValueKind != JsonValueKind.Object
+                    || (root.TryGetProperty("isSidechain", out var sidechain) && sidechain.ValueKind == JsonValueKind.True)
+                    || !root.TryGetProperty("message", out var message) || message.ValueKind != JsonValueKind.Object
+                    || !message.TryGetProperty("content", out var content))
+                {
+                    continue;
+                }
+
+                var type = Text(root, "type");
+
+                if (type == "user" && IsPrompt(content))
+                {
+                    called.Clear();
+                }
+                else if (type == "assistant" && content.ValueKind == JsonValueKind.Array)
+                {
+                    called.AddRange(Blocks(content).Where(block => Text(block, "type") == "tool_use")
+                        .Select(block => Text(block, "name")).OfType<string>());
+                }
+            }
+            catch (JsonException)
+            {
+                // The window's first line is usually cut part-way.
+            }
+        }
+
+        return called;
+    }
+
+    // A prompt is text the session was sent; a user record holding only tool results is the turn going on.
+    private static bool IsPrompt(JsonElement content) =>
+        content.ValueKind == JsonValueKind.String
+        || (content.ValueKind == JsonValueKind.Array && Blocks(content).Any(block => Text(block, "type") != "tool_result"));
+
     private static IEnumerable<Record> Records(string? lines)
     {
         if (lines is null)

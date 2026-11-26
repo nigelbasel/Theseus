@@ -25,6 +25,7 @@ namespace Theseus.Core.Stopping;
 /// </param>
 /// <param name="NotificationType">On a Notification event, its kind: "permission_prompt", "idle_prompt" and others (1.6).</param>
 /// <param name="Message">On a Notification event, what Claude Code says: "Claude needs your permission to use Bash".</param>
+/// <param name="Prompt">On a UserPromptSubmit event, what was typed: one of Theseus's own markers is not the owner.</param>
 public sealed record StopHookInput(
     [property: JsonPropertyName("session_id")] string? SessionId,
     [property: JsonPropertyName("hook_event_name")] string? HookEventName,
@@ -33,7 +34,8 @@ public sealed record StopHookInput(
     [property: JsonPropertyName("transcript_path")] string? TranscriptPath = null,
     [property: JsonPropertyName("last_assistant_message")] string? LastAssistantMessage = null,
     [property: JsonPropertyName("notification_type")] string? NotificationType = null,
-    [property: JsonPropertyName("message")] string? Message = null)
+    [property: JsonPropertyName("message")] string? Message = null,
+    [property: JsonPropertyName("prompt")] string? Prompt = null)
 {
     /// <summary>
     /// Reads what arrived on standard input, or nothing when it cannot be understood.

@@ -35,6 +35,35 @@ try
         return 0;
     }
 
+    // Registered with this argument only in an unattended card's own settings, on the question tool and on Stop (2.4 W2).
+    // The user's own Stop hook runs beside it and does everything else, so this does nothing else; a turn that is being
+    // asked to stop is left to that.
+    if (args.Contains(UnattendedHook.Argument))
+    {
+        if (input.HookEventName == "PreToolUse")
+        {
+            if (UnattendedHook.PreToolUseReply(StatusHook.ToolName(text)) is { } refused)
+            {
+                Console.Out.Write(refused);
+            }
+
+            return 0;
+        }
+
+        var stops = new StopRequestStore(StopRequestRoot.Default);
+
+        if (stops.Waiting(sessionId) is null && stops.Delivered(sessionId) is null
+            && new StopRequestStore(StopRequestRoot.Tells).Waiting(sessionId) is null
+            && UnattendedHook.StopRefusal(input, TranscriptTail.Read) is { } refusal)
+        {
+            Console.Error.Write(refusal);
+
+            return 2;
+        }
+
+        return 0;
+    }
+
     // Registered only for the sessions Theseus launches, and only on its own tools: a call made while
     // Theseus is down is answered with why, rather than failing to connect with nothing said.
     if (input.HookEventName == "PreToolUse")

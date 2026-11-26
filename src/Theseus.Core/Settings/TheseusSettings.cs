@@ -238,6 +238,13 @@ public sealed record TheseusSettings(
     public IReadOnlyList<string> CardsToldBranchRules { get; init; } = [];
 
     /// <summary>
+    /// The projects the owner set unattended in Project properties, by folder name (2.4 W2): their cards are refused the
+    /// question tool and told to park, are ended once they have reported back, and are resumed after a transport error.
+    /// Off for every project until he sets it; kept here, never read from project.md, which sessions write.
+    /// </summary>
+    public IReadOnlyList<string> UnattendedProjects { get; init; } = [];
+
+    /// <summary>
     /// The folders in the projects folder the owner said are not projects, by name (1.1e AC 20): their cards are not shown;
     /// Options lists them and shows them again.
     /// </summary>

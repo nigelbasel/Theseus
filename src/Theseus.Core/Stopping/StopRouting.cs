@@ -20,6 +20,12 @@ public static class StopRouting
     /// </summary>
     public const string NudgeMarker = "theseus-stop";
 
+    /// <summary>What is typed into an idle session to start the turn that carries work handed to it, or a resume.</summary>
+    public const string HandInMarker = "theseus-next";
+
+    /// <summary>Whether a prompt is one of the markers Theseus types, rather than something the owner typed.</summary>
+    public static bool IsMarker(string? prompt) => prompt?.Trim() is NudgeMarker or HandInMarker;
+
     /// <summary>The route for one session, given what it reports and whether a hook is installed.</summary>
     /// <param name="alreadyAsked">
     /// Whether a request for this session is still waiting to be collected. Asking a second time

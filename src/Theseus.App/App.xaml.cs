@@ -306,6 +306,14 @@ public partial class App : Application
                 duties: new Theseus.Core.Mcp.DutyTools(duties, record: (card, text) =>
                     Dispatcher.BeginInvoke(() => shell.RecordDutyEvent(card, text))));
 
+        // From the owner's setting only (2.4 W2): the card a session runs for, and that card's project, as the board has them.
+        mcpHandler.IsUnattended = sessionId => runs.Read()
+            .Where(run => string.Equals(run.ClaudeSessionId, sessionId, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(run => run.StartedUtc)
+            .Select(run => snapshots.Current.Card(run.WorkstreamKey)?.Workstream.Project)
+            .FirstOrDefault() is { } project
+            && Theseus.Core.Projects.UnattendedProjects.IsOn(project, settings.Read().UnattendedProjects);
+
         WireHeadless(shell, settings, mcpHandler);
 
         _mcp = new McpHttpServer(
@@ -322,6 +330,7 @@ public partial class App : Application
             // has gone it can tell them nothing (Nigel, 2026-10-30).
             var hook = Path.Combine(AppContext.BaseDirectory, "Theseus.Hook.exe");
             _launcher.SessionSettings = File.Exists(hook) ? Theseus.Core.Status.TheseusHookSettings.Json(hook) : null;
+            _launcher.UnattendedSessionSettings = File.Exists(hook) ? Theseus.Core.Status.TheseusHookSettings.Json(hook, unattended: true) : null;
             _launcher.Launched = sessionId => new Theseus.Core.Status.StatusSeenStore().Write(sessionId,
                 Theseus.Core.Status.TheseusStatusNotice.Marker(Theseus.Core.Status.TheseusStatusFile.Read(),
                     Theseus.Core.Status.TheseusStatusFile.IsRunning));
