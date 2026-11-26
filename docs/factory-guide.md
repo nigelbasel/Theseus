@@ -14,12 +14,12 @@ Parts 1 and 2 hold on any operating system. To run the method in plain Claude Co
 Theseus, install the `agentic-factory` plugin: [Getting started with the agentic factory](getting-started.md) shows
 how. Part 3 is what Theseus adds on Windows.
 
-Method version described: `method-v0.2`, with the unattended ladder added for `method-v0.3`.
+Method version described: `method-v0.3`.
 
 The method is versioned like code. Its version is a line in each project file (`**Kit:** method-v0.2`), so a change to
-the method never reaches a running project unannounced. This guide describes the method as it is on `main` in the
-Theseus repository: `method-v0.2`, plus the section "Working unattended: decide, record, or park", which is in the
-method files for `method-v0.3` and is not yet released as a tag.
+the method never reaches a running project unannounced. This guide describes the method as it is in the Theseus
+repository: `method-v0.3`, which adds "Working unattended: decide, record, or park" and "Branches, worktrees and
+merging" to `method-v0.2`. It is not yet released as a tag.
 
 Where this guide describes something that is proposed rather than built, it says so with a mark:
 <span class="status proposed">Proposed</span>. Everything without that mark is in the method files or in Theseus's
@@ -294,6 +294,22 @@ number in brackets is where it was learned.
 | An existing test changes only to correct a wrong expectation (P12) | The verifier judges whether a change is a correction or a weakening |
 | No machine paths or card ids in public records (P19) | A test in the suite fails any change that adds them |
 | A child exits once its report is in | Its parent restarts it with an instruction when there is more work |
+| Check for a live owner before resuming | Two sessions in one document corrupt it |
+| Full paths and full URLs, as bare text | A bare name or number means a search every time; a markdown link may show only its label |
+| One log per workstream, every line timestamped | One file to follow per workstream; an untimestamped line cannot tell slow progress from a hang |
+| A live process is not a healthy build | A build stuck on a retry still has a live parent: a log silent for 90 seconds is a likely stall |
+
+### Branches, worktrees and merging
+
+| Rule | What it means |
+|---|---|
+| A primary branch per project, a branch per workstream | `<user>/<project>` off the trunk, named by the owner; `<user>/<workstream>` off it, never `<user>/<project>/<workstream>`, which git cannot hold |
+| Push and merge freely inside a granted project | With the owner's grant, a workstream branches, pushes, merges the primary in and merges into the primary without asking, its suite green before and on the merge result |
+| Clones are pull-only | Work is done in a worktree per repo, `<work>/<workstream>/<repo>`; cleared away, asking first, once the primary's pull request completes |
+| Up to date first | A session brings its branch up to date with its base before new work and says what came in |
+| Verified here, not in CI | CI agents are shared: a build reaches them known green |
+
+The owner-only rung of the unattended ladder, below, lists what a session never decides, branches included.
 
 # Part 2: The method, exactly
 
@@ -316,9 +332,9 @@ Each repository keeps its own **reviewer rubric**, drawn from that codebase's da
 
 Versions are git tags, `method-v<major>.<minor>`, separate from app releases. `method-v0.1` was the kit at the end of
 the first trial on 19 November 2026, after six hand-run changes and 17 lessons. `method-v0.2` (20 November 2026) added
-the evidence block, rule P18, a tighter project file that Theseus can read, and the owner's gates inside a project. At
-the time of writing only `method-v0.1` carries a tag; `method-v0.2` is the version project files name, and the
-unattended ladder described below is being added for `method-v0.3`.
+the evidence block, rule P18, a tighter project file that Theseus can read, and the owner's gates inside a project. `method-v0.3`
+(26 November 2026) adds the unattended ladder described below and the branch, worktree and merge conventions above.
+Only `method-v0.1` carries a tag so far; tagging a version is the owner's.
 
 ## Two modes
 
@@ -803,13 +819,21 @@ slot waiting for an answer.
 
 **1. Owner-only: never decided by a session.**
 
-- Completing, approving, abandoning or auto-completing a pull request into the trunk, and pushing or force-pushing to
-  the trunk. A guard refuses these.
+- Completing, approving, abandoning or auto-completing a pull request into the trunk, voting on it or changing its
+  reviewers, bypassing a branch policy, deleting its source branch, pushing or force-pushing to the trunk, and
+  force-pushing the primary. A guard refuses the trunk's. "Go ahead", "carry on" or "do it" is never this
+  authorisation. A session may create a pull request it was asked for, edit its title and description, comment,
+  resolve threads it has answered, and read its state.
 - Deleting anything: branches, worktrees, files, records.
-- Creating a tracker item.
+- Creating a tracker item. An analysis recommending one, an option picked in a plan, a defect found mid-task and
+  "carry on" are none of them the owner's say-so. Transitions, worklogs, comments and links on the item are fine.
 - Accepting a spec or a bug's rule, and confirming a report.
-- Changing a standing rule.
-- Production, secrets, customer data and every cloud mutation.
+- Changing a standing rule, and naming a new project's primary branch.
+- Machine-wide configuration: drive mappings, PATH and persistent environment variables, the registry, services,
+  scheduled tasks, installed software and global tool configuration.
+- Production, secrets, customer data, and every change to shared cloud infrastructure outside its pipeline.
+  Read-only queries are fine; a data fix on a production-like database is a script for a person to run, in a
+  transaction with the commit left out, printing counts before and after.
 - A product decision the brief and the project's decisions leave open.
 
 **2. Decide and record.** Anything else, the session decides. It takes the option it would recommend, provided all of
@@ -1420,7 +1444,7 @@ Figure 40. A night run. By morning the owner's decisions are gathered in one lis
 | Duties and the overnight queue | <span class="status built">Built</span>, merged 25 November 2026; the queue is off until switched on per project |
 | Pull request and CI status on cards | <span class="status built">Built</span> |
 | L1 and L2 definitions in the method | <span class="status proposed">Proposed</span> |
-| Decide, record, or park, and the trunk guard | <span class="status built">In the method</span> files for `method-v0.3`; not yet released as a tag |
+| Decide, record, or park, the branch conventions, and the trunk guard | <span class="status built">In the method</span> files for `method-v0.3`; not yet released as a tag |
 | A shaping pipeline (discovery, research, specification, objectives) | <span class="status proposed">Proposed</span> |
 | A Method screen in the app, methods versioned per folder | <span class="status proposed">Proposed</span> |
 | A glossary on hover in the app, from the same text as these docs | <span class="status proposed">Proposed</span> |

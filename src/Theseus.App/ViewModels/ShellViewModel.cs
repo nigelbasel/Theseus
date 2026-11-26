@@ -61,6 +61,7 @@ public sealed partial class ShellViewModel : ObservableObject
     private CardRunCommands? _runCommands;
     private IWorkstreamControl? _workstreamControl;
     private bool _projectStartSaid;
+    private string _grantSaid = string.Empty;
     private readonly ProjectViewHost _viewHost;
     private IReadOnlyList<ProjectChoice> _openProjectChoices = [];
     private IReadOnlyList<ProjectChoice> _openSpecChoices = [];
@@ -2213,6 +2214,7 @@ public sealed partial class ShellViewModel : ObservableObject
         if (AskNewProject?.Invoke(string.Empty, string.Empty) is { } details && StartProject(details) is { } home)
         {
             StartLead(details.Name, details.Title, home);
+            SayGrant();
         }
     }
 
@@ -2287,6 +2289,7 @@ public sealed partial class ShellViewModel : ObservableObject
             var home = ProjectStarter.Start(folder, details);
             TheseusLog.Information("Started project {Project} in {Folder}", details.Name, home);
             Notice = $"Started project {details.Name} in {home}. Its project card is on the board.";
+            _grantSaid = GrantAtStart(details);
             _projectReads.MarkStale();
             WireProjects();
 
@@ -2297,6 +2300,50 @@ public sealed partial class ShellViewModel : ObservableObject
             Fail($"Project {details.Name} could not be started: {exception.Message}");
 
             return null;
+        }
+    }
+
+    // Written before the lead card starts, so the lead is told the rules at its first start; what it says is added to the
+    // notice once the project's start has said its own.
+    private string GrantAtStart(NewProjectDetails details)
+    {
+        if (!details.GrantBranchRules)
+        {
+            return string.Empty;
+        }
+
+        if (!NewProjectDefaults.GrantsBranchRules(details))
+        {
+            return "Branch rules were not granted: it names no primary branch they can cover. Grant them in Project properties once it does.";
+        }
+
+        var primary = details.PrimaryBranch.Trim();
+
+        try
+        {
+            var settings = _settings.Read();
+            var rules = new Dictionary<string, ProjectBranchGrant>(settings.ProjectBranchRules, StringComparer.OrdinalIgnoreCase)
+            {
+                [details.Name] = new ProjectBranchGrant(DateTimeOffset.Now, primary),
+            };
+
+            _settings.Write(settings with { ProjectBranchRules = rules });
+            TheseusLog.Information("Branch rules for {Project} granted by the owner in New project", details.Name);
+
+            return $"Its workstreams may branch, push and merge into {primary} without asking.";
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return $"Its branch rules could not be saved ({exception.Message}): grant them in Project properties.";
+        }
+    }
+
+    private void SayGrant()
+    {
+        if (_grantSaid.Length > 0)
+        {
+            Extend(string.IsNullOrWhiteSpace(Notice) ? _grantSaid : $"{Notice} {_grantSaid}");
+            _grantSaid = string.Empty;
         }
     }
 
@@ -2500,6 +2547,7 @@ public sealed partial class ShellViewModel : ObservableObject
             }
 
             Notice = $"{card.Title} is now project {details.Name}, as its first workstream. Fill in its project.md.{copied}";
+            SayGrant();
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ProjectEditRefusedException)
         {
