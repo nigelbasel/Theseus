@@ -3387,8 +3387,9 @@ public sealed partial class ShellViewModel : ObservableObject
         }, RejectSpec);
 
     /// <summary>
-    /// Reject… in the spec window (board-small-changes item 4): nothing is recorded as decided, so the gate still waits; the
-    /// card is told as an accepted one is, so it writes a new version. What was done, for the window.
+    /// Reject… in the spec window (board-small-changes item 4): nothing is recorded as decided, so the gate still waits, and the
+    /// card is told so it writes a new version: a running one with its next turn, a stopped one through events() once it is
+    /// started. Nothing is started (R3). What was done, for the window.
     /// </summary>
     private string RejectSpec(SpecAtGate spec, string? note)
     {
@@ -3402,14 +3403,12 @@ public sealed partial class ShellViewModel : ObservableObject
         {
             told = "No card works it, so no session was told.";
         }
-        else if (Tell(card, text))
-        {
-            told = $"{card.Title} is told with its next turn.";
-        }
         else
         {
-            StartMany([card.Workstream with { StartInstruction = text }], trigger: "SpecRejected");
-            told = $"Starting {card.Title}, told to change it.";
+            // Never started: only Accept's question, which says so, may start a card (R3).
+            told = Tell(card, text)
+                ? $"{card.Title} is told with its next turn."
+                : $"{card.Title} has no session; it is told when it next starts and asks what it missed.";
         }
 
         Notice = $"Rejected the {(spec.IsRule ? "rule" : "spec")} of {spec.Slug}, version {spec.ShortVersion}. {told}";

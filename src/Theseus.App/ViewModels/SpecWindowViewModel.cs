@@ -15,6 +15,7 @@ public sealed class SpecWindowViewModel : ObservableObject
     private readonly Func<SpecAtGate, string?, string>? _reject;
     private bool _isRejecting;
     private string _note = string.Empty;
+    private string? _rejectedVersion;
     private SpecAtGate _shown;
     private bool _isSource;
     private string _notice = string.Empty;
@@ -41,7 +42,12 @@ public sealed class SpecWindowViewModel : ObservableObject
         SourceCommand = new RelayCommand(_ => IsSource = true);
         AcceptCommand = new RelayCommand(_ => Accept(), _ => CanAccept && !_isRejecting);
         AskRejectCommand = new RelayCommand(_ => IsRejecting = true, _ => CanReject && !_isRejecting);
-        RejectCommand = new RelayCommand(_ => Reject(), _ => _isRejecting);
+        RejectCommand = new RelayCommand(_ => Reject(), _ => _isRejecting && CanReject);
+        CancelRejectCommand = new RelayCommand(_ =>
+        {
+            IsRejecting = false;
+            Note = string.Empty;
+        }, _ => _isRejecting);
         OpenInEditorCommand = new RelayCommand(_ => _openInEditor(_shown), _ => _shown.FilePath is not null);
     }
 
@@ -115,8 +121,16 @@ public sealed class SpecWindowViewModel : ObservableObject
     /// <summary>Rejects the version on screen with the note.</summary>
     public RelayCommand RejectCommand { get; }
 
-    /// <summary>Whether Reject… can run: the version on screen can still be decided.</summary>
-    public bool CanReject => _reject is not null && WhyNot is null;
+    /// <summary>Puts the note away without rejecting.</summary>
+    public RelayCommand CancelRejectCommand { get; }
+
+    /// <summary>
+    /// Whether Reject… can run: the version on screen can still be decided and was not rejected already, so its session is
+    /// told once.
+    /// </summary>
+    public bool CanReject => _reject is not null && WhyNot is null && !IsRejectedOnScreen;
+
+    private bool IsRejectedOnScreen => string.Equals(_rejectedVersion, _shown.ContentHash, StringComparison.Ordinal);
 
     /// <summary>Whether the window has Reject… at all.</summary>
     public bool HasReject => _reject is not null;
@@ -143,7 +157,9 @@ public sealed class SpecWindowViewModel : ObservableObject
 
     /// <summary>Reject…'s tooltip: why it cannot run, or what it does.</summary>
     public string RejectToolTip => WhyNot
-        ?? $"Send the {Noun.ToLowerInvariant()} back to its session to be written again, with a note; asks for the note first";
+        ?? (IsRejectedOnScreen
+            ? $"Version {_shown.ShortVersion} was rejected; its session is told to write a new one"
+            : $"Send the {Noun.ToLowerInvariant()} back to its session to be written again, with a note; asks for the note first. Nothing is started");
 
     /// <summary>Raised when the text on screen has changed, so the window draws it again.</summary>
     public event EventHandler? Redrawn;
@@ -218,6 +234,7 @@ public sealed class SpecWindowViewModel : ObservableObject
 
         var note = string.IsNullOrWhiteSpace(_note) ? null : _note.Trim();
         var told = _reject(_shown, note);
+        _rejectedVersion = _shown.ContentHash;
         IsRejecting = false;
         Note = string.Empty;
         Notice = $"Rejected version {_shown.ShortVersion}. {told}";

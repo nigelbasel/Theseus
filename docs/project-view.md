@@ -108,7 +108,8 @@ on the board accepts it. **Properties** shows the record: the version, when, by 
 <card>'s tab, confirmed on the board").
 The window follows its file: a spec changed on disk is drawn again and says so, and one changed since it was drawn is
 drawn again before it can be accepted. **Reject…** beside Accept asks what to change, optionally, then sends the version on
-screen back: the card is told as it is when you accept, with your note, and the gate waits for its next version. A bug's
+screen back with your note: a running session is told with its next turn, a stopped card when it next starts, and
+nothing is started. The gate waits for its next version; **Don't reject** puts the note away. A bug's
 rule has the same window and buttons. **Open in editor** opens the file itself; **Close** or **Esc** closes the window.
 
 A session in a project creates a new workstream naming the objective it serves, its records folder, its branch and its

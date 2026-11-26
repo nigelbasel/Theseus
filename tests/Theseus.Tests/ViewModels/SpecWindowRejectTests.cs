@@ -86,13 +86,56 @@ public class SpecWindowRejectTests
     }
 
     [Test]
+    public void AVersionRejected_CannotBeRejectedAgain_UntilItChanges()
+    {
+        var spec = Write("v1");
+        var model = Model(spec);
+        model.AskRejectCommand.Execute(null);
+        model.RejectCommand.Execute(null);
+
+        Assert.That((model.CanReject, model.AskRejectCommand.CanExecute(null)), Is.EqualTo((false, false)));
+        Assert.That(model.RejectToolTip, Is.EqualTo($"Version {spec.ShortVersion} was rejected; its session is told to write a new one"));
+
+        File.WriteAllText(spec.FilePath!, "v2");
+        model.Refresh();
+
+        Assert.That(model.CanReject, Is.True, "a new version can be decided again");
+    }
+
+    [Test]
+    public void AVersionAcceptedWhileTheNoteWasOpen_CannotThenBeRejected()
+    {
+        string? accepted = null;
+        var model = Model(Write("v1"), whyNot: _ => accepted);
+        model.AskRejectCommand.Execute(null);
+
+        accepted = "Version 1 was accepted.";
+        model.Refresh();
+
+        Assert.That(model.RejectCommand.CanExecute(null), Is.False);
+    }
+
+    [Test]
+    public void Cancel_PutsTheNoteAway_RejectsNothing_AndAcceptCanRunAgain()
+    {
+        var model = Model(Write("v1"));
+        model.AskRejectCommand.Execute(null);
+        model.Note = "half a thought";
+
+        model.CancelRejectCommand.Execute(null);
+
+        Assert.That((model.IsRejecting, model.Note, _rejected.Count, model.AcceptCommand.CanExecute(null)),
+            Is.EqualTo((false, string.Empty, 0, true)));
+    }
+
+    [Test]
     public void ARulesWindow_SaysRule()
     {
         File.WriteAllText(Path.Combine(_folder, "fix.md"), "## Rule\n\nIt holds.");
         var rule = new SpecAtGate("theseus", "bug1", SpecIdentity.Hash("It holds."), "It holds.", new WorkstreamSource(_folder)) { IsRule = true };
         var model = Model(rule);
 
-        Assert.That(model.RejectToolTip, Is.EqualTo("Send the rule back to its session to be written again, with a note; asks for the note first"));
+        Assert.That(model.RejectToolTip, Is.EqualTo("Send the rule back to its session to be written again, with a note; asks for the note first. Nothing is started"));
     }
 
     [Test]
