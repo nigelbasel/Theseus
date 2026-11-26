@@ -51,14 +51,14 @@ public static class SessionOpening
     }
 
     /// <summary>
-    /// Whether this workstream has been worked before. Never for a verifier: each of its runs is one independent check,
-    /// opened with its own prompt rather than told to continue (Nigel, 2026-11-25).
+    /// Whether this workstream has been worked before. Never for a verifier or a scenario writer: each of its runs is opened
+    /// with its own prompt rather than told to continue (Nigel, 2026-11-25).
     /// </summary>
     public static bool HasHistory(Workstream workstream, bool handoffExists)
     {
         ArgumentNullException.ThrowIfNull(workstream);
 
-        return workstream.Role != WorkstreamRole.Verifier && (handoffExists || !string.IsNullOrWhiteSpace(workstream.LastSessionId));
+        return !StartModeChoice.StartsFresh(workstream.Role) && (handoffExists || !string.IsNullOrWhiteSpace(workstream.LastSessionId));
     }
 
     /// <summary>Said when the handoff a continuation points at is not on disk.</summary>

@@ -2656,9 +2656,7 @@ public sealed partial class ShellViewModel : ObservableObject
                 acceptances.Count(acceptance => string.Equals(acceptance.Project, reading.Name, StringComparison.OrdinalIgnoreCase)),
                 StartRequests.Pending, key => Board.Card(key)?.Title ?? key, WrongVerifiersOf(reading.Name), ClearUpNoticeOf(reading),
                 checkPlan.Underway, others,
-                [.. ChecksThatCannotRun(reading, pieces, checkPlan), .. HeadlessWaits.For(cards
-                    .Where(card => string.Equals(card.Workstream.Project, reading.Name, StringComparison.OrdinalIgnoreCase))
-                    .Select(card => card.Workstream), key => Headless?.StateOf(key))],
+                WaitsOnTheChecks(reading, pieces, checkPlan, cards),
                 OwnerAccount.Names);
             TakeCheckSteps(reading, pieces, checkPlan);
             var file = reading.File!;

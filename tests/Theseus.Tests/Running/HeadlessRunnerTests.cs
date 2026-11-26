@@ -27,7 +27,7 @@ public class HeadlessRunnerTests
         _folder = Path.Combine(Path.GetTempPath(), "theseus-runner-" + Guid.NewGuid().ToString("N"));
         _clock = new MovingClock(new DateTimeOffset(2026, 11, 24, 12, 0, 0, TimeSpan.Zero));
         _ledger = new RunLedger(Path.Combine(_folder, "run-ledger.jsonl"));
-        _settings = TheseusSettings.Default with { MaxHeadlessRuns = 1 };
+        _settings = TheseusSettings.Default with { MaxHeadlessRuns = 1, Budgets = TheseusSettings.Default.Budgets with { RunCostLimitUsd = 5m, RunTokenLimit = 3_000_000, RunTimeLimitMinutes = 120 } };
         _runner = Runner();
     }
 
@@ -73,6 +73,17 @@ public class HeadlessRunnerTests
         var process = _processes.Single();
         Assert.That(process.Request.Arguments, Does.Contain("-p").And.Contain("--max-budget-usd"));
         Assert.That(process.Input.Single(), Does.Contain("Read your brief."));
+    }
+
+    [Test]
+    public void WithNoCostLimitSet_TheRunHasNoCostCapOnTheCommandLine()
+    {
+        _settings = TheseusSettings.Default with { MaxHeadlessRuns = 1 };
+        _runner = Runner();
+
+        _runner.Submit(Submission());
+
+        Assert.That(_processes.Single().Request.Arguments, Does.Contain("-p").And.Not.Contain("--max-budget-usd"));
     }
 
     [Test]

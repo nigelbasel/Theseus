@@ -23,6 +23,34 @@ public class HeadlessLimitSettingsTests
         Assert.That(setting.Show(changed), Is.EqualTo("$7.50"));
     }
 
+    [TestCase("Cost per run")]
+    [TestCase("Tokens per run")]
+    [TestCase("Minutes per run")]
+    public void APerRunLimit_IsOffByDefault_AndSaysSo(string label)
+    {
+        var setting = Named(label);
+
+        Assert.That(setting.Show(TheseusSettings.Default), Is.EqualTo("Off"));
+        Assert.That(setting.Explanation, Does.Contain("Default off"));
+    }
+
+    [Test]
+    public void APerRunLimit_CanBeSwitchedOn_AndOffAgain()
+    {
+        var setting = Named("Minutes per run");
+        var on = setting.Apply(TheseusSettings.Default, "180")!;
+
+        Assert.That((on.Budgets.RunTimeLimitMinutes, setting.Show(on)), Is.EqualTo(((int?)180, "180")));
+        Assert.That(setting.Apply(on, "Off")!.Budgets.RunTimeLimitMinutes, Is.Null);
+        Assert.That(Named("Cost per run").Apply(on, "")!.Budgets.RunCostLimitUsd, Is.Null, "an empty value is no limit");
+    }
+
+    [Test]
+    public void TheGracePastTheTimeLimit_SaysItAppliesOnlyWhenATimeLimitIsSet()
+    {
+        Assert.That(Named("Minutes of grace past the time limit").Explanation, Does.Contain("Minutes per run is set"));
+    }
+
     [Test]
     public void ACount_TakesThousandsSeparators()
     {

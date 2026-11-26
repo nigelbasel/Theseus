@@ -3,25 +3,28 @@ using System.Text.Json.Nodes;
 namespace Theseus.Core.Settings;
 
 /// <summary>
-/// The daily cost limits went off by default (Nigel, 2026-11-25), but every settings file written before then holds $20
-/// and $60 only because the whole budget is written back, defaults and all. Those are dropped as the file is read; a figure
-/// someone chose is carried over under the new name. The new name is what makes this happen once: a limit set to $20
-/// afterwards is never taken for the old default.
+/// The daily cost limits went off by default, then the per-run cost, token and time limits (Nigel, 2026-11-25), but every
+/// settings file written before then holds the old defaults only because the whole budget is written back, defaults and
+/// all. Those are dropped as the file is read; a figure someone chose is carried over under the new name. The new name is
+/// what makes this happen once: a limit set to an old default afterwards is never taken for it.
 /// </summary>
-public static class DayLimitUpgrade
+public static class LimitUpgrade
 {
     private static readonly (string Old, string New, decimal OldDefault)[] Renamed =
     [
         ("cardDayCostLimitUsd", "cardDayLimitUsd", 20.00m),
         ("projectDayCostLimitUsd", "projectDayLimitUsd", 60.00m),
+        ("runCostLimitUsd", "runLimitUsd", 5.00m),
+        ("runTokenLimit", "runLimitTokens", 3_000_000m),
+        ("runTimeLimitMinutes", "runLimitMinutes", 120m),
     ];
 
-    /// <summary>The settings text with the old day limits upgraded, or unchanged when it holds none.</summary>
+    /// <summary>The settings text with the old limits upgraded, or unchanged when it holds none.</summary>
     public static string Apply(string json)
     {
         ArgumentNullException.ThrowIfNull(json);
 
-        if (!json.Contains("DayCostLimitUsd", StringComparison.OrdinalIgnoreCase) || JsonNode.Parse(json) is not JsonObject root)
+        if (!Renamed.Any(rename => json.Contains(rename.Old, StringComparison.OrdinalIgnoreCase)) || JsonNode.Parse(json) is not JsonObject root)
         {
             return json;
         }
@@ -62,7 +65,7 @@ public static class DayLimitUpgrade
 
             if (Named(budget, renamed) is null && value is JsonValue figure && figure.TryGetValue<decimal>(out var chosen) && chosen != oldDefault)
             {
-                budget[renamed] = chosen;
+                budget[renamed] = figure;
             }
         }
     }
