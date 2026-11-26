@@ -164,10 +164,25 @@
                                   Content="Allow branch rules for this project" />
                     </controls:SettingRow>
 
+                    <controls:SettingRow x:Name="ItemBranchesRow" Label="Branch kind"
+                                         Explanation="Instead of merging into the primary branch, each item gets its own branch off its repository's trunk and a pull request into the trunk, which you complete. Cards never complete one.">
+                        <CheckBox x:Name="ItemBranchesBox" IsChecked="{Binding GrantsItemBranches, Mode=TwoWay}"
+                                  IsEnabled="{Binding CanChooseItemBranches, Mode=OneWay}" ToolTipService.ShowOnDisabled="True"
+                                  ToolTip="Needs the branch rules above"
+                                  Content="A branch per _item off its repository's trunk" />
+                    </controls:SettingRow>
+
                     <controls:SettingRow x:Name="RunModeRow" Label="Run mode"
                                          Explanation="Headless runs need no tab and work inside their budgets; a card's own run mode still comes first.">
                         <CheckBox x:Name="RunsHeadlessBox" IsChecked="{Binding RunsHeadless, Mode=TwoWay}"
                                   Content="Run this project's cards _headless" />
+                    </controls:SettingRow>
+
+                    <!-- The owner's setting only: no session and no project file can switch it (2.4 W2). -->
+                    <controls:SettingRow x:Name="UnattendedRow" Label="Unattended"
+                                         Explanation="When on, nobody is expected at the desk: cards are refused the question tool and park their questions on the board, a card that has reported back is ended, and a turn cut off by a network error is tried again. From each card's next start.">
+                        <CheckBox x:Name="UnattendedBox" IsChecked="{Binding IsUnattended, Mode=TwoWay}"
+                                  Content="Run this project _unattended" AutomationProperties.Name="Run this project unattended" />
                     </controls:SettingRow>
                 </StackPanel>
             </TabItem>

@@ -90,6 +90,34 @@ public static partial class ProjectBranchRules
     }
 
     /// <summary>
+    /// The text for the kind of rules granted (2.4 W2): the first kind as <see cref="Text(string, string)"/>; for item
+    /// branches, a branch per item off its repository's trunk, pushed, with a pull request the owner completes. The trunk
+    /// rules are said whatever the project's file says, and the tracker states a card may move an item to are read from the
+    /// tracker, never written here.
+    /// </summary>
+    public static string Text(string primary, string ownName, BranchGrantKind kind)
+    {
+        if (kind == BranchGrantKind.MergeIntoPrimary)
+        {
+            return Text(primary, ownName);
+        }
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(primary);
+        ArgumentException.ThrowIfNullOrWhiteSpace(ownName);
+
+        var owner = primary.Trim().LastIndexOf('/') is var slash and > 0 ? primary.Trim()[..(slash + 1)] : string.Empty;
+
+        return $"Project branch rules (granted by the owner for this project): for the item you work on, you may create your own "
+               + $"branch {owner}{ownName.Trim()} off its repository's trunk, with its worktree, commit, push that branch, and raise "
+               + "a pull request from it into the trunk. Never complete, merge, approve, auto-complete or abandon a pull request "
+               + "into the trunk, and never push to the trunk: those are the owner's, whatever the project's file says. Your "
+               + "project's Decisions table in project.md says what you may do on its tracker; the states you may move an item to "
+               + "are the ones its tracker offers it now, so read them from the tracker (its transitions) before moving it, never "
+               + "from memory. Ask the user before creating any tracker item, a force push, deleting a branch, and anything "
+               + "outside this project's repositories.";
+    }
+
+    /// <summary>
     /// The opening a card is given: the brief's line that authorises no branch replaced by the rules, or the rules added
     /// at the end, saying they replace any such line, when the opening has none; unchanged without rules.
     /// </summary>

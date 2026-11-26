@@ -35,6 +35,22 @@ public sealed partial class McpHandler
     /// <summary>The protocol versions understood, newest first.</summary>
     public static readonly IReadOnlyList<string> SupportedVersions = ["2025-06-18", "2025-03-26", "2024-11-05"];
 
+    /// <summary>What an attended card is told about asking the owner.</summary>
+    public const string AskSentence =
+        "When you need the user's answer before you can go on, ask with the question tool and call ask_owner with the "
+        + "same question, so it shows in Theseus; never ask only in prose, which leaves your card looking finished. ";
+
+    /// <summary>
+    /// What a card of an unattended project is told instead (2.4 W2): nobody is at the desk, so it parks, following the
+    /// method's decide, record or park ladder, rather than asking with the question tool, which is refused it.
+    /// </summary>
+    public const string ParkSentence =
+        "This project runs unattended: nobody is at the desk, and the question tool is refused. When a choice is not yours "
+        + "by the method's ladder, park it: call ask_owner with the question, its options and your recommendation, record who "
+        + "it waits on with set_waiting, and carry on with what does not depend on it; when nothing is left, commit, write "
+        + "your handoff and call report_back with verdict partial. Decide and record anything else with record_decision. "
+        + "Never end a turn on a question asked in prose. ";
+
     /// <summary>What sessions are told about the server when they connect.</summary>
     public const string Instructions =
         "Theseus launched this session and measures its time; you only say what you are working on. "
@@ -79,8 +95,7 @@ public sealed partial class McpHandler
         + "tick_criterion, add an objective with add_objective, write an existing objective's criteria with set_criteria, "
         + "record a decision with record_decision and say who a "
         + "criterion waits on with set_waiting. Write prose by hand, never those lines. "
-        + "When you need the user's answer before you can go on, ask with the question tool and call ask_owner with the "
-        + "same question, so it shows in Theseus; never ask only in prose, which leaves your card looking finished. "
+        + AskSentence
         + "For work that recurs, such as checking for something new every hour, call set_duty instead of running a loop in "
         + "your tab: Theseus keeps it across restarts and the user can see, pause and change it.";
 
@@ -186,6 +201,16 @@ public sealed partial class McpHandler
     /// </summary>
     public Action<string, string>? ToolCalled { get; set; }
 
+    /// <summary>
+    /// Whether a session's card is in a project the owner set unattended (2.4 W2), asked when it connects and when it asks
+    /// the owner; null for none. Read from Theseus's settings, which no tool writes.
+    /// </summary>
+    public Func<string, bool>? IsUnattended { get; set; }
+
+    /// <summary>The instructions for a card, attended or not.</summary>
+    public static string InstructionsFor(bool unattended) =>
+        unattended ? Instructions.Replace(AskSentence, ParkSentence, StringComparison.Ordinal) : Instructions;
+
     /// <summary>Answers one POSTed JSON-RPC message for the session its path names.</summary>
     public McpResponse Handle(string sessionId, string body, string? protocolVersionHeader)
     {
@@ -221,7 +246,7 @@ public sealed partial class McpHandler
 
         return method switch
         {
-            "initialize" => Ok(id, Initialize(request["params"] as JsonObject)),
+            "initialize" => Ok(id, Initialize(request["params"] as JsonObject, IsUnattended?.Invoke(sessionId) == true)),
             "ping" => Ok(id, new JsonObject()),
             "tools/list" => Ok(id, ToolsList()),
             "tools/call" => CallTool(id, sessionId, request["params"] as JsonObject),
@@ -229,7 +254,7 @@ public sealed partial class McpHandler
         };
     }
 
-    private static JsonObject Initialize(JsonObject? parameters)
+    private static JsonObject Initialize(JsonObject? parameters, bool unattended)
     {
         var requested = Text(parameters?["protocolVersion"]);
 
@@ -238,7 +263,7 @@ public sealed partial class McpHandler
             ["protocolVersion"] = requested is not null && SupportedVersions.Contains(requested) ? requested : SupportedVersions[0],
             ["capabilities"] = new JsonObject { ["tools"] = new JsonObject { ["listChanged"] = false } },
             ["serverInfo"] = new JsonObject { ["name"] = TheseusMcp.ServerName, ["title"] = "Theseus", ["version"] = "1.0.0" },
-            ["instructions"] = Instructions,
+            ["instructions"] = InstructionsFor(unattended),
         };
     }
 
@@ -645,7 +670,7 @@ public sealed partial class McpHandler
             return Result("This Theseus does not show questions on the board.", isError: true);
         }
 
-        var (text, isError) = _askOwner.Call(session, arguments);
+        var (text, isError) = _askOwner.Call(session, arguments, IsUnattended?.Invoke(session.SessionId) == true);
 
         return Result(text, isError);
     }

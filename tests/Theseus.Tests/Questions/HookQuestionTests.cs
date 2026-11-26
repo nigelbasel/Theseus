@@ -64,6 +64,17 @@ public class HookQuestionTests
         Assert.That(_store.Read(SessionId), Is.Null);
     }
 
+    [TestCase(StopRouting.NudgeMarker)]
+    [TestCase(StopRouting.HandInMarker)]
+    public void AMarkerTheseusTyped_IsNotTheOwnerAnswering(string marker)
+    {
+        _store.Ask(new OwnerQuestion(SessionId, "Which store?", IsGuess: false, Nine));
+
+        HookQuestion.OnEvent(new StopHookInput(SessionId, "UserPromptSubmit", Prompt: marker), _store, _ => null, Nine, delivered: false);
+
+        Assert.That(_store.Read(SessionId), Is.Not.Null, "a parked question stays on the board through a hand-in or a resume");
+    }
+
     [Test]
     public void AnAnswerThroughTheQuestionTool_AfterTheQuestion_AnswersIt()
     {

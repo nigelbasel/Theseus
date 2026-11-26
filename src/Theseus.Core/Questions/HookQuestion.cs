@@ -31,9 +31,13 @@ public static class HookQuestion
             return;
         }
 
+        // A marker Theseus typed to hand in work or resume a card is not the owner answering (2.4 W2).
         if (input.HookEventName == "UserPromptSubmit")
         {
-            store.Clear(sessionId);
+            if (!StopRouting.IsMarker(input.Prompt))
+            {
+                store.Clear(sessionId);
+            }
 
             return;
         }
