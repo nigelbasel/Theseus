@@ -24,6 +24,7 @@ public sealed class LockBook
     private const int SessionMissesBeforeGone = 2;
     private const int EndedRemembered = 500;
     private const int DeadlocksRemembered = 50;
+    private const int RunsRemembered = 200;
 
     private readonly Lock _gate = new();
     private readonly List<LockTicket> _tickets;
@@ -31,6 +32,8 @@ public sealed class LockBook
     private readonly Queue<string> _endedOrder = new();
     private readonly Dictionary<string, int> _sessionMisses = new(StringComparer.Ordinal);
     private readonly List<StoppedDeadlock> _deadlocks = [];
+    private readonly List<RunResult> _runs = [];
+    private readonly Func<string, string> _cardFamily;
     private readonly LockStateStore _store;
     private readonly LockHistory _history;
     private readonly ILockLiveness _liveness;
@@ -47,6 +50,7 @@ public sealed class LockBook
     /// <param name="tree">Finds the test hosts under a test run's holder, so they can be cleared if it dies.</param>
     /// <param name="cleaner">Clears what a dead test run's holder left running before the next is granted.</param>
     /// <param name="table">Each resource's capacity and clashes; the seeded table when not given.</param>
+    /// <param name="cardFamily">The card a card's runs count as: a verifier's is the card it verifies.</param>
     public LockBook(
         LockStateStore store,
         LockHistory history,
@@ -54,7 +58,8 @@ public sealed class LockBook
         ISystemClock clock,
         IProcessTree? tree = null,
         IOrphanCleaner? cleaner = null,
-        ResourceTable? table = null)
+        ResourceTable? table = null,
+        Func<string, string>? cardFamily = null)
     {
         _store = store;
         _history = history;
@@ -63,6 +68,7 @@ public sealed class LockBook
         _tree = tree;
         _cleaner = cleaner;
         _table = table ?? ResourceTable.Seeded();
+        _cardFamily = cardFamily ?? (card => card);
 
         var now = clock.UtcNow;
         _lastAwakeUtc = now;
@@ -94,6 +100,40 @@ public sealed class LockBook
             return [.. _deadlocks];
         }
     }
+
+    /// <summary>How the most recent runs held through the lock ended, newest last.</summary>
+    public IReadOnlyList<RunResult> RecentRuns()
+    {
+        lock (_gate)
+        {
+            return [.. _runs];
+        }
+    }
+
+    /// <summary>Records how a run ended against its commit and command, and lets its hold go.</summary>
+    public LockAnswer Finish(string token, int exitCode) =>
+        Change(now =>
+        {
+            var index = IndexOf(token);
+
+            if (index < 0)
+            {
+                return (Answer(token, now), false);
+            }
+
+            var ticket = _tickets[index];
+            _runs.Add(new RunResult(ticket.Card, ticket.Commit, ticket.Command, exitCode, now));
+
+            if (_runs.Count > RunsRemembered)
+            {
+                _runs.RemoveAt(0);
+            }
+
+            End(index, now, ticket.IsHolder ? LockEventKind.Released : LockEventKind.WaiterDropped, $"Finished with exit {exitCode}.", null, exitCode);
+            Promote(now);
+
+            return (new LockAnswer(LockStatus.Ended, $"Recorded exit {exitCode} and released the {ticket.Lock} lock.", token, ticket.Lock), true);
+        });
 
     /// <summary>Raised after any change to a lock or a queue, on whichever thread made it.</summary>
     public event EventHandler? Changed;
@@ -134,11 +174,11 @@ public sealed class LockBook
 
         return Change(now =>
         {
-            var scope = ScopeOf(name, request.Scope);
+            var scope = ScopeOf(name, request.Scope, request.Command, Trimmed(request.Root) ?? Trimmed(request.WorkingDirectory));
 
             if (scope.Count == 0)
             {
-                return (new LockAnswer(LockStatus.Refused, "A lock request needs a lock or a scope."), false);
+                return (new LockAnswer(LockStatus.Refused, "A lock request needs a lock, a scope or a command."), false);
             }
 
             var label = name ?? string.Join(" + ", scope);
@@ -152,6 +192,15 @@ public sealed class LockBook
                 var existing = _tickets[index];
                 token = existing.Token;
                 _tickets[index] = existing with { LastSeenUtc = now, Reason = Trimmed(request.Reason) ?? existing.Reason };
+            }
+            else if (!request.Again && SameRun(request) is { } running)
+            {
+                var state = running.IsHolder ? "granted" : "waiting";
+                var since = (running.GrantedUtc ?? running.RequestedUtc).ToString("HH:mm 'UTC'", CultureInfo.InvariantCulture);
+
+                return (new LockAnswer(LockStatus.Refused,
+                    $"{running.Card} is already running this command on {running.Commit} ({state}, since {since}). " +
+                    "Wait for it: its result is shown by `ndc-test-lock.sh status`.", running.Token, running.Lock), false);
             }
             else
             {
@@ -179,7 +228,8 @@ public sealed class LockBook
                     return (new LockAnswer(LockStatus.Refused, stopped.Detail), true);
                 }
 
-                _history.Append(new LockEvent(now, LockEventKind.Requested, label, ticket.Who, ticket.Purpose, Detail: ticket.Reason));
+                _history.Append(new LockEvent(now, LockEventKind.Requested, label, ticket.Who, ticket.Purpose, Detail: ticket.Reason,
+                    Scope: string.Join(" + ", scope), Command: ticket.Command, Commit: ticket.Commit));
                 changed = true;
             }
 
@@ -280,7 +330,7 @@ public sealed class LockBook
 
         return Change(now =>
         {
-            var name = lockName ?? string.Join(" + ", ScopeOf(lockName, request.Scope));
+            var name = lockName ?? string.Join(" + ", ScopeOf(lockName, request.Scope, request.Command, Trimmed(request.Root) ?? Trimmed(request.WorkingDirectory)));
             var key = KeyFor(name, request);
             var index = _tickets.FindIndex(ticket => string.Equals(ticket.RequesterKey, key, StringComparison.Ordinal));
 
@@ -605,14 +655,22 @@ public sealed class LockBook
         return plan.Granted.Contains(request.Token) ? null : DeadlockCheck.Closes(_tickets, request, _table, plan.Reserved, now);
     }
 
-    private void End(int index, DateTimeOffset now, LockEventKind kind, string clientDetail, string? historyDetail)
+    private void End(int index, DateTimeOffset now, LockEventKind kind, string clientDetail, string? historyDetail, int? exitCode = null)
     {
         var ticket = _tickets[index];
         _tickets.RemoveAt(index);
 
-        _history.Append(ticket.GrantedUtc is { } granted
+        var ended = ticket.GrantedUtc is { } granted
             ? new LockEvent(now, kind, ticket.Lock, ticket.Who, ticket.Purpose, Seconds(granted - ticket.RequestedUtc), Seconds(now - granted), historyDetail)
-            : new LockEvent(now, kind, ticket.Lock, ticket.Who, ticket.Purpose, Seconds(now - ticket.RequestedUtc), Detail: historyDetail));
+            : new LockEvent(now, kind, ticket.Lock, ticket.Who, ticket.Purpose, Seconds(now - ticket.RequestedUtc), Detail: historyDetail);
+
+        _history.Append(ended with
+        {
+            Scope = string.Join(" + ", ticket.Claims),
+            Command = ticket.Command,
+            Commit = ticket.Commit,
+            ExitCode = exitCode,
+        });
 
         if (ticket.SessionId is { } sessionId && !_tickets.Any(other => other.SessionId == sessionId))
         {
@@ -666,8 +724,40 @@ public sealed class LockBook
     private bool Clash(LockTicket one, LockTicket other) =>
         !_table.Fits(one.Claims, [other.Claims]);
 
-    private IReadOnlyList<ResourceClaim> ScopeOf(string? name, IReadOnlyList<ResourceClaim>? declared) =>
-        ResourceClaim.Normalise([.. PredefinedScopes.Find(name, _table) ?? [], .. declared ?? []]);
+    /// <summary>
+    /// What a request is held for: its predefined scope, what it declared, and the least its command needs; a command
+    /// the classes do not recognise, with nothing else declared, is held for everything the old tests lock guarded.
+    /// </summary>
+    private IReadOnlyList<ResourceClaim> ScopeOf(string? name, IReadOnlyList<ResourceClaim>? declared, string? command = null, string? root = null)
+    {
+        var least = string.IsNullOrWhiteSpace(command) ? [] : CommandClasses.Shipped.LeastScope(command, root);
+        var scope = ResourceClaim.Normalise([.. PredefinedScopes.Find(name, _table) ?? [], .. declared ?? [], .. least]);
+
+        return scope.Count == 0 && !string.IsNullOrWhiteSpace(command)
+            ? PredefinedScopes.Find(LockNames.Tests, _table)!
+            : scope;
+    }
+
+    private LockTicket? SameRun(LockRequest request)
+    {
+        if (Trimmed(request.Card) is not { } card || Trimmed(request.Commit) is not { } commit || Normalised(request.Command) is not { } command)
+        {
+            return null;
+        }
+
+        var family = _cardFamily(card);
+
+        return _tickets.FirstOrDefault(ticket =>
+            ticket.Card is { } other
+            && string.Equals(_cardFamily(other), family, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(ticket.Commit, commit, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(Normalised(ticket.Command), command, StringComparison.Ordinal));
+    }
+
+    private static string? Normalised(string? command) =>
+        string.IsNullOrWhiteSpace(command)
+            ? null
+            : string.Join(' ', command.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)).ToLowerInvariant();
 
     private static string? OwnerOf(LockRequest request) =>
         Trimmed(request.Owner) ?? (request.Mode == HoldMode.Session ? Trimmed(request.SessionId) : null);

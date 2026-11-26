@@ -17,4 +17,8 @@ public sealed record LockEvent(
     string Purpose,
     double? WaitedSeconds = null,
     double? HeldSeconds = null,
-    string? Detail = null);
+    string? Detail = null,
+    string? Scope = null,
+    string? Command = null,
+    string? Commit = null,
+    int? ExitCode = null);

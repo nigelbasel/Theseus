@@ -14,6 +14,7 @@ namespace Theseus.Core.Locks;
 /// <param name="Command">The command line the hold will run.</param>
 /// <param name="Commit">The repository's commit.</param>
 /// <param name="Again">A second run of the same command on the same commit, asked for on purpose.</param>
+/// <param name="Root">The repository's top folder, which a build's tree is named by; the working directory when absent.</param>
 public sealed record LockRequest(
     string Lock,
     string Who,
@@ -27,4 +28,5 @@ public sealed record LockRequest(
     string? Card = null,
     string? Command = null,
     string? Commit = null,
-    bool Again = false);
+    bool Again = false,
+    string? Root = null);
