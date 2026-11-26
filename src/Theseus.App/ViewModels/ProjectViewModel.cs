@@ -1293,7 +1293,9 @@ public sealed class ProjectViewModel : ObservableObject
     {
         var specs = new Dictionary<string, SpecAtGate>(StringComparer.Ordinal);
 
-        foreach (var piece in pieces.Where(piece => piece.Stages.OfType<SpecStageNode>().Any(stage => stage.AwaitsAcceptance)))
+        // A session can report an acceptance for any piece with a spec, freeform included, and its Confirm… needs the spec.
+        foreach (var piece in pieces.Where(piece => piece.Reported is not null
+                     || piece.Stages.OfType<SpecStageNode>().Any(stage => stage.AwaitsAcceptance)))
         {
             if (reading.Artefacts.GetValueOrDefault(piece.Name) is { } artefacts
                 && SpecAtGate.For(project, piece.Name, piece.Pipeline, artefacts) is { } spec)
