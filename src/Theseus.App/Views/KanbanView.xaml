@@ -330,9 +330,9 @@
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        <Border Grid.Row="0" Grid.Column="0" Padding="8" BorderThickness="0,0,1,1" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+        <Border Grid.Row="0" Grid.Column="0" Padding="8,4,8,4" BorderThickness="0,0,1,1" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                 Background="{DynamicResource LayerFillColorDefaultBrush}">
-            <TextBlock Text="Project" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Bottom" />
+            <TextBlock Text="Project" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Top" />
         </Border>
         <Border Grid.Row="0" Grid.Column="1" ClipToBounds="True" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
             <ItemsControl x:Name="ColumnHeaders" ItemsSource="{Binding Columns}" ItemTemplate="{StaticResource ColumnHeader}"

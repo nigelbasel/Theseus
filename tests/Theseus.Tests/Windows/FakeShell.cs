@@ -156,6 +156,41 @@ internal sealed class FakeShell : System.ComponentModel.INotifyPropertyChanged
     /// <summary>Opens the previous project tab.</summary>
     public RecordingCommand PreviousProjectTabCommand { get; } = new();
 
+    /// <summary>The All projects tab's kanban, or null while there is none.</summary>
+    public object? AllProjectsView { get; private set; }
+
+    /// <summary>Whether All projects fills the main area.</summary>
+    public bool IsAllProjectsOpen { get; private set; }
+
+    /// <summary>The strip's tabs.</summary>
+    public IReadOnlyList<ProjectTabViewModel> ProjectTabs { get; private set; } = [];
+
+    /// <summary>The strip's open tab.</summary>
+    public ProjectTabViewModel? OpenProjectTab
+    {
+        get => ProjectTabs.FirstOrDefault(tab => tab.IsOpen);
+        set { }
+    }
+
+    /// <summary>View › All projects layout › Fold all rows.</summary>
+    public RecordingCommand KanbanFoldAllCommand { get; } = new();
+
+    /// <summary>Opens All projects on a kanban, as Ctrl+0 does, and tells the window.</summary>
+    public void ShowAllProjects(object kanban, IReadOnlyList<ProjectTabViewModel> projects)
+    {
+        AllProjectsView = kanban;
+        IsAllProjectsOpen = true;
+        IsProjectViewShown = true;
+        IsBoardShown = false;
+        ProjectTabs = [ProjectTabViewModel.AllProjects(true, null), .. projects];
+
+        foreach (string name in new[] { nameof(AllProjectsView), nameof(IsAllProjectsOpen), nameof(IsProjectViewShown), nameof(IsBoardShown),
+                     nameof(ProjectTabs), nameof(OpenProjectTab), nameof(ToggleViewText) })
+        {
+            PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(name));
+        }
+    }
+
     private RecordingCommand Card()
     {
         bool canRun = CardCommandsCanRun;

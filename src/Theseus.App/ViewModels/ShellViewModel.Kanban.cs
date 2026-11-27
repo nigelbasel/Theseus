@@ -1,6 +1,9 @@
 using System.ComponentModel;
+using System.Diagnostics;
+using System.Windows.Threading;
 using System.Windows.Input;
 using Theseus.Core.Colour;
+using Theseus.Core.Diagnostics;
 using Theseus.Core.Projects;
 
 namespace Theseus.App.ViewModels;
@@ -65,6 +68,7 @@ public sealed partial class ShellViewModel
     // While the tab is closed an empty kanban stands in, so the tab is there to open.
     private void BuildKanban(bool force)
     {
+        var watch = Stopwatch.StartNew();
         var sources = _isAllProjectsOpen ? KanbanSources() : [];
         var kanban = KanbanViewModel.Build(sources, _settings,
             key => Board.Card(key) is { } card ? KanbanCardLinks.Of(card) : null,
@@ -77,8 +81,17 @@ public sealed partial class ShellViewModel
 
         if (force || AllProjectsView is not KanbanViewModel shown || shown.Signature != kanban.Signature)
         {
+            var built = watch.ElapsedMilliseconds;
             AllProjectsView = kanban;
             CommandManager.InvalidateRequerySuggested();
+
+            // The spec's measure is refresh to laid out (AC 26): this runs once the redraw has been laid out.
+            if (_isAllProjectsOpen)
+            {
+                Dispatcher.CurrentDispatcher.BeginInvoke(DispatcherPriority.Loaded, () =>
+                    TheseusLog.Information("All projects drawn: {Rows} rows, {Cards} cards; built in {Built} ms, laid out in {Total} ms",
+                        kanban.Rows.Count, kanban.Rows.Sum(row => row.Cards.Count()), built, watch.ElapsedMilliseconds));
+            }
         }
     }
 
