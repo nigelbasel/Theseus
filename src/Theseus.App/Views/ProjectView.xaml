@@ -684,15 +684,18 @@
         <!-- A round (1.1f C10 to C13): the change banner before it, its heading, then what it set out to meet and its work. -->
         <DataTemplate DataType="{x:Type vm:RoundViewModel}">
             <StackPanel Margin="0,0,0,16" Visibility="{Binding IsShown, Converter={StaticResource Visible}}">
-                <Border x:Name="ChangeBanner" BorderThickness="4,0,0,0" CornerRadius="0,4,4,0" Padding="12,8" Margin="0,0,0,12"
+                <Border x:Name="ChangeBanner" BorderThickness="4,0,0,0" CornerRadius="0,4,4,0" Padding="12,8" Margin="0,0,0,12" controls:Banner.IsBanner="True"
                         BorderBrush="{DynamicResource ChangeBrush}" Background="{DynamicResource ChangeSoftBrush}"
                         Visibility="{Binding HasBanner, Converter={StaticResource Visible}}">
-                    <StackPanel>
-                        <TextBlock x:Name="BannerText" Text="{Binding Banner}" TextWrapping="Wrap" FontSize="14" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource ChangeBrush}" />
-                        <TextBlock x:Name="BannerObjectives" Text="{Binding BannerObjectives}" FontSize="14" TextWrapping="Wrap" Margin="0,2,0,0"
-                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                    </StackPanel>
+                    <DockPanel>
+                        <Button x:Name="CopyBanner" DockPanel.Dock="Right" Style="{StaticResource BannerCopyButton}" Margin="12,0,0,0" VerticalAlignment="Top" />
+                        <StackPanel>
+                            <TextBox x:Name="BannerText" Text="{Binding Banner, Mode=OneWay}" Style="{StaticResource SelectableText}" FontSize="14" FontWeight="SemiBold"
+                                     Foreground="{DynamicResource ChangeBrush}" />
+                            <TextBox x:Name="BannerObjectives" Text="{Binding BannerObjectives, Mode=OneWay}" Style="{StaticResource SelectableText}" FontSize="14"
+                                     Margin="0,2,0,0" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                        </StackPanel>
+                    </DockPanel>
                 </Border>
                 <Border x:Name="RoundHeading" CornerRadius="4" Padding="8,4" Cursor="Hand" Focusable="True"
                         AutomationProperties.Name="{Binding Title}">
@@ -1084,7 +1087,7 @@
                 <TextBlock x:Name="Sentence" local:LinkedText.Text="{Binding Sentence}" FontSize="18" TextWrapping="Wrap" Margin="0,12,0,0"
                            Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                 <!-- A clear-up's notice: it asks nothing of him, so it is not under Waits for you, and lapses with its Undo (Nigel, 2026-11-23). -->
-                <DockPanel x:Name="ClearUpNoticeLine" Margin="0,8,0,0"
+                <DockPanel x:Name="ClearUpNoticeLine" Margin="0,8,0,0" controls:Banner.IsBanner="True"
                            Visibility="{Binding ClearUpNotice, Converter={StaticResource NotEmpty}}">
                     <!-- An information mark in the secondary brush: the accent is for actions and selection (W49, E14). -->
                     <controls:GlyphText DockPanel.Dock="Left" Text="&#xE946;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="16"
@@ -1096,6 +1099,7 @@
                                 AutomationProperties.AcceleratorKey="Ctrl+Z" ToolTip="Undo the clear-up (Ctrl+Z).">
                             <AccessText Text="_Undo" />
                         </Button>
+                        <Button x:Name="CopyClearUp" Style="{StaticResource BannerCopyButton}" Margin="8,0,0,0" />
                         <Button x:Name="DismissClearUp" Command="{Binding DismissClearUpCommand}" Style="{StaticResource CommandButton}"
                                 Margin="8,0,0,0" AutomationProperties.Name="Dismiss"
                                 AutomationProperties.HelpText="Dismiss the clear-up notice; it can no longer be undone.">
@@ -1106,8 +1110,8 @@
                             </StackPanel>
                         </Button>
                     </StackPanel>
-                    <TextBlock x:Name="ClearUpNoticeText" Text="{Binding ClearUpNotice}" FontSize="14" TextWrapping="Wrap" VerticalAlignment="Center"
-                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                    <TextBox x:Name="ClearUpNoticeText" Text="{Binding ClearUpNotice, Mode=OneWay}" Style="{StaticResource SelectableText}" FontSize="14" VerticalAlignment="Center"
+                             Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                 </DockPanel>
                 <!-- What waits for you, the most prominent block, in place even when empty (1.1f G36, G37a). -->
                 <Border x:Name="WaitingBand" Margin="0,12,0,0" Padding="12,8" CornerRadius="4" BorderThickness="1"

@@ -593,4 +593,68 @@
     <Style x:Key="ItemNamedByToolTip" TargetType="ContentPresenter">
         <Setter Property="AutomationProperties.Name" Value="{Binding ToolTip}" />
     </Style>
+
+    <!--
+        A banner's or notice's text, drawn as a TextBlock would draw it but selectable with the mouse and the keyboard, copied
+        with Ctrl+C, and with Copy and Select all on its right-click menu (Nigel, 2026-11-27, 1.3e). Read-only, borderless and
+        transparent; its font is inherited and its brush is its parent's text brush unless the banner sets its own, so it looks
+        as the TextBlock it replaced, under every theme. The template is the bare text host: the theme's box, border and
+        hover would draw an input field.
+    -->
+    <Style x:Key="SelectableText" TargetType="TextBox">
+        <Setter Property="IsReadOnly" Value="True" />
+        <Setter Property="IsReadOnlyCaretVisible" Value="False" />
+        <Setter Property="IsUndoEnabled" Value="False" />
+        <!-- As the spec and proposal viewers: a selection stays shown while the window is not in front, ready to copy. -->
+        <Setter Property="IsInactiveSelectionHighlightEnabled" Value="True" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Margin" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="Foreground" Value="{Binding (TextElement.Foreground), RelativeSource={RelativeSource AncestorType=FrameworkElement}}" />
+        <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
+        <Setter Property="controls:SelectableTextMenu.IsOffered" Value="True" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <!-- A text box insets its text two pixels each side; the margin takes them back, so lines break where a TextBlock's do. -->
+                    <ScrollViewer x:Name="PART_ContentHost" Focusable="False" Padding="{TemplateBinding Padding}" Margin="-2,0"
+                                  Background="{TemplateBinding Background}"
+                                  HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Disabled" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <!-- Nothing to select, so Tab passes it by. -->
+            <Trigger Property="Text" Value="">
+                <Setter Property="IsTabStop" Value="False" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!--
+        A banner's Copy: its whole text, every line, as plain text, in one press (1.3e). The Windows Copy glyph and the word,
+        as the clear-up notice's Dismiss carries its own; no access key, since banners share a window with the search's Clear.
+    -->
+    <Style x:Key="BannerCopyButton" TargetType="Button" BasedOn="{StaticResource CommandButton}">
+        <Setter Property="controls:Banner.Copies" Value="True" />
+        <Setter Property="Content" Value="Copy" />
+        <Setter Property="AutomationProperties.Name" Value="Copy" />
+        <Setter Property="AutomationProperties.HelpText" Value="Copy all of this banner's text, to paste elsewhere." />
+        <Setter Property="ToolTip" Value="Copy all of this text, to paste elsewhere." />
+        <Setter Property="ContentTemplate">
+            <Setter.Value>
+                <DataTemplate>
+                    <StackPanel Orientation="Horizontal">
+                        <controls:GlyphText Text="&#xE8C8;" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="12" Margin="0,0,8,0"
+                                            VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding}" VerticalAlignment="Center" />
+                    </StackPanel>
+                </DataTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
 </ResourceDictionary>

@@ -31,11 +31,20 @@ public class UpdateBarAccentTests
         {
             List<Button> buttons = [.. MainWindowFixtureTests.Descendants<Button>((Border)window.FindName("UpdateBar"))];
 
-            Assert.That(buttons, Has.Count.EqualTo(3));
+            Assert.That(buttons, Has.Count.EqualTo(4), "Update and restart, Skip this version, Cancel, and Copy (1.3e)");
             // The fixture loads App.xaml, not the Fluent theme, so the solid fill is checked as the reference it is.
             Assert.That(buttons.Select(button => DependencyPropertyHelper.GetValueSource((Border)button.Parent, Border.BackgroundProperty)),
                 Has.All.Matches<ValueSource>(source => source.BaseValueSource == BaseValueSource.Local && source.IsExpression),
                 "a translucent fill fades on the accent");
+        });
+
+    [Test]
+    public void ASelectionInTheOffer_IsInTheBarsTextColour_SoItShowsOnHighlightUnderAContrastTheme() =>
+        MainWindowFixture.Run((window, _) =>
+        {
+            TextBox text = (TextBox)window.FindName("UpdateText");
+
+            Assert.That(text.SelectionBrush, Is.SameAs(window.FindResource("UpdateOfferTextBrush")));
         });
 
     [TestCase("StateColours.Light.xaml", "AccentColorDark1", "#ffffff")]

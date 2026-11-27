@@ -38,10 +38,10 @@
         <FlowDocumentScrollViewer x:Name="BriefView" Grid.Row="1" IsToolBarVisible="False" VerticalScrollBarVisibility="Auto"
                                   IsInactiveSelectionHighlightEnabled="True" AutomationProperties.Name="The brief, drawn" />
 
-        <TextBlock x:Name="BlockText" Grid.Row="2" Text="{Binding Block}" TextWrapping="Wrap" Margin="0,8,0,0"
-                   Style="{DynamicResource BodyStrongText}" Foreground="{DynamicResource CriticalTextBrush}" />
-        <TextBlock x:Name="NoticeText" Grid.Row="3" Text="{Binding Notice}" TextWrapping="Wrap" Margin="0,8,0,0"
-                   Style="{DynamicResource BodyText}" Foreground="{DynamicResource CriticalTextBrush}" />
+        <TextBox x:Name="BlockText" Grid.Row="2" Text="{Binding Block, Mode=OneWay}" Margin="0,8,0,0" AutomationProperties.Name="Why it cannot be approved"
+                 Style="{DynamicResource SelectableText}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource CriticalTextBrush}" />
+        <TextBox x:Name="NoticeText" Grid.Row="3" Text="{Binding Notice, Mode=OneWay}" Margin="0,8,0,0" AutomationProperties.Name="Notice"
+                 Style="{DynamicResource SelectableText}" FontSize="14" Foreground="{DynamicResource CriticalTextBrush}" />
 
         <StackPanel x:Name="RejectPanel" Grid.Row="4" Margin="0,12,0,0"
                     Visibility="{Binding IsRejecting, Converter={StaticResource Visible}}">

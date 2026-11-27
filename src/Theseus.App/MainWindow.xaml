@@ -2311,7 +2311,7 @@
             on offer, which is the one message worth moving the board for. Offered, never installed
             until Update and restart is pressed.
         -->
-        <Border x:Name="UpdateBar" DockPanel.Dock="Top" Margin="12,0,12,8" Padding="12,8" CornerRadius="4"
+        <Border x:Name="UpdateBar" DockPanel.Dock="Top" Margin="12,0,12,8" Padding="12,8" CornerRadius="4" controls:Banner.IsBanner="True"
                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1"
                 Visibility="{Binding Updates.IsOffered, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
             <!--
@@ -2351,6 +2351,9 @@
                             ToolTip="Stop the download. Nothing is installed, and the offer stays."
                             Command="{Binding Updates.CancelDownloadCommand}" />
                     </Border>
+                    <Border Margin="8,0,0,0" CornerRadius="4" Background="{DynamicResource SolidBackgroundFillColorBaseBrush}">
+                        <Button x:Name="CopyUpdate" Style="{StaticResource BannerCopyButton}" />
+                    </Border>
                 </StackPanel>
                 <controls:GlyphText DockPanel.Dock="Left" Margin="0,0,8,0" VerticalAlignment="Center"
                                     FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="16">
@@ -2381,11 +2384,17 @@
                         </Style>
                     </ProgressBar.Style>
                 </ProgressBar>
-                <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" FontSize="12"
-                           ToolTip="{Binding Updates.Offer.Page}">
-                    <Run Text="{Binding Updates.OfferText, Mode=OneWay}" />
-                    <Run Text="{Binding Updates.Status, Mode=OneWay}" />
-                </TextBlock>
+                <!-- Selected in the bar's own text colour: the default is Highlight, which is the bar itself under a contrast theme. -->
+                <TextBox x:Name="UpdateText" Style="{StaticResource SelectableText}" VerticalAlignment="Center" FontSize="12"
+                         SelectionBrush="{DynamicResource UpdateOfferTextBrush}"
+                         ToolTip="{Binding Updates.Offer.Page}">
+                    <TextBox.Text>
+                        <MultiBinding StringFormat="{}{0} {1}" Mode="OneWay">
+                            <Binding Path="Updates.OfferText" />
+                            <Binding Path="Updates.Status" />
+                        </MultiBinding>
+                    </TextBox.Text>
+                </TextBox>
             </DockPanel>
         </Border>
 
@@ -3339,18 +3348,22 @@
                 </ToggleButton>
                 <Popup x:Name="NoticePopup" PlacementTarget="{Binding ElementName=NoticeButton}" Placement="Top" StaysOpen="False"
                        AllowsTransparency="True" IsOpen="{Binding IsChecked, ElementName=NoticeButton, Mode=TwoWay}">
-                    <Border x:Name="NoticeFlyout" Padding="16" CornerRadius="8" MinWidth="320" MaxWidth="640" MaxHeight="420"
+                    <Border x:Name="NoticeFlyout" Padding="16" CornerRadius="8" MinWidth="320" MaxWidth="640" MaxHeight="420" controls:Banner.IsBanner="True"
                             Background="{DynamicResource SolidBackgroundFillColorBaseBrush}"
                             BorderBrush="{DynamicResource FlyoutBorderBrush}" BorderThickness="{DynamicResource FlyoutBorderThickness}"
                             PreviewKeyDown="OnNoticeFlyoutKeyDown">
                         <DockPanel>
-                            <TextBlock DockPanel.Dock="Top" Text="Recent notices" Style="{StaticResource BodyStrongText}" Margin="0,0,0,8" />
+                            <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                                <Button x:Name="CopyNotices" DockPanel.Dock="Right" Style="{StaticResource BannerCopyButton}" Margin="12,0,0,0"
+                                        ToolTip="Copy every recent notice, to paste elsewhere." />
+                                <TextBlock Text="Recent notices" Style="{StaticResource BodyStrongText}" VerticalAlignment="Center" />
+                            </DockPanel>
                             <ScrollViewer VerticalScrollBarVisibility="Auto">
                                 <ItemsControl ItemContainerStyle="{StaticResource ItemNamedByDisplay}" x:Name="NoticeHistory" ItemsSource="{Binding Notices.Entries}" Focusable="False"
                                               AutomationProperties.Name="Recent notices">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <TextBlock Text="{Binding Display}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,0,0,8" />
+                                            <TextBox Text="{Binding Display, Mode=OneWay}" Style="{StaticResource SelectableText}" FontSize="12" Margin="0,0,0,8" />
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
@@ -3502,7 +3515,8 @@
                     the same way deleting asks. Nothing happens until one of the two is pressed, so
                     the board stays usable and the question cannot fire before it has been read.
                 -->
-                <Border DockPanel.Dock="Top" Margin="4,0,4,8" Padding="12,8" CornerRadius="4"
+                <Border x:Name="UnconfirmedStopsBar" DockPanel.Dock="Top" Margin="4,0,4,8" Padding="12,8" CornerRadius="4"
+                        controls:Banner.IsBanner="True"
                         Background="{DynamicResource LayerFillColorDefaultBrush}"
                         BorderBrush="{DynamicResource ControlStrongStrokeColorDefaultBrush}"
                         BorderThickness="1"
@@ -3517,11 +3531,12 @@
                             <Button Style="{StaticResource CommandButton}" Content="Leave them running"
                                     ToolTip="Drop the request and carry on."
                                     Command="{Binding AbandonStopsCommand}" />
+                            <Button Style="{StaticResource BannerCopyButton}" Margin="8,0,0,0" />
                         </StackPanel>
 
-                        <TextBlock Text="{Binding UnconfirmedStopsSummary}" FontSize="14"
-                                   TextWrapping="Wrap" VerticalAlignment="Center"
-                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                        <TextBox Text="{Binding UnconfirmedStopsSummary, Mode=OneWay}" Style="{StaticResource SelectableText}" FontSize="14"
+                                 VerticalAlignment="Center"
+                                 Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                     </DockPanel>
                 </Border>
 
@@ -3530,7 +3545,8 @@
                     fresh session with nothing to read only goes looking for a document that is not there
                     yet, so these are asked about, whether one card was pressed or a whole selection.
                 -->
-                <Border DockPanel.Dock="Top" Margin="4,0,4,8" Padding="12,8" CornerRadius="4"
+                <Border x:Name="HeldForInputsBar" DockPanel.Dock="Top" Margin="4,0,4,8" Padding="12,8" CornerRadius="4"
+                        controls:Banner.IsBanner="True"
                         Background="{DynamicResource LayerFillColorDefaultBrush}"
                         BorderBrush="{DynamicResource ControlStrongStrokeColorDefaultBrush}"
                         BorderThickness="1"
@@ -3545,24 +3561,26 @@
                             <Button Style="{StaticResource CommandButton}" Content="Skip them"
                                     ToolTip="Leave them unstarted until their inputs are accepted."
                                     Command="{Binding SkipWaitingCommand}" />
+                            <Button Style="{StaticResource BannerCopyButton}" Margin="8,0,0,0" />
                         </StackPanel>
 
-                        <TextBlock Text="{Binding HeldForInputsSummary}" FontSize="14"
-                                   TextWrapping="Wrap" VerticalAlignment="Center"
-                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                        <TextBox Text="{Binding HeldForInputsSummary, Mode=OneWay}" Style="{StaticResource SelectableText}" FontSize="14"
+                                 VerticalAlignment="Center"
+                                 Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                     </DockPanel>
                 </Border>
 
                 <!-- While a search or tag filter is on, the board says so, so it never looks complete when it is not (item 17). -->
-                <Border x:Name="FilteredLine" DockPanel.Dock="Top" Margin="4,0,4,8" Padding="12,8" CornerRadius="4"
+                <Border x:Name="FilteredLine" DockPanel.Dock="Top" Margin="4,0,4,8" Padding="12,8" CornerRadius="4" controls:Banner.IsBanner="True"
                         Background="{DynamicResource LayerFillColorDefaultBrush}"
                         BorderBrush="{DynamicResource SearchHighlightBrush}" BorderThickness="1"
                         DataContext="{Binding Board.Search}"
                         Visibility="{Binding IsOn, Converter={StaticResource BoolToVisibility}}">
                     <DockPanel>
-                        <TextBlock Text="{Binding FilteredLine}" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"
-                                   TextTrimming="CharacterEllipsis" ToolTip="{Binding FilteredLine}" behaviors:TrimmedToolTip.IsEnabled="True"
-                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                        <Button DockPanel.Dock="Right" Style="{StaticResource BannerCopyButton}" Margin="12,0,0,0" VerticalAlignment="Center" />
+                        <!-- Wrapped, not trimmed: a selectable line cannot end in an ellipsis, and the whole of it is there to copy (1.3e). -->
+                        <TextBox Text="{Binding FilteredLine, Mode=OneWay}" Style="{StaticResource SelectableText}" FontSize="14" FontWeight="SemiBold"
+                                 VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                     </DockPanel>
                 </Border>
 

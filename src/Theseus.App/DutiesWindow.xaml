@@ -94,9 +94,9 @@
         <DockPanel x:Name="Footer" Grid.Row="3" Margin="0,16,0,0" LastChildFill="False">
             <TextBlock x:Name="Count" DockPanel.Dock="Left" Text="{Binding CountText}" Style="{DynamicResource BodyStrongText}" VerticalAlignment="Center" />
             <!-- What the last action did, so a press is never silent. -->
-            <TextBlock x:Name="Notice" DockPanel.Dock="Left" Margin="16,0,0,0" Text="{Binding Notice}" TextWrapping="Wrap" MaxWidth="560"
-                       VerticalAlignment="Center" Style="{DynamicResource BodyText}" AutomationProperties.LiveSetting="Polite"
-                       AutomationProperties.Name="{Binding Notice}" />
+            <TextBox x:Name="Notice" DockPanel.Dock="Left" Margin="16,0,0,0" Text="{Binding Notice, Mode=OneWay}" MaxWidth="560"
+                     VerticalAlignment="Center" Style="{DynamicResource SelectableText}" FontSize="14" AutomationProperties.LiveSetting="Polite"
+                     AutomationProperties.Name="{Binding Notice}" />
             <Button x:Name="CloseButton" DockPanel.Dock="Right" Content="Close" IsCancel="True" IsDefault="True"
                     Style="{DynamicResource DialogButton}" Click="OnClose" />
         </DockPanel>

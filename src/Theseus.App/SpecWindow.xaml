@@ -50,8 +50,8 @@
                      FontSize="12" AutomationProperties.Name="The spec's Markdown" />
         </Grid>
 
-        <TextBlock x:Name="NoticeText" Grid.Row="2" Text="{Binding Notice}" TextWrapping="Wrap" Margin="0,8,0,0"
-                   Style="{DynamicResource BodyText}" Foreground="{DynamicResource CautionTextBrush}" />
+        <TextBox x:Name="NoticeText" Grid.Row="2" Text="{Binding Notice, Mode=OneWay}" Margin="0,8,0,0" AutomationProperties.Name="Notice"
+                 Style="{DynamicResource SelectableText}" FontSize="14" Foreground="{DynamicResource CautionTextBrush}" />
 
         <!-- The editor is outside Theseus, so a link at the footer's left; the commit and Close at the right (W9, W12; A4, A10). -->
         <!-- Reject…'s note, as the proposal window asks for one (board-small-changes item 4, Nigel, 2026-11-26). -->
