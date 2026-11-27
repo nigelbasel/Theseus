@@ -136,8 +136,8 @@
                                     Visibility="{Binding IsCollapsed, Converter={StaticResource Visible}}" Padding="0"
                                     HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
                                 <StackPanel>
-                                    <TextBlock Text="{Binding Count}" FontSize="12" HorizontalAlignment="Center" />
-                                    <TextBlock Text="{Binding Name}" FontSize="12" HorizontalAlignment="Center">
+                                    <TextBlock Text="{Binding Count}" FontFamily="{DynamicResource UiFont}" FontSize="12" HorizontalAlignment="Center" />
+                                    <TextBlock Text="{Binding Name}" FontFamily="{DynamicResource UiFont}" FontSize="12" HorizontalAlignment="Center">
                                         <TextBlock.LayoutTransform>
                                             <RotateTransform Angle="-90" />
                                         </TextBlock.LayoutTransform>
