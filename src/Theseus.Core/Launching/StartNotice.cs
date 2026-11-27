@@ -37,15 +37,14 @@ public static class StartNotice
 
     /// <summary>
     /// The line for the folders Claude Code will ask the owner to trust in the new tabs, or null when it will ask about
-    /// none: said on the board so the question in the tab is expected, with where to answer it once for every start
-    /// (project-view-usability item 7, Nigel 2026-11-23).
+    /// none: said on the board so the question in the tab is expected (project-view-usability item 7, Nigel 2026-11-23).
     /// </summary>
     /// <param name="keys">The trust records the started sessions lack.</param>
     public static string? TrustLine(IReadOnlyList<string> keys) => keys.Count switch
     {
         0 => null,
-        1 => $"Claude Code will ask you in the tab to trust {keys[0]}: Options › Folder trust trusts it once for every start.",
-        _ => $"Claude Code will ask you in the tab to trust {keys.Count} folders ({string.Join(", ", keys)}): Options › Folder trust trusts them once for every start.",
+        1 => $"Claude Code will ask you in the tab to trust {keys[0]}: it is outside the base folders in Options › Folders.",
+        _ => $"Claude Code will ask you in the tab to trust {keys.Count} folders ({string.Join(", ", keys)}): they are outside the base folders in Options › Folders.",
     };
 
     /// <summary>The line for one start the terminal refused.</summary>

@@ -317,12 +317,11 @@ public sealed partial class ShellViewModel : ObservableObject
             LockTools = new LockOptionsViewModel(settings,
                 () => [.. Board.Cards.Where(card => !card.IsArchived).Select(card => (card.Key, card.Title))]),
             FolderTrust = new FolderTrustViewModel(
-                new Theseus.Core.Trust.StandingFolderTrust(
+                new Theseus.Core.Trust.BaseFolderTrust(
                     new Theseus.Core.Trust.ClaudeFolderTrust(Theseus.Core.Trust.ClaudeFolderTrust.UserConfigPath(),
                         Path.Combine(App.DataDirectory, "folder-trust-undo.json")),
                     settings,
-                    () => _holdouts.Entries.Select(entry => entry.Folder).Append(HoldoutLocation.DefaultRoot())),
-                () => Board.Cards.Where(card => !card.IsArchived).SelectMany(card => SessionFolders(card.Workstream)))
+                    () => _holdouts.Entries.Select(entry => entry.Folder).Append(HoldoutLocation.DefaultRoot())))
             {
                 Said = text => Notice = text,
             },
@@ -5172,9 +5171,8 @@ public sealed partial class ShellViewModel : ObservableObject
                 };
             }
 
-            // Under the owner's standing consent its folders are trusted before the tab opens, so Claude Code does not ask
-            // (objective 1.3): a fresh worktree is keyed by its main clone, which no card had trusted.
-            if (Settings.FolderTrust?.KeepFor(SessionFolders(workstream)) is { } kept && (kept.Trusted.Count > 0 || kept.Failure is not null))
+            // The base folders' records are checked before the tab opens, so a card under one is not asked (objective 1.3f).
+            if (Settings.FolderTrust?.Keep() is { } kept && (kept.Trusted.Count > 0 || kept.Failure is not null))
             {
                 worktreeNotes.Add(kept.Failure ?? $"Trusted {string.Join(", ", kept.Trusted)} in Claude Code.");
             }
@@ -5304,9 +5302,13 @@ public sealed partial class ShellViewModel : ObservableObject
         }
     }
 
-    // The folders a session starts in or adds, which Claude Code asks the owner to trust.
-    private static IEnumerable<string> SessionFolders(Workstream workstream) =>
-        new[] { workstream.WorkingDirectory }.Concat(workstream.AddDirectories);
+    // The folders a session starts in or adds, which Claude Code asks the owner to trust, as the launch arranges them.
+    private IEnumerable<string> SessionFolders(Workstream workstream)
+    {
+        var arranged = Theseus.Core.Launching.StartFolders.Arrange(workstream, _settings.Read().WorktreesFolder, null, TranscriptLocator.ProjectsRoot).Workstream;
+
+        return new[] { arranged.WorkingDirectory }.Concat(arranged.AddDirectories);
+    }
 
     private void Remember(Workstream workstream, string sessionId)
     {

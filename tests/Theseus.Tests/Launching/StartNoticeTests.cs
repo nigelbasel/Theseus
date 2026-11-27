@@ -48,9 +48,9 @@ public class StartNoticeTests
     }
 
     [Test]
-    public void TrustLine_NamesTheFolderAndWhereToTrustItOnce()
+    public void TrustLine_NamesTheFolder_AndSaysItIsOutsideTheBaseFolders()
     {
-        Assert.That(StartNotice.TrustLine(["C:/repo"]), Does.Contain("C:/repo").And.Contain("Options › Folder trust"));
+        Assert.That(StartNotice.TrustLine(["C:/repo"]), Does.Contain("C:/repo").And.Contain("outside the base folders"));
     }
 
     [Test]

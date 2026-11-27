@@ -133,7 +133,7 @@ public class OptionsTextAndKeysTests
 
     [TestCase("General", 'C')]
     [TestCase("General", 'P')]
-    [TestCase("Folders", 'T')]
+    [TestCase("Folders", 'A')]
     [TestCase("Guards", 'W')]
     [TestCase("Prompts", 'R')]
     [TestCase("Advanced", 'C')]

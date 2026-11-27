@@ -28,7 +28,7 @@ public class FirstRunSetupTests
     }
 
     [Test]
-    public void TheFolderTrustStep_IsShownWhileTheConsentIsOff_BeforeTheTools()
+    public void TheFolderTrustStep_IsShownWhileNoBaseFolderIsSet_BeforeTheTools()
     {
         var facts = new SetupFacts(true, true, true, [new("Node", false, "Node was not found")], FolderTrustIsOn: false);
 
@@ -36,7 +36,7 @@ public class FirstRunSetupTests
     }
 
     [Test]
-    public void TheFolderTrustStep_IsLeftOut_OnceTheConsentIsOn()
+    public void TheFolderTrustStep_IsLeftOut_OnceTheBaseFoldersAreSet()
     {
         Assert.That(FirstRunSetup.Steps(new SetupFacts(true, true, true, AllTools, FolderTrustIsOn: true)), Is.Empty);
     }

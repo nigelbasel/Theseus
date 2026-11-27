@@ -193,10 +193,25 @@ public partial class App : Application
 
         if (shell.Settings.FolderTrust is { } trust)
         {
-            trust.ConfirmChange = change =>
-                new QuestionWindow("Trust these folders in Claude Code?", change, "_Trust folders") { Owner = ActiveWindow }.Ask() == true;
-            trust.ConfirmConsent = consent =>
-                new QuestionWindow("Trust the folders your cards use?", consent, "_Switch on") { Owner = ActiveWindow }.Ask() == true;
+            trust.ChooseFolder = () =>
+            {
+                var dialog = new Microsoft.Win32.OpenFolderDialog { Title = "Choose a base folder to keep trusted" };
+
+                return dialog.ShowDialog(ActiveWindow) == true ? dialog.FolderName : null;
+            };
+
+            // An install that had a projects or worktrees folder gets the base folders' defaults once, and is told (1.3f).
+            var upgraded = trust.SetDefaultsOnUpgrade();
+            var kept = trust.Keep();
+
+            if (upgraded)
+            {
+                shell.Warn($"Theseus now keeps your base folders trusted in Claude Code, so sessions under them are not asked: {trust.Folders.Replace(Environment.NewLine, ", ")}. To take that back, Options › Folders › Undo.");
+            }
+            else if (kept.Failure is { } failure)
+            {
+                shell.Warn($"Folder trust: {failure}");
+            }
         }
 
         // Said once for each set of guards to set up, and again when it changes, such as an update bringing a newer guard.

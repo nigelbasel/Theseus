@@ -68,8 +68,8 @@ public sealed class FirstRunViewModel : ObservableObject
     public Func<bool> IsGuardReady { get; set; }
 
     /// <summary>
-    /// Options › Folder trust, whose Switch on… the folder trust step offers, so the consent is given and shown the same way
-    /// in both. Set by the shell; null leaves the step out.
+    /// Options › Folders' base folders, which the folder trust step sets, so they are chosen and explained the same way in
+    /// both. Set by the shell; null leaves the step out.
     /// </summary>
     public FolderTrustViewModel? FolderTrust { get; set; }
 
@@ -237,7 +237,7 @@ public sealed class FirstRunViewModel : ObservableObject
         }
 
         _steps = FirstRunSetup.Steps(new SetupFacts(!string.IsNullOrWhiteSpace(ProjectsFolder), _hook.IsRegistered, IsGuardReady(), _tools,
-            FolderTrust is not { OffersStanding: true } trust || trust.IsStandingOn), first);
+            FolderTrust?.IsSet ?? true), first);
         FolderTrust?.Load();
         _index = 0;
         HookResult = string.Empty;

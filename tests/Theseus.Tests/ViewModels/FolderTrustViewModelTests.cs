@@ -6,99 +6,103 @@ using Theseus.Core.Trust;
 namespace Theseus.Tests.ViewModels;
 
 /// <summary>
-/// Options › Folder trust says what it did where it can be seen: Nigel pressed Trust these folders… on 2026-11-23 and had
-/// "no idea if it adjusted the claude trust".
+/// Options › Folders, Base folders kept trusted (objective 1.3f): set once, with Add…, Reset and Undo, each saying what it
+/// did where it can be seen. Nigel pressed a trust button on 2026-11-23 and had "no idea if it adjusted the claude trust".
 /// </summary>
 [TestFixture]
 public class FolderTrustViewModelTests
 {
     private string _root = null!;
+    private string _config = null!;
+    private string _work = null!;
+    private MemorySettingsStore _settings = null!;
 
     [SetUp]
     public void SetUp()
     {
         _root = Path.Combine(Path.GetTempPath(), "theseus-trust-vm-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(Path.Combine(_root, "repo", ".git"));
-        File.WriteAllText(Path.Combine(_root, "config.json"), new JsonObject().ToJsonString());
+        _config = Path.Combine(Directory.CreateDirectory(_root).FullName, "config.json");
+        _work = Directory.CreateDirectory(Path.Combine(_root, "work")).FullName;
+        File.WriteAllText(_config, new JsonObject().ToJsonString());
+        _settings = new MemorySettingsStore { Settings = TheseusSettings.Default with { WorktreesFolder = _work } };
     }
 
     [TearDown]
     public void TearDown() => Directory.Delete(_root, recursive: true);
 
     [Test]
-    public void TrustingFolders_SaysWhatItDid_InTheStatusBarToo()
+    public void Reset_TrustsTheDefaults_AndSaysSoInTheStatusBarToo()
     {
-        var said = new List<string>();
-        var section = new FolderTrustViewModel(
-            new ClaudeFolderTrust(Path.Combine(_root, "config.json"), Path.Combine(_root, "undo.json")),
-            () => [Path.Combine(_root, "repo")])
-        {
-            ConfirmChange = _ => true,
-            Said = said.Add,
-        };
-        section.Load();
+        string? said = null;
+        var section = Section();
+        section.Said = text => said = text;
 
-        section.TrustCommand.Execute(null);
+        section.ResetCommand.Execute(null);
 
         Assert.Multiple(() =>
         {
-            Assert.That(said, Is.EqualTo(new[] { "Trusted 1 folder in Claude Code." }));
-            Assert.That(section.Line, Does.StartWith("Claude Code will not ask"), "the section's own line changes too");
+            Assert.That(section.Folders, Is.EqualTo(_work));
+            Assert.That(said, Does.Contain("Trusted").And.Contain(Spelled(_work)));
+            Assert.That(section.Result, Is.EqualTo(said));
         });
     }
 
     [Test]
-    public void SwitchingOn_ShowsTheConsentFirst_AndDeclinedChangesNothing()
+    public void Add_RefusesAFolderInsideARepository_AndSaysWhy()
     {
-        var (section, settings) = Standing();
-        string? shown = null;
-        section.ConfirmConsent = consent =>
-        {
-            shown = consent;
+        var repo = Directory.CreateDirectory(Path.Combine(_root, "repo")).FullName;
+        Directory.CreateDirectory(Path.Combine(repo, ".git"));
+        var inside = Directory.CreateDirectory(Path.Combine(repo, "docs")).FullName;
+        var section = Section();
+        section.ChooseFolder = () => inside;
 
-            return false;
-        };
-        section.Load();
-
-        section.SwitchOnCommand.Execute(null);
+        section.AddCommand.Execute(null);
 
         Assert.Multiple(() =>
         {
-            Assert.That(shown, Does.Contain("Trust the folders my cards use"));
-            Assert.That(settings.Settings.TrustCardFolders, Is.False);
+            Assert.That(section.Result, Does.StartWith("Not added").And.Contain("inside the repository"));
+            Assert.That(_settings.Settings.BaseFolders, Is.Null);
+        });
+    }
+
+    [Test]
+    public void Add_WhenTheOwnerCancels_ChangesNothing()
+    {
+        var section = Section();
+        section.ChooseFolder = () => null;
+
+        section.AddCommand.Execute(null);
+
+        Assert.Multiple(() =>
+        {
             Assert.That(section.Result, Is.EqualTo("Nothing was changed."));
-            Assert.That(File.Exists(Path.Combine(_root, "undo.json")), Is.False, "nothing written to Claude Code's file");
+            Assert.That(_settings.Settings.BaseFolders, Is.Null);
         });
     }
 
     [Test]
-    public void SwitchingOn_TrustsWhatTheCardsNeedNow_AndUndoSwitchesItOff()
+    public void Undo_EmptiesTheBaseFolders_SoTheFirstRunStepAsksAgain()
     {
-        var (section, settings) = Standing();
-        section.ConfirmConsent = _ => true;
-        section.Load();
+        var section = Section();
+        section.ResetCommand.Execute(null);
 
-        section.SwitchOnCommand.Execute(null);
-        var afterOn = (settings.Settings.TrustCardFolders, section.Line, section.Result);
         section.UndoCommand.Execute(null);
 
         Assert.Multiple(() =>
         {
-            Assert.That(afterOn.TrustCardFolders, Is.True);
-            Assert.That(afterOn.Result, Is.EqualTo("Switched on, and trusted 1 folder in Claude Code."));
-            Assert.That(afterOn.Line, Does.StartWith("Claude Code will not ask"));
-            Assert.That(settings.Settings.TrustCardFolders, Is.False);
-            Assert.That(section.Line, Does.StartWith("Claude Code will ask you to trust 1 folder"));
+            Assert.That(section.IsSet, Is.False);
+            Assert.That(section.Folders, Does.StartWith("None"));
+            Assert.That(JsonNode.Parse(File.ReadAllText(_config))?["projects"]?[Spelled(_work)], Is.Null, "the record Theseus made is gone");
         });
     }
 
-    private (FolderTrustViewModel Section, MemorySettingsStore Settings) Standing()
-    {
-        var settings = new MemorySettingsStore { Settings = TheseusSettings.Default with { ClonesFolder = _root } };
-        var standing = new StandingFolderTrust(
-            new ClaudeFolderTrust(Path.Combine(_root, "config.json"), Path.Combine(_root, "undo.json")), settings, () => [],
-            Path.Combine(_root, "user"));
+    private FolderTrustViewModel Section() =>
+        new(new BaseFolderTrust(new ClaudeFolderTrust(_config, Path.Combine(_root, "undo.json")), _settings, () => [], Path.Combine(_root, "user")));
 
-        return (new FolderTrustViewModel(standing, () => [Path.Combine(_root, "repo")]), settings);
+    private static string Spelled(string path)
+    {
+        var forward = path.Replace('\\', '/').TrimEnd('/');
+
+        return char.ToUpperInvariant(forward[0]) + forward[1..];
     }
 }

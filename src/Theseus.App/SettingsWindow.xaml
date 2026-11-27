@@ -229,29 +229,19 @@
                                     AutomationProperties.Name="Change the clones folder" />
                         </controls:SettingRow>
 
-                        <!-- Claude Code's trust of the folders sessions start in, set from here and never by a session (project-view-usability item 7). -->
+                        <!-- The base folders Theseus keeps trusted in Claude Code, set once; no switch and no list to click (objective 1.3f). -->
                         <StackPanel x:Name="FolderTrustSection" DataContext="{Binding FolderTrust}">
-                            <controls:SettingRow Label="Trust the folders my cards use" Value="{Binding StandingLine}"
-                                                 Explanation="Your one consent: Theseus trusts each card's folders before it starts, by the key Claude Code looks up (a worktree by its main clone), only inside the projects and clones folders, never your home folder, a drive's root or a holdout. Undo takes back what Theseus set and switches this off."
-                                                 Visibility="{Binding OffersStanding, Converter={StaticResource BoolToVisibility}}">
-                                <Button Content="Switch o_ff" Style="{StaticResource Action}" Command="{Binding SwitchOffCommand}"
-                                        AutomationProperties.Name="Switch off folder trust" ToolTipService.ShowOnDisabled="True"
-                                        ToolTip="Stop trusting new folders. What Theseus trusted stays until Undo." />
-                                <Button Content="_Switch on…" Style="{StaticResource Action}" Command="{Binding SwitchOnCommand}"
-                                        AutomationProperties.Name="Switch on folder trust" ToolTipService.ShowOnDisabled="True"
-                                        ToolTip="Shows exactly what Theseus will write and why first, and switches it on only if you agree." />
-                            </controls:SettingRow>
-                            <controls:SettingRow Label="Folder trust" Value="{Binding Line}"
-                                                 Explanation="Claude Code asks to trust each folder a session starts in or adds, and its answer for an added folder lasts one session. Trusting a repository covers every worktree of it.">
+                            <controls:SettingRow Label="Base folders kept trusted" Value="{Binding Folders}" Explanation="{Binding Explanation}">
                                 <Button Content="_Undo" Style="{StaticResource Action}" Command="{Binding UndoCommand}"
                                         AutomationProperties.Name="Undo folder trust" ToolTipService.ShowOnDisabled="True"
-                                        ToolTip="Take back the trust records Theseus set. Offered only after Theseus has set some." />
-                                <Button Content="_Trust these…" Style="{StaticResource Action}" Command="{Binding TrustCommand}"
-                                        AutomationProperties.Name="Trust these folders" ToolTipService.ShowOnDisabled="True"
-                                        ToolTip="Shows the exact change to Claude Code's configuration first, and makes it only if you agree." />
+                                        ToolTip="Take back every trust record Theseus set, and empty the base folders." />
+                                <Button Content="_Reset" Style="{StaticResource Action}" Command="{Binding ResetCommand}"
+                                        AutomationProperties.Name="Reset the base folders"
+                                        ToolTip="Put the base folders back to the projects folder's root and the worktrees folder." />
+                                <Button Content="_Add…" Style="{StaticResource Action}" Command="{Binding AddCommand}"
+                                        AutomationProperties.Name="Add a base folder"
+                                        ToolTip="Choose another folder to keep trusted. A home folder, a drive's root, a holdout or a folder inside a repository is refused." />
                             </controls:SettingRow>
-                            <TextBlock x:Name="FolderTrustFolders" Text="{Binding Folders}" Style="{StaticResource PageNote}" Margin="0,-12,0,8"
-                                       Visibility="{Binding HasNeeds, Converter={StaticResource BoolToVisibility}}" />
                             <TextBlock Text="{Binding Result}" Style="{StaticResource PageNote}" Margin="0,-8,0,8" />
                         </StackPanel>
                     </StackPanel>

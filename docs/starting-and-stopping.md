@@ -19,19 +19,20 @@ tab opens anyway and the status bar says the older one is there, so you can clos
 
 ### Folder trust
 
-Claude Code asks you to trust each folder a session starts in, or adds, the first time. For an added folder its answer
-lasts only that session, so a card that adds folders asks every time it starts. **Tools > Options > Folder trust** lists
-the folders your cards use that Claude Code will ask about. **Trust these folders…** shows the exact change to Claude
-Code's configuration file and makes it only if you agree, as if you had answered Yes once in each. Trusting a repository
-covers every worktree of it. **Undo** takes back only what Theseus set.
+Claude Code asks you to trust a folder the first time a session starts in it or adds it. It looks for a trusted record
+from the start folder upwards, so one record on a plain folder covers every folder under it.
 
-So that you never manage the list by hand, **Trust the folders my cards use** (in the same place, and a step of
-**Tools > Set up Theseus…**) is a single consent. **Switch on…** shows exactly what it writes and why, and is off until
-you agree. While it is on, Theseus trusts each card's folders just before the card starts, by the key Claude Code looks
-up: a repository by its root, and a worktree by its main clone, so a new worktree opens without a question. It reaches
-only folders in your projects folder and your clones folder, and never trusts your home folder, a drive's root or a
-holdout folder; anything else a card uses is still listed for you to trust or not. **Undo** takes back what Theseus set
-and switches it off.
+Theseus keeps your **base folders** trusted, one record each. They are set once, in **Tools > Options > Folders** and as
+a step of **Tools > Set up Theseus…**, and default to the folder that holds your projects folder and to your worktrees
+folder. Theseus checks the records when it starts and before every card starts, and writes only what is missing. It never
+trusts your home folder, a drive's root, a holdout folder, or a folder inside a repository. **Add…** adds another base
+folder, **Reset** goes back to the defaults, and **Undo** takes back every record Theseus set and empties the list.
+Anything outside the base folders, Claude Code asks about as usual.
+
+A card with worktrees starts in its workstream folder (`<worktrees>\<feature>`), the plain folder that holds them, and
+adds its own records folder. It never adds a worktree, because Claude Code keys a worktree's trust by its main clone. The
+session is told where its repositories are, and to read each one's `CLAUDE.md` and `AGENTS.md` before working in it. It
+keeps the memory of its records folder. A session started before this resumes in the folder it began in.
 
 ### When starting goes wrong
 
@@ -40,7 +41,7 @@ and switches it off.
 | "That launch ticket is unknown or has already been used" | The tab reached a different copy of Theseus, or the ticket expired (it lasts two minutes). Usually two copies of Theseus were running. Close both and start again. |
 | The tab opens in the wrong terminal | Theseus prefers a Windows Terminal that is already running, and the stable build over Preview. Set the path in **Tools > Options**. |
 | Start does nothing | Claude Code or Windows Terminal could not be found (the status bar says which), or the card is already following a live session. Set the paths in **Tools > Options**. |
-| Claude Code asks you to trust a folder in the tab | The folder has no trust record yet. The card says it needs you to trust the folder, and **Focus** brings the tab forward. Answer it there, or trust it once for every start in **Tools > Options > Folder trust**. |
+| Claude Code asks you to trust a folder in the tab | The folder has no trust record yet. The card says it needs you to trust the folder, and **Focus** brings the tab forward. Answer it there. A folder under one of your base folders (**Tools > Options > Folders**) is never asked about. |
 | A tab says Claude Code exited with a code | The session failed, and the tab is held open for 15 minutes so you can read why. Press Enter to close it sooner. A held tab that is never closed is cleared up the next time Theseus starts. |
 | "did not start: No clone of … was found" | The card's row names a repo with no clone in the clones folder. Clone it there yourself, or correct the row's Repos. See [Worktrees made at the start](project-layout.md#worktrees-made-at-the-start). |
 | "did not start: … is on …, not …" | A worktree already at the card's place is on another branch. Put it on the row's branch, or correct the row. |

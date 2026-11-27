@@ -12,7 +12,7 @@ public static class TrustPrompt
     /// <param name="sessionId">The session the launch starts.</param>
     /// <param name="isRegistered">Whether the session is in Claude Code's registry, which it enters only past the question.</param>
     /// <param name="launchInFlight">Whether the card's launch has a run that has not ended.</param>
-    /// <param name="untrusted">The trust records the launch's folders lack, as Options › Folder trust names them.</param>
+    /// <param name="untrusted">The trust records the launch's folders lack, by the key Claude Code looks up.</param>
     /// <param name="now">When this is said.</param>
     public static PermissionPrompt? For(string sessionId, bool isRegistered, bool launchInFlight, IReadOnlyList<string> untrusted,
         DateTimeOffset now)
