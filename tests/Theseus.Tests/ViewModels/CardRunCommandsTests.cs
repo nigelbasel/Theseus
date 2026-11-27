@@ -106,6 +106,49 @@ public class CardRunCommandsTests
     }
 
     [Test]
+    public void StopSelected_WithAProjectTicked_StopsTheProject_AndOnlyTheCardsNoTickedProjectCovers()
+    {
+        var projects = new List<string>();
+        var commands = Commands();
+        commands.StopProject = project =>
+        {
+            projects.Add(project.Name);
+
+            return true;
+        };
+
+        commands.StopSelected([Live("member"), Live("ad-hoc")], [_project]);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(projects, Is.EqualTo(new[] { "p" }), "Nigel 2026-11-27: Stop selected stops a ticked project as Stop the project does");
+            Assert.That(_stopped, Is.EqualTo(new[] { "ad-hoc" }), "its member is the project's to stop");
+            Assert.That(_settings.Read().ProjectRunStates, Is.Empty, "Stop the project records the run state itself");
+        });
+    }
+
+    [Test]
+    public void StopSelected_WithNoProjectTicked_NeverStopsAProject()
+    {
+        var projects = new List<string>();
+        var commands = Commands();
+        commands.StopProject = project =>
+        {
+            projects.Add(project.Name);
+
+            return true;
+        };
+
+        commands.StopSelected([Live("ad-hoc")], []);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(projects, Is.Empty);
+            Assert.That(_stopped, Is.EqualTo(new[] { "ad-hoc" }));
+        });
+    }
+
+    [Test]
     public void AStart_TakesTheCardOffTheStoppedByYouList_AndOutOfARunState()
     {
         _settings.Write(_settings.Read() with

@@ -223,7 +223,8 @@ public sealed partial class ShellViewModel : ObservableObject
             Chosen().Count + Board.ChosenProjects.Count,
             ChosenToStart().Count + (_launcher.CanLaunch ? Board.ChosenProjects.Count(project => project.StartPlan is { CanStart: true }) : 0)));
         StopSelectedCommand = new ReasonedCommand(_ => StopSelected(),
-            _ => SelectionReasons.Stop(Chosen().Count + Board.ChosenProjects.Count, ChosenSteps().Count));
+            _ => SelectionReasons.Stop(Chosen().Count + Board.ChosenProjects.Count,
+                ChosenSteps().Count + Board.ChosenProjects.Count(project => _canStop.Contains(project.Name))));
         SelectAllCommand = new RelayCommand(_ => ChooseAll(true), _ => Board.ShownItems.Any(item => !item.IsSelected));
         ClearSelectionCommand = new RelayCommand(_ =>
         {
@@ -919,7 +920,10 @@ public sealed partial class ShellViewModel : ObservableObject
         (question, verb) => ConfirmProjectCard?.Invoke(question, verb) == true,
         (title, label, initial) => AskText?.Invoke(title, label, initial),
         (workstreams, trigger) => StartMany(workstreams, trigger: trigger),
-        cards => BeginStop(StepsFor(cards)));
+        cards => BeginStop(StepsFor(cards)))
+    {
+        StopProject = project => Stopper.Stop(project),
+    };
 
     /// <summary>Start selected (1.1e AC 10, 11).</summary>
     private void StartSelected()
