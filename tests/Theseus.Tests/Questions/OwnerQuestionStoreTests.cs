@@ -139,6 +139,49 @@ public class OwnerQuestionStoreTests
     }
 
     [Test]
+    public void RemoveExcept_KeepsAnAskedQuestionOfACardsLastSession_ThatIsNotRunning()
+    {
+        _store.Ask(new OwnerQuestion(SessionId, "Push now?", IsGuess: false, Nine));
+        _store.Guess(new OwnerQuestion(Other, "Shall I?", IsGuess: true, Nine));
+
+        for (var sweep = 0; sweep < OwnerQuestionStore.SweepsMissing; sweep++)
+        {
+            _store.RemoveExcept([], DateTimeOffset.UtcNow.AddMinutes(1), keepAsked: [SessionId, Other]);
+        }
+
+        Assert.That(_store.Read(SessionId), Is.Not.Null, "a headless session between runs, or a stopped one, can still be answered on the board");
+        Assert.That(_store.Read(Other), Is.Null, "a guess is only ever of a running session");
+    }
+
+    [Test]
+    public void RemoveExcept_KeepsAnAnswerWaitingToBeDelivered()
+    {
+        _store.Ask(new OwnerQuestion(SessionId, "Push now?", IsGuess: false, Nine));
+        _store.RecordAnswer(SessionId, "Yes", Nine);
+
+        for (var sweep = 0; sweep < OwnerQuestionStore.SweepsMissing; sweep++)
+        {
+            _store.RemoveExcept([], DateTimeOffset.UtcNow.AddMinutes(1));
+        }
+
+        Assert.That(_store.Read(SessionId)!.Answer, Is.EqualTo("Yes"));
+    }
+
+    [Test]
+    public void ClearAnswered_LeavesAQuestionStillOpen()
+    {
+        _store.Ask(new OwnerQuestion(SessionId, "Push now?", IsGuess: false, Nine));
+        _store.ClearAnswered(SessionId);
+
+        Assert.That(_store.Read(SessionId), Is.Not.Null);
+
+        _store.RecordAnswer(SessionId, "Yes", Nine);
+        _store.ClearAnswered(SessionId);
+
+        Assert.That(_store.Read(SessionId), Is.Null);
+    }
+
+    [Test]
     public void AnUnreadableFile_ReadsAsNoQuestion()
     {
         Directory.CreateDirectory(_root);

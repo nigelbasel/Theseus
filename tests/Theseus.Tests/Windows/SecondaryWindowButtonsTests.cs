@@ -18,6 +18,7 @@ public class SecondaryWindowButtonsTests
     [
         ["About", "CloseButton", "CloseButton", null],
         ["AddObjective", "AddButton", "CancelButton", "AddButton"],
+        ["AnswerQuestion", "SendButton", "CancelButton", "SendButton"],
         ["AddToProject", "AddButton", "CancelButton", "AddButton"],
         ["Arrange", "ArrangeButton", "CloseButton", "ArrangeButton"],
         ["Checklist", "CancelButton", "CancelButton", null],

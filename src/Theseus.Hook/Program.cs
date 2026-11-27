@@ -88,15 +88,15 @@ try
     // A stop request first, else something the owner's board action tells it (1.1e AC 27), each decided before it is
     // claimed: claiming first and then declining, on a subagent's turn or one a stop hook already extended, would
     // consume it and leave the session that was meant to have it none the wiser.
-    var request = HookTurn.Deliver(input, new StopRequestStore(StopRequestRoot.Default), new StopRequestStore(StopRequestRoot.Tells),
-        DateTimeOffset.UtcNow);
+    var tells = new StopRequestStore(StopRequestRoot.Tells);
+    var request = HookTurn.Deliver(input, new StopRequestStore(StopRequestRoot.Default), tells, DateTimeOffset.UtcNow);
 
     // The owner typing answers the tab's open question; a turn ending on a question asked only in prose leaves a guess
     // for the board (1.6). Kept apart so nothing it does can stop a delivery.
     try
     {
         HookQuestion.OnEvent(input, new OwnerQuestionStore(OwnerQuestionRoot.Default), TranscriptTail.Read,
-            DateTimeOffset.UtcNow, delivered: request is not null);
+            DateTimeOffset.UtcNow, delivered: request is not null, tellWaiting: id => tells.Waiting(id) is not null);
     }
     catch (Exception)
     {

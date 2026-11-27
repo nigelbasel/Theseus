@@ -406,6 +406,8 @@ public partial class App : Application
 
             return window.ShowDialog() == true ? window.Details : null;
         };
+        // A question asked with ask_owner is answered here (2.4e); Cancel answers nothing.
+        shell.AskAnswer = model => new AnswerQuestionWindow(model) { Owner = ActiveWindow }.ShowDialog() == true ? model : null;
         shell.AskText = (title, label, initial) =>
         {
             return new TextPromptWindow(title, label, initial) { Owner = ActiveWindow }.Ask();

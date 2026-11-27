@@ -1155,6 +1155,7 @@ public sealed class ProjectViewModel : ObservableObject
         {
             WaitKind.AcceptSpec or WaitKind.ConfirmAcceptance when node?.Spec is { } spec => new RelayCommand(_ => _actions.AcceptSpec(spec)),
             WaitKind.AcceptSpec when node?.PrimaryAction is { } action => action.Command,
+            WaitKind.Answer when item.CardKey is { } card && _actions.AnswerQuestion is { } answer => new RelayCommand(_ => answer(card)),
             WaitKind.Answer when item.CardKey is { } card => new RelayCommand(_ => _actions.Focus(card)),
             WaitKind.Unblock when item.CardKey is { } card && node?.PrimaryAction is { } action => action.Command,
             WaitKind.StartVerifier when item.CardKey is { } verifier => new RelayCommand(_ => StartVerifier(verifier)),

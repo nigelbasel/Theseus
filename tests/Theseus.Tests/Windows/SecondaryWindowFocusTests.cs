@@ -23,6 +23,7 @@ public class SecondaryWindowFocusTests
     [
         ["About", "CloseButton"],
         ["AddObjective", "TitleBox"],
+        ["AnswerQuestion", "OwnWords"],
         ["AddToProject", "ProjectBox"],
         ["Arrange", "row:Groups"],
         ["Checklist", "row:Rows"],

@@ -170,17 +170,28 @@ public sealed class ProjectOverview
 
         // A card working no piece, such as a verifier, shows in no box, so its waiting on the owner is said here or nowhere
         // (1.6, Nigel 2026-11-23: "there is no indication in theseus that I need to respond").
-        foreach (var card in others.Where(card => card.Lifecycle == SessionLifecycle.NeedsAttention))
+        foreach (var card in others.Where(card => card.Lifecycle == SessionLifecycle.NeedsAttention
+                                                  || card is { Question: { IsOpen: true, IsGuess: false }, Lifecycle: SessionLifecycle.Ended or SessionLifecycle.NotStarted or SessionLifecycle.Ghost }))
         {
             if (waits.Any(wait => string.Equals(wait.CardKey, card.Key, StringComparison.OrdinalIgnoreCase)))
             {
                 continue;
             }
 
-            waits.Add(new WaitItem(WaitKind.Answer, $"{Questions.QuestionWords.Named(card.Title, card.Prompt, card.Question)}; answer it in its tab.", [])
+            waits.Add(new WaitItem(WaitKind.Answer, $"{Questions.QuestionWords.Named(card.Title, card.Prompt, card.Question)}; answer it {(card.Prompt is null && card.Question is not null ? "here or in its tab" : "in its tab")}.", [])
             {
                 CardKey = card.Key,
             });
+        }
+
+        // An answer given on the board shows until it is delivered, so it is not taken for lost (2.4e).
+        var answered = pieces.Where(piece => piece.IsCurrentPiece).Select(piece => piece.Card).OfType<PieceCard>().Concat(others)
+            .Where(card => card.Question is { IsOpen: false })
+            .DistinctBy(card => card.Key, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var card in answered)
+        {
+            waits.Add(new WaitItem(WaitKind.Delivering, Questions.QuestionWords.Named(card.Title, card.Question!), []) { CardKey = card.Key });
         }
 
         // Theseus starts a verifier itself as it makes one (Nigel, 2026-11-23), so one waits for the owner only when it is

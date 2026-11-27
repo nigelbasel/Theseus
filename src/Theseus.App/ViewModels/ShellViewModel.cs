@@ -3008,6 +3008,7 @@ public sealed partial class ShellViewModel : ObservableObject
                 ReviewProposal = ReviewProposal,
                 TellCard = (key, text) => Tell(Board.Card(key), text),
                 AnswerStartRequest = AnswerStartRequest,
+                AnswerQuestion = AnswerQuestion,
                 ClearVerifiers = ClearUpVerifiers,
                 ResetBreaker = key => ResetBreakers([key]),
                 ResetBreakerAndStart = ResetBreakerAndStart,
@@ -4300,7 +4301,8 @@ public sealed partial class ShellViewModel : ObservableObject
         var reasons = _settings.Read();
         _branchGrants = reasons.ProjectBranchRules;
         RefreshHoldouts([.. Board.Cards.Select(card => card.Workstream)]);
-        Questions.RemoveExcept(Sessions.Snapshot.Live.Select(session => session.SessionId), DateTimeOffset.UtcNow.AddMinutes(-10));
+        Questions.RemoveExcept(Sessions.Snapshot.Live.Select(session => session.SessionId), DateTimeOffset.UtcNow.AddMinutes(-10),
+            keepAsked: Board.Cards.Select(card => card.Workstream.LastSessionId).OfType<string>());
         Prompts.RemoveExcept(Sessions.Snapshot.Live
             .Where(session => string.Equals(session.Status, "waiting", StringComparison.OrdinalIgnoreCase))
             .Select(session => session.SessionId), DateTimeOffset.UtcNow);
@@ -4309,8 +4311,10 @@ public sealed partial class ShellViewModel : ObservableObject
         {
             var session = Sessions.Find(card.Workstream.LastSessionId);
             var live = session is not null;
-            var question = live ? Questions.Read(card.Workstream.LastSessionId) : null;
-            var state = CardLifecycle.For(card.Key, session?.Status, live, runs, now, hasOpenQuestion: question is not null);
+            // A question asked outright stays with its card once the session ends, so it can be answered on the board; a
+            // guess is only ever of a running session (2.4e).
+            var question = Questions.Read(card.Workstream.LastSessionId) is { } read && (live || !read.IsGuess) ? read : null;
+            var state = CardLifecycle.For(card.Key, session?.Status, live, runs, now, hasOpenQuestion: question is { IsOpen: true });
 
             card.Question = question;
             card.Prompt = live ? Theseus.Core.Questions.PermissionPrompt.Showing(Prompts.Read(card.Workstream.LastSessionId), session?.Status, question) : null;
@@ -5143,7 +5147,10 @@ public sealed partial class ShellViewModel : ObservableObject
 
             // What the owner's board actions told its last session, still waiting, is given with this start instead, so it
             // is neither lost nor told twice (review of PR 6, finding 3).
-            if (Tells.TakeForStart(workstream.LastSessionId, DateTimeOffset.UtcNow) is { } waitingTell)
+            var previousSession = workstream.LastSessionId;
+            var tookTell = Tells.TakeForStart(workstream.LastSessionId, DateTimeOffset.UtcNow);
+
+            if (tookTell is { } waitingTell)
             {
                 workstream = workstream with
                 {
@@ -5172,7 +5179,19 @@ public sealed partial class ShellViewModel : ObservableObject
                     blocks.Add((block, workstream));
                 }
 
+                // What it was to be told goes back to wait for its next start, so a start that fails loses no answer (2.4e).
+                if (tookTell is not null)
+                {
+                    Tells.Queue(workstream.Key, workstream.Title, previousSession, tookTell, DateTimeOffset.UtcNow);
+                }
+
                 continue;
+            }
+
+            // An answer given on the board went with this start: its wait clears (2.4e).
+            if (tookTell is not null)
+            {
+                Questions.ClearAnswered(previousSession);
             }
 
             // Starting a workstream withdraws any request to stop it. A resumed session keeps its
