@@ -58,9 +58,13 @@ public sealed class CardRunCommands
         return true;
     }
 
+    /// <summary>Stop the project, asked about once; false when the owner cancelled. Null stops a ticked project's sessions only.</summary>
+    public Func<ProjectCardViewModel, bool>? StopProject { get; set; }
+
     /// <summary>
-    /// Stop selected: asks about the selected live cards no selected project covers, marks them stopped by you, records each
-    /// selected project's run state, and stops the cards and the projects' sessions, each once.
+    /// Stop selected: asks about the selected live cards no selected project covers, marks them stopped by you and stops
+    /// them; each selected project is stopped by <see cref="StopProject"/>. Without it, records each selected project's run
+    /// state and stops its sessions with the cards, each once.
     /// </summary>
     public void StopSelected(IReadOnlyList<WorkstreamCardViewModel> chosen, IReadOnlyList<ProjectCardViewModel> projects)
     {
@@ -68,6 +72,20 @@ public sealed class CardRunCommands
         ArgumentNullException.ThrowIfNull(projects);
 
         var covered = Covered(projects);
+
+        if (StopProject is { } stopProject && projects.Count > 0)
+        {
+            List<ProjectCardViewModel> ticked = [.. projects];
+
+            StopSelected([.. chosen.Where(card => !covered.Contains(card.Key))], []);
+
+            foreach (var project in ticked)
+            {
+                stopProject(project);
+            }
+
+            return;
+        }
         var own = chosen.Where(card => card.IsLive && !covered.Contains(card.Key)).ToList();
 
         if (!Allowed(own, "Stop"))
