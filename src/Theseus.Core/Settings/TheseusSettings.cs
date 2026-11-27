@@ -141,6 +141,13 @@ public sealed record TheseusSettings(
     public string ClonesFolder { get; init; } = string.Empty;
 
     /// <summary>
+    /// The owner's one consent to "trust the folders my cards use, as they need it" (objective 1.3, Nigel 2026-11-26): while
+    /// on, Theseus trusts each card's folders in Claude Code before launch, inside the projects and clones folders only. Off
+    /// until he switches it on.
+    /// </summary>
+    public bool TrustCardFolders { get; init; }
+
+    /// <summary>
     /// Where each project's card was dragged to, by project name. A project not listed sits in the first column and row
     /// (project-view AC 12).
     /// </summary>

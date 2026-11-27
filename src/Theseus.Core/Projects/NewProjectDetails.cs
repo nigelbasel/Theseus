@@ -5,4 +5,8 @@ namespace Theseus.Core.Projects;
 /// <param name="Title">Its title, the file's first heading; the name when left empty.</param>
 /// <param name="Objective">One paragraph: the outcome it exists for; the starter's prompt when left empty.</param>
 /// <param name="PrimaryBranch">Its primary branch; the starter's placeholder when left empty.</param>
-public sealed record NewProjectDetails(string Name, string Title, string Objective, string PrimaryBranch);
+public sealed record NewProjectDetails(string Name, string Title, string Objective, string PrimaryBranch)
+{
+    /// <summary>Whether the owner left the box ticked that grants the project's branch rules as it starts.</summary>
+    public bool GrantBranchRules { get; init; }
+}

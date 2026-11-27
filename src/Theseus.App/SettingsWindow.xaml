@@ -231,6 +231,16 @@
 
                         <!-- Claude Code's trust of the folders sessions start in, set from here and never by a session (project-view-usability item 7). -->
                         <StackPanel x:Name="FolderTrustSection" DataContext="{Binding FolderTrust}">
+                            <controls:SettingRow Label="Trust the folders my cards use" Value="{Binding StandingLine}"
+                                                 Explanation="Your one consent: Theseus trusts each card's folders before it starts, by the key Claude Code looks up (a worktree by its main clone), only inside the projects and clones folders, never your home folder, a drive's root or a holdout. Undo takes back what Theseus set and switches this off."
+                                                 Visibility="{Binding OffersStanding, Converter={StaticResource BoolToVisibility}}">
+                                <Button Content="Switch o_ff" Style="{StaticResource Action}" Command="{Binding SwitchOffCommand}"
+                                        AutomationProperties.Name="Switch off folder trust" ToolTipService.ShowOnDisabled="True"
+                                        ToolTip="Stop trusting new folders. What Theseus trusted stays until Undo." />
+                                <Button Content="_Switch on…" Style="{StaticResource Action}" Command="{Binding SwitchOnCommand}"
+                                        AutomationProperties.Name="Switch on folder trust" ToolTipService.ShowOnDisabled="True"
+                                        ToolTip="Shows exactly what Theseus will write and why first, and switches it on only if you agree." />
+                            </controls:SettingRow>
                             <controls:SettingRow Label="Folder trust" Value="{Binding Line}"
                                                  Explanation="Claude Code asks to trust each folder a session starts in or adds, and its answer for an added folder lasts one session. Trusting a repository covers every worktree of it.">
                                 <Button Content="_Undo" Style="{StaticResource Action}" Command="{Binding UndoCommand}"

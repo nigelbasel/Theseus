@@ -12,6 +12,9 @@ public enum SetupStep
     /// <summary>The guards Theseus ships (holdout, trunk, tests-lock), each installed, current and run by Claude Code.</summary>
     Guards,
 
+    /// <summary>The standing consent to trust the folders cards use (objective 1.3, Nigel 2026-11-26).</summary>
+    FolderTrust,
+
     /// <summary>Claude Code, Node, git and the agentic-factory plugin: reported, never installed.</summary>
     Tools,
 }

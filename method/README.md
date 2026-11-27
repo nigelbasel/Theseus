@@ -4,8 +4,14 @@ A small, versioned set of plain files that says how agentic work is run: which s
 goes through, who does each, what each produces, and what has to be true before it moves on. Theseus is
 built with it (the bootstrap) and will run it for others.
 
-**Version:** `method-v0.2` (2026-11-20). `method-v0.1` (2026-11-19) was the kit as it stood at the end of stage 0 of
-the Theseus bootstrap, after six hand-run changes and 17 lessons. `method-v0.2` adds, together:
+**Version:** `method-v0.3` (2026-11-26). `method-v0.3` adds, together: the **decide, record or park** ladder for
+unattended work, and the **branch, worktree and merge conventions** the owner had kept in his own instructions, now
+written for any developer ("Branches, worktrees and merging", and a wider owner-only rung). It does not change the
+project file's shape, so Theseus reads a `Kit:` line of `method-v0.2` or `method-v0.3` alike, and a project moves up
+by changing that line.
+
+`method-v0.1` (2026-11-19) was the kit as it stood at the end of stage 0 of the Theseus bootstrap, after six hand-run
+changes and 17 lessons. `method-v0.2` (2026-11-20) adds, together:
 
 - the **evidence result block**, a machine-readable `theseus-evidence` block in `evidence.md` ([`project.md`](project.md));
 - **P18** (below): a named holdout scenario is run, or verify stays open;
@@ -86,6 +92,38 @@ Ad hoc work can be promoted to a project. Its handoff becomes the project's firs
   on the ordinary board only the session's own descendants, cards made from proposals it raised and the owner
   approved. A parent never closes another card's session any other way. (1.1e AC 14 and 17, Nigel 2026-11-21;
   sessions-run-the-project, Nigel 2026-11-22.)
+- **Check for a live owner before resuming.** Before taking up work a handoff names, check that no running session owns
+  it: the target file's modified time, the board, and a run's journal. Two sessions in one document corrupt it.
+- **Full paths and full URLs.** A file is named by its full path, and a pull request, build or tracker item by its URL,
+  the first time each is mentioned, with the id beside it. A URL is bare text, not a markdown link, which a terminal may
+  show as its label alone.
+- **One log per workstream, every line timestamped.** Test and build output is appended, never truncated, to one log
+  per workstream, `<logs>/<workstream>.log`, never a session-scoped path, with a banner naming the suite and the time
+  at each run, at the runner's most verbose per-test level. Every line a script writes reads
+  `[yyyy-MM-dd HH:mm:ss.fff] [<Level>] <<context>> <message>`, the level a full word (`Information`, `Warning`, `Error`).
+- **A live process is not a healthy build.** Watch the build's own log for its failure signatures, and report a step
+  whose log has not grown for 90 seconds as a likely stall.
+
+## Branches, worktrees and merging
+
+- **Branches.** A project has one primary branch off the trunk, `<user>/<project>`, which the owner names. Each
+  workstream branches off it as `<user>/<workstream>`, never `<user>/<project>/<workstream>`: git cannot hold a branch
+  and a folder of branches under one name. With the owner's grant for the project, a workstream creates its branch and
+  worktrees, commits, pushes its branch, merges the primary into it and merges it into the primary, without asking.
+  It merges into the primary only once its full suite passes and its review is done, then runs the full suite again
+  on the merge result and pushes only if that passes: others branch from the primary, so it is always green. Outside
+  a project, or without the grant, a session makes no branch or worktree the owner has not named, and asks before
+  every push.
+- **Worktrees.** A clone stays on its default branch, clean and pull-only: no work is done or committed there. Work is
+  done in a worktree, `<work>/<workstream>/<repo>`, one per repo, all on the workstream's one branch name. When the
+  primary's pull request completes, the worktrees and branches are cleared away, asking the owner before any is
+  deleted.
+- **Up to date first.** At a session's start, bring the branch up to date with its base (the primary in a project,
+  else the trunk) and say what came in. Merging the base in needs no asking; resolving a conflict that changes someone
+  else's work does.
+- **Verified here, not in CI.** A build reaches CI already known green on the developer's machine: CI agents are shared
+  and finite. Suites that start containers or build a whole solution share the machine, so they run under its lock
+  when there is one.
 
 ## Working unattended: decide, record, or park
 
@@ -96,13 +134,22 @@ holding a question that a rule already answered, or that it could have answered 
 When a session meets a choice it would otherwise ask about, it goes down this ladder:
 
 1. **Owner-only: never decided by a session.**
-   - Completing, approving, abandoning or auto-completing a pull request into the trunk, and pushing or force-pushing
-     to the trunk (a guard refuses these).
+   - Completing, approving, abandoning or auto-completing a pull request into the trunk, voting on it or changing its
+     reviewers, bypassing a branch policy, deleting its source branch, and pushing or force-pushing to the trunk, or
+     force-pushing the primary (a guard refuses the trunk's). "Go ahead", "carry on" or "do it" is never this
+     authorisation. A session may create a pull request it was asked for, edit its title and description, comment,
+     resolve threads it has answered, and read its state.
    - Deleting anything: branches, worktrees, files, records.
-   - Creating a tracker item.
+   - Creating a tracker item. An analysis recommending one, an option picked in a plan, a defect found mid-task and
+     "carry on" are none of them the owner's say-so. Transitions, worklogs, comments and links on the item the work
+     belongs to are fine.
    - Accepting a spec or a bug's rule, and confirming a report.
-   - Changing a standing rule.
-   - Production, secrets, customer data and every Azure mutation.
+   - Changing a standing rule, and naming a new project's primary branch.
+   - Machine-wide configuration: drive mappings, PATH and persistent environment variables, the registry, services,
+     scheduled tasks, installed software and global tool configuration.
+   - Production, secrets, customer data, and every change to shared cloud infrastructure outside its pipeline.
+     Read-only queries are fine. A data fix on a production-like database is a script for a person to run, in a
+     transaction with the commit left out, printing counts before and after.
    - A product decision the brief and the project's decisions leave open.
 2. **Decide and record.** Anything else, the session decides: it takes the option it would recommend, provided all of
    these hold:
@@ -155,6 +202,7 @@ Further rules for unattended runs:
 | 2026-11-20 | Every project's records (its `project.md`, `work/<slug>/` and retrospectives) live in a project home folder outside any code repo, one subfolder of the projects folder per project; a code repo holds code only. `method/starter/` holds the files a new project begins with. Supersedes the 2026-11-18 row on `work/` and `bootstrap/` | Nigel |
 | 2026-11-20 | Inside a project the owner's gates are each workstream's spec (a bug's rule) and the primary branch's pull request into the trunk, which passes when he merges it; plan and review pass on evidence (decision 4A, released in `method-v0.2`) | Nigel |
 | 2026-11-20 | The evidence result block is JSON in a fenced `theseus-evidence` block; its `gates` field is information only, never proof | Nigel |
+| 2026-11-26 | The owner's branch, worktree, merge, logging and permission conventions are the method's defaults for everyone (`method-v0.3`); estate-specific rules stay in each team's own sheet, and coding standards in each repo's rubric | Nigel |
 
 ## Open questions
 
