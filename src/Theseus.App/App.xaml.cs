@@ -636,7 +636,7 @@ public partial class App : Application
             Theseus.Core.Attention.SessionCards.Over(Path.Combine(DataDirectory, "runs.jsonl"), runs.Read),
             handle => AttentionSampler.FocusOf(handle, shell.AttentionFocus),
             StampOf);
-        _attention.Sampled += pieceEvents.Watch;
+        _attention.Sampled += cards => pieceEvents.Watch([.. cards, .. shell.Board.ArchivedWorkstreams]);
         _attention.Start();
 
         _staleStarts = new Timer(_ =>

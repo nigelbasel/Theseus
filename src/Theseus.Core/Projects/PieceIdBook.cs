@@ -62,7 +62,8 @@ public sealed class PieceIdBook
 
                 foreach (var card in rows.GroupBy(row => row.Workstream, StringComparer.OrdinalIgnoreCase))
                 {
-                    var gone = _pieces.Where(piece => Same(piece.Project, file.Name) && piece.Cards.Contains(card.Key, StringComparer.OrdinalIgnoreCase)
+                    // Only a piece the card owns can be renamed by it: a verifier or hand-over child is on its subject's piece too.
+                    var gone = _pieces.Where(piece => Same(piece.Project, file.Name) && piece.Cards.Count > 0 && Same(piece.Cards[0], card.Key)
                                                       && !slugs.Contains(piece.Slug)).ToList();
 
                     foreach (var row in card)

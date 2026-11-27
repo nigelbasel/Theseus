@@ -58,6 +58,19 @@ public class PieceIdBookTests
     }
 
     [Test]
+    public void Update_DoesNotLetAVerifiersNewRowTakeThePieceItChecks_WhenThatPieceIsRenamed()
+    {
+        var book = Book();
+        book.Update([Reading(("card-a", "slug-a"))]);
+        book.IdOf(Card("verify-a") with { Role = WorkstreamRole.Verifier }, MemberOf,
+            [new("lk-1", LinkKind.ReportsBack, "verify-a", "card-a", Nine, Link.MadeOnTheBoard)]);
+
+        book.Update([Reading(("verify-a", "verify-slug-a"), ("card-a", "slug-a-renamed"))]);
+
+        Assert.That((book.IdFor("p", "slug-a-renamed"), book.IdFor("p", "verify-slug-a")), Is.EqualTo(("id-1", "id-2")));
+    }
+
+    [Test]
     public void IdOf_GivesAVerifierThePieceOfTheCardItChecks()
     {
         var book = Book();

@@ -112,6 +112,12 @@ public sealed class BoardViewModel : ObservableObject
     /// </summary>
     public void IncludeArchived() => ShowArchived = true;
 
+    /// <summary>
+    /// The archived workstreams the board holds back while it does not show them, so a card archived from the board is
+    /// still seen as archived (7.3: a piece whose card is archived before it finishes is recorded as abandoned).
+    /// </summary>
+    public IReadOnlyList<Workstream> ArchivedWorkstreams => _archived;
+
     private void OnSearchChanged()
     {
         _current = null;
