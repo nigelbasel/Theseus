@@ -7,6 +7,7 @@ using Theseus.Core.Colour;
 using Theseus.Core.Domain;
 using Theseus.Core.Diagnostics;
 using Theseus.Core.Launching;
+using Theseus.Core.Guards;
 using Theseus.Core.Links;
 using Theseus.Core.Locks;
 using Theseus.Core.Messaging;
@@ -171,21 +172,35 @@ public partial class App : Application
             shell.Warn(warning);
         }
 
-        if (shell.Settings.Guard is { } guard)
+        foreach (var guard in shell.Settings.Guards)
         {
             // Owned by the active window: both are asked from Options, and one owned by the main window sat behind it (A6).
             guard.ConfirmChange = change =>
-                new QuestionWindow("Add the holdout guard's hook entry?", change, "_Add hook entry") { Owner = ActiveWindow }.Ask() == true;
+                new QuestionWindow($"Add the {guard.Name}'s hook entry?", change, "_Add hook entry") { Owner = ActiveWindow }.Ask() == true;
         }
+
+        if (shell.Settings.AutoMode is { } autoMode)
+        {
+            autoMode.ConfirmChange = change =>
+                new QuestionWindow("Write auto mode's environment?", change, "_Write environment") { Owner = ActiveWindow }.Ask() == true;
+        }
+
+        // The stop hook is written only after the owner reads the exact entry and agrees (first-run-setup brief step 1).
+        shell.FirstRun.ConfirmChange = change =>
+            new QuestionWindow("Add the stop hook to Claude Code's settings?", change, "_Add hook entry") { Owner = ActiveWindow }.Ask() == true;
+        shell.FirstRun.ShowWindow = () =>
+            new FirstRunWindow { Owner = ActiveWindow, DataContext = shell.FirstRun }.ShowDialog();
 
         if (shell.Settings.FolderTrust is { } trust)
         {
             trust.ConfirmChange = change =>
                 new QuestionWindow("Trust these folders in Claude Code?", change, "_Trust folders") { Owner = ActiveWindow }.Ask() == true;
+            trust.ConfirmConsent = consent =>
+                new QuestionWindow("Trust the folders your cards use?", consent, "_Switch on") { Owner = ActiveWindow }.Ask() == true;
         }
 
-        // Said once for each newer guard an update brings, until it is installed from Options.
-        if (HoldoutGuardNotice(settings) is { } guardNotice)
+        // Said once for each set of guards to set up, and again when it changes, such as an update bringing a newer guard.
+        if (GuardNotice(settings) is { } guardNotice)
         {
             TheseusLog.Warning("{Warning}", guardNotice);
             shell.Warn(guardNotice);
@@ -232,11 +247,15 @@ public partial class App : Application
             new RegistryLockLiveness(new ProcessProbe(), new SessionRegistryReader(SessionRegistryReader.DefaultDirectory, new ProcessProbe()), clock),
             clock,
             new WindowsProcessTree(new ProcessProbe()),
-            OrphanCleaner.ForThisMachine(new ProcessProbe(), testContainers));
+            OrphanCleaner.ForThisMachine(new ProcessProbe(), testContainers),
+            cardFamily: card => Theseus.Core.Links.RunFamily.Of(card, snapshots.Current, links.Active),
+            tableStore: new ResourceTableStore(Path.Combine(DataDirectory, "resources.json")));
 
         _lockSweep = new Timer(_ => locks.Sweep(), null, TimeSpan.Zero, TimeSpan.FromSeconds(15));
-        _locks = new LocksViewModel(locks, () => DateTimeOffset.UtcNow, ticket => LockColours.For(ticket, shell.Board.Cards), testContainers);
+        _locks = new LocksViewModel(locks, () => DateTimeOffset.UtcNow, ticket => LockColours.For(ticket, shell.Board.Cards), testContainers,
+            (ticket, now) => LockIdle.For(ticket, shell.Board.Cards, now)) { Settings = settings };
         shell.Locks = _locks;
+        shell.LockBook = locks;
 
         // Locks and Chains share the right-hand side and never sit side by side: with the sessions
         // panel open as well, two would leave the board one column wide.
@@ -304,7 +323,16 @@ public partial class App : Application
                     () => Dispatcher.BeginInvoke(shell.Refresh)),
                 startRequests: shell.StartRequests,
                 duties: new Theseus.Core.Mcp.DutyTools(duties, record: (card, text) =>
-                    Dispatcher.BeginInvoke(() => shell.RecordDutyEvent(card, text))));
+                    Dispatcher.BeginInvoke(() => shell.RecordDutyEvent(card, text))),
+                arbiter: () => settings.Read().LockArbiterCard);
+
+        // From the owner's setting only (2.4 W2): the card a session runs for, and that card's project, as the board has them.
+        mcpHandler.IsUnattended = sessionId => _launcher?.LaunchedUnattended(sessionId) == true || runs.Read()
+            .Where(run => string.Equals(run.ClaudeSessionId, sessionId, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(run => run.StartedUtc)
+            .Select(run => snapshots.Current.Card(run.WorkstreamKey)?.Workstream.Project)
+            .FirstOrDefault() is { } project
+            && Theseus.Core.Projects.UnattendedProjects.IsOn(project, settings.Read().UnattendedProjects);
 
         WireHeadless(shell, settings, mcpHandler);
 
@@ -322,6 +350,7 @@ public partial class App : Application
             // has gone it can tell them nothing (Nigel, 2026-10-30).
             var hook = Path.Combine(AppContext.BaseDirectory, "Theseus.Hook.exe");
             _launcher.SessionSettings = File.Exists(hook) ? Theseus.Core.Status.TheseusHookSettings.Json(hook) : null;
+            _launcher.UnattendedSessionSettings = File.Exists(hook) ? Theseus.Core.Status.TheseusHookSettings.Json(hook, unattended: true) : null;
             _launcher.Launched = sessionId => new Theseus.Core.Status.StatusSeenStore().Write(sessionId,
                 Theseus.Core.Status.TheseusStatusNotice.Marker(Theseus.Core.Status.TheseusStatusFile.Read(),
                     Theseus.Core.Status.TheseusStatusFile.IsRunning));
@@ -346,6 +375,9 @@ public partial class App : Application
         shell.ConfirmFlaggedStart = (question, hasOthers) =>
             new QuestionWindow("Start paused or blocked work?", question, "_Clear marks and start",
                 hasOthers ? "_Start only the others" : null) { Owner = ActiveWindow }.Ask();
+        // Close and Archive ask once, naming what runs and what stops (archive-a-project); Cancel closes nothing (A3).
+        shell.ConfirmProjectClose = (caption, question, action) =>
+            new QuestionWindow(caption, question, action) { Owner = ActiveWindow }.Ask() == true;
         shell.ConfirmProjectCard = (question, action) =>
             new QuestionWindow($"{action} a card of a running project?", question, $"_{action}") { Owner = ActiveWindow }.Ask() == true;
         // Owned by the active window, or the board when none is: Options closes itself before Project properties opens (W8).
@@ -374,6 +406,8 @@ public partial class App : Application
 
             return window.ShowDialog() == true ? window.Details : null;
         };
+        // A question asked with ask_owner is answered here (2.4e); Cancel answers nothing.
+        shell.AskAnswer = model => new AnswerQuestionWindow(model) { Owner = ActiveWindow }.ShowDialog() == true ? model : null;
         shell.AskText = (title, label, initial) =>
         {
             return new TextPromptWindow(title, label, initial) { Owner = ActiveWindow }.Ask();
@@ -414,6 +448,12 @@ public partial class App : Application
             return window.ShowDialog() == true ? window.Choice : null;
         };
         MainWindow.Show();
+
+        // A board with no projects folder is set up before anything is greyed out (Nigel, 2026-11-25); once the board is drawn.
+        if (Theseus.Core.Setup.FirstRunSetup.ShowsAtStartup(settings.Read()))
+        {
+            Dispatcher.BeginInvoke(shell.FirstRun.Open, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        }
     }
 
     /// <summary>The window a dialog is asked from, which owns it (baseline W8, A6); the main window when none is active.</summary>
@@ -519,19 +559,19 @@ public partial class App : Application
     private const string ClaudeCodeVersion = "2.1.246";
 
     /// <summary>
-    /// The out-of-date notice for the installed holdout guard, or null; recorded as given, so each newer guard is said once.
-    /// Read only: the guard itself is written only by Install the holdout guard.
+    /// The machine setup check's notice of any guard missing, out of date or not run, or null; recorded as given, so the
+    /// same findings are said once (guards-ship-with-theseus brief step 2). Read only: a guard is written only from Options.
     /// </summary>
-    private static string? HoldoutGuardNotice(SettingsStore settings)
+    private static string? GuardNotice(SettingsStore settings)
     {
         try
         {
-            var notice = new HoldoutGuardInstallation(HoldoutGuardInstallation.UserConfigFolder()).State()
-                .OutOfDateNotice(settings.Read().HoldoutGuardNoticeFor);
+            var findings = GuardSetupCheck.ForUser().Findings();
+            var notice = GuardSetupCheck.Notice(findings, settings.Read().GuardNoticeFor);
 
             if (notice is not null)
             {
-                settings.Write(settings.Read() with { HoldoutGuardNoticeFor = HoldoutGuardBundle.Version });
+                settings.Write(settings.Read() with { GuardNoticeFor = GuardSetupCheck.Signature(findings) });
             }
 
             return notice;

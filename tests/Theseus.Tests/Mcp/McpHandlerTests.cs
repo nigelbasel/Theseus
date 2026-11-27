@@ -76,6 +76,32 @@ public class McpHandlerTests
     }
 
     [Test]
+    public void AnUnattendedCardsInstructions_SayPark_NotAskWithTheQuestionTool()
+    {
+        _handler.IsUnattended = sessionId => sessionId == "session-1";
+
+        var unattended = Request("initialize", new JsonObject())["result"]!["instructions"]!.GetValue<string>();
+        var attended = Request("initialize", new JsonObject(), "session-2")["result"]!["instructions"]!.GetValue<string>();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(unattended, Does.Not.Contain("ask with the question tool"));
+            Assert.That(unattended, Does.Contain("park").And.Contain("ask_owner").And.Contain("report_back"));
+            Assert.That(attended, Does.Contain("ask with the question tool"));
+            Assert.That(attended, Is.EqualTo(McpHandler.Instructions));
+        });
+    }
+
+    [Test]
+    public void NoTool_CanSwitchAProjectToUnattended()
+    {
+        var tools = Request("tools/list", new JsonObject())["result"]!["tools"]!.AsArray();
+
+        Assert.That(tools.Select(tool => tool!.ToJsonString()), Has.None.Contains("nattended"),
+            "the owner sets it in Project properties; no session can");
+    }
+
+    [Test]
     public void ANotification_IsAcceptedWithNoBody()
     {
         var response = _handler.Handle("session-1", """{"jsonrpc":"2.0","method":"notifications/initialized"}""", null);
@@ -112,7 +138,7 @@ public class McpHandlerTests
                 "propose_workstream", "proposal_status", "withdraw_proposal", "link_workstream", "unlink_workstream",
                 "approve_proposal", "reject_proposal", "record_work_item", "name_work_items",
                 "start_workstream", "stop_workstream", "pause_workstream", "resume_workstream", "workstreams", "gates", "accept_spec", "events",
-                "now_at", "record_round", "tick_criterion", "add_objective", "record_decision", "set_waiting", "ask_owner",
+                "now_at", "record_round", "tick_criterion", "add_objective", "set_criteria", "record_decision", "set_waiting", "ask_owner",
                 "set_duty", "duties", "pause_duty", "end_duty" }));
         Assert.That(tools.All(tool => tool!["inputSchema"]!["type"]!.GetValue<string>() == "object"), Is.True);
     }

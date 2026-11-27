@@ -183,6 +183,44 @@ public class ProjectOverviewTests
     }
 
     [Test]
+    public void AStoppedVerifierWithAnAskedQuestion_StillWaitsForTheOwner_ToAnswerHere()
+    {
+        var file = ProjectFileReader.Read("p", TestProjectsFolder.ProjectText("P")).File!;
+        var verifier = new PieceCard("verify-a", "Verify: A", "#2f80ed", SessionLifecycle.Ended, Role: WorkstreamRole.Verifier)
+        {
+            Question = new OwnerQuestion("s", "Which route?", IsGuess: false, DateTimeOffset.UnixEpoch) { Options = ["A", "B"] },
+        };
+
+        var waits = ProjectOverview.For(file, [], [], [], 0, others: [verifier]).Waits;
+
+        Assert.That(waits.Select(wait => (wait.Kind, wait.Text, wait.CardKey)), Is.EqualTo(new[]
+        {
+            (WaitKind.Answer, "Verify: A asks: Which route?; answer it here or in its tab.", (string?)"verify-a"),
+        }), "a headless session between runs has no tab, and its question was the one there was no way to answer (2.4e)");
+    }
+
+    [Test]
+    public void AnAnswerGivenOnTheBoard_ShowsAsWaitingToBeDelivered_WithNoButton()
+    {
+        var file = ProjectFileReader.Read("p", TestProjectsFolder.ProjectText("P")).File!;
+        var verifier = new PieceCard("verify-a", "Verify: A", "#2f80ed", SessionLifecycle.Ended, Role: WorkstreamRole.Verifier)
+        {
+            Question = new OwnerQuestion("s", "Which route?", IsGuess: false, DateTimeOffset.UnixEpoch)
+            {
+                Answer = "B",
+                AnsweredUtc = DateTimeOffset.UnixEpoch.AddMinutes(1),
+            },
+        };
+
+        var waits = ProjectOverview.For(file, [], [], [], 0, others: [verifier]).Waits;
+
+        Assert.That(waits.Select(wait => (wait.Kind, wait.Text, wait.Button)), Is.EqualTo(new[]
+        {
+            (WaitKind.Delivering, "Verify: A: answered, waiting to be delivered", (string?)null),
+        }));
+    }
+
+    [Test]
     public void ABuildAwaitingItsCheck_WhoseSessionWorksOn_IsMoving()
     {
         var reading = WriteBym(_folder);

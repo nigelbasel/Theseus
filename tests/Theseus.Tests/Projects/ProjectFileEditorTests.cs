@@ -161,4 +161,100 @@ public class ProjectFileEditorTests
         Assert.That((number, Read(edited).Phases[1].Objectives.Count), Is.EqualTo(("1.2", 2)));
         Assert.That(edited, Does.StartWith(noEnding + "\n"));
     }
+
+    private const string Unwritten =
+        "# A project\n\n**Kit:** method-v0.2\n**Primary branch:** owner/project\n\n" +
+        "## Phase 0: Unattended\n\n" +
+        "### Objective 0.1: Placeholder alone\n[criteria to be written]\n\n**Pipeline:** feature\n" +
+        "| Workstream | Slug | Branch | Repos |\n|---|---|---|---|\n" +
+        "### Objective 0.2: Placeholder after prose\nWhy it matters, in prose. [criteria to be written]\n\n**Pipeline:** feature\n" +
+        "| Workstream | Slug | Branch | Repos |\n|---|---|---|---|\n" +
+        "### Objective 0.3: No placeholder\n**Round:** 1\n\n**Pipeline:** feature\n" +
+        "| Workstream | Slug | Branch | Repos |\n|---|---|---|---|\n" +
+        "### Objective 0.4: Some met already\n\n- [x] Met.\n      Waiting: work: W1\n      Evidence: commit abc\n- [ ] Open.\n" +
+        "      Waiting: owner: a night to run it\n\n**Pipeline:** feature\n" +
+        "| Workstream | Slug | Branch | Repos |\n|---|---|---|---|\n";
+
+    [Test]
+    public void SettingCriteria_ReplacesAPlaceholderOnItsOwnLine_AndNothingElse()
+    {
+        (string edited, int first) = ProjectFileEditor.SetCriteria(Unwritten, "0.1", ["A card runs headless.", " Its cost is recorded. "]);
+
+        Assert.That(first, Is.EqualTo(0));
+        Assert.That(edited, Is.EqualTo(Unwritten.Replace("0.1: Placeholder alone\n[criteria to be written]\n",
+            "0.1: Placeholder alone\n- [ ] A card runs headless.\n- [ ] Its cost is recorded.\n", StringComparison.Ordinal)));
+        Assert.That(Read(edited).Objectives[0].Criteria.Select(criterion => criterion.Text),
+            Is.EqualTo(new[] { "A card runs headless.", "Its cost is recorded." }));
+    }
+
+    [Test]
+    public void SettingCriteria_TakesAPlaceholderOffTheEndOfProse_AndKeepsTheProse()
+    {
+        string edited = ProjectFileEditor.SetCriteria(Unwritten, "0.2", ["One."]).Text;
+
+        Assert.That(edited, Is.EqualTo(Unwritten.Replace("Why it matters, in prose. [criteria to be written]\n",
+            "Why it matters, in prose.\n- [ ] One.\n", StringComparison.Ordinal)));
+    }
+
+    [Test]
+    public void SettingCriteria_WithNoPlaceholder_GoesBeforeThePipelineLine_AndTheRoundLineStaysUnderTheHeading()
+    {
+        string edited = ProjectFileEditor.SetCriteria(Unwritten, "0.3", ["One."]).Text;
+
+        Assert.That(edited, Is.EqualTo(Unwritten.Replace("**Round:** 1\n\n**Pipeline:**", "**Round:** 1\n- [ ] One.\n\n**Pipeline:**",
+            StringComparison.Ordinal)));
+        Assert.That(Read(edited).Objectives[2].Round, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void SettingCriteria_OnAnObjectiveThatHasSome_AppendsThem_AndKeepsEveryTickEvidenceAndWaitingLine()
+    {
+        (string edited, int first) = ProjectFileEditor.SetCriteria(Unwritten, "0.4", ["Later.", "Last."]);
+        IReadOnlyList<ProjectCriterion> criteria = Read(edited).Objectives[3].Criteria;
+
+        Assert.That(first, Is.EqualTo(2));
+        Assert.That(edited, Is.EqualTo(Unwritten.Replace("      Waiting: owner: a night to run it\n",
+            "      Waiting: owner: a night to run it\n- [ ] Later.\n- [ ] Last.\n", StringComparison.Ordinal)));
+        Assert.That(criteria.Select(criterion => (criterion.Text, criterion.IsTicked, criterion.Evidence)), Is.EqualTo(new[]
+        {
+            ("Met.", true, "commit abc"), ("Open.", false, (string?)null), ("Later.", false, null), ("Last.", false, null),
+        }));
+        Assert.That(criteria[1].Waiting, Is.EqualTo(new CriterionWaiting(true, "a night to run it")));
+    }
+
+    [Test]
+    public void SettingCriteria_RefusesACriterionTheObjectiveHasAlready_OrOneGivenTwice()
+    {
+        Assert.That(Assert.Throws<ProjectEditRefusedException>(() => ProjectFileEditor.SetCriteria(Unwritten, "0.4", ["New.", "Met."]))!.Message,
+            Is.EqualTo("objective 0.4 would have the criterion \"Met.\" twice"));
+        Assert.Throws<ProjectEditRefusedException>(() => ProjectFileEditor.SetCriteria(Unwritten, "0.1", ["A.", "A."]));
+
+        string once = ProjectFileEditor.SetCriteria(Unwritten, "0.1", ["A."]).Text;
+
+        Assert.Throws<ProjectEditRefusedException>(() => ProjectFileEditor.SetCriteria(once, "0.1", ["A."]), "a retried call");
+    }
+
+    [Test]
+    public void SettingCriteria_IsRefused_ForNoCriteria_AnEmptyOrTwoLineOne_OrAnObjectiveThatIsNotThere()
+    {
+        Assert.Throws<ProjectEditRefusedException>(() => ProjectFileEditor.SetCriteria(Unwritten, "0.1", []));
+        Assert.Throws<ProjectEditRefusedException>(() => ProjectFileEditor.SetCriteria(Unwritten, "0.1", [" "]));
+        Assert.Throws<ProjectEditRefusedException>(() => ProjectFileEditor.SetCriteria(Unwritten, "0.1", ["two\nlines"]));
+        Assert.That(Assert.Throws<ProjectEditRefusedException>(() => ProjectFileEditor.SetCriteria(Unwritten, "9.9", ["A."]))!.Message,
+            Is.EqualTo("there is no objective 9.9"));
+    }
+
+    [TestCase("0.1")]
+    [TestCase("0.2")]
+    [TestCase("0.3")]
+    [TestCase("0.4")]
+    public void SettingCriteria_InAWindowsFile_KeepsItsLineEndings(string objective)
+    {
+        string crlf = Unwritten.Replace("\n", "\r\n", StringComparison.Ordinal);
+
+        string edited = ProjectFileEditor.SetCriteria(crlf, objective, ["One."]).Text;
+
+        Assert.That(edited.Replace("\r\n", "\n", StringComparison.Ordinal), Is.EqualTo(ProjectFileEditor.SetCriteria(Unwritten, objective, ["One."]).Text));
+        Assert.That(edited.Split("\r\n").Length, Is.EqualTo(edited.Split('\n').Length), "no bare line feed was added");
+    }
 }

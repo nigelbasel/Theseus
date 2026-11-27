@@ -69,22 +69,24 @@ public class ProjectViewLayoutTests
         AllNamed<Border>(control, "Box").Single(box => box.DataContext is PieceNodeViewModel node && node.Name == piece);
 
     [Test]
-    public void TheTitleBar_StartsWithBackToTheBoard_ThenATabPerProject()
+    public void TheTabStrip_StartsWithBackAndForward_ThenATabPerProject_AndNoBoardButton()
     {
         WriteBuildYourMarket(_folder);
-        var control = LaidOut(_views.Theseus());
-        var back = (Button)control.FindName("BackButton");
-        var tabs = Descendants<ListBoxItem>(control).Where(item => item.DataContext is ProjectTabViewModel).ToList();
+        var strip = new ProjectTabStrip { DataContext = new TabStripContext(_views.Theseus().Tabs), Width = 1400 };
+        strip.Measure(new Size(1400, 60));
+        strip.Arrange(new Rect(0, 0, 1400, 60));
+        strip.UpdateLayout();
+        var tabs = Descendants<ListBoxItem>(strip).Where(item => item.DataContext is ProjectTabViewModel).ToList();
 
-        Assert.That(Descendants<Button>(control).Take(3).Select(button => button.Name), Is.EqualTo(new[] { "GoBackButton", "GoForwardButton", "BackButton" }),
-            "Back, Forward, then the board, then the tabs (1.1f I46)");
-        Assert.That((Descendants<AccessText>(back).Single().Text, back.ToolTip), Is.EqualTo(("_Board", "Leave the project for the board.")));
+        Assert.That(Descendants<Button>(strip).Select(button => button.Name), Is.EqualTo(new[] { "GoBackButton", "GoForwardButton" }),
+            "Back and Forward, then the tabs; the toolbar's toggle replaces the Board button (project-view-as-tabs AC 5)");
         Assert.That(tabs.Select(tab => ((ProjectTabViewModel)tab.DataContext).Title), Is.EquivalentTo(new[]
         {
             "Theseus bootstrap", "BuildYourMarket MCP server",
         }));
-        Assert.That(tabs.Select(tab => Named<Rectangle>(tab, "Underline").Visibility == Visibility.Visible),
-            Is.EquivalentTo(new[] { true, false }), "only the open tab is underlined");
+        Assert.That(tabs.Select(tab => Named<TextBlock>(tab, "TabTitle").FontWeight == FontWeights.SemiBold),
+            Is.EquivalentTo(new[] { true, false }), "only the open tab is marked");
+        Assert.That(Descendants<ProjectTabStrip>(LaidOut(_views.Theseus())), Is.Empty, "the strip is not inside the view");
     }
 
     [Test]
@@ -118,7 +120,8 @@ public class ProjectViewLayoutTests
         Assert.That(band.Visibility, Is.EqualTo(Visibility.Visible));
         Assert.That(((TextBlock)control.FindName("WaitsHeading")).Text, Is.EqualTo($"◆ Waits for you ({view.Waits.Count})"));
         Assert.That(Descendants<Button>(band).Where(button => button.Visibility == Visibility.Visible).Select(button => button.Content),
-            Has.Exactly(view.Waits.Count(wait => wait.HasButton)).Items);
+            Has.Exactly(view.Waits.Count(wait => wait.HasButton) + view.Waits.Count(wait => wait.HasSecondButton)).Items,
+            "each line's button, and View spec beside a spec's Accept spec…");
         Assert.That(((Border)LaidOut(_views.BuildYourMarket()).FindName("WaitingBand")).Visibility, Is.EqualTo(Visibility.Visible),
             "always in place, even when nothing waits (G36)");
     }
@@ -200,7 +203,7 @@ public class ProjectViewLayoutTests
         Assert.That(arrows.Select(arrow => arrow.Text), Is.EqualTo(Enumerable.Repeat("▶", 6)));
         Assert.That(Descendants<Button>(Named<ItemsControl>(box, "Actions")).Select(button => ((PieceActionViewModel)button.DataContext).Label), Is.EqualTo(new[]
         {
-            "Open spec", "Accept spec…", "Independent check…", "⧉ Focus git-22", "■ Stop", "Open records",
+            "View spec", "Accept spec…", "Independent check…", "⧉ Focus git-22", "■ Stop", "Open records",
         }));
         Assert.That(Named<ItemsControl>(box, "Strip").Visibility, Is.EqualTo(Visibility.Collapsed));
     }
@@ -336,7 +339,7 @@ public class ProjectViewLayoutTests
         // everything else in that row". Their names, keys and tooltips stay; only their size and face change.
         var control = LaidOut(_views.Theseus());
 
-        foreach (var (name, spoken) in new[] { ("FoldAll", "Fold all"), ("UnfoldAll", "Unfold all"), ("OpenWhatNeedsAttention", "Open what needs attention") })
+        foreach (var (name, spoken) in new[] { ("OpenWhatNeedsAttention", "Open what needs attention") })
         {
             var button = Named<Button>(control, name);
 

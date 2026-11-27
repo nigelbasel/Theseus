@@ -14,6 +14,9 @@ public sealed class OwnerQuestionStore
     /// <summary>How many sweeps in a row a session must be missing from before its question goes.</summary>
     public const int SweepsMissing = 3;
 
+    /// <summary>How long an answer waits to be delivered, as long as the tell that carries it.</summary>
+    public static readonly TimeSpan AnswerKept = TimeSpan.FromDays(7);
+
     private readonly string _root;
     private readonly Dictionary<string, int> _missing = new(StringComparer.OrdinalIgnoreCase);
 
@@ -64,6 +67,33 @@ public sealed class OwnerQuestionStore
         }
     }
 
+    /// <summary>
+    /// Records the owner's answer on the session's open question, so the wait says it is answered until the answer is
+    /// delivered (2.4e). The question as answered, or null when there was none open or it could not be written.
+    /// </summary>
+    public OwnerQuestion? RecordAnswer(string? sessionId, string answer, DateTimeOffset now)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(answer);
+
+        if (Read(sessionId) is not { IsOpen: true } open)
+        {
+            return null;
+        }
+
+        var answered = open with { Answer = answer, AnsweredUtc = now };
+
+        return Write(answered) ? answered : null;
+    }
+
+    /// <summary>Clears the session's question only if it was answered on the board: its answer has been delivered.</summary>
+    public void ClearAnswered(string? sessionId)
+    {
+        if (Read(sessionId) is { IsOpen: false })
+        {
+            Clear(sessionId);
+        }
+    }
+
     /// <summary>Clears whatever the session had open: the owner answered.</summary>
     public void Clear(string? sessionId) => Delete(PathFor(sessionId));
 
@@ -81,9 +111,11 @@ public sealed class OwnerQuestionStore
     /// may leave a guess for any of them; this is what keeps the folder from growing (spec item 10). A file goes only once
     /// its session has been missing from <see cref="SweepsMissing"/> sweeps in a row and it is older than
     /// <paramref name="writtenBeforeUtc"/>, so one registry read that comes back short, or a session not in it yet, never
-    /// loses a question the owner has still to answer.
+    /// loses a question the owner has still to answer. A question a session asked outright stays while its session is in
+    /// <paramref name="keepAsked"/> (the cards' last sessions), and an answer stays until it is delivered, so a headless
+    /// session between runs or a stopped one can still be answered on the board (2.4e).
     /// </summary>
-    public void RemoveExcept(IEnumerable<string> runningSessionIds, DateTimeOffset writtenBeforeUtc)
+    public void RemoveExcept(IEnumerable<string> runningSessionIds, DateTimeOffset writtenBeforeUtc, IEnumerable<string>? keepAsked = null)
     {
         ArgumentNullException.ThrowIfNull(runningSessionIds);
 
@@ -93,6 +125,7 @@ public sealed class OwnerQuestionStore
         }
 
         var running = new HashSet<string>(runningSessionIds, StringComparer.OrdinalIgnoreCase);
+        var kept = new HashSet<string>(keepAsked ?? [], StringComparer.OrdinalIgnoreCase);
 
         try
         {
@@ -103,7 +136,7 @@ public sealed class OwnerQuestionStore
                 var session = Path.GetFileNameWithoutExtension(path);
                 seen.Add(session);
 
-                if (running.Contains(session))
+                if (running.Contains(session) || (Read(session) is { } held && (held.AnsweredUtc > writtenBeforeUtc - AnswerKept || (held is { IsOpen: true, IsGuess: false } && kept.Contains(session)))))
                 {
                     _missing.Remove(session);
 

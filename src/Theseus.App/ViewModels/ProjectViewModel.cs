@@ -18,6 +18,9 @@ public sealed class ProjectViewModel : ObservableObject
     /// <summary>Accept spec's tooltip, on the box and in Properties.</summary>
     internal const string AcceptSpecToolTip = "Pass this gate: asks first, naming the piece of work and the commit.";
 
+    /// <summary>View spec's tooltip, wherever it sits beside Accept spec… (board-small-changes item 4).</summary>
+    internal const string ViewSpecToolTip = "Read the spec, drawn, in its window; Accept spec… or Reject… there decides on the version on screen";
+
     /// <summary>What the status bar says once when the window becomes too narrow for the pane beside the flow (AC 52).</summary>
     public const string PaneHiddenNotice = "Properties hidden: the window is too narrow";
 
@@ -93,6 +96,12 @@ public sealed class ProjectViewModel : ObservableObject
 
     /// <summary>✕ Dismiss on the clear-up's notice.</summary>
     public ICommand? DismissClearUpCommand => _actions.DismissClearUp is { } dismiss ? new RelayCommand(_ => dismiss(Name)) : null;
+
+    /// <summary>Close project, from the view's More menu (archive-a-project, 2026-11-26); null where the view cannot.</summary>
+    public ICommand? CloseProjectCommand => _actions.CloseProject is { } close ? new RelayCommand(_ => close(Name)) : null;
+
+    /// <summary>Archive project, from the view's More menu; null where the view cannot.</summary>
+    public ICommand? ArchiveProjectCommand => _actions.ArchiveProject is { } archive ? new RelayCommand(_ => archive(Name)) : null;
 
     /// <summary>The summary, phase strip, tallies and "Waits for you" (1.1f G33 to G37b).</summary>
     public ProjectOverview Overview { get; private set; } = null!;
@@ -227,10 +236,17 @@ public sealed class ProjectViewModel : ObservableObject
     /// Highlights the boxes the board's search matches (card-search-and-tags item 7), with the highlight a followed
     /// objective uses, and keeps them highlighted while objectives are hovered. Null clears it.
     /// </summary>
-    public void ShowSearch(Func<PieceNodeViewModel, bool>? matches)
+    /// <param name="matches">Whether a box matches, or null to clear the search.</param>
+    /// <param name="cardMatches">Whether a card matches, by key, for the lines of Waits for you it concerns.</param>
+    public void ShowSearch(Func<PieceNodeViewModel, bool>? matches, Func<string, bool>? cardMatches = null)
     {
         _searchHits = matches is null ? [] : [.. AllNodes.Where(matches)];
         HighlightObjective(_highlightedObjective);
+
+        foreach (var line in Waits.Concat(OtherWaits).Concat(AllObjectives.SelectMany(heading => heading.Waits)))
+        {
+            line.IsSearchHit = matches is not null && cardMatches is not null && line.Item.CardKey is { } key && cardMatches(key);
+        }
     }
 
     /// <summary>
@@ -495,7 +511,7 @@ public sealed class ProjectViewModel : ObservableObject
         }
     }
 
-    /// <summary>The specs waiting on the owner, for the menu bar's Open spec and Accept spec (R16).</summary>
+    /// <summary>The specs waiting on the owner, for the menu bar's View spec and Accept spec (R16).</summary>
     public IReadOnlyList<SpecAtGate> WaitingSpecs { get; private set; } = [];
 
     /// <summary>How the boxes are grouped: the Flow of hand-overs, or under phases and objectives (AC 45).</summary>
@@ -649,6 +665,7 @@ public sealed class ProjectViewModel : ObservableObject
             WaitKind.CheckCannotRun => view.CannotRunLine(item),
             WaitKind.StartVerifier => new WaitItemViewModel(item, view.WaitCommand(item, reading.Name),
                 toolTip: Theseus.Core.Launching.StartModeChoice.VerifierTooltip),
+            WaitKind.AcceptSpec or WaitKind.ConfirmAcceptance => view.SpecLine(item, reading.Name),
             _ => new WaitItemViewModel(item, view.WaitCommand(item, reading.Name)),
         })];
         view.OtherWaits = [.. view.Overview.Others.Select(item => new WaitItemViewModel(item, view.WaitCommand(item, reading.Name)))];
@@ -937,7 +954,7 @@ public sealed class ProjectViewModel : ObservableObject
 
         (Action Run, string? ToolTip) what = offer.Action switch
         {
-            StageAction.OpenSpec => (() => Run(spec, _actions.OpenSpec), "Open the spec in its window; Accept spec… there accepts the version on screen"),
+            StageAction.OpenSpec => (() => Run(spec, _actions.OpenSpec), ViewSpecToolTip),
             StageAction.AcceptSpec => (() => Run(spec, _actions.AcceptSpec), AcceptSpecToolTip),
             StageAction.VerifyWithHoldouts => (() => _actions.VerifyWithHoldouts(key),
                 $"Create a verifier card for {piece.Workstream}: it runs the holdout scenarios and reports only a verdict"),
@@ -1117,6 +1134,19 @@ public sealed class ProjectViewModel : ObservableObject
             ? new WaitItemViewModel(item, wayOn.Command, button: wayOn.Label, toolTip: wayOn.ToolTip)
             : new WaitItemViewModel(item, null);
 
+    // A spec's line has View spec beside Accept spec…, so it can be read before it is decided (board-small-changes item 4).
+    private WaitItemViewModel SpecLine(WaitItem item, string project)
+    {
+        var spec = item.Pieces.Count == 0 ? null : AllNodes.FirstOrDefault(each => each.Name == item.Pieces[0])?.Spec;
+
+        return new WaitItemViewModel(item, WaitCommand(item, project))
+        {
+            SecondButton = spec is null ? null : "View spec",
+            SecondCommand = spec is null ? null : new RelayCommand(_ => _actions.OpenSpec(spec)),
+            SecondToolTip = spec is null ? null : ViewSpecToolTip,
+        };
+    }
+
     private System.Windows.Input.ICommand? WaitCommand(WaitItem item, string project)
     {
         var node = item.Pieces.Count == 0 ? null : AllNodes.FirstOrDefault(each => each.Name == item.Pieces[0]);
@@ -1125,12 +1155,15 @@ public sealed class ProjectViewModel : ObservableObject
         {
             WaitKind.AcceptSpec or WaitKind.ConfirmAcceptance when node?.Spec is { } spec => new RelayCommand(_ => _actions.AcceptSpec(spec)),
             WaitKind.AcceptSpec when node?.PrimaryAction is { } action => action.Command,
+            WaitKind.Answer when item.CardKey is { } card && _actions.AnswerQuestion is { } answer => new RelayCommand(_ => answer(card)),
             WaitKind.Answer when item.CardKey is { } card => new RelayCommand(_ => _actions.Focus(card)),
             WaitKind.Unblock when item.CardKey is { } card && node?.PrimaryAction is { } action => action.Command,
             WaitKind.StartVerifier when item.CardKey is { } verifier => new RelayCommand(_ => StartVerifier(verifier)),
             WaitKind.Decide or WaitKind.Outside => new RelayCommand(_ => Respond([item])),
             WaitKind.ClearVerifiers when _actions.ClearVerifiers is { } clear => new RelayCommand(_ => clear(project)),
-            WaitKind.ResetBreaker when item.CardKey is { } card && _actions.ResetBreaker is { } reset => new RelayCommand(_ => reset(card)),
+            WaitKind.ResetBreaker when item is { AndStart: true, CardKey: { } card } && _actions.ResetBreakerAndStart is { } resetAndStart =>
+                new RelayCommand(_ => resetAndStart(card)),
+            WaitKind.ResetBreaker when item is { AndStart: false, CardKey: { } card } && _actions.ResetBreaker is { } reset => new RelayCommand(_ => reset(card)),
             WaitKind.RaiseBudget when _actions.OpenOptions is { } options => new RelayCommand(_ => options()),
             WaitKind.AddToObjective when item.CardKey is { } card && _actions.AddToProject is { } add => new RelayCommand(_ => add(project, card)),
             WaitKind.Proposal when item.ProposalId is { } proposal && _actions.ReviewProposal is { } review =>
@@ -1284,7 +1317,9 @@ public sealed class ProjectViewModel : ObservableObject
     {
         var specs = new Dictionary<string, SpecAtGate>(StringComparer.Ordinal);
 
-        foreach (var piece in pieces.Where(piece => piece.Stages.OfType<SpecStageNode>().Any(stage => stage.AwaitsAcceptance)))
+        // A session can report an acceptance for any piece with a spec, freeform included, and its Confirm… needs the spec.
+        foreach (var piece in pieces.Where(piece => piece.Reported is not null
+                     || piece.Stages.OfType<SpecStageNode>().Any(stage => stage.AwaitsAcceptance)))
         {
             if (reading.Artefacts.GetValueOrDefault(piece.Name) is { } artefacts
                 && SpecAtGate.For(project, piece.Name, piece.Pipeline, artefacts) is { } spec)
@@ -1385,7 +1420,7 @@ public sealed class ProjectViewModel : ObservableObject
                 string.Join(";", view.Waits.Concat(view.OtherWaits).Concat(view.Phases.SelectMany(phase => phase.Held)).Select(wait =>
                     $"{wait.Text}:{wait.Button}:{string.Join(",", wait.Item.Pieces)}:{wait.Item.CardKey}:"
                     + string.Join(",", wait.Item.Criteria.Select(criterion => $"{criterion.Objective}/{criterion.Index}/{criterion.On}/{criterion.Ask}")))) }
-            .Concat(view.Tabs.Select(tab => $"{tab.Name}:{tab.Title}:{tab.IsOpen}:{tab.ColourHex}"))
+            .Concat(view.Tabs.Select(tab => $"{tab.Name}:{tab.Title}:{tab.IsOpen}:{tab.ColourHex}:{tab.WaitingCount}"))
             .Concat(view.Roots.SelectMany(root => Lines(root, 0)))
             .Concat(view._thenWorkedOn.Select(link => $"{link.From.Name}>{link.To.Name}"))
             .Concat(view.Rounds.Select(round => string.Join("/", round.Title, round.Dates, round.StateText, round.Line, round.Banner,

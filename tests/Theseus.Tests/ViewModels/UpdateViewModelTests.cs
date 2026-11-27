@@ -174,6 +174,57 @@ public class UpdateViewModelTests
         Assert.That((updates.IsOffered, said.Count), Is.EqualTo((true, 0)));
     }
 
+    [Test]
+    public async Task TheRefreshCheck_SaysANewerReleaseIsOffered()
+    {
+        var updates = Updates(Release("2026.10.29.100"));
+
+        var found = await updates.CheckForRefreshAsync();
+
+        Assert.That((found, updates.IsOffered), Is.EqualTo(("Theseus 2026.10.29.100 is available (you have 2026.10.28.20000).", true)));
+    }
+
+    [Test]
+    public async Task TheRefreshCheck_SaysUpToDate()
+    {
+        var found = await Updates(Release(Running)).CheckForRefreshAsync();
+
+        Assert.That(found, Is.EqualTo($"Theseus {Running} is up to date."));
+    }
+
+    [Test]
+    public async Task TheRefreshCheck_SaysAVersionPutAsideIsStillThere_RatherThanUpToDate()
+    {
+        var updates = Updates(Release("2026.10.29.100"));
+        await updates.CheckAsync();
+        updates.LaterCommand.Execute(null);
+
+        var found = await updates.CheckForRefreshAsync();
+
+        Assert.That((found, updates.IsOffered), Is.EqualTo(("Theseus 2026.10.29.100 is available; you chose Later for it.", false)));
+    }
+
+    [Test]
+    public async Task TheRefreshCheck_SaysAFailedCheckFailed_RatherThanUpToDate()
+    {
+        var feed = new Feed(Release(Running)) { Failure = new HttpRequestException("offline") };
+        var updates = new UpdateViewModel(feed, Running, Path.GetTempPath(), _ => { });
+
+        var found = await updates.CheckForRefreshAsync();
+
+        Assert.That(found, Is.EqualTo("Could not check for a new version: offline"));
+    }
+
+    [Test]
+    public async Task TheRefreshCheck_WithNoRelease_SaysSo()
+    {
+        var feed = new Feed(Release(Running)) { Latest = null };
+
+        var found = await new UpdateViewModel(feed, Running, Path.GetTempPath(), _ => { }).CheckForRefreshAsync();
+
+        Assert.That(found, Is.EqualTo("No published release of Theseus was found."));
+    }
+
     private static UpdateViewModel Updates(AvailableRelease latest) =>
         new(new Feed(latest), Running, Path.GetTempPath(), _ => { });
 

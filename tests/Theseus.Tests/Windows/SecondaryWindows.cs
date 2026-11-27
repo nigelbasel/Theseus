@@ -19,11 +19,13 @@ public static class SecondaryWindows
     public static IReadOnlyList<(string Name, Func<Window> Build)> All(string scratchFolder) =>
     [
         ("About", () => new AboutWindow()),
+        ("AnswerQuestion", () => new AnswerQuestionWindow(AnswerQuestion())),
         ("AddObjective", () => new AddObjectiveWindow()),
         ("AddToProject", () => new AddToProjectWindow([new ProjectOption("theseus", "Theseus", [("1.9", "Windows conventions")])], "wg-secondary-windows")),
         ("Arrange", () => new ArrangeWindow { DataContext = Arrange() }),
         ("Checklist", () => new ChecklistWindow(Checklist())),
         ("DayReport", () => new DayReportWindow()),
+        ("FirstRun", () => new FirstRunWindow { DataContext = FirstRun(scratchFolder) }),
         ("Instructions", () => new InstructionsWindow()),
         ("NewProject", () => new NewProjectWindow("my-project", "My project")),
         ("NewWorkstream", () => new NewWorkstreamWindow()),
@@ -33,6 +35,14 @@ public static class SecondaryWindows
         ("Spec", () => new SpecWindow(Spec(scratchFolder))),
         ("Waits", () => new WaitsWindow(Waits())),
     ];
+
+    /// <summary>A verifier's question asked with ask_owner, with its options and why, for a session that has a tab.</summary>
+    public static AnswerQuestionViewModel AnswerQuestion() =>
+        new("Verify: Auth", new Theseus.Core.Questions.OwnerQuestion("s", "Which route for the host scenarios?", IsGuess: false, DateTimeOffset.UnixEpoch)
+        {
+            Options = ["A: allow a scratch harness", "B: I sign in", "C: record both as not run"],
+            Why = "Neither runs without a harness file or your sign-in.",
+        }, hasTab: true, "Your answer is typed into its tab as its next turn.");
 
     /// <summary>A criterion's ask on two criteria, its first ticked, and a session's question with its own button.</summary>
     public static WaitsChecklistViewModel Waits()
@@ -48,6 +58,19 @@ public static class SecondaryWindows
         return new WaitsChecklistViewModel(
             [(new WaitItemViewModel(ask, new RelayCommand(_ => { })), "For you"), (new WaitItemViewModel(question, new RelayCommand(_ => { })), "For you")],
             [ask], new WaitsChecklistActions("Cache spike", (_, _) => { }, (_, _, _) => null, "Cache lead", _ => { }, _ => { }));
+    }
+
+    /// <summary>The first-run setup over a scratch Claude Code folder, open on its folder step, with nothing read from this machine.</summary>
+    public static FirstRunViewModel FirstRun(string folder)
+    {
+        Directory.CreateDirectory(folder);
+        FirstRunViewModel setup = new(new Theseus.Tests.ViewModels.MemorySettingsStore(),
+            new Theseus.Core.Setup.StopHookRegistration(folder, @"C:\Program Files\Theseus\Theseus.Hook.exe"),
+            [new GuardViewModel(new Theseus.Core.Guards.GuardInstallation(Theseus.Core.Guards.GuardCatalog.Holdout, folder, folder))],
+            () => [new("Claude Code", true, "Claude Code 2.1.300"), new("Node", false, "Node was not found on the PATH")], () => { });
+        setup.Open();
+
+        return setup;
     }
 
     /// <summary>The arranger with one terminal window, read from nowhere: no real window is looked at or moved.</summary>
@@ -82,6 +105,6 @@ public static class SecondaryWindows
         File.WriteAllText(Path.Combine(folder, "spec.md"), Text);
         SpecAtGate spec = new("theseus", "cache-spike", SpecIdentity.Hash(Text), Text, new WorkstreamSource(folder));
 
-        return new SpecWindowViewModel(spec, shown => shown.ReadAgain(), _ => null, _ => true, _ => { });
+        return new SpecWindowViewModel(spec, shown => shown.ReadAgain(), _ => null, _ => true, _ => { }, (_, _) => "Its card is told.");
     }
 }

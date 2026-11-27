@@ -103,8 +103,17 @@ public sealed record TheseusSettings(
     /// <summary>The clear-up of verifier cards under way or last made, so a restart neither loses its archives nor Undo.</summary>
     public Theseus.Core.Projects.VerifierClearUpRecord? VerifierClearUp { get; init; }
 
-    /// <summary>The bundled holdout guard's version the out-of-date notice was last given for, so it is said once.</summary>
-    public string? HoldoutGuardNoticeFor { get; init; }
+    /// <summary>The guards' setup findings the board's notice was last given for, so the same ones are said once.</summary>
+    public string? GuardNoticeFor { get; init; }
+
+    /// <summary>The source-control hosts auto mode trusts for pushes, entered once in Options, Guards; the owner's own.</summary>
+    public IReadOnlyList<string> AutoModeSourceControlHosts { get; init; } = [];
+
+    /// <summary>The domains auto mode trusts by name, entered once in Options, Guards.</summary>
+    public IReadOnlyList<string> AutoModeInternalDomains { get; init; } = [];
+
+    /// <summary>Words that mark a host, namespace or resource as production to auto mode, entered once in Options, Guards.</summary>
+    public IReadOnlyList<string> AutoModeProductionPatterns { get; init; } = ["prod", "production", "live"];
 
     /// <summary>Which rows were folded away, so a board left tidy opens tidy.</summary>
     public IReadOnlyList<string> CollapsedAreas { get; init; } = [];
@@ -115,6 +124,12 @@ public sealed record TheseusSettings(
     /// </summary>
     public string ProjectsFolder { get; init; } = string.Empty;
 
+    /// <summary>
+    /// Whether the owner finished or skipped the first-run setup, so it does not open by itself again; Tools › Set up Theseus…
+    /// still opens it (first-run-setup, Nigel 2026-11-25).
+    /// </summary>
+    public bool FirstRunSetupDone { get; init; }
+
     /// <summary>Where workstreams' worktrees go, <c>&lt;folder&gt;\&lt;slug&gt;\&lt;repo&gt;</c> (1.1b AC 11). Empty by default.</summary>
     public string WorktreesFolder { get; init; } = string.Empty;
 
@@ -124,6 +139,13 @@ public sealed record TheseusSettings(
     /// or the worktrees folder empty a start makes no worktrees (AC 1).
     /// </summary>
     public string ClonesFolder { get; init; } = string.Empty;
+
+    /// <summary>
+    /// The owner's one consent to "trust the folders my cards use, as they need it" (objective 1.3, Nigel 2026-11-26): while
+    /// on, Theseus trusts each card's folders in Claude Code before launch, inside the projects and clones folders only. Off
+    /// until he switches it on.
+    /// </summary>
+    public bool TrustCardFolders { get; init; }
 
     /// <summary>
     /// Where each project's card was dragged to, by project name. A project not listed sits in the first column and row
@@ -207,6 +229,9 @@ public sealed record TheseusSettings(
     public IReadOnlyDictionary<string, ProjectViewGrouping> ProjectGrouping { get; init; } =
         new Dictionary<string, ProjectViewGrouping>();
 
+    /// <summary>Whether the projects kanban also shows closed and archived projects (projects-kanban spec AC 4).</summary>
+    public bool KanbanShowsClosed { get; init; }
+
     /// <summary>
     /// Each stopped project's run state, by project name (1.1e AC 8; Nigel, 2026-11-21: "when I restart the project, it
     /// would go back to the previous state"): the keys of its cards that had a session when it was stopped. A project not
@@ -214,6 +239,20 @@ public sealed record TheseusSettings(
     /// </summary>
     public IReadOnlyDictionary<string, IReadOnlyList<string>> ProjectRunStates { get; init; } =
         new Dictionary<string, IReadOnlyList<string>>();
+
+    /// <summary>
+    /// The projects the owner closed or archived, by project name (archive-a-project, 2026-11-26): each with what its
+    /// close changed, so Reopen undoes exactly that. Kept here, never in project.md, whose records are never moved.
+    /// </summary>
+    public IReadOnlyDictionary<string, Projects.ProjectClosure> ClosedProjects { get; init; } =
+        new Dictionary<string, Projects.ProjectClosure>();
+
+    /// <summary>
+    /// The projects the owner stopped with Stop the project, by project name (project-view-as-tabs, 2026-11-26): what the
+    /// stop paused, so Start resumes exactly that, and the cards whose locks are still to release once they have stopped.
+    /// </summary>
+    public IReadOnlyDictionary<string, Projects.ProjectStopping> StoppedProjects { get; init; } =
+        new Dictionary<string, Projects.ProjectStopping>();
 
     /// <summary>Each project's lead card, by project name, as chosen in Project properties (Nigel, 2026-11-22).</summary>
     public IReadOnlyDictionary<string, string> ProjectLeads { get; init; } = new Dictionary<string, string>();
@@ -236,6 +275,13 @@ public sealed record TheseusSettings(
     /// 1.1e PR 2c, finding 3).
     /// </summary>
     public IReadOnlyList<string> CardsToldBranchRules { get; init; } = [];
+
+    /// <summary>
+    /// The projects the owner set unattended in Project properties, by folder name (2.4 W2): their cards are refused the
+    /// question tool and told to park, are ended once they have reported back, and are resumed after a transport error.
+    /// Off for every project until he sets it; kept here, never read from project.md, which sessions write.
+    /// </summary>
+    public IReadOnlyList<string> UnattendedProjects { get; init; } = [];
 
     /// <summary>
     /// The folders in the projects folder the owner said are not projects, by name (1.1e AC 20): their cards are not shown;
@@ -288,6 +334,12 @@ public sealed record TheseusSettings(
     public IReadOnlyDictionary<string, bool> ChainsFolds { get; init; } = new Dictionary<string, bool>();
 
     /// <summary>
+    /// The locks panel's folds the owner chose, by <c>lock:&lt;name&gt;</c>, <c>queue:&lt;name&gt;</c> or <c>section:&lt;name&gt;</c>.
+    /// A fold not here takes its default: a lock folded to one line, its queue open (Nigel, 2026-11-26).
+    /// </summary>
+    public IReadOnlyDictionary<string, bool> LocksFolds { get; init; } = new Dictionary<string, bool>();
+
+    /// <summary>
     /// Where the board window was when it last closed, so it opens where it was left. Checked against
     /// the screens actually attached before it is used: a position saved while docked is a position
     /// on a monitor that may not be there any more.
@@ -310,6 +362,12 @@ public sealed record TheseusSettings(
 
     /// <summary>How many headless runs may go at once on this machine; the rest queue (Nigel, 2026-11-24).</summary>
     public int MaxHeadlessRuns { get; init; } = 3;
+
+    /// <summary>
+    /// The card whose sessions may rule on resources the lock table does not know, with rule_resource. None by
+    /// default, so an unknown resource stays exclusive of everything until Nigel names one.
+    /// </summary>
+    public string? LockArbiterCard { get; init; }
 
     /// <summary>The run mode a project's cards take when a card has none of its own, by project name.</summary>
     public IReadOnlyDictionary<string, Running.RunMode> ProjectRunModes { get; init; } =

@@ -19,8 +19,12 @@ public static class HookQuestion
     /// judged. A turn another hook extended is judged as usual, so a guess left by its first ending is cleared by its
     /// last.
     /// </param>
+    /// <param name="tellWaiting">
+    /// Whether a tell still waits for a session. An answer given on the board travels as a tell, so once this hook has
+    /// delivered and none waits, the answer has gone and its wait clears (2.4e); a stop delivered instead leaves it.
+    /// </param>
     public static void OnEvent(StopHookInput input, OwnerQuestionStore store, Func<string?, string?> readTail, DateTimeOffset now,
-        bool delivered)
+        bool delivered, Func<string, bool>? tellWaiting = null)
     {
         ArgumentNullException.ThrowIfNull(input);
         ArgumentNullException.ThrowIfNull(store);
@@ -31,9 +35,20 @@ public static class HookQuestion
             return;
         }
 
-        if (input.HookEventName == "UserPromptSubmit")
+        if (delivered && tellWaiting is not null && store.Read(sessionId) is { IsOpen: false } && !tellWaiting(sessionId))
         {
             store.Clear(sessionId);
+
+            return;
+        }
+
+        // A marker Theseus typed to hand in work or resume a card is not the owner answering (2.4 W2).
+        if (input.HookEventName == "UserPromptSubmit")
+        {
+            if (!StopRouting.IsMarker(input.Prompt))
+            {
+                store.Clear(sessionId);
+            }
 
             return;
         }

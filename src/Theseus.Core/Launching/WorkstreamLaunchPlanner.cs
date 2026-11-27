@@ -25,7 +25,7 @@ public static class WorkstreamLaunchPlanner
             McpConfig = request.McpConfig,
             Settings = request.Settings,
             PromptIfReminted = request.OpeningIfReminted,
-            Environment = RoleEnvironment.For(workstream.Role),
+            Environment = new Dictionary<string, string>(RoleEnvironment.For(workstream.Role)) { [SessionEnvironment.CardVariable] = workstream.Key },
         };
 
         var tab = new TerminalTabRequest(

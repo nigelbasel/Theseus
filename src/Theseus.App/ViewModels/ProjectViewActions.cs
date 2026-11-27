@@ -3,7 +3,7 @@ using Theseus.Core.Projects;
 namespace Theseus.App.ViewModels;
 
 /// <summary>
-/// What the project view's buttons run (1.1d AC 27): the shell's existing Open spec, Accept spec, Independent check,
+/// What the project view's buttons run (1.1d AC 27): the shell's existing View spec, Accept spec, Independent check,
 /// Focus, Start and Stop, each for one card by its key, and opening a records folder or file.
 /// </summary>
 /// <param name="OpenSpec">Opens a spec in its window.</param>
@@ -87,6 +87,9 @@ public sealed record ProjectViewActions(
     /// <summary>Asks the owner to allow or refuse a start request by its id (sessions-run-the-project 13); null in tests.</summary>
     public Action<string>? AnswerStartRequest { get; init; }
 
+    /// <summary>Opens a card's question to answer in Theseus, by the card's key (2.4e); Focus when null.</summary>
+    public Action<string>? AnswerQuestion { get; init; }
+
     /// <summary>Starts a verifier card Theseus made, as Start again does; null starts it as a card's Start.</summary>
     public Action<string>? StartVerifier { get; init; }
 
@@ -96,6 +99,9 @@ public sealed record ProjectViewActions(
     /// <summary>Resets a card's tripped breaker, by key (Nigel, 2026-11-24).</summary>
     public Action<string>? ResetBreaker { get; init; }
 
+    /// <summary>Resets a card's tripped breaker and starts it, by key: the line's button for a card Theseus made.</summary>
+    public Action<string>? ResetBreakerAndStart { get; init; }
+
     /// <summary>Opens Options, where the headless limits are raised.</summary>
     public Action? OpenOptions { get; init; }
 
@@ -104,6 +110,12 @@ public sealed record ProjectViewActions(
 
     /// <summary>✕ Dismiss on a clear-up's notice: it can no longer be undone.</summary>
     public Action<string>? DismissClearUp { get; init; }
+
+    /// <summary>Close project, by project name: asks once, then stops, pauses and puts it away (archive-a-project); null offers none.</summary>
+    public Action<string>? CloseProject { get; init; }
+
+    /// <summary>Archive project, by project name: as Close, and its cards archived too; null offers none.</summary>
+    public Action<string>? ArchiveProject { get; init; }
 
     /// <summary>The pending proposals a card raised, as the board's Chains panel shows them (1.1e item 30); null in tests.</summary>
     public Func<string, IReadOnlyList<ProposalRowViewModel>>? ProposalsOf { get; init; }

@@ -109,12 +109,46 @@ public sealed class ProjectPropertiesViewModel : ObservableObject
         {
             if (Set(ref _grantsBranchRules, value))
             {
+                if (!value)
+                {
+                    GrantsItemBranches = false;
+                }
+
                 Raise(nameof(BranchRulesValue));
+                Raise(nameof(CanChooseItemBranches));
             }
         }
     }
 
     private bool _grantsBranchRules;
+
+    /// <summary>
+    /// Whether the grant is for a branch per item off its repository's trunk, with a pull request the owner completes,
+    /// rather than for merging into the primary branch (2.4 W2). Only with the grant; off by default.
+    /// </summary>
+    public bool GrantsItemBranches
+    {
+        get => _grantsItemBranches;
+        set
+        {
+            if (Set(ref _grantsItemBranches, value && _grantsBranchRules))
+            {
+                Raise(nameof(BranchRulesValue));
+            }
+        }
+    }
+
+    private bool _grantsItemBranches;
+
+    /// <summary>Whether the kind can be chosen: only while the grant is ticked.</summary>
+    public bool CanChooseItemBranches => _grantsBranchRules;
+
+    /// <summary>
+    /// Whether the project runs unattended (2.4 W2): its cards are refused the question tool and told to park, end once
+    /// they have reported back, and are resumed after a network error. The owner's setting, off until he ticks it; written
+    /// at OK.
+    /// </summary>
+    public bool IsUnattended { get; set; }
 
     /// <summary>
     /// Whether the project's cards run headless unless a card says otherwise (Nigel, 2026-11-24); off leaves each card to
@@ -187,7 +221,9 @@ public sealed class ProjectPropertiesViewModel : ObservableObject
 
     /// <summary>The branch rules as the Lead and branches tab shows them.</summary>
     public string BranchRulesValue => GrantsBranchRules
-        ? $"Granted for {(CanGrantBranchRules ? PrimaryBranch!.Trim() : GrantedPrimary)}"
+        ? GrantsItemBranches
+            ? $"Granted for {(CanGrantBranchRules ? PrimaryBranch!.Trim() : GrantedPrimary)}: a branch per item off its repository's trunk, with a pull request you complete"
+            : $"Granted for {(CanGrantBranchRules ? PrimaryBranch!.Trim() : GrantedPrimary)}"
         : CanGrantBranchRules ? "Not granted: workstreams ask before branching or pushing" : "Cannot be granted";
 
     /// <summary>The tab the window opens at: <see cref="HoldoutsTab"/> from Set the holdout folder…, else the first.</summary>

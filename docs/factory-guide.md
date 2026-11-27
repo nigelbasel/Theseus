@@ -14,12 +14,12 @@ Parts 1 and 2 hold on any operating system. To run the method in plain Claude Co
 Theseus, install the `agentic-factory` plugin: [Getting started with the agentic factory](getting-started.md) shows
 how. Part 3 is what Theseus adds on Windows.
 
-Method version described: `method-v0.2`, with the unattended ladder added for `method-v0.3`.
+Method version described: `method-v0.3`.
 
 The method is versioned like code. Its version is a line in each project file (`**Kit:** method-v0.2`), so a change to
-the method never reaches a running project unannounced. This guide describes the method as it is on `main` in the
-Theseus repository: `method-v0.2`, plus the section "Working unattended: decide, record, or park", which is in the
-method files for `method-v0.3` and is not yet released as a tag.
+the method never reaches a running project unannounced. This guide describes the method as it is in the Theseus
+repository: `method-v0.3`, which adds "Working unattended: decide, record, or park" and "Branches, worktrees and
+merging" to `method-v0.2`. It is not yet released as a tag.
 
 Where this guide describes something that is proposed rather than built, it says so with a mark:
 <span class="status proposed">Proposed</span>. Everything without that mark is in the method files or in Theseus's
@@ -294,6 +294,22 @@ number in brackets is where it was learned.
 | An existing test changes only to correct a wrong expectation (P12) | The verifier judges whether a change is a correction or a weakening |
 | No machine paths or card ids in public records (P19) | A test in the suite fails any change that adds them |
 | A child exits once its report is in | Its parent restarts it with an instruction when there is more work |
+| Check for a live owner before resuming | Two sessions in one document corrupt it |
+| Full paths and full URLs, as bare text | A bare name or number means a search every time; a markdown link may show only its label |
+| One log per workstream, every line timestamped | One file to follow per workstream; an untimestamped line cannot tell slow progress from a hang |
+| A live process is not a healthy build | A build stuck on a retry still has a live parent: a log silent for 90 seconds is a likely stall |
+
+### Branches, worktrees and merging
+
+| Rule | What it means |
+|---|---|
+| A primary branch per project, a branch per workstream | `<user>/<project>` off the trunk, named by the owner; `<user>/<workstream>` off it, never `<user>/<project>/<workstream>`, which git cannot hold |
+| Push and merge freely inside a granted project | With the owner's grant, a workstream branches, pushes, merges the primary in and merges into the primary without asking, its suite green before and on the merge result |
+| Clones are pull-only | Work is done in a worktree per repo, `<work>/<workstream>/<repo>`; cleared away, asking first, once the primary's pull request completes |
+| Up to date first | A session brings its branch up to date with its base before new work and says what came in |
+| Verified here, not in CI | CI agents are shared: a build reaches them known green |
+
+The owner-only rung of the unattended ladder, below, lists what a session never decides, branches included.
 
 # Part 2: The method, exactly
 
@@ -316,9 +332,9 @@ Each repository keeps its own **reviewer rubric**, drawn from that codebase's da
 
 Versions are git tags, `method-v<major>.<minor>`, separate from app releases. `method-v0.1` was the kit at the end of
 the first trial on 19 November 2026, after six hand-run changes and 17 lessons. `method-v0.2` (20 November 2026) added
-the evidence block, rule P18, a tighter project file that Theseus can read, and the owner's gates inside a project. At
-the time of writing only `method-v0.1` carries a tag; `method-v0.2` is the version project files name, and the
-unattended ladder described below is being added for `method-v0.3`.
+the evidence block, rule P18, a tighter project file that Theseus can read, and the owner's gates inside a project. `method-v0.3`
+(26 November 2026) adds the unattended ladder described below and the branch, worktree and merge conventions above.
+Only `method-v0.1` carries a tag so far; tagging a version is the owner's.
 
 ## Two modes
 
@@ -596,6 +612,7 @@ file changed since Theseus read it, or when the edit would not read.
 flowchart LR
   S["A session"] -->|record_round| T["Theseus"]
   S -->|add_objective| T
+  S -->|set_criteria| T
   S -->|tick_criterion| T
   S -->|set_waiting| T
   S -->|record_decision| T
@@ -610,6 +627,7 @@ Figure 16. Structured lines go through Theseus's tools; prose is written by hand
 |---|---|
 | `record_round(name, why, objectives)` | A row of the Rounds table and a Round line on each objective the round adds or reopens. Asks the owner first |
 | `add_objective(phase, title, criteria, pipeline, waiting)` | An objective at the end of a phase, with its criteria, pipeline line and an empty workstreams table. Asks the owner first |
+| `set_criteria(objective, criteria, waiting)` | Criteria in an existing objective, in place of its `[criteria to be written]` line or after those it has; existing lines are never changed. Asks the owner first |
 | `tick_criterion(objective, criterion, text, ticked, evidence)` | A tick with its Evidence line; unticking removes the Evidence line |
 | `set_waiting(objective, criterion, text, who, what)` | A criterion's Waiting line, or removes it |
 | `record_decision(decision, by)` | A dated row of the Decisions table |
@@ -801,13 +819,21 @@ slot waiting for an answer.
 
 **1. Owner-only: never decided by a session.**
 
-- Completing, approving, abandoning or auto-completing a pull request into the trunk, and pushing or force-pushing to
-  the trunk. A guard refuses these.
+- Completing, approving, abandoning or auto-completing a pull request into the trunk, voting on it or changing its
+  reviewers, bypassing a branch policy, deleting its source branch, pushing or force-pushing to the trunk, and
+  force-pushing the primary. A guard refuses the trunk's. "Go ahead", "carry on" or "do it" is never this
+  authorisation. A session may create a pull request it was asked for, edit its title and description, comment,
+  resolve threads it has answered, and read its state.
 - Deleting anything: branches, worktrees, files, records.
-- Creating a tracker item.
+- Creating a tracker item. An analysis recommending one, an option picked in a plan, a defect found mid-task and
+  "carry on" are none of them the owner's say-so. Transitions, worklogs, comments and links on the item are fine.
 - Accepting a spec or a bug's rule, and confirming a report.
-- Changing a standing rule.
-- Production, secrets, customer data and every cloud mutation.
+- Changing a standing rule, and naming a new project's primary branch.
+- Machine-wide configuration: drive mappings, PATH and persistent environment variables, the registry, services,
+  scheduled tasks, installed software and global tool configuration.
+- Production, secrets, customer data, and every change to shared cloud infrastructure outside its pipeline.
+  Read-only queries are fine; a data fix on a production-like database is a script for a person to run, in a
+  transaction with the commit left out, printing counts before and after.
 - A product decision the brief and the project's decisions leave open.
 
 **2. Decide and record.** Anything else, the session decides. It takes the option it would recommend, provided all of
@@ -1003,7 +1029,7 @@ flowchart TB
   RW --> BOX["A box per piece of work"]
   OO --> BOX
   BOX --> STG["Its stages, each<br/>with a mark"]
-  BOX --> ACT["Open spec, Accept spec,<br/>Independent check,<br/>Focus, Start, Stop,<br/>Open records"]
+  BOX --> ACT["View spec, Accept spec,<br/>Independent check,<br/>Focus, Start, Stop,<br/>Open records"]
   PV --> PROP["Properties pane:<br/>state in words, records,<br/>links, criteria to tick"]
 ```
 
@@ -1130,13 +1156,20 @@ asking; tools that act on other cards ask for permission unless the session runs
 | Proposals | `propose_workstream`, `proposal_status`, `approve_proposal`, `reject_proposal`, `withdraw_proposal` | Propose new work, and act on proposals only when the owner says so |
 | Other cards | `workstreams`, `start_workstream`, `stop_workstream`, `pause_workstream`, `resume_workstream` | List and act on the cards this session may reach |
 | Gates and asking | `gates`, `accept_spec`, `ask_owner` | The spec gate's state; report an acceptance said in the tab; show a question on the board |
-| Project file | `now_at`, `record_round`, `add_objective`, `tick_criterion`, `set_waiting`, `record_decision` | Say which stage it is in; write the structured lines of `project.md` |
+| Project file | `now_at`, `record_round`, `add_objective`, `set_criteria`, `tick_criterion`, `set_waiting`, `record_decision` | Say which stage it is in; write the structured lines of `project.md` |
 | Duties | `set_duty`, `duties`, `pause_duty`, `end_duty` | Recurring instructions, kept by Theseus |
 | Locks | `locks`, `lock_acquire`, `lock_release` | Take and give back the dev-stack and llama locks |
 
 **Asking the owner.** A session that needs an answer asks with Claude Code's question tool **and** calls `ask_owner`
 with the same question, so it shows on its card and in Waits for you. A turn that ends with a question written only as
 prose looks finished on the board.
+
+**Answering on the board.** **Answer it** on a question asked with `ask_owner` opens it in Theseus: the question, why it
+is asked, each of its options as a button, and a box for your own words. Your answer goes to the session as its next
+turn: typed into its tab, given to a headless run when its turn ends, or given with the start that resumes a session that
+has ended. A card you stopped or paused keeps the answer until it next runs, and the wait says "answered, waiting to be
+delivered" until the answer has reached it. **Go to its tab** is still there for a session open in a tab. A session
+stopped at a prompt in its tab, or at the question tool, is answered there: Answer it brings the tab forward.
 
 ## Verifiers and scenario writers
 
@@ -1411,7 +1444,7 @@ Figure 40. A night run. By morning the owner's decisions are gathered in one lis
 | Duties and the overnight queue | <span class="status built">Built</span>, merged 25 November 2026; the queue is off until switched on per project |
 | Pull request and CI status on cards | <span class="status built">Built</span> |
 | L1 and L2 definitions in the method | <span class="status proposed">Proposed</span> |
-| Decide, record, or park, and the trunk guard | <span class="status built">In the method</span> files for `method-v0.3`; not yet released as a tag |
+| Decide, record, or park, the branch conventions, and the trunk guard | <span class="status built">In the method</span> files for `method-v0.3`; not yet released as a tag |
 | A shaping pipeline (discovery, research, specification, objectives) | <span class="status proposed">Proposed</span> |
 | A Method screen in the app, methods versioned per folder | <span class="status proposed">Proposed</span> |
 | A glossary on hover in the app, from the same text as these docs | <span class="status proposed">Proposed</span> |
@@ -1483,7 +1516,7 @@ For Theseus you need Windows 10 1809 or later, the .NET 11 Desktop Runtime, Wind
 flowchart TB
   A["Install Theseus<br/>from the latest release"] --> B["Run install.ps1 once<br/>for the stop hook entry,<br/>or add it as printed"]
   B --> C["Tools, Options:<br/>projects, worktrees<br/>and clones folders"]
-  C --> D["Options, Holdouts:<br/>install the holdout guard"]
+  C --> D["Options, Guards:<br/>install the three guards,<br/>write auto mode's environment"]
   D --> E["Options, Folder trust:<br/>trust the folders cards use"]
   E --> F["File, New project:<br/>title, objective,<br/>primary branch"]
   F --> G["Start the project:<br/>its lead card starts first"]
@@ -1501,9 +1534,11 @@ Figure 41. First steps on a new machine.
 3. **Choose your folders** in **Tools > Options**: a projects folder (for example `D:\projects`), a worktrees folder (for
    example `D:\work`) and a clones folder (for example `D:\src`). Theseus suggests folders under Documents but sets none.
    Keep the projects folder in a local git repository with no remote, so you keep every version of every spec.
-4. **Install the holdout guard** from **Options > Holdouts**, and keep each project's scenarios in a private repository
-   of your own, cloned beside the project's home repository as `<repo>-holdout`.
-5. **Trust your folders** once in **Options > Folder trust**, so sessions do not stop on Claude Code's trust question.
+4. **Install the guards** from **Options > Guards**: the holdout, trunk and tests-lock guards, each with its hook entry,
+   and auto mode's environment from your source-control hosts, internal domains and production words. Keep each
+   project's scenarios in a private repository of your own, cloned beside the project's home repository as
+   `<repo>-holdout`.
+5. **Trust your folders** once in **Options > Folder trust**: switch on **Trust the folders my cards use**, so sessions, new worktrees included, do not stop on Claude Code's trust question.
 6. **Make a project** with **File > New project…**, or convert an existing card with **Convert to project…**. Start it:
    the lead card starts first.
 

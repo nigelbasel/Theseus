@@ -123,7 +123,7 @@ Write-Host 'The board, runs, settings and logs in %LOCALAPPDATA%\Theseus were le
 $claudeBin = Join-Path $env:USERPROFILE '.claude\bin'
 New-Item -ItemType Directory -Force $claudeBin | Out-Null
 
-foreach ($name in 'ndc-test-lock.sh', 'ndc-test-lock-guard.js') {
+foreach ($name in 'ndc-test-lock.sh', 'ndc-test-lock-guard.js', 'command-classes.json') {
     $source = Join-Path $PSScriptRoot "tools\locks\$name"
     $target = Join-Path $claudeBin $name
     $staged = "$target.new"

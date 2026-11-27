@@ -119,6 +119,45 @@ public class CardEndingTests
     }
 
     [Test]
+    public void AnUnattendedCard_EndsOnceItHasReportedBack_WithItsHandoffWritten()
+    {
+        var facts = Facts(WorkstreamRole.None, Reported(Now.AddMinutes(-5))) with
+        {
+            Unattended = true,
+            HandoffWrittenUtc = Now.AddMinutes(-4),
+        };
+
+        Assert.That(CardEnding.Decide(facts, Now), Is.EqualTo(CardEndingReason.ReportFiled), "the report waits on the board");
+    }
+
+    [Test]
+    public void AnUnattendedCard_StaysOpen_WithoutAHandoffWrittenThisRun_OrWithItsQuestionOpen()
+    {
+        var reported = Facts(WorkstreamRole.None, Reported(Now.AddMinutes(-5))) with { Unattended = true };
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(CardEnding.Decide(reported, Now), Is.Null, "no handoff");
+            Assert.That(CardEnding.Decide(reported with { HandoffWrittenUtc = Started.AddMinutes(-1) }, Now), Is.Null,
+                "a handoff from an earlier run");
+            Assert.That(CardEnding.Decide(reported with { HandoffWrittenUtc = Now.AddMinutes(-4), QuestionOpen = true }, Now), Is.Null);
+            Assert.That(CardEnding.Decide(Facts(WorkstreamRole.None, Reported(Started.AddMinutes(-5))) with
+            {
+                Unattended = true,
+                HandoffWrittenUtc = Now.AddMinutes(-4),
+            }, Now), Is.Null, "a report from an earlier run");
+        });
+    }
+
+    [Test]
+    public void AnAttendedCard_ThatHasOnlyReported_StaysOpen_UntilTheReportIsAccepted()
+    {
+        var facts = Facts(WorkstreamRole.None, Reported(Now.AddMinutes(-5))) with { HandoffWrittenUtc = Now.AddMinutes(-4) };
+
+        Assert.That(CardEnding.Decide(facts, Now), Is.Null, "the owner may still be talking to it");
+    }
+
+    [Test]
     public void EachEnding_SaysWhyInWords()
     {
         Assert.That(Enum.GetValues<CardEndingReason>().Select(CardEnding.Text), Is.EqualTo(new[]

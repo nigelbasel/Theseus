@@ -2,38 +2,94 @@
 
 [Help home](index.md)
 
-Many sessions share one machine. Some jobs cannot safely run twice at once, so Theseus holds a lock
-for each and grants it to one session at a time.
+Many sessions share one machine. Some jobs cannot safely run at the same time, so Theseus holds the
+machine's shared **resources** and grants each request the ones it needs, all at once or not at all.
 
-| Lock | Protects |
-|---|---|
-| **tests** | Container-backed test suites and whole-solution builds. Two at once starve each other and fail in ways that look like real defects. |
-| **dev-stack** | The shared local docker stack. |
-| **llama** | The local model server on port 8090. |
+| Resource | Capacity | Protects |
+|---|---|---|
+| **sql-containers** | 1 | SQL Server test containers. Two container-backed suites at once starve each other and fail in ways that look like real defects. |
+| **cpu-build** | slots, 1 until measured | Whole-solution builds. |
+| **docker-build** | 1 | Docker image builds and the package restore inside them. |
+| **compose:&lt;project&gt;** | 1 each | One docker compose project, by name. Two projects with different names do not clash. |
+| **port:&lt;n&gt;** | 1 each | A host port a stack publishes. |
+| **worktree:&lt;path&gt;** | 1 each | A source tree's build output. Two builds in one tree corrupt each other. |
+| **dev-stack** | 1 | The shared local docker stack. |
+| **llama** | 1 | The local model server on port 8090. |
 
-## How sessions take a lock
+The table lives in `resources.json` in Theseus's data folder. A request may name a resource the table
+does not know; it is held alone, clashing with everything, until the **arbiter** rules on it.
 
-- Test runs go through `~/.claude/bin/ndc-test-lock.sh`, which asks Theseus for the **tests** lock and
-  releases it when the run ends, however it ends.
-- For **dev-stack** and **llama**, a session calls `lock_acquire` before using it and `lock_release`
-  when done.
+The old lock names still work. **tests** means everything the old single lock guarded:
+`sql-containers`, every `cpu-build` slot and `docker-build`. **dev-stack** and **llama** are one
+resource each.
 
-If a lock is busy, the session joins a queue and waits its turn. A session never asks the holder to
-give way, and never stops another session's process.
+## How sessions ask
+
+- Builds and container suites go through `~/.claude/bin/ndc-test-lock.sh`. Theseus works out from the
+  command what it needs, so a solution build holds a build slot and its source tree, and a
+  persistence suite holds the SQL containers and its tree. A build in one tree can run beside a suite
+  in another.
+- `ndc-test-lock.sh steps "<who>" "<label>" -- <build> ::: <unit suite> ::: <container suite>` runs
+  each command under its own hold and releases it after; later steps keep the sequence's place.
+  Chaining commands with `&&` holds everything they need for the whole chain.
+- For anything held across many commands, a session calls `lock_acquire` with a scope, such as
+  `["dev-stack"]` or `["compose:members-hub", "port:8080"]`, and `lock_release` when done.
+
+If what a request needs is busy, it joins one queue, in order. A later request may go ahead of an
+earlier one only if it needs nothing the earlier one waits for, or twice at most; after that, what the
+earlier one needs is held back for it. A session never asks a holder to give way, and never stops
+another session's process.
+
+**The same run twice.** When a card, or a verifier of that card, asks to run a command on a commit
+that is already waiting or running, it is refused and told to wait for the first. `status` shows
+how recent runs ended. `--again` asks for a second run on purpose, such as for a flaky test.
+
+## Deadlocks
+
+A wait cycle can only form across two requests from one session: holding one thing while a command
+asks for another. Theseus checks every request that would wait. If it could never be granted,
+because the sessions involved would wait on each other for ever, it is refused at once, saying who
+holds what. Nothing is stopped. Each refusal is listed on the Locks panel under **Stopped deadlocks**.
+Ask for everything you need in one request.
 
 ## The Locks panel
 
-The lock button on the toolbar opens the Locks panel. It shows who holds each lock, for how long, and
-who is waiting, in order. Only you reorder the queue, cancel a request or release a lock, from this
+The lock button on the toolbar opens the Locks panel. It has a row for each resource: its capacity,
+who holds how much of it and for how long, and who waits, in order. A request for several resources
+shows on each of them. Only you reorder the queue, cancel a request or release a hold, from this
 panel.
 
-The toolbar count turns amber when a lock has been held for over 90 minutes, or when a test container
-is running that no session owns. The status bar shows each lock in use and how long it has been held.
+Each resource folds to one line: its name and its state, such as *free*, *held by 2 · 3 waiting* or
+*1 deadlock stopped*. Select a line, or press Right on it, to unfold its holds, its queue and what you can
+do; Left folds it again. The queue under a resource folds on its own, so a long one can be put away. The
+sections below the resources fold the same way. **Expand all** and **Collapse all** at the top of the
+panel open or fold everything, and the panel remembers what you left open.
 
-If a session holding a lock dies without releasing it, Theseus ends its test hosts, removes the test
-containers it started, and grants the lock to the next in line.
+A hold taken by a session that has been idle for 30 minutes, or whose session has gone, shows amber
+with how long, for you to release. Nothing releases it by itself. A folded line says so too: **⚠ idle**
+for such a hold, **⚠ long** for one held over 90 minutes.
 
-If Theseus is not running, no lock is granted, and sessions wait.
+**Rulings** lists what the arbiter ruled, with **Overturn**. **Not ruled on yet** lists resources
+requests have named that the table does not know.
+
+The toolbar count turns amber when a hold has lasted over 90 minutes, when a session hold is amber,
+or when a test container is running that no session owns.
+
+If a session holding SQL containers dies without releasing them, Theseus ends its test hosts,
+removes the test containers it started, and grants the next in line.
+
+If Theseus is not running, nothing is granted, and sessions wait.
+
+## When the machine sleeps
+
+A waiting request has to keep asking, or it loses its place. Silence is counted only in time Theseus
+itself was awake: after the machine sleeps, nobody in the queue is dropped for having been asleep too.
+
+## Options
+
+The lock client and the command classes install with the **tests-lock guard**, in Options, **Guards**.
+**Advanced** has the **Lock arbiter**: the card whose sessions may rule on a resource the table does
+not know. With no arbiter, unknown resources stay held alone.
 
 ## When Theseus stops or restarts
 

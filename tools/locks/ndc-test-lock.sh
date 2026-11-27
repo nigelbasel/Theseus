@@ -1,21 +1,30 @@
 #!/usr/bin/env bash
 # Machine-wide locks, held by Theseus (Nigel, 2026-10-06). This script is the client for anything that
-# runs as a command: container-backed test suites, compose builds and whole-solution builds take the
-# "tests" lock through it. Sessions that hold a lock across many commands (the dev stack, llama) use the
+# runs as a command: container-backed test suites, compose builds and whole-solution builds. Theseus holds
+# each command for the resources it needs (SQL test containers, a build slot, its source tree, a compose
+# project), worked out from the command itself, so two commands that need different things run at once.
+# Sessions that hold resources across many commands (the dev stack, llama, a compose project) use the
 # lock_acquire / lock_release tools on the Theseus MCP server instead.
 #
 # Source of truth: C:\dev\git\Theseus\tools\locks\ndc-test-lock.sh, installed to ~/.claude/bin by the
 # Theseus installer. Edit it there, not in ~/.claude/bin.
 #
 # Usage:
-#   ndc-test-lock.sh run "<who>" "<label>" [--lock <name>] -- <command...>
-#       Take the lock, run the command, release when it exits however it exits. Refuses at once if the
-#       lock is busy, unless NDC_TEST_LOCK_WAIT=<seconds> lets it queue that long.
-#   ndc-test-lock.sh wait "<who>" "<label>" [--lock <name>] [--wait <seconds>]
-#       Queue until the lock is granted, then print a token. Waiting is separate from running, so a long
-#       wait does not eat the time limit of the background task that runs the suite.
+#   ndc-test-lock.sh run "<who>" "<label>" [--scope <r>[=<n>],...] [--lock <name>] [--again] -- <command...>
+#       Take what the command needs, run it, release when it exits however it exits. Refuses at once if
+#       that is busy, unless NDC_TEST_LOCK_WAIT=<seconds> lets it queue that long. --scope adds resources
+#       to what the command needs (never fewer); --lock asks for a predefined scope (tests, dev-stack,
+#       llama); --again runs a command already running on the same commit for the same card, on purpose.
+#   ndc-test-lock.sh wait "<who>" "<label>" [--scope ...] [--lock <name>] [--wait <seconds>] [-- <command...>]
+#       Queue until granted, then print a token. Give the command you will run so Theseus can hold just
+#       what it needs; without it, or a scope, the wait is for the old tests lock. Waiting is separate
+#       from running, so a long wait does not eat the time limit of the background task that runs it.
 #   ndc-test-lock.sh run --token <token> -- <command...>
-#       Run a command under a lock granted by "wait". Start it within 2 minutes of the grant.
+#       Run a command under a grant from "wait". Start it within 2 minutes of the grant.
+#   ndc-test-lock.sh steps "<who>" "<label>" -- <command...> ::: <command...> ::: <command...>
+#       Run commands in order, each held only for what it needs and released after it; later steps keep
+#       the sequence's place in the queue. A failing step stops the sequence with its exit code. Run a
+#       build, its unit suites and its container suites as separate steps.
 #   ndc-test-lock.sh status
 #   ndc-test-lock.sh release <token>
 #       Let go of a lock, or leave its queue. The token is printed as soon as a request is queued.
@@ -138,15 +147,21 @@ wait_for_legacy_holder() {
 queue() {
   local lock="$1" who="$2" label="$3" budget="$4" last="" status detail
   local body
-  if [ "$lock" = "tests" ]; then
+  if [ -z "$lock" ] && [ -z "$scope_option" ] && [ -z "$command_text" ]; then
+    lock="tests"
+  fi
+  if [ "$lock" != "dev-stack" ] && [ "$lock" != "llama" ]; then
     wait_for_legacy_holder "$budget" || return 1
   fi
-  body=$(json lock="$lock" who="$who" purpose="$label" mode=process cwd="$(pwd -W 2>/dev/null || pwd)" reason="${NDC_TEST_LOCK_REASON:-}")
+  body=$(json lock="$lock" who="$who" purpose="$label" mode=process cwd="$(pwd -W 2>/dev/null || pwd)" \
+    reason="${NDC_TEST_LOCK_REASON:-}" scope="$scope_option" command="$command_text" again="$again" since="$since" \
+    root="$(git rev-parse --show-toplevel 2>/dev/null)" commit="$(git rev-parse HEAD 2>/dev/null)" \
+    owner="${THESEUS_SESSION_ID:-}" card="${THESEUS_CARD:-}")
   WAIT_LEFT="$budget"
   call_waiting request "$body" "$WAIT_LEFT" || return 1
   TOKEN=$(field token)
   if [ "$(field status)" = "waiting" ] && [ "$budget" -gt 0 ]; then
-    echo "QUEUED for the $lock lock. Token: $TOKEN"
+    echo "QUEUED for the $(field lock) lock. Token: $TOKEN"
     echo "To leave the queue: ndc-test-lock.sh release $TOKEN   (or: ndc-test-lock.sh leave \"$who\" \"$label\")"
   fi
   # Interrupting a wait gives the place up, so a session that stops waiting does not leave a ticket to
@@ -176,30 +191,53 @@ queue() {
   done
 }
 
-attach_and_run() {
-  local winpid
+# Runs the command under the granted ticket and records its exit code against the commit and command, so a
+# repeat of the same run can be told what happened. Returns the command's code; 5 if the grant has gone.
+attach_run_and_finish() {
+  local winpid code scope
   winpid=$(cat "/proc/$$/winpid" 2>/dev/null)
   if ! call attach "{\"token\":\"$TOKEN\",\"pid\":${winpid:-0}}" || [ "$(field status)" != "granted" ]; then
     echo "LOCK NOT TAKEN UP: $(field detail)" >&2
-    exit 5
+    return 5
   fi
+  scope=$(printf '%s' "$RESPONSE" | node -e 'let s = ""; process.stdin.on("data", c => s += c).on("end", () => { try { process.stdout.write((JSON.parse(s).scope || []).join(" + ")); } catch { } })' 2>/dev/null)
   trap 'call release "$(json token="$TOKEN")" >/dev/null' EXIT
   trap 'exit 130' INT
   trap 'exit 143' TERM
-  echo "LOCK HELD ($(field lock)) for this command; it is released when the command exits."
+  echo "LOCK HELD (${scope:-$(field lock)}) for this command; it is released when the command exits."
   stray_container_report
   "$@"
+  code=$?
+  call finish "{\"token\":\"$TOKEN\",\"exit\":$code}" >/dev/null || call release "$(json token="$TOKEN")" >/dev/null
+  trap - EXIT INT TERM
+  return "$code"
+}
+
+attach_and_run() {
+  attach_run_and_finish "$@"
   exit $?
 }
 
-lock_name="tests"
+lock_name=""
+scope_option=""
+again=""
+command_text=""
+since=""
 
-take_lock_option() {
-  if [ "${1:-}" = "--lock" ]; then
-    lock_name="${2:-tests}"
-    return 0
-  fi
-  return 1
+# Reads --lock, --scope, --again and --wait; the command is what follows "--", or the first word that is not one of
+# them, so a command given without "--" runs whole, as it always has.
+take_options() {
+  ARGS=()
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --lock) lock_name="${2:-tests}"; shift 2 ;;
+      --scope) scope_option="${2:-}"; shift 2 ;;
+      --again) again="true"; shift ;;
+      --wait) budget="${2:-5400}"; shift 2 ;;
+      --) shift; ARGS=("$@"); return 0 ;;
+      *) ARGS=("$@"); return 0 ;;
+    esac
+  done
 }
 
 trap "" PIPE
@@ -224,12 +262,13 @@ case "${1:-status}" in
     fi
     who="${1:-unknown}"; label="${2:-unspecified}"
     shift 2 2>/dev/null || true
-    take_lock_option "$@" && shift 2
-    [ "${1:-}" = "--" ] && shift
+    take_options "$@"
+    set -- "${ARGS[@]}"
     if [ "$#" -eq 0 ]; then
-      echo "usage: ndc-test-lock.sh run \"<who>\" \"<label>\" [--lock <name>] -- <command...>" >&2
+      echo "usage: ndc-test-lock.sh run \"<who>\" \"<label>\" [--scope <r>[=<n>],...] [--lock <name>] [--again] -- <command...>" >&2
       exit 2
     fi
+    command_text="$*"
     queue "$lock_name" "$who" "$label" "${NDC_TEST_LOCK_WAIT:-0}"
     result=$?
     if [ "$result" -ne 0 ]; then
@@ -246,13 +285,8 @@ case "${1:-status}" in
     who="${1:-unknown}"; label="${2:-unspecified}"
     shift 2 2>/dev/null || true
     budget="${NDC_TEST_LOCK_WAIT:-5400}"
-    while [ "$#" -gt 0 ]; do
-      case "$1" in
-        --lock) lock_name="${2:-tests}"; shift 2 ;;
-        --wait) budget="${2:-5400}"; shift 2 ;;
-        *) shift ;;
-      esac
-    done
+    take_options "$@"
+    command_text="${ARGS[*]}"
     queue "$lock_name" "$who" "$label" "$budget"
     result=$?
     if [ "$result" -eq 0 ]; then
@@ -272,10 +306,15 @@ case "${1:-status}" in
       printf '%s' "$listing" | node -e '
         let s = ""; process.stdin.on("data", c => s += c).on("end", () => {
           const now = Date.now(), ago = t => { const m = Math.floor((now - Date.parse(t)) / 60000); return m < 60 ? `${m} min` : `${Math.floor(m / 60)}h${String(m % 60).padStart(2, "0")}`; };
-          for (const lock of JSON.parse(s).locks) {
+          const state = JSON.parse(s), scope = t => (t.scope || []).join(" + ");
+          for (const lock of state.locks) {
             console.log(lock.holder ? `${lock.name}: HELD by ${lock.holder.who} for ${lock.holder.purpose}, ${ago(lock.holder.granted)}` : `${lock.name}: free`);
-            lock.waiting.forEach((w, i) => console.log(`  ${i + 1}. ${w.who} for ${w.purpose}, waiting ${ago(w.requested)}${w.reason ? ` (${w.reason})` : ""}`));
           }
+          const tickets = state.tickets || [], held = tickets.filter(t => t.granted), waiting = tickets.filter(t => !t.granted);
+          if (held.length) { console.log("Held:"); held.forEach(t => console.log(`  ${t.who} for ${t.purpose}: ${scope(t)}, ${ago(t.granted)}`)); }
+          if (waiting.length) { console.log("Waiting, in order:"); waiting.forEach((t, i) => console.log(`  ${i + 1}. ${t.who} for ${t.purpose}: ${scope(t)}, waiting ${ago(t.requested)}${t.reason ? ` (${t.reason})` : ""}`)); }
+          (state.runs || []).slice(0, 5).forEach(r => console.log(`Finished ${ago(r.when)} ago with exit ${r.exit}: ${r.card || "?"} on ${(r.commit || "?").slice(0, 9)}: ${r.command}`));
+          (state.deadlocks || []).slice(0, 3).forEach(d => console.log(`Refused as a deadlock ${ago(d.when)} ago: ${d.detail}`));
         });' 2>/dev/null
     fi
     stray_container_report
@@ -292,7 +331,7 @@ case "${1:-status}" in
     shift
     who="${1:-}"; label="${2:-}"
     shift 2 2>/dev/null || true
-    take_lock_option "$@" && shift 2
+    take_options "$@"
     if [ -z "$who" ] || [ -z "$label" ]; then
       echo "usage: ndc-test-lock.sh leave \"<who>\" \"<label>\" [--lock <name>]   (run it from the same directory you queued from)" >&2
       exit 2
@@ -301,12 +340,51 @@ case "${1:-status}" in
     echo "$(field detail)"
     [ "$(field status)" = "ended" ]
     ;;
+  steps)
+    shift
+    who="${1:-unknown}"; label="${2:-unspecified}"
+    shift 2 2>/dev/null || true
+    take_options "$@"
+    set -- "${ARGS[@]}"
+    if [ "$#" -eq 0 ]; then
+      echo "usage: ndc-test-lock.sh steps \"<who>\" \"<label>\" -- <command...> ::: <command...>" >&2
+      exit 2
+    fi
+    STEPS=()
+    current=""
+    for word in "$@"; do
+      if [ "$word" = ":::" ]; then
+        [ -n "$current" ] && STEPS+=("$current")
+        current=""
+      else
+        current+="$(printf '%q ' "$word")"
+      fi
+    done
+    [ -n "$current" ] && STEPS+=("$current")
+    since="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    number=0
+    for step in "${STEPS[@]}"; do
+      number=$((number + 1))
+      eval "set -- $step"
+      command_text="$*"
+      echo "STEP $number of ${#STEPS[@]}: $command_text"
+      queue "$lock_name" "$who" "$label (step $number of ${#STEPS[@]})" "${NDC_TEST_LOCK_WAIT:-5400}"
+      result=$?
+      [ "$result" -eq 0 ] || exit "$result"
+      attach_run_and_finish "$@"
+      result=$?
+      if [ "$result" -ne 0 ]; then
+        echo "STEP $number FAILED with exit $result; the sequence stops here." >&2
+        exit "$result"
+      fi
+    done
+    ;;
   acquire)
     echo "acquire is gone. For a long wait use 'wait' then 'run --token'; to hold a lock across many commands use the lock_acquire tool on the Theseus MCP server." >&2
     exit 2
     ;;
   *)
-    echo "usage: ndc-test-lock.sh {run|wait|status|release|leave}" >&2
+    echo "usage: ndc-test-lock.sh {run|wait|steps|status|release|leave}" >&2
     exit 2
     ;;
 esac

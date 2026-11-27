@@ -132,8 +132,45 @@ public sealed class UpdateViewModel : ObservableObject
             return;
         }
 
-        var latest = await _feed.LatestAsync(cancellationToken);
+        Consider(await _feed.LatestAsync(cancellationToken));
+    }
 
+    /// <summary>
+    /// The check Refresh waits for (board-small-changes item 1): as <see cref="CheckQuietlyAsync"/>, and then what it
+    /// found, for the status line. A failed check says it failed, and a version put aside with Later says so, so neither
+    /// reads as "up to date".
+    /// </summary>
+    public async Task<string> CheckForRefreshAsync()
+    {
+        if (_isBusy)
+        {
+            return "An update is being installed.";
+        }
+
+        AvailableRelease? latest;
+
+        try
+        {
+            latest = await _feed.LatestAsync(CancellationToken.None);
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or IOException
+                                              or InvalidDataException or System.Text.Json.JsonException)
+        {
+            TheseusLog.Warning(exception, "Checking for updates failed");
+
+            return $"Could not check for a new version: {exception.Message}";
+        }
+
+        Consider(latest);
+
+        return latest is null ? "No published release of Theseus was found."
+            : IsOffered ? OfferText
+            : UpdatePolicy.IsNewer(_currentVersion, latest.Version) ? $"Theseus {latest.Version} is available; you chose Later for it."
+            : $"Theseus {_currentVersion} is up to date.";
+    }
+
+    private void Consider(AvailableRelease? latest)
+    {
         // Null is also a failed check, so only an answer that is not newer withdraws an offer: one made with
         // pre-releases included, after the setting was turned off.
         if (latest is not null && !UpdatePolicy.IsNewer(_currentVersion, latest.Version))

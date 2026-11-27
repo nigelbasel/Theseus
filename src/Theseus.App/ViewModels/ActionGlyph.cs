@@ -17,7 +17,7 @@ public static class ActionGlyph
         ("⧉ Focus", "\uE8A7"),
         ("Independent check", "\uE9D5"),
         ("Accept spec", "\uE8FB"),
-        ("Open spec", "\uE8A5"),
+        ("View spec", "\uE8A5"),
         ("Open records", "\uE7C3"),
         ("Archive", "\uE7B8"),
         ("Restore", "\uE7B8"),

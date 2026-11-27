@@ -656,7 +656,13 @@ public sealed class SettingsViewModel : ObservableObject
         }
 
         Tags?.Load();
-        Guard?.Load();
+        foreach (var guard in Guards)
+        {
+            guard.Load();
+        }
+
+        AutoMode?.Load();
+        LockTools?.Load();
         FolderTrust?.Load();
         IsOpen = true;
     }
@@ -664,8 +670,14 @@ public sealed class SettingsViewModel : ObservableObject
     /// <summary>Options, Tags (card-search-and-tags item 13); it applies its changes at once. Set by the shell.</summary>
     public TagsViewModel? Tags { get; set; }
 
-    /// <summary>Options, Holdouts: the installed holdout guard and its Install button; acts at once. Set by the shell.</summary>
-    public HoldoutGuardViewModel? Guard { get; set; }
+    /// <summary>Options, Guards: each guard Theseus ships, installed from there; acts at once. Set by the shell.</summary>
+    public IReadOnlyList<GuardViewModel> Guards { get; set; } = [];
+
+    /// <summary>Options, Guards: auto mode's environment, built from the owner's entries. Set by the shell.</summary>
+    public AutoModeViewModel? AutoMode { get; set; }
+
+    /// <summary>Options, Locks: the installed lock tools and the arbiter; acts at once. Set by the shell.</summary>
+    public LockOptionsViewModel? LockTools { get; set; }
 
     /// <summary>Options, Duties: the limits for duties and the overnight queue; each change is saved at once.</summary>
     public DutyOptionsViewModel Duties { get; }

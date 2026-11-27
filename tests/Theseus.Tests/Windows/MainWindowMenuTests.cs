@@ -66,7 +66,21 @@ public partial class MainWindowMenuTests
 
     [Test]
     public void TheViewMenu_FollowsTheW26Map() =>
-        Assert.That(string.Concat(Items(TopLevel("_View")).Select(Key)), Is.EqualTo("SLCGAHPWJOEKFNDUMVTBR"), "W26's map, with J for Show just active cards (2026-11-24)");
+        Assert.That(string.Concat(Items(TopLevel("_View")).Select(Key)), Is.EqualTo("SLCGAHPWJOIEKFYNDUMVTBR"),
+            "W26's map, with J for Show just active cards (2026-11-24), I for Project view, every letter of Projects being taken (2026-11-26), and Y for All projects layout, every letter of All projects being taken (2026-11-27)");
+
+    [Test]
+    public void TheAllProjectsLayoutSubmenu_ShowsClosed_FoldsAndUnfoldsRows()
+    {
+        XElement layout = Items(TopLevel("_View")).Single(item => Label(item) == "All projects la_yout");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(Items(layout).Select(Label), Is.EqualTo(new[] { "Show _closed projects", "_Fold all rows", "_Unfold all rows" }));
+            Assert.That(Items(layout).Select(item => (string?)item.Attribute("Command")),
+                Is.EqualTo(new[] { "{Binding KanbanShowsClosedCommand}", "{Binding KanbanFoldAllCommand}", "{Binding KanbanUnfoldAllCommand}" }));
+        });
+    }
 
     [Test]
     public void TheGroupBySubmenu_FollowsTheW26Map()
@@ -81,11 +95,12 @@ public partial class MainWindowMenuTests
         Assert.That(Items(TopLevel("Win_dow")).Select(Label), Is.EqualTo(new[] { "_Arrange windows…", "_Bring project window forward" }));
 
     [Test]
-    public void NoKey_UsesIOrO_ButOpenProject_TheRecordedDeviation()
+    public void NoKey_UsesIOrO_ButOpenProjectAndProjectView_TheRecordedDeviations()
     {
         IEnumerable<XElement> all = MenusWithItems().SelectMany(Items);
 
-        Assert.That(all.Where(item => Key(item) is 'I' or 'O').Select(Label), Is.EqualTo(new[] { "_Open project" }));
+        // Project view's every other letter is taken in View (board-small-changes item 3, 2026-11-26).
+        Assert.That(all.Where(item => Key(item) is 'I' or 'O').Select(Label), Is.EqualTo(new[] { "_Open project", "Project v_iew" }));
     }
 
     [TestCase("O_ptions")]
@@ -95,14 +110,19 @@ public partial class MainWindowMenuTests
         Assert.That(MenuBar.Descendants(Presentation + "MenuItem").Select(Label), Does.Contain(label));
 
     [Test]
-    public void NothingInTheMenuBarOrToolbar_HidesByACondition()
+    public void NothingInTheMenuBar_HidesByACondition_AndTheToolbarOnlyByWhatIsShown()
     {
         XElement toolBar = Window.Value.Descendants(Presentation + "ToolBar").Single();
-        IEnumerable<XElement> commands = MenuBar.Descendants(Presentation + "MenuItem")
-            .Concat(toolBar.Elements().Where(element => element.Name.LocalName is "Button" or "ToggleButton"));
+        IEnumerable<XElement> tools = toolBar.Elements().Where(element => element.Name.LocalName is "Button" or "ToggleButton");
 
-        Assert.That(commands.Where(element => ((string?)element.Attribute("Visibility"))?.Contains("{Binding", StringComparison.Ordinal) == true)
-            .Select(element => Label(element) ?? (string?)element.Attribute("AutomationProperties.Name")), Is.Empty);
+        Assert.That(MenuBar.Descendants(Presentation + "MenuItem")
+            .Where(element => ((string?)element.Attribute("Visibility"))?.Contains("{Binding", StringComparison.Ordinal) == true)
+            .Select(Label), Is.Empty, "the menu bar never changes shape");
+        // The toolbar shows the commands of what is shown, the board's or the project's (project-view-as-tabs AC 6, 7; Nigel,
+        // 2026-11-26); within that, a command that cannot run is greyed with its reason.
+        Assert.That(tools.Select(element => (string?)element.Attribute("Visibility")).Where(visibility => visibility?.Contains("{Binding", StringComparison.Ordinal) == true),
+            Is.All.EqualTo("{Binding IsBoardShown, Converter={StaticResource BoolToVisibility}}")
+                .Or.EqualTo("{Binding IsProjectViewShown, Converter={StaticResource BoolToVisibility}}"));
     }
 
     [Test]

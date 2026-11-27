@@ -75,7 +75,7 @@ public class ProjectViewPropertiesTests
             ("Review", "✓ Done. Finished: its record is written and any gate you accepted."),
             ("Compound", "– Not started. No work recorded for this stage."),
         }), "never a path or a folder name (1.1f H40)");
-        Assert.That(pane.Buttons.Select(button => button.Label), Is.EqualTo(new[] { "Accept spec…", "Open records" }));
+        Assert.That(pane.Buttons.Select(button => button.Label), Is.EqualTo(new[] { "View spec", "Accept spec…", "Open records" }));
     }
 
     [Test]
@@ -118,9 +118,9 @@ public class ProjectViewPropertiesTests
             ("Objective", "1.1 Checks shown on cards"),
             ("Why", "accept the spec"),
         }));
-        Assert.That(pane.Buttons.Select(button => button.Label), Is.EqualTo(new[] { "Accept spec…", "Open spec.md" }));
+        Assert.That(pane.Buttons.Select(button => button.Label), Is.EqualTo(new[] { "View spec", "Accept spec…", "Open spec.md" }));
 
-        pane.Buttons[1].Command.Execute(null);
+        pane.Buttons[2].Command.Execute(null);
 
         Assert.That(_views.Ran, Is.EqualTo(new[] { $"Open:{record}" }));
     }

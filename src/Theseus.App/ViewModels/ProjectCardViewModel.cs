@@ -37,6 +37,7 @@ public sealed class ProjectCardViewModel : ObservableObject, IBoardCard
     private string _moreTags = string.Empty;
     private string _moreTagsToolTip = string.Empty;
     private IReadOnlyList<TagMenuItemViewModel> _tagMenu = [];
+    private ProjectClosure? _closure;
 
     /// <summary>Creates a project card.</summary>
     /// <param name="name">The project's name: its project home folder's name.</param>
@@ -78,6 +79,7 @@ public sealed class ProjectCardViewModel : ObservableObject, IBoardCard
                 Raise(nameof(OpenToolTip));
                 Raise(nameof(OpenButtonToolTip));
                 Raise(nameof(ShowsRunButtons));
+                Raise(nameof(IsOpenProject));
             }
         }
     }
@@ -204,7 +206,44 @@ public sealed class ProjectCardViewModel : ObservableObject, IBoardCard
         : "Open the project (Enter)";
 
     /// <summary>Whether ▶ and ■ show: only for a project that reads (1.1d AC 44).</summary>
-    public bool ShowsRunButtons => !_isDimmed;
+    public bool ShowsRunButtons => !_isDimmed && _closure is null;
+
+    /// <summary>
+    /// How the owner put the project away, or null while it is open (archive-a-project, 2026-11-26): a put-away project is
+    /// shown only under Archived, starts and stops nothing, and offers Reopen.
+    /// </summary>
+    public ProjectClosure? Closure
+    {
+        get => _closure;
+        set
+        {
+            if (Set(ref _closure, value))
+            {
+                Raise(nameof(IsPutAway));
+                Raise(nameof(IsOpenProject));
+                Raise(nameof(ClosedText));
+                Raise(nameof(ShowsRunButtons));
+            }
+        }
+    }
+
+    /// <summary>Whether it is closed or archived.</summary>
+    public bool IsPutAway => _closure is not null;
+
+    /// <summary>Whether it reads and is open, so Close and Archive are offered.</summary>
+    public bool IsOpenProject => _closure is null && !_isDimmed;
+
+    /// <summary>"Closed" or "Archived" on its face; empty while it is open.</summary>
+    public string ClosedText => _closure?.Word ?? string.Empty;
+
+    /// <summary>Close project: stops its cards after their handover, pauses its duties and queue, hides it; the owner's only.</summary>
+    public ICommand? CloseCommand { get; set; }
+
+    /// <summary>Archive project: as Close, and its cards are archived too; its records stay where they are.</summary>
+    public ICommand? ArchiveCommand { get; set; }
+
+    /// <summary>Reopen: puts a closed or archived project back as it was.</summary>
+    public ICommand? ReopenCommand { get; set; }
 
     /// <summary>The project's own colour, as <c>#rrggbb</c> (1.1d AC 40): its stripe, its mark, its tab and its summary.</summary>
     public string ColourHex

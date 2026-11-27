@@ -65,7 +65,7 @@ public sealed class ClaudeProcessRunner
             ClaudeArgumentBuilder.Build(spec),
             spec.WorkingDirectory)
         {
-            Environment = spec.Environment,
+            Environment = new Dictionary<string, string>(spec.Environment) { [SessionEnvironment.SessionVariable] = spec.SessionId },
         };
 
         var startedUtc = _clock.UtcNow;

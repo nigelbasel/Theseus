@@ -267,6 +267,28 @@ public class BoardSearchTests
     }
 
     [Test]
+    public void AProjectCard_MatchesThroughItsScenarioWriter()
+    {
+        // "nothing shows when I search for write holdout" (Nigel, 2026-11-26): no project file names a writer, so it carried
+        // no project and its project card was never found through it.
+        var fixture = Board().With("writer", area: "Dev").Retitle("writer", "Write scenarios for BYM MCP");
+        fixture.Board.Refresh();
+        CardOf(fixture, "writer").ProjectOfRole = "bym-mcp";
+        fixture.Board.KeepOutOfGrid = card => card.Key is "bym-w7" or "bym-w6";
+        var project = new ProjectCardViewModel("bym-mcp", "BuildYourMarket MCP") { MemberKeys = ["bym-w7", "bym-w6"] };
+        fixture.Board.ShowProjects([project]);
+
+        fixture.Board.Search.Text = "write scenarios";
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(fixture.Board.Matches, Does.Contain(project));
+            Assert.That(project.MatchingKeys, Is.EqualTo(new[] { "writer" }));
+            Assert.That(Matched(fixture), Does.Contain("writer"), "the writer's own card, in the grid, is found too");
+        });
+    }
+
+    [Test]
     public void AProjectCard_MatchesOnItsOwnTitle()
     {
         var fixture = Board();

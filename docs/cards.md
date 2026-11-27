@@ -92,7 +92,9 @@ off the primary branch, named after its records folder, push it, and merge it ba
 is done, and still to ask before any Jira item, pull request into the trunk, force push, deleted branch, or anything
 outside the project's repositories. Such a card shows **project branch rules**, with the date you ticked it in its
 tooltip. Untick it and its cards ask again from their next start; a session resumed after that is told the rules are
-withdrawn.
+withdrawn. **New project** has the same box, ticked to begin with, so a project you start there is granted unless you
+untick it, provided its primary branch is a branch of its own (not empty, a trunk or a placeholder); the notice says
+which.
 
 One whose `project.md` does not read, or is in an older shape, is dimmed and says only **Needs updating**, keeping its
 mark, colour and the word PROJECT but with no ▷ or □; the reason is in its tooltip and Project properties, for the
@@ -104,8 +106,8 @@ cards is running. **Not a project** on its menu hides a folder's card; **Tools >
 **Show again** then **Save** brings one back. A hidden folder whose file reads again is a project again. **↗ Open**, the first button on a project card that reads, a double-click,
 **Enter** on it, **Open** on its menu, or **View > Open project**, fills the main area with the project: see
 [The project view](project-view.md). A spec waiting for you shows **Waiting on you**, with
-**Open spec** and **Accept spec…**, which asks first and names the version it accepts; a spec changed after you accept
-it waits for you again. **Open spec**, wherever it appears, opens the [spec window](project-view.md#the-spec-window). **← Board** at the top, **Alt+Left**, or **View > Back to the board**, goes back.
+**View spec** and **Accept spec…**, which asks first and names the version it accepts; a spec changed after you accept
+it waits for you again. **View spec**, wherever it appears, opens the [spec window](project-view.md#the-spec-window). **← Board** at the top, **Alt+Left**, or **View > Back to the board**, goes back.
 
 ## The buttons on a card
 

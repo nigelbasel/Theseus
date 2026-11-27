@@ -1,0 +1,32 @@
+{
+  "exempt": [
+    "Api\\.Mcp\\.Tests",
+    "\\bTheseus\\.slnx\\b"
+  ],
+  "classes": [
+    {
+      "name": "container-suite",
+      "describe": "a container-backed test suite (or a whole-solution test run)",
+      "pattern": "dotnet(\\.exe)?\\s+test\\b[^\\n;&|]*(Api\\.Tests|Api\\.[A-Za-z]+\\.Tests|Persistence\\.?Tests|IntegrationTests|Content\\.Service\\.UnitTests|\\.slnf?\\b)",
+      "scope": ["sql-containers", "worktree:{root}"]
+    },
+    {
+      "name": "solution-test-build",
+      "describe": "a whole-solution test run that builds first",
+      "pattern": "dotnet(\\.exe)?\\s+test\\b(?![^\\n;&|]*--no-build)[^\\n;&|]*\\.slnf?\\b",
+      "scope": ["cpu-build", "worktree:{root}"]
+    },
+    {
+      "name": "compose-build",
+      "describe": "a docker compose build",
+      "pattern": "docker(-compose|\\s+compose)\\b[^\\n;&|]*(\\sbuild\\b|\\sup\\b[^\\n;&|]*--build)",
+      "scope": ["docker-build", "cpu-build", "compose:{project}"]
+    },
+    {
+      "name": "solution-build",
+      "describe": "a whole-solution build",
+      "pattern": "dotnet(\\.exe)?\\s+build\\b[^\\n;&|]*\\.slnf?\\b",
+      "scope": ["cpu-build", "worktree:{root}"]
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
+using Theseus.Core.Guards;
 
 namespace Theseus.Core.Links;
 
@@ -20,7 +21,7 @@ public static class HoldoutGuardProof
     /// <summary>Runs the guard at a path against a fixture folder.</summary>
     /// <param name="guardPath">The installed guard.</param>
     /// <param name="timeout">How long each run may take; null for 15 seconds. The hook itself allows 10.</param>
-    public static HoldoutGuardOutcome Run(string guardPath, TimeSpan? timeout = null)
+    public static GuardOutcome Run(string guardPath, TimeSpan? timeout = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(guardPath);
 
@@ -31,15 +32,15 @@ public static class HoldoutGuardProof
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException
                                           or System.ComponentModel.Win32Exception)
         {
-            return new HoldoutGuardOutcome(false, $"Could not run the check: {exception.Message}");
+            return new GuardOutcome(false, $"Could not run the check: {exception.Message}");
         }
     }
 
-    private static HoldoutGuardOutcome Check(string guardPath, TimeSpan timeout)
+    private static GuardOutcome Check(string guardPath, TimeSpan timeout)
     {
         if (FindNode() is not { } node)
         {
-            return new HoldoutGuardOutcome(false, "Node is not on the PATH, so the hook cannot run the guard.");
+            return new GuardOutcome(false, "Node is not on the PATH, so the hook cannot run the guard.");
         }
 
         var fixture = Path.Combine(Path.GetTempPath(), "theseus-guard-check", Guid.NewGuid().ToString("N"));
@@ -54,28 +55,28 @@ public static class HoldoutGuardProof
             var noRole = Refuses(node, guardPath, fixture, settings, scenario, role: null, timeout);
             if (noRole is null)
             {
-                return new HoldoutGuardOutcome(false, $"Checked on a fixture folder: the installed guard did not answer within {timeout.TotalSeconds:0} seconds.");
+                return new GuardOutcome(false, $"Checked on a fixture folder: the installed guard did not answer within {timeout.TotalSeconds:0} seconds.");
             }
 
             if (noRole == false)
             {
-                return new HoldoutGuardOutcome(false,
+                return new GuardOutcome(false,
                     "Checked on a fixture folder: the installed guard did not refuse a read of the holdout by a session with no role, so it protects nothing.");
             }
 
             var verifier = Refuses(node, guardPath, fixture, settings, scenario, role: "verifier", timeout);
             if (verifier is null)
             {
-                return new HoldoutGuardOutcome(false, $"Checked on a fixture folder: the installed guard did not answer within {timeout.TotalSeconds:0} seconds.");
+                return new GuardOutcome(false, $"Checked on a fixture folder: the installed guard did not answer within {timeout.TotalSeconds:0} seconds.");
             }
 
             if (verifier == true)
             {
-                return new HoldoutGuardOutcome(false,
+                return new GuardOutcome(false,
                     "Checked on a fixture folder: the installed guard refused a verifier's read of the holdout, so no verifier can run.");
             }
 
-            return new HoldoutGuardOutcome(true,
+            return new GuardOutcome(true,
                 "Checked on a fixture folder: it refused a read of the holdout by a session with no role, and allowed a verifier's.");
         }
         finally

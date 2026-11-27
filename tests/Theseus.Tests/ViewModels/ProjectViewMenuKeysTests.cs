@@ -30,12 +30,12 @@ public class ProjectViewMenuKeysTests
     {
         IReadOnlyList<MenuEntryViewModel> entries = MenuAccessKeys.For(
         [
-            Action("Properties"), Action("Open spec"), Action("Accept spec…"), Action("Open records"), Action("Archive"),
+            Action("Properties"), Action("View spec"), Action("Accept spec…"), Action("Open records"), Action("Archive"),
         ]);
 
         Assert.That(entries.Select(entry => entry.Header), Is.EqualTo(new[]
         {
-            "_Properties", "Open _spec", "_Accept spec…", "Open _records", "Ar_chive",
+            "_Properties", "_View spec", "_Accept spec…", "Open _records", "Ar_chive",
         }));
     }
 

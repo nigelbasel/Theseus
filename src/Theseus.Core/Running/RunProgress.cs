@@ -11,7 +11,7 @@ public static class RunProgress
     /// <summary>The Theseus tools whose calls count as progress.</summary>
     public static readonly IReadOnlySet<string> RecordTools = new HashSet<string>(StringComparer.Ordinal)
     {
-        "record_round", "tick_criterion", "record_decision", "record_work_item", "report_back", "add_objective", "set_waiting",
+        "record_round", "tick_criterion", "record_decision", "record_work_item", "report_back", "add_objective", "set_criteria", "set_waiting",
     };
 
     /// <summary>The HEAD commit of each folder that is in a git repository, by folder.</summary>

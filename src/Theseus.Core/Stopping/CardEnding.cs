@@ -45,6 +45,12 @@ public static class CardEnding
             WorkstreamRole.None when ReportsBack(facts).Any(link => link.SatisfiedUtc is { } accepted && accepted >= since
                     && idle <= accepted + FinishWindow)
                 => CardEndingReason.ReportAccepted,
+            // Unattended, nobody will talk to it after its report, so it ends once it has reported and written its handoff;
+            // the report waits on the board (2.4 W2, "once the report is in, stop").
+            WorkstreamRole.None when facts.Unattended && facts.HandoffWrittenUtc >= since
+                    && ReportsBack(facts).Any(link => !link.ReportIsRejected && link.LatestReport?.AtUtc is { } reported
+                        && reported >= since && idle <= reported + FinishWindow)
+                => CardEndingReason.ReportFiled,
             _ => null,
         };
     }

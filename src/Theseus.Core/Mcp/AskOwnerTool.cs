@@ -64,8 +64,20 @@ public sealed class AskOwnerTool
         },
     };
 
+    /// <summary>
+    /// What a card of an unattended project is told once its question is shown (2.4 W2): it is parked, since nobody will
+    /// answer in the tab and the question tool is refused it.
+    /// </summary>
+    public const string Parked =
+        "Parked: shown on the board, on your card, in Waits for you and in Needs you. Nobody is at the desk, so do not ask "
+        + "it in this tab. Record who it waits on with set_waiting, and carry on with every part of the work that does not "
+        + "depend on the answer; when nothing is left, commit, write your handoff and call report_back with verdict partial.";
+
     /// <summary>Runs the tool for a session: the reply's text, and whether it was refused.</summary>
-    public (string Text, bool IsError) Call(McpSession session, JsonObject arguments)
+    /// <param name="session">The calling session.</param>
+    /// <param name="arguments">The call's arguments.</param>
+    /// <param name="unattended">Whether the session's project is unattended.</param>
+    public (string Text, bool IsError) Call(McpSession session, JsonObject arguments, bool unattended = false)
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(arguments);
@@ -105,12 +117,20 @@ public sealed class AskOwnerTool
                 Why = OneLine(arguments["why"]),
             }))
         {
-            return ("The question could not be recorded, so the owner cannot see it in Theseus. Ask it here with the question tool.", true);
+            return (unattended
+                ? "The question could not be recorded, so the owner cannot see it in Theseus. Write it in your handoff and report_back with verdict partial."
+                : "The question could not be recorded, so the owner cannot see it in Theseus. Ask it here with the question tool.", true);
         }
 
         _changed();
 
-        return ("Shown on the board: on your card, in Waits for you and in Needs you, until the owner next types in this tab. "
+        if (unattended)
+        {
+            return (Parked, false);
+        }
+
+        return ("Shown on the board: on your card, in Waits for you and in Needs you, until the owner next types in this tab "
+                + "or answers it on the board, which gives you his answer as your next turn. "
                 + "Ask the same question here with the question tool now, so he can answer where he is; "
                 + "once it answers you, call ask_owner with answered: true.", false);
     }

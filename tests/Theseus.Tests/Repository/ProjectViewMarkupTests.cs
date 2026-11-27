@@ -42,7 +42,7 @@ public class ProjectViewMarkupTests
     public void EveryCommandInTheView_IsOnTheMenuBar()
     {
         Assert.That(Headers(Menu("_View")), Is.SupersetOf(new[] { "_Open project", "Back to th_e board" }));
-        Assert.That(Headers(Menu("_Workstream")), Is.SupersetOf(new[] { "_Start selected", "Ope_n spec", "Acc_ept spec" }));
+        Assert.That(Headers(Menu("_Workstream")), Is.SupersetOf(new[] { "_Start selected", "_View spec", "Acc_ept spec" }));
     }
 
     [Test]
@@ -51,7 +51,7 @@ public class ProjectViewMarkupTests
         // Disabled, not hidden, in the menu bar (W31, C8; G46, G61); Back to the board is disabled by its command.
         var items = Menu("_View").Descendants(Presentation + "MenuItem")
             .Concat(Menu("_Workstream").Descendants(Presentation + "MenuItem"))
-            .Where(item => (string?)item.Attribute("Header") is "_Open project" or "Back to th_e board" or "Ope_n spec" or "Acc_ept spec")
+            .Where(item => (string?)item.Attribute("Header") is "_Open project" or "Back to th_e board" or "_View spec" or "Acc_ept spec")
             .ToList();
 
         Assert.That(items.Select(item => (string?)item.Attribute("Visibility")), Is.All.Null);

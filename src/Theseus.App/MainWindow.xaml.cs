@@ -1152,6 +1152,18 @@ public partial class MainWindow : Window
 
     private void OnExit(object sender, RoutedEventArgs e) => Close();
 
+    // The project's More opens its menu under itself, as a drop-down does; the menu takes the window's context so it binds.
+    private void OnProjectMore(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { ContextMenu: { } menu } button)
+        {
+            menu.DataContext = DataContext;
+            menu.PlacementTarget = button;
+            menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+            menu.IsOpen = true;
+        }
+    }
+
     private void OnAbout(object sender, RoutedEventArgs e)
     {
         (DataContext as ShellViewModel)?.Help.Check();

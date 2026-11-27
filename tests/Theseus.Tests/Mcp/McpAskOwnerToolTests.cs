@@ -65,6 +65,21 @@ public class McpAskOwnerToolTests
     }
 
     [Test]
+    public void TheReplyToAnUnattendedCard_TellsItToPark_NotToAskInItsTab()
+    {
+        _handler.IsUnattended = sessionId => sessionId == SessionId;
+
+        var text = Text(Call(new JsonObject { ["question"] = "Push now?" }));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(text, Does.Not.Contain("question tool"));
+            Assert.That(text, Does.Contain("Parked").And.Contain("set_waiting").And.Contain("report_back"));
+            Assert.That(_store.Read(SessionId), Is.Not.Null, "the question still shows on the board");
+        });
+    }
+
+    [Test]
     public void Answered_ClearsTheQuestion()
     {
         Call(new JsonObject { ["question"] = "Push now?" });

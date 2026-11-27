@@ -20,7 +20,7 @@ public sealed record ProjectChoice(
     /// <summary>Whether it shows a tick box: a choice does, a project that only opens its slugs does not.</summary>
     public bool IsCheckable => Command is not null && ShowsTick;
 
-    /// <summary>False for a plain command, such as Open spec, which has no state to tick.</summary>
+    /// <summary>False for a plain command, such as View spec, which has no state to tick.</summary>
     public bool ShowsTick { get; init; } = true;
 
     /// <summary>

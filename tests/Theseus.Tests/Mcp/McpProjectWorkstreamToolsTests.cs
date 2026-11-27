@@ -271,6 +271,23 @@ public class McpProjectWorkstreamToolsTests
     }
 
     [Test]
+    public void Workstreams_ListsTheProjectsVerifiers_AndTheyMayBeStarted()
+    {
+        // The bug-fixing lead's workstreams() stopped listing its verify-fix cards (git-22, 2026-11-26): a project's lead
+        // lists and starts its verifiers like any card of it.
+        var verifier = Card("verify-sibling", Project);
+        _cards.Add(verifier with { Workstream = verifier.Workstream with { Role = WorkstreamRole.Verifier } });
+
+        var text = Text(Call("workstreams", new JsonObject(), "lead-session"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(text, Does.Contain("Verify-sibling (verify-sibling): not running"));
+            Assert.That(IsError(Call("start_workstream", new JsonObject { ["card"] = "verify-sibling" }, "lead-session")), Is.False);
+        });
+    }
+
+    [Test]
     public void AStartGivenToAnIdleOpenCard_GoesToTheBoard_ToBeHandedIn()
     {
         _cards[1] = Card("sibling", Project, live: true) with { Lifecycle = SessionLifecycle.Idle };

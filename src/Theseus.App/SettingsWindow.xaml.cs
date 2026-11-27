@@ -115,6 +115,36 @@ public partial class SettingsWindow : Window
         }
     }
 
+    private void OnChangeSourceControlHosts(object sender, RoutedEventArgs e)
+    {
+        if (Settings?.AutoMode is { } autoMode
+            && Ask("Source-control hosts", "The hosts you push to, separated by commas, such as git.example.com, github.com/you. Leave empty for none.",
+                AutoModeViewModel.Joined(autoMode.Entries.SourceControlHosts), allowsEmpty: true) is { } hosts)
+        {
+            autoMode.SetSourceControlHosts(hosts);
+        }
+    }
+
+    private void OnChangeInternalDomains(object sender, RoutedEventArgs e)
+    {
+        if (Settings?.AutoMode is { } autoMode
+            && Ask("Internal domains", "The domains trusted by name, separated by commas. Leave empty for none.",
+                AutoModeViewModel.Joined(autoMode.Entries.InternalDomains), allowsEmpty: true) is { } domains)
+        {
+            autoMode.SetInternalDomains(domains);
+        }
+    }
+
+    private void OnChangeProductionPatterns(object sender, RoutedEventArgs e)
+    {
+        if (Settings?.AutoMode is { } autoMode
+            && Ask("Production words", "Words that mark a name as production, separated by commas, such as prod, production, live.",
+                AutoModeViewModel.Joined(autoMode.Entries.ProductionPatterns), allowsEmpty: true) is { } words)
+        {
+            autoMode.SetProductionPatterns(words);
+        }
+    }
+
     private void OnChooseProjectsFolder(object sender, RoutedEventArgs e)
     {
         if (Settings is { } settings && ChooseFolder("Choose the projects folder", settings.ProjectsFolder) is { } folder)

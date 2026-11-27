@@ -1,0 +1,20 @@
+[
+  { "command": "dotnet test Fabrikam.Config.Persistence.Tests --no-build", "classes": ["container-suite"] },
+  { "command": "dotnet test Foundation/Fabrikam.PersistenceTests.Foundation --no-build --nologo", "classes": ["container-suite"] },
+  { "command": "dotnet test Fabrikam.Api.Contacts.Tests --no-build", "classes": ["container-suite"] },
+  { "command": "dotnet test Fabrikam.Jobs.IntegrationTests --no-build", "classes": ["container-suite"] },
+  { "command": "dotnet test Nurtur.Communication.Content.Service.UnitTests --no-build", "classes": ["container-suite"] },
+  { "command": "dotnet test CORP.slnf --no-build", "classes": ["container-suite"] },
+  { "command": "dotnet test Fabrikam.sln", "classes": ["container-suite", "solution-test-build"] },
+  { "command": "dotnet build Fabrikam.Messaging.sln", "classes": ["solution-build"] },
+  { "command": "dotnet build Fabrikam.sln --no-restore -v minimal && dotnet test Fabrikam.Api.Tests --no-build", "classes": ["container-suite", "solution-build"] },
+  { "command": "docker compose build gateway", "classes": ["compose-build"] },
+  { "command": "docker compose -p members-hub up -d --build api", "classes": ["compose-build"] },
+  { "command": "docker-compose up --build", "classes": ["compose-build"] },
+  { "command": "docker compose up -d", "classes": [] },
+  { "command": "dotnet test Fabrikam.Api.Mcp.Tests", "classes": [] },
+  { "command": "dotnet test Fabrikam.Contacts.UnitTests", "classes": [] },
+  { "command": "dotnet build Theseus.slnx -c Debug", "classes": [] },
+  { "command": "dotnet test Theseus.slnx --no-build", "classes": [] },
+  { "command": "dotnet build src/Fabrikam.Api/Fabrikam.Api.csproj", "classes": [] }
+]

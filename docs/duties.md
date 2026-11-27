@@ -73,5 +73,6 @@ on when all of these hold:
 
 The queue never starts a card that is not running, and once it has woken a card, it does not wake it again until the
 card's work has moved on. It is **off** for every project until you switch it on: tick **Resume idle cards** in the
-project's **Project properties**, on the **Lead and branches** tab. Its idle threshold and its most resumes a day for
+project's **Project properties** (right-click the project's card on the board and choose **Project properties**,
+or select it and press **Alt+Enter**), on the **Lead and branches** tab. Its idle threshold and its most resumes a day for
 each card are in **Options > Board**.

@@ -1,7 +1,7 @@
 namespace Theseus.Core.Projects;
 
 /// <summary>
-/// The spec at a workstream's owner gate as it was read: what Open spec shows and Accept spec records (spec AC 7, 15).
+/// The spec at a workstream's owner gate as it was read: what View spec shows and Accept spec records (spec AC 7, 15).
 /// For a bug it is the rule, fix.md's Spec section.
 /// </summary>
 /// <param name="Project">The project's name.</param>

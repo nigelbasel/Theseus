@@ -1,0 +1,358 @@
+<UserControl x:Class="Theseus.App.Views.KanbanView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:Theseus.App.ViewModels"
+             xmlns:converters="clr-namespace:Theseus.App.Converters"
+             xmlns:controls="clr-namespace:Theseus.App.Controls"
+             xmlns:projects="clr-namespace:Theseus.Core.Projects;assembly=Theseus.Core"
+             xmlns:local="clr-namespace:Theseus.App.Views"
+             Focusable="False" AutomationProperties.Name="All projects">
+    <!--
+        The projects kanban (projects-kanban spec, accepted 2026-11-26): a row per project, a column per pipeline stage.
+        One ScrollViewer scrolls the cells. The row headers move against its horizontal offset and the column headers with
+        it, so headers stay put while their rows and columns stay aligned without being measured twice (AC 15). Every
+        StaticResource is defined or merged here, so the tests can load it without the application's resources.
+    -->
+    <UserControl.InputBindings>
+        <KeyBinding Key="OemPlus" Modifiers="Control" Command="{x:Static local:KanbanKeys.FitAll}" />
+        <KeyBinding Key="Add" Modifiers="Control" Command="{x:Static local:KanbanKeys.FitAll}" />
+    </UserControl.InputBindings>
+    <UserControl.CommandBindings>
+        <CommandBinding Command="{x:Static local:KanbanKeys.FitAll}" Executed="OnFitAll" />
+    </UserControl.CommandBindings>
+
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Theseus;component/Themes/Interactive.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+            <BooleanToVisibilityConverter x:Key="Visible" />
+            <converters:HexToBrushConverter x:Key="HexToBrush" />
+            <converters:NotEmptyToVisibilityConverter x:Key="NotEmpty" />
+            <converters:NotBoolToVisibilityConverter x:Key="NotVisible" />
+
+            <Style x:Key="ItemNamedByAutomationName" TargetType="ContentPresenter">
+                <Setter Property="AutomationProperties.Name" Value="{Binding AutomationName}" />
+            </Style>
+
+            <!-- A state's words in its colour; the mark is in the text, so state is never colour alone (AC 25). -->
+            <Style x:Key="KanbanStateText" TargetType="TextBlock">
+                <Setter Property="Foreground" Value="{DynamicResource StateToDoBrush}" />
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding State}" Value="{x:Static projects:StageNodeState.Done}">
+                        <Setter Property="Foreground" Value="{DynamicResource StateDoneBrush}" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding State}" Value="{x:Static projects:StageNodeState.WaitingOnYou}">
+                        <Setter Property="Foreground" Value="{DynamicResource StateWaitingBrush}" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding State}" Value="{x:Static projects:StageNodeState.Busy}">
+                        <Setter Property="Foreground" Value="{DynamicResource StateBusyBrush}" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding State}" Value="{x:Static projects:StageNodeState.Stuck}">
+                        <Setter Property="Foreground" Value="{DynamicResource StateStuckBrush}" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding State}" Value="{x:Static projects:StageNodeState.HoldoutsNotRun}">
+                        <Setter Property="Foreground" Value="{DynamicResource StateHoldoutsBrush}" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+
+            <!-- The kind's stripe, from the same brushes as the project view's title bars. -->
+            <Style x:Key="KindStripe" TargetType="Border">
+                <Setter Property="Background" Value="{DynamicResource KindBuildBrush}" />
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding Kind}" Value="Spec">
+                        <Setter Property="Background" Value="{DynamicResource KindSpecBrush}" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding Kind}" Value="Verify">
+                        <Setter Property="Background" Value="{DynamicResource KindVerifyBrush}" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding Kind}" Value="Bug">
+                        <Setter Property="Background" Value="{DynamicResource KindBugBrush}" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding Kind}" Value="Freeform">
+                        <Setter Property="Background" Value="{DynamicResource KindFreeformBrush}" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+
+            <!-- A card's right-click menu: the open box's actions, each with its access key and its reason when off (W26, W30). -->
+            <Style x:Key="KanbanMenuItem" TargetType="MenuItem">
+                <Setter Property="Header" Value="{Binding}" />
+                <Setter Property="HeaderTemplate">
+                    <Setter.Value>
+                        <DataTemplate DataType="{x:Type vm:MenuEntryViewModel}">
+                            <StackPanel>
+                                <AccessText Text="{Binding Header}" />
+                                <TextBlock Text="{Binding Note}" FontSize="12" FontWeight="Normal" TextWrapping="Wrap" MaxWidth="360"
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                           Visibility="{Binding Note, Converter={StaticResource NotEmpty}}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </Setter.Value>
+                </Setter>
+                <Setter Property="Command" Value="{Binding Command}" />
+                <Setter Property="ToolTip" Value="{Binding ToolTip}" />
+                <Setter Property="AutomationProperties.Name" Value="{Binding SpokenLabel}" />
+                <Setter Property="AutomationProperties.HelpText" Value="{Binding Note}" />
+                <Setter Property="ToolTipService.ShowOnDisabled" Value="True" />
+            </Style>
+
+            <!-- A link on a card: opens its one row, or lists its rows when it has several (AC 17). -->
+            <Style x:Key="CardLink" TargetType="Button" BasedOn="{StaticResource LinkButton}">
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="Margin" Value="0,0,8,4" />
+                <EventSetter Event="Click" Handler="OnLinkClick" />
+            </Style>
+
+            <!-- A column's header: chevron, name and count, and its right edge to resize and, double-clicked, to fit. -->
+            <DataTemplate x:Key="ColumnHeader" DataType="{x:Type vm:KanbanColumnViewModel}">
+                <Grid Width="{Binding Width}" Height="56" Background="{DynamicResource LayerFillColorDefaultBrush}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="6" />
+                    </Grid.ColumnDefinitions>
+                    <Border x:Name="HeaderSurface" Focusable="True" Background="Transparent" Padding="4,4,0,4"
+                            AutomationProperties.Name="{Binding AutomationName}" PreviewKeyDown="OnColumnKeyDown"
+                            FocusVisualStyle="{StaticResource FocusRing}">
+                        <Border.InputBindings>
+                            <KeyBinding Key="Space" Command="{Binding ToggleCommand}" />
+                            <KeyBinding Key="Enter" Command="{Binding ToggleCommand}" />
+                        </Border.InputBindings>
+                        <Grid>
+                            <DockPanel Visibility="{Binding IsOpen, Converter={StaticResource Visible}}">
+                                <Button DockPanel.Dock="Left" Content="&#xE70D;" Command="{Binding ToggleCommand}" IsTabStop="False"
+                                        ToolTip="{Binding ChevronToolTip}" AutomationProperties.Name="{Binding ChevronToolTip}"
+                                        Style="{StaticResource ToolIcon}" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="12"
+                                        VerticalAlignment="Top" />
+                                <StackPanel Margin="4,0,0,0">
+                                    <TextBlock Text="{Binding Header}" FontWeight="SemiBold" FontSize="14" TextWrapping="Wrap"
+                                               TextTrimming="CharacterEllipsis" MaxHeight="34" ToolTip="{Binding Header}" />
+                                    <TextBlock Text="{Binding Count}" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+                            </DockPanel>
+                            <Button Command="{Binding ToggleCommand}" IsTabStop="False" Style="{StaticResource ToolIcon}"
+                                    ToolTip="{Binding ChevronToolTip}" AutomationProperties.Name="{Binding ChevronToolTip}"
+                                    Visibility="{Binding IsCollapsed, Converter={StaticResource Visible}}" Padding="0"
+                                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Count}" FontSize="12" HorizontalAlignment="Center" />
+                                    <TextBlock Text="{Binding Name}" FontSize="12" HorizontalAlignment="Center">
+                                        <TextBlock.LayoutTransform>
+                                            <RotateTransform Angle="-90" />
+                                        </TextBlock.LayoutTransform>
+                                    </TextBlock>
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+                    </Border>
+                    <Thumb x:Name="Edge" Grid.Column="1" Cursor="SizeWE" DragDelta="OnEdgeDrag" DragCompleted="OnEdgeDragCompleted" MouseDoubleClick="OnEdgeDoubleClick"
+                           ToolTip="Drag to resize; double-click to fit the column to its cards"
+                           Visibility="{Binding IsOpen, Converter={StaticResource Visible}}">
+                        <Thumb.Template>
+                            <ControlTemplate TargetType="Thumb">
+                                <Border Background="Transparent">
+                                    <Rectangle Width="1" HorizontalAlignment="Right" Fill="{DynamicResource CardStrokeColorDefaultBrush}" />
+                                </Border>
+                            </ControlTemplate>
+                        </Thumb.Template>
+                    </Thumb>
+                </Grid>
+            </DataTemplate>
+
+            <!-- A card: a piece of work, as the folded box shows it, with its links and its one button (AC 16 to 19). -->
+            <DataTemplate x:Key="Card" DataType="{x:Type vm:KanbanCardViewModel}">
+                <Border x:Name="CardFrame" Tag="Card" Focusable="True" FocusVisualStyle="{StaticResource FocusRing}" Margin="0,0,0,8"
+                        MinWidth="200" BorderThickness="1" CornerRadius="4" Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" AutomationProperties.Name="{Binding AutomationName}"
+                        PreviewKeyDown="OnCardKeyDown" GotKeyboardFocus="OnCardFocused" MouseLeftButtonDown="OnCardMouseDown"
+                        ContextMenuOpening="OnCardMenuOpening">
+                    <Border.InputBindings>
+                        <KeyBinding Key="Enter" Command="{Binding OpenCommand}" />
+                    </Border.InputBindings>
+                    <StackPanel>
+                        <Border DataContext="{Binding Box}" Style="{StaticResource KindStripe}" CornerRadius="3,3,0,0" Padding="8,4">
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Right" Text="{Binding SessionMark}" FontSize="12" Margin="8,0,0,0"
+                                           Foreground="{DynamicResource OnKindTextBrush}" VerticalAlignment="Center"
+                                           Visibility="{Binding HasSessionMark, Converter={StaticResource Visible}}" />
+                                <TextBlock Text="{Binding KindLabel}" FontSize="12" Foreground="{DynamicResource OnKindTextBrush}"
+                                           ToolTip="{Binding KindToolTip}" VerticalAlignment="Center" />
+                            </DockPanel>
+                        </Border>
+                        <StackPanel Margin="8">
+                            <TextBlock x:Name="CardTitle" Text="{Binding Title}" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap"
+                                       ToolTip="{Binding Box.MetaText}" />
+                            <TextBlock x:Name="CardStatus" DataContext="{Binding Box}" Text="{Binding StatusText}" ToolTip="{Binding StatusToolTip}"
+                                       Style="{StaticResource KanbanStateText}" FontSize="14" FontWeight="Medium" TextWrapping="Wrap" Margin="0,2,0,0" />
+                            <TextBlock Text="{Binding Box.WhoActs}" FontSize="12" TextWrapping="Wrap" Margin="0,2,0,0"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            <TextBlock Text="{Binding VerifierText}" FontSize="12" TextWrapping="Wrap" Margin="0,2,0,0"
+                                       Visibility="{Binding HasVerifier, Converter={StaticResource Visible}}" />
+                            <TextBlock Text="{Binding Box.ReportBackText}" FontSize="12" TextWrapping="Wrap" Margin="0,2,0,0"
+                                       ToolTip="{Binding Box.ReportBackToolTip}"
+                                       Visibility="{Binding Box.HasReportBack, Converter={StaticResource Visible}}" />
+                            <WrapPanel Margin="0,4,0,0">
+                                <TextBlock Text="{Binding BranchText}" FontSize="12" Margin="0,0,8,4" ToolTip="{Binding BranchToolTip}"
+                                           TextTrimming="CharacterEllipsis" MaxWidth="240"
+                                           Visibility="{Binding HasBranch, Converter={StaticResource Visible}}" />
+                                <Button Style="{StaticResource CardLink}" Content="{Binding Links.CiText}" Tag="{Binding Links.CiRows}"
+                                        ToolTip="Its pull request and CI run" AutomationProperties.Name="{Binding Links.CiText}"
+                                        Visibility="{Binding HasCi, Converter={StaticResource Visible}}" />
+                                <Button Style="{StaticResource CardLink}" Content="{Binding PullRequestText}" Tag="{Binding Links.PullRequests}"
+                                        ToolTip="Its pull requests" AutomationProperties.Name="{Binding PullRequestText}"
+                                        Visibility="{Binding HasPullRequests, Converter={StaticResource Visible}}" />
+                                <Button Style="{StaticResource CardLink}" Content="{Binding JiraText}" Tag="{Binding Links.Jira}"
+                                        ToolTip="Its Jira items" AutomationProperties.Name="{Binding JiraText}"
+                                        Visibility="{Binding HasJira, Converter={StaticResource Visible}}" />
+                                <Button Style="{StaticResource LinkButton}" FontSize="12" Margin="0,0,8,4" Content="▤ Records"
+                                        Command="{Binding Records.Command}" ToolTip="{Binding Records.ToolTip}" AutomationProperties.Name="Records"
+                                        Visibility="{Binding HasRecords, Converter={StaticResource Visible}}" />
+                            </WrapPanel>
+                            <Button x:Name="CardAction" HorizontalAlignment="Left" Margin="0,8,0,0" Style="{StaticResource CommandButton}"
+                                    Command="{Binding PrimaryAction.Command}" ToolTip="{Binding PrimaryAction.ToolTip}"
+                                    ToolTipService.ShowOnDisabled="True" AutomationProperties.Name="{Binding PrimaryAction.SpokenLabel}"
+                                    Visibility="{Binding Box.HasPrimaryAction, Converter={StaticResource Visible}}">
+                                <StackPanel Orientation="Horizontal">
+                                    <controls:GlyphText Text="{Binding PrimaryAction.Glyph}" FontFamily="{DynamicResource SymbolThemeFontFamily}"
+                                                        FontSize="14" Margin="0,0,4,0" VerticalAlignment="Center"
+                                                        Visibility="{Binding PrimaryAction.Glyph, Converter={StaticResource NotEmpty}}" />
+                                    <TextBlock Text="{Binding PrimaryAction.SpokenLabel}" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </DataTemplate>
+
+            <!-- A cell: its cards, or only their count while its column is collapsed or its row folded (AC 6, 11). -->
+            <DataTemplate x:Key="Cell" DataType="{x:Type vm:KanbanCellViewModel}">
+                <Border Width="{Binding Column.Width}" Padding="8,8,8,0" BorderThickness="0,0,1,0"
+                        BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" AutomationProperties.Name="{Binding AutomationName}">
+                    <Grid>
+                        <ItemsControl x:Name="CellCards" ItemsSource="{Binding Cards}" AutomationProperties.Name="{Binding AutomationName}" ItemTemplate="{StaticResource Card}" Focusable="False"
+                                      ItemContainerStyle="{StaticResource ItemNamedByAutomationName}"
+                                      Visibility="{Binding Column.IsOpen, Converter={StaticResource Visible}}" />
+                        <TextBlock x:Name="CellCount" Text="{Binding CountText}" FontSize="14" HorizontalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                   Visibility="{Binding Column.IsCollapsed, Converter={StaticResource Visible}}" />
+                    </Grid>
+                </Border>
+            </DataTemplate>
+
+            <!-- A folded row's cell: the count alone. -->
+            <DataTemplate x:Key="FoldedCell" DataType="{x:Type vm:KanbanCellViewModel}">
+                <Border Width="{Binding Column.Width}" Padding="8" BorderThickness="0,0,1,0"
+                        BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" AutomationProperties.Name="{Binding AutomationName}">
+                    <TextBlock Text="{Binding CountText}" FontSize="14" HorizontalAlignment="Center"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                </Border>
+            </DataTemplate>
+
+            <!-- A row: its header, held at the left by the body's offset, then its cells. -->
+            <DataTemplate x:Key="Row" DataType="{x:Type vm:KanbanRowViewModel}">
+                <Border BorderThickness="0,0,0,1" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
+                    <StackPanel Orientation="Horizontal">
+                        <Border x:Name="RowHeader" Width="{x:Static local:KanbanView.RowHeaderWidth}" Panel.ZIndex="1" Padding="8" Focusable="True"
+                                FocusVisualStyle="{StaticResource FocusRing}" Background="{DynamicResource SolidBackgroundFillColorBaseBrush}"
+                                BorderThickness="0,0,1,0" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                                AutomationProperties.Name="{Binding AutomationName}" RenderTransform="{Binding RowHeaderShift, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                            <Border.InputBindings>
+                                <KeyBinding Key="Space" Command="{Binding ToggleCommand}" />
+                                <KeyBinding Key="Enter" Command="{Binding OpenCommand}" />
+                            </Border.InputBindings>
+                            <!-- Dimmed inside the header, which stays opaque over the cards scrolled under it. -->
+                            <DockPanel VerticalAlignment="Top">
+                                <DockPanel.Style>
+                                    <Style TargetType="DockPanel">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsDimmed}" Value="True">
+                                                <Setter Property="Opacity" Value="0.6" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </DockPanel.Style>
+                                <Button DockPanel.Dock="Left" Content="{Binding Chevron}" Command="{Binding ToggleCommand}" IsTabStop="False"
+                                        ToolTip="{Binding ChevronToolTip}" AutomationProperties.Name="{Binding ChevronToolTip}"
+                                        Style="{StaticResource ToolIcon}" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="12"
+                                        VerticalAlignment="Top" Margin="0,0,4,0" />
+                                <Grid DockPanel.Dock="Left" Width="10" Height="10" Margin="0,4,8,0" VerticalAlignment="Top">
+                                    <Rectangle Fill="{DynamicResource AccentFillColorDefaultBrush}" />
+                                    <Rectangle Fill="{Binding ColourHex, Converter={StaticResource HexToBrush}}" />
+                                </Grid>
+                                <StackPanel>
+                                    <Button Style="{StaticResource LinkButton}" Command="{Binding OpenCommand}" IsTabStop="False"
+                                            ToolTip="{Binding Title, StringFormat=Open {0}}" AutomationProperties.Name="{Binding Title, StringFormat=Open {0}}">
+                                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="14" TextWrapping="Wrap" />
+                                    </Button>
+                                    <TextBlock Text="{Binding PutAwayText}" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                               Visibility="{Binding PutAwayText, Converter={StaticResource NotEmpty}}" />
+                                    <TextBlock Text="{Binding WaitsText}" FontSize="12" Foreground="{DynamicResource StateWaitingBrush}"
+                                               Visibility="{Binding HasWaits, Converter={StaticResource Visible}}" />
+                                    <TextBlock Text="{Binding CountsText}" FontSize="12" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+                        <Grid>
+                            <ItemsControl ItemsSource="{Binding Cells}" ItemTemplate="{StaticResource Cell}" AutomationProperties.Name="{Binding Title, StringFormat={}{0} by stage}" Focusable="False"
+                                          ItemContainerStyle="{StaticResource ItemNamedByAutomationName}"
+                                          Visibility="{Binding IsUnfolded, Converter={StaticResource Visible}}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                            </ItemsControl>
+                            <ItemsControl ItemsSource="{Binding Cells}" ItemTemplate="{StaticResource FoldedCell}" AutomationProperties.Name="{Binding Title, StringFormat={}{0} counts by stage}" Focusable="False"
+                                          ItemContainerStyle="{StaticResource ItemNamedByAutomationName}"
+                                          Visibility="{Binding IsFolded, Converter={StaticResource Visible}}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                            </ItemsControl>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+            </DataTemplate>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Grid Background="{DynamicResource SolidBackgroundFillColorBaseBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="220" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Row="0" Grid.Column="0" Padding="8,4,8,4" BorderThickness="0,0,1,1" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                Background="{DynamicResource LayerFillColorDefaultBrush}">
+            <TextBlock Text="Project" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Top" />
+        </Border>
+        <Border Grid.Row="0" Grid.Column="1" ClipToBounds="True" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
+            <ItemsControl x:Name="ColumnHeaders" ItemsSource="{Binding Columns}" ItemTemplate="{StaticResource ColumnHeader}"
+                          ItemContainerStyle="{StaticResource ItemNamedByAutomationName}" AutomationProperties.Name="Stages"
+                          HorizontalAlignment="Left" Focusable="False">
+                <ItemsControl.RenderTransform>
+                    <TranslateTransform x:Name="HeaderShift" />
+                </ItemsControl.RenderTransform>
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+            </ItemsControl>
+        </Border>
+
+        <ScrollViewer x:Name="Body" Grid.Row="1" Grid.ColumnSpan="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                      ScrollChanged="OnBodyScrolled" PreviewMouseWheel="OnBodyWheel" Focusable="False">
+            <ItemsControl x:Name="RowList" ItemsSource="{Binding Rows}" ItemTemplate="{StaticResource Row}" Focusable="False"
+                          ItemContainerStyle="{StaticResource ItemNamedByAutomationName}" AutomationProperties.Name="Projects" />
+        </ScrollViewer>
+    </Grid>
+</UserControl>

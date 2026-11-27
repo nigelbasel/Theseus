@@ -47,6 +47,10 @@ public class SettingsStoreTests
             ProjectsFolder = @"C:\projects",
             WorktreesFolder = @"C:\work",
             ClonesFolder = @"C:\src",
+            GuardNoticeFor = "trunk guard:NotInstalled:ABC",
+            AutoModeSourceControlHosts = ["git.example.com"],
+            AutoModeInternalDomains = ["example.com"],
+            AutoModeProductionPatterns = ["prod"],
             ProjectCardPlaces = new Dictionary<string, ProjectCardPlace> { ["a-project"] = new("In progress", "Dev") },
             PaneSizes = new Dictionary<string, double> { ["ProjectView:Pane"] = 420 },
             ProjectColours = new Dictionary<string, string> { ["a-project"] = "#208DD7" },
@@ -57,8 +61,24 @@ public class SettingsStoreTests
             ProjectBranchRules = new Dictionary<string, ProjectBranchGrant>
             {
                 ["a-project"] = new(new DateTimeOffset(2026, 11, 21, 20, 0, 0, TimeSpan.Zero), "nigel/a-project"),
+                ["bug-fixing"] = new(new DateTimeOffset(2026, 11, 26, 9, 0, 0, TimeSpan.Zero), "nigel/bug-fixing") { Kind = BranchGrantKind.ItemBranches },
             },
             CardsToldBranchRules = ["git-25"],
+            UnattendedProjects = ["bug-fixing"],
+            ClosedProjects = new Dictionary<string, Theseus.Core.Projects.ProjectClosure>
+            {
+                ["old"] = new(Theseus.Core.Projects.ProjectClosureKind.Archived, new DateTimeOffset(2026, 11, 26, 9, 0, 0, TimeSpan.Zero))
+                {
+                    QueueWasOn = true, PausedDuties = ["d-1"], ArchivedCards = ["git-26"],
+                },
+            },
+            StoppedProjects = new Dictionary<string, Theseus.Core.Projects.ProjectStopping>
+            {
+                ["bym"] = new(new DateTimeOffset(2026, 11, 26, 21, 0, 0, TimeSpan.Zero))
+                {
+                    QueueWasOn = true, PausedDuties = ["d-2"], PendingLockCards = ["git-27"],
+                },
+            },
             HiddenProjectFolders = ["notes"],
             ProjectHoldoutFolders = new Dictionary<string, string> { ["bym"] = @"C:\mine" },
             ProjectUpdaterRuns = new Dictionary<string, string> { ["bym"] = "Does not read: line 3" },
@@ -72,6 +92,7 @@ public class SettingsStoreTests
             Duties = new DutySettings { DailyRunCap = 12, QuietHoursOn = true, QueueProjects = ["bym"] },
             ChainsFilters = new Theseus.Core.Links.ChainFilters(ActiveOnly: true, WaitingOnMe: false, HideCompleted: false),
             ChainsFolds = new Dictionary<string, bool> { ["git-22"] = false, ["project:Theseus"] = true },
+            LocksFolds = new Dictionary<string, bool> { ["lock:tests"] = true, ["queue:tests"] = false },
         };
 
         _store.Write(settings);
@@ -98,8 +119,16 @@ public class SettingsStoreTests
         Assert.That(read.CardsStoppedByOwner, Is.EqualTo(new[] { "git-24" }));
         Assert.That(read.ProjectBranchRules["a-project"],
             Is.EqualTo(new ProjectBranchGrant(new DateTimeOffset(2026, 11, 21, 20, 0, 0, TimeSpan.Zero), "nigel/a-project")));
+        Assert.That(read.ProjectBranchRules["bug-fixing"].Kind, Is.EqualTo(BranchGrantKind.ItemBranches));
         Assert.That(read.CardsToldBranchRules, Is.EqualTo(new[] { "git-25" }));
+        Assert.That(read.UnattendedProjects, Is.EqualTo(new[] { "bug-fixing" }));
         Assert.That(read.HiddenProjectFolders, Is.EqualTo(new[] { "notes" }));
+        Assert.That((read.ClosedProjects["old"].Kind, read.ClosedProjects["old"].QueueWasOn),
+            Is.EqualTo((Theseus.Core.Projects.ProjectClosureKind.Archived, true)));
+        Assert.That(read.ClosedProjects["old"].PausedDuties, Is.EqualTo(new[] { "d-1" }));
+        Assert.That(read.ClosedProjects["old"].ArchivedCards, Is.EqualTo(new[] { "git-26" }));
+        Assert.That((read.StoppedProjects["bym"].QueueWasOn, read.StoppedProjects["bym"].PausedDuties.Single(),
+            read.StoppedProjects["bym"].PendingLockCards.Single()), Is.EqualTo((true, "d-2", "git-27")));
         Assert.That(read.ProjectHoldoutFolders, Is.EqualTo(new Dictionary<string, string> { ["bym"] = @"C:\mine" }));
         Assert.That(read.ProjectUpdaterRuns, Is.EqualTo(new Dictionary<string, string> { ["bym"] = "Does not read: line 3" }));
         Assert.That(read.ProjectTags["bym"], Is.EqualTo(new[] { "bym", "security" }));
@@ -108,6 +137,9 @@ public class SettingsStoreTests
         Assert.That(read.Duties.QueueProjects, Is.EqualTo(new[] { "bym" }));
         Assert.That(read.ChainsFilters, Is.EqualTo(settings.ChainsFilters));
         Assert.That(read.ChainsFolds, Is.EqualTo(settings.ChainsFolds));
+        Assert.That(read.LocksFolds, Is.EqualTo(settings.LocksFolds));
+        Assert.That((read.AutoModeSourceControlHosts, read.AutoModeInternalDomains, read.AutoModeProductionPatterns),
+            Is.EqualTo((settings.AutoModeSourceControlHosts, settings.AutoModeInternalDomains, settings.AutoModeProductionPatterns)));
         Assert.That(read with
             {
                 Lanes = settings.Lanes, Areas = settings.Areas, CollapsedAreas = settings.CollapsedAreas,
@@ -117,12 +149,15 @@ public class SettingsStoreTests
                 ProjectGrouping = settings.ProjectGrouping, ProjectRunStates = settings.ProjectRunStates, ProjectLeads = settings.ProjectLeads,
                 CardsStoppedByOwner = settings.CardsStoppedByOwner, ProjectBranchRules = settings.ProjectBranchRules,
                 CardsToldBranchRules = settings.CardsToldBranchRules, HiddenProjectFolders = settings.HiddenProjectFolders,
+                UnattendedProjects = settings.UnattendedProjects, ClosedProjects = settings.ClosedProjects, StoppedProjects = settings.StoppedProjects,
                 ProjectHoldoutFolders = settings.ProjectHoldoutFolders,
                 ProjectUpdaterRuns = settings.ProjectUpdaterRuns,
                 ProjectTags = settings.ProjectTags, TagColours = settings.TagColours,
                 ProjectBudgets = settings.ProjectBudgets, ProjectRunModes = settings.ProjectRunModes,
                 Duties = read.Duties with { QueueProjects = settings.Duties.QueueProjects },
-                ChainsFolds = settings.ChainsFolds,
+                ChainsFolds = settings.ChainsFolds, LocksFolds = settings.LocksFolds,
+                AutoModeSourceControlHosts = settings.AutoModeSourceControlHosts, AutoModeInternalDomains = settings.AutoModeInternalDomains,
+                AutoModeProductionPatterns = settings.AutoModeProductionPatterns,
             }, Is.EqualTo(settings),
             "a record holding a list compares it by reference, so the lists are checked separately");
     }
@@ -148,6 +183,7 @@ public class SettingsStoreTests
         Assert.That(settings.SessionPreamble, Is.Empty);
         Assert.That(settings.ChainsFilters, Is.EqualTo(new Theseus.Core.Links.ChainFilters()), "Hide completed on, the rest off");
         Assert.That(settings.ChainsFolds, Is.Empty);
+        Assert.That(settings.LocksFolds, Is.Empty);
     }
 
     [Test]

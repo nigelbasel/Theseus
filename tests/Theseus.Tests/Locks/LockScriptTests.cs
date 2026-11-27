@@ -231,6 +231,44 @@ public class LockScriptTests
         Assert.That(output, Does.Contain("lock_acquire"));
     }
 
+    [Test]
+    public void Run_SendsItsCommand_SoABuildRunsBesideASqlSuite_AndItsExitIsRecorded()
+    {
+        var suite = _book.Request(new LockRequest(string.Empty, "suite", "PersistenceTests", HoldMode.Process,
+            Scope: [new ResourceClaim(ResourceTable.SqlContainers, 1)]));
+        _book.Attach(suite.Token!, Environment.ProcessId);
+
+        var (exitCode, output) = Script("run \"Build card\" \"sln build\" -- bash -c 'exit 4; dotnet build Fabrikam.sln'",
+            new Dictionary<string, string> { ["THESEUS_CARD"] = "build-card", ["THESEUS_SESSION_ID"] = "session-9" });
+
+        Assert.That(exitCode, Is.EqualTo(4), output);
+        Assert.That(output, Does.Contain("LOCK HELD (cpu-build + worktree:"));
+        var run = _book.RecentRuns().Single();
+        Assert.That(run.ExitCode, Is.EqualTo(4));
+        Assert.That(run.Card, Is.EqualTo("build-card"));
+        Assert.That(run.Command, Does.Contain("dotnet build Fabrikam.sln"));
+    }
+
+    [Test]
+    public void Run_WithoutTheSeparator_RunsTheWholeCommand_AsItAlwaysHas()
+    {
+        var (exitCode, output) = Script("run \"Old caller\" \"suite\" bash -c 'exit 6' -- ignored");
+
+        Assert.That(exitCode, Is.EqualTo(6), output);
+        Assert.That(_book.RecentRuns().Single().Command, Does.StartWith("bash -c"));
+    }
+
+    [Test]
+    public void Steps_RunsEachCommandUnderItsOwnHold_AndStopsAtTheFirstFailure()
+    {
+        var (exitCode, output) = Script("steps \"Seq card\" \"build then suites\" -- bash -c 'exit 0' ::: bash -c 'exit 3' ::: bash -c 'exit 0'");
+
+        Assert.That(exitCode, Is.EqualTo(3), output);
+        Assert.That(output, Does.Contain("STEP 1 of 3").And.Contain("STEP 2 of 3").And.Not.Contain("STEP 3 of 3"));
+        Assert.That(_book.RecentRuns().Select(run => run.ExitCode), Is.EqualTo(new[] { 0, 3 }));
+        Assert.That(_book.Snapshot(), Is.Empty);
+    }
+
     private string LegacyLockDirectory => Path.Combine(_directory, "kite-test.lock");
 
     private void HoldTestsLock()

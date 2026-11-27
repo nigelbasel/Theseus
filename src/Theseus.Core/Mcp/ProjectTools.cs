@@ -50,7 +50,7 @@ public sealed class ProjectTools
 
     /// <summary>The tools' names.</summary>
     public static IReadOnlyList<string> Names { get; } =
-        ["now_at", "record_round", "tick_criterion", "add_objective", "record_decision", "set_waiting"];
+        ["now_at", "record_round", "tick_criterion", "add_objective", "set_criteria", "record_decision", "set_waiting"];
 
     /// <summary>Runs one of the tools for a session.</summary>
     public ProjectToolOutcome Call(string name, McpSession session, JsonObject arguments)
@@ -71,6 +71,7 @@ public sealed class ProjectTools
                 "record_round" => RecordRound(session, reading, arguments),
                 "tick_criterion" => TickCriterion(session, reading, arguments),
                 "add_objective" => AddObjective(session, reading, arguments),
+                "set_criteria" => SetCriteria(session, reading, arguments),
                 "record_decision" => RecordDecision(session, reading, arguments),
                 "set_waiting" => SetWaiting(session, reading, arguments),
                 _ => ProjectToolOutcome.Refused($"Unknown tool: {name}"),
@@ -257,6 +258,46 @@ public sealed class ProjectTools
         Log(session, reading, $"objective {number}, {title}");
 
         return new ProjectToolOutcome($"Added objective {number}: {title}.");
+    }
+
+    private ProjectToolOutcome SetCriteria(McpSession session, ProjectFileReading reading, JsonObject arguments)
+    {
+        var objective = Text(arguments, "objective");
+        var criteria = Strings(arguments, "criteria");
+        var waiting = Strings(arguments, "waiting");
+
+        if (objective is null || criteria.Count == 0)
+        {
+            return ProjectToolOutcome.Refused("set_criteria needs the objective's number and its criteria, one line each.");
+        }
+
+        if (waiting.Count > criteria.Count)
+        {
+            return ProjectToolOutcome.Refused("waiting has one entry per criterion, in the same order; it has more than there are criteria.");
+        }
+
+        var notes = waiting.Select(Waiting).ToList();
+        var first = 0;
+        Write(reading, text =>
+        {
+            var (edited, at) = ProjectFileEditor.SetCriteria(text, objective, criteria);
+            first = at;
+
+            for (var index = 0; index < notes.Count; index++)
+            {
+                if (notes[index] is { } note)
+                {
+                    edited = ProjectFileEditor.SetCriterionNote(edited, objective, at + index, criteria[index].Trim(), CriterionWaiting.Label,
+                        note.Line[CriterionWaiting.Label.Length..].Trim());
+                }
+            }
+
+            return edited;
+        });
+        var span = criteria.Count == 1 ? $"criterion {first + 1}" : $"criteria {first + 1} to {first + criteria.Count}";
+        Log(session, reading, $"{span} of objective {objective}");
+
+        return new ProjectToolOutcome($"Wrote {span} of objective {objective}.");
     }
 
     private ProjectToolOutcome RecordDecision(McpSession session, ProjectFileReading reading, JsonObject arguments)

@@ -111,9 +111,29 @@ public class PieceStatusTests
             Card(Git22, SessionLifecycle.NeedsAttention) with { Key = ACard, Question = question }, accepted: true);
 
         Assert.That(piece.Status.Text, Is.EqualTo("Waiting for you: git-22 asks: Push the branch now?"));
-        Assert.That(piece.Status.WhoActs, Is.EqualTo("You; it does nothing until you answer in its tab."));
+        Assert.That(piece.Status.WhoActs, Is.EqualTo("You; it does nothing until you answer it, here or in its tab."));
         Assert.That(piece.Status.Question, Is.SameAs(question));
         Assert.That(piece.Status.Action, Is.EqualTo(PieceAction.Answer));
+    }
+
+    [Test]
+    public void AStoppedSessionsAskedQuestion_StillWaitsForYou()
+    {
+        var question = new Theseus.Core.Questions.OwnerQuestion("s", "Push the branch now?", IsGuess: false, DateTimeOffset.UnixEpoch);
+        var piece = OnePiece(_folder, "feature", Files("spec.md"),
+            Card(Git22, SessionLifecycle.Ended) with { Key = ACard, Question = question }, accepted: true);
+
+        Assert.That((piece.Status.Action, piece.Status.WaitsForYou), Is.EqualTo((PieceAction.Answer, true)));
+    }
+
+    [Test]
+    public void AStoppedSessionsGuess_DoesNotWaitForYou()
+    {
+        var question = new Theseus.Core.Questions.OwnerQuestion("s", "Shall I?", IsGuess: true, DateTimeOffset.UnixEpoch);
+        var piece = OnePiece(_folder, "feature", Files("spec.md"),
+            Card(Git22, SessionLifecycle.Ended) with { Key = ACard, Question = question }, accepted: true);
+
+        Assert.That(piece.Status.Action, Is.Not.EqualTo(PieceAction.Answer));
     }
 
     [Test]

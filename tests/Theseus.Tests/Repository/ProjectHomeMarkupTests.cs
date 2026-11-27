@@ -16,22 +16,31 @@ public class ProjectHomeMarkupTests
     private static readonly XNamespace Presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
 
     [Test]
-    public void NewProject_SitsBesideNewWorkstream_DisabledWithItsReasonUntilAProjectsFolderIsSet()
+    public void NewProject_SitsBesideNewWorkstream_AndIsNeverGreyedOut_SinceWithNoFolderItOpensTheSetup()
     {
         var window = Load("MainWindow.xaml");
         var file = window.Descendants(Presentation + "MenuItem").Single(item => (string?)item.Attribute("Header") == "_File");
         var newProject = window.Descendants().Where(element => (string?)element.Attribute("Command") == "{Binding NewProjectCommand}").ToList();
 
         Assert.That(newProject.Select(element => element.Name.LocalName), Is.EquivalentTo(new[] { "MenuItem", "Button" }), "the File menu and the toolbar");
-        // Greyed with its reason, not hidden (W31, C8).
         Assert.That(newProject.Select(element => (string?)element.Attribute("Visibility")), Is.All.Null);
-        Assert.That(newProject.Select(element => (string?)element.Attribute("IsEnabled")), Is.All.EqualTo("{Binding HasProjectsFolder}"));
-        Assert.That(newProject.Select(element => element.Attributes().Single(attribute => attribute.Name.LocalName == "OffReason.Text").Value),
-            Has.All.Contain("projects folder"));
+        // Clicking it with no projects folder opens the setup's folder step (first-run-setup brief step 2, Nigel 2026-11-25).
+        Assert.That(newProject.Select(element => (string?)element.Attribute("IsEnabled")), Is.All.Null);
         Assert.That(file.Elements(Presentation + "MenuItem").Select(item => (string?)item.Attribute("Command")),
             Does.Contain("{Binding NewProjectCommand}"));
-        Assert.That(window.Descendants(Presentation + "MenuItem").Select(item => (string?)item.Attribute("Header")),
-            Has.None.EqualTo("_Project"), "no menu of its own any more");
+        // The Project menu is back, for the open project's commands (project-view-as-tabs AC 9, Nigel 2026-11-26); New
+        // project stays in File, not there.
+        Assert.That(window.Descendants(Presentation + "MenuItem").Single(item => (string?)item.Attribute("Header") == "_Project")
+            .Elements(Presentation + "MenuItem").Select(item => (string?)item.Attribute("Command")), Has.None.EqualTo("{Binding NewProjectCommand}"));
+    }
+
+    [Test]
+    public void TheToolsMenu_OpensTheSetup()
+    {
+        var tools = Load("MainWindow.xaml").Descendants(Presentation + "MenuItem").Single(item => (string?)item.Attribute("Header") == "_Tools");
+
+        Assert.That(tools.Elements(Presentation + "MenuItem").Select(item => (string?)item.Attribute("Command")),
+            Does.Contain("{Binding FirstRun.OpenCommand}"));
     }
 
     [Test]

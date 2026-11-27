@@ -25,6 +25,14 @@ the folders your cards use that Claude Code will ask about. **Trust these folder
 Code's configuration file and makes it only if you agree, as if you had answered Yes once in each. Trusting a repository
 covers every worktree of it. **Undo** takes back only what Theseus set.
 
+So that you never manage the list by hand, **Trust the folders my cards use** (in the same place, and a step of
+**Tools > Set up Theseus…**) is a single consent. **Switch on…** shows exactly what it writes and why, and is off until
+you agree. While it is on, Theseus trusts each card's folders just before the card starts, by the key Claude Code looks
+up: a repository by its root, and a worktree by its main clone, so a new worktree opens without a question. It reaches
+only folders in your projects folder and your clones folder, and never trusts your home folder, a drive's root or a
+holdout folder; anything else a card uses is still listed for you to trust or not. **Undo** takes back what Theseus set
+and switches it off.
+
 ### When starting goes wrong
 
 | What happens | Why, and what to do |
@@ -80,7 +88,7 @@ the typing.
 
 | What happens | Why, and what to do |
 |---|---|
-| Nothing, and the hook is not registered | Nothing will be delivered. Theseus reads your Claude Code settings but never writes them. Run `install.ps1`, which prints the configuration to add. **Help > About** says whether the hook is registered. |
+| Nothing, and the hook is not registered | Nothing will be delivered. **Tools > Set up Theseus…** shows the exact entry and adds it if you agree; Theseus never writes your Claude Code settings otherwise. **Help > About** says whether the hook is registered. |
 | Nothing, and the hook is registered | Hooks load when a session starts, so a session older than the hook does not have it. Restart that session. This is the usual answer. |
 | The session is sitting idle | Theseus types into its console to start the turn that carries the request. If it cannot reach that console, it brings the tab to the front so you can press Enter. |
 | The terminal runs as administrator | Windows will not let Theseus type into a more privileged window. Stop that session by hand, or run its terminal normally. |

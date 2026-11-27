@@ -35,6 +35,35 @@ try
         return 0;
     }
 
+    // Registered with this argument only in an unattended card's own settings, on the question tool and on Stop (2.4 W2).
+    // The user's own Stop hook runs beside it and does everything else, so this does nothing else; a turn that is being
+    // asked to stop is left to that.
+    if (args.Contains(UnattendedHook.Argument))
+    {
+        if (input.HookEventName == "PreToolUse")
+        {
+            if (UnattendedHook.PreToolUseReply(StatusHook.ToolName(text)) is { } refused)
+            {
+                Console.Out.Write(refused);
+            }
+
+            return 0;
+        }
+
+        var stops = new StopRequestStore(StopRequestRoot.Default);
+
+        if (stops.Waiting(sessionId) is null && stops.Delivered(sessionId) is null
+            && new StopRequestStore(StopRequestRoot.Tells).Waiting(sessionId) is null
+            && UnattendedHook.StopRefusal(input, TranscriptTail.Read) is { } refusal)
+        {
+            Console.Error.Write(refusal);
+
+            return 2;
+        }
+
+        return 0;
+    }
+
     // Registered only for the sessions Theseus launches, and only on its own tools: a call made while
     // Theseus is down is answered with why, rather than failing to connect with nothing said.
     if (input.HookEventName == "PreToolUse")
@@ -59,15 +88,15 @@ try
     // A stop request first, else something the owner's board action tells it (1.1e AC 27), each decided before it is
     // claimed: claiming first and then declining, on a subagent's turn or one a stop hook already extended, would
     // consume it and leave the session that was meant to have it none the wiser.
-    var request = HookTurn.Deliver(input, new StopRequestStore(StopRequestRoot.Default), new StopRequestStore(StopRequestRoot.Tells),
-        DateTimeOffset.UtcNow);
+    var tells = new StopRequestStore(StopRequestRoot.Tells);
+    var request = HookTurn.Deliver(input, new StopRequestStore(StopRequestRoot.Default), tells, DateTimeOffset.UtcNow);
 
     // The owner typing answers the tab's open question; a turn ending on a question asked only in prose leaves a guess
     // for the board (1.6). Kept apart so nothing it does can stop a delivery.
     try
     {
         HookQuestion.OnEvent(input, new OwnerQuestionStore(OwnerQuestionRoot.Default), TranscriptTail.Read,
-            DateTimeOffset.UtcNow, delivered: request is not null);
+            DateTimeOffset.UtcNow, delivered: request is not null, tellWaiting: id => tells.Waiting(id) is not null);
     }
     catch (Exception)
     {

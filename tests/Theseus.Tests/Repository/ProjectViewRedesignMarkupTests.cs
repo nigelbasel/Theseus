@@ -28,15 +28,16 @@ public partial class ProjectViewRedesignMarkupTests
     {
         var window = Load("MainWindow.xaml");
         var bindings = window.Descendants(Presentation + "KeyBinding").ToList();
-        var back = Named(View(), "BackButton");
-
-        Assert.That((string?)back.Attribute("Command"), Is.EqualTo("{Binding BackCommand}"));
+        Assert.That(View().Descendants().Attributes("Name").Select(name => name.Value), Has.No.Member("BackButton"),
+            "the toolbar's one toggle replaces the view's Board button (project-view-as-tabs AC 5)");
         Assert.That((string?)bindings.Single(binding => (string?)binding.Attribute("Gesture") == "Alt+Left").Attribute("Command"),
             Is.EqualTo("{Binding GoBackCommand}"), "Alt+Left is Back now; Board leaves directly (1.1f I46, replacing 1.1d AC 16)");
         Assert.That((string?)bindings.Single(binding => (string?)binding.Attribute("Gesture") == "Alt+Right").Attribute("Command"),
             Is.EqualTo("{Binding GoForwardCommand}"));
         Assert.That(window.Descendants(Presentation + "MenuItem").Single(item => (string?)item.Attribute("Header") == "Back to th_e board")
             .Attribute("InputGestureText"), Is.Null);
+        Assert.That((string?)window.Descendants(Presentation + "MenuItem").Single(item => (string?)item.Attribute(Xaml + "Name") == "ProjectViewMenu")
+            .Attribute("InputGestureText"), Is.EqualTo("Ctrl+B"), "the toolbar's toggle, Ctrl+B (project-view-as-tabs AC 5)");
         Assert.That((string?)window.Descendants(Presentation + "MenuItem").Single(item => (string?)item.Attribute("Header") == "Bac_k")
             .Attribute("InputGestureText"), Is.EqualTo("Alt+Left"), "listed in View, where a user looks for it (C14, G55)");
         Assert.That((string?)View().Descendants(Presentation + "KeyBinding").Single(binding => (string?)binding.Attribute("Key") == "Escape")

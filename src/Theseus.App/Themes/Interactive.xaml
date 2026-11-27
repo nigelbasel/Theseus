@@ -324,6 +324,12 @@
         <Setter Property="Margin" Value="0" />
         <Setter Property="ToolTipService.ShowOnDisabled" Value="True" />
         <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
+        <Style.Triggers>
+            <!-- Words and icons given as content inherit the button's own brush, not the template's, so it greys here too. -->
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Foreground" Value="{DynamicResource TextFillColorDisabledBrush}" />
+            </Trigger>
+        </Style.Triggers>
     </Style>
 
     <Style x:Key="ToolIconToggle" TargetType="ToggleButton">
@@ -335,6 +341,12 @@
         <Setter Property="Margin" Value="0" />
         <Setter Property="ToolTipService.ShowOnDisabled" Value="True" />
         <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
+        <Style.Triggers>
+            <!-- Words and icons given as content inherit the button's own brush, not the template's, so it greys here too. -->
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Foreground" Value="{DynamicResource TextFillColorDisabledBrush}" />
+            </Trigger>
+        </Style.Triggers>
     </Style>
 
     <!--
@@ -547,6 +559,9 @@
     </Style>
     <Style x:Key="ItemNamedByHeading" TargetType="ContentPresenter">
         <Setter Property="AutomationProperties.Name" Value="{Binding Heading}" />
+    </Style>
+    <Style x:Key="ItemNamedBySelf" TargetType="ContentPresenter">
+        <Setter Property="AutomationProperties.Name" Value="{Binding}" />
     </Style>
     <Style x:Key="ItemNamedByName" TargetType="ContentPresenter">
         <Setter Property="AutomationProperties.Name" Value="{Binding Name}" />

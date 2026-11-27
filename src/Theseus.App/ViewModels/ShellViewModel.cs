@@ -49,6 +49,7 @@ public sealed partial class ShellViewModel : ObservableObject
 
     private SessionTells Tells => _sessionTells ??= new SessionTells(new StopRequestStore(StopRequestRoot.Tells), _ownerEvents);
     private IReadOnlyList<SessionRun>? _refreshRuns;
+    private string? _lastOpenedProject;
     private string? _openProjectName;
     private ProjectViewModel? _projectView;
 
@@ -60,6 +61,7 @@ public sealed partial class ShellViewModel : ObservableObject
     private CardRunCommands? _runCommands;
     private IWorkstreamControl? _workstreamControl;
     private bool _projectStartSaid;
+    private string _grantSaid = string.Empty;
     private readonly ProjectViewHost _viewHost;
     private IReadOnlyList<ProjectChoice> _openProjectChoices = [];
     private IReadOnlyList<ProjectChoice> _openSpecChoices = [];
@@ -163,8 +165,16 @@ public sealed partial class ShellViewModel : ObservableObject
         }), TimeSpan.FromMilliseconds(500), TimeSpan.FromSeconds(1.5));
         _acceptances = new SpecAcceptanceStore(Path.Combine(App.DataDirectory, "spec-acceptances.json"));
         _reported = new ReportedAcceptanceStore(Path.Combine(App.DataDirectory, "reported-acceptances.json"));
-        CloseProjectCommand = new RelayCommand(_ => CloseProject(), _ => IsProjectOpen);
-        NewProjectCommand = new RelayCommand(_ => NewProject());
+        CloseProjectCommand = new RelayCommand(_ => CloseProject(), _ => IsProjectViewShown);
+        // With no projects folder, New project opens the setup's folder step rather than sitting greyed out (first-run-setup),
+        // and goes on to New project once the setup closes with a folder chosen.
+        NewProjectCommand = new RelayCommand(_ =>
+        {
+            if (!FirstRun!.OpenForNewProject() || !string.IsNullOrWhiteSpace(_settings.Read().ProjectsFolder))
+            {
+                NewProject();
+            }
+        });
         BringProjectWindowForwardCommand = new RelayCommand(_ => BringProjectWindowForward(),
             _ => IsProjectOpen && _projectWindow.SessionId is not null && Sessions.Find(_projectWindow.SessionId) is not null);
         launcher.ReadableProjects = () => _projectReads.ReadableNames;
@@ -175,8 +185,10 @@ public sealed partial class ShellViewModel : ObservableObject
             workstream.Role == WorkstreamRole.None
             && !string.Equals(RowBranchOf(workstream), Theseus.Core.Proposals.ProposalRow.NoBranch, StringComparison.OrdinalIgnoreCase)
             && ProjectBranchRules.GrantedPrimary(workstream.Project, _settings.Read().ProjectBranchRules, PrimaryBranchOf) is { } primary
-                ? ProjectBranchRules.Text(primary, workstream.Slug ?? workstream.Key)
+                ? ProjectBranchRules.Text(primary, workstream.Slug ?? workstream.Key,
+                    ProjectBranchRules.GrantOf(workstream.Project, _settings.Read().ProjectBranchRules)!.Kind)
                 : null;
+        launcher.UnattendedFor = workstream => UnattendedProjects.IsOn(workstream.Project, _settings.Read().UnattendedProjects);
         _projectReads.Changed += (_, _) => WireProjectChoices();
         _theme = settings.Read().Theme;
         _isSessionsPanelOpen = !settings.Read().SessionsPanelCollapsed;
@@ -186,12 +198,16 @@ public sealed partial class ShellViewModel : ObservableObject
         Board.WaitsOnOwner = key => Chains?.NeedsYou.Any(row => string.Equals(row.Link.From, key, StringComparison.OrdinalIgnoreCase)) == true;
         _transcripts.Changed += (_, _) => ApplyTranscripts();
 
-        RefreshCommand = new RelayCommand(_ =>
-        {
-            Refresh();
-            _ = Updates?.CheckQuietlyAsync();
-            _ = CiStatus?.PollAsync(refresh: true);
-        });
+        Refreshing = new RefreshRun(() =>
+            {
+                Refresh();
+                _ = CiStatus?.PollAsync(refresh: true);
+            },
+            async () => Updates is { } updates ? await updates.CheckForRefreshAsync() : "Theseus is not checking for new versions.",
+            () => Notice,
+            text => SetNotice(string.Equals(text, RefreshRun.Started, StringComparison.Ordinal) ? NoticeSeverity.Information : NoticeSeverity, text),
+            async () => await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.Background));
+        RefreshCommand = Refreshing.Command;
         FocusCardCommand = new RelayCommand(FocusCard, CanFocusCard);
         OpenJiraCommand = new RelayCommand(OpenJira, parameter => parameter is string);
         OpenPullRequestCommand = new RelayCommand(OpenPullRequest,
@@ -289,18 +305,37 @@ public sealed partial class ShellViewModel : ObservableObject
         Drawer.EventsOf = _cardEvents.For;
         Drawer.WhoStarts = WhoStartsCard;
 
+        IReadOnlyList<GuardViewModel> guards = [.. Theseus.Core.Guards.GuardCatalog.All.Select(guard => new GuardViewModel(
+            new Theseus.Core.Guards.GuardInstallation(guard, Theseus.Core.Guards.GuardInstallation.UserConfigFolder())))];
         Settings = new SettingsViewModel(settings, Refresh)
         {
             Tags = new TagsViewModel(Board.Tags),
-            Guard = new HoldoutGuardViewModel(new HoldoutGuardInstallation(HoldoutGuardInstallation.UserConfigFolder())),
+            Guards = guards,
+            AutoMode = new AutoModeViewModel(settings,
+                new Theseus.Core.Guards.AutoModeEnvironment(Theseus.Core.Guards.GuardInstallation.UserConfigFolder())),
+            LockTools = new LockOptionsViewModel(settings,
+                () => [.. Board.Cards.Where(card => !card.IsArchived).Select(card => (card.Key, card.Title))]),
             FolderTrust = new FolderTrustViewModel(
-                new Theseus.Core.Trust.ClaudeFolderTrust(Theseus.Core.Trust.ClaudeFolderTrust.UserConfigPath(),
-                    Path.Combine(App.DataDirectory, "folder-trust-undo.json")),
+                new Theseus.Core.Trust.StandingFolderTrust(
+                    new Theseus.Core.Trust.ClaudeFolderTrust(Theseus.Core.Trust.ClaudeFolderTrust.UserConfigPath(),
+                        Path.Combine(App.DataDirectory, "folder-trust-undo.json")),
+                    settings,
+                    () => _holdouts.Entries.Select(entry => entry.Folder).Append(HoldoutLocation.DefaultRoot())),
                 () => Board.Cards.Where(card => !card.IsArchived).SelectMany(card => SessionFolders(card.Workstream)))
             {
                 Said = text => Notice = text,
             },
         };
+        FirstRun = new FirstRunViewModel(settings,
+            new Theseus.Core.Setup.StopHookRegistration(Theseus.Core.Guards.GuardInstallation.UserConfigFolder(),
+                Path.Combine(AppContext.BaseDirectory, "Theseus.Hook.exe")),
+            guards,
+            () => new Theseus.Core.Setup.ToolsCheck(
+                program => Theseus.Core.Setup.ToolVersions.Of(program, settings.Read().ClaudeExecutablePath),
+                () => Theseus.Core.Instructions.InstalledPlugins.Read(Theseus.Core.Guards.GuardInstallation.UserConfigFolder())
+                    .Any(plugin => plugin.Name == "agentic-factory")).Run(),
+            Refresh);
+        FirstRun.FolderTrust = Settings.FolderTrust;
         Settings.OpenProjectHoldouts = OpenProjectHoldouts;
         Settings.HasProjectCard = project => Board.ProjectCards.Any(each => string.Equals(each.Name, project, StringComparison.OrdinalIgnoreCase));
         Drawer.TagsInUse = Board.Tags.InUse;
@@ -319,6 +354,7 @@ public sealed partial class ShellViewModel : ObservableObject
             () => [.. Board.Areas],
             created =>
             {
+                var into = TakeNewIntoProject();
                 Refresh();
                 Board.Place(created.Key, created.Stage, created.Area);
 
@@ -343,6 +379,11 @@ public sealed partial class ShellViewModel : ObservableObject
                 }
 
                 var joined = approved is null ? null : JoinProposersProject(card, approved);
+
+                if (into is not null && approved is null)
+                {
+                    AddToProject(card, into);
+                }
 
                 if (approved is not null && created.BySession)
                 {
@@ -377,6 +418,7 @@ public sealed partial class ShellViewModel : ObservableObject
             () => Chains?.TakenKeys ?? [],
             () => _settings.Read().BriefFolderName);
 
+        NewWorkstream.PropertyChanged += OnNewWorkstreamChanged;
         SpawnFollowOnCommand = new RelayCommand(
             parameter => NewWorkstream.OpenFollowOn(((WorkstreamCardViewModel)parameter!).Workstream),
             parameter => parameter is WorkstreamCardViewModel { IsArchived: false });
@@ -495,8 +537,11 @@ public sealed partial class ShellViewModel : ObservableObject
     /// <summary>What the strip says: which cards are waiting, and on what.</summary>
     public string HeldForInputsSummary => Chains?.WaitingSummary(_heldForInputs) ?? string.Empty;
 
-    /// <summary>Re-reads everything on disk.</summary>
+    /// <summary>Re-reads everything on disk, and checks for a new version; disabled while it runs.</summary>
     public RelayCommand RefreshCommand { get; }
+
+    /// <summary>Refresh as it runs: busy while the owner waits on it, for the busy cursor (board-small-changes item 1).</summary>
+    public RefreshRun Refreshing { get; }
 
     /// <summary>Brings a card's session to the front.</summary>
     public RelayCommand FocusCardCommand { get; }
@@ -575,7 +620,8 @@ public sealed partial class ShellViewModel : ObservableObject
             return;
         }
 
-        view.ShowSearch(node => SearchCarry.Matches(node, key => Board.Card(key) is { } card ? Board.IsMatch(card) : null, filter));
+        view.ShowSearch(node => SearchCarry.Matches(node, key => Board.Card(key) is { } card ? Board.IsMatch(card) : null, filter),
+            key => Board.Card(key) is { } card && Board.IsMatch(card));
     }
 
     /// <summary>Ticks what is not ticked and unticks what is.</summary>
@@ -759,7 +805,10 @@ public sealed partial class ShellViewModel : ObservableObject
         _cardEvents,
         text => Extend(string.IsNullOrWhiteSpace(Notice) ? text : $"{Notice} {text}"),
         () => DateTimeOffset.UtcNow,
-        Refresh);
+        Refresh)
+    {
+        IsProjectClosed = IsProjectClosed,
+    };
 
     /// <summary>
     /// A session's start of a descendant (review of PR 3, findings 5 and 6): it resumes the conversation, falling back to
@@ -860,7 +909,10 @@ public sealed partial class ShellViewModel : ObservableObject
             {
                 Warn($"{project.Title} does not read, so its lead card cannot be made.");
             }
-        });
+        })
+    {
+        Resuming = name => Stopper.Resume(name),
+    };
 
     /// <summary>A card's and a selection's Start and Stop, with the questions and marks of a project that owns what runs (1.1e AC 10 to 12).</summary>
     private CardRunCommands RunCommands => _runCommands ??= new CardRunCommands(_settings, () => Board.ProjectCards, Runner,
@@ -965,7 +1017,9 @@ public sealed partial class ShellViewModel : ObservableObject
             Problem = card.Problem,
             PrimaryBranch = primary,
             GrantsBranchRules = granted,
+            GrantsItemBranches = grant?.Kind == BranchGrantKind.ItemBranches,
             GrantedPrimary = grant?.Primary,
+            IsUnattended = UnattendedProjects.IsOn(card.Name, _settings.Read().UnattendedProjects),
             RunsHeadless = _settings.Read().ProjectRunModes.TryGetValue(card.Name, out var projectMode) && projectMode == RunMode.Headless,
             ResumesIdleCards = _settings.Read().Duties.QueueIsOn(card.Name),
             OpenAt = openAt,
@@ -1053,10 +1107,23 @@ public sealed partial class ShellViewModel : ObservableObject
         }
 
         // OK with the box ticked over a grant for another primary branch grants it for the one the file names now.
+        var kind = properties.GrantsItemBranches ? BranchGrantKind.ItemBranches : BranchGrantKind.MergeIntoPrimary;
+
         if (properties.GrantsBranchRules != granted
-            || (granted && properties.GrantsBranchRules && !string.Equals(grant!.Primary, primary?.Trim(), StringComparison.Ordinal)))
+            || (granted && properties.GrantsBranchRules && !string.Equals(grant!.Primary, primary?.Trim(), StringComparison.Ordinal))
+            || (granted && properties.GrantsBranchRules && grant!.Kind != kind))
         {
-            GrantBranchRules(card, properties.GrantsBranchRules ? primary : null);
+            GrantBranchRules(card, properties.GrantsBranchRules ? primary : null, kind);
+        }
+
+        if (properties.IsUnattended != UnattendedProjects.IsOn(card.Name, _settings.Read().UnattendedProjects))
+        {
+            var current = _settings.Read();
+            _settings.Write(current with { UnattendedProjects = UnattendedProjects.Set(current.UnattendedProjects, card.Name, properties.IsUnattended) });
+            TheseusLog.Information("{Project} switched {State} by the owner", card.Name, properties.IsUnattended ? "to unattended" : "back to attended");
+            Notice = properties.IsUnattended
+                ? $"{card.Title} runs unattended from each card's next start: questions are parked, finished cards end, and network errors are retried."
+                : $"{card.Title}'s cards may ask you again from their next start.";
         }
 
         if (string.Equals(properties.ColourHex, card.ColourHex, StringComparison.OrdinalIgnoreCase))
@@ -1231,7 +1298,8 @@ public sealed partial class ShellViewModel : ObservableObject
     /// </summary>
     /// <param name="card">The project's card.</param>
     /// <param name="primary">The primary branch to grant, as the file names it now, or null to withdraw.</param>
-    private void GrantBranchRules(ProjectCardViewModel card, string? primary)
+    /// <param name="kind">Which rules are granted.</param>
+    private void GrantBranchRules(ProjectCardViewModel card, string? primary, BranchGrantKind kind = BranchGrantKind.MergeIntoPrimary)
     {
         var settings = _settings.Read();
         var rules = new Dictionary<string, ProjectBranchGrant>(settings.ProjectBranchRules, StringComparer.OrdinalIgnoreCase);
@@ -1239,7 +1307,7 @@ public sealed partial class ShellViewModel : ObservableObject
 
         if (grant)
         {
-            rules[card.Name] = new ProjectBranchGrant(DateTimeOffset.Now, primary!.Trim());
+            rules[card.Name] = new ProjectBranchGrant(DateTimeOffset.Now, primary!.Trim()) { Kind = kind };
         }
         else
         {
@@ -1249,7 +1317,9 @@ public sealed partial class ShellViewModel : ObservableObject
         _settings.Write(settings with { ProjectBranchRules = rules });
         TheseusLog.Information("Branch rules for {Project} {Change} by the owner", card.Name, grant ? "granted" : "withdrawn");
         Notice = grant
-            ? $"{card.Title}'s cards may now branch, push and merge into {primary!.Trim()} without asking, from their next start."
+            ? kind == BranchGrantKind.ItemBranches
+                ? $"{card.Title}'s cards may now branch each item off its repository's trunk, push and raise a pull request without asking, from their next start."
+                : $"{card.Title}'s cards may now branch, push and merge into {primary!.Trim()} without asking, from their next start."
             : $"{card.Title}'s cards ask again before any branch or push, from their next start.";
         Refresh();
     }
@@ -1930,9 +2000,7 @@ public sealed partial class ShellViewModel : ObservableObject
     /// A scenario writer's project: the one kept on its card, else the project whose home it has in reach, as older writers
     /// were made with none (git-22, item 7a).
     /// </summary>
-    private string? WriterProject(Workstream writer) =>
-        writer.Project ?? _projectReads.Current.FirstOrDefault(reading => reading.IsReadable && reading.Folder is { } home
-            && writer.AddDirectories.Any(directory => SameFolder(directory, home)))?.Name;
+    private string? WriterProject(Workstream writer) => RoleProject.Of(writer, _projectReads.Current);
 
     /// <summary>
     /// Aims a scenario writer at its project's holdout folder of today before it starts, rewriting its plan when the folder
@@ -2126,6 +2194,9 @@ public sealed partial class ShellViewModel : ObservableObject
     /// <summary>Whether a projects folder is set, so New project… shows in the File menu and on the toolbar (1.1c AC 6).</summary>
     public bool HasProjectsFolder => _hasProjectsFolder;
 
+    /// <summary>The first-run setup: at startup while no projects folder is set, from Tools › Set up Theseus…, and from New project.</summary>
+    public FirstRunViewModel FirstRun { get; }
+
     /// <summary>New project…: a project home from the starter, with what the owner gives (1.1b AC 7; 1.1c AC 6).</summary>
     public RelayCommand NewProjectCommand { get; }
 
@@ -2149,6 +2220,7 @@ public sealed partial class ShellViewModel : ObservableObject
         if (AskNewProject?.Invoke(string.Empty, string.Empty) is { } details && StartProject(details) is { } home)
         {
             StartLead(details.Name, details.Title, home);
+            SayGrant();
         }
     }
 
@@ -2223,6 +2295,7 @@ public sealed partial class ShellViewModel : ObservableObject
             var home = ProjectStarter.Start(folder, details);
             TheseusLog.Information("Started project {Project} in {Folder}", details.Name, home);
             Notice = $"Started project {details.Name} in {home}. Its project card is on the board.";
+            _grantSaid = GrantAtStart(details);
             _projectReads.MarkStale();
             WireProjects();
 
@@ -2233,6 +2306,50 @@ public sealed partial class ShellViewModel : ObservableObject
             Fail($"Project {details.Name} could not be started: {exception.Message}");
 
             return null;
+        }
+    }
+
+    // Written before the lead card starts, so the lead is told the rules at its first start; what it says is added to the
+    // notice once the project's start has said its own.
+    private string GrantAtStart(NewProjectDetails details)
+    {
+        if (!details.GrantBranchRules)
+        {
+            return string.Empty;
+        }
+
+        if (!NewProjectDefaults.GrantsBranchRules(details))
+        {
+            return "Branch rules were not granted: it names no primary branch they can cover. Grant them in Project properties once it does.";
+        }
+
+        var primary = details.PrimaryBranch.Trim();
+
+        try
+        {
+            var settings = _settings.Read();
+            var rules = new Dictionary<string, ProjectBranchGrant>(settings.ProjectBranchRules, StringComparer.OrdinalIgnoreCase)
+            {
+                [details.Name] = new ProjectBranchGrant(DateTimeOffset.Now, primary),
+            };
+
+            _settings.Write(settings with { ProjectBranchRules = rules });
+            TheseusLog.Information("Branch rules for {Project} granted by the owner in New project", details.Name);
+
+            return $"Its workstreams may branch, push and merge into {primary} without asking.";
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return $"Its branch rules could not be saved ({exception.Message}): grant them in Project properties.";
+        }
+    }
+
+    private void SayGrant()
+    {
+        if (_grantSaid.Length > 0)
+        {
+            Extend(string.IsNullOrWhiteSpace(Notice) ? _grantSaid : $"{Notice} {_grantSaid}");
+            _grantSaid = string.Empty;
         }
     }
 
@@ -2436,6 +2553,7 @@ public sealed partial class ShellViewModel : ObservableObject
             }
 
             Notice = $"{card.Title} is now project {details.Name}, as its first workstream. Fill in its project.md.{copied}";
+            SayGrant();
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ProjectEditRefusedException)
         {
@@ -2580,6 +2698,11 @@ public sealed partial class ShellViewModel : ObservableObject
             card.ProjectSource = string.Empty;
         }
 
+        foreach (var card in cards)
+        {
+            card.ProjectOfRole = card.Workstream.Role == WorkstreamRole.ScenarioWriter ? WriterProject(card.Workstream) : null;
+        }
+
         Board.KeepOutOfGrid = ProjectGridRule.KeepOutOfGrid(memberOf, anyMembers);
 
         // Membership has just been read, so the holdout folders are looked at again by project (1.1e AC 6c).
@@ -2611,8 +2734,11 @@ public sealed partial class ShellViewModel : ObservableObject
                 !reading.IsReadable && reading.Folder is { } home && File.Exists(Path.Combine(home, ProjectCatalog.ProjectFileName)))
             .ToList();
         var colours = ProjectColoursFor([.. readable.Concat(dimmed).Select(reading => reading.Name)]);
-        var tabs = ProjectTabViewModel.For(readable, _openProjectName, name => new RelayCommand(_ => OpenProject(name)),
-            name => ProjectColours.Of(colours, name));
+        // The tabs carry each project's waits (board-small-changes item 2), so they are made, with the open view, once
+        // every project's overview is read.
+        var waitsByProject = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        (ProjectFileReading Reading, IReadOnlyList<PieceOfWork> Pieces, ProjectOverview Overview, string? Lead)? open = null;
+        var kanbanReads = new List<KanbanProjectRead>();
 
         foreach (var reading in readable)
         {
@@ -2620,11 +2746,7 @@ public sealed partial class ShellViewModel : ObservableObject
                     string.Equals(acceptance.Project, reading.Name, StringComparison.OrdinalIgnoreCase)
                     && string.Equals(acceptance.Slug, slug, StringComparison.OrdinalIgnoreCase)),
                 pieceCards, links, _projectReads.Members, StageReports);
-            pieces = [.. pieces.Select(piece => reportedAcceptances.LastOrDefault(report =>
-                    string.Equals(report.Project, reading.Name, StringComparison.OrdinalIgnoreCase)
-                    && string.Equals(report.Slug, piece.Name, StringComparison.OrdinalIgnoreCase)) is { } reported
-                ? piece with { Reported = reported }
-                : piece)];
+            pieces = PiecesOfWork.WithReports(pieces, reading, reportedAcceptances);
             var working = pieces.Where(piece => piece.IsCurrentPiece && piece.Card is not null)
                 .Select(piece => piece.CardKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
             IReadOnlyList<PieceCard> others = [.. cards
@@ -2635,11 +2757,13 @@ public sealed partial class ShellViewModel : ObservableObject
                 acceptances.Count(acceptance => string.Equals(acceptance.Project, reading.Name, StringComparison.OrdinalIgnoreCase)),
                 StartRequests.Pending, key => Board.Card(key)?.Title ?? key, WrongVerifiersOf(reading.Name), ClearUpNoticeOf(reading),
                 checkPlan.Underway, others,
-                [.. ChecksThatCannotRun(reading, pieces, checkPlan), .. HeadlessWaits.For(cards
-                    .Where(card => string.Equals(card.Workstream.Project, reading.Name, StringComparison.OrdinalIgnoreCase))
-                    .Select(card => card.Workstream), key => Headless?.StateOf(key))],
+                WaitsOnTheChecks(reading, pieces, checkPlan, cards),
                 OwnerAccount.Names);
-            TakeCheckSteps(reading, pieces, checkPlan);
+            // A closed project's checks wait for it to be reopened, as its other starts do.
+            if (!IsProjectClosed(reading.Name))
+            {
+                TakeCheckSteps(reading, pieces, checkPlan);
+            }
             var file = reading.File!;
 
             foreach (var piece in pieces.Where(piece => piece.IsCurrentPiece && piece.Card is not null))
@@ -2680,7 +2804,18 @@ public sealed partial class ShellViewModel : ObservableObject
                 System.Windows.Input.CommandManager.InvalidateRequerySuggested();
             }
 
+            WireStopping(projectCard, () => _launcher.CanLaunch);
             Runner.Wire(projectCard, () => _launcher.CanLaunch);
+
+            kanbanReads.Add(new KanbanProjectRead(reading, pieces, overview, lead));
+
+            // A closed or archived project is shown only under Archived, with Reopen: no tab, no waits, no queue.
+            if (WireClosure(projectCard, name))
+            {
+                projectCards.Add(projectCard);
+
+                continue;
+            }
 
             // The badge counts what the summary sentence counts: one source (walkthrough row 6).
             IReadOnlyList<string> waiting = [.. overview.Waits.Select(wait => wait.Text)];
@@ -2691,17 +2826,36 @@ public sealed partial class ShellViewModel : ObservableObject
             }
 
             projectCards.Add(projectCard);
+            waitsByProject[name] = overview.Waits.Count;
 
             if (string.Equals(name, _openProjectName, StringComparison.OrdinalIgnoreCase))
             {
-                openView = BuildView(reading, pieces, tabs, overview, lead);
+                open = (reading, pieces, overview, lead);
             }
 
             GatherQueueCandidates(name, pieces, queueSettings, queueCandidates);
         }
 
+        RefreshKanban([.. kanbanReads, .. dimmed
+            .Where(reading => !_settings.Read().HiddenProjectFolders.Contains(reading.Name, StringComparer.OrdinalIgnoreCase))
+            .Select(reading => new KanbanProjectRead(reading, null, null, null))]);
+
+        var tabs = ProjectTabViewModel.For(readable.Where(reading => !IsProjectClosed(reading.Name)), _openProjectName,
+            name => new RelayCommand(_ => OpenProject(name)),
+            name => ProjectColours.Of(colours, name), name => waitsByProject.GetValueOrDefault(name),
+            name => new RelayCommand(_ => PutProjectAway(name, ProjectClosureKind.Closed)),
+            name => new RelayCommand(_ => PutProjectAway(name, ProjectClosureKind.Archived)),
+            name => projectCards.FirstOrDefault(card => string.Equals(card.Name, name, StringComparison.OrdinalIgnoreCase))?.StartCommand,
+            name => projectCards.FirstOrDefault(card => string.Equals(card.Name, name, StringComparison.OrdinalIgnoreCase))?.StopCommand);
+        SetProjectTabs(tabs);
+
+        if (open is { } openOne)
+        {
+            openView = BuildView(openOne.Reading, openOne.Pieces, tabs, openOne.Overview, openOne.Lead, ProjectView);
+        }
+
         _queueCandidates = queueCandidates;
-        var openable = projectCards.ToList();
+        var openable = projectCards.Where(card => !card.IsPutAway).ToList();
 
         // A project whose file does not read still gets its card, dimmed and saying why (1.1c AC 5), with its mark and
         // colour but no Start or Stop (1.1d AC 44).
@@ -2749,6 +2903,8 @@ public sealed partial class ShellViewModel : ObservableObject
         }
 
         Board.ShowProjects(projectCards);
+        ArchiveDueCards(projectCards);
+        RefreshStopping(projectCards);
 
         var openChoices = openable
             .Select(card => new ProjectChoice(card.Name.Replace("_", "__", StringComparison.Ordinal), false, card.OpenCommand,
@@ -2758,6 +2914,11 @@ public sealed partial class ShellViewModel : ObservableObject
         if (!openChoices.SequenceEqual(OpenProjectChoices))
         {
             OpenProjectChoices = openChoices;
+        }
+
+        if (_openProjectName is { } shut && IsProjectClosed(shut))
+        {
+            CloseProject();
         }
 
         if (_openProjectName is not null && openView is null)
@@ -2836,11 +2997,12 @@ public sealed partial class ShellViewModel : ObservableObject
     }
 
     /// <summary>
-    /// The open project's view, on the model's pieces of work (1.1d PR 1). The view it replaces passes on its selection,
-    /// so a refresh that changes what is drawn keeps what the owner was looking at (AC 36).
+    /// A project's view, on the model's pieces of work (1.1d PR 1): the open project's, or one of the kanban's. The view it
+    /// replaces, when given, passes on its selection, so a refresh that changes what is drawn keeps what the owner was
+    /// looking at (AC 36).
     /// </summary>
     private ProjectViewModel BuildView(ProjectFileReading reading, IReadOnlyList<PieceOfWork> pieces,
-        IReadOnlyList<ProjectTabViewModel> tabs, ProjectOverview overview, string? lead) =>
+        IReadOnlyList<ProjectTabViewModel> tabs, ProjectOverview overview, string? lead, ProjectViewModel? previous) =>
         ProjectViewModel.Build(reading, pieces, Chains?.Status ?? new LinkStatus([], []), tabs, _settings,
             _projectActions ??= ProjectViewCommands.For(Board.Card, FocusCardCommand, StartCardCommand, StopCardCommand, OpenSpec,
                 AcceptSpec, OpenFile, text => Notice = text, (card, project) => AddToProject(card, project), WhyNot, WayOn, Refuse) with
@@ -2854,8 +3016,10 @@ public sealed partial class ShellViewModel : ObservableObject
                 ReviewProposal = ReviewProposal,
                 TellCard = (key, text) => Tell(Board.Card(key), text),
                 AnswerStartRequest = AnswerStartRequest,
+                AnswerQuestion = AnswerQuestion,
                 ClearVerifiers = ClearUpVerifiers,
                 ResetBreaker = key => ResetBreakers([key]),
+                ResetBreakerAndStart = ResetBreakerAndStart,
                 OpenOptions = () => Settings.OpenCommand.Execute(null),
                 StartVerifier = key =>
                 {
@@ -2866,6 +3030,8 @@ public sealed partial class ShellViewModel : ObservableObject
                 },
                 UndoClearVerifiers = UndoClearUp,
                 DismissClearUp = DismissClearUp,
+                CloseProject = name => PutProjectAway(name, ProjectClosureKind.Closed),
+                ArchiveProject = name => PutProjectAway(name, ProjectClosureKind.Archived),
                 WhoStarts = WhoStartsCard,
                 ReportOpened = _reportsOpened.HasOpened,
                 OpenReport = (link, at, document) =>
@@ -2879,7 +3045,7 @@ public sealed partial class ShellViewModel : ObservableObject
             },
             CloseProjectCommand,
             EditsOf(reading.Name),
-            ProjectView,
+            previous,
             overview,
             lead);
 
@@ -2933,12 +3099,12 @@ public sealed partial class ShellViewModel : ObservableObject
             ? new HandIn(given.AtUtc, by, from.Title, instruction)
             : null;
 
-    /// <summary>Open spec and Accept spec on the menu bar, for the open project's waiting specs (R16).</summary>
+    /// <summary>View spec and Accept spec on the menu bar, for the open project's waiting specs (R16).</summary>
     private void WireSpecChoices()
     {
         var specs = ProjectView?.WaitingSpecs ?? [];
         var open = specs.Select(spec => new ProjectChoice(spec.Slug, false, new RelayCommand(_ => OpenSpec(spec)), [],
-            $"Open the spec of {spec.Slug} in its window; Accept spec… there accepts the version on screen") { ShowsTick = false }).ToList();
+            $"View the spec of {spec.Slug}, drawn, in its window; Accept spec… or Reject… there decides on the version on screen") { ShowsTick = false }).ToList();
         var accept = specs.Select(spec => new ProjectChoice(spec.Slug, false, new RelayCommand(_ => AcceptSpec(spec)), [],
             $"Accept the spec of {spec.Slug}, version {spec.ShortVersion}, after a confirmation") { ShowsTick = false }).ToList();
 
@@ -3026,6 +3192,7 @@ public sealed partial class ShellViewModel : ObservableObject
     /// <summary>Replaces the board with a project's view (AC 14). The drawer, side panels and status bar stay.</summary>
     public void OpenProject(string name)
     {
+        LeaveAllProjects(forProject: true);
         _openProjectName = name;
         ProjectView = null;
         WireProjectChoices();
@@ -3033,12 +3200,13 @@ public sealed partial class ShellViewModel : ObservableObject
         if (ProjectView is null)
         {
             _openProjectName = null;
-            Warn($"{name} cannot be read just now.");
+            Warn(IsProjectClosed(name) ? $"{name} is closed: reopen it from Archived on the board." : $"{name} cannot be read just now.");
 
             return;
         }
 
         _viewHost.Opened();
+        _lastOpenedProject = name;
 
         if (Board.Search.IsOn)
         {
@@ -3047,9 +3215,7 @@ public sealed partial class ShellViewModel : ObservableObject
 
         SelectionMoved();
         Jumped(null);
-        Raise(nameof(IsProjectOpen));
-        Raise(nameof(IsBoardShown));
-        System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+        ContextChanged();
     }
 
     /// <summary>Back to the board, from ← Board, Alt+Left or View › Back to the board (1.1d AC 16).</summary>
@@ -3061,13 +3227,13 @@ public sealed partial class ShellViewModel : ObservableObject
         }
 
         _openProjectName = null;
+        LeaveAllProjects(forProject: false);
         ProjectView = null;
         _viewHost.Closed();
         SelectionMoved();
         WireSpecChoices();
-        Raise(nameof(IsProjectOpen));
-        Raise(nameof(IsBoardShown));
-        System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+        WireProjectChoices();
+        ContextChanged();
     }
 
     /// <summary>The open project's view, or null while the board shows.</summary>
@@ -3090,10 +3256,11 @@ public sealed partial class ShellViewModel : ObservableObject
     public bool IsProjectOpen => _openProjectName is not null && _projectView is not null;
 
     /// <summary>Whether the board fills the main area.</summary>
-    public bool IsBoardShown => !IsProjectOpen;
+    public bool IsBoardShown => !IsProjectViewShown;
 
     /// <summary>Back to the board (AC 14).</summary>
     public RelayCommand CloseProjectCommand { get; }
+
 
     /// <summary>View › Open project: one item per readable project.</summary>
     public IReadOnlyList<ProjectChoice> OpenProjectChoices
@@ -3111,7 +3278,7 @@ public sealed partial class ShellViewModel : ObservableObject
     /// <summary>Whether View shows Open project.</summary>
     public bool HasOpenProjectChoices => _openProjectChoices.Count > 0;
 
-    /// <summary>Workstream › Open spec, for the open project's waiting specs.</summary>
+    /// <summary>Workstream › View spec, for the open project's waiting specs.</summary>
     public IReadOnlyList<ProjectChoice> OpenSpecChoices
     {
         get => _openSpecChoices;
@@ -3131,7 +3298,7 @@ public sealed partial class ShellViewModel : ObservableObject
         private set => Set(ref _acceptSpecChoices, value);
     }
 
-    /// <summary>Whether the Workstream menu shows Open spec and Accept spec.</summary>
+    /// <summary>Whether the Workstream menu shows View spec and Accept spec.</summary>
     public bool HasSpecChoices => _openSpecChoices.Count > 0;
 
     /// <summary>Asks the owner to accept a spec; true to accept. Set by the App to a message box.</summary>
@@ -3306,7 +3473,37 @@ public sealed partial class ShellViewModel : ObservableObject
             {
                 OpenFile(path);
             }
-        });
+        }, RejectSpec);
+
+    /// <summary>
+    /// Reject… in the spec window (board-small-changes item 4): nothing is recorded as decided, so the gate still waits, and the
+    /// card is told so it writes a new version: a running one with its next turn, a stopped one through events() once it is
+    /// started. Nothing is started (R3). What was done, for the window.
+    /// </summary>
+    private string RejectSpec(SpecAtGate spec, string? note)
+    {
+        var card = CardOfPiece(spec.Project, spec.Slug);
+        var text = RejectedTell.Text(spec, note);
+        TheseusLog.Information("Rejected the {Noun} of {Slug} in {Project}, version {Version}", spec.IsRule ? "rule" : "spec", spec.Slug,
+            spec.Project, spec.ContentHash);
+        string told;
+
+        if (card is null)
+        {
+            told = "No card works it, so no session was told.";
+        }
+        else
+        {
+            // Never started: only Accept's question, which says so, may start a card (R3).
+            told = Tell(card, text)
+                ? $"{card.Title} is told with its next turn."
+                : $"{card.Title} has no session; it is told when it next starts and asks what it missed.";
+        }
+
+        Notice = $"Rejected the {(spec.IsRule ? "rule" : "spec")} of {spec.Slug}, version {spec.ShortVersion}. {told}";
+
+        return told;
+    }
 
     /// <summary>
     /// Why Accept spec… cannot run for a version, or null (1.1e AC 24a): it is accepted already at that version, so its gate
@@ -3315,7 +3512,7 @@ public sealed partial class ShellViewModel : ObservableObject
     private string? WhyNotAcceptSpec(SpecAtGate spec) => _acceptances.WhyNotAccept(spec);
 
     /// <summary>
-    /// Open spec, wherever it appears (view, board, menus): the spec window, not the editor (1.1e AC 24a; Nigel, 2026-11-21).
+    /// View spec, wherever it appears (view, board, menus): the spec window, not the editor (1.1e AC 24a; Nigel, 2026-11-21).
     /// </summary>
     private void OpenSpec(SpecAtGate spec)
     {
@@ -4112,7 +4309,8 @@ public sealed partial class ShellViewModel : ObservableObject
         var reasons = _settings.Read();
         _branchGrants = reasons.ProjectBranchRules;
         RefreshHoldouts([.. Board.Cards.Select(card => card.Workstream)]);
-        Questions.RemoveExcept(Sessions.Snapshot.Live.Select(session => session.SessionId), DateTimeOffset.UtcNow.AddMinutes(-10));
+        Questions.RemoveExcept(Sessions.Snapshot.Live.Select(session => session.SessionId), DateTimeOffset.UtcNow.AddMinutes(-10),
+            keepAsked: Board.Cards.Select(card => card.Workstream.LastSessionId).OfType<string>());
         Prompts.RemoveExcept(Sessions.Snapshot.Live
             .Where(session => string.Equals(session.Status, "waiting", StringComparison.OrdinalIgnoreCase))
             .Select(session => session.SessionId), DateTimeOffset.UtcNow);
@@ -4121,8 +4319,10 @@ public sealed partial class ShellViewModel : ObservableObject
         {
             var session = Sessions.Find(card.Workstream.LastSessionId);
             var live = session is not null;
-            var question = live ? Questions.Read(card.Workstream.LastSessionId) : null;
-            var state = CardLifecycle.For(card.Key, session?.Status, live, runs, now, hasOpenQuestion: question is not null);
+            // A question asked outright stays with its card once the session ends, so it can be answered on the board; a
+            // guess is only ever of a running session (2.4e).
+            var question = Questions.Read(card.Workstream.LastSessionId) is { } read && (live || !read.IsGuess) ? read : null;
+            var state = CardLifecycle.For(card.Key, session?.Status, live, runs, now, hasOpenQuestion: question is { IsOpen: true });
 
             card.Question = question;
             card.Prompt = live ? Theseus.Core.Questions.PermissionPrompt.Showing(Prompts.Read(card.Workstream.LastSessionId), session?.Status, question) : null;
@@ -4318,6 +4518,7 @@ public sealed partial class ShellViewModel : ObservableObject
         var waiting = new List<DateTimeOffset>();
 
         EndFinishedCards(now, waiting);
+        ResumeAfterTransportErrors(now, waiting);
 
         foreach (var card in Board.Cards)
         {
@@ -4862,6 +5063,21 @@ public sealed partial class ShellViewModel : ObservableObject
             return;
         }
 
+        // A closed project starts nothing until the owner reopens it, whoever asks: a duty, a check, a session or a press.
+        var settingsNow = _settings.Read();
+
+        if (workstreams.Where(workstream => ProjectClosures.Holds(settingsNow, workstream)).ToList() is { Count: > 0 } held)
+        {
+            TheseusLog.Information("{Trigger}: not started, their project is closed: {Keys}", trigger, string.Join(", ", held.Select(workstream => workstream.Key)));
+            Warn($"Not started: {string.Join(", ", held.Select(workstream => workstream.Title))}. Its project is closed: reopen it from Archived on the board first.");
+            workstreams = [.. workstreams.Except(held)];
+
+            if (workstreams.Count == 0)
+            {
+                return;
+            }
+        }
+
         if (FlaggedStart.Among(workstreams) is { Count: > 0 } flagged)
         {
             var others = workstreams.Count - flagged.Count;
@@ -4939,7 +5155,10 @@ public sealed partial class ShellViewModel : ObservableObject
 
             // What the owner's board actions told its last session, still waiting, is given with this start instead, so it
             // is neither lost nor told twice (review of PR 6, finding 3).
-            if (Tells.TakeForStart(workstream.LastSessionId, DateTimeOffset.UtcNow) is { } waitingTell)
+            var previousSession = workstream.LastSessionId;
+            var tookTell = Tells.TakeForStart(workstream.LastSessionId, DateTimeOffset.UtcNow);
+
+            if (tookTell is { } waitingTell)
             {
                 workstream = workstream with
                 {
@@ -4947,6 +5166,13 @@ public sealed partial class ShellViewModel : ObservableObject
                         ? waitingTell
                         : $"{workstream.StartInstruction}{Environment.NewLine}{Environment.NewLine}{waitingTell}",
                 };
+            }
+
+            // Under the owner's standing consent its folders are trusted before the tab opens, so Claude Code does not ask
+            // (objective 1.3): a fresh worktree is keyed by its main clone, which no card had trusted.
+            if (Settings.FolderTrust?.KeepFor(SessionFolders(workstream)) is { } kept && (kept.Trusted.Count > 0 || kept.Failure is not null))
+            {
+                worktreeNotes.Add(kept.Failure ?? $"Trusted {string.Join(", ", kept.Trusted)} in Claude Code.");
             }
 
             if (_launcher.Launch(workstream, _plans.PathFor(workstream.Key), startMode, chosenOnTheCard: chosenOnTheCard) is not { } sessionId)
@@ -4961,7 +5187,19 @@ public sealed partial class ShellViewModel : ObservableObject
                     blocks.Add((block, workstream));
                 }
 
+                // What it was to be told goes back to wait for its next start, so a start that fails loses no answer (2.4e).
+                if (tookTell is not null)
+                {
+                    Tells.Queue(workstream.Key, workstream.Title, previousSession, tookTell, DateTimeOffset.UtcNow);
+                }
+
                 continue;
+            }
+
+            // An answer given on the board went with this start: its wait clears (2.4e).
+            if (tookTell is not null)
+            {
+                Questions.ClearAnswered(previousSession);
             }
 
             // Starting a workstream withdraws any request to stop it. A resumed session keeps its

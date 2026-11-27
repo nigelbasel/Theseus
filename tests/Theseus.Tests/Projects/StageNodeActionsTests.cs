@@ -26,7 +26,7 @@ public class StageNodeActionsTests
         var spec = Named(TheseusPieces(_folder), "project-view").Stages[1];
 
         Assert.That(spec.Actions.Select(action => action.Label),
-            Is.EqualTo(new[] { "Open spec", "Accept spec…", "Open records", "Open spec.md" }));
+            Is.EqualTo(new[] { "View spec", "Accept spec…", "Open records", "Open spec.md" }));
     }
 
     [Test]

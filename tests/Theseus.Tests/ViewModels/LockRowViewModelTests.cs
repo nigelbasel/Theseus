@@ -103,8 +103,50 @@ public class LockRowViewModelTests
         Assert.That(row.CanAskRelease, Is.False);
 
         row.ConfirmReleaseCommand.Execute(null);
-        Assert.That(released, Is.EqualTo(new[] { LockNames.Tests }));
+        Assert.That(released, Is.EqualTo(new[] { "holder" }), "the hold is released by its ticket, not by the resource");
     }
+
+    [Test]
+    public void ASlottedResource_ShowsEveryHolderAndHowMuchEachTakes()
+    {
+        var table = ResourceTable.Seeded().With(new ResourceRule(ResourceTable.CpuBuild, 3, [], "measured"));
+        var row = new LockRowViewModel(ResourceTable.CpuBuild, _ => { }, _ => { }, _ => { }, _ => { });
+
+        row.Update([Build("a", 1), Build("b", 2)], Nine, table: table);
+
+        Assert.That(row.Holders.Select(holder => holder.Amount), Is.EqualTo(new[] { "1 of 3", "2 of 3" }));
+        Assert.That(row.Capacity, Is.EqualTo("3 of 3 slots taken"));
+    }
+
+    [Test]
+    public void AHoldTakenAsTests_ShowsOnEachOfItsResources()
+    {
+        var sql = new LockRowViewModel(ResourceTable.SqlContainers, _ => { }, _ => { }, _ => { }, _ => { });
+        var stack = new LockRowViewModel(LockNames.DevStack, _ => { }, _ => { }, _ => { }, _ => { });
+
+        sql.Update([Holder("H", "x", Nine)], Nine, table: ResourceTable.Seeded());
+        stack.Update([Holder("H", "x", Nine)], Nine, table: ResourceTable.Seeded());
+
+        Assert.That(sql.IsHeld, Is.True);
+        Assert.That(stack.IsHeld, Is.False);
+    }
+
+    [Test]
+    public void AnIdleSessionHold_IsAmber_AndCountsAsUrgent()
+    {
+        var row = new LockRowViewModel(LockNames.DevStack, _ => { }, _ => { }, _ => { }, _ => { });
+        var stack = new LockTicket("s", LockNames.DevStack, "LeadPro", "synthetic data", HoldMode.Session, "k", Nine, Nine,
+            SessionId: "session-1", GrantedUtc: Nine);
+
+        row.Update([stack], Nine, idleOf: _ => "session idle 42m");
+
+        Assert.That(row.Holders.Single().IsAmber, Is.True);
+        Assert.That(row.HasAmberHold, Is.True);
+    }
+
+    private static LockTicket Build(string token, int slots) =>
+        new(token, "cpu-build", token, "build", HoldMode.Process, token, Nine, Nine, GrantedUtc: Nine,
+            Scope: [new ResourceClaim(ResourceTable.CpuBuild, slots)]);
 
     private static LockRowViewModel Row() => new(LockNames.Tests, _ => { }, _ => { }, _ => { }, _ => { });
 

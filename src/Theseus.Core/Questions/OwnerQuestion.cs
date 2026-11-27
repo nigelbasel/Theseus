@@ -15,4 +15,16 @@ public sealed record OwnerQuestion(string SessionId, string Text, bool IsGuess, 
 
     /// <summary>Why the session needs the answer, one line, or null.</summary>
     public string? Why { get; init; }
+
+    /// <summary>
+    /// The owner's answer given on the board, kept until it is delivered to the session (2.4e, Nigel 2026-11-26); null
+    /// while it is still his to answer.
+    /// </summary>
+    public string? Answer { get; init; }
+
+    /// <summary>When the owner answered it on the board, or null.</summary>
+    public DateTimeOffset? AnsweredUtc { get; init; }
+
+    /// <summary>Whether it still waits on the owner: asked or guessed, and not yet answered on the board.</summary>
+    public bool IsOpen => AnsweredUtc is null;
 }

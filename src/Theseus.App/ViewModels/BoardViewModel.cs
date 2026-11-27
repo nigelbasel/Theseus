@@ -152,11 +152,12 @@ public sealed class BoardViewModel : ObservableObject
 
     /// <summary>
     /// The cards a project holds for the search: those its pieces name, and any card the project claims, such as a verifier
-    /// of one of them, which leaves the grid with them (project-view-usability item 4: "Verify: Theseus" found 0 of 69).
+    /// of one of them, which leaves the grid with them (project-view-usability item 4: "Verify: Theseus" found 0 of 69), or
+    /// its scenario writer (Nigel, 2026-11-26: "nothing shows when I search for write holdout").
     /// </summary>
     private IEnumerable<string> KeysIn(ProjectCardViewModel project) =>
         project.MemberKeys.Concat(_all
-                .Where(card => string.Equals(card.Workstream.Project, project.Name, StringComparison.OrdinalIgnoreCase))
+                .Where(card => string.Equals(card.Workstream.Project ?? card.ProjectOfRole, project.Name, StringComparison.OrdinalIgnoreCase))
                 .Select(card => card.Key))
             .Distinct(StringComparer.OrdinalIgnoreCase);
 
@@ -226,8 +227,9 @@ public sealed class BoardViewModel : ObservableObject
         _matches = matches;
 
         var cardsOnGrid = _all.Where(card => KeepOutOfGrid?.Invoke(card) != true).Cast<IBoardCard>().ToList();
-        var hiddenKind = Kept(BoardShows.Projects) ? cardsOnGrid : Kept(BoardShows.Workstreams) ? [.. _projects] : [];
-        var shownKinds = cardsOnGrid.Concat(_projects).Except(hiddenKind).ToList();
+        IReadOnlyList<IBoardCard> projects = [.. _projects.Where(project => project.IsPutAway == ShowArchived)];
+        var hiddenKind = Kept(BoardShows.Projects) ? cardsOnGrid : Kept(BoardShows.Workstreams) ? [.. projects] : [];
+        var shownKinds = cardsOnGrid.Concat(projects).Except(hiddenKind).ToList();
         var onBoard = shownKinds.Where(item => !HiddenByActiveOnly(item)).ToList();
         var onScreen = onBoard.Count(item => !HiddenBySearch(item));
         Search.HiddenByShows = on ? hiddenKind.Count(_matching.Contains) : 0;
@@ -695,7 +697,7 @@ public sealed class BoardViewModel : ObservableObject
         foreach (var cell in Cells)
         {
             var wanted = _projects
-                .Where(project => !HiddenBySearch(project) && !Kept(BoardShows.Workstreams) && !HiddenByActiveOnly(project))
+                .Where(project => project.IsPutAway == ShowArchived && !HiddenBySearch(project) && !Kept(BoardShows.Workstreams) && !HiddenByActiveOnly(project))
                 .Where(project =>
                 {
                     var place = places.FirstOrDefault(entry => string.Equals(entry.Key, project.Name, StringComparison.OrdinalIgnoreCase)).Value;
@@ -1500,6 +1502,35 @@ public sealed class BoardViewModel : ObservableObject
         card.Workstream = card.Workstream with { IsArchived = archived };
         PersistArchived(card, archived);
         Refresh();
+    }
+
+    /// <summary>
+    /// Brings archived workstreams back by key, whether or not the archive is showing: Reopen of an archived project
+    /// restores the cards its archive put away (archive-a-project, 2026-11-26). True when any was archived.
+    /// </summary>
+    public bool Restore(IReadOnlyCollection<string> keys)
+    {
+        ArgumentNullException.ThrowIfNull(keys);
+
+        var sidecars = _board.Read().ToList();
+        var changed = false;
+
+        for (var index = 0; index < sidecars.Count; index++)
+        {
+            if (sidecars[index].IsArchived && keys.Contains(sidecars[index].Key, StringComparer.OrdinalIgnoreCase))
+            {
+                sidecars[index] = sidecars[index] with { IsArchived = false, UpdatedUtc = DateTimeOffset.UtcNow };
+                changed = true;
+            }
+        }
+
+        if (changed)
+        {
+            _board.Write(sidecars);
+            Refresh();
+        }
+
+        return changed;
     }
 
     /// <summary>

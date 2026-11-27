@@ -46,11 +46,14 @@ public class ProjectCardMarkupTests
             ("_Update", "{Binding OpenCommand}"),
             ("_Not a project", "{Binding HideCommand}"),
             ("_Start", "{Binding StartCommand}"),
-            ("S_top", "{Binding StopCommand}"),
+            ("S_top the project…", "{Binding StopCommand}"),
             ("T_ags", null),
             ("Open project._md", "{Binding OpenFileCommand}"),
             ("Add o_bjective…", "{Binding AddObjectiveCommand}"),
             ("_Duties…", "{Binding DutiesCommand}"),
+            ("C_lose project", "{Binding CloseCommand}"),
+            ("Arc_hive project", "{Binding ArchiveCommand}"),
+            ("Reop_en project", "{Binding ReopenCommand}"),
             ("Project p_roperties", "{Binding PropertiesCommand}"),
         }), "Properties last, G51 (baseline re-run NC-7)");
     }

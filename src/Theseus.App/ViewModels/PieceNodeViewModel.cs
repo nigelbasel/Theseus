@@ -207,7 +207,7 @@ public sealed class PieceNodeViewModel : ObservableObject, IFoldable
     /// <summary>Add to project…, offered only on a piece no project file lists (1.1e AC 6); null otherwise.</summary>
     public PieceActionViewModel? AddToProject { get; init; }
 
-    /// <summary>Its spec as read, when it waits at its gate, for Open spec and Accept spec.</summary>
+    /// <summary>Its spec as read, when it waits at its gate, for View spec and Accept spec.</summary>
     public SpecAtGate? Spec { get; init; }
 
     /// <summary>Its kind, shown by its title bar (1.1f A1, A2).</summary>

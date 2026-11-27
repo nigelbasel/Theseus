@@ -1,0 +1,185 @@
+<Window x:Class="Theseus.App.FirstRunWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:Theseus.App.Controls"
+        xmlns:converters="clr-namespace:Theseus.App.Converters"
+        Title="Set up Theseus"
+        Width="600"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        ResizeMode="NoResize"
+        Background="{DynamicResource SolidBackgroundFillColorSecondaryBrush}">
+    <Window.Resources>
+        <!-- Its own, so the window builds the same in a test without the application's resources. -->
+        <converters:BoolToVisibilityConverter x:Key="BoolToVisibility" />
+        <!-- Based on the theme's own button, as Options' Action is, so dark mode draws a dark button (W56). -->
+        <Style x:Key="Action" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Padding" Value="12,4" />
+            <Setter Property="MinHeight" Value="32" />
+            <Setter Property="MinWidth" Value="80" />
+        </Style>
+        <Style x:Key="Note" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Margin" Value="0,0,0,16" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+        </Style>
+    </Window.Resources>
+
+    <!--
+        The first-run setup (Nigel, 2026-11-25): only the steps still missing, one at a time, as a Windows wizard does, with
+        sparse lines and no large text box. Every choice applies at once, so Skip setup keeps what was chosen; Escape and the
+        title bar's close are Skip setup. Each step's actions are the ones Options offers for the same thing.
+    -->
+    <Grid Margin="24,20,24,16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock x:Name="StepHeading" Text="{Binding StepHeading}" Style="{DynamicResource SubtitleText}" Margin="0,0,0,16"
+                   AutomationProperties.HeadingLevel="Level1" />
+
+        <StackPanel Grid.Row="1">
+            <!-- Everything is set up: opened from the menu with nothing missing. -->
+            <TextBlock Style="{StaticResource Note}" Visibility="{Binding IsAllSet, Converter={StaticResource BoolToVisibility}}"
+                       Text="The projects folder is chosen, the stop hook and the holdout guard are in place, and every tool the method needs was found. Tools › Options changes any of it." />
+
+            <!-- Folders. -->
+            <StackPanel x:Name="FoldersStep" Visibility="{Binding IsFoldersStep, Converter={StaticResource BoolToVisibility}}">
+                <TextBlock Style="{StaticResource Note}"
+                           Text="Suggested, never required: Documents\Theseus\projects for projects and Documents\Theseus\work for worktrees, with your clones wherever they already are." />
+                <controls:SettingRow Label="Projects folder" Value="{Binding ProjectsFolderValue}"
+                                     Explanation="Needed for projects: each project's project.md and records go here, outside every code repo.">
+                    <Button x:Name="ChooseProjectsButton" Content="_Choose…" Style="{StaticResource Action}" Click="OnChooseProjectsFolder"
+                            AutomationProperties.Name="Choose the projects folder" />
+                </controls:SettingRow>
+                <TextBlock Text="{Binding ProjectsFolderWarning}" Style="{StaticResource Note}" Margin="0,-12,0,16"
+                           Foreground="{DynamicResource CriticalTextBrush}">
+                    <TextBlock.Visibility>
+                        <Binding Path="HasProjectsFolderWarning" Converter="{StaticResource BoolToVisibility}" />
+                    </TextBlock.Visibility>
+                </TextBlock>
+                <controls:SettingRow Label="Worktrees folder" Value="{Binding WorktreesFolderValue}"
+                                     Explanation="Optional: where each workstream's worktrees go. With the clones folder too, Theseus makes each branch and worktree.">
+                    <Button x:Name="ChooseWorktreesButton" Content="Choose…" Style="{StaticResource Action}" Click="OnChooseWorktreesFolder"
+                            AutomationProperties.Name="Choose the worktrees folder" />
+                </controls:SettingRow>
+                <controls:SettingRow Label="Clones folder" Value="{Binding ClonesFolderValue}"
+                                     Explanation="Optional: where your primary clones are, by host, owner and repo. Theseus never clones.">
+                    <Button x:Name="ChooseClonesButton" Content="Choose…" Style="{StaticResource Action}" Click="OnChooseClonesFolder"
+                            AutomationProperties.Name="Choose the clones folder" />
+                </controls:SettingRow>
+            </StackPanel>
+
+            <!-- The stop hook: the exact entry is shown here, and asked about again before anything is written. -->
+            <StackPanel x:Name="HookStep" Visibility="{Binding IsHookStep, Converter={StaticResource BoolToVisibility}}">
+                <controls:SettingRow Label="Stop hook" Value="{Binding HookLine}"
+                                     Explanation="It lets Stop ask a session for its handover, and is silent otherwise. Theseus writes Claude Code's settings only if you agree.">
+                    <Button x:Name="AddHookButton" Content="_Add the hook entry…" Style="{StaticResource Action}" Command="{Binding AddHookCommand}"
+                            ToolTipService.ShowOnDisabled="True"
+                            ToolTip="Shows the exact change to Claude Code's settings first, and makes it only if you agree." />
+                </controls:SettingRow>
+                <TextBlock Text="{Binding HookSettingsPath, StringFormat=Added to hooks in {0}:}" Style="{StaticResource Note}" Margin="0,0,0,4" />
+                <TextBlock x:Name="HookEntry" Text="{Binding HookEntry}" Style="{StaticResource Note}" Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                           AutomationProperties.Name="The hook entry" />
+                <TextBlock Text="{Binding HookResult}" Style="{StaticResource Note}" />
+            </StackPanel>
+
+            <!-- The guards: Options › Guards' own rows, one for each guard Theseus ships. -->
+            <ItemsControl x:Name="GuardStep" ItemsSource="{Binding Guards}" Focusable="False" AutomationProperties.Name="Guards"
+                          Visibility="{Binding IsGuardStep, Converter={StaticResource BoolToVisibility}}">
+                <ItemsControl.ItemContainerStyle>
+                    <Style TargetType="ContentPresenter">
+                        <Setter Property="AutomationProperties.Name" Value="{Binding Title}" />
+                    </Style>
+                </ItemsControl.ItemContainerStyle>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel>
+                            <controls:SettingRow Label="{Binding Title}" Value="{Binding Line}" Explanation="{Binding Explanation}">
+                                <Button Content="Install" Style="{StaticResource Action}" Command="{Binding InstallCommand}"
+                                        AutomationProperties.Name="{Binding Name, StringFormat=Install the {0}}"
+                                        ToolTip="Copy this Theseus's guard to where the Claude Code hook runs it, keeping the old copy, and check it." />
+                            </controls:SettingRow>
+                            <DockPanel Margin="0,0,0,12" Visibility="{Binding HookIsMissing, Converter={StaticResource BoolToVisibility}}">
+                                <Button DockPanel.Dock="Right" Content="Add the hook entry…" Style="{StaticResource Action}" Margin="8,0,0,0"
+                                        Command="{Binding AddHookCommand}"
+                                        AutomationProperties.Name="{Binding Name, StringFormat=Add a hook entry for the {0}}"
+                                        ToolTip="Shows the exact change to Claude Code's settings first, and makes it only if you agree." />
+                                <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Style="{DynamicResource CaptionText}" Text="{Binding HookMissingLine}" />
+                            </DockPanel>
+                            <TextBlock Text="{Binding Result}" Style="{StaticResource Note}" />
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- Folder trust: Options › Folder trust's own consent, shown in full before it is switched on (objective 1.3). -->
+            <StackPanel x:Name="FolderTrustStep" DataContext="{Binding FolderTrust}"
+                        Visibility="{Binding DataContext.IsFolderTrustStep, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}">
+                <controls:SettingRow Label="Trust the folders my cards use, as they need it" Value="{Binding StandingLine}"
+                                     Explanation="Claude Code asks to trust each new repository a card works in, and a worktree by its main clone. With this on, Theseus trusts them before each start, only inside your projects and clones folders, never your home folder, a drive's root or a holdout.">
+                    <Button x:Name="SwitchOnFolderTrustButton" Content="_Switch on…" Style="{StaticResource Action}" Command="{Binding SwitchOnCommand}"
+                            AutomationProperties.Name="Switch on folder trust" ToolTipService.ShowOnDisabled="True"
+                            ToolTip="Shows exactly what Theseus will write and why first, and switches it on only if you agree." />
+                </controls:SettingRow>
+                <TextBlock Text="{Binding Result}" Style="{StaticResource Note}" />
+            </StackPanel>
+
+            <!-- The tools: reported, never installed. -->
+            <StackPanel x:Name="ToolsStep" Visibility="{Binding IsToolsStep, Converter={StaticResource BoolToVisibility}}">
+                <ItemsControl x:Name="ToolRows" ItemsSource="{Binding Tools}" Focusable="False" AutomationProperties.Name="Tools the method needs">
+                    <ItemsControl.ItemContainerStyle>
+                        <Style TargetType="ContentPresenter">
+                            <Setter Property="AutomationProperties.Name" Value="{Binding Line}" />
+                        </Style>
+                    </ItemsControl.ItemContainerStyle>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                <controls:GlyphText VerticalAlignment="Center" Margin="0,0,8,0">
+                                    <controls:GlyphText.Style>
+                                        <Style TargetType="controls:GlyphText">
+                                            <Setter Property="FontFamily" Value="{DynamicResource SymbolThemeFontFamily}" />
+                                            <Setter Property="Text" Value="&#xE73E;" />
+                                            <Setter Property="Foreground" Value="{DynamicResource SuccessTextBrush}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsOk}" Value="False">
+                                                    <Setter Property="Text" Value="&#xE7BA;" />
+                                                    <Setter Property="Foreground" Value="{DynamicResource CautionTextBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </controls:GlyphText.Style>
+                                </controls:GlyphText>
+                                <TextBlock Text="{Binding Line}" VerticalAlignment="Center" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Style="{StaticResource Note}" Margin="0,8,0,16">
+                    <Run Text="Theseus installs none of these. Getting started says how:" />
+                    <Hyperlink NavigateUri="https://nigelbasel.github.io/Theseus/getting-started.html" RequestNavigate="OnLink"
+                               ToolTip="https://nigelbasel.github.io/Theseus/getting-started.html">Getting started</Hyperlink>
+                </TextBlock>
+            </StackPanel>
+        </StackPanel>
+
+        <Grid Grid.Row="2" Margin="0,8,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel x:Name="Footer" Grid.Column="1" Orientation="Horizontal">
+                <Button x:Name="BackButton" Content="_Back" Style="{DynamicResource DialogButton}" Margin="0,0,8,0" Command="{Binding BackCommand}" />
+                <Button x:Name="ForwardButton" Content="{Binding ForwardLabel}" Style="{DynamicResource AccentButton}" IsDefault="True" Margin="0,0,8,0"
+                        Command="{Binding ForwardCommand}" />
+                <Button x:Name="SkipButton" Content="Skip setup" Style="{DynamicResource DialogButton}" IsCancel="True" Command="{Binding SkipCommand}"
+                        ToolTip="Close the setup; it will not open by itself again. Tools › Set up Theseus… opens it." />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

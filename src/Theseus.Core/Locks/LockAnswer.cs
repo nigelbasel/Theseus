@@ -15,4 +15,5 @@ public sealed record LockAnswer(
     string? Lock = null,
     int Position = 0,
     LockTicket? Holder = null,
-    DateTimeOffset? ReservedUntilUtc = null);
+    DateTimeOffset? ReservedUntilUtc = null,
+    IReadOnlyList<ResourceClaim>? Scope = null);

@@ -8,8 +8,10 @@ namespace Theseus.App.ViewModels;
 /// view may say more than the model knows: when no independent check can run, the line says why and its button is the
 /// way on (Nigel, 2026-11-23).
 /// </summary>
-public sealed class WaitItemViewModel
+public sealed class WaitItemViewModel : ObservableObject
 {
+    private bool _isSearchHit;
+
     private readonly string? _text;
     private readonly string? _button;
 
@@ -45,4 +47,29 @@ public sealed class WaitItemViewModel
 
     /// <summary>What the button does.</summary>
     public ICommand? Command { get; }
+
+    /// <summary>
+    /// A second button before the first, or null: a spec's View spec beside its Accept spec… (board-small-changes item 4,
+    /// Nigel, 2026-11-26: "there should be a view spec button").
+    /// </summary>
+    public string? SecondButton { get; init; }
+
+    /// <summary>What the second button does.</summary>
+    public ICommand? SecondCommand { get; init; }
+
+    /// <summary>The second button's tooltip.</summary>
+    public string? SecondToolTip { get; init; }
+
+    /// <summary>Whether it has the second button.</summary>
+    public bool HasSecondButton => SecondCommand is not null && SecondButton is not null;
+
+    /// <summary>
+    /// Whether the board's search found the card it concerns, which has no box to light, such as a scenario writer or a
+    /// verifier (Nigel, 2026-11-26).
+    /// </summary>
+    public bool IsSearchHit
+    {
+        get => _isSearchHit;
+        set => Set(ref _isSearchHit, value);
+    }
 }

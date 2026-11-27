@@ -47,7 +47,11 @@ public sealed record PieceStatus(StageNodeState State, string Text)
         var stages = piece.Stages;
         var card = piece.Card;
         var isWorking = piece.IsCurrentPiece && card is { IsWorking: true };
-        var isAsking = piece.IsCurrentPiece && card is { Lifecycle: SessionLifecycle.NeedsAttention };
+        // A question asked outright still waits on the owner once its session has stopped: he answers it on the board, and
+        // the answer is given when it next runs (2.4e).
+        var isAsking = piece.IsCurrentPiece
+                       && (card is { Lifecycle: SessionLifecycle.NeedsAttention }
+                           || card is { Question: { IsOpen: true, IsGuess: false }, Lifecycle: SessionLifecycle.Ended or SessionLifecycle.NotStarted or SessionLifecycle.Ghost });
 
         if (isAsking)
         {
