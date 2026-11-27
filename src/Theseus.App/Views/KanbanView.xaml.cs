@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using Theseus.App.ViewModels;
 
 namespace Theseus.App.Views;
@@ -16,6 +17,9 @@ public partial class KanbanView : UserControl
 {
     /// <summary>How far Ctrl+Left and Ctrl+Right resize a focused column (AC 23).</summary>
     public const double KeyResizeStep = 16;
+
+    /// <summary>How wide the row headers are, drawn over the left of the scrolling cells.</summary>
+    public const double RowHeaderWidth = 220;
 
     /// <summary>Creates the view.</summary>
     public KanbanView() => InitializeComponent();
@@ -48,7 +52,15 @@ public partial class KanbanView : UserControl
     {
         if ((sender as FrameworkElement)?.DataContext is KanbanColumnViewModel column)
         {
-            column.Resize(column.OpenWidth + e.HorizontalChange);
+            column.Drag(column.OpenWidth + e.HorizontalChange);
+        }
+    }
+
+    private void OnEdgeDragCompleted(object sender, DragCompletedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is KanbanColumnViewModel column)
+        {
+            column.EndDrag();
         }
     }
 
@@ -167,9 +179,29 @@ public partial class KanbanView : UserControl
         if (target is not null && Descendants<Border>(RowList).FirstOrDefault(border => Equals(border.Tag, "Card") && border.DataContext == target) is { } frame)
         {
             frame.Focus();
-            frame.BringIntoView();
             e.Handled = true;
         }
+    }
+
+    // The body's scrolling thinks its left edge is clear, but the row headers are drawn over it, so a card focused by
+    // the keyboard is scrolled out from under them as well as into view.
+    private void OnCardFocused(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        if (sender is not FrameworkElement frame || !ReferenceEquals(e.NewFocus, frame))
+        {
+            return;
+        }
+
+        frame.BringIntoView();
+        Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () =>
+        {
+            var left = frame.TranslatePoint(new Point(0, 0), Body).X;
+
+            if (left < RowHeaderWidth)
+            {
+                Body.ScrollToHorizontalOffset(Body.HorizontalOffset - (RowHeaderWidth - left));
+            }
+        });
     }
 
     // One row opens it; several open a menu of them (AC 17).

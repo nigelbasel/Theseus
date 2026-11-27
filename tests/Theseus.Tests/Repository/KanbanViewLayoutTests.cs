@@ -105,6 +105,31 @@ public class KanbanViewLayoutTests
     }
 
     [Test]
+    public void AtItsNarrowest_AColumnHoldsItsCardsWhole()
+    {
+        var (view, kanban) = LaidOut();
+
+        foreach (var column in kanban.Columns)
+        {
+            column.Resize(0);
+        }
+
+        Lay(view);
+
+        var frames = Descendants<Border>(view).Where(border => border.Name == "CardFrame" && IsShown(border)).ToList();
+
+        Assert.That(frames, Is.Not.Empty);
+
+        foreach (var frame in frames)
+        {
+            var model = (KanbanCardViewModel)frame.DataContext;
+            var cell = Descendants<ContentPresenter>(view).First(presenter => presenter.Content is KanbanCellViewModel each && each.Cards.Contains(model));
+
+            Assert.That(frame.ActualWidth + 17, Is.LessThanOrEqualTo(cell.ActualWidth + 0.5), model.Title);
+        }
+    }
+
+    [Test]
     public void Fitting_FollowsTheWidestCard_WithinTheBounds()
     {
         var (view, kanban) = LaidOut();
@@ -140,7 +165,25 @@ public class KanbanViewLayoutTests
 
         var firstRow = Descendants<ContentPresenter>(view).First(presenter => presenter.Content == kanban.Rows[0]);
 
-        Assert.That(Descendants<Border>(firstRow).Count(border => border.Name == "CardFrame" && border.IsVisible), Is.Zero);
+        var secondRow = Descendants<ContentPresenter>(view).First(presenter => presenter.Content == kanban.Rows[1]);
+
+        Assert.That(Descendants<Border>(firstRow).Count(border => border.Name == "CardFrame" && IsShown(border)), Is.Zero);
+        Assert.That(Descendants<Border>(secondRow).Count(border => border.Name == "CardFrame" && IsShown(border)), Is.Positive);
+    }
+
+    // Out of a window nothing is IsVisible, and a collapsed element keeps its last width: a card is shown when layout
+    // gave it a width and nothing it sits in is collapsed or hidden.
+    private static bool IsShown(FrameworkElement element)
+    {
+        for (DependencyObject? each = element; each is not null; each = VisualTreeHelper.GetParent(each))
+        {
+            if (each is UIElement { Visibility: not Visibility.Visible })
+            {
+                return false;
+            }
+        }
+
+        return element.ActualWidth > 0;
     }
 
     private static IEnumerable<T> Descendants<T>(DependencyObject root) where T : DependencyObject

@@ -70,14 +70,31 @@ public sealed class KanbanColumnViewModel : ObservableObject
     /// <summary>What a screen reader says (AC 24).</summary>
     public string AutomationName => $"{Header}, {Count} {(Count == 1 ? "card" : "cards")}{(_isCollapsed ? ", collapsed" : string.Empty)}";
 
-    /// <summary>Sets its open width, within the bounds (AC 12); a collapsed column opens at it.</summary>
+    /// <summary>Sets its open width, within the bounds (AC 12), and remembers it; a collapsed column opens at it.</summary>
     public void Resize(double width)
+    {
+        if (Apply(width))
+        {
+            _changed(this);
+        }
+    }
+
+    /// <summary>
+    /// Sets its width while its edge is dragged, remembered only by <see cref="EndDrag"/>: a drag moves many times a second,
+    /// and each remembering writes the settings file.
+    /// </summary>
+    public void Drag(double width) => Apply(width);
+
+    /// <summary>Remembers the width a drag left it at.</summary>
+    public void EndDrag() => _changed(this);
+
+    private bool Apply(double width)
     {
         var clamped = KanbanLayout.Clamp(width);
 
         if (clamped == _openWidth && !_isCollapsed)
         {
-            return;
+            return false;
         }
 
         _openWidth = clamped;
@@ -87,7 +104,8 @@ public sealed class KanbanColumnViewModel : ObservableObject
         Raise(nameof(IsCollapsed));
         Raise(nameof(IsOpen));
         Raise(nameof(AutomationName));
-        _changed(this);
+
+        return true;
     }
 
     /// <summary>Widens or narrows it by this much (Ctrl+Left and Ctrl+Right, AC 23).</summary>

@@ -40,15 +40,17 @@ public sealed class KanbanCardViewModel
     public StageNodeState State => Box.State;
 
     /// <summary>"⑂ nigel/feature", or empty: the piece's branch, else its board card's branch line.</summary>
-    public string BranchText => Box.Piece.Branch is { Length: > 0 } branch && !string.Equals(branch, "none", StringComparison.OrdinalIgnoreCase)
-        ? $"⑂ {branch}"
-        : Links.Branch.Length > 0 ? $"⑂ {Links.Branch}" : string.Empty;
+    public string BranchText => PieceBranch is { } branch ? $"⑂ {branch}" : Links.Branch.Length > 0 ? $"⑂ {Links.Branch}" : string.Empty;
 
     /// <summary>Whether the branch shows.</summary>
     public bool HasBranch => BranchText.Length > 0;
 
     /// <summary>The branch's tooltip.</summary>
-    public string BranchToolTip => Links.BranchToolTip.Length > 0 ? Links.BranchToolTip : $"Its branch: {Box.Piece.Branch}";
+    public string BranchToolTip => PieceBranch is { } branch ? $"Its branch: {branch}" : Links.BranchToolTip;
+
+    private string? PieceBranch => Box.Piece.Branch is { Length: > 0 } branch && !string.Equals(branch, "none", StringComparison.OrdinalIgnoreCase)
+        ? branch
+        : null;
 
     /// <summary>Whether its CI status shows.</summary>
     public bool HasCi => Links.CiText.Length > 0;
@@ -107,7 +109,7 @@ public sealed class KanbanCardViewModel
     public string AutomationName => $"{Title}, {Box.Status.Word}, in {KanbanColumns.Name(Column)}, {ProjectTitle}";
 
     /// <summary>Its text, for the kanban's signature.</summary>
-    internal string Signature => string.Join("|", Box.Name, Column, Box.StatusText, Box.WhoActs, Box.SessionMark, Box.ReportBackText,
+    internal string Signature => string.Join("|", Box.Name, Title, BranchText, Column, Box.StatusText, Box.WhoActs, Box.SessionMark, Box.ReportBackText,
         VerifierText, PrimaryAction?.Label, PrimaryAction?.IsEnabled, Links.Signature,
         string.Join(",", Box.Actions.Select(action => action.Label + action.IsEnabled)));
 }

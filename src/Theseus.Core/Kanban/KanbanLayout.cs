@@ -16,7 +16,7 @@ public sealed record KanbanLayout(
     IReadOnlySet<string> FoldedRows)
 {
     /// <summary>The narrowest a column is resized or fitted to.</summary>
-    public const double MinWidth = 160;
+    public const double MinWidth = 220;
 
     /// <summary>The widest.</summary>
     public const double MaxWidth = 560;

@@ -165,6 +165,44 @@ public class KanbanViewModelTests
     }
 
     [Test]
+    public void DraggingAnEdge_IsRememberedOnlyWhenTheDragEnds()
+    {
+        var plan = Kanban(Theseus()).Columns.Single(column => column.Column == KanbanColumn.Plan);
+
+        plan.Drag(300);
+        plan.Drag(320);
+
+        Assert.That(plan.Width, Is.EqualTo(320));
+        Assert.That(KanbanLayout.From(_views.Settings.Read()).WidthOf(KanbanColumn.Plan), Is.EqualTo(KanbanLayout.DefaultWidth));
+
+        plan.EndDrag();
+
+        Assert.That(KanbanLayout.From(_views.Settings.Read()).WidthOf(KanbanColumn.Plan), Is.EqualTo(320));
+    }
+
+    [Test]
+    public void ACardsBranch_AndItsToolTip_NameTheSameBranch()
+    {
+        var branched = Kanban(Theseus(), BuildYourMarket()).Cards.Where(card => card.Box.Piece.Branch is { Length: > 0 } branch && branch != "none").ToList();
+
+        Assert.That(branched, Is.Not.Empty);
+
+        foreach (var card in branched)
+        {
+            Assert.That(card.BranchToolTip, Does.Contain(card.Box.Piece.Branch), card.Title);
+            Assert.That(card.Signature, Does.Contain(card.BranchText), card.Title);
+        }
+    }
+
+    [Test]
+    public void TheSignature_HoldsEachCardsTitle()
+    {
+        var kanban = Kanban(Theseus());
+
+        Assert.That(kanban.Cards.All(card => card.Signature.Contains(card.Title, StringComparison.Ordinal)), Is.True);
+    }
+
+    [Test]
     public void FitAll_FitsOnlyOpenColumns_WithinTheBounds()
     {
         var kanban = Kanban(Theseus());

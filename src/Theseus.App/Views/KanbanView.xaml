@@ -146,7 +146,7 @@
                             </Button>
                         </Grid>
                     </Border>
-                    <Thumb x:Name="Edge" Grid.Column="1" Cursor="SizeWE" DragDelta="OnEdgeDrag" MouseDoubleClick="OnEdgeDoubleClick"
+                    <Thumb x:Name="Edge" Grid.Column="1" Cursor="SizeWE" DragDelta="OnEdgeDrag" DragCompleted="OnEdgeDragCompleted" MouseDoubleClick="OnEdgeDoubleClick"
                            ToolTip="Drag to resize; double-click to fit the column to its cards"
                            Visibility="{Binding IsOpen, Converter={StaticResource Visible}}">
                         <Thumb.Template>
@@ -165,7 +165,7 @@
                 <Border x:Name="CardFrame" Tag="Card" Focusable="True" FocusVisualStyle="{StaticResource FocusRing}" Margin="0,0,0,8"
                         MinWidth="200" BorderThickness="1" CornerRadius="4" Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
                         BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" AutomationProperties.Name="{Binding AutomationName}"
-                        PreviewKeyDown="OnCardKeyDown" MouseLeftButtonDown="OnCardMouseDown"
+                        PreviewKeyDown="OnCardKeyDown" GotKeyboardFocus="OnCardFocused" MouseLeftButtonDown="OnCardMouseDown"
                         ContextMenuOpening="OnCardMenuOpening">
                     <Border.InputBindings>
                         <KeyBinding Key="Enter" Command="{Binding OpenCommand}" />
@@ -253,7 +253,7 @@
             <DataTemplate x:Key="Row" DataType="{x:Type vm:KanbanRowViewModel}">
                 <Border BorderThickness="0,0,0,1" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
                     <StackPanel Orientation="Horizontal">
-                        <Border x:Name="RowHeader" Width="220" Panel.ZIndex="1" Padding="8" Focusable="True"
+                        <Border x:Name="RowHeader" Width="{x:Static local:KanbanView.RowHeaderWidth}" Panel.ZIndex="1" Padding="8" Focusable="True"
                                 FocusVisualStyle="{StaticResource FocusRing}" Background="{DynamicResource SolidBackgroundFillColorBaseBrush}"
                                 BorderThickness="0,0,1,0" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                                 AutomationProperties.Name="{Binding AutomationName}" RenderTransform="{Binding RowHeaderShift, RelativeSource={RelativeSource AncestorType=UserControl}}">
@@ -261,16 +261,17 @@
                                 <KeyBinding Key="Space" Command="{Binding ToggleCommand}" />
                                 <KeyBinding Key="Enter" Command="{Binding OpenCommand}" />
                             </Border.InputBindings>
-                            <Border.Style>
-                                <Style TargetType="Border">
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsDimmed}" Value="True">
-                                            <Setter Property="Opacity" Value="0.6" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Border.Style>
+                            <!-- Dimmed inside the header, which stays opaque over the cards scrolled under it. -->
                             <DockPanel VerticalAlignment="Top">
+                                <DockPanel.Style>
+                                    <Style TargetType="DockPanel">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsDimmed}" Value="True">
+                                                <Setter Property="Opacity" Value="0.6" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </DockPanel.Style>
                                 <Button DockPanel.Dock="Left" Content="{Binding Chevron}" Command="{Binding ToggleCommand}" IsTabStop="False"
                                         ToolTip="{Binding ChevronToolTip}" AutomationProperties.Name="{Binding ChevronToolTip}"
                                         Style="{StaticResource ToolIcon}" FontFamily="{DynamicResource SymbolThemeFontFamily}" FontSize="12"
