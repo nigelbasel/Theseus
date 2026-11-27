@@ -12,6 +12,7 @@ public sealed class BackgroundProjectReads
     private readonly Func<string, IReadOnlyList<ProjectFileReading>> _read;
     private readonly Action<Action> _post;
     private readonly RememberedProjects? _remembered;
+    private readonly PieceIdBook? _pieceIds;
 
     private string? _folder;
     private ProjectMembers _members = ProjectMembers.None;
@@ -25,12 +26,14 @@ public sealed class BackgroundProjectReads
     /// <param name="read">Reads the projects folder; runs on a worker thread.</param>
     /// <param name="post">Runs an action on the caller's thread, such as the dispatcher's BeginInvoke.</param>
     /// <param name="remembered">Where the readable projects' names are kept between runs; null keeps none.</param>
+    /// <param name="pieceIds">Gives every piece the projects name a stable id as each read lands (7.3); null gives none.</param>
     public BackgroundProjectReads(Func<string, IReadOnlyList<ProjectFileReading>> read, Action<Action> post,
-        RememberedProjects? remembered = null)
+        RememberedProjects? remembered = null, PieceIdBook? pieceIds = null)
     {
         _read = read;
         _post = post;
         _remembered = remembered;
+        _pieceIds = pieceIds;
     }
 
     /// <summary>The projects as last read.</summary>
@@ -95,7 +98,8 @@ public sealed class BackgroundProjectReads
         }
 
         Current = [.. Current.Select(each => string.Equals(each.Name, reading.Name, StringComparison.OrdinalIgnoreCase) ? reading : each)];
-        _members = ProjectMembers.From(Current);
+        _pieceIds?.Update(Current);
+        _members = WithIds(ProjectMembers.From(Current));
         History.Remember(_members);
         Changed?.Invoke(this, EventArgs.Empty);
     }
@@ -166,10 +170,14 @@ public sealed class BackgroundProjectReads
     private void Landed(IReadOnlyList<ProjectFileReading> readings)
     {
         HasLanded = true;
-        _members = ProjectMembers.From(readings);
+        _pieceIds?.Update(readings);
+        _members = WithIds(ProjectMembers.From(readings));
         History.Remember(_members);
-        _remembered?.Remember(ProjectUpdate.KeepBroken(_members, _remembered.Load(), readings));
+        _remembered?.Remember(WithIds(ProjectUpdate.KeepBroken(_members, _remembered.Load(), readings)));
         Current = readings;
         Changed?.Invoke(this, EventArgs.Empty);
     }
+
+    private ProjectMembers WithIds(ProjectMembers members) =>
+        _pieceIds is null ? members : members.WithPieceIds(member => _pieceIds.IdFor(member.Project, member.Slug));
 }

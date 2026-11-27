@@ -9,6 +9,9 @@ namespace Theseus.Core.Attention;
 /// that moment belongs to that issue. So time is only ever given to one issue per workstream at once,
 /// and attended time stays within the wall clock however many sessions mark work in parallel.
 ///
+/// Machine time spent queued for a lock is taken out and given back as <see cref="IssueTime.LockWait"/> (7.3): a wait
+/// counts against a machine interval of its own session, or, where either does not name one, of its card.
+///
 /// A stretch nobody stopped runs until now. That over-states nothing the sampler did not measure:
 /// attended time still needs the tab in front, and machine time still needs the session working.
 /// </summary>
@@ -21,7 +24,8 @@ public static class IssueTimeCalculator
         IReadOnlyList<AttentionInterval> intervals,
         DateTimeOffset from,
         DateTimeOffset to,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        IReadOnlyList<LockWait>? waits = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(issue);
         ArgumentNullException.ThrowIfNull(marks);
@@ -29,6 +33,7 @@ public static class IssueTimeCalculator
 
         var attended = TimeSpan.Zero;
         var machine = TimeSpan.Zero;
+        var waited = TimeSpan.Zero;
         var workstreams = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var workstream in marks.GroupBy(mark => mark.Workstream, StringComparer.OrdinalIgnoreCase))
@@ -44,6 +49,7 @@ public static class IssueTimeCalculator
             }
 
             workstreams.Add(workstream.Key);
+            var cardWaits = (waits ?? []).Where(wait => string.Equals(wait.Workstream, workstream.Key, StringComparison.OrdinalIgnoreCase)).ToList();
 
             foreach (var interval in intervals.Where(interval =>
                          string.Equals(interval.Workstream, workstream.Key, StringComparison.OrdinalIgnoreCase)))
@@ -60,16 +66,23 @@ public static class IssueTimeCalculator
                     if (interval.Kind == AttentionKind.Attended)
                     {
                         attended += overlap;
+
+                        continue;
                     }
-                    else
-                    {
-                        machine += overlap;
-                    }
+
+                    var part = (Start: Max(span.Start, interval.Start), End: Min(span.End, interval.End));
+                    var queued = Attention.Spans.Covered(part, cardWaits
+                        .Where(wait => wait.Session is null || interval.Session is null
+                                       || string.Equals(wait.Session, interval.Session, StringComparison.OrdinalIgnoreCase))
+                        .Select(wait => (wait.From, wait.To)));
+
+                    machine += overlap - queued;
+                    waited += queued;
                 }
             }
         }
 
-        return new IssueTime(issue, from, to, attended, machine, [.. workstreams]);
+        return new IssueTime(issue, from, to, attended, machine, [.. workstreams]) { LockWait = waited };
     }
 
     private static IEnumerable<(DateTimeOffset Start, DateTimeOffset End)> Spans(

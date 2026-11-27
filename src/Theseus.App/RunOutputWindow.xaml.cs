@@ -13,11 +13,15 @@ public partial class RunOutputWindow : Window
     private readonly DispatcherTimer _timer;
     private long _read;
 
+    /// <summary>The title of the card whose run it follows, so time at this window is attended time on that card (7.3).</summary>
+    public string CardTitle { get; private set; } = string.Empty;
+
     /// <summary>Opens the window on one run's log.</summary>
     public RunOutputWindow(string title, string log)
     {
         InitializeComponent();
         _log = log;
+        CardTitle = title;
         Title = $"Output: {title}";
         Intro.Text = $"What {title}'s headless run has written, newest at the end. It is followed while the run goes.";
         _timer = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Background, (_, _) => Follow(), Dispatcher);

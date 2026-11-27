@@ -13,4 +13,11 @@ public sealed record IssueTime(
     DateTimeOffset To,
     TimeSpan Attended,
     TimeSpan Machine,
-    IReadOnlyList<string> Workstreams);
+    IReadOnlyList<string> Workstreams)
+{
+    /// <summary>
+    /// Time the workstreams' sessions spent queued for a lock while on this issue (7.3): taken out of <see cref="Machine"/>
+    /// and shown on its own, because a session waiting for the tests lock reads as busy.
+    /// </summary>
+    public TimeSpan LockWait { get; init; }
+}

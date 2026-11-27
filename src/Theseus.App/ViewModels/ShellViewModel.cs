@@ -157,7 +157,7 @@ public sealed partial class ShellViewModel : ObservableObject
         _projectReads = new BackgroundProjectReads(
             ProjectCatalog.Read,
             action => dispatcher.BeginInvoke(action),
-            new RememberedProjects(Path.Combine(App.DataDirectory, "project-members.json")));
+            new RememberedProjects(Path.Combine(App.DataDirectory, "project-members.json")), PieceIds);
         _projectWatcher = new ProjectFolderWatcher(() => dispatcher.BeginInvoke(() =>
         {
             _projectReads.MarkStale();
@@ -2579,7 +2579,8 @@ public sealed partial class ShellViewModel : ObservableObject
             {
                 _redrawProjectView = true;
                 WireProjectChoices();
-            });
+            },
+            (objective, index, ticked) => PieceEvents?.Criterion(project, objective, index, ticked, byCard: null));
 
     /// <summary>
     /// Reads the projects in the projects folder; the cards they name are put in them when the read lands. With no folder
@@ -3334,6 +3335,7 @@ public sealed partial class ShellViewModel : ObservableObject
         }
 
         _reported.Remove(spec.Project, spec.Slug);
+        PieceEvents?.SpecAccepted(spec.Project, spec.Slug);
         TheseusLog.Information("Accepted the spec of {Slug} in {Project}, version {Version}, {How}", spec.Slug, spec.Project, spec.ContentHash, how);
         var accepted = $"Accepted the {(spec.IsRule ? "rule" : "spec")} of {spec.Slug}, version {spec.ShortVersion}.";
         Notice = accepted;
@@ -3532,6 +3534,8 @@ public sealed partial class ShellViewModel : ObservableObject
     /// </summary>
     public void ReportConfirmed(Link link)
     {
+        PieceEvents?.ReportConfirmed(link, Board.Cards.FirstOrDefault(card => string.Equals(card.Workstream.Key, link.From, StringComparison.OrdinalIgnoreCase))?.Workstream);
+
         ArgumentNullException.ThrowIfNull(link);
 
         // Its recipient is told (1.1e AC 27a); in a project a stopped one is started with it (sessions-run-the-project 16a).

@@ -21,4 +21,16 @@ public sealed record LockEvent(
     string? Scope = null,
     string? Command = null,
     string? Commit = null,
-    int? ExitCode = null);
+    int? ExitCode = null)
+{
+    /// <summary>
+    /// The card the ticket was taken for, when it said, so the wait can be taken out of that card's machine time (7.3).
+    /// Lines written before 7.3 have none and are matched to a card by <see cref="Who"/>.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? Card { get; init; }
+
+    /// <summary>The session the ticket was taken for, when it said (7.3).</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? Session { get; init; }
+}

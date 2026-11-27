@@ -289,7 +289,7 @@ public sealed class LockBook
                 }
 
                 _history.Append(new LockEvent(now, LockEventKind.Requested, label, ticket.Who, ticket.Purpose, Detail: ticket.Reason,
-                    Scope: string.Join(" + ", scope), Command: ticket.Command, Commit: ticket.Commit));
+                    Scope: string.Join(" + ", scope), Command: ticket.Command, Commit: ticket.Commit) { Card = ticket.Card, Session = ticket.SessionId });
                 changed = true;
             }
 
@@ -749,7 +749,7 @@ public sealed class LockBook
                 GrantedUtc = now,
                 ReservedUntilUtc = ticket.Mode == HoldMode.Process ? now + Reservation : null,
             };
-            _history.Append(new LockEvent(now, LockEventKind.Granted, ticket.Lock, ticket.Who, ticket.Purpose, WaitedSeconds: Seconds(now - ticket.RequestedUtc)));
+            _history.Append(new LockEvent(now, LockEventKind.Granted, ticket.Lock, ticket.Who, ticket.Purpose, WaitedSeconds: Seconds(now - ticket.RequestedUtc)) { Card = ticket.Card, Session = ticket.SessionId });
             changed = true;
         }
 
@@ -777,6 +777,8 @@ public sealed class LockBook
 
         _history.Append(ended with
         {
+            Card = ticket.Card,
+            Session = ticket.SessionId,
             Scope = string.Join(" + ", ticket.Claims),
             Command = ticket.Command,
             Commit = ticket.Commit,

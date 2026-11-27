@@ -51,9 +51,19 @@ public sealed partial class McpHandler
         + "your handoff and call report_back with verdict partial. Decide and record anything else with record_decision. "
         + "Never end a turn on a question asked in prose. ";
 
+    /// <summary>
+    /// What every session is told about tracking time (7.3): all of it is tracked, so the work it is for is named before it
+    /// starts and again whenever it moves. The duration rule beside it is unchanged until 7.1.
+    /// </summary>
+    public const string TrackAllTimeSentence =
+        "All time must be tracked, against the piece or item it was spent on: before you start working, name it (in a "
+        + "project, now_at for your piece's stage; for a Jira issue, start_work), switch as soon as the work moves, and "
+        + "never leave time unattributed. ";
+
     /// <summary>What sessions are told about the server when they connect.</summary>
     public const string Instructions =
         "Theseus launched this session and measures its time; you only say what you are working on. "
+        + TrackAllTimeSentence
         + "When you begin work on a Jira issue, call start_work with its key. Call start_work again when you "
         + "move to a different issue, and stop_work when you stop working on issues. Never estimate, report or "
         + "log a duration of your own. When asked to log time to Jira, call time_for for the issue: it returns "
@@ -198,6 +208,12 @@ public sealed partial class McpHandler
         _clock = clock;
         _zone = zone ?? TimeZoneInfo.Local;
     }
+
+    /// <summary>The lock waits in the lock history (7.3), taken out of time_for's machine time and shown on their own; null for none.</summary>
+    public Func<IReadOnlyList<LockWait>>? LockWaits { get; set; }
+
+    /// <summary>The dated changes in how time is measured (7.3), which time_for names when its range spans one; null for none.</summary>
+    public Func<IReadOnlyList<MethodBreak>>? MethodBreaksRecorded { get; set; }
 
     /// <summary>
     /// Told the session and tool of every call from a session Theseus launched, before it is answered: how a headless
@@ -1648,21 +1664,40 @@ public sealed partial class McpHandler
             return Result("to must be later than from.", isError: true);
         }
 
-        var time = IssueTimeCalculator.For(issue, _work.Read(), _attention(), from, to, now);
+        var time = IssueTimeCalculator.For(issue, _work.Read(), _attention(), from, to, now, LockWaits?.Invoke());
+        var breaks = MethodBreaksRecorded?.Invoke() ?? [];
+        var unmeasured = MethodBreaks.AttendedIsUnmeasured(from, to, breaks);
 
         var report = new JsonObject
         {
             ["issue"] = issue,
             ["from"] = Local(from).ToString("o", CultureInfo.InvariantCulture),
             ["to"] = Local(to).ToString("o", CultureInfo.InvariantCulture),
-            ["attendedMinutes"] = Minutes(time.Attended),
-            ["attended"] = Say(time.Attended),
+            // Unmeasured attended time is never shown as 0 (7.3): its figure is what was seen, and the label says why it is low.
+            ["attendedMinutes"] = unmeasured ? null : JsonValue.Create(Minutes(time.Attended)),
+            ["attended"] = unmeasured
+                ? $"{MethodBreaks.UnmeasuredLabel} ({Say(time.Attended)} seen)"
+                : Say(time.Attended),
             ["machineMinutes"] = Minutes(time.Machine),
             ["machine"] = Say(time.Machine),
+            ["lockWaitMinutes"] = Minutes(time.LockWait),
+            ["lockWait"] = Say(time.LockWait),
             ["workstreams"] = new JsonArray([.. time.Workstreams.Select(workstream => (JsonNode?)workstream)]),
-            ["note"] = "Attended is time the user spent at this work's tab; machine is time sessions spent working on it. "
-                       + "They are never added together. Ask the user which to log, and get their approval before writing a worklog.",
+            ["note"] = "Attended is time the user spent at this work's tab or its card in Theseus; machine is time sessions spent "
+                       + "working on it, less any time queued for a lock, which is lockWait. They are never added together. "
+                       + "Ask the user which to log, and get their approval before writing a worklog.",
         };
+
+        if (unmeasured)
+        {
+            report["attendedNote"] = "Attended time went unmeasured from late October, when work moved into Theseus's own windows, "
+                                     + "until those windows were counted; it is not reliable until two weeks after that.";
+        }
+
+        if (MethodBreaks.Spanned(from, to, breaks) is { Count: > 0 } spanned)
+        {
+            report["measurementChanged"] = string.Join(" ", spanned);
+        }
 
         // Linked cards often carry their parent's issue, and each session asking would otherwise log
         // the combined total again.

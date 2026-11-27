@@ -708,6 +708,9 @@ public sealed class ProjectViewModel : ObservableObject
         return view;
     }
 
+    /// <summary>The card of the selected box or stage, or null: time at the view then goes to that card (7.3).</summary>
+    public string? SelectedCardKey => (_selection as PieceNodeViewModel ?? (_selection as StageNodeViewModel)?.Piece)?.Piece.Card?.Key;
+
     /// <summary>
     /// Selects a box, a stage, a heading, or nothing, and shows it in Properties (AC 32, 49); while the pane is not
     /// docked, selecting something opens Properties as an overlay (AC 53).

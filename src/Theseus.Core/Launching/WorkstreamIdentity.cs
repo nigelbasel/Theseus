@@ -43,6 +43,10 @@ public static class WorkstreamIdentity
         "Other workstreams keep their own notes beside yours and their work in the same"
         + " directories. Do not take up work belonging to another one: if what you find is"
         + " theirs, say so rather than doing it.",
+        // 7.3: all time is recorded against the piece it was spent on, so every session is told so when it starts.
+        "All time must be tracked: name the piece or the Jira item you are working on before you start"
+        + " (now_at in a project, start_work for an issue), switch whenever the work moves, and never"
+        + " leave time unattributed.",
         "Your card on the board is {plan}. If you raise a Jira issue, or start work on"
         + " one the board does not already show, add its key to the \"jiraKeys\" list in that"
         + " file - creating the list if it is not there - and leave the rest of the file"

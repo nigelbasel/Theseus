@@ -20,8 +20,10 @@ public static class ProjectViewFileEdits
     /// Draws the view again from the file as last read, after an edit was refused: a criterion or objective that no
     /// longer reads as shown means the view is older than the file (PR 4 review, finding 1).
     /// </param>
+    /// <param name="ticked">Told of each criterion the owner ticks or unticks, once written (7.3: piece-events.jsonl), or null.</param>
     public static ProjectViewEdits For(string project, Func<string, Func<string, string>, string, bool> editProject,
-        Func<NewObjective?> askObjective, Func<string, string, string, string?> askText, Action refused)
+        Func<NewObjective?> askObjective, Func<string, string, string, string?> askText, Action refused,
+        Action<string, int, bool>? ticked = null)
     {
         ArgumentNullException.ThrowIfNull(editProject);
         ArgumentNullException.ThrowIfNull(askObjective);
@@ -37,12 +39,19 @@ public static class ProjectViewFileEdits
         }
 
         return new ProjectViewEdits(
-            (objective, criterion, ticked) =>
+            (objective, criterion, tick) =>
             {
                 var index = objective.Criteria.ToList().IndexOf(criterion);
 
-                Write(text => ProjectFileEditor.SetCriterion(text, objective.Number, index, criterion.Text, ticked),
-                    ticked ? $"Ticked a criterion of {project}." : $"Unticked a criterion of {project}.");
+                if (editProject(project, text => ProjectFileEditor.SetCriterion(text, objective.Number, index, criterion.Text, tick),
+                        tick ? $"Ticked a criterion of {project}." : $"Unticked a criterion of {project}."))
+                {
+                    ticked?.Invoke(objective.Number, index, tick);
+                }
+                else
+                {
+                    refused();
+                }
             },
             objective =>
             {

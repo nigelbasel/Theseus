@@ -34,6 +34,7 @@ public partial class App : Application
     private System.Windows.Threading.DispatcherTimer? _updateTimer;
     private McpHttpServer? _mcp;
     private Timer? _lockSweep;
+    private Timer? _staleStarts;
     private LocksViewModel? _locks;
 
     /// <summary>Where Theseus keeps the state the plan files have no room for.</summary>
@@ -228,12 +229,6 @@ public partial class App : Application
             current.CoreClamp);
         shell.Resources = _resources;
 
-        _attention = new AttentionSampler(
-            () => [.. shell.Board.Cards.Select(card => card.Workstream)],
-            new SessionRegistryReader(SessionRegistryReader.DefaultDirectory, new ProcessProbe()),
-            new Theseus.Core.Attention.AttentionLog(Path.Combine(DataDirectory, "attention.jsonl")));
-        _attention.Start();
-
         // Sessions say what they are working on here; the time comes from the sampler above. The
         // session a request belongs to is found in the run log, off the UI thread, so a busy board
         // never keeps a session waiting on a tool call.
@@ -241,9 +236,10 @@ public partial class App : Application
 
         var clock = new SystemClock();
         var testContainers = new DockerTestContainers();
+        var lockHistory = new LockHistory(Path.Combine(DataDirectory, "locks-history.jsonl"));
         var locks = new LockBook(
             new LockStateStore(Path.Combine(DataDirectory, "locks.json")),
-            new LockHistory(Path.Combine(DataDirectory, "locks-history.jsonl")),
+            lockHistory,
             new RegistryLockLiveness(new ProcessProbe(), new SessionRegistryReader(SessionRegistryReader.DefaultDirectory, new ProcessProbe()), clock),
             clock,
             new WindowsProcessTree(new ProcessProbe()),
@@ -278,6 +274,17 @@ public partial class App : Application
         shell.StageReports = stageReports.Reports;
         stageReports.Changed += (_, _) => Dispatcher.BeginInvoke(shell.Refresh);
 
+        // 7.3: every card's time goes to the piece it was spent on. A card's piece is found from the board as it stands;
+        // what the owner and sessions do to a piece is kept with its time and who did it.
+        string? PieceOf(string cardKey) => snapshots.Current.Card(cardKey)?.Workstream is { } card
+            ? shell.PieceIds.IdOf(card, shell.MemberOf, links.Active)
+            : null;
+
+        var pieceEvents = new Theseus.Core.Projects.PieceEvents(
+            new Theseus.Core.Persistence.JsonLinesFile<Theseus.Core.Projects.PieceEvent>(Path.Combine(DataDirectory, "piece-events.jsonl")),
+            shell.PieceIds, shell.MemberOf, PieceOf, () => DateTimeOffset.UtcNow);
+        shell.PieceEvents = pieceEvents;
+
         if (_launcher is not null)
         {
             _launcher.LaunchedCard = stageReports.Forget;
@@ -294,9 +301,16 @@ public partial class App : Application
         shell.ConfirmDutyDelete = text =>
             new QuestionWindow("Delete duties?", text, "_Delete") { Owner = ActiveWindow }.Ask() == true;
 
+        var workLog = new Theseus.Core.Attention.WorkLog(Path.Combine(DataDirectory, "work.jsonl"));
+        var ledger = new Theseus.Core.Running.RunLedger(Path.Combine(DataDirectory, "run-ledger.jsonl"));
+
+        // Machine time as reported: the sampled intervals with the ledger's headless runs merged in, overlaps removed (7.3).
+        IReadOnlyList<Theseus.Core.Attention.AttentionInterval> MeasuredTime() =>
+            Theseus.Core.Attention.MachineTime.Merge(attention.Read(), ledger.Read());
+
         var mcpHandler = new Theseus.Core.Mcp.McpHandler(
-                new Theseus.Core.Attention.WorkLog(Path.Combine(DataDirectory, "work.jsonl")),
-                attention.Read,
+                workLog,
+                MeasuredTime,
                 sessionId => runs.Read()
                     .Where(run => string.Equals(run.ClaudeSessionId, sessionId, StringComparison.OrdinalIgnoreCase))
                     .OrderByDescending(run => run.StartedUtc)
@@ -317,7 +331,8 @@ public partial class App : Application
                 // read (review of PR 6, finding 2).
                 events: shell.EventsFor,
                 projectTools: new Theseus.Core.Mcp.ProjectTools(shell.MemberOf, shell.ProjectReadingOf, stageReports,
-                    () => DateTimeOffset.UtcNow, write: (project, edit) => Dispatcher.Invoke(() => shell.WriteProjectFile(project, edit))),
+                    () => DateTimeOffset.UtcNow, write: (project, edit) => Dispatcher.Invoke(() => shell.WriteProjectFile(project, edit)),
+                    pieceEvents: pieceEvents),
                 create: (proposal, startNow) => Dispatcher.Invoke(() => shell.CreateForSession(proposal, startNow)),
                 askOwner: new Theseus.Core.Mcp.AskOwnerTool(shell.Questions, () => DateTimeOffset.UtcNow,
                     () => Dispatcher.BeginInvoke(shell.Refresh)),
@@ -335,6 +350,8 @@ public partial class App : Application
             && Theseus.Core.Projects.UnattendedProjects.IsOn(project, settings.Read().UnattendedProjects);
 
         WireHeadless(shell, settings, mcpHandler);
+
+        WireTimeRecording(shell, runs, attention, stageReports, pieceEvents, PieceOf, mcpHandler, workLog, lockHistory, MeasuredTime);
 
         _mcp = new McpHttpServer(
             mcpHandler,
@@ -532,6 +549,11 @@ public partial class App : Application
 
         _locks?.Dispose();
 
+        if (_staleStarts is not null)
+        {
+            await _staleStarts.DisposeAsync();
+        }
+
         if (_lockSweep is not null)
         {
             await _lockSweep.DisposeAsync();
@@ -588,6 +610,55 @@ public partial class App : Application
 
     // Headless runs (Nigel, 2026-11-24): the runner, its ledger and logs, the faces it keeps current, and what a run's
     // end, a breaker's trip or a refused queued start tells the board.
+    // 7.3, all time recorded against the piece it was spent on: the sampler, now seeing Theseus's own windows and every
+    // busy session, stamping each line and checkpointing what is open; the dated method break; lock waits taken out of
+    // machine time; and starts nobody stopped, stopped once their card has been idle for eight hours.
+    private void WireTimeRecording(ShellViewModel shell, RunLog runs, Theseus.Core.Attention.AttentionLog attention,
+        Theseus.Core.Projects.StageReportBook stageReports, Theseus.Core.Projects.PieceEvents pieceEvents, Func<string, string?> pieceOf,
+        Theseus.Core.Mcp.McpHandler mcp, Theseus.Core.Attention.WorkLog workLog, LockHistory lockHistory,
+        Func<IReadOnlyList<Theseus.Core.Attention.AttentionInterval>> measured)
+    {
+        var breaks = Theseus.Core.Attention.MethodBreaks.Ensure(
+            new Theseus.Core.Persistence.JsonLinesFile<Theseus.Core.Attention.MethodBreak>(Path.Combine(DataDirectory, "attention-methods.jsonl")),
+            DateTimeOffset.UtcNow);
+        mcp.MethodBreaksRecorded = () => breaks;
+        mcp.LockWaits = () => Theseus.Core.Attention.LockWaits.From(lockHistory.Read(), [.. (shell.Snapshots?.Current.Cards ?? []).Select(card => card.Workstream)]);
+
+        Theseus.Core.Attention.AttentionStamp StampOf(Workstream card) =>
+            new(card.Project ?? shell.MemberOf(card.Key)?.Project, pieceOf(card.Key), stageReports.NowAtOf(card.Key)?.Stage?.ToString());
+
+        _attention = new AttentionSampler(
+            () => [.. shell.Board.Cards.Select(card => card.Workstream)],
+            new SessionRegistryReader(SessionRegistryReader.DefaultDirectory, new ProcessProbe()),
+            attention,
+            new Theseus.Core.Attention.AttentionCheckpoint(Path.Combine(DataDirectory, "attention-open.json")),
+            new Theseus.Core.Persistence.JsonLinesFile<Theseus.Core.Attention.AttentionGap>(Path.Combine(DataDirectory, "attention-gaps.jsonl")),
+            Theseus.Core.Attention.SessionCards.Over(Path.Combine(DataDirectory, "runs.jsonl"), runs.Read),
+            handle => AttentionSampler.FocusOf(handle, shell.AttentionFocus),
+            StampOf);
+        _attention.Sampled += pieceEvents.Watch;
+        _attention.Start();
+
+        _staleStarts = new Timer(_ =>
+        {
+            try
+            {
+                var due = Theseus.Core.Attention.StaleStarts.Due(workLog.Read(), measured(), DateTimeOffset.UtcNow);
+
+                foreach (var stop in due)
+                {
+                    workLog.Append(stop);
+                    TheseusLog.Information("Stopped {Card}'s start of work, idle since {Since} ({Summary})", stop.Workstream, stop.At,
+                        stop.Summary);
+                }
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                TheseusLog.Warning(exception, "The check for starts nobody stopped could not run");
+            }
+        }, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(10));
+    }
+
     private void WireHeadless(ShellViewModel shell, ISettingsStore settings, Theseus.Core.Mcp.McpHandler mcp)
     {
         if (_launcher is null)

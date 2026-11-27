@@ -62,6 +62,17 @@ public sealed class ProjectMembers
         return new ProjectMembers(byCard, [.. clashes]);
     }
 
+    /// <summary>The same members, each carrying its piece's id where <paramref name="idFor"/> knows one (7.3).</summary>
+    public ProjectMembers WithPieceIds(Func<ProjectMember, string?> idFor)
+    {
+        ArgumentNullException.ThrowIfNull(idFor);
+
+        return new ProjectMembers(
+            _byCard.ToDictionary(entry => entry.Key, entry => entry.Value with { PieceId = idFor(entry.Value) ?? entry.Value.PieceId },
+                StringComparer.OrdinalIgnoreCase),
+            Clashes);
+    }
+
     /// <summary>Members remembered from an earlier run, as <see cref="ByCard"/> gave them.</summary>
     public static ProjectMembers Remembered(IReadOnlyDictionary<string, ProjectMember> byCard)
     {

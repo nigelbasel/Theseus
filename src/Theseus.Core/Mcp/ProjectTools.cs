@@ -24,6 +24,7 @@ public sealed class ProjectTools
     private readonly TimeZoneInfo _zone;
     private readonly Func<string, Func<string, string>, string> _write;
     private readonly Lock _writing = new();
+    private readonly PieceEvents? _pieceEvents;
 
     /// <summary>Creates the tools.</summary>
     /// <param name="memberOf">A card's project and current piece, by key, or null when no project names it.</param>
@@ -37,9 +38,12 @@ public sealed class ProjectTools
     /// the owner's edits are one at a time and each is read back before the next (review of PR 2, finding 2). When null,
     /// the file is written directly under this object's lock.
     /// </param>
+    /// <param name="pieceEvents">Where stage changes and criterion ticks are kept, with their time and who made them (7.3); null keeps none.</param>
     public ProjectTools(Func<string, ProjectMember?> memberOf, Func<string, ProjectFileReading?> readingOf, StageReportBook reports,
-        Func<DateTimeOffset> clock, TimeZoneInfo? zone = null, Func<string, Func<string, string>, string>? write = null)
+        Func<DateTimeOffset> clock, TimeZoneInfo? zone = null, Func<string, Func<string, string>, string>? write = null,
+        PieceEvents? pieceEvents = null)
     {
+        _pieceEvents = pieceEvents;
         _write = write ?? WriteDirectly;
         _memberOf = memberOf;
         _readingOf = readingOf;
@@ -142,6 +146,7 @@ public sealed class ProjectTools
             }
 
             _reports.Skip(member.Project, member.Slug, skipped, reason, _clock());
+            _pieceEvents?.Stage(session.WorkstreamKey, member, skipped.ToString(), reason, skipped: true);
             TheseusLog.Information("now_at: {Card} skipped {Stage} of {Piece} in {Project}: {Reason}", session.WorkstreamKey, skipped,
                 member.Slug, member.Project, reason);
 
@@ -154,6 +159,7 @@ public sealed class ProjectTools
         }
 
         _reports.Report(session.WorkstreamKey, new SessionStageReport(stage, doing, _clock()));
+        _pieceEvents?.Stage(session.WorkstreamKey, member, stage?.ToString() ?? FreeformStageNode.WorkName, doing, skipped: false);
         TheseusLog.Information("now_at: {Card} at {Stage} of {Piece}: {Doing}", session.WorkstreamKey, stageWord, member.Slug, doing);
 
         return new ProjectToolOutcome($"Recorded: {member.Slug} is at {stageWord}, {doing}. The project view shows it until your next now_at.");
@@ -208,6 +214,7 @@ public sealed class ProjectTools
                 ticked ? evidence : null);
         });
         Log(session, reading, $"{(ticked ? "ticked" : "unticked")} criterion {at.Index + 1} of objective {at.Objective}");
+        _pieceEvents?.Criterion(reading.Name, at.Objective, at.Index, ticked, session.WorkstreamKey);
 
         return new ProjectToolOutcome($"{(ticked ? "Ticked" : "Unticked")} criterion {at.Index + 1} of objective {at.Objective}.");
     }
