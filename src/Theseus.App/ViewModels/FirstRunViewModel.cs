@@ -67,6 +67,12 @@ public sealed class FirstRunViewModel : ObservableObject
     /// <summary>Whether the guards step is done: every guard row's own reading unless a test says otherwise.</summary>
     public Func<bool> IsGuardReady { get; set; }
 
+    /// <summary>
+    /// Options › Folder trust, whose Switch on… the folder trust step offers, so the consent is given and shown the same way
+    /// in both. Set by the shell; null leaves the step out.
+    /// </summary>
+    public FolderTrustViewModel? FolderTrust { get; set; }
+
     /// <summary>The guards step's rows, shared with Options › Guards.</summary>
     public IReadOnlyList<GuardViewModel> Guards { get; }
 
@@ -124,6 +130,9 @@ public sealed class FirstRunViewModel : ObservableObject
 
     /// <summary>Whether the tools step is showing.</summary>
     public bool IsToolsStep => Current == SetupStep.Tools;
+
+    /// <summary>Whether the folder trust step is showing.</summary>
+    public bool IsFolderTrustStep => Current == SetupStep.FolderTrust;
 
     /// <summary>The heading, such as "Step 1 of 3: Folders".</summary>
     public string StepHeading => Current is { } step
@@ -227,8 +236,9 @@ public sealed class FirstRunViewModel : ObservableObject
             guard.Load();
         }
 
-        _steps = FirstRunSetup.Steps(new SetupFacts(!string.IsNullOrWhiteSpace(ProjectsFolder), _hook.IsRegistered, IsGuardReady(), _tools),
-            first);
+        _steps = FirstRunSetup.Steps(new SetupFacts(!string.IsNullOrWhiteSpace(ProjectsFolder), _hook.IsRegistered, IsGuardReady(), _tools,
+            FolderTrust is not { OffersStanding: true } trust || trust.IsStandingOn), first);
+        FolderTrust?.Load();
         _index = 0;
         HookResult = string.Empty;
         TheseusLog.Information("First-run setup opened on {Steps}", _steps.Count == 0 ? "nothing missing" : string.Join(", ", _steps));
@@ -312,6 +322,7 @@ public sealed class FirstRunViewModel : ObservableObject
         Raise(nameof(IsHookStep));
         Raise(nameof(IsGuardStep));
         Raise(nameof(IsToolsStep));
+        Raise(nameof(IsFolderTrustStep));
         Raise(nameof(StepHeading));
         Raise(nameof(Tools));
         Raise(nameof(HookIsRegistered));
@@ -328,6 +339,7 @@ public sealed class FirstRunViewModel : ObservableObject
         SetupStep.Folders => "Folders",
         SetupStep.Hook => "The stop hook",
         SetupStep.Guards => "The guards",
+        SetupStep.FolderTrust => "Folder trust",
         _ => "The tools",
     };
 

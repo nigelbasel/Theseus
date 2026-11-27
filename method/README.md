@@ -7,7 +7,8 @@ built with it (the bootstrap) and will run it for others.
 **Version:** `method-v0.3` (2026-11-26). `method-v0.3` adds, together: the **decide, record or park** ladder for
 unattended work, and the **branch, worktree and merge conventions** the owner had kept in his own instructions, now
 written for any developer ("Branches, worktrees and merging", and a wider owner-only rung). It does not change the
-project file's shape, so a project's `Kit:` line stays `method-v0.2`, the shape Theseus reads.
+project file's shape, so Theseus reads a `Kit:` line of `method-v0.2` or `method-v0.3` alike, and a project moves up
+by changing that line.
 
 `method-v0.1` (2026-11-19) was the kit as it stood at the end of stage 0 of the Theseus bootstrap, after six hand-run
 changes and 17 lessons. `method-v0.2` (2026-11-20) adds, together:

@@ -316,8 +316,11 @@ public sealed partial class ShellViewModel : ObservableObject
             LockTools = new LockOptionsViewModel(settings,
                 () => [.. Board.Cards.Where(card => !card.IsArchived).Select(card => (card.Key, card.Title))]),
             FolderTrust = new FolderTrustViewModel(
-                new Theseus.Core.Trust.ClaudeFolderTrust(Theseus.Core.Trust.ClaudeFolderTrust.UserConfigPath(),
-                    Path.Combine(App.DataDirectory, "folder-trust-undo.json")),
+                new Theseus.Core.Trust.StandingFolderTrust(
+                    new Theseus.Core.Trust.ClaudeFolderTrust(Theseus.Core.Trust.ClaudeFolderTrust.UserConfigPath(),
+                        Path.Combine(App.DataDirectory, "folder-trust-undo.json")),
+                    settings,
+                    () => _holdouts.Entries.Select(entry => entry.Folder).Append(HoldoutLocation.DefaultRoot())),
                 () => Board.Cards.Where(card => !card.IsArchived).SelectMany(card => SessionFolders(card.Workstream)))
             {
                 Said = text => Notice = text,
@@ -332,6 +335,7 @@ public sealed partial class ShellViewModel : ObservableObject
                 () => Theseus.Core.Instructions.InstalledPlugins.Read(Theseus.Core.Guards.GuardInstallation.UserConfigFolder())
                     .Any(plugin => plugin.Name == "agentic-factory")).Run(),
             Refresh);
+        FirstRun.FolderTrust = Settings.FolderTrust;
         Settings.OpenProjectHoldouts = OpenProjectHoldouts;
         Settings.HasProjectCard = project => Board.ProjectCards.Any(each => string.Equals(each.Name, project, StringComparison.OrdinalIgnoreCase));
         Drawer.TagsInUse = Board.Tags.InUse;
@@ -5147,6 +5151,13 @@ public sealed partial class ShellViewModel : ObservableObject
                         ? waitingTell
                         : $"{workstream.StartInstruction}{Environment.NewLine}{Environment.NewLine}{waitingTell}",
                 };
+            }
+
+            // Under the owner's standing consent its folders are trusted before the tab opens, so Claude Code does not ask
+            // (objective 1.3): a fresh worktree is keyed by its main clone, which no card had trusted.
+            if (Settings.FolderTrust?.KeepFor(SessionFolders(workstream)) is { } kept && (kept.Trusted.Count > 0 || kept.Failure is not null))
+            {
+                worktreeNotes.Add(kept.Failure ?? $"Trusted {string.Join(", ", kept.Trusted)} in Claude Code.");
             }
 
             if (_launcher.Launch(workstream, _plans.PathFor(workstream.Key), startMode, chosenOnTheCard: chosenOnTheCard) is not { } sessionId)

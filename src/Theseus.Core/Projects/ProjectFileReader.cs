@@ -137,10 +137,8 @@ public static partial class ProjectFileReader
                 return ProjectFileReading.PinnedTo(name);
             }
 
-            if (!string.Equals(kit, MethodKits.Current, StringComparison.OrdinalIgnoreCase))
-            {
-                throw new RefusalException(kitLine, $"kit {kit} is not one this Theseus reads (it reads {MethodKits.Current})");
-            }
+            var readKit = MethodKits.Readable(kit)
+                          ?? throw new RefusalException(kitLine, $"kit {kit} is not one this Theseus reads (it reads {string.Join(" and ", MethodKits.Read)})");
 
             if (primary is null)
             {
@@ -150,7 +148,7 @@ public static partial class ProjectFileReader
             ReadBody(titleIndex + 1);
             CheckRoundLines();
 
-            return ProjectFileReading.Read(new ProjectFile(name, title, MethodKits.Current, primary, _phases)
+            return ProjectFileReading.Read(new ProjectFile(name, title, readKit, primary, _phases)
             {
                 BeforeKit = beforeKit,
                 RoundsTable = _rounds,

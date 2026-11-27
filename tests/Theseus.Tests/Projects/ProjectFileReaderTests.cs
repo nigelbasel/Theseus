@@ -208,7 +208,7 @@ public class ProjectFileReaderTests
     [
         new object[] { "\n\nNo title here.\n", "", "line 3: the file must start with a '# <title>' heading" },
         new object[] { "", "# A project\n\n**Primary branch:** owner/project\n\n", "line 1: no **Kit:** line under the title" },
-        new object[] { "", "# A project\n\n**Kit:** method-v9.9\n**Primary branch:** owner/project\n", "line 3: kit method-v9.9 is not one this Theseus reads (it reads method-v0.2)" },
+        new object[] { "", "# A project\n\n**Kit:** method-v9.9\n**Primary branch:** owner/project\n", "line 3: kit method-v9.9 is not one this Theseus reads (it reads method-v0.2 and method-v0.3)" },
         new object[] { "", "# A project\n\n**Kit:** method-v0.2\n\n", "line 1: no **Primary branch:** line under the title" },
         new object[] { "## Phase one: Seed\n", Header, "line 6: a phase heading is '## Phase <n>: <name>'" },
         new object[] { "## Phase 1: Seed\n", Header, "line 6: phase 1 is out of order: phases are numbered from 0, one after another" },

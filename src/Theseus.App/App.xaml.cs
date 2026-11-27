@@ -195,6 +195,8 @@ public partial class App : Application
         {
             trust.ConfirmChange = change =>
                 new QuestionWindow("Trust these folders in Claude Code?", change, "_Trust folders") { Owner = ActiveWindow }.Ask() == true;
+            trust.ConfirmConsent = consent =>
+                new QuestionWindow("Trust the folders your cards use?", consent, "_Switch on") { Owner = ActiveWindow }.Ask() == true;
         }
 
         // Said once for each set of guards to set up, and again when it changes, such as an update bringing a newer guard.
