@@ -58,6 +58,41 @@ public class AllProjectsTabTests
     }
 
     // A picture of the window as laid out, for the record of the change; written only where the variable names.
+    [Test]
+    public void ACollapsedColumn_WritesItsNameAndCountInTheTextFont_NotTheIconFont()
+    {
+        using var folder = TestProjectsFolder.Create();
+        var views = new ProjectViews(folder);
+
+        MainWindowFixture.Run((window, shell) =>
+        {
+            var kanban = KanbanViewModel.Build(
+                [new KanbanProjectSource(TheseusProject, "Theseus", views.Theseus()) { WaitingCount = 2 }],
+                views.Settings, _ => null, _ => { }, (_, _) => { });
+            var plan = kanban.Columns.Single(column => column.Name == "Plan");
+            plan.ToggleCommand.Execute(null);
+
+            shell.ShowAllProjects(kanban, [new ProjectTabViewModel(TheseusProject, "Theseus", false, null)]);
+            var content = (FrameworkElement)window.Content;
+            content.Measure(new Size(1400, 760));
+            content.Arrange(new Rect(0, 0, 1400, 760));
+            content.UpdateLayout();
+
+            var drawn = Descendants<KanbanView>((ContentControl)window.FindName("AllProjectsPane")).Single();
+            var name = Descendants<TextBlock>(drawn).Single(block => block.DataContext == plan && block.LayoutTransform is RotateTransform);
+            var words = ((Panel)VisualTreeHelper.GetParent(name)).Children.OfType<TextBlock>().ToList();
+
+            Assert.That(plan.IsCollapsed, Is.True);
+            Assert.That(words.Select(block => block.Text), Is.EquivalentTo(new[] { plan.Name, plan.Count.ToString(System.Globalization.CultureInfo.InvariantCulture) }));
+            Assert.That(words.Select(block => block.FontFamily.Source), Has.None.Contains("Icons").And.None.Contains("MDL2"));
+
+            if (Environment.GetEnvironmentVariable("THESEUS_COLLAPSED_SCREENSHOT") is { Length: > 0 } path)
+            {
+                Save(content, path);
+            }
+        });
+    }
+
     private static void Save(FrameworkElement content, string path)
     {
         var bitmap = new RenderTargetBitmap((int)content.ActualWidth, (int)content.ActualHeight, 96, 96, PixelFormats.Pbgra32);
