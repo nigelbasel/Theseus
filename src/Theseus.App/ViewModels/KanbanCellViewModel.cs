@@ -14,9 +14,13 @@ public sealed class KanbanCellViewModel
     internal KanbanCellViewModel(KanbanColumnViewModel column, IEnumerable<KanbanCardViewModel> cards)
     {
         Column = column;
-        Cards = [.. cards.Select((card, index) => (Card: card, Index: index))
-            .OrderBy(entry => Rank(entry.Card.State)).ThenBy(entry => entry.Index).Select(entry => entry.Card)];
+        Cards = Ordered(cards, card => card.State);
     }
+
+    /// <summary>The cell's order: the states that need you first, in <see cref="First"/>'s order, then file order.</summary>
+    internal static IReadOnlyList<T> Ordered<T>(IEnumerable<T> items, Func<T, StageNodeState> stateOf) =>
+        [.. items.Select((item, index) => (Item: item, Index: index))
+            .OrderBy(entry => Rank(stateOf(entry.Item))).ThenBy(entry => entry.Index).Select(entry => entry.Item)];
 
     /// <summary>Its column, whose width and collapse it follows.</summary>
     public KanbanColumnViewModel Column { get; }

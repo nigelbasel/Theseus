@@ -112,6 +112,20 @@ public class KanbanViewModelTests
     }
 
     [Test]
+    public void InACell_WaitingStuckBusyAndHoldoutsComeFirst_ThenTheRestInFileOrder()
+    {
+        StageNodeState[] states =
+        [
+            StageNodeState.Done, StageNodeState.Busy, StageNodeState.ToDo, StageNodeState.WaitingOnYou,
+            StageNodeState.HoldoutsNotRun, StageNodeState.Stuck, StageNodeState.NotNeeded,
+        ];
+
+        var ordered = KanbanCellViewModel.Ordered(states.Select((state, index) => (state, index)), entry => entry.state);
+
+        Assert.That(ordered.Select(entry => entry.index), Is.EqualTo(new[] { 3, 5, 1, 4, 0, 2, 6 }));
+    }
+
+    [Test]
     public void TheRowHeader_SaysItsWaitsAndCounts()
     {
         var row = Kanban(Theseus(waiting: 4)).Rows[0];
