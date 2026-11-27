@@ -37,6 +37,11 @@ public static class FirstRunSetup
             missing.Add(SetupStep.Guards);
         }
 
+        if (!facts.FolderTrustIsOn)
+        {
+            missing.Add(SetupStep.FolderTrust);
+        }
+
         if (facts.Tools.Any(tool => !tool.IsOk))
         {
             missing.Add(SetupStep.Tools);

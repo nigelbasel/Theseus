@@ -1538,7 +1538,7 @@ Figure 41. First steps on a new machine.
    and auto mode's environment from your source-control hosts, internal domains and production words. Keep each
    project's scenarios in a private repository of your own, cloned beside the project's home repository as
    `<repo>-holdout`.
-5. **Trust your folders** once in **Options > Folder trust**, so sessions do not stop on Claude Code's trust question.
+5. **Trust your folders** once in **Options > Folder trust**: switch on **Trust the folders my cards use**, so sessions, new worktrees included, do not stop on Claude Code's trust question.
 6. **Make a project** with **File > New project…**, or convert an existing card with **Convert to project…**. Start it:
    the lead card starts first.
 

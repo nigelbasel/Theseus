@@ -28,6 +28,20 @@ public class FirstRunSetupTests
     }
 
     [Test]
+    public void TheFolderTrustStep_IsShownWhileTheConsentIsOff_BeforeTheTools()
+    {
+        var facts = new SetupFacts(true, true, true, [new("Node", false, "Node was not found")], FolderTrustIsOn: false);
+
+        Assert.That(FirstRunSetup.Steps(facts), Is.EqualTo(new[] { SetupStep.FolderTrust, SetupStep.Tools }));
+    }
+
+    [Test]
+    public void TheFolderTrustStep_IsLeftOut_OnceTheConsentIsOn()
+    {
+        Assert.That(FirstRunSetup.Steps(new SetupFacts(true, true, true, AllTools, FolderTrustIsOn: true)), Is.Empty);
+    }
+
+    [Test]
     public void OnlyTheMissingSteps_AreShown_InTheirOrder()
     {
         var facts = new SetupFacts(HasProjectsFolder: false, HookIsRegistered: true, GuardIsReady: false, AllTools);
