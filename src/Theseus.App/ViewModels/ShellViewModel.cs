@@ -2738,6 +2738,7 @@ public sealed partial class ShellViewModel : ObservableObject
         // every project's overview is read.
         var waitsByProject = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         (ProjectFileReading Reading, IReadOnlyList<PieceOfWork> Pieces, ProjectOverview Overview, string? Lead)? open = null;
+        var kanbanReads = new List<KanbanProjectRead>();
 
         foreach (var reading in readable)
         {
@@ -2806,6 +2807,8 @@ public sealed partial class ShellViewModel : ObservableObject
             WireStopping(projectCard, () => _launcher.CanLaunch);
             Runner.Wire(projectCard, () => _launcher.CanLaunch);
 
+            kanbanReads.Add(new KanbanProjectRead(reading, pieces, overview, lead));
+
             // A closed or archived project is shown only under Archived, with Reopen: no tab, no waits, no queue.
             if (WireClosure(projectCard, name))
             {
@@ -2833,6 +2836,8 @@ public sealed partial class ShellViewModel : ObservableObject
             GatherQueueCandidates(name, pieces, queueSettings, queueCandidates);
         }
 
+        RefreshKanban([.. kanbanReads, .. dimmed.Select(reading => new KanbanProjectRead(reading, null, null, null))]);
+
         var tabs = ProjectTabViewModel.For(readable.Where(reading => !IsProjectClosed(reading.Name)), _openProjectName,
             name => new RelayCommand(_ => OpenProject(name)),
             name => ProjectColours.Of(colours, name), name => waitsByProject.GetValueOrDefault(name),
@@ -2844,7 +2849,7 @@ public sealed partial class ShellViewModel : ObservableObject
 
         if (open is { } openOne)
         {
-            openView = BuildView(openOne.Reading, openOne.Pieces, tabs, openOne.Overview, openOne.Lead);
+            openView = BuildView(openOne.Reading, openOne.Pieces, tabs, openOne.Overview, openOne.Lead, ProjectView);
         }
 
         _queueCandidates = queueCandidates;
@@ -2990,11 +2995,12 @@ public sealed partial class ShellViewModel : ObservableObject
     }
 
     /// <summary>
-    /// The open project's view, on the model's pieces of work (1.1d PR 1). The view it replaces passes on its selection,
-    /// so a refresh that changes what is drawn keeps what the owner was looking at (AC 36).
+    /// A project's view, on the model's pieces of work (1.1d PR 1): the open project's, or one of the kanban's. The view it
+    /// replaces, when given, passes on its selection, so a refresh that changes what is drawn keeps what the owner was
+    /// looking at (AC 36).
     /// </summary>
     private ProjectViewModel BuildView(ProjectFileReading reading, IReadOnlyList<PieceOfWork> pieces,
-        IReadOnlyList<ProjectTabViewModel> tabs, ProjectOverview overview, string? lead) =>
+        IReadOnlyList<ProjectTabViewModel> tabs, ProjectOverview overview, string? lead, ProjectViewModel? previous) =>
         ProjectViewModel.Build(reading, pieces, Chains?.Status ?? new LinkStatus([], []), tabs, _settings,
             _projectActions ??= ProjectViewCommands.For(Board.Card, FocusCardCommand, StartCardCommand, StopCardCommand, OpenSpec,
                 AcceptSpec, OpenFile, text => Notice = text, (card, project) => AddToProject(card, project), WhyNot, WayOn, Refuse) with
@@ -3037,7 +3043,7 @@ public sealed partial class ShellViewModel : ObservableObject
             },
             CloseProjectCommand,
             EditsOf(reading.Name),
-            ProjectView,
+            previous,
             overview,
             lead);
 

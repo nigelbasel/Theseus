@@ -66,8 +66,21 @@ public partial class MainWindowMenuTests
 
     [Test]
     public void TheViewMenu_FollowsTheW26Map() =>
-        Assert.That(string.Concat(Items(TopLevel("_View")).Select(Key)), Is.EqualTo("SLCGAHPWJOIEKFNDUMVTBR"),
-            "W26's map, with J for Show just active cards (2026-11-24) and I for Project view, every letter of Projects being taken (2026-11-26)");
+        Assert.That(string.Concat(Items(TopLevel("_View")).Select(Key)), Is.EqualTo("SLCGAHPWJOIEKFYNDUMVTBR"),
+            "W26's map, with J for Show just active cards (2026-11-24), I for Project view, every letter of Projects being taken (2026-11-26), and Y for All projects layout, every letter of All projects being taken (2026-11-27)");
+
+    [Test]
+    public void TheAllProjectsLayoutSubmenu_ShowsClosed_FoldsAndUnfoldsRows()
+    {
+        XElement layout = Items(TopLevel("_View")).Single(item => Label(item) == "All projects la_yout");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(Items(layout).Select(Label), Is.EqualTo(new[] { "Show _closed projects", "_Fold all rows", "_Unfold all rows" }));
+            Assert.That(Items(layout).Select(item => (string?)item.Attribute("Command")),
+                Is.EqualTo(new[] { "{Binding KanbanShowsClosedCommand}", "{Binding KanbanFoldAllCommand}", "{Binding KanbanUnfoldAllCommand}" }));
+        });
+    }
 
     [Test]
     public void TheGroupBySubmenu_FollowsTheW26Map()

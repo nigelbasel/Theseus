@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Threading;
 using Theseus.App.ViewModels;
 using Theseus.App.Views;
 using Theseus.Core.Kanban;
@@ -88,6 +89,25 @@ public class KanbanViewLayoutTests
         var header = Descendants<Border>(view).First(border => border.Name == "RowHeader");
 
         Assert.That(header.TranslatePoint(new Point(0, 0), view).X, Is.EqualTo(0).Within(0.5));
+    }
+
+    [Test]
+    public void ARedraw_KeepsWhereTheBodyWasScrolled()
+    {
+        var (view, _) = LaidOut(width: 700);
+        var body = (ScrollViewer)view.FindName("Body");
+
+        body.ScrollToHorizontalOffset(300);
+        body.ScrollToVerticalOffset(40);
+        Lay(view);
+        view.DataContext = KanbanViewModel.Build(
+            [new KanbanProjectSource(TheseusProject, "Theseus", _views.Theseus()) { WaitingCount = 3 }],
+            _views.Settings, _ => null, _ => { }, (_, _) => { });
+        Lay(view);
+        view.Dispatcher.Invoke(DispatcherPriority.Background, () => { });
+        Lay(view);
+
+        Assert.That((body.HorizontalOffset, body.VerticalOffset), Is.EqualTo((300d, Math.Min(40d, body.ScrollableHeight))));
     }
 
     [Test]

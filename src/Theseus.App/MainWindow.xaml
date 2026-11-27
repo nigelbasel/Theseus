@@ -1806,6 +1806,17 @@
                 <MenuItem Header="_Forward" InputGestureText="Alt+Right" Command="{Binding GoForwardCommand}" Style="{StaticResource ExplainsWhenOff}"
                           Tag="Forward again, after going back." controls:OffReason.Text="Nowhere to go forward to." />
                 <Separator />
+                <!-- Y: every letter of "All projects" and "kanban" is taken in View (W26). -->
+                <MenuItem Header="All projects la_yout">
+                    <MenuItem Header="Show _closed projects" IsChecked="{Binding KanbanShowsClosed, Mode=OneWay}"
+                              Command="{Binding KanbanShowsClosedCommand}" Style="{StaticResource ExplainsWhenOff}"
+                              Tag="Give closed and archived projects rows of their own, after the open ones."
+                              controls:OffReason.Text="All projects is not open." />
+                    <MenuItem Header="_Fold all rows" Command="{Binding KanbanFoldAllCommand}" Style="{StaticResource ExplainsWhenOff}"
+                              Tag="Fold every project's row down to its counts." controls:OffReason.Text="All projects is not open." />
+                    <MenuItem Header="_Unfold all rows" Command="{Binding KanbanUnfoldAllCommand}" Style="{StaticResource ExplainsWhenOff}"
+                              Tag="Open every folded row again." controls:OffReason.Text="All projects is not open." />
+                </MenuItem>
                 <MenuItem Header="Fold cards with _no session" Command="{Binding CollapseInactiveCommand}" Style="{StaticResource BoardOnlyItem}"
                           Tag="Fold every card with no session down to its title."
                           controls:OffReason.Text="{Binding CollapseInactiveCommand.WhyNot}">

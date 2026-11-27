@@ -22,7 +22,11 @@ public partial class KanbanView : UserControl
     public const double RowHeaderWidth = 220;
 
     /// <summary>Creates the view.</summary>
-    public KanbanView() => InitializeComponent();
+    public KanbanView()
+    {
+        InitializeComponent();
+        DataContextChanged += OnKanbanReplaced;
+    }
 
     /// <summary>
     /// Moves every row header right by the body's horizontal offset, so the headers stay at the left while the cells
@@ -31,6 +35,24 @@ public partial class KanbanView : UserControl
     public TranslateTransform RowHeaderShift { get; } = new();
 
     private KanbanViewModel? Kanban => DataContext as KanbanViewModel;
+
+    // The shell replaces the kanban when what it draws changed and the same view draws the new one, keeping its scroll;
+    // the regenerated rows would drop keyboard focus, so it goes back to the same piece of work (AC 21).
+    private void OnKanbanReplaced(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        var focused = Keyboard.FocusedElement is Border { DataContext: KanbanCardViewModel card } frame && IsAncestorOf(frame)
+            ? (card.ProjectTitle, card.Box.Name)
+            : default((string, string)?);
+
+        Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () =>
+        {
+            if (focused is { } was && Descendants<Border>(RowList).FirstOrDefault(border => Equals(border.Tag, "Card")
+                    && border.DataContext is KanbanCardViewModel each && each.ProjectTitle == was.Item1 && each.Box.Name == was.Item2) is { } again)
+            {
+                again.Focus();
+            }
+        });
+    }
 
     private void OnBodyScrolled(object sender, ScrollChangedEventArgs e)
     {
