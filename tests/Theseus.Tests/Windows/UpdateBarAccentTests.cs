@@ -39,11 +39,13 @@ public class UpdateBarAccentTests
         });
 
     [Test]
-    public void ASelectionInTheOffer_IsInTheBarsTextColour_SoItShowsOnHighlightUnderAContrastTheme() =>
+    public void ASelectionInTheBar_IsInTheBarsOwnTextColour_SoItShowsOnHighlightUnderAContrastTheme_AndOnTheErrorRed() =>
         MainWindowFixture.Run((window, _) =>
         {
+            Border bar = (Border)window.FindName("UpdateBar");
             TextBox text = (TextBox)window.FindName("UpdateText");
 
+            Assert.That(text.SelectionBrush, Is.SameAs(TextElement.GetForeground(bar)));
             Assert.That(text.SelectionBrush, Is.SameAs(window.FindResource("UpdateOfferTextBrush")));
         });
 

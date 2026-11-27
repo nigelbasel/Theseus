@@ -35,8 +35,14 @@ public class BannerTests
         ("Views/ProjectView.xaml", "ClearUpNoticeLine"),
     ];
 
-    /// <summary>Named like a banner but holding no message: a card's running sweep, a selected row's mark, a box's heading.</summary>
-    private static readonly string[] NotBanners = ["Banner", "SelectionBar", "TitleBar"];
+    /// <summary>
+    /// Named like a banner but not one: a card's running sweep and a selected row's mark hold no text; a box's title bar is a
+    /// heading; Waits for you is a list of lines, each with its own button, not a message.
+    /// </summary>
+    private static readonly string[] NotBanners = ["Banner", "SelectionBar", "TitleBar", "WaitingBand"];
+
+    /// <summary>The words a notice's property is named with; a TextBlock bound to one is a notice that cannot be copied.</summary>
+    private static readonly string[] NoticeWords = ["Notice", "Banner", "Warning"];
 
     [Test]
     public void TextOf_IsEveryShownLine_InReadingOrder_OnePerLine()
@@ -151,8 +157,7 @@ public class BannerTests
             IEnumerable<XElement> named = document.Descendants()
                 .Where(element => element.Name == Presentation + "Border" || element.Name == Presentation + "DockPanel")
                 .Where(element => (string?)element.Attribute(Xaml + "Name") is { } name
-                                  && (name.EndsWith("Banner", StringComparison.Ordinal) || name.EndsWith("Bar", StringComparison.Ordinal)
-                                      || name.EndsWith("NoticeLine", StringComparison.Ordinal) || name.EndsWith("InfoBar", StringComparison.Ordinal))
+                                  && new[] { "Banner", "Bar", "Band", "NoticeLine", "Notice", "Strip" }.Any(end => name.EndsWith(end, StringComparison.Ordinal))
                                   && !NotBanners.Contains(name));
 
             foreach (XElement element in named)
@@ -163,24 +168,47 @@ public class BannerTests
     }
 
     [Test]
-    public void TheNamedNonBanners_HoldNoMessage_OrAreHeadings()
+    public void TheNamedNonBanners_HoldNoMessage_OrAreHeadingsOrLists()
     {
         Assert.Multiple(() =>
         {
             Assert.That(Named("MainWindow.xaml", "Banner").Descendants(Presentation + "TextBlock"), Is.Empty, "the card's running sweep has no text");
             Assert.That(Named("MainWindow.xaml", "SelectionBar").Descendants(Presentation + "TextBlock"), Is.Empty);
+            Assert.That(Named("Views/ProjectView.xaml", "WaitingBand").Descendants(Presentation + "ItemsControl"), Is.Not.Empty,
+                "Waits for you is a list of lines with buttons");
         });
     }
 
     [Test]
-    public void EveryNoticeOrBannerText_IsSelectable_UnlessItLabelsAButton()
+    public void ABorderThatLooksLikeABanner_IsMarked_NamedOrNot()
+    {
+        // The board's own strips: docked at the top, padded as a bar, holding wrapped text and buttons. Unnamed, the
+        // stop and held-for-inputs bars were found by neither the name nor the binding rule.
+        foreach ((string file, XDocument document) in AppXaml())
+        {
+            IEnumerable<XElement> strips = document.Descendants(Presentation + "Border")
+                .Where(border => (string?)border.Attribute("Padding") == "12,8"
+                                 && (string?)border.Attribute("Visibility") is { } shown && shown.StartsWith("{Binding", StringComparison.Ordinal)
+                                 && border.Descendants().Any(text => text.Name == Presentation + "TextBlock" || text.Name == Presentation + "TextBox")
+                                 && !NotBanners.Contains((string?)border.Attribute(Xaml + "Name")));
+
+            foreach (XElement strip in strips)
+            {
+                Assert.That((string?)strip.Attribute(Marker), Is.EqualTo("True"),
+                    $"{file}: the strip {(string?)strip.Attribute(Xaml + "Name") ?? "(unnamed)"} shown by {(string?)strip.Attribute("Visibility")} is a banner");
+            }
+        }
+    }
+
+    [Test]
+    public void EveryNoticeBannerOrWarningText_IsSelectable_UnlessItLabelsAButton()
     {
         foreach ((string file, XDocument document) in AppXaml())
         {
             IEnumerable<XElement> texts = document.Descendants(Presentation + "TextBlock")
                 .Where(block => (string?)block.Attribute("Text") is { } text && text.StartsWith("{Binding", StringComparison.Ordinal)
                                 && BoundProperty(text) is { } property
-                                && (property.Contains("Notice", StringComparison.Ordinal) || property.Contains("Banner", StringComparison.Ordinal)))
+                                && NoticeWords.Any(word => property.Contains(word, StringComparison.Ordinal)))
                 .Where(block => !block.Ancestors().Any(ancestor => ancestor.Name == Presentation + "Button" || ancestor.Name == Presentation + "ToggleButton"));
 
             Assert.That(texts.Select(block => (string?)block.Attribute("Text")), Is.Empty,

@@ -1,3 +1,4 @@
+using System.Windows;
 using System.Windows.Media;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
@@ -7,7 +8,8 @@ namespace Theseus.App.Views;
 /// <summary>
 /// A view's command bound to a key that a text box also uses, such as Ctrl+Z (baseline W27, finding B18; checklist G75):
 /// it runs only while keyboard focus is outside the view's text boxes. A text box with nothing to undo lets Ctrl+Z
-/// through, which would otherwise undo something else while the owner was typing.
+/// through, which would otherwise undo something else while the owner was typing. A read-only box, such as a banner's
+/// selectable text (1.3e), has nothing to undo and takes nothing typed, so it does not keep the key.
 /// </summary>
 public sealed class OutsideTextBoxCommand : ICommand
 {
@@ -35,7 +37,11 @@ public sealed class OutsideTextBoxCommand : ICommand
 
     /// <inheritdoc />
     public bool CanExecute(object? parameter) =>
-        !(Keyboard.FocusedElement is TextBoxBase box && _view.IsAncestorOf(box)) && _target() is { } command && command.CanExecute(parameter);
+        !KeepsTheKey(Keyboard.FocusedElement, _view) && _target() is { } command && command.CanExecute(parameter);
+
+    /// <summary>Whether <paramref name="focused"/> is a text box in <paramref name="view"/> that the owner can type in.</summary>
+    public static bool KeepsTheKey(IInputElement? focused, Visual view) =>
+        focused is TextBoxBase { IsReadOnly: false } box && view.IsAncestorOf(box);
 
     /// <inheritdoc />
     public void Execute(object? parameter)

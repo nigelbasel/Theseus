@@ -56,12 +56,12 @@
                     <Button x:Name="ChooseProjectsButton" Content="_Choose…" Style="{StaticResource Action}" Click="OnChooseProjectsFolder"
                             AutomationProperties.Name="Choose the projects folder" />
                 </controls:SettingRow>
-                <TextBlock Text="{Binding ProjectsFolderWarning}" Style="{StaticResource Note}" Margin="0,-12,0,16"
-                           Foreground="{DynamicResource CriticalTextBrush}">
-                    <TextBlock.Visibility>
+                <TextBox Text="{Binding ProjectsFolderWarning, Mode=OneWay}" Style="{DynamicResource SelectableText}" FontSize="12" Margin="0,-12,0,16"
+                         AutomationProperties.Name="Projects folder warning" Foreground="{DynamicResource CriticalTextBrush}">
+                    <TextBox.Visibility>
                         <Binding Path="HasProjectsFolderWarning" Converter="{StaticResource BoolToVisibility}" />
-                    </TextBlock.Visibility>
-                </TextBlock>
+                    </TextBox.Visibility>
+                </TextBox>
                 <controls:SettingRow Label="Worktrees folder" Value="{Binding WorktreesFolderValue}"
                                      Explanation="Optional: where each workstream's worktrees go. With the clones folder too, Theseus makes each branch and worktree.">
                     <Button x:Name="ChooseWorktreesButton" Content="Choose…" Style="{StaticResource Action}" Click="OnChooseWorktreesFolder"

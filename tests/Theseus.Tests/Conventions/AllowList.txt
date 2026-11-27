@@ -10,6 +10,7 @@ Spacing | nudge | * | A text-baseline nudge of 1 or 2 epx, vertical only, such a
 Font | Segoe MDL2 Assets | Themes/Interactive.xaml | The fallback of the theme's icon font key, so icons still draw with the theme off (W24).
 Spacing | -2 | Themes/Interactive.xaml | The keyboard-focus ring sits 2 epx outside its control, as the Fluent focus visual does.
 Spacing | -3 | Themes/Interactive.xaml | A card's focus ring sits 3 epx outside the card's own border.
+Spacing | -2,0 | Themes/Interactive.xaml | Not spacing: it cancels the 2 epx a text box insets its text each side, so selectable banner text lays out as the TextBlock it replaced (Nigel, 2026-11-27, 1.3e).
 FontSize | 11 | Themes/CompactMenu.xaml | The accelerator text in Microsoft's copied MenuItem template (baseline section 5).
 Spacing | 0,0,6,0 | Themes/CompactMenu.xaml | As Microsoft wrote it in the Fluent MenuItem template this file copies (dotnet/wpf, MIT); only the margins Theseus tightened are its own (W5, baseline section 5).
 Spacing | 0,3,0,0 | Themes/CompactMenu.xaml | As Microsoft wrote it in the Fluent MenuItem template this file copies (dotnet/wpf, MIT); only the margins Theseus tightened are its own (W5, baseline section 5).

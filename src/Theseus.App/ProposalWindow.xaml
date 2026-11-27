@@ -29,8 +29,8 @@
             <TextBlock Text="{Binding Detail}" Style="{DynamicResource BodyText}" Margin="0,8,0,0" TextWrapping="Wrap" />
             <TextBlock x:Name="DoneText" Text="{Binding DoneCriteria}" Margin="0,4,0,0" TextWrapping="Wrap" Style="{DynamicResource BodyStrongText}" />
             <TextBlock Text="{Binding JiraKeys}" Margin="0,4,0,0" TextWrapping="Wrap" Style="{DynamicResource CaptionText}" />
-            <TextBlock x:Name="WarningsText" Text="{Binding Warnings}" Margin="0,4,0,0" TextWrapping="Wrap" Style="{DynamicResource CaptionText}"
-                       Foreground="{DynamicResource CautionTextBrush}" />
+            <TextBox x:Name="WarningsText" Text="{Binding Warnings, Mode=OneWay}" Margin="0,4,0,0" Style="{DynamicResource SelectableText}" FontSize="12"
+                     AutomationProperties.Name="Warnings" Foreground="{DynamicResource CautionTextBrush}" />
             <TextBlock Text="{Binding Evidence}" Margin="0,4,0,0" TextWrapping="Wrap" Style="{DynamicResource CaptionText}"
                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
         </StackPanel>

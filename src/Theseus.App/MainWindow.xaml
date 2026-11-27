@@ -2384,9 +2384,9 @@
                         </Style>
                     </ProgressBar.Style>
                 </ProgressBar>
-                <!-- Selected in the bar's own text colour: the default is Highlight, which is the bar itself under a contrast theme. -->
+                <!-- Selected in the bar's own text colour, offer or error: the default is Highlight, which is the bar itself under a contrast theme. -->
                 <TextBox x:Name="UpdateText" Style="{StaticResource SelectableText}" VerticalAlignment="Center" FontSize="12"
-                         SelectionBrush="{DynamicResource UpdateOfferTextBrush}"
+                         SelectionBrush="{Binding (TextElement.Foreground), ElementName=UpdateBar}"
                          ToolTip="{Binding Updates.Offer.Page}">
                     <TextBox.Text>
                         <MultiBinding StringFormat="{}{0} {1}" Mode="OneWay">
