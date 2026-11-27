@@ -1517,7 +1517,7 @@ flowchart TB
   A["Install Theseus<br/>from the latest release"] --> B["Run install.ps1 once<br/>for the stop hook entry,<br/>or add it as printed"]
   B --> C["Tools, Options:<br/>projects, worktrees<br/>and clones folders"]
   C --> D["Options, Guards:<br/>install the three guards,<br/>write auto mode's environment"]
-  D --> E["Options, Folder trust:<br/>trust the folders cards use"]
+  D --> E["Options, Folders:<br/>base folders kept trusted"]
   E --> F["File, New project:<br/>title, objective,<br/>primary branch"]
   F --> G["Start the project:<br/>its lead card starts first"]
 ```
@@ -1538,7 +1538,8 @@ Figure 41. First steps on a new machine.
    and auto mode's environment from your source-control hosts, internal domains and production words. Keep each
    project's scenarios in a private repository of your own, cloned beside the project's home repository as
    `<repo>-holdout`.
-5. **Trust your folders** once in **Options > Folder trust**: switch on **Trust the folders my cards use**, so sessions, new worktrees included, do not stop on Claude Code's trust question.
+5. **Check your base folders** in **Options > Folders**. Theseus keeps them trusted, so no session under them, new
+   worktrees included, stops on Claude Code's trust question.
 6. **Make a project** with **File > New project…**, or convert an existing card with **Convert to project…**. Start it:
    the lead card starts first.
 

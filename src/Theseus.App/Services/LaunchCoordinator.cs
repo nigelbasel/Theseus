@@ -113,12 +113,12 @@ public sealed class LaunchCoordinator : IAsyncDisposable
     /// </summary>
     public bool LaunchedUnattended(string sessionId) => _unattendedSessions.TryGetValue(sessionId, out var unattended) && unattended;
 
-    private string? SettingsFor(Workstream workstream, string sessionId)
+    private string? SettingsFor(Workstream workstream, string sessionId, string? memory)
     {
         var unattended = UnattendedSessionSettings is not null && UnattendedFor?.Invoke(workstream) == true;
         _unattendedSessions[sessionId] = unattended;
 
-        return unattended ? UnattendedSessionSettings : SessionSettings;
+        return SessionMemorySettings.With(unattended ? UnattendedSessionSettings : SessionSettings, memory);
     }
 
     /// <summary>Marks a session as Theseus's at launch, so its hook tells it when Theseus stops or restarts.</summary>
@@ -206,6 +206,22 @@ public sealed class LaunchCoordinator : IAsyncDisposable
         var resume = mode == LaunchMode.Resume;
         var sessionId = resume ? workstream.LastSessionId! : _sessionIds.Create();
 
+        // A card with worktrees starts in its workstream folder, so Claude Code does not ask to trust them (objective 1.3f).
+        var arranged = StartFolders.Arrange(workstream, settings.WorktreesFolder,
+            resume && TranscriptLocator.Find(sessionId) is { } transcript ? Path.GetFileName(Path.GetDirectoryName(transcript)) : null,
+            TranscriptLocator.ProjectsRoot);
+
+        if (!ReferenceEquals(arranged.Workstream, workstream))
+        {
+            TheseusLog.Information("{Workstream} starts in {Folder}, adding {Added}", workstream.Key, arranged.Workstream.WorkingDirectory,
+                string.Join(", ", arranged.Workstream.AddDirectories));
+        }
+
+        // Only the launch itself moves: the handoff, window and project are still worked out from the card's own folder.
+        var launching = arranged.Workstream;
+        workstream = workstream with { StartInstruction = launching.StartInstruction };
+        var memory = arranged.MemoryDirectory;
+
         var handoff = HandoffPath.For(workstream);
         var fullOpening = SessionOpening.For(
             settings.SessionPreamble,
@@ -237,18 +253,18 @@ public sealed class LaunchCoordinator : IAsyncDisposable
 
         if (headless)
         {
-            return LaunchHeadless(workstream, sessionId, mode, claudePath, opening, resume ? fullOpening : null, handoff, settings, reason);
+            return LaunchHeadless(workstream, launching, sessionId, mode, claudePath, opening, resume ? fullOpening : null, handoff, settings, reason, memory);
         }
 
         // Which window this tab joins is the whole of grouping: same name, same window; a name
         // nothing is using yet makes a new one. Nothing else has to exist for sessions to be grouped.
         var windowName = WindowGroupName.For(settings.TerminalWindowName, workstream, settings.AreaWindows, ReadableProjects?.Invoke());
 
-        var request = new WorkstreamLaunchRequest(workstream, Guid.NewGuid().ToString("N"), sessionId,
+        var request = new WorkstreamLaunchRequest(launching, Guid.NewGuid().ToString("N"), sessionId,
             mode, claudePath, terminal!.ExecutablePath, _launcherPath, _pipeName,
             windowName, opening, McpConfigFor?.Invoke(sessionId), resume ? fullOpening : null)
         {
-            Settings = SettingsFor(workstream, sessionId),
+            Settings = SettingsFor(workstream, sessionId, memory),
         };
 
         var plan = WorkstreamLaunchPlanner.Plan(request, DateTimeOffset.UtcNow.AddMinutes(2));
@@ -286,7 +302,7 @@ public sealed class LaunchCoordinator : IAsyncDisposable
         Launched?.Invoke(sessionId);
         LaunchedCard?.Invoke(workstream.Key);
 
-        _runs.Append(new SessionRun(runId, sessionId, workstream.Key, workstream.WorkingDirectory,
+        _runs.Append(new SessionRun(runId, sessionId, workstream.Key, launching.WorkingDirectory,
             null, resume ? SessionLaunchMode.Resume : SessionLaunchMode.FirstRun, workstream.Prompt,
             workstream.Title, workstream.ColorHex, DateTimeOffset.UtcNow, null, null, null, null,
             SessionExitReason.Unknown)
@@ -310,13 +326,13 @@ public sealed class LaunchCoordinator : IAsyncDisposable
 
     // Built exactly as a tab's launch is, so a headless run keeps the Theseus tools, its folders, its resume and its
     // handoff; only the process differs.
-    private string LaunchHeadless(Workstream workstream, string sessionId, LaunchMode mode, string claudePath, string opening,
-        string? openingIfReminted, string handoff, TheseusSettings settings, RunReason reason)
+    private string LaunchHeadless(Workstream workstream, Workstream launching, string sessionId, LaunchMode mode, string claudePath, string opening,
+        string? openingIfReminted, string handoff, TheseusSettings settings, RunReason reason, string? memory)
     {
-        var request = new WorkstreamLaunchRequest(workstream, Guid.NewGuid().ToString("N"), sessionId, mode, claudePath,
+        var request = new WorkstreamLaunchRequest(launching, Guid.NewGuid().ToString("N"), sessionId, mode, claudePath,
             string.Empty, _launcherPath, _pipeName, string.Empty, opening, McpConfigFor?.Invoke(sessionId), openingIfReminted)
         {
-            Settings = SettingsFor(workstream, sessionId),
+            Settings = SettingsFor(workstream, sessionId, memory),
         };
 
         var spec = WorkstreamLaunchPlanner.Plan(request, DateTimeOffset.UtcNow).Ticket.Spec;
@@ -328,7 +344,7 @@ public sealed class LaunchCoordinator : IAsyncDisposable
         Launched?.Invoke(sessionId);
         LaunchedCard?.Invoke(workstream.Key);
 
-        _runs.Append(new SessionRun(runId, sessionId, workstream.Key, workstream.WorkingDirectory,
+        _runs.Append(new SessionRun(runId, sessionId, workstream.Key, launching.WorkingDirectory,
             null, mode == LaunchMode.Resume ? SessionLaunchMode.Resume : SessionLaunchMode.FirstRun, workstream.Prompt,
             workstream.Title, workstream.ColorHex, DateTimeOffset.UtcNow, null, null, null, null,
             SessionExitReason.Unknown));

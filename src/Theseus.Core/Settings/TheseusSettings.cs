@@ -141,11 +141,12 @@ public sealed record TheseusSettings(
     public string ClonesFolder { get; init; } = string.Empty;
 
     /// <summary>
-    /// The owner's one consent to "trust the folders my cards use, as they need it" (objective 1.3, Nigel 2026-11-26): while
-    /// on, Theseus trusts each card's folders in Claude Code before launch, inside the projects and clones folders only. Off
-    /// until he switches it on.
+    /// The base folders Theseus keeps trusted in Claude Code, each as one plain-folder record that covers every folder under
+    /// it (objective 1.3f, Nigel 2026-11-27: "We want to have the base directories, claude-hq, and work trusted, so that all
+    /// subdirectories are also trusted"). Choosing them is the consent; there is no switch. Null until first set, when they
+    /// default to the projects folder's root and the worktrees folder; empty after Undo, so nothing is trusted again.
     /// </summary>
-    public bool TrustCardFolders { get; init; }
+    public IReadOnlyList<string>? BaseFolders { get; init; }
 
     /// <summary>
     /// Where each project's card was dragged to, by project name. A project not listed sits in the first column and row
