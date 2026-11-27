@@ -2576,9 +2576,9 @@
                                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                                                 <TextBlock Text="{Binding DoneCriteria}" FontSize="12" TextWrapping="Wrap" Margin="0,2,0,0"
                                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                                <TextBlock Text="{Binding Warnings}" FontSize="12" TextWrapping="Wrap" Margin="0,2,0,0"
-                                                           Foreground="{DynamicResource CautionTextBrush}"
-                                                           Visibility="{Binding Warnings, Converter={StaticResource NotEmptyToVisibility}}" />
+                                                <TextBox Text="{Binding Warnings, Mode=OneWay}" Style="{StaticResource SelectableText}" FontSize="12" Margin="0,2,0,0"
+                                                         AutomationProperties.Name="Warnings" Foreground="{DynamicResource CautionTextBrush}"
+                                                         Visibility="{Binding Warnings, Converter={StaticResource NotEmptyToVisibility}}" />
                                                 <WrapPanel Margin="0,8,0,0"
                                                            Visibility="{Binding IsRejecting, Converter={StaticResource NotBoolToVisibility}}">
                                                     <Button Style="{StaticResource CommandButton}" Content="Review…" FontSize="12" Margin="0,0,8,0"
