@@ -21,7 +21,7 @@ public sealed class KanbanRowViewModel : ObservableObject
         _isFolded = isFolded;
         _changed = changed;
         ToggleCommand = new RelayCommand(_ => IsFolded = !IsFolded);
-        OpenCommand = new RelayCommand(_ => openProject(source.Name), _ => source.View is not null);
+        OpenCommand = new RelayCommand(_ => openProject(source.Name), _ => source.View is not null && source.PutAway is null);
     }
 
     /// <summary>The project as the shell gave it.</summary>

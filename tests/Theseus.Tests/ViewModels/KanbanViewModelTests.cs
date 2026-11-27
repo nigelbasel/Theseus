@@ -259,4 +259,14 @@ public class KanbanViewModelTests
         Assert.That(row.Cards, Is.Empty);
         Assert.That(row.OpenCommand.CanExecute(null), Is.False);
     }
+
+    [Test]
+    public void AClosedProjectsRow_CannotOpenItsTab_ForItHasNone()
+    {
+        _views.Settings.Write(_views.Settings.Read() with { KanbanShowsClosed = true });
+
+        var row = Kanban(Theseus(putAway: "closed")).Rows[0];
+
+        Assert.That((row.PutAwayText, row.OpenCommand.CanExecute(null)), Is.EqualTo(("closed", false)));
+    }
 }

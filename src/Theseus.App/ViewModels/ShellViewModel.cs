@@ -2836,7 +2836,9 @@ public sealed partial class ShellViewModel : ObservableObject
             GatherQueueCandidates(name, pieces, queueSettings, queueCandidates);
         }
 
-        RefreshKanban([.. kanbanReads, .. dimmed.Select(reading => new KanbanProjectRead(reading, null, null, null))]);
+        RefreshKanban([.. kanbanReads, .. dimmed
+            .Where(reading => !_settings.Read().HiddenProjectFolders.Contains(reading.Name, StringComparer.OrdinalIgnoreCase))
+            .Select(reading => new KanbanProjectRead(reading, null, null, null))]);
 
         var tabs = ProjectTabViewModel.For(readable.Where(reading => !IsProjectClosed(reading.Name)), _openProjectName,
             name => new RelayCommand(_ => OpenProject(name)),

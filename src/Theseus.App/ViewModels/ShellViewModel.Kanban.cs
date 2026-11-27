@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using System.Diagnostics;
 using System.Windows.Threading;
 using System.Windows.Input;
@@ -16,7 +15,6 @@ namespace Theseus.App.ViewModels;
 public sealed partial class ShellViewModel
 {
     private IReadOnlyList<KanbanProjectRead> _kanbanReads = [];
-    private bool _kanbanWatched;
     private RelayCommand? _kanbanShowsClosed;
     private RelayCommand? _kanbanFoldAll;
     private RelayCommand? _kanbanUnfoldAll;
@@ -47,43 +45,43 @@ public sealed partial class ShellViewModel
     private void RefreshKanban(IReadOnlyList<KanbanProjectRead> reads)
     {
         _kanbanReads = reads;
-
-        if (!_kanbanWatched)
-        {
-            _kanbanWatched = true;
-            PropertyChanged += KanbanTabChanged;
-        }
-
         BuildKanban(force: false);
     }
 
-    private void KanbanTabChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName == nameof(IsAllProjectsOpen) && _isAllProjectsOpen)
-        {
-            BuildKanban(force: false);
-        }
-    }
-
-    // While the tab is closed an empty kanban stands in, so the tab is there to open.
+    // While the tab is closed an empty kanban stands in, so the tab is there to open; with no project there is no tab.
     private void BuildKanban(bool force)
     {
+        if (_kanbanReads.Count == 0)
+        {
+            ShowKanban(null);
+
+            return;
+        }
+
         var watch = Stopwatch.StartNew();
         var sources = _isAllProjectsOpen ? KanbanSources() : [];
         var kanban = KanbanViewModel.Build(sources, _settings,
             key => Board.Card(key) is { } card ? KanbanCardLinks.Of(card) : null,
-            OpenProject,
+            project =>
+            {
+                if (CanOpenFromKanban(project))
+                {
+                    OpenProject(project);
+                }
+            },
             (project, piece) =>
             {
-                OpenProject(project);
-                ProjectView?.GoToPiece(piece);
+                if (CanOpenFromKanban(project))
+                {
+                    OpenProject(project);
+                    ProjectView?.GoToPiece(piece);
+                }
             });
 
-        if (force || AllProjectsView is not KanbanViewModel shown || shown.Signature != kanban.Signature)
+        if (force || _allProjectsView is not KanbanViewModel shown || shown.Signature != kanban.Signature)
         {
             var built = watch.ElapsedMilliseconds;
-            AllProjectsView = kanban;
-            CommandManager.InvalidateRequerySuggested();
+            ShowKanban(kanban);
 
             // The spec's measure is refresh to laid out (AC 26): this runs once the redraw has been laid out.
             if (_isAllProjectsOpen)
@@ -93,6 +91,40 @@ public sealed partial class ShellViewModel
                         kanban.Rows.Count, kanban.Rows.Sum(row => row.Cards.Count()), built, watch.ElapsedMilliseconds));
             }
         }
+    }
+
+    // Not through AllProjectsView's setter: that wires every project again, and this already runs inside that wiring,
+    // which makes the tabs after it.
+    private void ShowKanban(KanbanViewModel? kanban)
+    {
+        if (ReferenceEquals(_allProjectsView, kanban))
+        {
+            return;
+        }
+
+        _allProjectsView = kanban;
+        Raise(nameof(AllProjectsView));
+        Raise(nameof(IsAllProjectsOpen));
+
+        if (kanban is null && _isAllProjectsOpen)
+        {
+            Dispatcher.CurrentDispatcher.BeginInvoke(CloseProject);
+        }
+
+        CommandManager.InvalidateRequerySuggested();
+    }
+
+    // A closed project has no tab to open until it is reopened.
+    private bool CanOpenFromKanban(string project)
+    {
+        if (!IsProjectClosed(project))
+        {
+            return true;
+        }
+
+        Notice = $"{project} is closed: reopen it from Archived on the board.";
+
+        return false;
     }
 
     private List<KanbanProjectSource> KanbanSources()
