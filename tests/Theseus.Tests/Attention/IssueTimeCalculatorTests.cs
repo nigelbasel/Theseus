@@ -85,6 +85,23 @@ public class IssueTimeCalculatorTests
             Is.EqualTo(TimeSpan.FromMinutes(10)));
     }
 
+    [Test]
+    public void For_SplitsAttendedTimeIntoTheseusAndTerminal_CountingUnsourcedLinesAsTerminal()
+    {
+        var marks = new[] { Start("s1", "ledger", "KITE-1", 0) };
+        var intervals = new[]
+        {
+            Attended("ledger", 0, 10) with { Source = AttentionSampling.TheseusSource },
+            Attended("ledger", 10, 25) with { Source = AttentionSampling.TerminalSource },
+            Attended("ledger", 25, 30),
+        };
+
+        var time = IssueTimeCalculator.For("KITE-1", marks, intervals, Nine, At(60), At(60));
+
+        Assert.That((time.Attended, time.AttendedInTheseus, time.AttendedInTerminal),
+            Is.EqualTo((TimeSpan.FromMinutes(30), TimeSpan.FromMinutes(10), TimeSpan.FromMinutes(20))));
+    }
+
     private static WorkMark Start(string session, string workstream, string issue, int minutes) =>
         new(session, workstream, WorkMarkKind.Start, issue, null, At(minutes));
 

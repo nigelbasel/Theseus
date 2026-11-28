@@ -60,6 +60,21 @@ public class McpTimeRecordingTests
     }
 
     [Test]
+    public void TimeFor_ShowsAttendedTimeInTheseusApartFromAttendedTimeInATerminal()
+    {
+        _intervals =
+        [
+            new AttentionInterval(AttentionKind.Attended, "alpha", Nine, Nine.AddMinutes(20)) { Source = AttentionSampling.TheseusSource },
+            new AttentionInterval(AttentionKind.Attended, "alpha", Nine.AddMinutes(20), Nine.AddMinutes(30)) { Source = AttentionSampling.TerminalSource },
+        ];
+
+        var report = TimeFor("2026-11-27T09:00:00Z");
+
+        Assert.That((report["attendedInTheseusMinutes"]!.GetValue<int>(), report["attendedInTerminalMinutes"]!.GetValue<int>()),
+            Is.EqualTo((20, 10)));
+    }
+
+    [Test]
     public void TimeFor_LabelsAttendedTimeUnmeasured_NeverZero_BeforeTwoCleanWeeks()
     {
         _handler.MethodBreaksRecorded = () => [new MethodBreak(MethodBreaks.AllTimeRecorded, Nine, "x")];

@@ -20,4 +20,10 @@ public sealed record IssueTime(
     /// and shown on its own, because a session waiting for the tests lock reads as busy.
     /// </summary>
     public TimeSpan LockWait { get; init; }
+
+    /// <summary>The part of <see cref="Attended"/> spent in Theseus's own windows.</summary>
+    public TimeSpan AttendedInTheseus { get; init; }
+
+    /// <summary>The rest of <see cref="Attended"/>: at a terminal tab. Lines written before 7.3 have no source and were only ever terminal time.</summary>
+    public TimeSpan AttendedInTerminal => Attended - AttendedInTheseus;
 }

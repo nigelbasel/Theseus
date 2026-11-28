@@ -32,6 +32,7 @@ public static class IssueTimeCalculator
         ArgumentNullException.ThrowIfNull(intervals);
 
         var attended = TimeSpan.Zero;
+        var inTheseus = TimeSpan.Zero;
         var machine = TimeSpan.Zero;
         var waited = TimeSpan.Zero;
         var workstreams = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -67,6 +68,11 @@ public static class IssueTimeCalculator
                     {
                         attended += overlap;
 
+                        if (string.Equals(interval.Source, AttentionSampling.TheseusSource, StringComparison.Ordinal))
+                        {
+                            inTheseus += overlap;
+                        }
+
                         continue;
                     }
 
@@ -82,7 +88,7 @@ public static class IssueTimeCalculator
             }
         }
 
-        return new IssueTime(issue, from, to, attended, machine, [.. workstreams]) { LockWait = waited };
+        return new IssueTime(issue, from, to, attended, machine, [.. workstreams]) { LockWait = waited, AttendedInTheseus = inTheseus };
     }
 
     private static IEnumerable<(DateTimeOffset Start, DateTimeOffset End)> Spans(

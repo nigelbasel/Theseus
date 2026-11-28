@@ -1678,12 +1678,17 @@ public sealed partial class McpHandler
             ["attended"] = unmeasured
                 ? $"{MethodBreaks.UnmeasuredLabel} ({Say(time.Attended)} seen)"
                 : Say(time.Attended),
+            ["attendedInTheseusMinutes"] = Minutes(time.AttendedInTheseus),
+            ["attendedInTheseus"] = Say(time.AttendedInTheseus),
+            ["attendedInTerminalMinutes"] = Minutes(time.AttendedInTerminal),
+            ["attendedInTerminal"] = Say(time.AttendedInTerminal),
             ["machineMinutes"] = Minutes(time.Machine),
             ["machine"] = Say(time.Machine),
             ["lockWaitMinutes"] = Minutes(time.LockWait),
             ["lockWait"] = Say(time.LockWait),
             ["workstreams"] = new JsonArray([.. time.Workstreams.Select(workstream => (JsonNode?)workstream)]),
-            ["note"] = "Attended is time the user spent at this work's tab or its card in Theseus; machine is time sessions spent "
+            ["note"] = "Attended is time the user spent at this work's tab or its card in Theseus, split into attendedInTheseus "
+                       + "and attendedInTerminal; machine is time sessions spent "
                        + "working on it, less any time queued for a lock, which is lockWait. They are never added together. "
                        + "Ask the user which to log, and get their approval before writing a worklog.",
         };
